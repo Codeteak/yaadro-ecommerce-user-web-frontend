@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useCart } from '../../context/CartContext';
@@ -8,7 +8,7 @@ import CartItem from '../../components/CartItem';
 import Container from '../../components/Container';
 import Breadcrumbs from '../../components/Breadcrumbs';
 
-export default function CartPage() {
+function CartPageContent() {
   const searchParams = useSearchParams();
   const { 
     cartItems, 
@@ -339,6 +339,24 @@ export default function CartPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CartPage() {
+  return (
+    <Suspense fallback={
+      <div className="py-4 md:py-6 lg:py-8 w-full max-w-full overflow-x-hidden">
+        <Container>
+          <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Cart', href: '/cart' }]} />
+          <div className="animate-pulse mt-4">
+            <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
+            <div className="h-64 bg-gray-200 rounded"></div>
+          </div>
+        </Container>
+      </div>
+    }>
+      <CartPageContent />
+    </Suspense>
   );
 }
 

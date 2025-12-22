@@ -1,12 +1,13 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Container from '../../components/Container';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import { useOrder } from '../../context/OrderContext';
 
-export default function OrderSuccessPage() {
+function OrderSuccessContent() {
   const searchParams = useSearchParams();
   const { getOrderById } = useOrder();
   const orderId = searchParams?.get('orderId') || `ORD-${Date.now()}`;
@@ -70,6 +71,26 @@ export default function OrderSuccessPage() {
         </div>
       </Container>
     </div>
+  );
+}
+
+export default function OrderSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="py-8 md:py-12 lg:py-16 w-full max-w-full overflow-x-hidden">
+        <Container>
+          <div className="max-w-2xl mx-auto text-center px-4 mt-4">
+            <div className="animate-pulse">
+              <div className="h-16 w-16 bg-gray-200 rounded-full mx-auto mb-4"></div>
+              <div className="h-8 bg-gray-200 rounded w-3/4 mx-auto mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
+            </div>
+          </div>
+        </Container>
+      </div>
+    }>
+      <OrderSuccessContent />
+    </Suspense>
   );
 }
 

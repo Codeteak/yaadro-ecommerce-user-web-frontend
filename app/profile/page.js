@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Container from '../../components/Container';
 import { useAddress } from '../../context/AddressContext';
@@ -10,7 +10,7 @@ import { useWishlist } from '../../context/WishlistContext';
 import { useActivityLog } from '../../context/ActivityLogContext';
 import Breadcrumbs from '../../components/Breadcrumbs';
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { addresses, addAddress, deleteAddress, setDefaultAddress } = useAddress();
@@ -790,6 +790,24 @@ export default function ProfilePage() {
         </div>
       </Container>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={
+      <div className="py-4 md:py-6 lg:py-8 w-full max-w-full overflow-x-hidden">
+        <Container>
+          <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Profile', href: '/profile' }]} />
+          <div className="animate-pulse mt-4">
+            <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
+            <div className="h-64 bg-gray-200 rounded"></div>
+          </div>
+        </Container>
+      </div>
+    }>
+      <ProfilePageContent />
+    </Suspense>
   );
 }
 
