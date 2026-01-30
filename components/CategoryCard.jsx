@@ -1,31 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
-import { getProductsByCategory } from '../data/products';
+import CategoryIcon from './CategoryIcon';
 
 export default function CategoryCard({ category }) {
-  // Get first product from category to use its image
-  const categoryProducts = getProductsByCategory(category);
-  const categoryImage = categoryProducts.length > 0 ? categoryProducts[0].image : 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=500&h=500&fit=crop';
+  const categoryName = typeof category === 'string' ? category : (category?.name || 'Category');
 
   return (
-    <Link href={`/products?category=${encodeURIComponent(category)}`} className="flex flex-col items-center gap-2">
-      <div className="bg-gray-100 rounded-2xl p-2  transition-all duration-200 w-32 h-32 sm:w-22 sm:h-22 flex items-center justify-center overflow-hidden">
-        <div className="relative w-full h-full">
-          <Image
-            src={categoryImage}
-            alt={category}
-            fill
-            className="object-contain p-2.5 rounded-2xl group-hover:scale-105 transition-transform duration-300"
-            sizes="64px"
-          />
-        </div>
+    <Link
+      href={`/products?category=${encodeURIComponent(categoryName)}`}
+      className="flex flex-col items-center gap-1.5 flex-shrink-0 group"
+    >
+      <div className="rounded-xl p-1.5 transition-transform duration-200 group-hover:scale-105 w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
+        <CategoryIcon category={typeof category === 'object' ? category : { name: categoryName }} size="md" className="w-full h-full" />
       </div>
-      <h3 className="text-[12px] sm:text-sm font-semibold text-gray-800 text-center leading-tight">
-        {category}
+      <h3 className="text-[10px] sm:text-xs font-semibold text-gray-800 text-center leading-tight max-w-[4.5rem] sm:max-w-[5.5rem] break-words min-h-[2rem] flex items-center justify-center">
+        {categoryName}
       </h3>
     </Link>
   );
 }
-

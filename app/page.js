@@ -3,31 +3,62 @@
 import { useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { products } from '../data/products';
+import { useCategories, useProducts } from '../hooks/useProducts';
+import { useAlert } from '../context/AlertContext';
 import ProductCarousel from '../components/ProductCarousel';
 import ProductCard from '../components/ProductCard';
 import ProductGrid from '../components/ProductGrid';
 import CategoryCard from '../components/CategoryCard';
 import Container from '../components/Container';
 
-// Get products for different sections
-const featuredProducts = products.slice(0, 8);
-const bestSellers = products.slice(8, 16);
-const newArrivals = products.slice(16, 24);
-const specialOffers = products.filter(p => p.price < 200).slice(0, 8);
-
-// Categories list
-const categories = ['Fruits', 'Vegetables', 'Dairy', 'Meat & Seafood', 'Bakery', 'Beverages', 'Snacks', 'Pantry', 'Frozen', 'Baby Care', 'Personal Care', 'Cleaning', 'Home & Kitchen', 'Health & Wellness', 'Spices & Condiments'];
-
 export default function Home() {
   const [email, setEmail] = useState('');
+  
+  const { showAlert } = useAlert();
   const categoryScrollRef = useRef(null);
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
   const scrollLeftRef = useRef(0);
 
+  // Load categories and products using TanStack Query
+  const { data: categoriesData, isLoading: categoriesLoading } = useCategories();
+  const { data: featuredData, isLoading: featuredLoading } = useProducts({
+    page: 1,
+    per_page: 8,
+    sort_by: 'popularity',
+    sort_order: 'desc',
+  });
+  const { data: bestSellersData, isLoading: bestSellersLoading } = useProducts({
+    page: 1,
+    per_page: 16,
+    sort_by: 'popularity',
+    sort_order: 'desc',
+  });
+  const { data: newArrivalsData, isLoading: newArrivalsLoading } = useProducts({
+    page: 1,
+    per_page: 24,
+    sort_by: 'created_at',
+    sort_order: 'desc',
+  });
+  const { data: offersData, isLoading: offersLoading } = useProducts({
+    page: 1,
+    per_page: 100,
+  });
+
+  // Process data
+  const categories = categoriesData?.filter(cat => cat.isActive && (cat.level === 0 || cat.parentId == null)).slice(0, 12) || [];
+  const featuredProducts = featuredData?.products?.filter(p => p.isFeatured).slice(0, 8) || [];
+  const bestSellers = bestSellersData?.products?.slice(0, 16) || [];
+  const newArrivals = newArrivalsData?.products?.slice(0, 24) || [];
+  const specialOffers = offersData?.products
+    ?.filter(p => p.discountPercentage > 0 || (p.originalPrice && parseFloat(p.originalPrice) > parseFloat(p.price)))
+    .slice(0, 8) || [];
+
+  const loading = categoriesLoading || featuredLoading || bestSellersLoading || newArrivalsLoading || offersLoading;
+
   const handleCategoryMouseDown = (e) => {
     if (!categoryScrollRef.current) return;
+    if (e.pointerType === 'touch') return;
     isDraggingRef.current = true;
     categoryScrollRef.current.classList.add('cursor-grabbing');
     startXRef.current = e.pageX - categoryScrollRef.current.offsetLeft;
@@ -50,39 +81,89 @@ export default function Home() {
     if (!isDraggingRef.current || !categoryScrollRef.current) return;
     e.preventDefault();
     const x = e.pageX - categoryScrollRef.current.offsetLeft;
-    const walk = (x - startXRef.current) * 1.2; // sensitivity
+    const walk = (x - startXRef.current) * 1.2;
     categoryScrollRef.current.scrollLeft = scrollLeftRef.current - walk;
   };
-
+  
   const handleNewsletterSubmit = (e) => {
     e.preventDefault();
-    // Handle newsletter subscription
-    alert('Thank you for subscribing!');
+    showAlert('Thank you for subscribing!', 'Success', 'success');
     setEmail('');
   };
 
-  return (
-    <div className="w-full max-w-full overflow-x-hidden" style={{ overflowX: 'hidden', maxWidth: '100vw' }}>
+  if (loading) {
+    return (
+      <div className="w-full max-w-full overflow-x-hidden min-h-screen" aria-busy="true" aria-live="polite">
+        {/* Banner skeleton - top */}
+        <section className="w-full bg-gray-100">
+          <div className="w-full aspect-[2.5/1] max-h-44 md:max-h-52 rounded-none md:rounded-b-2xl bg-gray-200 animate-pulse" />
+        </section>
 
+        {/* Header: categories skeleton */}
+        <section className="bg-white border-b border-gray-100 py-3 md:py-4">
+          <Container>
+            <div className="flex items-center gap-3 overflow-x-hidden px-1">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-gray-200 animate-pulse" />
+                  <div className="h-2 w-12 sm:w-14 rounded bg-gray-200 animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </Container>
+        </section>
+
+        {/* Product card skeletons - 100vh height */}
+        <section className="bg-white py-4 md:py-6 min-h-[calc(100vh-14rem)] md:min-h-[calc(100vh-7rem)]">
+          <Container>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3 md:gap-4">
+              {Array.from({ length: 16 }).map((_, i) => (
+                <div key={i} className="flex flex-col gap-2 flex-shrink-0">
+                  <div className="w-full aspect-[4/5] max-h-[140px] rounded-2xl bg-gray-200 animate-pulse" />
+                  <div className="h-3 w-full rounded bg-gray-200 animate-pulse" />
+                  <div className="h-3 w-2/3 rounded bg-gray-200 animate-pulse" />
+                  <div className="h-4 w-1/2 rounded bg-gray-200 animate-pulse mt-1" />
+                </div>
+              ))}
+            </div>
+          </Container>
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-full" style={{ maxWidth: '100vw' }}>
       {/* Categories - horizontal scroll */}
-      <section className="py-6 md:py-8 lg:py-10 bg-white">
-        <Container>
+      <section className="py-6 md:py-8 lg:py-10 bg-white overflow-visible">
+        <div className="w-full min-w-0 px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 mx-auto max-w-screen-xl overflow-visible">
           <div
             ref={categoryScrollRef}
-            onMouseDown={handleCategoryMouseDown}
-            onMouseLeave={handleCategoryMouseLeave}
-            onMouseUp={handleCategoryMouseUp}
-            onMouseMove={handleCategoryMouseMove}
-            className="flex items-center gap-3 overflow-x-auto scrollbar-hide px-1 cursor-grab select-none"
+            role="region"
+            aria-label="Categories"
+            onPointerDown={handleCategoryMouseDown}
+            onPointerLeave={handleCategoryMouseLeave}
+            onPointerUp={handleCategoryMouseUp}
+            onPointerMove={handleCategoryMouseMove}
+            onPointerCancel={handleCategoryMouseUp}
+            className="category-scroll-track flex items-center gap-3 overflow-x-auto overflow-y-hidden scrollbar-hide px-1 cursor-grab select-none touch-pan-x snap-x snap-mandatory scroll-smooth min-w-0 w-full"
+            style={{
+              WebkitOverflowScrolling: 'touch',
+              overflowX: 'auto',
+              overflowY: 'hidden',
+            }}
           >
-            {categories.map((category) => (
-              <div key={category} className="flex-shrink-0">
-                <CategoryCard category={category} />
-              </div>
-            ))}
+            <div className="flex items-center gap-3 flex-nowrap w-max flex-shrink-0">
+              {categories.map((category) => (
+                <div key={category.id} className="flex-shrink-0 snap-start">
+                  <CategoryCard category={category} />
+                </div>
+              ))}
+            </div>
           </div>
-        </Container>
+        </div>
       </section>
+
       {/* Promo Banners Placeholder */}
       <section className="py-6 bg-white">
         <Container>
@@ -114,7 +195,7 @@ export default function Home() {
           <Container>
             <div className="flex items-center justify-between mb-4 md:mb-6 px-4 md:px-0">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Best Sellers</h2>
-              <Link href="/products" className="text-blue-600 hover:text-blue-800 font-semibold text-sm md:text-base">
+              <Link href="/products" className="text-primary-dark hover:text-primary-dark font-semibold text-sm md:text-base">
                 See All
               </Link>
             </div>
@@ -132,7 +213,7 @@ export default function Home() {
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Special Offers</h2>
                 <p className="text-gray-600 mt-1">Limited time deals you don't want to miss</p>
               </div>
-              <Link href="/products" className="text-blue-600 hover:text-blue-800 font-semibold text-sm md:text-base">
+              <Link href="/products" className="text-primary-dark hover:text-primary-dark font-semibold text-sm md:text-base">
                 See All
               </Link>
             </div>
@@ -142,17 +223,19 @@ export default function Home() {
       )}
 
       {/* Featured Products Grid (8 items) */}
-      <section className="py-8 md:py-12 lg:py-16">
-        <Container>
-          <div className="flex items-center justify-between mb-4 md:mb-6 px-4 md:px-0">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Featured Products</h2>
-            <Link href="/products" className="text-blue-600 hover:text-blue-800 font-semibold text-sm md:text-base">
-              Show More
-            </Link>
-          </div>
-          <ProductGrid products={featuredProducts.slice(0, 8)} />
-        </Container>
-      </section>
+      {featuredProducts.length > 0 && (
+        <section className="py-8 md:py-12 lg:py-16">
+          <Container>
+            <div className="flex items-center justify-between mb-4 md:mb-6 px-4 md:px-0">
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Featured Products</h2>
+              <Link href="/products" className="text-primary-dark hover:text-primary-dark font-semibold text-sm md:text-base">
+                Show More
+              </Link>
+            </div>
+            <ProductGrid products={featuredProducts.slice(0, 8)} />
+          </Container>
+        </section>
+      )}
 
       {/* New Arrivals Section */}
       {newArrivals.length > 0 && (
@@ -160,7 +243,7 @@ export default function Home() {
           <Container>
             <div className="flex items-center justify-between mb-4 md:mb-6 px-4 md:px-0">
               <h2 className="text-2xl md:text-3xl font-bold text-gray-800">New Arrivals</h2>
-              <Link href="/products" className="text-blue-600 hover:text-blue-800 font-semibold text-sm md:text-base">
+              <Link href="/products" className="text-primary-dark hover:text-primary-dark font-semibold text-sm md:text-base">
                 See All
               </Link>
             </div>
@@ -168,7 +251,6 @@ export default function Home() {
           </Container>
         </section>
       )}
-
 
       {/* View All Products CTA */}
       <section className="py-8 md:py-12 lg:py-16 bg-gray-50">
@@ -180,7 +262,7 @@ export default function Home() {
             </p>
             <Link
               href="/products"
-              className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg text-base md:text-lg font-semibold hover:bg-blue-700 transition-colors"
+              className="inline-block bg-primary text-white px-8 py-3 rounded-lg text-base md:text-lg font-semibold hover:bg-primary-dark transition-colors"
             >
               View All Products
             </Link>
@@ -190,4 +272,3 @@ export default function Home() {
     </div>
   );
 }
-

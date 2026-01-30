@@ -125,7 +125,7 @@ export default function ProductComparison({ isOpen, onClose }) {
                     return (
                       <td key={product.id} className="p-4 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <svg className="w-5 h-5 fill-yellow-400" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 fill-green-700" viewBox="0 0 24 24">
                             <path d="M12 .587l3.668 7.431L24 9.75l-6 5.847 1.417 8.26L12 19.771l-7.417 4.086L6 15.597 0 9.75l8.332-1.732z" />
                           </svg>
                           <span className="font-semibold">{rating.toFixed(1)}</span>

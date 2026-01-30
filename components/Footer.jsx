@@ -1,23 +1,44 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Container from './Container';
 import Link from 'next/link';
-import { getProductsByCategory, products } from '../data/products';
+import { getCategories, getProductsByCategory } from '../utils/productApi';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const [categories, setCategories] = useState([]);
+  const [popularProducts, setPopularProducts] = useState([]);
 
-  // Get popular products from actual data (first 16 products)
-  const popularProducts = products.slice(0, 16).map(p => p.name);
-  
-  // Get actual categories from products
-  const allCategories = [...new Set(products.map(p => p.category))];
-  const popularCategories = allCategories.slice(0, 13);
+  // Load categories and popular products
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const cats = await getCategories();
+        setCategories(cats.filter(cat => cat.isActive && cat.level === 0));
+
+        // Load popular products (featured or high ratings)
+        const popular = [];
+        for (const cat of cats.slice(0, 5)) {
+          try {
+            const products = await getProductsByCategory(cat.name, 3);
+            popular.push(...products.map(p => p.name));
+          } catch (error) {
+            console.error(`Error loading products for ${cat.name}:`, error);
+          }
+        }
+        setPopularProducts(popular.slice(0, 16));
+      } catch (error) {
+        console.error('Error loading footer data:', error);
+      }
+    }
+    loadData();
+  }, []);
 
   const popularSearches = {
     products: popularProducts,
     brands: ['Yakult', 'My Muse', 'Aashirvaad Atta', 'Too Yumm', 'Lays', 'Figaro Olive Oil', 'Nandini Milk', 'Amul', 'Mother Dairy Near Me', 'Fortune Oil', 'Superyou', 'Durex Condoms', 'Ferns and Petals'],
-    categories: popularCategories,
+    categories: categories.slice(0, 13).map(cat => cat.name),
   };
 
   // Map footer categories to actual product categories
@@ -51,13 +72,17 @@ export default function Footer() {
   ];
 
   // Get products for each footer category
-  const getCategoryProducts = (footerCategory) => {
+  const getCategoryProducts = async (footerCategory) => {
     const mappedCategories = categoryMapping[footerCategory] || [];
     const allProducts = [];
-    mappedCategories.forEach(cat => {
-      const products = getProductsByCategory(cat);
-      allProducts.push(...products);
-    });
+    for (const cat of mappedCategories) {
+      try {
+        const products = await getProductsByCategory(cat, 5);
+        allProducts.push(...products);
+      } catch (error) {
+        console.error(`Error loading products for ${cat}:`, error);
+      }
+    }
     // Remove duplicates and return first 5 products
     const uniqueProducts = Array.from(new Map(allProducts.map(p => [p.id, p])).values());
     return uniqueProducts.slice(0, 5);
@@ -92,14 +117,18 @@ export default function Footer() {
               <div>
                 <h4 className="text-sm md:text-base font-semibold mb-2 md:mb-3">Products:</h4>
                 <div className="flex flex-wrap gap-2 md:gap-3 text-xs md:text-sm text-gray-600">
-                  {popularSearches.products.map((product, index) => (
-                    <span key={index}>
-                      {index > 0 && <span className="text-gray-400 mx-1">|</span>}
-                      <Link href={`/products?search=${encodeURIComponent(product)}`} className="hover:text-amber-600 transition-colors">
-                        {product}
-                      </Link>
-                    </span>
-                  ))}
+                  {popularSearches.products.length > 0 ? (
+                    popularSearches.products.map((product, index) => (
+                      <span key={index}>
+                        {index > 0 && <span className="text-gray-400 mx-1">|</span>}
+                        <Link href={`/products?search=${encodeURIComponent(product)}`} className="hover:text-primary-dark transition-colors">
+                          {product}
+                        </Link>
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-gray-400">Loading popular products...</span>
+                  )}
                 </div>
               </div>
               <div>
@@ -118,14 +147,18 @@ export default function Footer() {
               <div>
                 <h4 className="text-sm md:text-base font-semibold mb-2 md:mb-3">Categories:</h4>
                 <div className="flex flex-wrap gap-2 md:gap-3 text-xs md:text-sm text-gray-600">
-                  {popularSearches.categories.map((category, index) => (
-                    <span key={index}>
-                      {index > 0 && <span className="text-gray-400 mx-1">|</span>}
-                      <Link href={`/products?category=${encodeURIComponent(category)}`} className="hover:text-amber-600 transition-colors">
-                        {category}
-                      </Link>
-                    </span>
-                  ))}
+                  {popularSearches.categories.length > 0 ? (
+                    popularSearches.categories.map((category, index) => (
+                      <span key={index}>
+                        {index > 0 && <span className="text-gray-400 mx-1">|</span>}
+                        <Link href={`/products?category=${encodeURIComponent(category)}`} className="hover:text-primary-dark transition-colors">
+                          {category}
+                        </Link>
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-gray-400">Loading categories...</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -138,7 +171,6 @@ export default function Footer() {
               {footerCategories.map((column, colIndex) => (
                 <div key={colIndex} className="space-y-4">
                   {column.map((category, index) => {
-                    const categoryProducts = getCategoryProducts(category);
                     const mappedCategories = categoryMapping[category] || [];
                     const categoryLink = mappedCategories.length > 0 
                       ? `/products?category=${encodeURIComponent(mappedCategories[0])}`
@@ -148,31 +180,10 @@ export default function Footer() {
                       <div key={index} className="space-y-2">
                         <Link
                           href={categoryLink}
-                          className="block text-sm md:text-base font-semibold text-gray-900 hover:text-amber-600 transition-colors mb-2"
+                          className="block text-sm md:text-base font-semibold text-gray-900 hover:text-primary-dark transition-colors mb-2"
                         >
                           {category}
                         </Link>
-                        {categoryProducts.length > 0 && (
-                          <div className="space-y-1.5">
-                            {categoryProducts.map((product) => (
-                              <Link
-                                key={product.id}
-                                href={`/products/${product.id}`}
-                                className="block text-xs md:text-sm text-gray-600 hover:text-gray-900 transition-colors line-clamp-1"
-                              >
-                                {product.name}
-                              </Link>
-                            ))}
-                            {categoryProducts.length >= 5 && (
-                              <Link
-                                href={categoryLink}
-                                className="block text-xs text-amber-600 hover:text-amber-700 font-medium transition-colors mt-2"
-                              >
-                                View all →
-                              </Link>
-                            )}
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -189,7 +200,7 @@ export default function Footer() {
             {/* Logo and Social Media */}
             <div className="md:col-span-1">
               <Link href="/" className="inline-block mb-4">
-                <span className="text-2xl md:text-3xl font-bold text-pink-600">Yaadro</span>
+                <span className="text-2xl md:text-3xl font-bold text-primary">Yaadro</span>
               </Link>
               <div className="flex gap-3 mb-4">
                 <a href="#" aria-label="Instagram" className="text-gray-600 hover:text-gray-900 transition-colors">

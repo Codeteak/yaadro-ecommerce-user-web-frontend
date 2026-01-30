@@ -1,9 +1,18 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { useCart } from '../context/CartContext';
+import { useBottomNavVisibility } from '../context/BottomNavVisibilityContext';
+
+const BOTTOM_NAV_HEIGHT = '3.5rem'; // h-14
 
 export default function CartFAB() {
+  const pathname = usePathname();
   const { cartCount, setShowMobileCart, showMobileCart } = useCart();
+  const { isVisible: bottomNavVisible, hideForRoute } = useBottomNavVisibility();
+
+  // Hide FAB on checkout page
+  if (pathname === '/checkout') return null;
 
   // Only show FAB on mobile devices and when cart has items
   if (cartCount === 0) return null;
@@ -11,10 +20,16 @@ export default function CartFAB() {
   // Hide FAB when cart sheet is open
   if (showMobileCart) return null;
 
+  // When bottom nav is visible: sit on top of it. When hidden: bottom-right corner.
+  const bottomStyle = bottomNavVisible && !hideForRoute
+    ? { bottom: `calc(${BOTTOM_NAV_HEIGHT} + max(8px, env(safe-area-inset-bottom)))` }
+    : { bottom: '1.5rem' };
+
   return (
     <button
       onClick={() => setShowMobileCart(true)}
-      className="fixed bottom-20 right-6 z-30 md:hidden bg-blue-600 text-white rounded-full w-14 h-14 shadow-lg hover:bg-blue-700 active:scale-95 transition-all duration-200 flex items-center justify-center"
+      style={bottomStyle}
+      className="fixed right-6 z-30 md:hidden bg-primary text-white rounded-full w-14 h-14 shadow-lg hover:bg-primary-dark active:scale-95 transition-[bottom] duration-300 ease-out flex items-center justify-center"
       aria-label="Open cart"
     >
       {/* Cart Icon */}

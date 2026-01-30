@@ -75,6 +75,11 @@ img, video, iframe {
   animation: fade-in 0.3s ease-out;
 }
 
+/* Allow horizontal scroll content to overflow (overrides global max-width: 100%) */
+.category-scroll-track > * {
+  max-width: none;
+}
+
 /* Hide scrollbar for horizontal scroll on mobile */
 .scrollbar-hide {
   -ms-overflow-style: none;  /* IE and Edge */

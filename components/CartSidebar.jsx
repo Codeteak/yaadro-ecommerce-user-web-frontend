@@ -62,7 +62,7 @@ export default function CartSidebar() {
             className={`block text-center w-full py-3 rounded-full font-semibold text-base transition ${
               cartItems.length === 0
                 ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                : 'bg-pink-600 text-white hover:bg-pink-700'
+                : 'bg-primary text-white hover:bg-primary-dark'
             }`}
           >
             Checkout
@@ -70,7 +70,7 @@ export default function CartSidebar() {
           <Link
             href="/cart"
             onClick={handleClose}
-            className="block text-center w-full py-2 rounded-full font-semibold text-sm text-pink-600 border border-pink-200 hover:bg-pink-50 transition"
+            className="block text-center w-full py-2 rounded-full font-semibold text-sm text-primary-dark border border-primary/30 hover:bg-primary/10 transition"
           >
             View Cart
           </Link>

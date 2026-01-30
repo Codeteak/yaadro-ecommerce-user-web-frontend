@@ -91,7 +91,7 @@ export default function ProductFilters({ filters, onFilterChange, onClearFilters
                   onClick={() => onFilterChange({ ...filters, rating: filters.rating === rating ? 0 : rating })}
                   className={`px-3 py-1 border rounded-lg text-sm transition-colors ${
                     filters.rating >= rating
-                      ? 'bg-yellow-400 border-yellow-500 text-white'
+                      ? 'bg-primary border-primary-dark text-white'
                       : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                   }`}
                 >

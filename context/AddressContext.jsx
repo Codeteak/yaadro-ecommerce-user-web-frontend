@@ -1,76 +1,78 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useMemo } from 'react';
+import { useAuth } from './AuthContext';
+import {
+  useAddressesList,
+  useCreateAddress,
+  useUpdateAddress,
+  useDeleteAddress,
+  useSetDefaultAddress,
+} from '../hooks/useAddresses';
 
 const AddressContext = createContext();
 
 export function AddressProvider({ children }) {
-  const [addresses, setAddresses] = useState([]);
-  const [isClient, setIsClient] = useState(false);
+  const { isAuthenticated } = useAuth();
+  
+  // Fetch addresses from API only if authenticated
+  const { data: apiAddresses = [], isLoading, error } = useAddressesList(isAuthenticated);
+  
+  const createAddressMutation = useCreateAddress();
+  const updateAddressMutation = useUpdateAddress();
+  const deleteAddressMutation = useDeleteAddress();
+  const setDefaultMutation = useSetDefaultAddress();
 
-  // Initialize addresses from localStorage
-  useEffect(() => {
-    setIsClient(true);
-    if (typeof window !== 'undefined') {
-      const savedAddresses = localStorage.getItem('addresses');
-      if (savedAddresses) {
-        try {
-          setAddresses(JSON.parse(savedAddresses));
-        } catch (error) {
-          console.error('Error parsing addresses from localStorage:', error);
-        }
-      } else {
-        // Set default address if none exist
-        const defaultAddress = [{
-          id: 1,
-          name: 'Home',
-          fullName: 'John Doe',
-          phone: '+91 9876543210',
-          address: '123 Main Street',
-          city: 'Mumbai',
-          state: 'Maharashtra',
-          postalCode: '400001',
-          country: 'India',
-          isDefault: true,
-        }];
-        setAddresses(defaultAddress);
-        localStorage.setItem('addresses', JSON.stringify(defaultAddress));
-      }
+  // Use API addresses if authenticated, otherwise empty array
+  const addresses = isAuthenticated ? apiAddresses : [];
+
+  const addAddress = async (address) => {
+    if (!isAuthenticated) {
+      throw new Error('Please login to add addresses');
     }
-  }, []);
-
-  // Save addresses to localStorage whenever they change
-  useEffect(() => {
-    if (isClient && typeof window !== 'undefined') {
-      localStorage.setItem('addresses', JSON.stringify(addresses));
+    try {
+      // Return the created address so callers (e.g. checkout) can auto-select it
+      return await createAddressMutation.mutateAsync(address);
+    } catch (error) {
+      console.error('Error adding address:', error);
+      throw error;
     }
-  }, [addresses, isClient]);
-
-  const addAddress = (address) => {
-    const newAddress = {
-      ...address,
-      id: addresses.length > 0 ? Math.max(...addresses.map(a => a.id)) + 1 : 1,
-    };
-    setAddresses(prev => [...prev, newAddress]);
   };
 
-  const updateAddress = (id, updatedAddress) => {
-    setAddresses(prev =>
-      prev.map(addr => addr.id === id ? { ...addr, ...updatedAddress } : addr)
-    );
+  const updateAddress = async (id, updatedAddress) => {
+    if (!isAuthenticated) {
+      throw new Error('Please login to update addresses');
+    }
+    try {
+      await updateAddressMutation.mutateAsync({ addressId: id, addressData: updatedAddress });
+    } catch (error) {
+      console.error('Error updating address:', error);
+      throw error;
+    }
   };
 
-  const deleteAddress = (id) => {
-    setAddresses(prev => prev.filter(addr => addr.id !== id));
+  const deleteAddress = async (id) => {
+    if (!isAuthenticated) {
+      throw new Error('Please login to delete addresses');
+    }
+    try {
+      await deleteAddressMutation.mutateAsync(id);
+    } catch (error) {
+      console.error('Error deleting address:', error);
+      throw error;
+    }
   };
 
-  const setDefaultAddress = (id) => {
-    setAddresses(prev =>
-      prev.map(addr => ({
-        ...addr,
-        isDefault: addr.id === id,
-      }))
-    );
+  const setDefaultAddress = async (id) => {
+    if (!isAuthenticated) {
+      throw new Error('Please login to set default address');
+    }
+    try {
+      await setDefaultMutation.mutateAsync(id);
+    } catch (error) {
+      console.error('Error setting default address:', error);
+      throw error;
+    }
   };
 
   const getDefaultAddress = () => {
@@ -84,7 +86,13 @@ export function AddressProvider({ children }) {
     deleteAddress,
     setDefaultAddress,
     getDefaultAddress,
-    setAddresses,
+    isLoading,
+    error,
+    // Mutation states for UI feedback
+    isCreating: createAddressMutation.isPending,
+    isUpdating: updateAddressMutation.isPending,
+    isDeleting: deleteAddressMutation.isPending,
+    isSettingDefault: setDefaultMutation.isPending,
   };
 
   return <AddressContext.Provider value={value}>{children}</AddressContext.Provider>;

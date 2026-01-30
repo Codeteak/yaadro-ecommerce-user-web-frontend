@@ -1,12 +1,16 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from './AuthContext';
+import { useAlert } from './AlertContext';
+import { useCartQuery, useAddToCart, useUpdateCartItem, useRemoveFromCart, useClearCart, cartKeys } from '../hooks/useCart';
+import { getCart } from '../utils/cartApi';
 
 const CartContext = createContext();
 
 export function CartProvider({ children }) {
   // Initialize cart state from localStorage if available (client-side only)
-  const [cartItems, setCartItems] = useState([]);
   const [isClient, setIsClient] = useState(false);
   const [showMobileCart, setShowMobileCart] = useState(false);
   const [showSidebarCart, setShowSidebarCart] = useState(false);
@@ -14,27 +18,41 @@ export function CartProvider({ children }) {
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [savedCarts, setSavedCarts] = useState([]);
   const [cartTemplates, setCartTemplates] = useState([]);
+  
+  // Get auth context (now CartProvider is inside AuthProvider in layout)
+  const { isAuthenticated, token } = useAuth();
+  const { showAlert } = useAlert();
 
-  // Ensure we're on the client before accessing localStorage
+  // Load cart using TanStack Query (only if authenticated)
+  const { data: cartData, isLoading: loading } = useCartQuery();
+  const apiCartItems = isAuthenticated && token ? (cartData?.items || []) : [];
+
+  // Local cart state for unauthenticated users
+  const [localCartItems, setLocalCartItems] = useState([]);
+
+  // Initialize client and load local cart
   useEffect(() => {
     setIsClient(true);
+    
     if (typeof window !== 'undefined') {
-      const savedCart = localStorage.getItem('cart');
-      if (savedCart) {
-        try {
-          const parsed = JSON.parse(savedCart);
-          setCartItems(parsed);
-          // Restore last activity time
-          const lastActivity = localStorage.getItem('cartLastActivity');
-          if (lastActivity) {
-            setLastActivityTime(parseInt(lastActivity));
+      // Load local cart if not authenticated
+      if (!isAuthenticated || !token) {
+        const savedCart = localStorage.getItem('cart');
+        if (savedCart) {
+          try {
+            const parsed = JSON.parse(savedCart);
+            setLocalCartItems(parsed);
+            const lastActivity = localStorage.getItem('cartLastActivity');
+            if (lastActivity) {
+              setLastActivityTime(parseInt(lastActivity));
+            }
+          } catch (error) {
+            console.error('Error parsing cart from localStorage:', error);
           }
-        } catch (error) {
-          console.error('Error parsing cart from localStorage:', error);
         }
       }
-      
-      // Load saved carts
+
+      // Load saved carts and templates from localStorage
       const savedCartsData = localStorage.getItem('savedCarts');
       if (savedCartsData) {
         try {
@@ -44,7 +62,6 @@ export function CartProvider({ children }) {
         }
       }
       
-      // Load cart templates
       const templatesData = localStorage.getItem('cartTemplates');
       if (templatesData) {
         try {
@@ -54,25 +71,35 @@ export function CartProvider({ children }) {
         }
       }
     }
-  }, []);
+  }, [isAuthenticated, token]);
 
-  // Save cart to localStorage whenever it changes (client-side only)
+  // Use API cart items if authenticated, otherwise use local
+  const cartItems = isAuthenticated && token ? apiCartItems : localCartItems;
+
+  // TanStack Query mutations and client
+  const queryClient = useQueryClient();
+  const addToCartMutation = useAddToCart();
+  const updateCartItemMutation = useUpdateCartItem();
+  const removeFromCartMutation = useRemoveFromCart();
+  const clearCartMutation = useClearCart();
+
+  // Save cart to localStorage whenever it changes (only if not authenticated)
   useEffect(() => {
-    if (isClient && typeof window !== 'undefined') {
-      localStorage.setItem('cart', JSON.stringify(cartItems));
+    if (isClient && typeof window !== 'undefined' && !isAuthenticated) {
+      localStorage.setItem('cart', JSON.stringify(localCartItems));
       setLastActivityTime(Date.now());
       localStorage.setItem('cartLastActivity', Date.now().toString());
     }
-  }, [cartItems, isClient]);
+  }, [localCartItems, isClient, isAuthenticated]);
 
-  // Cart expiration check (30 days of inactivity)
+  // Cart expiration check (30 days of inactivity) - only for local cart
   useEffect(() => {
-    if (isClient && typeof window !== 'undefined' && cartItems.length > 0) {
+    if (isClient && typeof window !== 'undefined' && !isAuthenticated && localCartItems.length > 0) {
       const checkExpiration = () => {
         const daysSinceActivity = (Date.now() - lastActivityTime) / (1000 * 60 * 60 * 24);
         if (daysSinceActivity > 30) {
           // Auto-clear after 30 days (can be changed to show confirmation)
-          setCartItems([]);
+          setLocalCartItems([]);
           localStorage.removeItem('cart');
           localStorage.removeItem('cartLastActivity');
         }
@@ -85,106 +112,214 @@ export function CartProvider({ children }) {
       return () => clearInterval(interval);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isClient, lastActivityTime]);
+  }, [isClient, lastActivityTime, isAuthenticated, localCartItems.length]);
 
   // Add item to cart
-  const addToCart = (product, quantity = 1) => {
-    setCartItems(prevItems => {
-      const wasEmpty = prevItems.length === 0;
-      
-      // Create unique key for cart item (product id + size)
-      const sizeKey = product.selectedSize 
-        ? `${product.selectedSize.weight}${product.selectedSize.unit}` 
-        : 'default';
-      const cartItemKey = `${product.id}_${sizeKey}`;
-      
-      // Check if exact same product with same size exists
-      const existingItem = prevItems.find(item => {
-        const itemSizeKey = item.selectedSize 
-          ? `${item.selectedSize.weight}${item.selectedSize.unit}` 
-          : 'default';
-        return `${item.id}_${itemSizeKey}` === cartItemKey;
-      });
-      
-      let newItems;
-      let addedItem;
-      if (existingItem) {
-        // Update quantity if item already exists
-        newItems = prevItems.map(item => {
-          const itemSizeKey = item.selectedSize 
-            ? `${item.selectedSize.weight}${item.selectedSize.unit}` 
-            : 'default';
-          const itemKey = `${item.id}_${itemSizeKey}`;
-          if (itemKey === cartItemKey) {
-            addedItem = { ...item, quantity: item.quantity + quantity };
-            return addedItem;
+  const addToCart = async (product, quantity = 1) => {
+    const wasEmpty = cartItems.length === 0;
+    const productId = product.id || product.productId;
+
+    try {
+      if (isAuthenticated && token) {
+        // Use API if authenticated
+        // Check if item already exists in cart
+        const existingItem = cartItems.find(item => 
+          item.productId === productId || (item.product && item.product.id === productId)
+        );
+
+        if (existingItem && existingItem.cartItemId) {
+          // Item exists, update quantity
+          const newQuantity = existingItem.quantity + quantity;
+          await updateCartItemMutation.mutateAsync({ itemId: existingItem.cartItemId, quantity: newQuantity });
+          setLastAddedItem({ ...existingItem, quantity: newQuantity });
+        } else {
+          // Item doesn't exist, add new
+          try {
+            const result = await addToCartMutation.mutateAsync({ productId, quantity });
+            if (result?.cartItem) {
+              setLastAddedItem(result.cartItem);
+            }
+          } catch (error) {
+            // If error says item already exists, reload cart and update
+            if (error.message?.includes('unique') || error.message?.includes('already exists')) {
+              // Refetch cart to get the existing item
+              const refreshedCart = await queryClient.fetchQuery({ queryKey: cartKeys.cart(), queryFn: getCart });
+              const foundItem = refreshedCart?.items?.find(item => 
+                item.productId === productId || (item.product && item.product.id === productId)
+              );
+              if (foundItem && foundItem.cartItemId) {
+                const newQuantity = foundItem.quantity + quantity;
+                await updateCartItemMutation.mutateAsync({ itemId: foundItem.cartItemId, quantity: newQuantity });
+                setLastAddedItem({ ...foundItem, quantity: newQuantity });
+              } else {
+                throw error;
+              }
+            } else {
+              throw error;
+            }
           }
-          return item;
-        });
+        }
       } else {
-        // Add new item to cart with unique key
-        addedItem = { ...product, quantity, cartItemKey };
-        newItems = [...prevItems, addedItem];
+        // Use localStorage if not authenticated
+        setLocalCartItems(prevItems => {
+          const sizeKey = product.selectedSize 
+            ? `${product.selectedSize.weight}${product.selectedSize.unit}` 
+            : 'default';
+          const cartItemKey = `${product.id}_${sizeKey}`;
+          
+          const existingItem = prevItems.find(item => {
+            const itemSizeKey = item.selectedSize 
+              ? `${item.selectedSize.weight}${item.selectedSize.unit}` 
+              : 'default';
+            return `${item.id}_${itemSizeKey}` === cartItemKey;
+          });
+          
+          let newItems;
+          let addedItem;
+          if (existingItem) {
+            newItems = prevItems.map(item => {
+              const itemSizeKey = item.selectedSize 
+                ? `${item.selectedSize.weight}${item.selectedSize.unit}` 
+                : 'default';
+              const itemKey = `${item.id}_${itemSizeKey}`;
+              if (itemKey === cartItemKey) {
+                addedItem = { ...item, quantity: item.quantity + quantity };
+                return addedItem;
+              }
+              return item;
+            });
+          } else {
+            addedItem = { ...product, quantity, cartItemKey };
+            newItems = [...prevItems, addedItem];
+          }
+
+          if (addedItem) {
+            setLastAddedItem(addedItem);
+          }
+
+          return newItems;
+        });
       }
 
-      // Set last added item for notification
-      if (addedItem) {
-        setLastAddedItem(addedItem);
-      }
-
-      // Show mobile cart sheet only if cart was empty (first item added)
+      // Show cart UI
       if (wasEmpty && typeof window !== 'undefined' && window.innerWidth < 768) {
         setShowMobileCart(true);
       }
-
-      // Show sidebar cart on desktop when adding
       if (typeof window !== 'undefined' && window.innerWidth >= 768) {
         setShowSidebarCart(true);
       }
-
-      return newItems;
-    });
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      // Show error message to user
+      if (error.message?.includes('Insufficient stock')) {
+        showAlert(error.message, 'Insufficient Stock', 'warning');
+      } else {
+        showAlert('Failed to add item to cart. Please try again.', 'Error', 'error');
+      }
+      throw error;
+    }
   };
 
   // Remove item from cart (by cartItemKey or id)
-  const removeFromCart = (idOrKey) => {
-    setCartItems(prevItems => 
-      prevItems.filter(item => 
-        item.cartItemKey !== idOrKey && item.id !== idOrKey
-      )
-    );
+  const removeFromCart = async (idOrKey) => {
+    try {
+      // Find the cart item ID (backend ID)
+      const item = cartItems.find(item => 
+        item.cartItemKey === idOrKey || item.id === idOrKey || item.cartItemId === idOrKey
+      );
+
+      if (isAuthenticated && token && item?.cartItemId) {
+        // Use API if authenticated
+        await removeFromCartMutation.mutateAsync(item.cartItemId);
+        // Query will refetch automatically
+      } else {
+        // Use localStorage if not authenticated
+        setLocalCartItems(prevItems => 
+          prevItems.filter(item => 
+            item.cartItemKey !== idOrKey && item.id !== idOrKey && item.cartItemId !== idOrKey
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Error removing from cart:', error);
+      showAlert('Failed to remove item from cart. Please try again.', 'Error', 'error');
+      throw error;
+    }
   };
 
   // Update quantity of an item (by cartItemKey or id)
-  const updateQuantity = (idOrKey, quantity) => {
+  const updateQuantity = async (idOrKey, quantity) => {
     if (quantity <= 0) {
-      removeFromCart(idOrKey);
+      await removeFromCart(idOrKey);
       return;
     }
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        (item.cartItemKey === idOrKey || item.id === idOrKey) ? { ...item, quantity } : item
-      )
-    );
-    setLastActivityTime(Date.now());
+
+    try {
+      // Find the cart item ID (backend ID)
+      const item = cartItems.find(item => 
+        item.cartItemKey === idOrKey || item.id === idOrKey || item.cartItemId === idOrKey
+      );
+
+      if (isAuthenticated && token && item?.cartItemId) {
+        // Use API if authenticated
+        await updateCartItemMutation.mutateAsync({ itemId: item.cartItemId, quantity });
+        // Query will refetch automatically
+      } else {
+        // Use localStorage if not authenticated
+        setLocalCartItems(prevItems =>
+          prevItems.map(item =>
+            (item.cartItemKey === idOrKey || item.id === idOrKey || item.cartItemId === idOrKey) 
+              ? { ...item, quantity } 
+              : item
+          )
+        );
+        setLastActivityTime(Date.now());
+      }
+    } catch (error) {
+      console.error('Error updating cart quantity:', error);
+      if (error.message?.includes('Insufficient stock')) {
+        showAlert(error.message, 'Insufficient Stock', 'warning');
+      } else {
+        showAlert('Failed to update quantity. Please try again.', 'Error', 'error');
+      }
+      throw error;
+    }
   };
 
   // Update cart item note
   const updateCartItemNote = (idOrKey, note) => {
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        (item.cartItemKey === idOrKey || item.id === idOrKey) ? { ...item, note } : item
-      )
-    );
-    setLastActivityTime(Date.now());
+    if (isAuthenticated && token) {
+      // Notes not supported in API yet, update local state
+      // This is a client-side only feature
+    } else {
+      setLocalCartItems(prevItems =>
+        prevItems.map(item =>
+          (item.cartItemKey === idOrKey || item.id === idOrKey) ? { ...item, note } : item
+        )
+      );
+      setLastActivityTime(Date.now());
+    }
   };
 
   // Clear entire cart
-  const clearCart = () => {
-    setCartItems([]);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('cart');
-      localStorage.removeItem('cartLastActivity');
+  const clearCart = async () => {
+    try {
+      if (isAuthenticated && token) {
+        // Use API if authenticated
+        await clearCartMutation.mutateAsync();
+        // Query will update automatically
+      } else {
+        // Use localStorage if not authenticated
+        setLocalCartItems([]);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('cart');
+          localStorage.removeItem('cartLastActivity');
+        }
+      }
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+      showAlert('Failed to clear cart. Please try again.', 'Error', 'error');
+      throw error;
     }
   };
 
@@ -208,10 +343,16 @@ export function CartProvider({ children }) {
   const loadSavedCart = (cartId) => {
     const savedCart = savedCarts.find(c => c.id === cartId);
     if (savedCart) {
-      setCartItems(savedCart.items);
-      setLastActivityTime(Date.now());
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('cartLastActivity', Date.now().toString());
+      if (isAuthenticated && token) {
+        // For authenticated users, we'd need to sync to API
+        // For now, just show a message
+        showAlert('Loading saved carts for authenticated users is not yet implemented. Please add items manually.', 'Info', 'info');
+      } else {
+        setLocalCartItems(savedCart.items);
+        setLastActivityTime(Date.now());
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('cartLastActivity', Date.now().toString());
+        }
       }
     }
   };
@@ -281,11 +422,11 @@ export function CartProvider({ children }) {
       }).catch(() => {
         // Fallback to copy to clipboard
         navigator.clipboard.writeText(shareUrl);
-        alert('Cart link copied to clipboard!');
+        showAlert('Cart link copied to clipboard!', 'Success', 'success');
       });
     } else if (typeof window !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(shareUrl);
-      alert('Cart link copied to clipboard!');
+      showAlert('Cart link copied to clipboard!', 'Success', 'success');
     }
     
     return shareUrl;
@@ -298,10 +439,9 @@ export function CartProvider({ children }) {
       // Note: In production, you'd fetch full product data from backend
       // For now, we'll just show a message
       if (decoded.items && decoded.items.length > 0) {
-        if (window.confirm(`Load ${decoded.items.length} items from shared cart?`)) {
-          // In a real app, you'd fetch product details and add them
-          alert('Shared cart loaded! (Note: Full implementation requires backend to fetch product details)');
-        }
+        // Note: In production, you'd use a confirmation modal instead of window.confirm
+        // For now, we'll show an info message
+        showAlert(`Shared cart detected with ${decoded.items.length} items. (Note: Full implementation requires backend to fetch product details)`, 'Shared Cart', 'info');
       }
     } catch (error) {
       console.error('Error loading shared cart:', error);
@@ -343,6 +483,7 @@ export function CartProvider({ children }) {
     shareCart,
     loadSharedCart,
     lastActivityTime,
+    loading,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

@@ -46,7 +46,7 @@ function Toast({ toast, removeToast }) {
     success: 'bg-green-500',
     error: 'bg-red-500',
     info: 'bg-blue-500',
-    warning: 'bg-yellow-500',
+    warning: 'bg-orange-500',
   }[toast.type] || 'bg-gray-500';
 
   const icon = {

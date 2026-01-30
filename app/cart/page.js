@@ -4,9 +4,12 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useCart } from '../../context/CartContext';
+import { useAlert } from '../../context/AlertContext';
 import CartItem from '../../components/CartItem';
 import Container from '../../components/Container';
 import Breadcrumbs from '../../components/Breadcrumbs';
+import ConfirmModal from '../../components/ConfirmModal';
+import PageTopBar from '../../components/PageTopBar';
 
 function CartPageContent() {
   const searchParams = useSearchParams();
@@ -28,6 +31,8 @@ function CartPageContent() {
   const [showSaveCartModal, setShowSaveCartModal] = useState(false);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [cartName, setCartName] = useState('');
+  const [showDeleteCartConfirm, setShowDeleteCartConfirm] = useState(null);
+  const [showDeleteTemplateConfirm, setShowDeleteTemplateConfirm] = useState(null);
 
   const shipping = cartTotal > 0 ? 50 : 0;
   const grandTotal = cartTotal + shipping;
@@ -43,33 +48,36 @@ function CartPageContent() {
 
   const handleSaveCart = () => {
     if (!cartName.trim()) {
-      alert('Please enter a name for your cart');
+      showAlert('Please enter a name for your cart', 'Required', 'warning');
       return;
     }
     saveCart(cartName);
     setCartName('');
     setShowSaveCartModal(false);
-    alert('Cart saved successfully!');
+    showAlert('Cart saved successfully!', 'Success', 'success');
   };
 
   const handleSaveAsTemplate = () => {
     if (!cartName.trim()) {
-      alert('Please enter a name for your template');
+      showAlert('Please enter a name for your template', 'Required', 'warning');
       return;
     }
     saveCartAsTemplate(cartName);
     setCartName('');
     setShowTemplatesModal(false);
-    alert('Cart template saved successfully!');
+    showAlert('Cart template saved successfully!', 'Success', 'success');
   };
 
   if (cartItems.length === 0) {
     return (
-      <div className="py-16 w-full max-w-full overflow-x-hidden">
+      <div className="pb-20 w-full max-w-full overflow-x-hidden">
+        <PageTopBar title="Cart" fallbackHref="/" />
         <Container>
-          <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Cart', href: '/cart' }]} />
+          <div className="hidden md:block">
+            <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Cart', href: '/cart' }]} />
+          </div>
           <div className="text-center mt-4">
-            <h1 className="text-4xl font-bold text-gray-800 mb-4">Your Cart is Empty</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Your Cart is Empty</h1>
             <p className="text-gray-600 mb-8">Add some products to your cart to get started.</p>
             <Link
               href="/products"
@@ -84,10 +92,13 @@ function CartPageContent() {
   }
 
   return (
-    <div className="py-4 md:py-6 lg:py-8 w-full max-w-full overflow-x-hidden">
+    <div className="pb-24 md:pb-8 w-full max-w-full overflow-x-hidden">
+      <PageTopBar title="Cart" fallbackHref="/" />
       <Container>
-        <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Cart', href: '/cart' }]} />
-        <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 mb-6 md:mb-8 px-4 md:px-0 mt-2">
+        <div className="hidden md:block">
+          <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Cart', href: '/cart' }]} />
+        </div>
+        <h1 className="hidden md:block text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 mb-6 md:mb-8 px-4 md:px-0 mt-2">
           Shopping Cart
         </h1>
 
@@ -150,11 +161,7 @@ function CartPageContent() {
                           Load
                         </button>
                         <button
-                          onClick={() => {
-                            if (window.confirm('Delete this saved cart?')) {
-                              deleteSavedCart(savedCart.id);
-                            }
-                          }}
+                          onClick={() => setShowDeleteCartConfirm(savedCart.id)}
                           className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                         >
                           Delete
@@ -319,11 +326,7 @@ function CartPageContent() {
                         Add to Cart
                       </button>
                       <button
-                        onClick={() => {
-                          if (window.confirm('Delete this template?')) {
-                            deleteCartTemplate(template.id);
-                          }
-                        }}
+                        onClick={() => setShowDeleteTemplateConfirm(template.id)}
                         className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                       >
                         Delete
@@ -338,6 +341,34 @@ function CartPageContent() {
           </div>
         </div>
       )}
+
+      {/* Delete Saved Cart Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteCartConfirm !== null}
+        onClose={() => setShowDeleteCartConfirm(null)}
+        onConfirm={() => {
+          deleteSavedCart(showDeleteCartConfirm);
+          setShowDeleteCartConfirm(null);
+        }}
+        title="Delete Saved Cart"
+        message="Are you sure you want to delete this saved cart?"
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
+      />
+
+      {/* Delete Template Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteTemplateConfirm !== null}
+        onClose={() => setShowDeleteTemplateConfirm(null)}
+        onConfirm={() => {
+          deleteCartTemplate(showDeleteTemplateConfirm);
+          setShowDeleteTemplateConfirm(null);
+        }}
+        title="Delete Template"
+        message="Are you sure you want to delete this template?"
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 }

@@ -1,232 +1,319 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { useOrder } from '../../context/OrderContext';
+import { useOrdersList, useCancelOrder } from '../../hooks/useOrders';
 import { useCart } from '../../context/CartContext';
-import Container from '../../components/Container';
-import Breadcrumbs from '../../components/Breadcrumbs';
+import { useAlert } from '../../context/AlertContext';
+import Image from 'next/image';
+import ConfirmModal from '../../components/ConfirmModal';
+import PromptModal from '../../components/PromptModal';
+import PageTopBar from '../../components/PageTopBar';
+import { Check, MoreVertical, ShoppingCart, Percent } from 'lucide-react';
 
 export default function OrdersPage() {
-  const { orders, getFilteredOrders, cancelOrder, shareOrder, getInvoiceData } = useOrder();
-  const { addToCart } = useCart();
+  const { data: ordersData, isLoading, error } = useOrdersList({ page: 1, per_page: 50 });
+  const cancelOrderMutation = useCancelOrder();
+  const { addToCart, cartCount } = useCart();
+  const [menuOpenId, setMenuOpenId] = useState(null);
+  const { showAlert } = useAlert();
   const [filters, setFilters] = useState({
     status: '',
     dateFrom: '',
     dateTo: '',
     search: '',
   });
+  const [showCancelPrompt, setShowCancelPrompt] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelOrderId, setCancelOrderId] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
 
-  const filteredOrders = useMemo(() => {
-    return getFilteredOrders(filters);
-  }, [orders, filters, getFilteredOrders]);
+  const orders = ordersData?.orders || [];
 
   const handleReorder = (order) => {
     order.items.forEach(item => {
-      addToCart(item, item.quantity || 1);
+      const product = {
+        id: item.productId,
+        name: item.productName,
+        price: item.unitPrice,
+        image: item.product?.images?.[0] || item.image || '/images/dummy.png',
+      };
+      addToCart(product, item.quantity || 1);
     });
-    alert('Items added to cart!');
+    showAlert('Items added to cart!', 'Success', 'success');
   };
 
   const handleCancel = (orderId) => {
-    if (window.confirm('Are you sure you want to cancel this order?')) {
-      cancelOrder(orderId);
-      alert('Order cancelled successfully!');
+    setCancelOrderId(orderId);
+    setShowCancelPrompt(true);
+  };
+
+  const handleCancelReasonSubmit = (reason) => {
+    setCancelReason(reason);
+    setShowCancelPrompt(false);
+    setShowCancelConfirm(true);
+  };
+
+  const handleCancelConfirm = async () => {
+    try {
+      await cancelOrderMutation.mutateAsync({ orderId: cancelOrderId, reason: cancelReason });
+      showAlert('Order cancelled successfully!', 'Success', 'success');
+      setCancelOrderId(null);
+      setCancelReason('');
+      setShowCancelConfirm(false);
+    } catch (error) {
+      showAlert(error.message || 'Failed to cancel order. Please try again.', 'Error', 'error');
+      setCancelOrderId(null);
+      setCancelReason('');
+      setShowCancelConfirm(false);
     }
   };
 
-  const handleDownloadInvoice = (orderId) => {
-    const invoiceData = getInvoiceData(orderId);
-    if (!invoiceData) {
-      alert('Invoice data not found');
-      return;
-    }
-
-    // Generate simple text invoice (in production, use a PDF library)
+  const handleDownloadInvoice = (order) => {
     const invoiceText = `
 INVOICE
-Invoice Number: ${invoiceData.invoiceNumber}
-Order ID: ${invoiceData.orderId}
-Date: ${new Date(invoiceData.date).toLocaleDateString()}
+Invoice Number: ${order.orderNumber || order.id}
+Order ID: ${order.id}
+Date: ${new Date(order.createdAt).toLocaleDateString()}
 
 Items:
-${invoiceData.items.map(item => `  ${item.name} x${item.quantity} - ₹${item.price * item.quantity}`).join('\n')}
+${order.items.map(item => `  ${item.productName || item.name} x${item.quantity} - ₹${item.totalPrice.toFixed(2)}`).join('\n')}
 
-Subtotal: ₹${invoiceData.subtotal}
-Shipping: ₹${invoiceData.shipping}
-Total: ₹${invoiceData.total}
+Subtotal: ₹${order.subtotal.toFixed(2)}
+Tax: ₹${order.tax.toFixed(2)}
+Shipping: ₹${order.shipping.toFixed(2)}
+Discount: ₹${order.discount.toFixed(2)}
+Total: ₹${order.total.toFixed(2)}
 
 Shipping Address:
-${invoiceData.address?.fullName || ''}
-${invoiceData.address?.address || ''}
-${invoiceData.address?.city || ''}, ${invoiceData.address?.state || ''}
-${invoiceData.address?.postalCode || ''}
+${order.deliveryAddress?.street || ''}
+${order.deliveryAddress?.city || ''}, ${order.deliveryAddress?.state || ''}
+${order.deliveryAddress?.zipCode || ''}
+${order.deliveryAddress?.country || ''}
 
-Payment Method: ${invoiceData.paymentMethod === 'cod' ? 'Cash on Delivery' : invoiceData.paymentMethod}
+Payment Method: ${order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod}
+Payment Status: ${order.paymentStatus}
     `.trim();
 
     const blob = new Blob([invoiceText], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${invoiceData.invoiceNumber}.txt`;
+    link.download = `${order.orderNumber || order.id}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      confirmed: 'bg-blue-100 text-blue-800',
-      processing: 'bg-yellow-100 text-yellow-800',
-      shipped: 'bg-purple-100 text-purple-800',
-      delivered: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800',
-      returned: 'bg-gray-100 text-gray-800',
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+  const shareOrder = (orderId) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return null;
+
+    const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/orders/${orderId}`;
+    
+    if (typeof window !== 'undefined' && navigator.share) {
+      navigator.share({
+        title: `Order ${order.orderNumber || orderId}`,
+        text: `Check out my order details!`,
+        url: shareUrl,
+      }).catch(() => {
+        navigator.clipboard.writeText(shareUrl);
+        showAlert('Order link copied to clipboard!', 'Success', 'success');
+      });
+    } else if (typeof window !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl);
+      showAlert('Order link copied to clipboard!', 'Success', 'success');
+    }
+  };
+
+  const formatPlacedAt = (dateStr) => {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    const day = d.getDate();
+    const suffix = day === 1 || day === 21 || day === 31 ? 'st' : day === 2 || day === 22 ? 'nd' : day === 3 || day === 23 ? 'rd' : 'th';
+    return `Placed at ${day}${suffix} ${d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}, ${d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
   };
 
   return (
-    <div className="py-4 md:py-6 lg:py-8 w-full max-w-full overflow-x-hidden">
-      <Container>
-        <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Orders', href: '/orders' }]} />
-        <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 mb-6 md:mb-8 px-4 md:px-0 mt-2">
-          Order History
-        </h1>
+    <div className="pb-28 md:pb-8 w-full max-w-full overflow-x-hidden min-h-screen bg-gray-50">
+      <PageTopBar title="Your Orders" backHref="/settings" fallbackHref="/" />
 
-        {/* Filters */}
-        <div className="px-4 md:px-0 mb-6 bg-white p-4 rounded-lg shadow-sm">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Status</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="processing">Processing</option>
-                <option value="shipped">Shipped</option>
-                <option value="delivered">Delivered</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
-              <input
-                type="date"
-                value={filters.dateFrom}
-                onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-              <input
-                type="date"
-                value={filters.dateTo}
-                onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-              <input
-                type="text"
-                placeholder="Search orders..."
-                value={filters.search}
-                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+      <div className="mx-auto max-w-lg px-4 pt-4 space-y-4">
+        {isLoading ? (
+          <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
+            <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent mx-auto" />
+            <p className="text-gray-500 mt-4 text-sm">Loading orders...</p>
           </div>
-          {(filters.status || filters.dateFrom || filters.dateTo || filters.search) && (
-            <button
-              onClick={() => setFilters({ status: '', dateFrom: '', dateTo: '', search: '' })}
-              className="mt-4 text-sm text-blue-600 hover:text-blue-800 font-medium"
-            >
-              Clear Filters
-            </button>
-          )}
-        </div>
-
-        {/* Orders List */}
-        <div className="px-4 md:px-0 space-y-4">
-          {filteredOrders.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-              <p className="text-gray-500 text-lg mb-4">No orders found</p>
-              <Link
-                href="/products"
-                className="text-blue-600 hover:text-blue-800 font-medium"
-              >
-                Start Shopping
-              </Link>
-            </div>
-          ) : (
-            filteredOrders.map((order) => (
-              <div key={order.id} className="bg-white rounded-lg shadow-sm p-4 md:p-6">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-800">Order {order.id}</h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
-                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+        ) : error ? (
+          <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
+            <p className="text-red-500 font-medium mb-2">Error loading orders</p>
+            <p className="text-gray-500 text-sm">{error.message}</p>
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
+            <p className="text-gray-500 font-medium mb-4">No orders yet</p>
+            <Link href="/products" className="text-primary font-semibold text-sm">
+              Start Shopping
+            </Link>
+          </div>
+        ) : (
+          orders.map((order) => (
+            <div key={order.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-gray-900">
+                      Order {order.status === 'delivered' ? 'delivered' : order.status}
+                    </span>
+                    {order.status === 'delivered' && (
+                      <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                        <Check className="w-3 h-3 text-white" strokeWidth={3} />
                       </span>
-                    </div>
-                    <p className="text-sm text-gray-500">
-                      Placed on {new Date(order.createdAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
-                    </p>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {order.items.length} item{order.items.length !== 1 ? 's' : ''} • ₹{order.total.toFixed(0)}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Link
-                      href={`/orders/${order.id}`}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm"
-                    >
-                      View Details
-                    </Link>
-                    {order.canCancel && (
-                      <button
-                        onClick={() => handleCancel(order.id)}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors text-sm"
-                      >
-                        Cancel
-                      </button>
                     )}
-                    <button
-                      onClick={() => handleReorder(order)}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors text-sm"
-                    >
-                      Reorder
-                    </button>
-                    <button
-                      onClick={() => shareOrder(order.id)}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors text-sm"
-                    >
-                      Share
-                    </button>
-                    <button
-                      onClick={() => handleDownloadInvoice(order.id)}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors text-sm"
-                    >
-                      Invoice
-                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="font-bold text-gray-900">₹{order.total?.toFixed?.(0) ?? order.total}</span>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setMenuOpenId(menuOpenId === order.id ? null : order.id)}
+                        className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100"
+                        aria-label="More options"
+                      >
+                        <MoreVertical className="w-5 h-5" strokeWidth={2} />
+                      </button>
+                      {menuOpenId === order.id && (
+                        <>
+                          <div className="fixed inset-0 z-10" aria-hidden onClick={() => setMenuOpenId(null)} />
+                          <div className="absolute right-0 top-full mt-1 z-20 min-w-[160px] py-1 bg-white rounded-xl border border-gray-200 shadow-lg">
+                            <Link
+                              href={`/orders/${order.id}`}
+                              className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                              onClick={() => setMenuOpenId(null)}
+                            >
+                              View Details
+                            </Link>
+                            {order.status === 'delivered' && (
+                              <button
+                                type="button"
+                                onClick={() => { handleDownloadInvoice(order); setMenuOpenId(null); }}
+                                className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                              >
+                                Download Invoice
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => { shareOrder(order.id); setMenuOpenId(null); }}
+                              className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                              Share
+                            </button>
+                            {order.canCancel && (
+                              <button
+                                type="button"
+                                onClick={() => { handleCancel(order.id); setMenuOpenId(null); }}
+                                className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
+                              >
+                                Cancel Order
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
+                <p className="text-sm text-gray-500 mb-3">{formatPlacedAt(order.createdAt)}</p>
+
+                {/* Product thumbnails */}
+                <div className="flex gap-2 overflow-x-auto scrollbar-hide mb-4 -mx-1">
+                  {order.items?.slice(0, 6).map((item, idx) => (
+                    <div key={item.id || idx} className="relative w-14 h-14 rounded-xl bg-gray-100 flex-shrink-0 overflow-hidden">
+                      <Image
+                        src={item.image || '/images/dummy.png'}
+                        alt={item.productName || item.name || 'Item'}
+                        fill
+                        className="object-cover"
+                        sizes="56px"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Rate Order | Order Again */}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-800 font-medium text-sm hover:bg-gray-50 transition-colors"
+                  >
+                    Rate Order
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleReorder(order)}
+                    className="flex-1 py-2.5 rounded-xl border border-primary text-primary font-medium text-sm hover:bg-primary/10 transition-colors"
+                  >
+                    Order Again
+                  </button>
+                </div>
               </div>
-            ))
-          )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Bottom bar: discount offer + Cart */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-gray-800 text-white rounded-t-2xl px-4 py-3 flex items-center justify-between gap-4 md:hidden" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="flex-shrink-0 w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+            <Percent className="w-5 h-5" strokeWidth={2} />
+          </span>
+          <div className="min-w-0">
+            <p className="font-semibold text-sm truncate">Unlock extra ₹30 OFF</p>
+            <p className="text-xs text-white/80 truncate">Shop for ₹519 more</p>
+          </div>
         </div>
-      </Container>
+        <Link
+          href="/cart"
+          className="flex-shrink-0 flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl font-semibold text-sm"
+        >
+          <ShoppingCart className="w-5 h-5" strokeWidth={2} />
+          <span>Cart</span>
+          {cartCount > 0 && <span className="text-xs opacity-90">{cartCount} item{cartCount !== 1 ? 's' : ''}</span>}
+        </Link>
+      </div>
+
+      {/* Cancel Order Prompt Modal */}
+      <PromptModal
+        isOpen={showCancelPrompt}
+        onClose={() => {
+          setShowCancelPrompt(false);
+          setCancelOrderId(null);
+        }}
+        onSubmit={handleCancelReasonSubmit}
+        title="Cancel Order"
+        message="Please provide a reason for cancellation:"
+        placeholder="Enter cancellation reason"
+        submitText="Continue"
+        cancelText="Cancel"
+      />
+
+      {/* Cancel Order Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showCancelConfirm}
+        onClose={() => {
+          setShowCancelConfirm(false);
+          setCancelOrderId(null);
+          setCancelReason('');
+        }}
+        onConfirm={handleCancelConfirm}
+        title="Confirm Cancellation"
+        message="Are you sure you want to cancel this order? This action cannot be undone."
+        confirmText="Yes, Cancel Order"
+        cancelText="No, Keep Order"
+      />
     </div>
   );
 }

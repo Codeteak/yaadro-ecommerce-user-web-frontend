@@ -91,11 +91,11 @@ export default function WishlistPage() {
               {/* Remove from Wishlist Button */}
               <button
                 onClick={() => removeFromWishlist(item.id)}
-                className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-md hover:bg-pink-50 transition-colors z-10"
+                className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-md hover:bg-primary/10 transition-colors z-10"
                 aria-label="Remove from wishlist"
               >
                 <svg
-                  className="w-5 h-5 text-pink-500 fill-current"
+                  className="w-5 h-5 text-primary fill-current"
                   fill="currentColor"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

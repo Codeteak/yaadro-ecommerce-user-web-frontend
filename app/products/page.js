@@ -2,8 +2,7 @@
 
 import { useState, useMemo, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { products } from '../../data/products';
-import { getProductsByCategory, searchProducts } from '../../data/products';
+import { useProducts, useSearchProducts, useCategories, useCategoryProducts } from '../../hooks/useProducts';
 import ProductGrid from '../../components/ProductGrid';
 import ProductCarousel from '../../components/ProductCarousel';
 import ProductFilters from '../../components/ProductFilters';
@@ -20,8 +19,6 @@ import {
   getBrands 
 } from '../../utils/productUtils';
 
-const categories = ['Fruits', 'Vegetables', 'Dairy', 'Meat & Seafood', 'Bakery', 'Beverages', 'Snacks', 'Pantry', 'Frozen', 'Baby Care', 'Personal Care', 'Cleaning', 'Home & Kitchen', 'Health & Wellness', 'Spices & Condiments'];
-
 function ProductsContent() {
   const searchParams = useSearchParams();
   const categoryParam = searchParams?.get('category');
@@ -35,7 +32,7 @@ function ProductsContent() {
     priceRange: [0, 10000],
     brand: '',
     rating: 0,
-    inStock: null, // null = all, true = in stock, false = out of stock
+    inStock: null,
     onSale: false,
   });
 
@@ -53,55 +50,88 @@ function ProductsContent() {
     }
   }, [categoryParam, searchParam]);
 
-  // Group products by category
-  const productsByCategory = useMemo(() => {
-    const grouped = {};
-    categories.forEach(category => {
-      const categoryProducts = getProductsByCategory(category);
-      grouped[category] = categoryProducts.slice(0, 10);
-    });
-    return grouped;
-  }, []);
+  // Load categories using TanStack Query
+  const { data: categoriesData = [] } = useCategories();
+  const categories = categoriesData;
 
-  // Get base products based on category and search
-  const baseProducts = useMemo(() => {
-    let result;
-    
-    if (searchQuery) {
-      const lowerQuery = searchQuery.toLowerCase().trim();
-      const matchingCategory = categories.find(cat => 
-        cat.toLowerCase() === lowerQuery || cat.toLowerCase().includes(lowerQuery)
-      );
-      
-      if (matchingCategory) {
-        result = getProductsByCategory(matchingCategory);
-      } else {
-        result = searchProducts(searchQuery);
-        if (selectedCategory !== 'All') {
-          result = result.filter(product => product.category === selectedCategory);
-        }
-      }
+  // Find selected category object
+  const selectedCategoryObj = useMemo(() => {
+    return categories.find(cat => cat.name === selectedCategory);
+  }, [categories, selectedCategory]);
+
+  // Load products based on category/search using TanStack Query
+  const searchQueryEnabled = searchQuery && searchQuery.trim().length >= 2;
+  const { data: searchData, isLoading: searchLoading } = useSearchProducts({
+    q: searchQuery,
+    page: 1,
+    per_page: 100,
+    min_price: filters.priceRange[0] || undefined,
+    max_price: filters.priceRange[1] || undefined,
+  });
+
+  const { data: categoryProductsData, isLoading: categoryProductsLoading } = useProducts({
+    category_slug: selectedCategoryObj?.slug,
+    page: 1,
+    per_page: 100,
+    min_price: filters.priceRange[0] || undefined,
+    max_price: filters.priceRange[1] || undefined,
+  });
+
+  const { data: allProductsData, isLoading: allProductsLoading } = useProducts({
+    page: 1,
+    per_page: 100,
+    min_price: filters.priceRange[0] || undefined,
+    max_price: filters.priceRange[1] || undefined,
+  });
+
+  // Determine which data to use
+  const productsData = useMemo(() => {
+    if (searchQueryEnabled) {
+      return searchData || { products: [], pagination: { page: 1, per_page: 100, total: 0, total_pages: 0 } };
+    } else if (selectedCategory !== 'All' && selectedCategoryObj) {
+      return categoryProductsData || { products: [], pagination: { page: 1, per_page: 100, total: 0, total_pages: 0 } };
     } else {
-      result = selectedCategory === 'All' ? products : getProductsByCategory(selectedCategory);
+      return allProductsData || { products: [], pagination: { page: 1, per_page: 100, total: 0, total_pages: 0 } };
     }
-    
-    return result;
-  }, [selectedCategory, searchQuery]);
+  }, [searchQueryEnabled, searchData, selectedCategory, selectedCategoryObj, categoryProductsData, allProductsData]);
 
-  // Apply filters
+  const products = productsData?.products || [];
+  const pagination = productsData?.pagination || { page: 1, per_page: 100, total: 0, total_pages: 0 };
+  const loading = searchLoading || categoryProductsLoading || allProductsLoading;
+
+  // Load products by category for carousels (when showing "All")
+  // Note: We'll load these on demand when needed, not all at once
+  const [productsByCategory, setProductsByCategory] = useState({});
+
+  useEffect(() => {
+    if (selectedCategory === 'All' && categories.length > 0) {
+      async function loadCategoryProducts() {
+        const grouped = {};
+        for (const category of categories.slice(0, 10)) {
+          try {
+            const { getCategoryProducts } = await import('../../utils/productApi');
+            const result = await getCategoryProducts(category.slug, { page: 1, per_page: 10 });
+            grouped[category.name] = result.products || [];
+          } catch (error) {
+            console.error(`Error loading products for ${category.name}:`, error);
+            grouped[category.name] = [];
+          }
+        }
+        setProductsByCategory(grouped);
+      }
+      loadCategoryProducts();
+    }
+  }, [selectedCategory, categories]);
+
+  // Apply client-side filters (brand, rating, stock, sale)
   const filteredProducts = useMemo(() => {
-    let result = [...baseProducts];
-
-    // Price range filter
-    result = result.filter(product => {
-      const price = getDiscountedPrice(product);
-      return price >= filters.priceRange[0] && price <= filters.priceRange[1];
-    });
+    let result = [...products];
 
     // Brand filter
     if (filters.brand) {
       const brandLower = filters.brand.toLowerCase();
       result = result.filter(product => 
+        (product.brand && product.brand.toLowerCase().includes(brandLower)) ||
         product.name.toLowerCase().includes(brandLower)
       );
     }
@@ -122,7 +152,7 @@ function ProductsContent() {
     }
 
     return result;
-  }, [baseProducts, filters]);
+  }, [products, filters]);
 
   // Apply sorting
   const sortedProducts = useMemo(() => {
@@ -136,7 +166,11 @@ function ProductsContent() {
       case 'popularity':
         return sorted.sort((a, b) => getPopularityScore(b) - getPopularityScore(a));
       case 'newest':
-        return sorted.sort((a, b) => b.id - a.id); // Higher ID = newer
+        return sorted.sort((a, b) => {
+          const dateA = new Date(a.createdAt || 0);
+          const dateB = new Date(b.createdAt || 0);
+          return dateB - dateA;
+        });
       case 'rating':
         return sorted.sort((a, b) => getProductRating(b) - getProductRating(a));
       case 'discount':
@@ -146,27 +180,27 @@ function ProductsContent() {
     }
   }, [filteredProducts, sortBy]);
 
-  // Get trending products (based on popularity and recent views)
+  // Get trending products (featured + high ratings)
   const trendingProducts = useMemo(() => {
-    const allProducts = [...products];
-    return allProducts
+    return [...products]
+      .filter(p => p.isFeatured || (p.ratingsAverage && parseFloat(p.ratingsAverage) >= 4))
       .map(product => ({
         ...product,
         popularityScore: getPopularityScore(product),
       }))
       .sort((a, b) => b.popularityScore - a.popularityScore)
       .slice(0, 12);
-  }, []);
+  }, [products]);
 
-  // Get recommended products (based on category and price similarity)
+  // Get recommended products
   const recommendedProducts = useMemo(() => {
     if (selectedCategory === 'All' || !searchQuery) {
-      // Show popular products from different categories
+      // Show featured products from different categories
       const categoryProducts = {};
-      categories.forEach(cat => {
-        const catProducts = getProductsByCategory(cat);
-        if (catProducts.length > 0) {
-          categoryProducts[cat] = catProducts
+      Object.entries(productsByCategory).forEach(([cat, prods]) => {
+        if (prods.length > 0) {
+          categoryProducts[cat] = prods
+            .filter(p => p.isFeatured)
             .sort((a, b) => getPopularityScore(b) - getPopularityScore(a))
             .slice(0, 2);
         }
@@ -174,25 +208,16 @@ function ProductsContent() {
       return Object.values(categoryProducts).flat().slice(0, 12);
     }
     // Show similar products from same category
-    const categoryProducts = getProductsByCategory(selectedCategory);
-    return categoryProducts
+    return products
+      .filter(p => p.category === selectedCategory)
       .sort((a, b) => getPopularityScore(b) - getPopularityScore(a))
       .slice(0, 12);
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, products, productsByCategory]);
 
   // Get recently viewed products
   const recentlyViewed = useMemo(() => {
     return getRecentlyViewed(8);
   }, [getRecentlyViewed]);
-
-  // Check if search query matches a category
-  const matchedCategory = useMemo(() => {
-    if (!searchQuery) return null;
-    const lowerQuery = searchQuery.toLowerCase().trim();
-    return categories.find(cat => 
-      cat.toLowerCase() === lowerQuery || cat.toLowerCase().includes(lowerQuery)
-    );
-  }, [searchQuery]);
 
   // Show filtered view if category is selected or search query exists
   const showFilteredView = selectedCategory !== 'All' || searchQuery;
@@ -200,11 +225,10 @@ function ProductsContent() {
   // Determine page title
   const pageTitle = useMemo(() => {
     if (!showFilteredView) return 'All Products';
-    if (matchedCategory) return `${matchedCategory} Products`;
     if (searchQuery) return `Search Results for "${searchQuery}"`;
     if (selectedCategory !== 'All') return `${selectedCategory} Products`;
     return 'All Products';
-  }, [showFilteredView, matchedCategory, selectedCategory, searchQuery]);
+  }, [showFilteredView, selectedCategory, searchQuery]);
 
   const handleClearFilters = () => {
     setFilters({
@@ -223,6 +247,19 @@ function ProductsContent() {
   
   if (selectedCategory !== 'All') {
     breadcrumbItems.push({ label: selectedCategory, href: `/products?category=${encodeURIComponent(selectedCategory)}` });
+  }
+
+  if (loading) {
+    return (
+      <div className="py-4 md:py-6 lg:py-8 w-full max-w-full overflow-x-hidden">
+        <Container>
+          <div className="text-center py-12">
+            <div className="w-10 h-10 rounded-full border-4 border-gray-200 border-t-primary animate-spin mx-auto mb-4" />
+            <p className="text-gray-500 text-lg">Loading products...</p>
+          </div>
+        </Container>
+      </div>
+    );
   }
 
   return (
@@ -248,7 +285,7 @@ function ProductsContent() {
 
             {/* Results count */}
             <div className="mb-4 text-sm text-gray-600">
-              Showing {sortedProducts.length} of {baseProducts.length} products
+              Showing {sortedProducts.length} of {pagination.total || products.length} products
             </div>
 
             {/* Products Grid */}
@@ -259,7 +296,7 @@ function ProductsContent() {
                 <p className="text-gray-500 text-lg mb-4">No products found matching your filters.</p>
                 <button
                   onClick={handleClearFilters}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
                 >
                   Clear Filters
                 </button>
@@ -309,16 +346,16 @@ function ProductsContent() {
 
             {/* Category carousels */}
             <div className="space-y-4 md:space-y-6 -mr-4 sm:-mr-6 lg:-mr-8">
-              {categories.map((category) => {
-                const categoryProducts = productsByCategory[category];
-                if (!categoryProducts || categoryProducts.length === 0) return null;
+              {categories.slice(0, 10).map((category) => {
+                const categoryProducts = productsByCategory[category.name] || [];
+                if (categoryProducts.length === 0) return null;
                 
                 return (
-                  <div key={category} className="w-full max-w-full overflow-x-hidden">
+                  <div key={category.id} className="w-full max-w-full overflow-x-hidden">
                     <ProductCarousel
                       products={categoryProducts}
-                      title={category}
-                      showMoreLink={`/products?category=${encodeURIComponent(category)}`}
+                      title={category.name}
+                      showMoreLink={`/products?category=${encodeURIComponent(category.name)}`}
                     />
                   </div>
                 );
@@ -337,6 +374,7 @@ export default function ProductsPage() {
       <div className="py-4 md:py-6 lg:py-8 w-full max-w-full overflow-x-hidden">
         <Container>
           <div className="text-center py-12">
+            <div className="w-10 h-10 rounded-full border-4 border-gray-200 border-t-primary animate-spin mx-auto mb-4" />
             <p className="text-gray-500 text-lg">Loading products...</p>
           </div>
         </Container>

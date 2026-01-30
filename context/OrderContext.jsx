@@ -283,11 +283,13 @@ export function OrderProvider({ children }) {
         url: shareUrl,
       }).catch(() => {
         navigator.clipboard.writeText(shareUrl);
-        alert('Order link copied to clipboard!');
+        // Note: useAlert hook cannot be used here as it's outside component context
+        // This will be handled by the component using shareOrder
       });
     } else if (typeof window !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(shareUrl);
-      alert('Order link copied to clipboard!');
+      // Note: useAlert hook cannot be used here as it's outside component context
+      // This will be handled by the component using shareOrder
     }
     
     return shareUrl;

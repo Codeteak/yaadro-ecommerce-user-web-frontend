@@ -111,7 +111,7 @@ export default function CartNotification() {
         {/* Go to Cart Button */}
         <button
           onClick={handleGoToCart}
-          className="w-full py-2 px-4 border-2 border-pink-500 text-pink-600 rounded-lg font-semibold hover:bg-pink-50 transition-colors flex items-center justify-center gap-2"
+          className="w-full py-2 px-4 border-2 border-primary text-primary-dark rounded-lg font-semibold hover:bg-primary/10 transition-colors flex items-center justify-center gap-2"
         >
           Go to Cart
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
