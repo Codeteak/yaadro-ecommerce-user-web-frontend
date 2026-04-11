@@ -8,6 +8,7 @@ import {
   ensureSessionExpiryForExistingLogin,
   isClientSessionExpired,
   writeSessionExpiresAtFromLogin,
+  POST_LOGIN_REDIRECT_KEY,
 } from '../utils/authSession';
 
 const AuthContext = createContext();
@@ -149,7 +150,10 @@ export function AuthProvider({ children }) {
     }
   }, [user, token, refreshToken, isClient]);
 
-  // Login function - stores user + tokens (7-day client session window)
+  /**
+   * Login function - stores user + tokens (7-day client session window).
+   * @returns {boolean} true if a full-page redirect was triggered (caller should skip client routing).
+   */
   const login = (userData, tokens = {}) => {
     setUser(userData);
     if (tokens?.token) {
@@ -163,6 +167,15 @@ export function AuthProvider({ children }) {
     }
     writeSessionExpiresAtFromLogin();
     setShowLoginSheet(false);
+    if (typeof window !== 'undefined') {
+      const next = window.sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY);
+      if (next && next.startsWith('/') && !next.startsWith('//')) {
+        window.sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+        window.location.assign(next);
+        return true;
+      }
+    }
+    return false;
   };
 
   // Logout function

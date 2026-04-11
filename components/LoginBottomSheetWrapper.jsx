@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '../context/AuthContext';
+import { clearPostLoginRedirect } from '../utils/authSession';
 import LoginBottomSheet from './LoginBottomSheet';
 
 export default function LoginBottomSheetWrapper() {
@@ -9,7 +10,10 @@ export default function LoginBottomSheetWrapper() {
   return (
     <LoginBottomSheet
       isOpen={showLoginSheet}
-      onClose={() => setShowLoginSheet(false)}
+      onClose={() => {
+        setShowLoginSheet(false);
+        clearPostLoginRedirect();
+      }}
     />
   );
 }

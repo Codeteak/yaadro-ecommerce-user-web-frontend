@@ -5,6 +5,21 @@
 
 export const AUTH_SESSION_EXPIRES_KEY = 'yaadro_auth_session_expires_at';
 
+/** After login, navigate to this in-app path (e.g. `/checkout`). sessionStorage. */
+export const POST_LOGIN_REDIRECT_KEY = 'yaadro_post_login_redirect';
+
+export function setPostLoginRedirect(path) {
+  if (typeof window === 'undefined') return;
+  if (typeof path === 'string' && path.startsWith('/') && !path.startsWith('//')) {
+    window.sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, path);
+  }
+}
+
+export function clearPostLoginRedirect() {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+}
+
 /** 7 days in milliseconds */
 export const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 

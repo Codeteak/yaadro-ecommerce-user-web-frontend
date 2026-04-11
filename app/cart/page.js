@@ -3,9 +3,11 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useCart } from '../../context/CartContext';
 import { useAlert } from '../../context/AlertContext';
+import { useAuth } from '../../context/AuthContext';
+import { setPostLoginRedirect } from '../../utils/authSession';
 import Container from '../../components/Container';
 import ConfirmModal from '../../components/ConfirmModal';
 
@@ -377,7 +379,9 @@ function TemplatesModal({ cartTemplates, cartItems, onSaveTemplate, onLoadTempla
    Main cart content
 ───────────────────────────────────────────── */
 function CartPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { isAuthenticated, authHydrated, setShowLoginSheet } = useAuth();
   const {
     cartItems,
     cartTotal,
@@ -409,6 +413,16 @@ function CartPageContent() {
   }, [searchParams]);
 
   const totalQty = cartItems.reduce((a, i) => a + i.quantity, 0);
+
+  const handleProceedToCheckout = () => {
+    if (!authHydrated) return;
+    if (isAuthenticated) {
+      router.push('/checkout');
+      return;
+    }
+    setPostLoginRedirect('/checkout');
+    setShowLoginSheet(true);
+  };
 
   const handleSaveCart = (name) => {
     if (!name?.trim()) { showAlert('Please enter a name', 'Required', 'warning'); return; }
@@ -510,15 +524,16 @@ function CartPageContent() {
             <p className="text-[11px] text-gray-400">Total</p>
             <p className="text-lg font-medium text-gray-900">₹{cartTotal.toLocaleString('en-IN')}</p>
           </div>
-          <Link
-            href="/checkout"
+          <button
+            type="button"
+            onClick={handleProceedToCheckout}
             className="flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-sm font-medium transition bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98] whitespace-nowrap"
           >
-            Proceed to checkout
+            Checkout
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-          </Link>
+          </button>
         </div>
       )}
 

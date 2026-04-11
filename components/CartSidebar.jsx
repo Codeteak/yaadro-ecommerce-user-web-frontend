@@ -1,14 +1,30 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { formatRupeeINR } from '../utils/productUtils';
+import { setPostLoginRedirect } from '../utils/authSession';
 import CartItem from './CartItem';
 
 export default function CartSidebar() {
+  const router = useRouter();
   const { cartItems, cartTotal, showSidebarCart, setShowSidebarCart } = useCart();
+  const { isAuthenticated, authHydrated, setShowLoginSheet } = useAuth();
 
   const handleClose = () => setShowSidebarCart(false);
+
+  const handleProceedToCheckout = () => {
+    if (!authHydrated) return;
+    handleClose();
+    if (isAuthenticated) {
+      router.push('/checkout');
+      return;
+    }
+    setPostLoginRedirect('/checkout');
+    setShowLoginSheet(true);
+  };
 
   return (
     <>
@@ -73,13 +89,13 @@ export default function CartSidebar() {
               </div>
             </div>
 
-            <Link
-              href="/checkout"
-              onClick={handleClose}
+            <button
+              type="button"
+              onClick={handleProceedToCheckout}
               className="block w-full py-3 px-4 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors text-center"
             >
-              Proceed to Checkout
-            </Link>
+              Checkout
+            </button>
 
             <Link
               href="/cart"

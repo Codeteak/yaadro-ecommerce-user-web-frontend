@@ -30,10 +30,12 @@ export default function OAuthCompletePage() {
           throw new Error('Could not read session from server.');
         }
         if (!cancelled) {
-          login(user, { token, refreshToken });
+          const didHardRedirect = login(user, { token, refreshToken });
           setStatus('done');
           setMessage('You’re signed in. Redirecting…');
-          router.replace('/');
+          if (!didHardRedirect) {
+            router.replace('/');
+          }
         }
       } catch (err) {
         if (cancelled) return;

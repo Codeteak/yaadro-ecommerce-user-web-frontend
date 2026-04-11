@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import CheckoutAddAddressSheet from '../../components/CheckoutAddAddressSheet';
 import { placeStorefrontOrder } from '../../utils/storefrontCheckoutApi';
+import { setPostLoginRedirect } from '../../utils/authSession';
 
 /* ─────────────────────────────────────────────
    Small helpers
@@ -309,7 +310,7 @@ export default function CheckoutPage() {
     isLoading: isLoadingAddresses,
     isCreating: isCreatingAddress,
   } = useAddress();
-  const { isAuthenticated, user, setShowLoginSheet } = useAuth();
+  const { isAuthenticated, user, setShowLoginSheet, authHydrated } = useAuth();
   const { showAlert } = useAlert();
   // Storefront order placement: POST /storefront/checkout
 
@@ -324,12 +325,16 @@ export default function CheckoutPage() {
     if (defaultAddress) setSelectedAddressId(defaultAddress.id);
   }, [getDefaultAddress]);
 
-  /* ── Require login ── */
+  /* ── Guests with items: never show checkout UI — send to cart and open login sheet ── */
   useEffect(() => {
-    if (!isAuthenticated && cartItems.length > 0) {
+    if (!authHydrated) return;
+    if (cartItems.length === 0) return;
+    if (!isAuthenticated) {
+      setPostLoginRedirect('/checkout');
       setShowLoginSheet(true);
+      router.replace('/cart');
     }
-  }, [isAuthenticated, cartItems.length, setShowLoginSheet]);
+  }, [authHydrated, isAuthenticated, cartItems.length, router, setShowLoginSheet]);
 
   const handleOrderSummaryQuantity = async (item, nextQty) => {
     const key = item.cartItemKey ?? item.id;
@@ -400,6 +405,23 @@ export default function CheckoutPage() {
 
   /* ── Empty cart ── */
   if (cartItems.length === 0) return <EmptyCheckout />;
+
+  if (!authHydrated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-emerald-200 border-t-emerald-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-3 px-6">
+        <div className="w-8 h-8 rounded-full border-2 border-emerald-200 border-t-emerald-600 animate-spin" />
+        <p className="text-sm text-gray-500 text-center">Taking you to your cart to sign in…</p>
+      </div>
+    );
+  }
 
   /* ─────────────────────────────────────────────
      Render
