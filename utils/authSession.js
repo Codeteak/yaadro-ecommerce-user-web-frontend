@@ -5,7 +5,7 @@
 
 export const AUTH_SESSION_EXPIRES_KEY = 'yaadro_auth_session_expires_at';
 
-/** After login, navigate to this in-app path (e.g. `/checkout`). sessionStorage. */
+
 export const POST_LOGIN_REDIRECT_KEY = 'yaadro_post_login_redirect';
 
 export function setPostLoginRedirect(path) {
