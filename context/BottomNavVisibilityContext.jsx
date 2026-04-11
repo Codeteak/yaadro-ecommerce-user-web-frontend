@@ -11,7 +11,12 @@ export function BottomNavVisibilityProvider({ children }) {
   const lastYRef = useRef(0);
   const rafRef = useRef(null);
 
-  const hideForRoute = pathname === '/checkout' || pathname === '/order-success';
+  const hideForRoute =
+    pathname === '/checkout' ||
+    pathname === '/order-success' ||
+    pathname === '/cart' ||
+    // Hide bottom nav on product detail pages
+    (pathname?.startsWith('/products/') && pathname !== '/products');
 
   useEffect(() => {
     lastYRef.current = typeof window !== 'undefined' ? window.scrollY : 0;

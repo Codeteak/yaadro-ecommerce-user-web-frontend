@@ -20,6 +20,31 @@ function getConfiguredBaseUrl() {
   return String(base).replace(/\/+$/, '');
 }
 
+/** API host without `/api` (for routes mounted at root, e.g. `POST /auth/logout`). */
+export function getApiOrigin() {
+  return getConfiguredBaseUrl().replace(/\/?api\/?$/, '');
+}
+
+function toRootUrl(path, query) {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const url = new URL(`${getApiOrigin()}${normalizedPath}`);
+  if (query && typeof query === 'object') {
+    Object.entries(query).forEach(([k, v]) => {
+      if (v === undefined || v === null) return;
+      url.searchParams.set(k, String(v));
+    });
+  }
+  return url.toString();
+}
+
+function resolveErrorMessage(json, response) {
+  if (!json) return `Request failed (${response.status} ${response.statusText})`;
+  if (json.message && typeof json.message === 'string') return json.message;
+  if (json.error && typeof json.error === 'object' && json.error.message) return json.error.message;
+  if (typeof json.error === 'string') return json.error;
+  return `Request failed (${response.status} ${response.statusText})`;
+}
+
 function isBrowser() {
   return typeof window !== 'undefined';
 }
@@ -111,6 +136,8 @@ async function parseJsonSafe(response) {
  * @param {object} [options.query]
  * @param {string} [options.token] - Bearer token override (otherwise localStorage)
  * @param {string} [options.tenantId] - Tenant override (otherwise resolved)
+ * @param {RequestCredentials} [options.credentials] - use `include` for OAuth cookie exchange (cross-origin API)
+ * @param {boolean} [options.omitTenantHeader] - skip X-Tenant-ID (e.g. auth registration)
  */
 export async function apiFetch(path, options = {}) {
   const {
@@ -121,25 +148,24 @@ export async function apiFetch(path, options = {}) {
     token = undefined,
     tenantId = undefined,
     returnResponse = false,
+    credentials,
+    omitTenantHeader = false,
     ...rest
   } = options;
 
-  const resolvedTenant = tenantId ?? getTenantId();
+  const resolvedTenant = omitTenantHeader ? '' : tenantId ?? getTenantId();
   const resolvedToken = token ?? getAuthToken();
 
   const finalHeaders = new Headers(headers);
 
-  // Tenant context header (required by backend for customer endpoints)
   if (resolvedTenant) {
     finalHeaders.set('X-Tenant-ID', resolvedTenant);
   }
 
-  // Auth header (optional)
   if (resolvedToken) {
     finalHeaders.set('Authorization', `Bearer ${resolvedToken}`);
   }
 
-  // Content type
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
   const hasBody = body !== undefined && body !== null;
   if (hasBody && !isFormData && !finalHeaders.has('Content-Type')) {
@@ -149,23 +175,25 @@ export async function apiFetch(path, options = {}) {
     finalHeaders.set('Accept', 'application/json');
   }
 
-  const response = await fetch(toUrl(path, query), {
+  const fetchOpts = {
     method,
     headers: finalHeaders,
     body: hasBody && !isFormData && typeof body !== 'string' ? JSON.stringify(body) : body,
     ...rest,
-  });
+  };
+  if (credentials !== undefined) {
+    fetchOpts.credentials = credentials;
+  }
+
+  const response = await fetch(toUrl(path, query), fetchOpts);
 
   const json = await parseJsonSafe(response);
   const apiStatus = json?.status;
   const apiMessage = json?.message;
 
   if (!response.ok || apiStatus === 'error') {
-    const message =
-      apiMessage ||
-      json?.error ||
-      `Request failed (${response.status} ${response.statusText})`;
-    const err = new Error(message);
+    const message = apiMessage || resolveErrorMessage(json, response);
+    const err = new Error(typeof message === 'string' ? message : String(message));
     err.status = response.status;
     err.data = json;
     throw err;
@@ -173,7 +201,74 @@ export async function apiFetch(path, options = {}) {
 
   if (returnResponse) return json;
 
-  // If backend follows the documented shape, prefer json.data; otherwise return the raw json.
+  return apiStatus ? json?.data : json;
+}
+
+/**
+ * Fetch against API origin without `/api` prefix (e.g. `POST /auth/logout`).
+ */
+export async function apiFetchRoot(path, options = {}) {
+  const {
+    method = 'GET',
+    headers = {},
+    body = undefined,
+    query = undefined,
+    token = undefined,
+    tenantId = undefined,
+    returnResponse = false,
+    credentials,
+    omitTenantHeader = false,
+    ...rest
+  } = options;
+
+  const resolvedTenant = omitTenantHeader ? '' : tenantId ?? getTenantId();
+  const resolvedToken = token ?? getAuthToken();
+
+  const finalHeaders = new Headers(headers);
+
+  if (resolvedTenant) {
+    finalHeaders.set('X-Tenant-ID', resolvedTenant);
+  }
+
+  if (resolvedToken) {
+    finalHeaders.set('Authorization', `Bearer ${resolvedToken}`);
+  }
+
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+  const hasBody = body !== undefined && body !== null;
+  if (hasBody && !isFormData && !finalHeaders.has('Content-Type')) {
+    finalHeaders.set('Content-Type', 'application/json');
+  }
+  if (!finalHeaders.has('Accept')) {
+    finalHeaders.set('Accept', 'application/json');
+  }
+
+  const fetchOpts = {
+    method,
+    headers: finalHeaders,
+    body: hasBody && !isFormData && typeof body !== 'string' ? JSON.stringify(body) : body,
+    ...rest,
+  };
+  if (credentials !== undefined) {
+    fetchOpts.credentials = credentials;
+  }
+
+  const response = await fetch(toRootUrl(path, query), fetchOpts);
+
+  const json = await parseJsonSafe(response);
+  const apiStatus = json?.status;
+  const apiMessage = json?.message;
+
+  if (!response.ok || apiStatus === 'error') {
+    const message = apiMessage || resolveErrorMessage(json, response);
+    const err = new Error(typeof message === 'string' ? message : String(message));
+    err.status = response.status;
+    err.data = json;
+    throw err;
+  }
+
+  if (returnResponse) return json;
+
   return apiStatus ? json?.data : json;
 }
 

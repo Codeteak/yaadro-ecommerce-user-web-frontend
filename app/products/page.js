@@ -1,385 +1,495 @@
 'use client';
 
-import { useState, useMemo, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useProducts, useSearchProducts, useCategories, useCategoryProducts } from '../../hooks/useProducts';
-import ProductGrid from '../../components/ProductGrid';
-import ProductCarousel from '../../components/ProductCarousel';
-import ProductFilters from '../../components/ProductFilters';
-import ProductSort from '../../components/ProductSort';
-import Container from '../../components/Container';
-import Breadcrumbs from '../../components/Breadcrumbs';
-import { useRecentlyViewed } from '../../context/RecentlyViewedContext';
-import { 
-  getProductRating, 
-  getProductDiscount, 
-  getDiscountedPrice, 
-  isOnSale, 
-  getPopularityScore,
-  getBrands 
-} from '../../utils/productUtils';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useProducts } from '../../hooks/useProducts';
+import { useCart } from '../../context/CartContext';
+import { useWishlist } from '../../context/WishlistContext';
+import { getProductRating, getProductDiscount } from '../../utils/productUtils';
 
-function ProductsContent() {
-  const searchParams = useSearchParams();
-  const categoryParam = searchParams?.get('category');
-  const searchParam = searchParams?.get('search');
-  const { getRecentlyViewed } = useRecentlyViewed();
-  
-  const [selectedCategory, setSelectedCategory] = useState(categoryParam || 'All');
-  const [searchQuery, setSearchQuery] = useState(searchParam || '');
-  const [sortBy, setSortBy] = useState('default');
-  const [filters, setFilters] = useState({
-    priceRange: [0, 10000],
-    brand: '',
-    rating: 0,
-    inStock: null,
-    onSale: false,
-  });
+/* ─────────────────────────────────────────────
+   Constants
+───────────────────────────────────────────── */
+const CATEGORIES = [
+  { key: 'all', label: 'All' },
+  { key: 'Edible Oils', label: 'Edible Oils' },
+  { key: 'Dairy', label: 'Dairy' },
+  { key: 'Grains', label: 'Grains' },
+  { key: 'Snacks', label: 'Snacks' },
+  { key: 'Spices', label: 'Spices' },
+  { key: 'Beverages', label: 'Beverages' },
+];
 
-  // Update selected category and search query when URL params change
-  useEffect(() => {
-    if (categoryParam) {
-      setSelectedCategory(categoryParam);
-    } else {
-      setSelectedCategory('All');
-    }
-    if (searchParam) {
-      setSearchQuery(searchParam);
-    } else {
-      setSearchQuery('');
-    }
-  }, [categoryParam, searchParam]);
+const SORT_OPTIONS = [
+  { key: 'default', label: 'Sort' },
+  { key: 'price-asc', label: 'Price: low' },
+  { key: 'price-desc', label: 'Price: high' },
+  { key: 'rating', label: 'Top rated' },
+  { key: 'newest', label: 'Newest' },
+];
 
-  // Load categories using TanStack Query
-  const { data: categoriesData = [] } = useCategories();
-  const categories = categoriesData;
+/* ─────────────────────────────────────────────
+   Sub-components
+───────────────────────────────────────────── */
 
-  // Find selected category object
-  const selectedCategoryObj = useMemo(() => {
-    return categories.find(cat => cat.name === selectedCategory);
-  }, [categories, selectedCategory]);
-
-  // Load products based on category/search using TanStack Query
-  const searchQueryEnabled = searchQuery && searchQuery.trim().length >= 2;
-  const { data: searchData, isLoading: searchLoading } = useSearchProducts({
-    q: searchQuery,
-    page: 1,
-    per_page: 100,
-    min_price: filters.priceRange[0] || undefined,
-    max_price: filters.priceRange[1] || undefined,
-  });
-
-  const { data: categoryProductsData, isLoading: categoryProductsLoading } = useProducts({
-    category_slug: selectedCategoryObj?.slug,
-    page: 1,
-    per_page: 100,
-    min_price: filters.priceRange[0] || undefined,
-    max_price: filters.priceRange[1] || undefined,
-  });
-
-  const { data: allProductsData, isLoading: allProductsLoading } = useProducts({
-    page: 1,
-    per_page: 100,
-    min_price: filters.priceRange[0] || undefined,
-    max_price: filters.priceRange[1] || undefined,
-  });
-
-  // Determine which data to use
-  const productsData = useMemo(() => {
-    if (searchQueryEnabled) {
-      return searchData || { products: [], pagination: { page: 1, per_page: 100, total: 0, total_pages: 0 } };
-    } else if (selectedCategory !== 'All' && selectedCategoryObj) {
-      return categoryProductsData || { products: [], pagination: { page: 1, per_page: 100, total: 0, total_pages: 0 } };
-    } else {
-      return allProductsData || { products: [], pagination: { page: 1, per_page: 100, total: 0, total_pages: 0 } };
-    }
-  }, [searchQueryEnabled, searchData, selectedCategory, selectedCategoryObj, categoryProductsData, allProductsData]);
-
-  const products = productsData?.products || [];
-  const pagination = productsData?.pagination || { page: 1, per_page: 100, total: 0, total_pages: 0 };
-  const loading = searchLoading || categoryProductsLoading || allProductsLoading;
-
-  // Load products by category for carousels (when showing "All")
-  // Note: We'll load these on demand when needed, not all at once
-  const [productsByCategory, setProductsByCategory] = useState({});
-
-  useEffect(() => {
-    if (selectedCategory === 'All' && categories.length > 0) {
-      async function loadCategoryProducts() {
-        const grouped = {};
-        for (const category of categories.slice(0, 10)) {
-          try {
-            const { getCategoryProducts } = await import('../../utils/productApi');
-            const result = await getCategoryProducts(category.slug, { page: 1, per_page: 10 });
-            grouped[category.name] = result.products || [];
-          } catch (error) {
-            console.error(`Error loading products for ${category.name}:`, error);
-            grouped[category.name] = [];
-          }
-        }
-        setProductsByCategory(grouped);
-      }
-      loadCategoryProducts();
-    }
-  }, [selectedCategory, categories]);
-
-  // Apply client-side filters (brand, rating, stock, sale)
-  const filteredProducts = useMemo(() => {
-    let result = [...products];
-
-    // Brand filter
-    if (filters.brand) {
-      const brandLower = filters.brand.toLowerCase();
-      result = result.filter(product => 
-        (product.brand && product.brand.toLowerCase().includes(brandLower)) ||
-        product.name.toLowerCase().includes(brandLower)
-      );
-    }
-
-    // Rating filter
-    if (filters.rating > 0) {
-      result = result.filter(product => getProductRating(product) >= filters.rating);
-    }
-
-    // Stock availability filter
-    if (filters.inStock !== null) {
-      result = result.filter(product => product.inStock === filters.inStock);
-    }
-
-    // Discount/sale filter
-    if (filters.onSale) {
-      result = result.filter(product => isOnSale(product));
-    }
-
-    return result;
-  }, [products, filters]);
-
-  // Apply sorting
-  const sortedProducts = useMemo(() => {
-    const sorted = [...filteredProducts];
-
-    switch (sortBy) {
-      case 'price-low':
-        return sorted.sort((a, b) => getDiscountedPrice(a) - getDiscountedPrice(b));
-      case 'price-high':
-        return sorted.sort((a, b) => getDiscountedPrice(b) - getDiscountedPrice(a));
-      case 'popularity':
-        return sorted.sort((a, b) => getPopularityScore(b) - getPopularityScore(a));
-      case 'newest':
-        return sorted.sort((a, b) => {
-          const dateA = new Date(a.createdAt || 0);
-          const dateB = new Date(b.createdAt || 0);
-          return dateB - dateA;
-        });
-      case 'rating':
-        return sorted.sort((a, b) => getProductRating(b) - getProductRating(a));
-      case 'discount':
-        return sorted.sort((a, b) => getProductDiscount(b) - getProductDiscount(a));
-      default:
-        return sorted;
-    }
-  }, [filteredProducts, sortBy]);
-
-  // Get trending products (featured + high ratings)
-  const trendingProducts = useMemo(() => {
-    return [...products]
-      .filter(p => p.isFeatured || (p.ratingsAverage && parseFloat(p.ratingsAverage) >= 4))
-      .map(product => ({
-        ...product,
-        popularityScore: getPopularityScore(product),
-      }))
-      .sort((a, b) => b.popularityScore - a.popularityScore)
-      .slice(0, 12);
-  }, [products]);
-
-  // Get recommended products
-  const recommendedProducts = useMemo(() => {
-    if (selectedCategory === 'All' || !searchQuery) {
-      // Show featured products from different categories
-      const categoryProducts = {};
-      Object.entries(productsByCategory).forEach(([cat, prods]) => {
-        if (prods.length > 0) {
-          categoryProducts[cat] = prods
-            .filter(p => p.isFeatured)
-            .sort((a, b) => getPopularityScore(b) - getPopularityScore(a))
-            .slice(0, 2);
-        }
-      });
-      return Object.values(categoryProducts).flat().slice(0, 12);
-    }
-    // Show similar products from same category
-    return products
-      .filter(p => p.category === selectedCategory)
-      .sort((a, b) => getPopularityScore(b) - getPopularityScore(a))
-      .slice(0, 12);
-  }, [selectedCategory, searchQuery, products, productsByCategory]);
-
-  // Get recently viewed products
-  const recentlyViewed = useMemo(() => {
-    return getRecentlyViewed(8);
-  }, [getRecentlyViewed]);
-
-  // Show filtered view if category is selected or search query exists
-  const showFilteredView = selectedCategory !== 'All' || searchQuery;
-
-  // Determine page title
-  const pageTitle = useMemo(() => {
-    if (!showFilteredView) return 'All Products';
-    if (searchQuery) return `Search Results for "${searchQuery}"`;
-    if (selectedCategory !== 'All') return `${selectedCategory} Products`;
-    return 'All Products';
-  }, [showFilteredView, selectedCategory, searchQuery]);
-
-  const handleClearFilters = () => {
-    setFilters({
-      priceRange: [0, 10000],
-      brand: '',
-      rating: 0,
-      inStock: null,
-      onSale: false,
-    });
-  };
-
-  const breadcrumbItems = [
-    { label: 'Home', href: '/' },
-    { label: 'Products', href: '/products' },
-  ];
-  
-  if (selectedCategory !== 'All') {
-    breadcrumbItems.push({ label: selectedCategory, href: `/products?category=${encodeURIComponent(selectedCategory)}` });
-  }
-
-  if (loading) {
-    return (
-      <div className="py-4 md:py-6 lg:py-8 w-full max-w-full overflow-x-hidden">
-        <Container>
-          <div className="text-center py-12">
-            <div className="w-10 h-10 rounded-full border-4 border-gray-200 border-t-primary animate-spin mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">Loading products...</p>
-          </div>
-        </Container>
-      </div>
-    );
-  }
-
+function SearchBar({ value, onChange }) {
   return (
-    <div className="py-4 md:py-6 lg:py-8 w-full max-w-full overflow-x-hidden">
-      <Container>
-        <Breadcrumbs items={breadcrumbItems} />
-        <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 mb-6 md:mb-8 px-4 md:px-0 mt-2">
-          {pageTitle}
-        </h1>
-
-        {/* Show filtered products if category/search is active */}
-        {showFilteredView ? (
-          <div className="px-4 md:px-0">
-            {/* Filters and Sort */}
-            <div className="mb-6 space-y-4">
-              <ProductFilters 
-                filters={filters} 
-                onFilterChange={setFilters}
-                onClearFilters={handleClearFilters}
-              />
-              <ProductSort sortBy={sortBy} onSortChange={setSortBy} />
-            </div>
-
-            {/* Results count */}
-            <div className="mb-4 text-sm text-gray-600">
-              Showing {sortedProducts.length} of {pagination.total || products.length} products
-            </div>
-
-            {/* Products Grid */}
-            {sortedProducts.length > 0 ? (
-              <ProductGrid products={sortedProducts} />
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg mb-4">No products found matching your filters.</p>
-                <button
-                  onClick={handleClearFilters}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
-                >
-                  Clear Filters
-                </button>
-              </div>
-            )}
-
-            {/* Recommended Products */}
-            {recommendedProducts.length > 0 && (
-              <div className="mt-12">
-                <h2 className="text-2xl font-bold text-gray-800 mb-6">Recommended for You</h2>
-                <ProductCarousel products={recommendedProducts} />
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Show category carousels with additional sections */
-          <div className="space-y-8 md:space-y-12">
-            {/* Trending Products */}
-            {trendingProducts.length > 0 && (
-              <div className="px-4 md:px-0">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl md:text-3xl font-bold text-gray-800">🔥 Trending Products</h2>
-                </div>
-                <ProductCarousel products={trendingProducts} />
-              </div>
-            )}
-
-            {/* Recently Viewed */}
-            {recentlyViewed.length > 0 && (
-              <div className="px-4 md:px-0">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl md:text-3xl font-bold text-gray-800">👁️ Recently Viewed</h2>
-                </div>
-                <ProductCarousel products={recentlyViewed} />
-              </div>
-            )}
-
-            {/* Recommended Products */}
-            {recommendedProducts.length > 0 && (
-              <div className="px-4 md:px-0">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl md:text-3xl font-bold text-gray-800">⭐ Recommended for You</h2>
-                </div>
-                <ProductCarousel products={recommendedProducts} />
-              </div>
-            )}
-
-            {/* Category carousels */}
-            <div className="space-y-4 md:space-y-6 -mr-4 sm:-mr-6 lg:-mr-8">
-              {categories.slice(0, 10).map((category) => {
-                const categoryProducts = productsByCategory[category.name] || [];
-                if (categoryProducts.length === 0) return null;
-                
-                return (
-                  <div key={category.id} className="w-full max-w-full overflow-x-hidden">
-                    <ProductCarousel
-                      products={categoryProducts}
-                      title={category.name}
-                      showMoreLink={`/products?category=${encodeURIComponent(category.name)}`}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </Container>
+    <div className="relative flex-1">
+      <svg
+        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+        fill="none" stroke="currentColor" viewBox="0 0 24 24"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Search products…"
+        className="w-full h-[38px] pl-9 pr-4 rounded-full border border-gray-200 bg-gray-50 text-[13px] text-gray-900 placeholder-gray-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+      />
     </div>
   );
 }
 
+function CartButton({ count }) {
+  return (
+    <Link
+      href="/cart"
+      className="relative w-[38px] h-[38px] rounded-full border border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0"
+      aria-label={`Cart — ${count} items`}
+    >
+      <svg className="w-[18px] h-[18px] text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+      </svg>
+      {count > 0 && (
+        <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-600 text-white text-[10px] font-medium rounded-full flex items-center justify-center border-2 border-white">
+          {count > 9 ? '9+' : count}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function CategoryPills({ activeCategory, onSelect }) {
+  return (
+    <div className="flex gap-2 overflow-x-auto px-4 py-2.5 bg-white border-b border-gray-100 scrollbar-hide">
+      {CATEGORIES.map((cat) => (
+        <button
+          key={cat.key}
+          onClick={() => onSelect(cat.key)}
+          className={`flex-shrink-0 px-4 py-1.5 rounded-full text-[12px] font-medium border transition whitespace-nowrap ${
+            activeCategory === cat.key
+              ? 'bg-emerald-600 text-white border-emerald-600'
+              : 'border-gray-200 text-gray-500 bg-gray-50 hover:border-gray-300'
+          }`}
+        >
+          {cat.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function FilterBar({ filters, onFilterToggle, sortKey, onSortChange }) {
+  const sortLabel = SORT_OPTIONS.find((s) => s.key === sortKey)?.label || 'Sort';
+  const sortIdx = SORT_OPTIONS.findIndex((s) => s.key === sortKey);
+
+  const handleSortClick = () => {
+    const next = SORT_OPTIONS[(sortIdx + 1) % SORT_OPTIONS.length];
+    onSortChange(next.key);
+  };
+
+  return (
+    <div className="flex items-center justify-between px-4 py-2 bg-white border-b border-gray-100">
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+        {[
+          { key: 'organic', label: 'Organic', icon: (
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+            </svg>
+          )},
+          { key: 'inStock', label: 'In stock', icon: (
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          )},
+          { key: 'onSale', label: 'On sale', icon: (
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a2 2 0 012-2z" />
+            </svg>
+          )},
+        ].map(({ key, label, icon }) => (
+          <button
+            key={key}
+            onClick={() => onFilterToggle(key)}
+            className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition whitespace-nowrap ${
+              filters[key]
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'border-gray-200 text-gray-500 bg-gray-50 hover:border-gray-300'
+            }`}
+          >
+            {icon}
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <button
+        onClick={handleSortClick}
+        className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition ml-2 whitespace-nowrap ${
+          sortKey !== 'default'
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            : 'border-gray-200 text-gray-500 bg-gray-50 hover:border-gray-300'
+        }`}
+      >
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+        </svg>
+        {sortLabel}
+      </button>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Product card
+───────────────────────────────────────────── */
+function ProductCard({ product }) {
+  const { addToCart, cartItems } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const inWishlist = isInWishlist(product.id);
+  const inCart = cartItems.some((i) => i.id === product.id);
+
+  const price = parseFloat(product.price);
+  const originalPrice = product.originalPrice || null;
+  const discountPct = originalPrice && originalPrice > price
+    ? Math.round(((originalPrice - price) / originalPrice) * 100)
+    : 0;
+  const rating = getProductRating(product);
+  const imageSrc = product.image || '/images/dummy.png';
+
+  const handleAddToCart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addToCart({ ...product, price }, 1);
+  };
+
+  const handleWishlist = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (inWishlist) removeFromWishlist(product.id);
+    else addToWishlist(product);
+  };
+
+  return (
+    <Link href={`/products/${product.slug || product.id}`} className="block">
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-gray-200 transition active:scale-[0.98]">
+        {/* Image */}
+        <div className="relative w-full aspect-square bg-gray-50">
+          <Image
+            src={imageSrc}
+            alt={product.name}
+            fill
+            className="object-contain p-2"
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          />
+
+          {/* Badges */}
+          {discountPct > 0 && (
+            <span className="absolute top-2 left-2 text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+              {discountPct}% off
+            </span>
+          )}
+          {product.organicTag && (
+            <span className="absolute top-2 right-2 text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+              Organic
+            </span>
+          )}
+
+          {/* Out of stock overlay */}
+          {!product.inStock && (
+            <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+              <span className="text-[11px] font-medium text-gray-500 px-3 py-1 rounded-full bg-white border border-gray-200">
+                Out of stock
+              </span>
+            </div>
+          )}
+
+          {/* Wishlist */}
+          <button
+            onClick={handleWishlist}
+            className={`absolute bottom-2 right-2 w-7 h-7 rounded-full flex items-center justify-center transition ${
+              inWishlist
+                ? 'bg-red-50 text-red-500'
+                : 'bg-white text-gray-400 border border-gray-200 hover:text-red-400'
+            }`}
+            aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+          >
+            <svg
+              className="w-3.5 h-3.5"
+              fill={inWishlist ? 'currentColor' : 'none'}
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-2.5">
+          <p className="text-[12px] font-medium text-gray-900 leading-snug mb-1 line-clamp-2">
+            {product.name}
+          </p>
+          <p className="text-[11px] text-gray-400 mb-2">
+            {product.weight && product.unit ? `${product.weight} ${product.unit}` : ''}
+            {product.brand ? ` · ${product.brand}` : ''}
+          </p>
+
+          {rating > 0 && (
+            <div className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 mb-2">
+              <svg className="w-2.5 h-2.5 fill-emerald-700" viewBox="0 0 24 24">
+                <path d="M12 .587l3.668 7.431L24 9.75l-6 5.847 1.417 8.26L12 19.771l-7.417 4.086L6 15.597 0 9.75l8.332-1.732z" />
+              </svg>
+              {rating.toFixed(1)}
+              {product.ratingsCount > 0 && (
+                <span className="opacity-60 font-normal">({product.ratingsCount})</span>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <span className="text-[14px] font-medium text-gray-900">
+                ₹{price.toLocaleString('en-IN')}
+              </span>
+              {originalPrice && originalPrice > price && (
+                <span className="text-[11px] text-gray-400 line-through ml-1.5">
+                  ₹{originalPrice.toLocaleString('en-IN')}
+                </span>
+              )}
+            </div>
+
+            {product.inStock && (
+              <button
+                onClick={handleAddToCart}
+                className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition ${
+                  inCart
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'
+                }`}
+                aria-label={inCart ? 'Already in cart' : 'Add to cart'}
+              >
+                {inCart ? (
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                  </svg>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Skeleton card (loading)
+───────────────────────────────────────────── */
+function SkeletonCard() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
+      <div className="w-full aspect-square bg-gray-100" />
+      <div className="p-2.5 space-y-2">
+        <div className="h-3 bg-gray-100 rounded-full w-4/5" />
+        <div className="h-3 bg-gray-100 rounded-full w-3/5" />
+        <div className="h-4 bg-gray-100 rounded-full w-2/5 mt-3" />
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Empty state
+───────────────────────────────────────────── */
+function EmptyState({ onReset }) {
+  return (
+    <div className="col-span-2 flex flex-col items-center justify-center py-16 px-6 text-center">
+      <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4m8-5v8" />
+        </svg>
+      </div>
+      <p className="text-[14px] font-medium text-gray-700 mb-1">No products found</p>
+      <p className="text-[12px] text-gray-400 mb-5">Try adjusting your filters or search query</p>
+      <button
+        onClick={onReset}
+        className="text-[12px] font-medium text-emerald-600 hover:text-emerald-800 transition"
+      >
+        Clear all filters
+      </button>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Main page content
+───────────────────────────────────────────── */
+function ProductsContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { cartItems } = useCart();
+
+  const [search, setSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState(
+    searchParams?.get('category') || 'all'
+  );
+  const [filters, setFilters] = useState({
+    organic: false,
+    inStock: false,
+    onSale: false,
+  });
+  const [sortKey, setSortKey] = useState('default');
+
+  /* ── Sync category from URL ── */
+  useEffect(() => {
+    const cat = searchParams?.get('category');
+    if (cat) setActiveCategory(cat);
+  }, [searchParams]);
+
+  /* ── Fetch products ── */
+  const queryParams = {
+    category: activeCategory !== 'all' ? activeCategory : undefined,
+    search: search || undefined,
+    organic: filters.organic || undefined,
+    inStock: filters.inStock || undefined,
+    onSale: filters.onSale || undefined,
+    sort: sortKey !== 'default' ? sortKey : undefined,
+  };
+  const { data, isLoading } = useProducts(queryParams);
+  const products = data?.products || data || [];
+
+  /* ── Client-side sort fallback (if API doesn't sort) ── */
+  const sorted = [...products].sort((a, b) => {
+    if (sortKey === 'price-asc') return parseFloat(a.price) - parseFloat(b.price);
+    if (sortKey === 'price-desc') return parseFloat(b.price) - parseFloat(a.price);
+    if (sortKey === 'rating') return getProductRating(b) - getProductRating(a);
+    return 0;
+  });
+
+  /* ── Client-side filter fallback ── */
+  const filtered = sorted.filter((p) => {
+    if (filters.organic && !p.organicTag) return false;
+    if (filters.inStock && !p.inStock) return false;
+    if (filters.onSale) {
+      const disc = getProductDiscount(p);
+      if (!disc || disc <= 0) return false;
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      const matchName = p.name?.toLowerCase().includes(q);
+      const matchBrand = p.brand?.toLowerCase().includes(q);
+      const matchCat = p.category?.toLowerCase().includes(q);
+      if (!matchName && !matchBrand && !matchCat) return false;
+    }
+    return true;
+  });
+
+  const handleFilterToggle = (key) => {
+    setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleReset = () => {
+    setSearch('');
+    setActiveCategory('all');
+    setFilters({ organic: false, inStock: false, onSale: false });
+    setSortKey('default');
+    router.replace('/products');
+  };
+
+  const handleCategorySelect = (cat) => {
+    setActiveCategory(cat);
+    if (cat === 'all') {
+      router.replace('/products');
+    } else {
+      router.replace(`/products?category=${encodeURIComponent(cat)}`);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden">
+
+      {/* ── Top bar ── */}
+      <div className="sticky top-0 z-30 bg-white border-b border-gray-100 px-4 py-2.5 flex items-center gap-3">
+        <SearchBar value={search} onChange={setSearch} />
+        <CartButton count={cartItems.length} />
+      </div>
+
+      {/* ── Category pills ── */}
+      <CategoryPills activeCategory={activeCategory} onSelect={handleCategorySelect} />
+
+      {/* ── Filter + sort bar ── */}
+      <FilterBar
+        filters={filters}
+        onFilterToggle={handleFilterToggle}
+        sortKey={sortKey}
+        onSortChange={setSortKey}
+      />
+
+      {/* ── Results count ── */}
+      {!isLoading && (
+        <p className="px-4 py-2 text-[11px] text-gray-400">
+          {filtered.length > 0
+            ? `Showing ${filtered.length} product${filtered.length !== 1 ? 's' : ''}`
+            : 'No products found'}
+        </p>
+      )}
+
+      {/* ── Grid ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 px-4 pb-8">
+        {isLoading
+          ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
+          : filtered.length === 0
+          ? <EmptyState onReset={handleReset} />
+          : filtered.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Page export
+───────────────────────────────────────────── */
 export default function ProductsPage() {
   return (
-    <Suspense fallback={
-      <div className="py-4 md:py-6 lg:py-8 w-full max-w-full overflow-x-hidden">
-        <Container>
-          <div className="text-center py-12">
-            <div className="w-10 h-10 rounded-full border-4 border-gray-200 border-t-primary animate-spin mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">Loading products...</p>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50">
+          <div className="sticky top-0 z-30 bg-white border-b border-gray-100 h-14" />
+          <div className="grid grid-cols-2 gap-3 px-4 pt-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
+                <div className="w-full aspect-square bg-gray-100" />
+                <div className="p-2.5 space-y-2">
+                  <div className="h-3 bg-gray-100 rounded-full w-4/5" />
+                  <div className="h-3 bg-gray-100 rounded-full w-3/5" />
+                </div>
+              </div>
+            ))}
           </div>
-        </Container>
-      </div>
-    }>
+        </div>
+      }
+    >
       <ProductsContent />
     </Suspense>
   );

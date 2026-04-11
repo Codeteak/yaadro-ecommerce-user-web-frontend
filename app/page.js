@@ -135,7 +135,7 @@ export default function Home() {
   return (
     <div className="w-full max-w-full" style={{ maxWidth: '100vw' }}>
       {/* Categories - horizontal scroll */}
-      <section className="py-6 md:py-8 lg:py-10 bg-white overflow-visible">
+      <section className="py-5 md:py-7 lg:py-9 bg-white overflow-visible">
         <div className="w-full min-w-0 px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 mx-auto max-w-screen-xl overflow-visible">
           <div
             ref={categoryScrollRef}
@@ -146,14 +146,14 @@ export default function Home() {
             onPointerUp={handleCategoryMouseUp}
             onPointerMove={handleCategoryMouseMove}
             onPointerCancel={handleCategoryMouseUp}
-            className="category-scroll-track flex items-center gap-3 overflow-x-auto overflow-y-hidden scrollbar-hide px-1 cursor-grab select-none touch-pan-x snap-x snap-mandatory scroll-smooth min-w-0 w-full"
+            className="category-scroll-track flex items-center gap-4 overflow-x-auto overflow-y-hidden scrollbar-hide px-1 cursor-grab select-none touch-pan-x snap-x snap-mandatory scroll-smooth min-w-0 w-full"
             style={{
               WebkitOverflowScrolling: 'touch',
               overflowX: 'auto',
               overflowY: 'hidden',
             }}
           >
-            <div className="flex items-center gap-3 flex-nowrap w-max flex-shrink-0">
+            <div className="flex items-stretch gap-4 flex-nowrap w-max flex-shrink-0 py-1">
               {categories.map((category) => (
                 <div key={category.id} className="flex-shrink-0 snap-start">
                   <CategoryCard category={category} />

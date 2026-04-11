@@ -1,0 +1,22 @@
+# Cloudflare Tunnel — customer web (Next.js dev or local prod preview)
+# Docs: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/
+#
+# 1) cloudflared tunnel login
+# 2) cloudflared tunnel create cus-yaadro
+#    → note the Tunnel ID and the credentials JSON path under ~/.cloudflared/
+# 3) Copy the generated JSON to cloudflared/credentials.json (see credentials-file below).
+# 4) cloudflared tunnel route dns cus-yaadro cus.yaadro.online
+# 5) Run from repo root:
+#    cloudflared tunnel --config cloudflared/config.yaml run
+#
+# MUST match the "TunnelID" field inside credentials.json (same UUID as ~/.cloudflared/<id>.json).
+
+tunnel: 55c8e96e-cc5f-4700-ac77-a008f6da2ddf
+# Relative to current working directory. Run tunnel from repo root (npm run tunnel:run).
+credentials-file: ./cloudflared/credentials.json
+
+ingress:
+  - hostname: cu.yaadro.online
+    service: http://localhost:3000
+  # If you use another port, change the line above (e.g. http://localhost:3001).
+  - service: http_status:404

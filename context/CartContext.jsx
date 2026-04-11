@@ -1,20 +1,17 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import { useAlert } from './AlertContext';
-import { useCartQuery, useAddToCart, useUpdateCartItem, useRemoveFromCart, useClearCart, cartKeys } from '../hooks/useCart';
-import { getCart } from '../utils/cartApi';
+import { useCartQuery, useAddToCart, useUpdateCartItem, useRemoveFromCart, useClearCart } from '../hooks/useCart';
 
 const CartContext = createContext();
 
 export function CartProvider({ children }) {
   // Initialize cart state from localStorage if available (client-side only)
   const [isClient, setIsClient] = useState(false);
-  const [showMobileCart, setShowMobileCart] = useState(false);
   const [showSidebarCart, setShowSidebarCart] = useState(false);
-  const [lastAddedItem, setLastAddedItem] = useState(null);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [savedCarts, setSavedCarts] = useState([]);
   const [cartTemplates, setCartTemplates] = useState([]);
@@ -23,9 +20,13 @@ export function CartProvider({ children }) {
   const { isAuthenticated, token } = useAuth();
   const { showAlert } = useAlert();
 
-  // Load cart using TanStack Query (only if authenticated)
-  const { data: cartData, isLoading: loading } = useCartQuery();
-  const apiCartItems = isAuthenticated && token ? (cartData?.items || []) : [];
+  // Use API cart when authenticated; otherwise use local cart.
+  const useApiCart = !!(isAuthenticated && token);
+  const syncedLocalToApiRef = useRef(false);
+
+  // Load cart using TanStack Query (disabled for now)
+  const { data: cartData, isLoading: loading } = useCartQuery({ enabled: useApiCart });
+  const apiCartItems = useApiCart ? (cartData?.items || []) : [];
 
   // Local cart state for unauthenticated users
   const [localCartItems, setLocalCartItems] = useState([]);
@@ -73,8 +74,8 @@ export function CartProvider({ children }) {
     }
   }, [isAuthenticated, token]);
 
-  // Use API cart items if authenticated, otherwise use local
-  const cartItems = isAuthenticated && token ? apiCartItems : localCartItems;
+  // Use API cart items if enabled, otherwise use local
+  const cartItems = useApiCart ? apiCartItems : localCartItems;
 
   // TanStack Query mutations and client
   const queryClient = useQueryClient();
@@ -82,6 +83,41 @@ export function CartProvider({ children }) {
   const updateCartItemMutation = useUpdateCartItem();
   const removeFromCartMutation = useRemoveFromCart();
   const clearCartMutation = useClearCart();
+
+  // On login, best-effort sync local cart into API cart once.
+  useEffect(() => {
+    if (!useApiCart) {
+      syncedLocalToApiRef.current = false;
+      return;
+    }
+    if (syncedLocalToApiRef.current) return;
+    if (!localCartItems || localCartItems.length === 0) {
+      syncedLocalToApiRef.current = true;
+      return;
+    }
+
+    (async () => {
+      try {
+        for (const it of localCartItems) {
+          const productId = it?.id || it?.productId;
+          const qty = Number(it?.quantity ?? 1) || 1;
+          if (!productId) continue;
+          await addToCartMutation.mutateAsync({ productId, quantity: qty });
+        }
+        setLocalCartItems([]);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('cart');
+          localStorage.removeItem('cartLastActivity');
+        }
+      } catch (e) {
+        // Keep local cart if sync fails.
+        console.error('Failed to sync local cart to API:', e);
+      } finally {
+        syncedLocalToApiRef.current = true;
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useApiCart]);
 
   // Save cart to localStorage whenever it changes (only if not authenticated)
   useEffect(() => {
@@ -116,11 +152,10 @@ export function CartProvider({ children }) {
 
   // Add item to cart
   const addToCart = async (product, quantity = 1) => {
-    const wasEmpty = cartItems.length === 0;
     const productId = product.id || product.productId;
 
     try {
-      if (isAuthenticated && token) {
+      if (useApiCart && isAuthenticated && token) {
         // Use API if authenticated
         // Check if item already exists in cart
         const existingItem = cartItems.find(item => 
@@ -131,26 +166,22 @@ export function CartProvider({ children }) {
           // Item exists, update quantity
           const newQuantity = existingItem.quantity + quantity;
           await updateCartItemMutation.mutateAsync({ itemId: existingItem.cartItemId, quantity: newQuantity });
-          setLastAddedItem({ ...existingItem, quantity: newQuantity });
         } else {
           // Item doesn't exist, add new
           try {
-            const result = await addToCartMutation.mutateAsync({ productId, quantity });
-            if (result?.cartItem) {
-              setLastAddedItem(result.cartItem);
-            }
+            await addToCartMutation.mutateAsync({ productId, quantity });
           } catch (error) {
             // If error says item already exists, reload cart and update
             if (error.message?.includes('unique') || error.message?.includes('already exists')) {
               // Refetch cart to get the existing item
-              const refreshedCart = await queryClient.fetchQuery({ queryKey: cartKeys.cart(), queryFn: getCart });
+              // Backend cart is disabled; keep local cart only.
+              throw error;
               const foundItem = refreshedCart?.items?.find(item => 
                 item.productId === productId || (item.product && item.product.id === productId)
               );
               if (foundItem && foundItem.cartItemId) {
                 const newQuantity = foundItem.quantity + quantity;
                 await updateCartItemMutation.mutateAsync({ itemId: foundItem.cartItemId, quantity: newQuantity });
-                setLastAddedItem({ ...foundItem, quantity: newQuantity });
               } else {
                 throw error;
               }
@@ -193,21 +224,10 @@ export function CartProvider({ children }) {
             newItems = [...prevItems, addedItem];
           }
 
-          if (addedItem) {
-            setLastAddedItem(addedItem);
-          }
-
           return newItems;
         });
       }
 
-      // Show cart UI
-      if (wasEmpty && typeof window !== 'undefined' && window.innerWidth < 768) {
-        setShowMobileCart(true);
-      }
-      if (typeof window !== 'undefined' && window.innerWidth >= 768) {
-        setShowSidebarCart(true);
-      }
     } catch (error) {
       console.error('Error adding to cart:', error);
       // Show error message to user
@@ -228,7 +248,7 @@ export function CartProvider({ children }) {
         item.cartItemKey === idOrKey || item.id === idOrKey || item.cartItemId === idOrKey
       );
 
-      if (isAuthenticated && token && item?.cartItemId) {
+      if (useApiCart && isAuthenticated && token && item?.cartItemId) {
         // Use API if authenticated
         await removeFromCartMutation.mutateAsync(item.cartItemId);
         // Query will refetch automatically
@@ -260,7 +280,7 @@ export function CartProvider({ children }) {
         item.cartItemKey === idOrKey || item.id === idOrKey || item.cartItemId === idOrKey
       );
 
-      if (isAuthenticated && token && item?.cartItemId) {
+      if (useApiCart && isAuthenticated && token && item?.cartItemId) {
         // Use API if authenticated
         await updateCartItemMutation.mutateAsync({ itemId: item.cartItemId, quantity });
         // Query will refetch automatically
@@ -288,7 +308,7 @@ export function CartProvider({ children }) {
 
   // Update cart item note
   const updateCartItemNote = (idOrKey, note) => {
-    if (isAuthenticated && token) {
+    if (useApiCart && isAuthenticated && token) {
       // Notes not supported in API yet, update local state
       // This is a client-side only feature
     } else {
@@ -304,7 +324,7 @@ export function CartProvider({ children }) {
   // Clear entire cart
   const clearCart = async () => {
     try {
-      if (isAuthenticated && token) {
+      if (useApiCart && isAuthenticated && token) {
         // Use API if authenticated
         await clearCartMutation.mutateAsync();
         // Query will update automatically
@@ -343,7 +363,7 @@ export function CartProvider({ children }) {
   const loadSavedCart = (cartId) => {
     const savedCart = savedCarts.find(c => c.id === cartId);
     if (savedCart) {
-      if (isAuthenticated && token) {
+      if (useApiCart && isAuthenticated && token) {
         // For authenticated users, we'd need to sync to API
         // For now, just show a message
         showAlert('Loading saved carts for authenticated users is not yet implemented. Please add items manually.', 'Info', 'info');
@@ -466,12 +486,8 @@ export function CartProvider({ children }) {
     clearCart,
     cartCount,
     cartTotal,
-    showMobileCart,
-    setShowMobileCart,
     showSidebarCart,
     setShowSidebarCart,
-    lastAddedItem,
-    setLastAddedItem,
     saveCart,
     loadSavedCart,
     deleteSavedCart,

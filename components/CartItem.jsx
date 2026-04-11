@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
+import { formatRupeeINR } from '../utils/productUtils';
 
 export default function CartItem({ item }) {
   const { updateQuantity, removeFromCart, updateCartItemNote } = useCart();
@@ -42,10 +43,13 @@ export default function CartItem({ item }) {
   };
 
   const imageSrc = item.image || '/images/dummy.png';
-  const lineTotal = (item.price * item.quantity).toFixed(0);
-  const originalPrice = item.originalPrice || null;
-  const hasDiscount = originalPrice && originalPrice > item.price;
-  const discountValue = hasDiscount ? originalPrice - item.price : null;
+  const unitPrice = parseFloat(item.price);
+  const lineTotal = Number.isFinite(unitPrice) ? unitPrice * item.quantity : 0;
+  const originalPrice =
+    item.originalPrice != null ? parseFloat(item.originalPrice) : null;
+  const hasDiscount =
+    originalPrice != null && Number.isFinite(originalPrice) && originalPrice > unitPrice + 1e-9;
+  const discountValue = hasDiscount ? originalPrice - unitPrice : null;
 
   return (
     <div className="flex gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
@@ -84,12 +88,16 @@ export default function CartItem({ item }) {
 
         <div className="mt-1 flex items-center gap-2">
           <span className="bg-green-600 text-white text-xs font-semibold px-2 py-1 rounded-md">
-            ₹{item.price.toFixed(0)}
+            ₹{formatRupeeINR(unitPrice)}
           </span>
           {hasDiscount && (
             <>
-              <span className="text-[11px] text-gray-500 line-through">₹{originalPrice.toFixed(0)}</span>
-              <span className="text-[11px] text-green-700 font-semibold">₹{discountValue.toFixed(0)} OFF</span>
+              <span className="text-[11px] text-gray-500 line-through">
+                ₹{formatRupeeINR(originalPrice)}
+              </span>
+              <span className="text-[11px] text-green-700 font-semibold">
+                ₹{formatRupeeINR(discountValue)} OFF
+              </span>
             </>
           )}
         </div>
@@ -114,7 +122,7 @@ export default function CartItem({ item }) {
           </div>
 
           <div className="text-right">
-            <p className="text-sm font-semibold text-gray-900">₹{lineTotal}</p>
+            <p className="text-sm font-semibold text-gray-900">₹{formatRupeeINR(lineTotal)}</p>
           </div>
         </div>
 

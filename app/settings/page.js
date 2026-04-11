@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
@@ -22,9 +23,29 @@ import {
   Info,
 } from 'lucide-react';
 
+function profileDisplayName(user) {
+  if (!user || typeof user !== 'object') return 'User';
+  const candidates = [user.name, user.displayName, user.fullName].filter(
+    (v) => typeof v === 'string' && v.trim().length > 0
+  );
+  if (candidates.length) return candidates[0].trim();
+  if (user.email && typeof user.email === 'string') return user.email.split('@')[0];
+  return 'User';
+}
+
+function profileDisplayPhone(user) {
+  if (!user || typeof user !== 'object') return '';
+  const candidates = [user.phone, user.mobile, user.phoneNumber].filter(
+    (v) => v != null && String(v).replace(/\s/g, '').length > 0
+  );
+  if (!candidates.length) return '';
+  const p = String(candidates[0]).replace(/\s/g, '').trim();
+  return p;
+}
+
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, authHydrated, isLoadingUser, logout, refreshUser } = useAuth();
   const { addresses = [] } = useAddress();
   const { showAlert } = useAlert();
 
@@ -36,13 +57,33 @@ export default function SettingsPage() {
     router.push('/');
   };
 
-  if (!isAuthenticated) {
-    router.replace('/');
-    return null;
+  useEffect(() => {
+    if (!authHydrated) return;
+    if (isLoadingUser) return;
+    if (!isAuthenticated) router.replace('/');
+  }, [authHydrated, isLoadingUser, isAuthenticated, router]);
+
+  /** Load latest profile from GET /api/me/profile (silent — avoid blanking the whole page). */
+  useEffect(() => {
+    if (!authHydrated || !isAuthenticated || isLoadingUser) return;
+    refreshUser({ silent: true });
+  }, [authHydrated, isAuthenticated, isLoadingUser, refreshUser]);
+
+  if (!authHydrated || isLoadingUser) {
+    return (
+      <div className="flex min-h-screen flex-col bg-gray-50">
+        <PageTopBar title="Settings" backHref="/" />
+        <div className="flex flex-1 items-center justify-center">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      </div>
+    );
   }
 
-  const displayName = user?.name || user?.email?.split('@')[0] || 'User';
-  const displayPhone = user?.phone || user?.email || '—';
+  if (!isAuthenticated) return null;
+
+  const displayName = profileDisplayName(user);
+  const phoneText = profileDisplayPhone(user);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24 md:pb-8">
@@ -56,7 +97,18 @@ export default function SettingsPage() {
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-bold text-gray-900 truncate">{displayName}</h2>
-            <p className="text-sm text-gray-500 truncate">{displayPhone}</p>
+            <p className="text-sm text-gray-600 truncate">
+              {phoneText ? (
+                <span>{phoneText}</span>
+              ) : user?.email ? (
+                <span className="text-gray-500">{user.email}</span>
+              ) : (
+                <span className="text-gray-400">Add name and phone in Profile</span>
+              )}
+            </p>
+            {phoneText && user?.email && (
+              <p className="mt-0.5 truncate text-xs text-gray-400">{user.email}</p>
+            )}
           </div>
         </div>
 

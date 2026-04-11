@@ -26,6 +26,9 @@ yarn-error.log*
 .env*.local
 .env
 
+# Cloudflare Tunnel — never commit real tunnel credentials
+cloudflared/credentials.json
+
 # Vercel
 .vercel
 

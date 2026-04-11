@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Dev: allow loading `/_next/static/*` when the site is opened via a tunnel hostname
+  // (e.g. Cloudflare). Without this, chunks/CSS can 404/500 and the browser may throw
+  // SyntaxError while parsing HTML or error bodies as JavaScript (often reported as layout.js).
+  allowedDevOrigins: ['cu.yaadro.online'],
   images: {
     // Allow images from any domain by bypassing Next.js image optimization
     // This allows all domains but images won't be optimized by Next.js

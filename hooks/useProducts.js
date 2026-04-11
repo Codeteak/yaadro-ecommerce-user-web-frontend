@@ -19,11 +19,14 @@ export const productKeys = {
 
 /**
  * Get products with filters
+ * @param {object} params — passed to `getProducts` except `enabled` (React Query)
  */
 export function useProducts(params = {}) {
+  const { enabled = true, ...apiParams } = params;
   return useQuery({
-    queryKey: productKeys.list(params),
-    queryFn: () => getProducts(params),
+    queryKey: productKeys.list(apiParams),
+    queryFn: () => getProducts(apiParams),
+    enabled,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }

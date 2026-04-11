@@ -1,0 +1,103 @@
+Cloudflare Tunnel for cus.yaadro.online
+=======================================
+
+Prerequisites
+- cloudflared installed (macOS: brew install cloudflared)
+- DNS zone yaadro.online is on Cloudflare (same account you use below)
+- Next.js app listening on http://localhost:3000 (or edit cloudflared/config.yaml)
+
+============================================================================
+FROM SCRATCH (order matters)
+============================================================================
+1) Install:  brew install cloudflared
+2) Login (skip if ~/.cloudflared/cert.pem already exists — you are logged in):
+      npm run tunnel:login
+3) Create tunnel (creates credentials in ~/.cloudflared/):
+      cloudflared tunnel create cus-yaadro
+   Copy the printed TUNNEL UUID.
+4) DNS route (creates CNAME in Cloudflare for this hostname):
+      cloudflared tunnel route dns cus-yaadro cus.yaadro.online
+5) Copy credentials into the repo (same folder as config.yaml):
+      cp ~/.cloudflared/<TUNNEL_UUID>.json ./cloudflared/credentials.json
+   Do NOT hand-write this file; it must be the JSON from step 3.
+6) Edit cloudflared/config.yaml:
+   - Set  tunnel: <same UUID as "TunnelID" inside credentials.json>
+   - Never leave TUNNEL_UUID as literal text — the tunnel will not run.
+   - ingress hostname must match cus.yaadro.online (or your chosen name).
+   - service must match where Next runs (default http://localhost:3000).
+7) Terminal 1 — start the app:
+      npm run dev
+8) Terminal 2 — start the tunnel (from repository root):
+      npm run tunnel:run
+9) Open https://cus.yaadro.online in a browser (HTTPS is handled by Cloudflare).
+
+Quick checks if something fails
+- Local app: curl -sI http://localhost:3000  (should not connection refused)
+- Tunnel id matches: open credentials.json and ensure config.yaml "tunnel:" equals "TunnelID"
+- List tunnels: cloudflared tunnel list
+- Info: cloudflared tunnel info cus-yaadro
+
+----------------------------------------------------------------------------
+Step A — Cloudflare login (required once per machine / account)
+----------------------------------------------------------------------------
+This opens a browser and authorizes cloudflared to manage tunnels for your
+Cloudflare account. It stores a certificate locally (typically under
+~/.cloudflared/).
+
+  cloudflared tunnel login
+
+Or from this repo:
+
+  npm run tunnel:login
+
+- Log in with the Cloudflare account that owns the zone yaadro.online.
+- If you use multiple Cloudflare accounts, run login again before creating
+  tunnels for a different account.
+
+If you see: "You have an existing certificate at ~/.cloudflared/cert.pem"
+- Same account: you are already logged in — skip login and continue with
+  tunnel create / route dns / tunnel run.
+- New login needed: move or remove the old cert, then run login again, e.g.:
+    mv ~/.cloudflared/cert.pem ~/.cloudflared/cert.pem.bak
+    npm run tunnel:login
+
+----------------------------------------------------------------------------
+Step B — Create tunnel + DNS (one-time per tunnel name)
+----------------------------------------------------------------------------
+1) Create a named tunnel (example name: cus-yaadro):
+
+   cloudflared tunnel create cus-yaadro
+
+   Note the Tunnel ID (UUID). A credentials file is created at:
+
+   ~/.cloudflared/<TUNNEL_UUID>.json
+
+2) Route the public hostname to this tunnel:
+
+   cloudflared tunnel route dns cus-yaadro cus.yaadro.online
+
+3) Copy credentials next to this repo’s config (recommended):
+
+   cp ~/.cloudflared/<TUNNEL_UUID>.json ./cloudflared/credentials.json
+
+4) Edit cloudflared/config.yaml:
+   - Replace TUNNEL_UUID with your tunnel UUID
+   - credentials-file is ./cloudflared/credentials.json (paths are from repo root when using npm run tunnel:run)
+   - Change service: port if your app is not on 3000
+
+----------------------------------------------------------------------------
+Step C — Run the tunnel (every time you want public access)
+----------------------------------------------------------------------------
+Start your Next app first (npm run dev), then:
+
+  cloudflared tunnel --config cloudflared/config.yaml run
+
+Or:
+
+  npm run tunnel:run
+
+Do not commit cloudflared/credentials.json (it is gitignored).
+
+Useful commands
+- List tunnels:     cloudflared tunnel list
+- Delete tunnel:    cloudflared tunnel delete cus-yaadro   (only if you need to)

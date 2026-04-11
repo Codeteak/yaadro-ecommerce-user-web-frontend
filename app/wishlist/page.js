@@ -6,6 +6,7 @@ import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
 import Container from '../../components/Container';
 import Breadcrumbs from '../../components/Breadcrumbs';
+import { getEffectivePrice, formatRupeeINR } from '../../utils/productUtils';
 
 export default function WishlistPage() {
   const { wishlistItems, removeFromWishlist, clearWishlist } = useWishlist();
@@ -76,7 +77,7 @@ export default function WishlistPage() {
               key={item.id}
               className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 group relative"
             >
-              <Link href={`/products/${item.id}`}>
+              <Link href={`/products/${item.slug || item.id}`}>
                 <div className="relative h-64 overflow-hidden">
                   <Image
                     src={item.image}
@@ -110,7 +111,7 @@ export default function WishlistPage() {
               </button>
 
               <div className="p-4 min-w-0">
-                <Link href={`/products/${item.id}`}>
+                <Link href={`/products/${item.slug || item.id}`}>
                   <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-1 hover:text-gray-600 transition-colors line-clamp-2 break-words">
                     {item.name}
                   </h3>
@@ -120,7 +121,7 @@ export default function WishlistPage() {
                 </p>
                 <div className="flex items-center justify-between mb-3 gap-2">
                   <span className="text-lg sm:text-xl font-bold text-gray-900 truncate min-w-0">
-                    ₹{item.price.toFixed(0)}
+                    ₹{formatRupeeINR(getEffectivePrice(item))}
                   </span>
                   {!item.inStock && (
                     <span className="text-xs text-red-600 font-semibold whitespace-nowrap flex-shrink-0">Out of Stock</span>
@@ -128,7 +129,7 @@ export default function WishlistPage() {
                 </div>
                 <div className="flex gap-2">
                   <Link
-                    href={`/products/${item.id}`}
+                    href={`/products/${item.slug || item.id}`}
                     className="flex-1 text-center px-3 sm:px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors whitespace-nowrap"
                   >
                     View Details

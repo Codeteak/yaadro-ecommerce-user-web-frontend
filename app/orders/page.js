@@ -1,18 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useOrdersList, useCancelOrder } from '../../hooks/useOrders';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import Image from 'next/image';
 import ConfirmModal from '../../components/ConfirmModal';
 import PromptModal from '../../components/PromptModal';
 import PageTopBar from '../../components/PageTopBar';
-import { Check, MoreVertical, ShoppingCart, Percent } from 'lucide-react';
+import { Check, MoreVertical, ShoppingCart, Percent, Package } from 'lucide-react';
 
 export default function OrdersPage() {
-  const { data: ordersData, isLoading, error } = useOrdersList({ page: 1, per_page: 50 });
+  const router = useRouter();
+  const { isAuthenticated, authHydrated, isLoadingUser } = useAuth();
+  const { data: ordersData, isLoading, error } = useOrdersList(
+    { page: 1, per_page: 100 },
+    { enabled: authHydrated && isAuthenticated }
+  );
+
+  useEffect(() => {
+    if (!authHydrated) return;
+    if (isLoadingUser) return;
+    if (!isAuthenticated) router.replace('/');
+  }, [authHydrated, isLoadingUser, isAuthenticated, router]);
   const cancelOrderMutation = useCancelOrder();
   const { addToCart, cartCount } = useCart();
   const [menuOpenId, setMenuOpenId] = useState(null);
@@ -135,11 +148,24 @@ Payment Status: ${order.paymentStatus}
     return `Placed at ${day}${suffix} ${d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}, ${d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
   };
 
+  if (!authHydrated || isLoadingUser) {
+    return (
+      <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-gray-50">
+        <PageTopBar title="Your Orders" backHref="/settings" fallbackHref="/" />
+        <div className="flex flex-1 items-center justify-center">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) return null;
+
   return (
-    <div className="pb-28 md:pb-8 w-full max-w-full overflow-x-hidden min-h-screen bg-gray-50">
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-gray-50">
       <PageTopBar title="Your Orders" backHref="/settings" fallbackHref="/" />
 
-      <div className="mx-auto max-w-lg px-4 pt-4 space-y-4">
+      <div className="mx-auto min-h-0 w-full max-w-lg flex-1 overflow-y-auto overscroll-contain px-4 pb-28 pt-4 space-y-4 md:pb-8">
         {isLoading ? (
           <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
             <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent mx-auto" />
@@ -151,10 +177,11 @@ Payment Status: ${order.paymentStatus}
             <p className="text-gray-500 text-sm">{error.message}</p>
           </div>
         ) : orders.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
-            <p className="text-gray-500 font-medium mb-4">No orders yet</p>
-            <Link href="/products" className="text-primary font-semibold text-sm">
-              Start Shopping
+          <div className="rounded-2xl bg-white py-16 text-center shadow-sm">
+            <Package className="mx-auto mb-4 h-14 w-14 text-gray-300" strokeWidth={1.25} />
+            <p className="mb-4 font-medium text-gray-600">No orders yet</p>
+            <Link href="/products" className="text-sm font-semibold text-primary hover:underline">
+              Start shopping
             </Link>
           </div>
         ) : (

@@ -3,15 +3,16 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  getCurrentUser, 
-  updateProfile, 
-  changePassword, 
+import {
+  getCurrentUser,
+  updateProfile,
+  changePassword,
   refreshAccessToken,
   logoutUser,
   forgotPassword,
-  resetPassword
+  resetPassword,
 } from '../utils/authApi';
+import { addressKeys } from './useAddresses';
 
 // Query keys
 export const authKeys = {
@@ -41,14 +42,10 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: (profileData) => updateProfile(profileData),
     onSuccess: (data) => {
-      // Update user in cache
       queryClient.setQueryData(authKeys.user(), data);
-      // Also update localStorage if needed
+      queryClient.invalidateQueries({ queryKey: addressKeys.lists() });
       if (typeof window !== 'undefined' && data) {
-        const currentUser = queryClient.getQueryData(authKeys.user());
-        if (currentUser) {
-          localStorage.setItem('user', JSON.stringify(data));
-        }
+        localStorage.setItem('user', JSON.stringify(data));
       }
     },
     onError: (error) => {

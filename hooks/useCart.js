@@ -14,12 +14,13 @@ export const cartKeys = {
 /**
  * Get current user's cart
  */
-export function useCartQuery() {
+export function useCartQuery(options = {}) {
   return useQuery({
     queryKey: cartKeys.cart(),
     queryFn: () => getCart(),
     staleTime: 1000 * 30, // 30 seconds
     refetchOnWindowFocus: true,
+    ...options,
   });
 }
 

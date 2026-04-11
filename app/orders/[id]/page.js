@@ -11,110 +11,407 @@ import { useCart } from '../../../context/CartContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useAlert } from '../../../context/AlertContext';
 import Container from '../../../components/Container';
-import Breadcrumbs from '../../../components/Breadcrumbs';
+import ProductCarousel from '../../../components/ProductCarousel';
 import ConfirmModal from '../../../components/ConfirmModal';
 import PromptModal from '../../../components/PromptModal';
-import PageTopBar from '../../../components/PageTopBar';
-import ProductCarousel from '../../../components/ProductCarousel';
-import { Ban, Repeat2 } from 'lucide-react';
 
+/* ─────────────────────────────────────────────
+   Icon primitives
+───────────────────────────────────────────── */
+function IconBack() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M10 4L6 8l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IconCheck({ color = '#639922' }) {
+  return (
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+      <path d="M2 5l2 2 4-4" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IconRetry({ color = 'currentColor' }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M2 8a6 6 0 016-6 6 6 0 015.74 4.26M14 4v4h-4" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IconDownload() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M8 2v8M5 7l3 3 3-3M3 13h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IconCancel() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M4 4l8 8M12 4l-8 8" stroke="#791F1F" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+function IconReorder() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M2 8a6 6 0 016-6 6 6 0 015.74 4.26M14 4v4h-4" stroke="#C0DD97" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IconSpinner() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ animation: 'odSpin 0.8s linear infinite' }}>
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Helpers
+───────────────────────────────────────────── */
+const fmt = (v) => {
+  const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+  return Number.isFinite(n) ? `₹${n.toFixed(2)}` : '—';
+};
+
+const STATUS_ORDER = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+
+const TIMELINE_LABELS = {
+  pending:    'Order placed',
+  confirmed:  'Confirmed',
+  processing: 'Processing',
+  shipped:    'Shipped',
+  delivered:  'Delivered',
+};
+
+function fmtDate(d) {
+  if (!d) return null;
+  const dt = new Date(d);
+  return {
+    day:  dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+    time: dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+  };
+}
+
+/* ─────────────────────────────────────────────
+   Status badge
+───────────────────────────────────────────── */
+const STATUS_STYLES = {
+  confirmed:  { bg: '#EAF3DE', color: '#27500A', dot: '#639922' },
+  processing: { bg: '#EAF3DE', color: '#27500A', dot: '#639922' },
+  shipped:    { bg: '#E6F1FB', color: '#0C447C', dot: '#378ADD' },
+  delivered:  { bg: '#EAF3DE', color: '#27500A', dot: '#639922' },
+  cancelled:  { bg: '#FCEBEB', color: '#791F1F', dot: '#E24B4A' },
+  pending:    { bg: '#FAEEDA', color: '#633806', dot: '#EF9F27' },
+};
+
+const PAYMENT_STYLES = {
+  paid:     { bg: '#EAF3DE', color: '#27500A', dot: '#639922' },
+  success:  { bg: '#EAF3DE', color: '#27500A', dot: '#639922' },
+  pending:  { bg: '#FAEEDA', color: '#633806', dot: '#EF9F27' },
+  failed:   { bg: '#FCEBEB', color: '#791F1F', dot: '#E24B4A' },
+  refunded: { bg: '#F1EFE8', color: '#444441', dot: '#888780' },
+};
+
+function StatusPill({ label, styleMap, status }) {
+  const s = styleMap[status?.toLowerCase()] || styleMap.pending || { bg: '#F1EFE8', color: '#444441', dot: '#888780' };
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 99,
+      background: s.bg, color: s.color,
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.dot, display: 'inline-block' }} />
+      {label || status}
+    </span>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Section wrapper
+───────────────────────────────────────────── */
+function Section({ children, style }) {
+  return (
+    <div style={{
+      background: 'var(--color-background-primary)',
+      borderRadius: 16,
+      border: '0.5px solid var(--color-border-tertiary)',
+      overflow: 'hidden',
+      marginTop: 12,
+      ...style,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+function SectionHeader({ title, right }) {
+  return (
+    <div style={{
+      padding: '12px 16px',
+      borderBottom: '0.5px solid var(--color-border-tertiary)',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    }}>
+      <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        {title}
+      </span>
+      {right && <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{right}</span>}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Timeline
+───────────────────────────────────────────── */
+function Timeline({ order }) {
+  const currentIdx = STATUS_ORDER.indexOf(order.status);
+  const steps = STATUS_ORDER.slice(0, Math.max(currentIdx + 1, 2));
+
+  return (
+    <div style={{ padding: 16 }}>
+      {steps.map((status, i) => {
+        const isDone   = i < steps.length - 1;
+        const isActive = i === steps.length - 1;
+        const isLast   = i === steps.length - 1;
+        const dateRef  = status === 'delivered' ? order.deliveredAt : status === 'pending' ? order.createdAt : order.updatedAt;
+        const d = fmtDate(dateRef);
+
+        return (
+          <div key={status} style={{ display: 'flex', gap: 12 }}>
+            {/* Left column */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20, flexShrink: 0 }}>
+              <div style={{
+                width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, zIndex: 1,
+                background: isDone ? '#EAF3DE' : isActive ? '#27500A' : 'var(--color-background-secondary)',
+                border: `1.5px solid ${isDone ? '#639922' : isActive ? '#27500A' : 'var(--color-border-secondary)'}`,
+              }}>
+                {isDone && <IconCheck />}
+                {isActive && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#C0DD97', display: 'block' }} />}
+              </div>
+              {!isLast && (
+                <div style={{ width: 1.5, flex: 1, background: isDone ? '#97C459' : 'var(--color-border-tertiary)', margin: '2px 0' }} />
+              )}
+            </div>
+
+            {/* Content */}
+            <div style={{ flex: 1, paddingBottom: isLast ? 0 : 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: isActive ? 'var(--color-text-primary)' : isDone ? 'var(--color-text-primary)' : 'var(--color-text-secondary)' }}>
+                {TIMELINE_LABELS[status]}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                {d ? `${d.day} · ${d.time}` : isActive && status === 'shipped' ? 'Out for delivery' : 'Pending'}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Upcoming step */}
+      {currentIdx < STATUS_ORDER.length - 1 && (
+        <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20, flexShrink: 0 }}>
+            <div style={{
+              width: 20, height: 20, borderRadius: '50%',
+              background: 'var(--color-background-secondary)',
+              border: '1.5px solid var(--color-border-secondary)',
+            }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+              {TIMELINE_LABELS[STATUS_ORDER[currentIdx + 1]]}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+              {STATUS_ORDER[currentIdx + 1] === 'delivered' ? 'Expected today, 6–8 PM' : 'Upcoming'}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Invoice builder (text)
+───────────────────────────────────────────── */
+function downloadInvoice(order) {
+  const lines = [
+    `INVOICE`,
+    `Order: ${order.orderNumber || order.id}`,
+    `Date:  ${new Date(order.createdAt).toLocaleString()}`,
+    ``,
+    `Items:`,
+    ...(order.items || []).map((it) => `  ${it.productName || it.name} ×${it.quantity}  ${fmt(it.totalPrice)}`),
+    ``,
+    `Subtotal : ${fmt(order.subtotal)}`,
+    `Tax      : ${fmt(order.tax)}`,
+    `Shipping : ${fmt(order.shipping)}`,
+    `Discount : −${fmt(order.discount)}`,
+    `Total    : ${fmt(order.total)}`,
+    ``,
+    `Shipping address:`,
+    ...(order.deliveryAddress
+      ? [
+          order.deliveryAddress.fullName || order.deliveryAddress.name || '',
+          order.deliveryAddress.street   || order.deliveryAddress.address || '',
+          [order.deliveryAddress.city, order.deliveryAddress.state].filter(Boolean).join(', '),
+          [order.deliveryAddress.zipCode || order.deliveryAddress.postalCode, order.deliveryAddress.country].filter(Boolean).join(', '),
+          order.deliveryAddress.phone ? `Phone: ${order.deliveryAddress.phone}` : '',
+        ].filter(Boolean)
+      : ['No address on file']),
+    ``,
+    `Payment: ${order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod}`,
+    `Status:  ${order.paymentStatus}`,
+  ].join('\n');
+
+  const blob = new Blob([lines], { type: 'text/plain' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: `${order.orderNumber || order.id}.txt` });
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+/* ─────────────────────────────────────────────
+   Loading / Error states
+───────────────────────────────────────────── */
+function LoadingState() {
+  return (
+    <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+      <div style={{
+        width: 40, height: 40, borderRadius: '50%',
+        border: '2px solid #EAF3DE', borderTop: '2px solid #27500A',
+        animation: 'odSpin 0.8s linear infinite',
+      }} />
+      <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Loading order…</p>
+    </div>
+  );
+}
+
+function ErrorState({ message, ordersHref = '/orders' }) {
+  return (
+    <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '0 24px', textAlign: 'center' }}>
+      <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#FCEBEB', border: '1.5px solid #F7C1C1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M10 6v5M10 14h.01M18 10A8 8 0 112 10a8 8 0 0116 0z" stroke="#A32D2D" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      </div>
+      <div>
+        <p style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 4 }}>Order not found</p>
+        <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{message || "This order doesn't exist or was removed."}</p>
+      </div>
+      <Link href={ordersHref} style={{ padding: '10px 20px', borderRadius: 12, background: '#27500A', color: '#C0DD97', fontSize: 13, fontWeight: 500, textDecoration: 'none' }}>
+        View all orders
+      </Link>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Return modal
+───────────────────────────────────────────── */
+function ReturnModal({ order, onClose, onSubmit }) {
+  const [selected, setSelected] = useState([]);
+  const [reason, setReason]     = useState('');
+
+  const toggle = (id) =>
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' }}>
+      <div style={{ width: '100%', maxWidth: 480, background: 'var(--color-background-primary)', borderRadius: '20px 20px 0 0', border: '0.5px solid var(--color-border-tertiary)', padding: '20px 16px 32px', maxHeight: '80vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <p style={{ fontSize: 15, fontWeight: 500 }}>Request return / refund</p>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: 20, lineHeight: 1 }}>×</button>
+        </div>
+
+        <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 10 }}>Select items to return</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+          {order.items.map((item) => (
+            <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, border: `0.5px solid ${selected.includes(item.id) ? '#639922' : 'var(--color-border-tertiary)'}`, background: selected.includes(item.id) ? '#EAF3DE' : 'var(--color-background-secondary)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggle(item.id)} style={{ accentColor: '#27500A' }} />
+              <span style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>{item.productName || item.name}</span>
+            </label>
+          ))}
+        </div>
+
+        <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 6 }}>Reason for return</p>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Describe your reason…"
+          rows={3}
+          style={{ width: '100%', borderRadius: 10, border: '0.5px solid var(--color-border-secondary)', padding: '10px 12px', fontSize: 13, resize: 'vertical', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)' }}
+        />
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '12px', borderRadius: 12, border: '0.5px solid var(--color-border-secondary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button onClick={() => onSubmit(selected, reason)} style={{ flex: 1, padding: '12px', borderRadius: 12, border: 'none', background: '#27500A', color: '#C0DD97', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+            Submit request
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Main content
+───────────────────────────────────────────── */
 function OrderDetailContent() {
-  const params = useParams();
-  const router = useRouter();
+  const params   = useParams();
+  const router   = useRouter();
   const { data: order, isLoading, error } = useOrderDetail(params.id);
-  const cancelOrderMutation = useCancelOrder();
-  const retryPaymentMutation = useRetryPayment();
-  const verifyPaymentMutation = useVerifyPayment();
-  const { addToCart, clearCart } = useCart();
-  const { user } = useAuth();
-  const { showAlert } = useAlert();
-  const [showReturnModal, setShowReturnModal] = useState(false);
-  const [selectedItemsForReturn, setSelectedItemsForReturn] = useState([]);
-  const [returnReason, setReturnReason] = useState('');
-  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
-  const [isRetryingPayment, setIsRetryingPayment] = useState(false);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const cancelMutation  = useCancelOrder();
+  const retryMutation   = useRetryPayment();
+  const verifyMutation  = useVerifyPayment();
+  const { addToCart }   = useCart();
+  const { user }        = useAuth();
+  const { showAlert }   = useAlert();
+
+  const [isRetrying, setIsRetrying]     = useState(false);
+  const [showReturn, setShowReturn]     = useState(false);
   const [showCancelPrompt, setShowCancelPrompt] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
 
-  // Related items hook MUST be called unconditionally (avoid conditional hooks).
-  const seedProductId = order?.items?.[0]?.productId || order?.items?.[0]?.product?.id || null;
-  const { data: relatedData } = useProductWithRelated(seedProductId);
+  /* Hooks must be unconditional */
+  const seedId = order?.items?.[0]?.productId || order?.items?.[0]?.product?.id || null;
+  const { data: relatedData } = useProductWithRelated(seedId);
   const orderedIds = new Set((order?.items || []).map((it) => it.productId || it.product?.id).filter(Boolean));
-  const relatedProducts = (relatedData?.relatedProducts || []).filter((p) => p?.id && !orderedIds.has(p.id)).slice(0, 12);
+  const related = (relatedData?.relatedProducts || []).filter((p) => p?.id && !orderedIds.has(p.id)).slice(0, 12);
 
-  // Initialize Razorpay - MUST be before any conditional returns
+  /* Suppress Razorpay console warnings */
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Suppress harmless "unsafe header" warnings from Razorpay SDK
-      const originalWarn = console.warn;
-      console.warn = function(...args) {
-        const message = args[0]?.toString() || '';
-        if (message.includes('unsafe header') || message.includes('x-rtb-fingerprint-id')) {
-          return;
-        }
-        originalWarn.apply(console, args);
-      };
-
-      if (window.Razorpay) {
-        setRazorpayLoaded(true);
-      }
-
-      return () => {
-        console.warn = originalWarn;
-      };
-    }
+    if (typeof window === 'undefined') return;
+    const orig = console.warn;
+    console.warn = (...args) => {
+      const msg = args[0]?.toString() || '';
+      if (msg.includes('unsafe header') || msg.includes('x-rtb-fingerprint-id')) return;
+      orig.apply(console, args);
+    };
+    return () => { console.warn = orig; };
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="py-16 w-full max-w-full overflow-x-hidden">
-        <Container>
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-            <p className="text-gray-500 mt-4">Loading order details...</p>
-          </div>
-        </Container>
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingState />;
+  if (error || !order) return <ErrorState message={error?.message} />;
 
-  if (error || !order) {
-    return (
-      <div className="py-16 w-full max-w-full overflow-x-hidden">
-        <Container>
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-800 mb-4">Order Not Found</h1>
-            <p className="text-gray-600 mb-8">
-              {error?.message || "The order you're looking for doesn't exist."}
-            </p>
-            <Link
-              href="/orders"
-              className="inline-block bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
-            >
-              View All Orders
-            </Link>
-          </div>
-        </Container>
-      </div>
-    );
-  }
+  const canRetryPayment = ['pending', 'failed'].includes(order.paymentStatus?.toLowerCase()) && order.paymentMethod !== 'cod';
+  const addr = order.deliveryAddress || {};
 
+  /* Handlers */
   const handleReorder = () => {
-    order.items.forEach(item => {
-      const product = {
-        id: item.productId,
-        name: item.productName,
+    (order.items || []).forEach((item) => {
+      addToCart({
+        id:    item.productId,
+        name:  item.productName,
         price: item.unitPrice,
         image: item.product?.images?.[0] || item.image || '/images/dummy.png',
-      };
-      addToCart(product, item.quantity || 1);
+      }, item.quantity || 1);
     });
     router.push('/cart');
-  };
-
-  const handleCancel = () => {
-    setShowCancelPrompt(true);
   };
 
   const handleCancelReasonSubmit = (reason) => {
@@ -125,679 +422,294 @@ function OrderDetailContent() {
 
   const handleCancelConfirm = async () => {
     try {
-      await cancelOrderMutation.mutateAsync({ orderId: order.id, reason: cancelReason });
-      showAlert('Order cancelled successfully!', 'Success', 'success');
+      await cancelMutation.mutateAsync({ orderId: order.id, reason: cancelReason });
+      showAlert('Order cancelled successfully.', 'Success', 'success');
       setCancelReason('');
-    } catch (error) {
-      showAlert(error.message || 'Failed to cancel order. Please try again.', 'Error', 'error');
+    } catch (e) {
+      showAlert(e.message || 'Failed to cancel order.', 'Error', 'error');
     }
   };
 
-  const handleRequestReturn = () => {
-    if (selectedItemsForReturn.length === 0) {
-      showAlert('Please select items to return', 'Required', 'warning');
-      return;
-    }
-    if (!returnReason.trim()) {
-      showAlert('Please provide a reason for return', 'Required', 'warning');
-      return;
-    }
-    // Note: Return request functionality would need backend API support
-    setShowReturnModal(false);
-    setSelectedItemsForReturn([]);
-    setReturnReason('');
-    showAlert('Return request feature coming soon!', 'Coming Soon', 'info');
+  const handleReturnSubmit = (items, reason) => {
+    if (!items.length) { showAlert('Select at least one item.', 'Required', 'warning'); return; }
+    if (!reason.trim()) { showAlert('Please provide a reason.', 'Required', 'warning'); return; }
+    setShowReturn(false);
+    showAlert('Return request feature coming soon!', 'Coming soon', 'info');
   };
 
-  const handleDownloadInvoice = () => {
-    const invoiceText = `
-INVOICE
-Invoice Number: ${order.orderNumber || order.id}
-Order ID: ${order.id}
-Date: ${new Date(order.createdAt).toLocaleDateString()}
-
-Items:
-${order.items.map(item => `  ${item.productName || item.name} x${item.quantity} - ₹${item.totalPrice.toFixed(2)}`).join('\n')}
-
-Subtotal: ₹${order.subtotal.toFixed(2)}
-Tax: ₹${order.tax.toFixed(2)}
-Shipping: ₹${order.shipping.toFixed(2)}
-Discount: ₹${order.discount.toFixed(2)}
-Total: ₹${order.total.toFixed(2)}
-
-Shipping Address:
-${order.deliveryAddress?.street || ''}
-${order.deliveryAddress?.city || ''}, ${order.deliveryAddress?.state || ''}
-${order.deliveryAddress?.zipCode || ''}
-${order.deliveryAddress?.country || ''}
-
-Payment Method: ${order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod}
-Payment Status: ${order.paymentStatus}
-    `.trim();
-
-    const blob = new Blob([invoiceText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${order.orderNumber || order.id}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  // Check if payment can be retried
-  const canRetryPayment = order && 
-    ['pending', 'failed'].includes(order.paymentStatus?.toLowerCase()) && 
-    order.paymentMethod !== 'cod';
-
-  const handleRetryPayment = async () => {
-    if (!order) return;
-
-    setIsRetryingPayment(true);
-
-    try {
-      // Call retry payment API
-      const orderResponse = await retryPaymentMutation.mutateAsync({
-        orderId: order.id,
-        paymentMethod: null, // Use existing payment method
-      });
-
-      if (!orderResponse?.payment?.razorpay) {
-        showAlert('Payment initialization failed. Please try again.', 'Error', 'error');
-        setIsRetryingPayment(false);
-        return;
-      }
-
-      // Initialize Razorpay payment
-      await handleRazorpayPayment(orderResponse, order);
-    } catch (error) {
-      console.error('Error retrying payment:', error);
-      showAlert(error.message || 'Failed to retry payment. Please try again.', 'Error', 'error');
-      setIsRetryingPayment(false);
-    }
-  };
-
-  const handleRazorpayPayment = async (orderResponse, orderData) => {
-    if (!window.Razorpay) {
-      showAlert('Razorpay SDK not loaded. Please refresh the page.', 'Error', 'error');
-      setIsRetryingPayment(false);
-      return;
-    }
-
-    const { order, payment } = orderResponse;
-    const rzpData = payment?.razorpay;
-
-    if (!rzpData) {
-      showAlert('Payment initialization failed. Please try again.', 'Error', 'error');
-      setIsRetryingPayment(false);
-      return;
-    }
-
-    // Validate required Razorpay data
-    if (!rzpData.keyId || !rzpData.razorpayOrderId || !rzpData.amount) {
-      console.error('Invalid Razorpay data:', rzpData);
-      showAlert('Invalid payment configuration. Please contact support.', 'Error', 'error');
-      setIsRetryingPayment(false);
-      return;
-    }
+  const handleRazorpay = async (orderResp) => {
+    if (!window.Razorpay) { showAlert('Payment gateway not loaded. Refresh and try again.', 'Error', 'error'); setIsRetrying(false); return; }
+    const { order: ord, payment } = orderResp;
+    const rzp = payment?.razorpay;
+    if (!rzp?.keyId || !rzp?.razorpayOrderId || !rzp?.amount) { showAlert('Invalid payment config. Contact support.', 'Error', 'error'); setIsRetrying(false); return; }
 
     const options = {
-      key: rzpData.keyId,
-      amount: rzpData.amount, // Already in paise
-      currency: rzpData.currency || 'INR',
-      order_id: rzpData.razorpayOrderId,
+      key: rzp.keyId,
+      amount: rzp.amount,
+      currency: rzp.currency || 'INR',
+      order_id: rzp.razorpayOrderId,
       name: 'Yaadro',
-      description: `Order ${order.orderNumber || orderData.orderNumber}`,
-      handler: async function (paymentResponse) {
+      description: `Order ${ord.orderNumber || order.orderNumber}`,
+      handler: async (resp) => {
         try {
-          // Verify payment with backend
-          await verifyPaymentMutation.mutateAsync({
-            orderId: order.id || orderData.id,
+          await verifyMutation.mutateAsync({
+            orderId: ord.id || order.id,
             paymentData: {
-              razorpay_order_id: paymentResponse.razorpay_order_id,
-              razorpay_payment_id: paymentResponse.razorpay_payment_id,
-              razorpay_signature: paymentResponse.razorpay_signature,
+              razorpay_order_id:   resp.razorpay_order_id,
+              razorpay_payment_id: resp.razorpay_payment_id,
+              razorpay_signature:  resp.razorpay_signature,
             },
           });
-
-          // Redirect to success page
-          router.push(`/order-success?orderId=${order.id || orderData.id}&payment=success`);
-        } catch (error) {
-          console.error('Payment verification failed:', error);
-          showAlert('Payment verification failed. Please contact support with order ID: ' + (order.orderNumber || orderData.orderNumber), 'Payment Failed', 'error');
-          router.push(`/order-success?orderId=${order.id || orderData.id}&payment=failed`);
-        } finally {
-          setIsRetryingPayment(false);
-        }
+          router.push(`/order-success?orderId=${ord.id || order.id}&payment=success`);
+        } catch (e) {
+          showAlert('Payment verification failed. Contact support with order ID: ' + (ord.orderNumber || order.orderNumber), 'Payment failed', 'error');
+          router.push(`/order-success?orderId=${ord.id || order.id}&payment=failed`);
+        } finally { setIsRetrying(false); }
       },
-      prefill: {
-        name: user?.name || '',
-        email: user?.email || '',
-        contact: user?.phone || '',
-      },
-      theme: {
-        color: '#FF8D21', // primary
-      },
-      modal: {
-        ondismiss: function() {
-          console.log('Payment cancelled');
-          setIsRetryingPayment(false);
-        },
-      },
-      notes: {
-        order_id: order.id || orderData.id,
-        order_number: order.orderNumber || orderData.orderNumber,
-        retry: 'true',
-      },
+      prefill: { name: user?.name || '', email: user?.email || '', contact: user?.phone || '' },
+      theme: { color: '#27500A' },
+      modal: { ondismiss: () => setIsRetrying(false) },
+      notes: { order_id: ord.id || order.id, retry: 'true' },
     };
 
     try {
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', function (response) {
-        console.error('Payment failed:', response.error);
-        setIsRetryingPayment(false);
-        showAlert('Payment failed: ' + (response.error.description || 'Please try again'), 'Payment Failed', 'error');
-      });
-      rzp.open();
-    } catch (error) {
-      console.error('Error opening Razorpay checkout:', error);
-      showAlert('Failed to open payment gateway. Please try again.', 'Error', 'error');
-      setIsRetryingPayment(false);
-    }
+      const rz = new window.Razorpay(options);
+      rz.on('payment.failed', (r) => { setIsRetrying(false); showAlert('Payment failed: ' + (r.error.description || 'Try again'), 'Payment failed', 'error'); });
+      rz.open();
+    } catch (e) { showAlert('Could not open payment gateway.', 'Error', 'error'); setIsRetrying(false); }
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      confirmed: 'bg-blue-100 text-blue-800',
-      processing: 'bg-primary/20 text-primary-dark',
-      shipped: 'bg-purple-100 text-purple-800',
-      delivered: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800',
-      returned: 'bg-gray-100 text-gray-800',
-      pending: 'bg-yellow-100 text-yellow-800',
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+  const handleRetryPayment = async () => {
+    setIsRetrying(true);
+    try {
+      const resp = await retryMutation.mutateAsync({ orderId: order.id, paymentMethod: null });
+      if (!resp?.payment?.razorpay) { showAlert('Payment init failed. Try again.', 'Error', 'error'); setIsRetrying(false); return; }
+      await handleRazorpay(resp);
+    } catch (e) { showAlert(e.message || 'Failed to retry payment.', 'Error', 'error'); setIsRetrying(false); }
   };
 
-  const getPaymentStatusColor = (paymentStatus) => {
-    const colors = {
-      paid: 'bg-green-100 text-green-800',
-      pending: 'bg-yellow-100 text-yellow-800',
-      failed: 'bg-red-100 text-red-800',
-      refunded: 'bg-gray-100 text-gray-800',
-    };
-    return colors[paymentStatus?.toLowerCase()] || 'bg-gray-100 text-gray-800';
-  };
-
+  /* ── Render ────────────────────────────────── */
   return (
-    <div className="pb-24 md:pb-8 w-full max-w-full overflow-x-hidden">
-      {/* Load Razorpay SDK */}
-      <Script
-        src="https://checkout.razorpay.com/v1/checkout.js"
-        onLoad={() => setRazorpayLoaded(true)}
-        onError={() => console.error('Failed to load Razorpay SDK')}
-      />
-      
-      <PageTopBar title="Order Details" subtitle={order?.id || params?.id} fallbackHref="/orders" />
-      <Container>
-        <div className="hidden md:block">
-          <Breadcrumbs items={[
-            { label: 'Home', href: '/' },
-            { label: 'Orders', href: '/orders' },
-            { label: order.id, href: `/orders/${order.id}` },
-          ]} />
-        </div>
-        
-        {/* Payment Failed/Pending Alert */}
-        {canRetryPayment && (
-          <div className="mb-4 px-4 md:px-0">
-            <div className={`p-4 border-b border-gray-200 ${
-              order.paymentStatus === 'failed' 
-                ? 'bg-red-50' 
-                : 'bg-yellow-50'
-            }`}>
-              <div className="flex items-start gap-3">
-                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                  order.paymentStatus === 'failed' 
-                    ? 'bg-red-100' 
-                    : 'bg-yellow-100'
-                }`}>
-                  {order.paymentStatus === 'failed' ? (
-                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                  )}
+    <>
+      <style>{`@keyframes odSpin{to{transform:rotate(360deg)}}`}</style>
+
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+
+      <div style={{ background: 'var(--color-background-tertiary)', minHeight: '100svh', paddingBottom: 40 }}>
+        <div style={{ maxWidth: 480, margin: '0 auto' }}>
+
+          {/* Top bar */}
+          <div style={{ background: 'var(--color-background-primary)', borderBottom: '0.5px solid var(--color-border-tertiary)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, position: 'sticky', top: 0, zIndex: 10 }}>
+            <button onClick={() => router.push('/orders')} style={{ width: 32, height: 32, borderRadius: '50%', border: '0.5px solid var(--color-border-secondary)', background: 'var(--color-background-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+              <IconBack />
+            </button>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', margin: 0 }}>Order details</p>
+              <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', margin: 0, fontFamily: 'var(--font-mono)' }}>{order.orderNumber || order.id}</p>
+            </div>
+            <StatusPill label={order.status} styleMap={STATUS_STYLES} status={order.status} />
+          </div>
+
+          <div style={{ padding: '0 12px' }}>
+
+            {/* Payment alert */}
+            {canRetryPayment && (
+              <div style={{ marginTop: 12, borderRadius: 16, border: `0.5px solid ${order.paymentStatus === 'failed' ? '#F7C1C1' : '#FAC775'}`, background: order.paymentStatus === 'failed' ? '#FCEBEB' : '#FAEEDA', padding: '12px 14px', display: 'flex', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: order.paymentStatus === 'failed' ? '#F7C1C1' : '#FAC775', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M8 5v4M8 11h.01M14 8A6 6 0 112 8a6 6 0 0112 0z" stroke={order.paymentStatus === 'failed' ? '#A32D2D' : '#633806'} strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
                 </div>
-                <div className="flex-1">
-                  <h3 className={`font-semibold mb-1 ${
-                    order.paymentStatus === 'failed' 
-                      ? 'text-red-800' 
-                      : 'text-yellow-800'
-                  }`}>
-                    Payment {order.paymentStatus === 'failed' ? 'Failed' : 'Pending'}
-                  </h3>
-                  <p className={`text-sm mb-3 ${
-                    order.paymentStatus === 'failed' 
-                      ? 'text-red-700' 
-                      : 'text-yellow-700'
-                  }`}>
-                    {order.paymentStatus === 'failed' 
-                      ? 'Your payment could not be processed. Please retry payment to confirm your order.'
-                      : 'Your payment is pending. Please complete the payment to confirm your order.'}
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 500, color: order.paymentStatus === 'failed' ? '#791F1F' : '#633806', margin: 0 }}>
+                    Payment {order.paymentStatus === 'failed' ? 'failed' : 'pending'}
+                  </p>
+                  <p style={{ fontSize: 12, color: order.paymentStatus === 'failed' ? '#A32D2D' : '#854F0B', marginTop: 2, lineHeight: 1.5 }}>
+                    {order.paymentStatus === 'failed' ? 'Your payment could not be processed.' : 'Complete payment to confirm your order.'}
                   </p>
                   <button
                     onClick={handleRetryPayment}
-                    disabled={isRetryingPayment || retryPaymentMutation.isPending}
-                    className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors disabled:opacity-50 flex items-center gap-2"
+                    disabled={isRetrying || retryMutation.isPending}
+                    style={{ marginTop: 8, padding: '7px 14px', borderRadius: 8, background: order.paymentStatus === 'failed' ? '#E24B4A' : '#EF9F27', color: order.paymentStatus === 'failed' ? '#FCEBEB' : '#412402', fontSize: 12, fontWeight: 500, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, opacity: (isRetrying || retryMutation.isPending) ? 0.6 : 1 }}
                   >
-                    {isRetryingPayment || retryPaymentMutation.isPending ? (
-                      <>
-                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Processing Payment...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        Retry Payment Now
-                      </>
-                    )}
+                    {isRetrying || retryMutation.isPending ? <><IconSpinner /> Processing…</> : <><IconRetry color={order.paymentStatus === 'failed' ? '#FCEBEB' : '#412402'} /> Retry payment</>}
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Order Status Timeline (FIRST) */}
-        <div className="px-4 md:px-0 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-extrabold text-gray-900 mb-3">Order Status</h2>
-          <div className="space-y-6">
-    {[
-      { 
-        status: 'pending', 
-        label: 'Order Placed', 
-        date: order.createdAt,
-      },
-      { 
-        status: 'confirmed', 
-        label: 'Order Confirmed', 
-        date: order.createdAt,
-      },
-      { 
-        status: 'processing', 
-        label: 'Processing', 
-        date: order.updatedAt,
-      },
-      { 
-        status: 'shipped', 
-        label: 'Shipped', 
-        date: order.updatedAt,
-      },
-      { 
-        status: 'delivered', 
-        label: 'Delivered', 
-        date: order.deliveredAt,
-      },
-    ].filter((step, index, arr) => {
-      const statusOrder = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
-      const currentIndex = statusOrder.indexOf(order.status);
-      return index <= currentIndex;
-    }).map((step, index, arr) => {
-      const isLast = index === arr.length - 1;
-      const isCompleted = index < arr.length - 1;
-      
-      return (
-        <div key={step.status} className="flex items-start gap-3">
-          {/* Date Column */}
-          <div className="w-16 flex-shrink-0">
-            <p className="text-xs text-gray-800 font-medium">
-              {step.date ? new Date(step.date).toLocaleDateString('en-US', { 
-                day: '2-digit', 
-                month: 'short' 
-              }) : '--'}
-            </p>
-            <p className="text-[10px] text-gray-400">
-              {step.date ? new Date(step.date).toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: true 
-              }) : '--'}
-            </p>
-          </div>
-
-          {/* Timeline Icon & Line */}
-          <div className="flex flex-col items-center">
-            <div className={`w-5 h-5 rounded-full flex items-center justify-center
-              ${isLast ? 'bg-primary' : isCompleted ? 'bg-purple-600' : 'bg-gray-400'}
-            `} />
-            
-            {index < arr.length - 1 && (
-              <div className={`w-0.5 h-12 
-                ${isCompleted ? 'bg-purple-600' : 'bg-gray-300'}
-              `} />
             )}
-          </div>
 
-          {/* Status Details */}
-          <div className="flex-1 -mt-0.5">
-            <p className={`text-sm font-semibold capitalize
-              ${isLast ? 'text-primary-dark' : 'text-gray-800'}
-            `}>
-              {step.label}
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {step.date ? 'Completed' : 'Pending'}
-            </p>
-          </div>
-        </div>
-      );
-    })}
-          </div>
-
-          {/* Request Return Button */}
-          {order.status === 'delivered' && (
-            <button
-              onClick={() => setShowReturnModal(true)}
-              className="mt-4 w-full px-4 py-3 bg-orange-600 text-white rounded-xl font-extrabold hover:bg-orange-700 transition-colors"
-            >
-              Request Return/Refund
-            </button>
-          )}
-        </div>
-
-        {/* Date + badges (BADGES UNDER DATE) */}
-        <div className="px-4 md:px-0 py-4 border-b border-gray-200">
-          <div className="text-sm text-gray-700">
-            <span className="font-semibold text-gray-900">Placed on:</span>{' '}
-            {new Date(order.createdAt).toLocaleString()}
-          </div>
-          <div className="mt-2 flex items-center gap-2 flex-wrap">
-            <span className={`px-3 py-1 rounded-full text-xs font-extrabold ${getStatusColor(order.status)}`}>
-              {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-            </span>
-            {order.paymentStatus ? (
-              <span className={`px-3 py-1 rounded-full text-xs font-extrabold ${getPaymentStatusColor(order.paymentStatus)}`}>
-                Payment: {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            {canRetryPayment && (
-              <button
-                onClick={handleRetryPayment}
-                disabled={isRetryingPayment || retryPaymentMutation.isPending}
-                className="px-4 py-2 bg-primary text-white rounded-xl font-extrabold hover:bg-primary-dark transition-colors text-sm disabled:opacity-50"
-              >
-                {isRetryingPayment || retryPaymentMutation.isPending ? 'Processing…' : 'Retry Payment'}
-              </button>
-            )}
-            {order.status === 'delivered' && (
-              <button
-                onClick={handleDownloadInvoice}
-                className="px-4 py-2 bg-purple-600 text-white rounded-xl font-extrabold hover:bg-purple-700 transition-colors text-sm"
-              >
-                Download Invoice
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Items (AFTER DATE+BADGES) */}
-        <div className="px-4 md:px-0 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-extrabold text-gray-900 mb-3">Items</h2>
-          <div className="space-y-4">
-            {order.items.map((item) => (
-              <div key={item.id} className="flex gap-4 pb-4 border-b border-gray-100 last:border-0 last:pb-0">
-                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0 border border-gray-200">
-                  <Image
-                    src={item.product?.images?.[0] || item.image || '/images/dummy.png'}
-                    alt={item.productName || item.name}
-                    fill
-                    className="object-cover"
-                    sizes="80px"
-                  />
+            {/* Order status timeline */}
+            <Section style={{ marginTop: 12 }}>
+              <SectionHeader
+                title="Order status"
+                right={fmtDate(order.createdAt)?.day}
+              />
+              <Timeline order={order} />
+              {order.status === 'delivered' && (
+                <div style={{ padding: '0 16px 14px' }}>
+                  <button onClick={() => setShowReturn(true)} style={{ width: '100%', padding: '12px', borderRadius: 12, border: '0.5px solid #F5C4B3', background: '#FAECE7', color: '#712B13', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                    Request return / refund
+                  </button>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-extrabold text-gray-900 truncate">{item.productName || item.name}</h3>
-                  <p className="text-xs text-gray-500 mt-1">
-                    SKU: {item.productSku || 'N/A'} • Qty: {item.quantity}
-                  </p>
-                  <p className="text-base font-extrabold text-gray-900 mt-2">₹{item.totalPrice.toFixed(2)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Order Summary (LAST, NO CARD STYLE) */}
-        <div className="px-4 md:px-0 py-4">
-          <h2 className="text-lg font-extrabold text-gray-900 mb-3">Order Summary</h2>
-
-          <div className="space-y-2 text-sm text-gray-800">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Subtotal</span>
-              <span className="font-extrabold">₹{order.subtotal.toFixed(2)}</span>
-            </div>
-            {order.tax > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Tax</span>
-                <span className="font-extrabold">₹{order.tax.toFixed(2)}</span>
-              </div>
-            )}
-            {order.discount > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Discount</span>
-                <span className="font-extrabold text-primary-dark">-₹{order.discount.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-gray-600">Shipping</span>
-              <span className="font-extrabold">₹{order.shipping.toFixed(2)}</span>
-            </div>
-            <div className="pt-2 border-t border-gray-200 flex justify-between text-base">
-              <span className="font-extrabold text-gray-900">Total</span>
-              <span className="font-extrabold text-gray-900">₹{order.total.toFixed(2)}</span>
-            </div>
-          </div>
-
-          <div className="mt-5 border-t border-gray-200 pt-4">
-            <h3 className="text-sm font-extrabold text-gray-900 mb-2">Shipping Address</h3>
-            {order.deliveryAddress && Object.keys(order.deliveryAddress).length > 0 ? (
-              <div className="text-sm text-gray-700">
-                {(order.deliveryAddress.fullName || order.deliveryAddress.name) && (
-                  <p className="font-semibold mb-1">
-                    {order.deliveryAddress.fullName || order.deliveryAddress.name}
-                  </p>
-                )}
-                {(order.deliveryAddress.street || order.deliveryAddress.address) && (
-                  <p className="mb-1">{order.deliveryAddress.street || order.deliveryAddress.address}</p>
-                )}
-                {(order.deliveryAddress.city || order.deliveryAddress.state) && (
-                  <p className="mb-1">
-                    {[order.deliveryAddress.city, order.deliveryAddress.state].filter(Boolean).join(', ')}
-                  </p>
-                )}
-                {(order.deliveryAddress.zipCode || order.deliveryAddress.postalCode || order.deliveryAddress.country) && (
-                  <p className="mb-1">
-                    {[order.deliveryAddress.zipCode || order.deliveryAddress.postalCode, order.deliveryAddress.country]
-                      .filter(Boolean)
-                      .join(', ')}
-                  </p>
-                )}
-                {order.deliveryAddress.phone && (
-                  <p className="text-gray-500 mt-2">📞 {order.deliveryAddress.phone}</p>
-                )}
-                {order.deliveryAddress.landmark && (
-                  <p className="text-gray-500 text-xs mt-1">📍 {order.deliveryAddress.landmark}</p>
-                )}
-              </div>
-            ) : (
-              <div className="text-sm text-gray-500 italic">No shipping address available</div>
-            )}
-          </div>
-
-          <div className="mt-5 border-t border-gray-200 pt-4">
-            <h3 className="text-sm font-extrabold text-gray-900 mb-2">Payment Method</h3>
-            <p className="text-sm text-gray-700 capitalize">
-              {order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod}
-            </p>
-            {order.paymentStatus && (
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-xs text-gray-500">Status:</span>
-                <span className={`px-2 py-1 rounded-full text-xs font-extrabold ${getPaymentStatusColor(order.paymentStatus)}`}>
-                  {order.paymentStatus?.charAt(0).toUpperCase() + order.paymentStatus?.slice(1) || 'Unknown'}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Bottom actions (LAST) */}
-          <div className="mt-6 border-t border-gray-200 pt-4 pb-2">
-            <div className={`grid gap-3 ${order.canCancel ? 'grid-cols-2' : 'grid-cols-1'}`}>
-              {order.canCancel && (
-                <button
-                  onClick={handleCancel}
-                  disabled={cancelOrderMutation.isPending}
-                  className="w-full px-4 py-4 bg-red-600 text-white rounded-2xl font-extrabold hover:bg-red-700 transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-2"
-                >
-                  <Ban className="w-5 h-5" />
-                  {cancelOrderMutation.isPending ? 'Cancelling…' : 'Cancel Order'}
-                </button>
               )}
-              <button
-                onClick={handleReorder}
-                className="w-full px-4 py-4 bg-primary text-white rounded-2xl font-extrabold hover:bg-primary-dark transition-colors inline-flex items-center justify-center gap-2"
-              >
-                <Repeat2 className="w-5 h-5" />
-                Reorder
-              </button>
-            </div>
+            </Section>
+
+            {/* Items */}
+            <Section>
+              <SectionHeader title={`Items · ${order.items.length}`} right={fmt(order.subtotal)} />
+              {order.items.map((item, idx) => (
+                <div key={item.id || idx} style={{
+                  padding: '12px 16px', display: 'flex', gap: 12, alignItems: 'center',
+                  borderTop: idx > 0 ? '0.5px solid var(--color-border-tertiary)' : 'none',
+                }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 10, background: 'var(--color-background-secondary)', border: '0.5px solid var(--color-border-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
+                    <Image
+                      src={item.product?.images?.[0] || item.image || '/images/dummy.png'}
+                      alt={item.productName || item.name || 'Item'}
+                      fill
+                      className="object-cover"
+                      sizes="48px"
+                    />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {item.productName || item.name}
+                    </p>
+                    <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                      Qty {item.quantity}{item.productSku ? ` · SKU: ${item.productSku}` : ''}
+                    </p>
+                  </div>
+                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}>
+                    {fmt(item.totalPrice)}
+                  </p>
+                </div>
+              ))}
+            </Section>
+
+            {/* Price summary */}
+            <Section>
+              <SectionHeader title="Price summary" />
+              {[
+                { label: 'Subtotal', value: fmt(order.subtotal) },
+                order.tax    > 0 ? { label: 'Tax',      value: fmt(order.tax) }      : null,
+                order.shipping   ? { label: 'Delivery', value: fmt(order.shipping) } : null,
+              ].filter(Boolean).map(({ label, value }) => (
+                <div key={label} style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--color-text-secondary)', borderTop: '0.5px solid var(--color-border-tertiary)' }}>
+                  <span>{label}</span><span style={{ color: 'var(--color-text-primary)' }}>{value}</span>
+                </div>
+              ))}
+              {order.discount > 0 && (
+                <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', fontSize: 13, borderTop: '0.5px solid var(--color-border-tertiary)' }}>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>Discount</span>
+                  <span style={{ color: '#27500A', fontWeight: 500 }}>−{fmt(order.discount)}</span>
+                </div>
+              )}
+              <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)', borderTop: '0.5px solid var(--color-border-tertiary)' }}>
+                <span>Total paid</span><span>{fmt(order.total)}</span>
+              </div>
+            </Section>
+
+            {/* Delivery & payment */}
+            <Section>
+              <SectionHeader title="Delivery & payment" />
+              <div style={{ padding: '12px 16px', fontSize: 13, color: 'var(--color-text-primary)', lineHeight: 1.7 }}>
+                {(addr.fullName || addr.name) && <p style={{ fontWeight: 500, margin: 0 }}>{addr.fullName || addr.name}{addr.phone ? ` · ${addr.phone}` : ''}</p>}
+                {(addr.street || addr.address) && <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{addr.street || addr.address}</p>}
+                {(addr.city || addr.state) && <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{[addr.city, addr.state].filter(Boolean).join(', ')}</p>}
+                {(addr.zipCode || addr.postalCode || addr.country) && <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{[addr.zipCode || addr.postalCode, addr.country].filter(Boolean).join(', ')}</p>}
+                {addr.landmark && <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', margin: '4px 0 0' }}>Near {addr.landmark}</p>}
+                {!Object.keys(addr).length && <p style={{ color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>No address on file</p>}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '0.5px solid var(--color-border-tertiary)' }}>
+                <div style={{ padding: '12px 16px', borderRight: '0.5px solid var(--color-border-tertiary)' }}>
+                  <p style={{ fontSize: 10, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Payment</p>
+                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', marginTop: 3 }}>
+                    {order.paymentMethod === 'cod' ? 'Cash on delivery' : order.paymentMethod || '—'}
+                  </p>
+                </div>
+                <div style={{ padding: '12px 16px' }}>
+                  <p style={{ fontSize: 10, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Status</p>
+                  <div style={{ marginTop: 4 }}>
+                    <StatusPill styleMap={PAYMENT_STYLES} status={order.paymentStatus?.toLowerCase()} label={order.paymentStatus} />
+                  </div>
+                </div>
+              </div>
+            </Section>
+
+            {/* Actions */}
+            <Section>
+              <div style={{ padding: 12, display: 'flex', gap: 8 }}>
+                {order.canCancel && (
+                  <button
+                    onClick={() => setShowCancelPrompt(true)}
+                    disabled={cancelMutation.isPending}
+                    style={{ flex: 1, padding: 13, borderRadius: 12, background: '#FCEBEB', color: '#791F1F', fontSize: 13, fontWeight: 500, border: '0.5px solid #F7C1C1', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: cancelMutation.isPending ? 0.6 : 1 }}
+                  >
+                    {cancelMutation.isPending ? <><IconSpinner /> Cancelling…</> : <><IconCancel /> Cancel order</>}
+                  </button>
+                )}
+                {order.status === 'delivered' && (
+                  <button
+                    onClick={() => downloadInvoice(order)}
+                    style={{ flex: 1, padding: 13, borderRadius: 12, background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontSize: 13, fontWeight: 500, border: '0.5px solid var(--color-border-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                  >
+                    <IconDownload /> Invoice
+                  </button>
+                )}
+                <button
+                  onClick={handleReorder}
+                  style={{ flex: 1, padding: 13, borderRadius: 12, background: '#27500A', color: '#C0DD97', fontSize: 13, fontWeight: 500, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                >
+                  <IconReorder /> Reorder
+                </button>
+              </div>
+            </Section>
+
+            {/* Related products */}
+            {related.length > 0 && (
+              <div style={{ marginTop: 20 }}>
+                <ProductCarousel products={related} title="You might also like" showMoreLink="/products" />
+              </div>
+            )}
+
           </div>
-
-          {/* Related items (BOTTOM) */}
-          {relatedProducts.length > 0 && (
-            <div className="mt-6 border-t border-gray-200 pt-4">
-              <ProductCarousel products={relatedProducts} title="Related items" showMoreLink="/products" />
-            </div>
-          )}
         </div>
-      </Container>
+      </div>
 
-      {/* Cancel Order Prompt Modal */}
+      {/* Modals */}
+      {showReturn && <ReturnModal order={order} onClose={() => setShowReturn(false)} onSubmit={handleReturnSubmit} />}
+
       <PromptModal
         isOpen={showCancelPrompt}
         onClose={() => setShowCancelPrompt(false)}
         onSubmit={handleCancelReasonSubmit}
-        title="Cancel Order"
-        message="Please provide a reason for cancellation:"
-        placeholder="Enter cancellation reason"
+        title="Cancel order"
+        message="Why are you cancelling this order?"
+        placeholder="Enter reason…"
         submitText="Continue"
-        cancelText="Cancel"
+        cancelText="Go back"
       />
 
-      {/* Cancel Order Confirmation Modal */}
       <ConfirmModal
         isOpen={showCancelConfirm}
-        onClose={() => {
-          setShowCancelConfirm(false);
-          setCancelReason('');
-        }}
+        onClose={() => { setShowCancelConfirm(false); setCancelReason(''); }}
         onConfirm={handleCancelConfirm}
-        title="Confirm Cancellation"
-        message="Are you sure you want to cancel this order? This action cannot be undone."
-        confirmText="Yes, Cancel Order"
-        cancelText="No, Keep Order"
+        title="Confirm cancellation"
+        message="This action cannot be undone. Your order will be cancelled."
+        confirmText="Yes, cancel order"
+        cancelText="No, keep order"
       />
-
-      {/* Return Request Modal */}
-      {showReturnModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Request Return/Refund</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Items</label>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {order.items.map((item) => (
-                    <label key={item.id} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedItemsForReturn.includes(item.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedItemsForReturn([...selectedItemsForReturn, item.id]);
-                          } else {
-                            setSelectedItemsForReturn(selectedItemsForReturn.filter(id => id !== item.id));
-                          }
-                        }}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm text-gray-700">{item.productName || item.name}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
-                <textarea
-                  value={returnReason}
-                  onChange={(e) => setReturnReason(e.target.value)}
-                  placeholder="Please provide a reason for return..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={4}
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleRequestReturn}
-                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition-colors"
-                >
-                  Submit Request
-                </button>
-                <button
-                  onClick={() => {
-                    setShowReturnModal(false);
-                    setSelectedItemsForReturn([]);
-                    setReturnReason('');
-                  }}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   );
 }
 
+/* ─────────────────────────────────────────────
+   Page export with Suspense
+───────────────────────────────────────────── */
 export default function OrderDetailPage() {
   return (
-    <Suspense fallback={
-      <div className="py-16 w-full max-w-full overflow-x-hidden">
-        <Container>
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-            <p className="text-gray-500 mt-4">Loading order details...</p>
-          </div>
-        </Container>
-      </div>
-    }>
+    <Suspense fallback={<LoadingState />}>
       <OrderDetailContent />
     </Suspense>
   );
 }
-

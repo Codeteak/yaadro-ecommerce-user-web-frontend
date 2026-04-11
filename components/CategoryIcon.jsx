@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { mediaObjectToUrl } from '../utils/mediaUrl';
 
 /**
  * Renders category icon for navbar/cards.
@@ -10,6 +11,7 @@ export default function CategoryIcon({ category, className = '', size = 'md' }) 
   const name = typeof category === 'object' ? category?.name : 'Category';
   const icon = typeof category === 'object' ? category?.icon : null;
   const image = typeof category === 'object' ? category?.image : null;
+  const imageUrl = typeof image === 'string' ? image : mediaObjectToUrl(image);
 
   const sizeClasses = {
     xs: 'w-6 h-6 text-base',
@@ -50,6 +52,15 @@ export default function CategoryIcon({ category, className = '', size = 'md' }) 
     return (
       <span className={`relative inline-flex flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100 ${s} ${className}`}>
         <Image src={image} alt={name} fill className="object-cover" sizes="48px" />
+      </span>
+    );
+  }
+
+  // 3b) Image object with storageKey (new backend shape)
+  if (imageUrl && isImageUrl(imageUrl)) {
+    return (
+      <span className={`relative inline-flex flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100 ${s} ${className}`}>
+        <Image src={imageUrl} alt={name} fill className="object-cover" sizes="48px" />
       </span>
     );
   }

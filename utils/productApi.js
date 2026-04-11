@@ -3,13 +3,84 @@
  * Uses the multi-tenant backend API
  */
 
-import { api } from './apiClient';
+import { api, apiFetchRoot } from './apiClient';
+import { getShopIdFromEnv } from './authApi';
+import { mediaObjectToUrl } from './mediaUrl';
 
 /**
  * Transform API product to frontend format
  */
 function transformProduct(apiProduct) {
   if (!apiProduct) return null;
+
+  const normalizeCategoryName = (cat) => {
+    if (!cat) return '';
+    if (typeof cat === 'string') return cat;
+    if (typeof cat === 'object') return cat.name || cat.slug || '';
+    return '';
+  };
+
+  // Storefront catalog shape (minor currency units + availability)
+  if (apiProduct.price_minor_per_unit !== undefined) {
+    const priceMinor = Number(apiProduct.price_minor_per_unit || 0);
+    const offerMinor =
+      apiProduct.offer_price_minor_per_unit !== undefined && apiProduct.offer_price_minor_per_unit !== null
+        ? Number(apiProduct.offer_price_minor_per_unit || 0)
+        : null;
+
+    const price = Number.isFinite(priceMinor) ? priceMinor / 100 : 0;
+    const offerPrice = Number.isFinite(offerMinor) ? offerMinor / 100 : null;
+
+    const availability = apiProduct.availability || 'unknown';
+    const inStock = availability === 'in_stock';
+
+    const thumbnailUrl = mediaObjectToUrl(apiProduct.thumbnail) || null;
+
+    const sortedImages = Array.isArray(apiProduct.images)
+      ? [...apiProduct.images].sort((a, b) => (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0))
+      : [];
+    const galleryUrls = sortedImages
+      .map((img) => mediaObjectToUrl(img))
+      .filter(Boolean);
+
+    const image = thumbnailUrl || galleryUrls[0] || '/images/dummy.png';
+    const images = galleryUrls.length ? galleryUrls : [image];
+
+    return {
+      id: apiProduct.id,
+      name: apiProduct.name,
+      shortName: apiProduct.name,
+      slug: apiProduct.slug || apiProduct.id,
+      price,
+      originalPrice: offerPrice != null && offerPrice < price ? price : null,
+      compareAtPrice: offerPrice != null && offerPrice < price ? price : null,
+      offerPrice,
+      offerPriceEffective: offerPrice,
+      category: normalizeCategoryName(apiProduct.category) || apiProduct.category_slug || '',
+      subcategory: '',
+      description: '',
+      image,
+      images,
+      thumbnailUrl,
+      inStock,
+      stock: inStock ? 1 : 0,
+      weight: null,
+      unit: apiProduct.unit || '',
+      brand: '',
+      sku: '',
+      barcode: '',
+      discountPercentage:
+        offerPrice != null && price > 0 ? Math.round(((price - offerPrice) / price) * 100) : 0,
+      shop: null,
+      createdAt: apiProduct.created_at || '',
+      updatedAt: apiProduct.updated_at || '',
+      // keep raw fields around for UI that wants them
+      availability,
+      thumbnail: apiProduct.thumbnail || null,
+      categoryId: apiProduct.category_id || null,
+      categoryObj: apiProduct.category || null,
+    };
+  }
 
   const images = apiProduct.images || [];
   const firstImage = apiProduct.thumbnailUrl || (images.length > 0 ? images[0] : null);
@@ -80,7 +151,7 @@ function transformCategory(apiCategory) {
     name: apiCategory.name,
     slug: apiCategory.slug,
     description: apiCategory.description || '',
-    image: apiCategory.image || null,
+    image: mediaObjectToUrl(apiCategory.image) || apiCategory.image || null,
     icon: apiCategory.icon || null,
     isActive: apiCategory.isActive !== undefined ? apiCategory.isActive : true,
     isFeatured: apiCategory.isFeatured || false,
@@ -107,45 +178,39 @@ function transformCategory(apiCategory) {
  */
 export async function getProducts(params = {}) {
   try {
-    const {
-      page = 1,
-      per_page = 20,
-      category_id,
-      category_slug,
-      search,
-      min_price,
-      max_price,
-      sort_by = 'created_at',
-      sort_order = 'desc',
-    } = params;
+    const { per_page = 20, limit, cursor, category_id, category_slug, search, availability } = params;
 
+    // Storefront API uses cursor pagination: { products, nextCursor }
     const query = {
-      page,
-      per_page,
-      sort_by,
-      sort_order,
+      limit: limit ?? per_page,
+      cursor: cursor || undefined,
+      category_id: category_id || category_slug || undefined, // `category_slug` used in old UI; treat as id
+      search: search || undefined,
+      availability: availability || undefined,
     };
 
-    if (category_id) query.category_id = category_id;
-    if (category_slug) query.category_slug = category_slug;
-    if (search) query.search = search;
-    if (min_price !== undefined) query.min_price = min_price;
-    if (max_price !== undefined) query.max_price = max_price;
+    const shopId = getShopIdFromEnv();
+    if (!shopId) {
+      throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/* requests on localhost).');
+    }
+    const headers = shopId ? { 'x-shop-id': shopId } : undefined;
 
-    const response = await api.get('/v1/products', { query });
+    const response = await apiFetchRoot('/storefront/products', {
+      method: 'GET',
+      headers,
+      query,
+      omitTenantHeader: true,
+    });
 
     return {
       products: (response?.products || []).map(transformProduct),
-      pagination: response?.pagination || {
-        page: 1,
-        per_page: 20,
-        total: 0,
-        total_pages: 0,
+      pagination: {
+        nextCursor: response?.nextCursor ?? null,
       },
     };
   } catch (error) {
     console.error('Error fetching products:', error);
-    return { products: [], pagination: { page: 1, per_page: 20, total: 0, total_pages: 0 } };
+    return { products: [], pagination: { nextCursor: null } };
   }
 }
 
@@ -156,10 +221,16 @@ export async function getProducts(params = {}) {
  */
 export async function getProductById(productId) {
   try {
-    const response = await api.get(`/v1/products/${productId}`);
-    // API returns { product: {...}, related_products: [...] } in data
-    const product = response?.product || response;
-    return transformProduct(product);
+    const shopId = getShopIdFromEnv();
+    const headers = shopId ? { 'x-shop-id': shopId } : undefined;
+
+    const response = await apiFetchRoot(`/storefront/products/${encodeURIComponent(productId)}`, {
+      method: 'GET',
+      headers,
+      omitTenantHeader: true,
+    });
+
+    return transformProduct(response);
   } catch (error) {
     console.error('Error fetching product:', error);
     return null;
@@ -173,11 +244,19 @@ export async function getProductById(productId) {
  */
 export async function getProductWithRelated(productId) {
   try {
-    const response = await api.get(`/v1/products/${productId}`);
-    return {
-      product: transformProduct(response?.product || response),
-      relatedProducts: (response?.related_products || []).map(transformProduct),
-    };
+    const product = await getProductById(productId);
+    if (!product) return { product: null, relatedProducts: [] };
+
+    // "Similar" = same category (best-effort). Storefront supports `category_id`.
+    const categoryId = product.categoryId || null;
+    if (!categoryId) return { product, relatedProducts: [] };
+
+    const list = await getProducts({ per_page: 24, category_id: categoryId });
+    const relatedProducts = (list?.products || [])
+      .filter((p) => p && p.id !== product.id)
+      .slice(0, 12);
+
+    return { product, relatedProducts };
   } catch (error) {
     console.error('Error fetching product with related:', error);
     return { product: null, relatedProducts: [] };
@@ -191,44 +270,22 @@ export async function getProductWithRelated(productId) {
  */
 export async function searchProducts(params = {}) {
   try {
-    const {
-      q,
-      page = 1,
-      per_page = 20,
-      category_id,
-      min_price,
-      max_price,
-    } = params;
+    const { q, per_page = 20, category_id } = params;
 
     if (!q || q.trim().length < 2) {
-      return { products: [], pagination: { page: 1, per_page: 20, total: 0, total_pages: 0 }, query: q || '' };
+      return { products: [], pagination: { nextCursor: null }, query: q || '' };
     }
 
-    const query = {
-      q: q.trim(),
-      page,
+    const list = await getProducts({
       per_page,
-    };
+      category_id,
+      search: q.trim(),
+    });
 
-    if (category_id) query.category_id = category_id;
-    if (min_price !== undefined) query.min_price = min_price;
-    if (max_price !== undefined) query.max_price = max_price;
-
-    const response = await api.get('/v1/products/search', { query });
-
-    return {
-      products: (response?.products || []).map(transformProduct),
-      pagination: response?.pagination || {
-        page: 1,
-        per_page: 20,
-        total: 0,
-        total_pages: 0,
-      },
-      query: response?.query || q,
-    };
+    return { ...list, query: q.trim() };
   } catch (error) {
     console.error('Error searching products:', error);
-    return { products: [], pagination: { page: 1, per_page: 20, total: 0, total_pages: 0 }, query: params.q || '' };
+    return { products: [], pagination: { nextCursor: null }, query: params.q || '' };
   }
 }
 
@@ -266,19 +323,29 @@ function flattenCategoryTree(nodes) {
  */
 export async function getCategoriesTree() {
   try {
-    const response = await api.get('/v1/shop/categories/tree');
-    const tree = response?.tree ?? response?.data?.tree;
-    if (tree && Array.isArray(tree)) {
-      return tree.map(transformCategory);
+    const shopId = getShopIdFromEnv();
+    const headers = shopId ? { 'x-shop-id': shopId } : undefined;
+
+    // Storefront categories are fetched by parent_id; build a tree with a bounded recursion.
+    async function fetchChildren(parentId) {
+      const res = await apiFetchRoot('/storefront/categories', {
+        method: 'GET',
+        headers,
+        query: parentId ? { parent_id: parentId } : undefined,
+        omitTenantHeader: true,
+      });
+      const list = res?.categories || [];
+      const transformed = list.map(transformCategory).filter(Boolean);
+      const withChildren = await Promise.all(
+        transformed.map(async (c) => ({
+          ...c,
+          children: await fetchChildren(c.id),
+        }))
+      );
+      return withChildren;
     }
-  } catch (_) {
-    // Fallback to legacy endpoint
-  }
-  try {
-    const response = await api.get('/v1/categories');
-    const list = response?.categories || response?.data?.categories || [];
-    const transformed = list.map(transformCategory);
-    return buildTreeFromFlat(transformed);
+
+    return await fetchChildren(null);
   } catch (error) {
     console.error('Error fetching category tree:', error);
     return [];
@@ -298,35 +365,33 @@ function buildTreeFromFlat(flat, parentId = null) {
 }
 
 /**
- * Get products by category slug
- * @param {string} categorySlug - Category slug
+ * Get products by category (storefront API expects category UUID in `category_id`).
+ * Accepts a UUID, and falls back to slug only when the backend supports it.
+ * @param {string} categoryIdOrSlug - Category UUID (preferred) or slug
  * @param {object} params - Pagination parameters
  * @returns {Promise<{category: object, products: Array, pagination: object}>}
  */
-export async function getCategoryProducts(categorySlug, params = {}) {
+export async function getCategoryProducts(categoryIdOrSlug, params = {}) {
   try {
-    const { page = 1, per_page = 20 } = params;
+    const { per_page = 20, cursor } = params;
 
-    const response = await api.get(`/v1/categories/${categorySlug}/products`, {
-      query: { page, per_page },
+    const list = await getProducts({
+      per_page,
+      cursor,
+      category_id: categoryIdOrSlug,
     });
 
     return {
-      category: transformCategory(response?.category),
-      products: (response?.products || []).map(transformProduct),
-      pagination: response?.pagination || {
-        page: 1,
-        per_page: 20,
-        total: 0,
-        total_pages: 0,
-      },
+      category: null,
+      products: list.products,
+      pagination: list.pagination,
     };
   } catch (error) {
     console.error('Error fetching category products:', error);
     return {
       category: null,
       products: [],
-      pagination: { page: 1, per_page: 20, total: 0, total_pages: 0 },
+      pagination: { nextCursor: null },
     };
   }
 }
@@ -347,7 +412,7 @@ export async function getProductsByCategory(categoryName, limit = null) {
       return [];
     }
 
-    const result = await getCategoryProducts(category.slug, {
+    const result = await getCategoryProducts(category.id || category.slug, {
       page: 1,
       per_page: limit || 100,
     });
