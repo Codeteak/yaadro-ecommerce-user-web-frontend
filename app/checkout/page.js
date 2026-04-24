@@ -11,6 +11,7 @@ import { useAlert } from '../../context/AlertContext';
 import CheckoutAddAddressSheet from '../../components/CheckoutAddAddressSheet';
 import { placeStorefrontOrder } from '../../utils/storefrontCheckoutApi';
 import { setPostLoginRedirect } from '../../utils/authSession';
+import { useUpdateProfile } from '../../hooks/useAuth';
 
 /* ─────────────────────────────────────────────
    Small helpers
@@ -31,6 +32,43 @@ function SectionLabel({ children, optional }) {
 
 function Divider() {
   return <hr className="border-t border-gray-100 my-3" />;
+}
+
+function hasUserPhone(user) {
+  if (!user || typeof user !== 'object') return false;
+  const raw = user.phone ?? user.mobile ?? user.phoneNumber ?? '';
+  return String(raw).replace(/\s/g, '').length > 0;
+}
+
+function isValidPhoneInput(value) {
+  const v = String(value || '').replace(/\s/g, '').trim();
+  return /^[0-9+][0-9]{7,31}$/.test(v);
+}
+
+function hasValidCoordinates(address) {
+  const lat = Number(address?.lat);
+  const lng = Number(address?.lng);
+  return Number.isFinite(lat) && Number.isFinite(lng);
+}
+
+function getLiveCoordinates() {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined' || !navigator?.geolocation) {
+      reject(new Error('Location is not supported in this browser.'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (err) => {
+        if (err?.code === 1) {
+          reject(new Error('Please allow location access to place this order.'));
+          return;
+        }
+        reject(new Error(err?.message || 'Could not read your location.'));
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    );
+  });
 }
 
 /* ─────────────────────────────────────────────
@@ -307,17 +345,22 @@ export default function CheckoutPage() {
     addresses,
     getDefaultAddress,
     addAddress,
+    updateAddress,
     isLoading: isLoadingAddresses,
     isCreating: isCreatingAddress,
   } = useAddress();
-  const { isAuthenticated, user, setShowLoginSheet, authHydrated } = useAuth();
+  const { isAuthenticated, user, setShowLoginSheet, authHydrated, refreshUser } = useAuth();
   const { showAlert } = useAlert();
+  const updateProfileMutation = useUpdateProfile();
   // Storefront order placement: POST /storefront/checkout
 
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAddAddressSheet, setShowAddAddressSheet] = useState(false);
+  const [showPhoneSheet, setShowPhoneSheet] = useState(false);
+  const [phoneDraft, setPhoneDraft] = useState('');
+  const [phoneOverride, setPhoneOverride] = useState('');
 
   /* ── Set default address on mount ── */
   useEffect(() => {
@@ -356,6 +399,24 @@ export default function CheckoutPage() {
     }
   };
 
+  const handlePhoneSave = async () => {
+    const normalized = String(phoneDraft || '').replace(/\s/g, '').trim();
+    if (!isValidPhoneInput(normalized)) {
+      showAlert('Please enter a valid phone number.', 'Invalid phone', 'warning');
+      return;
+    }
+
+    try {
+      await updateProfileMutation.mutateAsync({ phone: normalized });
+      await refreshUser({ silent: true });
+      setPhoneOverride(normalized);
+      setShowPhoneSheet(false);
+      showAlert('Phone number saved.', 'Success', 'success');
+    } catch (err) {
+      showAlert(err?.message || 'Failed to save phone number.', 'Error', 'error');
+    }
+  };
+
   /* ── Place order ── */
   const handleSubmit = async (e) => {
     e?.preventDefault();
@@ -372,6 +433,11 @@ export default function CheckoutPage() {
       showAlert('Your cart is empty.', 'Empty Cart', 'warning');
       return;
     }
+    if (!hasUserPhone(user) && !phoneOverride) {
+      setPhoneDraft('');
+      setShowPhoneSheet(true);
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -381,6 +447,11 @@ export default function CheckoutPage() {
         showAlert('Please select a valid address.', 'Required', 'warning');
         setIsSubmitting(false);
         return;
+      }
+
+      if (!hasValidCoordinates(selectedAddress)) {
+        const coords = await getLiveCoordinates();
+        await updateAddress(selectedAddressId, { lat: coords.lat, lng: coords.lng });
       }
 
       const orderResponse = await placeStorefrontOrder({
@@ -398,6 +469,12 @@ export default function CheckoutPage() {
       );
     } catch (err) {
       console.error('Checkout error:', err);
+      if (/phone number is required before checkout/i.test(String(err?.message || ''))) {
+        setPhoneDraft(String(user?.phone || phoneOverride || '').trim());
+        setShowPhoneSheet(true);
+        setIsSubmitting(false);
+        return;
+      }
       showAlert(err?.message || 'Failed to place order. Please try again.', 'Error', 'error');
       setIsSubmitting(false);
     }
@@ -570,6 +647,48 @@ export default function CheckoutPage() {
         initialFullName={user?.name || ''}
         initialPhone={user?.phone || ''}
       />
+
+      {showPhoneSheet && (
+        <div className="fixed inset-0 z-[70]">
+          <button
+            type="button"
+            aria-label="Close phone sheet"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowPhoneSheet(false)}
+          />
+          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4 shadow-2xl">
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-gray-200" />
+            <h3 className="text-base font-semibold text-gray-900">Add phone number</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Phone number is required before placing your order.
+            </p>
+            <input
+              type="tel"
+              value={phoneDraft}
+              onChange={(ev) => setPhoneDraft(ev.target.value)}
+              placeholder="+919876543210"
+              className="mt-4 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            />
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowPhoneSheet(false)}
+                className="h-11 flex-1 rounded-xl border border-gray-200 text-sm font-medium text-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handlePhoneSave}
+                disabled={updateProfileMutation.isPending}
+                className="h-11 flex-1 rounded-xl bg-emerald-600 text-sm font-medium text-white disabled:opacity-60"
+              >
+                {updateProfileMutation.isPending ? 'Saving…' : 'Save phone'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

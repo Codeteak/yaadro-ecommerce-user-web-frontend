@@ -36,6 +36,13 @@ export default function Navbar() {
   const resultsRef = useRef(null);
   const navRef = useRef(null);
 
+  // Products page uses only this bar for search (no in-page field); mirror `?search=`.
+  useEffect(() => {
+    if (pathname !== '/products') return;
+    const q = searchParams?.get('search');
+    setSearchQuery(q ?? '');
+  }, [pathname, searchParams]);
+
   const defaultAddress = getDefaultAddress();
   const addressLine = defaultAddress
     ? [defaultAddress.city, defaultAddress.street || defaultAddress.address].filter(Boolean).slice(0, 2).join(', ') || 'Add address'

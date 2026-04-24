@@ -10,6 +10,7 @@ import {
   writeSessionExpiresAtFromLogin,
   POST_LOGIN_REDIRECT_KEY,
 } from '../utils/authSession';
+import { normalizeCustomer } from '../utils/authApi';
 
 const AuthContext = createContext();
 
@@ -155,7 +156,7 @@ export function AuthProvider({ children }) {
    * @returns {boolean} true if a full-page redirect was triggered (caller should skip client routing).
    */
   const login = (userData, tokens = {}) => {
-    setUser(userData);
+    setUser(normalizeCustomer(userData) || userData);
     if (tokens?.token) {
       setToken(tokens.token);
       localStorage.setItem('token', tokens.token);

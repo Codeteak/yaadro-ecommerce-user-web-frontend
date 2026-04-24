@@ -146,6 +146,13 @@ function transformProduct(apiProduct) {
 function transformCategory(apiCategory) {
   if (!apiCategory) return null;
 
+  const parentId =
+    apiCategory.parentId !== undefined
+      ? apiCategory.parentId
+      : apiCategory.parent_id !== undefined
+        ? apiCategory.parent_id
+        : null;
+
   return {
     id: apiCategory.id,
     name: apiCategory.name,
@@ -156,7 +163,7 @@ function transformCategory(apiCategory) {
     isActive: apiCategory.isActive !== undefined ? apiCategory.isActive : true,
     isFeatured: apiCategory.isFeatured || false,
     displayOrder: apiCategory.displayOrder || 0,
-    parentId: apiCategory.parentId || null,
+    parentId: parentId ?? null,
     parentCategory: apiCategory.parentCategory || null,
     children: (apiCategory.children || []).map(transformCategory),
     level: apiCategory.level ?? 0,
@@ -172,22 +179,122 @@ function transformCategory(apiCategory) {
 }
 
 /**
- * List products with filters and pagination
- * @param {object} params - Query parameters
- * @returns {Promise<{products: Array, pagination: object}>}
+ * Build query string params for `GET /storefront/products` (no auth; header `x-shop-id` added by caller).
+ *
+ * Supported filters (see OpenAPI / product search spec):
+ * - `search` / `q` — partial match on name & slug, max 200 chars
+ * - `category_id`, `brand_id` — UUIDs only (non-UUID values are ignored)
+ * - `availability` — `in_stock` | `out_of_stock` | `unknown`
+ * - `min_price_minor`, `max_price_minor` — integers ≥ 0 (paise); invalid range drops both
+ * - `sort_by` — `price` | `created_at` | `name` (unknown values omitted)
+ * - `sort_order` — `asc` | `desc`
+ * - `limit` / `per_page` — clamped to 1..50 (default 20)
+ * - `cursor` — opaque; only sent with `sort_by=created_at` (forced when cursor present)
+ * - `offset` — 0..50000; if set, cursor is not used (offset pagination path)
+ * - `page` — legacy; when &gt; 1 and no `offset`, sets `offset = (page - 1) * limit`
+ *
+ * @param {object} raw
+ * @returns {Record<string, string|number>}
+ */
+export function buildStorefrontProductsQuery(raw = {}) {
+  const UUID =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  const out = {};
+
+  const searchSrc = raw.search ?? raw.q;
+  if (searchSrc != null && String(searchSrc).trim()) {
+    out.search = String(searchSrc).trim().slice(0, 200);
+  }
+
+  const cat = raw.category_id ?? raw.category;
+  if (cat != null && cat !== '' && UUID.test(String(cat))) {
+    out.category_id = String(cat);
+  }
+
+  const brand = raw.brand_id ?? raw.brandId;
+  if (brand != null && brand !== '' && UUID.test(String(brand))) {
+    out.brand_id = String(brand);
+  }
+
+  if (
+    raw.availability != null &&
+    ['in_stock', 'out_of_stock', 'unknown'].includes(String(raw.availability))
+  ) {
+    out.availability = String(raw.availability);
+  }
+
+  if (raw.min_price_minor != null && raw.min_price_minor !== '') {
+    const n = Number(raw.min_price_minor);
+    if (Number.isFinite(n) && n >= 0) out.min_price_minor = Math.floor(n);
+  }
+  if (raw.max_price_minor != null && raw.max_price_minor !== '') {
+    const n = Number(raw.max_price_minor);
+    if (Number.isFinite(n) && n >= 0) out.max_price_minor = Math.floor(n);
+  }
+  if (
+    out.min_price_minor != null &&
+    out.max_price_minor != null &&
+    out.min_price_minor > out.max_price_minor
+  ) {
+    delete out.min_price_minor;
+    delete out.max_price_minor;
+  }
+
+  const limIn = raw.limit ?? raw.per_page ?? 20;
+  let limit = Math.floor(Number(limIn));
+  if (!Number.isFinite(limit)) limit = 20;
+  out.limit = Math.min(50, Math.max(1, limit));
+
+  const offsetNum = Number(raw.offset);
+  const useOffset =
+    raw.offset != null &&
+    raw.offset !== '' &&
+    Number.isFinite(offsetNum) &&
+    offsetNum >= 0 &&
+    offsetNum <= 50000;
+
+  if (useOffset) {
+    out.offset = Math.floor(offsetNum);
+  } else if (raw.page != null && Number(raw.page) > 1) {
+    const page = Math.max(2, Math.floor(Number(raw.page)) || 2);
+    out.offset = Math.min(50000, (page - 1) * out.limit);
+  }
+
+  let sortBy = raw.sort_by;
+  let sortOrder = raw.sort_order;
+  if (sortBy != null && !['price', 'created_at', 'name'].includes(String(sortBy))) {
+    sortBy = undefined;
+  }
+  if (sortOrder != null && !['asc', 'desc'].includes(String(sortOrder))) {
+    sortOrder = undefined;
+  }
+
+  const hasCursor =
+    out.offset === undefined &&
+    raw.cursor != null &&
+    String(raw.cursor).trim().length > 0;
+
+  if (hasCursor) {
+    out.sort_by = 'created_at';
+    out.sort_order = sortOrder === 'asc' ? 'asc' : 'desc';
+    out.cursor = String(raw.cursor).trim();
+  } else {
+    if (sortBy) out.sort_by = sortBy;
+    if (sortOrder) out.sort_order = sortOrder;
+  }
+
+  return out;
+}
+
+/**
+ * List products — `GET /storefront/products` with `x-shop-id` header.
+ * @param {object} params — passed through {@link buildStorefrontProductsQuery}
+ * @returns {Promise<{ products: Array, pagination: { nextCursor: string|null } }>}
  */
 export async function getProducts(params = {}) {
   try {
-    const { per_page = 20, limit, cursor, category_id, category_slug, search, availability } = params;
-
-    // Storefront API uses cursor pagination: { products, nextCursor }
-    const query = {
-      limit: limit ?? per_page,
-      cursor: cursor || undefined,
-      category_id: category_id || category_slug || undefined, // `category_slug` used in old UI; treat as id
-      search: search || undefined,
-      availability: availability || undefined,
-    };
+    const query = buildStorefrontProductsQuery(params);
 
     const shopId = getShopIdFromEnv();
     if (!shopId) {
@@ -270,19 +377,25 @@ export async function getProductWithRelated(productId) {
  */
 export async function searchProducts(params = {}) {
   try {
-    const { q, per_page = 20, category_id } = params;
+    const { q, per_page = 20, category_id, brand_id, cursor, sort_by, sort_order } = params;
 
-    if (!q || q.trim().length < 2) {
+    if (!q || String(q).trim().length < 2) {
       return { products: [], pagination: { nextCursor: null }, query: q || '' };
     }
+
+    const search = String(q).trim().slice(0, 200);
 
     const list = await getProducts({
       per_page,
       category_id,
-      search: q.trim(),
+      brand_id,
+      cursor,
+      sort_by,
+      sort_order,
+      search,
     });
 
-    return { ...list, query: q.trim() };
+    return { ...list, query: search };
   } catch (error) {
     console.error('Error searching products:', error);
     return { products: [], pagination: { nextCursor: null }, query: params.q || '' };

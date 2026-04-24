@@ -6,8 +6,7 @@ import ProductGrid from '../../components/ProductGrid';
 
 export default function NewPage() {
   const { data, isLoading } = useProducts({
-    page: 1,
-    per_page: 48,
+    limit: 48,
     sort_by: 'created_at',
     sort_order: 'desc',
   });

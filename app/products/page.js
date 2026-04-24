@@ -1,27 +1,16 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useProducts } from '../../hooks/useProducts';
-import { useCart } from '../../context/CartContext';
-import { useWishlist } from '../../context/WishlistContext';
+import { useCategories } from '../../hooks/useProducts';
+import { useQuery } from '@tanstack/react-query';
 import { getProductRating, getProductDiscount } from '../../utils/productUtils';
+import { getProducts } from '../../utils/productApi';
+import ProductCard from '../../components/ProductCard';
 
 /* ─────────────────────────────────────────────
    Constants
 ───────────────────────────────────────────── */
-const CATEGORIES = [
-  { key: 'all', label: 'All' },
-  { key: 'Edible Oils', label: 'Edible Oils' },
-  { key: 'Dairy', label: 'Dairy' },
-  { key: 'Grains', label: 'Grains' },
-  { key: 'Snacks', label: 'Snacks' },
-  { key: 'Spices', label: 'Spices' },
-  { key: 'Beverages', label: 'Beverages' },
-];
-
 const SORT_OPTIONS = [
   { key: 'default', label: 'Sort' },
   { key: 'price-asc', label: 'Price: low' },
@@ -30,53 +19,18 @@ const SORT_OPTIONS = [
   { key: 'newest', label: 'Newest' },
 ];
 
+/** Category pills use display names; `GET /storefront/products` expects `category_id` as UUID only. */
+const CATEGORY_ID_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 /* ─────────────────────────────────────────────
    Sub-components
 ───────────────────────────────────────────── */
 
-function SearchBar({ value, onChange }) {
-  return (
-    <div className="relative flex-1">
-      <svg
-        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
-        fill="none" stroke="currentColor" viewBox="0 0 24 24"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Search products…"
-        className="w-full h-[38px] pl-9 pr-4 rounded-full border border-gray-200 bg-gray-50 text-[13px] text-gray-900 placeholder-gray-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
-      />
-    </div>
-  );
-}
-
-function CartButton({ count }) {
-  return (
-    <Link
-      href="/cart"
-      className="relative w-[38px] h-[38px] rounded-full border border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0"
-      aria-label={`Cart — ${count} items`}
-    >
-      <svg className="w-[18px] h-[18px] text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-      </svg>
-      {count > 0 && (
-        <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-600 text-white text-[10px] font-medium rounded-full flex items-center justify-center border-2 border-white">
-          {count > 9 ? '9+' : count}
-        </span>
-      )}
-    </Link>
-  );
-}
-
-function CategoryPills({ activeCategory, onSelect }) {
+function CategoryPills({ activeCategory, onSelect, categories }) {
   return (
     <div className="flex gap-2 overflow-x-auto px-4 py-2.5 bg-white border-b border-gray-100 scrollbar-hide">
-      {CATEGORIES.map((cat) => (
+      {[{ key: 'all', label: 'All' }, ...(categories || [])].map((cat) => (
         <button
           key={cat.key}
           onClick={() => onSelect(cat.key)}
@@ -155,153 +109,6 @@ function FilterBar({ filters, onFilterToggle, sortKey, onSortChange }) {
 }
 
 /* ─────────────────────────────────────────────
-   Product card
-───────────────────────────────────────────── */
-function ProductCard({ product }) {
-  const { addToCart, cartItems } = useCart();
-  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
-  const inWishlist = isInWishlist(product.id);
-  const inCart = cartItems.some((i) => i.id === product.id);
-
-  const price = parseFloat(product.price);
-  const originalPrice = product.originalPrice || null;
-  const discountPct = originalPrice && originalPrice > price
-    ? Math.round(((originalPrice - price) / originalPrice) * 100)
-    : 0;
-  const rating = getProductRating(product);
-  const imageSrc = product.image || '/images/dummy.png';
-
-  const handleAddToCart = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    addToCart({ ...product, price }, 1);
-  };
-
-  const handleWishlist = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (inWishlist) removeFromWishlist(product.id);
-    else addToWishlist(product);
-  };
-
-  return (
-    <Link href={`/products/${product.slug || product.id}`} className="block">
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-gray-200 transition active:scale-[0.98]">
-        {/* Image */}
-        <div className="relative w-full aspect-square bg-gray-50">
-          <Image
-            src={imageSrc}
-            alt={product.name}
-            fill
-            className="object-contain p-2"
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-          />
-
-          {/* Badges */}
-          {discountPct > 0 && (
-            <span className="absolute top-2 left-2 text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-              {discountPct}% off
-            </span>
-          )}
-          {product.organicTag && (
-            <span className="absolute top-2 right-2 text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-              Organic
-            </span>
-          )}
-
-          {/* Out of stock overlay */}
-          {!product.inStock && (
-            <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-              <span className="text-[11px] font-medium text-gray-500 px-3 py-1 rounded-full bg-white border border-gray-200">
-                Out of stock
-              </span>
-            </div>
-          )}
-
-          {/* Wishlist */}
-          <button
-            onClick={handleWishlist}
-            className={`absolute bottom-2 right-2 w-7 h-7 rounded-full flex items-center justify-center transition ${
-              inWishlist
-                ? 'bg-red-50 text-red-500'
-                : 'bg-white text-gray-400 border border-gray-200 hover:text-red-400'
-            }`}
-            aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
-          >
-            <svg
-              className="w-3.5 h-3.5"
-              fill={inWishlist ? 'currentColor' : 'none'}
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="p-2.5">
-          <p className="text-[12px] font-medium text-gray-900 leading-snug mb-1 line-clamp-2">
-            {product.name}
-          </p>
-          <p className="text-[11px] text-gray-400 mb-2">
-            {product.weight && product.unit ? `${product.weight} ${product.unit}` : ''}
-            {product.brand ? ` · ${product.brand}` : ''}
-          </p>
-
-          {rating > 0 && (
-            <div className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 mb-2">
-              <svg className="w-2.5 h-2.5 fill-emerald-700" viewBox="0 0 24 24">
-                <path d="M12 .587l3.668 7.431L24 9.75l-6 5.847 1.417 8.26L12 19.771l-7.417 4.086L6 15.597 0 9.75l8.332-1.732z" />
-              </svg>
-              {rating.toFixed(1)}
-              {product.ratingsCount > 0 && (
-                <span className="opacity-60 font-normal">({product.ratingsCount})</span>
-              )}
-            </div>
-          )}
-
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <span className="text-[14px] font-medium text-gray-900">
-                ₹{price.toLocaleString('en-IN')}
-              </span>
-              {originalPrice && originalPrice > price && (
-                <span className="text-[11px] text-gray-400 line-through ml-1.5">
-                  ₹{originalPrice.toLocaleString('en-IN')}
-                </span>
-              )}
-            </div>
-
-            {product.inStock && (
-              <button
-                onClick={handleAddToCart}
-                className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition ${
-                  inCart
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'
-                }`}
-                aria-label={inCart ? 'Already in cart' : 'Add to cart'}
-              >
-                {inCart ? (
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : (
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                  </svg>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-/* ─────────────────────────────────────────────
    Skeleton card (loading)
 ───────────────────────────────────────────── */
 function SkeletonCard() {
@@ -346,9 +153,7 @@ function EmptyState({ onReset }) {
 function ProductsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { cartItems } = useCart();
 
-  const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState(
     searchParams?.get('category') || 'all'
   );
@@ -359,46 +164,145 @@ function ProductsContent() {
   });
   const [sortKey, setSortKey] = useState('default');
 
-  /* ── Sync category from URL ── */
+  const { data: categoriesData } = useCategories();
+  const parentCategoryPills = useMemo(() => {
+    const parents =
+      (categoriesData || [])
+        .filter((c) => c && c.isActive !== false && c.parentId == null)
+        .map((c) => ({
+          key: String(c.id || '').trim(),
+          label: String(c.name || '').trim(),
+        }))
+        .filter((c) => c.key && c.key !== 'all');
+    // Stable ordering
+    parents.sort((a, b) => a.label.localeCompare(b.label));
+    return parents;
+  }, [categoriesData]);
+
+  /* ── Sync category + search from URL ── */
   useEffect(() => {
     const cat = searchParams?.get('category');
-    if (cat) setActiveCategory(cat);
-  }, [searchParams]);
+    if (!cat) return;
+    // Back-compat: older links used category name. If so, map it to the parent category UUID.
+    if (!CATEGORY_ID_UUID.test(cat) && cat !== 'all') {
+      const match = (categoriesData || []).find(
+        (c) => c && c.parentId == null && String(c.name || '') === String(cat)
+      );
+      if (match?.id) {
+        setActiveCategory(String(match.id));
+        return;
+      }
+    }
+    setActiveCategory(cat);
+  }, [searchParams, categoriesData]);
 
-  /* ── Fetch products ── */
-  const queryParams = {
-    category: activeCategory !== 'all' ? activeCategory : undefined,
-    search: search || undefined,
-    organic: filters.organic || undefined,
-    inStock: filters.inStock || undefined,
-    onSale: filters.onSale || undefined,
-    sort: sortKey !== 'default' ? sortKey : undefined,
-  };
-  const { data, isLoading } = useProducts(queryParams);
-  const products = data?.products || data || [];
+  /* Search query comes from the global Navbar (`?search=`), not an in-page field. */
+  const urlSearch = searchParams?.get('search') || '';
 
-  /* ── Client-side sort fallback (if API doesn't sort) ── */
+  const sortParams = useMemo(() => {
+    const combined = urlSearch.trim();
+    const q = {
+      limit: 50,
+      search: combined || undefined,
+      availability: filters.inStock ? 'in_stock' : undefined,
+    };
+    if (sortKey === 'price-asc') {
+      q.sort_by = 'price';
+      q.sort_order = 'asc';
+    } else if (sortKey === 'price-desc') {
+      q.sort_by = 'price';
+      q.sort_order = 'desc';
+    } else if (sortKey === 'newest') {
+      q.sort_by = 'created_at';
+      q.sort_order = 'desc';
+    }
+    return q;
+  }, [urlSearch, filters.inStock, sortKey]);
+
+  // Build parent->children index from flat list and collect all descendants.
+  const descendantCategoryIds = useMemo(() => {
+    if (!CATEGORY_ID_UUID.test(activeCategory)) return [];
+    const list = categoriesData || [];
+    const childrenByParent = new Map();
+    for (const c of list) {
+      const pid = c?.parentId;
+      const cid = c?.id;
+      if (!cid) continue;
+      if (pid == null) continue;
+      const key = String(pid);
+      const arr = childrenByParent.get(key) || [];
+      arr.push(String(cid));
+      childrenByParent.set(key, arr);
+    }
+    const out = [];
+    const seen = new Set();
+    const queue = [String(activeCategory)];
+    while (queue.length) {
+      const cur = queue.shift();
+      const kids = childrenByParent.get(String(cur)) || [];
+      for (const k of kids) {
+        if (seen.has(k)) continue;
+        seen.add(k);
+        out.push(k);
+        queue.push(k);
+      }
+    }
+    return out;
+  }, [activeCategory, categoriesData]);
+
+  const activeCategoryIdsForFetch = useMemo(() => {
+    if (activeCategory === 'all') return [];
+    if (!CATEGORY_ID_UUID.test(activeCategory)) return [];
+    // Include the parent itself + all descendants (child categories).
+    return [String(activeCategory), ...descendantCategoryIds];
+  }, [activeCategory, descendantCategoryIds]);
+
+  const { data: mergedData, isLoading } = useQuery({
+    queryKey: [
+      'products',
+      'by-category-tree',
+      activeCategoryIdsForFetch,
+      sortParams,
+      filters.organic,
+      filters.onSale,
+    ],
+    queryFn: async () => {
+      // No category filter: just list/search.
+      if (!activeCategoryIdsForFetch.length) {
+        return await getProducts(sortParams);
+      }
+      const results = await Promise.all(
+        activeCategoryIdsForFetch.map((cid) => getProducts({ ...sortParams, category_id: cid }))
+      );
+      const map = new Map();
+      for (const r of results) {
+        for (const p of r?.products || []) {
+          if (!p?.id) continue;
+          if (!map.has(p.id)) map.set(p.id, p);
+        }
+      }
+      return { products: Array.from(map.values()), pagination: { nextCursor: null } };
+    },
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const products = mergedData?.products || [];
+
+  /* ── Client sort: rating only (API has no ratings sort) ── */
   const sorted = [...products].sort((a, b) => {
-    if (sortKey === 'price-asc') return parseFloat(a.price) - parseFloat(b.price);
-    if (sortKey === 'price-desc') return parseFloat(b.price) - parseFloat(a.price);
     if (sortKey === 'rating') return getProductRating(b) - getProductRating(a);
     return 0;
   });
 
-  /* ── Client-side filter fallback ── */
+  /* ── Client filters: organic, on sale, named category pills (non-UUID) ── */
   const filtered = sorted.filter((p) => {
     if (filters.organic && !p.organicTag) return false;
-    if (filters.inStock && !p.inStock) return false;
     if (filters.onSale) {
       const disc = getProductDiscount(p);
       if (!disc || disc <= 0) return false;
     }
-    if (search) {
-      const q = search.toLowerCase();
-      const matchName = p.name?.toLowerCase().includes(q);
-      const matchBrand = p.brand?.toLowerCase().includes(q);
-      const matchCat = p.category?.toLowerCase().includes(q);
-      if (!matchName && !matchBrand && !matchCat) return false;
+    if (activeCategory !== 'all' && !CATEGORY_ID_UUID.test(activeCategory)) {
+      if (String(p.category || '') !== activeCategory) return false;
     }
     return true;
   });
@@ -408,7 +312,6 @@ function ProductsContent() {
   };
 
   const handleReset = () => {
-    setSearch('');
     setActiveCategory('all');
     setFilters({ organic: false, inStock: false, onSale: false });
     setSortKey('default');
@@ -427,14 +330,12 @@ function ProductsContent() {
   return (
     <div className="min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden">
 
-      {/* ── Top bar ── */}
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-100 px-4 py-2.5 flex items-center gap-3">
-        <SearchBar value={search} onChange={setSearch} />
-        <CartButton count={cartItems.length} />
-      </div>
-
       {/* ── Category pills ── */}
-      <CategoryPills activeCategory={activeCategory} onSelect={handleCategorySelect} />
+      <CategoryPills
+        activeCategory={activeCategory}
+        onSelect={handleCategorySelect}
+        categories={parentCategoryPills}
+      />
 
       {/* ── Filter + sort bar ── */}
       <FilterBar
@@ -475,7 +376,6 @@ export default function ProductsPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-gray-50">
-          <div className="sticky top-0 z-30 bg-white border-b border-gray-100 h-14" />
           <div className="grid grid-cols-2 gap-3 px-4 pt-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">

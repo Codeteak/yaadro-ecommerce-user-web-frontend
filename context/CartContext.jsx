@@ -99,10 +99,14 @@ export function CartProvider({ children }) {
     (async () => {
       try {
         for (const it of localCartItems) {
-          const productId = it?.id || it?.productId;
           const qty = Number(it?.quantity ?? 1) || 1;
-          if (!productId) continue;
-          await addToCartMutation.mutateAsync({ productId, quantity: qty });
+          if (!it?.id && !it?.productId && !it?.slug) continue;
+          try {
+            await addToCartMutation.mutateAsync({ productId: it, quantity: qty });
+          } catch (itemErr) {
+            // Continue syncing remaining items instead of failing the whole batch.
+            console.error('Skipping invalid local cart item during API sync:', itemErr);
+          }
         }
         setLocalCartItems([]);
         if (typeof window !== 'undefined') {
@@ -169,7 +173,7 @@ export function CartProvider({ children }) {
         } else {
           // Item doesn't exist, add new
           try {
-            await addToCartMutation.mutateAsync({ productId, quantity });
+            await addToCartMutation.mutateAsync({ productId: product, quantity });
           } catch (error) {
             // If error says item already exists, reload cart and update
             if (error.message?.includes('unique') || error.message?.includes('already exists')) {

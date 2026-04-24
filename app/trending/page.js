@@ -6,9 +6,8 @@ import ProductGrid from '../../components/ProductGrid';
 
 export default function TrendingPage() {
   const { data, isLoading } = useProducts({
-    page: 1,
-    per_page: 48,
-    sort_by: 'popularity',
+    limit: 48,
+    sort_by: 'created_at',
     sort_order: 'desc',
   });
   const products = data?.products || [];

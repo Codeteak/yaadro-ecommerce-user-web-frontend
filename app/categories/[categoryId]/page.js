@@ -105,7 +105,7 @@ function CategoryBrowseInner() {
 
   const { data: productsData, isLoading: productsLoading } = useProducts({
     category_id: filterCategoryId,
-    limit: 60,
+    limit: 50,
     enabled: !!category && !!filterCategoryId,
   });
 

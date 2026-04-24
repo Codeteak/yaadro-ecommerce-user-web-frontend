@@ -184,6 +184,44 @@ export default function CheckoutAddAddressSheet({
     );
   };
 
+  const ensureCoordinates = async () => {
+    const lat = Number(form.lat);
+    const lng = Number(form.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGeoStatus('unavailable');
+      throw new Error('Location is not supported in this browser.');
+    }
+
+    setGeoStatus('requesting');
+    const coords = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          resolve({
+            lat: pos?.coords?.latitude ?? null,
+            lng: pos?.coords?.longitude ?? null,
+          }),
+        (e) => {
+          if (e?.code === 1) {
+            reject(new Error('Location permission is required to save this address.'));
+            return;
+          }
+          reject(new Error(e?.message || 'Could not fetch your location.'));
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60_000 }
+      );
+    });
+
+    if (!Number.isFinite(Number(coords?.lat)) || !Number.isFinite(Number(coords?.lng))) {
+      throw new Error('Could not fetch valid location coordinates.');
+    }
+
+    setForm((prev) => ({ ...prev, lat: coords.lat, lng: coords.lng }));
+    setGeoStatus('ready');
+    return coords;
+  };
+
   const handleSubmit = async () => {
     setSubmitError('');
     setTouched({
@@ -210,6 +248,8 @@ export default function CheckoutAddAddressSheet({
 
     setPending(true);
     try {
+      const coords = await ensureCoordinates();
+
       const patch = {};
       if (needsNameField && finalName) patch.displayName = finalName;
       if (needsPhoneField && finalPhone) patch.phone = finalPhone;
@@ -219,7 +259,11 @@ export default function CheckoutAddAddressSheet({
         await refreshUser();
       }
 
-      const payload = buildPayload(finalName, finalPhone);
+      const payload = {
+        ...buildPayload(finalName, finalPhone),
+        lat: coords.lat,
+        lng: coords.lng,
+      };
 
       if (isEdit && editingAddress?.id && typeof onUpdate === 'function') {
         await onUpdate(editingAddress.id, payload);

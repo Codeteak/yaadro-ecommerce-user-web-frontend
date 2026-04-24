@@ -23,6 +23,11 @@ function resolveShopIdForOtp(explicitShopId) {
   return fromArg || getShopIdFromEnv();
 }
 
+function normalizeOtpEmail(email) {
+  if (email == null) return '';
+  return String(email).trim().toLowerCase();
+}
+
 /**
  * Map SessionResponse (register / login / OAuth JWT) for AuthContext.
  */
@@ -30,8 +35,10 @@ export function normalizeSession(session) {
   if (!session || typeof session !== 'object') {
     return { user: null, token: null, refreshToken: null };
   }
+  const rawUser = session.user || session.customer || null;
+  const normalizedUser = rawUser ? normalizeCustomer(rawUser) : null;
   return {
-    user: session.user || session.customer || null,
+    user: normalizedUser || rawUser,
     token: session.accessToken || session.token || null,
     refreshToken: session.refreshToken || null,
   };
@@ -285,6 +292,37 @@ export async function verifyOtp({ phone, shopId, code }) {
     }
     throw err;
   }
+}
+
+/**
+ * Request customer email OTP (POST /api/auth/email-otp/request)
+ * Sends `{ email, shopId }` + `x-shop-id` when shop is known.
+ */
+export async function requestEmailOtp({ email, shopId }) {
+  const resolvedShopId = resolveShopIdForOtp(shopId);
+  const resolvedEmail = normalizeOtpEmail(email);
+  if (!resolvedShopId) throw new Error('Missing shopId for OTP request.');
+  if (!resolvedEmail) throw new Error('Missing email address.');
+  const body = { email: resolvedEmail, shopId: resolvedShopId };
+  const headers = {};
+  if (resolvedShopId) headers['x-shop-id'] = resolvedShopId;
+  return api.post('/auth/email-otp/request', body, { omitTenantHeader: true, headers });
+}
+
+/**
+ * Verify customer email OTP and issue session (POST /api/auth/email-otp/verify).
+ */
+export async function verifyEmailOtp({ email, shopId, code }) {
+  const resolvedShopId = resolveShopIdForOtp(shopId);
+  const resolvedEmail = normalizeOtpEmail(email);
+  const resolvedCode = code == null ? '' : String(code).trim();
+  if (!resolvedShopId) throw new Error('Missing shopId for OTP verification.');
+  if (!resolvedEmail) throw new Error('Missing email address.');
+  if (!resolvedCode) throw new Error('Missing OTP code.');
+  const body = { email: resolvedEmail, shopId: resolvedShopId, code: resolvedCode };
+  const headers = {};
+  if (resolvedShopId) headers['x-shop-id'] = resolvedShopId;
+  return api.post('/auth/email-otp/verify', body, { omitTenantHeader: true, headers });
 }
 
 /**

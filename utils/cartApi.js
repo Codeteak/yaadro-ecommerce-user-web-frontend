@@ -7,9 +7,29 @@ import { apiFetchRoot } from './apiClient';
 import { getShopIdFromEnv } from './authApi';
 import { getProductById } from './productApi';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 function minorToMajor(minor) {
   const n = Number(minor ?? 0);
   return Number.isFinite(n) ? n / 100 : 0;
+}
+
+function isUuid(value) {
+  return UUID_RE.test(String(value || '').trim());
+}
+
+async function resolveProductIdForCart(productInput) {
+  const raw =
+    typeof productInput === 'string'
+      ? productInput
+      : productInput?.productId || productInput?.id || productInput?.slug;
+  const normalized = String(raw || '').trim();
+  if (!normalized) return '';
+  if (isUuid(normalized)) return normalized;
+
+  // Backward compatibility for old local carts that may store slug/non-UUID ids.
+  const resolvedProduct = await getProductById(normalized);
+  return isUuid(resolvedProduct?.id) ? resolvedProduct.id : '';
 }
 
 async function ensureCartExists(shopId) {
@@ -115,12 +135,18 @@ export async function getCart() {
 
 /**
  * Add product to cart
- * @param {string} productId - Product UUID
+ * @param {string|object} productInput - Product UUID or product-like object
  * @param {number} quantity - Quantity to add
  * @returns {Promise<object>}
  */
-export async function addToCart(productId, quantity = 1) {
+export async function addToCart(productInput, quantity = 1) {
   try {
+    const productId = await resolveProductIdForCart(productInput);
+    if (!productId) {
+      throw new Error('Invalid productId for cart API (must be UUID).');
+    }
+    const safeQuantity = Math.max(1, Number(quantity) || 1);
+
     const shopId = getShopIdFromEnv();
     if (!shopId) {
       throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/* requests on localhost).');
@@ -133,7 +159,7 @@ export async function addToCart(productId, quantity = 1) {
       omitTenantHeader: true,
       body: {
         productId,
-        quantity,
+        quantity: safeQuantity,
       },
     });
 

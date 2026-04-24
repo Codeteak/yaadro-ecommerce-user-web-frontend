@@ -5,8 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import {
   getShopIdFromEnv,
   normalizeSession,
-  requestOtp,
-  verifyOtp,
+  requestEmailOtp,
+  verifyEmailOtp,
   startGoogleOAuth,
 } from '../utils/authApi';
 
@@ -125,20 +125,20 @@ function GoogleButton({ onClick, loading, disabled }) {
 /* ─────────────────────────────────────────────
    Phone step
 ───────────────────────────────────────────── */
-function PhoneStep({ phone, setPhone, onSubmit, isSubmitting, oauthLoading, inputRef }) {
+function EmailStep({ email, setEmail, onSubmit, isSubmitting, oauthLoading, inputRef }) {
   return (
     <form onSubmit={onSubmit} className="space-y-0">
-      <label htmlFor="phone" className="block text-[12px] font-medium text-gray-700 mb-1.5">
-        Mobile number
+      <label htmlFor="email" className="block text-[12px] font-medium text-gray-700 mb-1.5">
+        Email address
       </label>
       <input
         ref={inputRef}
-        type="tel"
-        id="phone"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        placeholder="+91 98765 43210"
-        autoComplete="tel"
+        type="email"
+        id="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="you@example.com"
+        autoComplete="email"
         required
         className="w-full h-[46px] px-4 rounded-xl border-[1.5px] border-gray-200 text-[14px] text-gray-900 bg-gray-50 focus:outline-none focus:border-emerald-500 focus:bg-white transition placeholder-gray-400"
       />
@@ -163,7 +163,7 @@ function PhoneStep({ phone, setPhone, onSubmit, isSubmitting, oauthLoading, inpu
 /* ─────────────────────────────────────────────
    OTP step
 ───────────────────────────────────────────── */
-function OtpStep({ phone, code, setCode, onSubmit, onResend, onChangePhone, isSubmitting, oauthLoading, inputRef }) {
+function OtpStep({ email, code, setCode, onSubmit, onResend, onChangeEmail, isSubmitting, oauthLoading, inputRef }) {
   return (
     <form onSubmit={onSubmit} className="space-y-0">
       {/* Sent badge */}
@@ -174,15 +174,15 @@ function OtpStep({ phone, code, setCode, onSubmit, onResend, onChangePhone, isSu
         OTP sent
       </div>
 
-      {/* Phone + change */}
+      {/* Email + change */}
       <div className="flex items-center justify-between mb-1.5">
         <label htmlFor="otp" className="text-[12px] font-medium text-gray-700">
           OTP sent to{' '}
-          <span className="text-gray-900 font-medium">{phone}</span>
+          <span className="text-gray-900 font-medium">{email}</span>
         </label>
         <button
           type="button"
-          onClick={onChangePhone}
+          onClick={onChangeEmail}
           className="text-[12px] font-medium text-emerald-600 hover:text-emerald-800 transition"
         >
           Change
@@ -228,11 +228,11 @@ function OtpStep({ phone, code, setCode, onSubmit, onResend, onChangePhone, isSu
 ───────────────────────────────────────────── */
 function SheetContent({ onClose }) {
   const { login } = useAuth();
-  const phoneInputRef = useRef(null);
+  const emailInputRef = useRef(null);
   const otpInputRef = useRef(null);
 
-  const [step, setStep] = useState('phone');
-  const [phone, setPhone] = useState('');
+  const [step, setStep] = useState('email');
+  const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -252,7 +252,7 @@ function SheetContent({ onClose }) {
 
   /* ── Focus management ── */
   useEffect(() => {
-    const ref = step === 'phone' ? phoneInputRef : otpInputRef;
+    const ref = step === 'email' ? emailInputRef : otpInputRef;
     const t = setTimeout(() => ref.current?.focus?.(), 80);
     return () => clearTimeout(t);
   }, [step]);
@@ -262,11 +262,11 @@ function SheetContent({ onClose }) {
     e.preventDefault();
     clearError();
     if (!ensureShopId()) return;
-    const nextPhone = phone.trim();
-    if (!nextPhone) { setError('Please enter your phone number.'); return; }
+    const nextEmail = email.trim().toLowerCase();
+    if (!nextEmail) { setError('Please enter your email address.'); return; }
     setIsSubmitting(true);
     try {
-      await requestOtp({ phone: nextPhone, shopId });
+      await requestEmailOtp({ email: nextEmail, shopId });
       setStep('otp');
     } catch (err) {
       setError(err?.message || 'Something went wrong. Please try again.');
@@ -280,16 +280,16 @@ function SheetContent({ onClose }) {
     e.preventDefault();
     clearError();
     if (!ensureShopId()) return;
-    const nextPhone = phone.trim();
+    const nextEmail = email.trim().toLowerCase();
     const nextCode = code.trim();
-    if (!nextPhone) { setError('Please enter your phone number.'); return; }
+    if (!nextEmail) { setError('Please enter your email address.'); return; }
     if (!nextCode || nextCode.length < 4) { setError('Please enter the OTP code.'); return; }
     setIsSubmitting(true);
     try {
-      const session = await verifyOtp({ phone: nextPhone, shopId, code: nextCode });
+      const session = await verifyEmailOtp({ email: nextEmail, shopId, code: nextCode });
       const { user, token, refreshToken } = normalizeSession(session);
       if (!token) throw new Error('Invalid response from server.');
-      login(user || { phone: nextPhone }, { token, refreshToken });
+      login(user || { email: nextEmail }, { token, refreshToken });
       onClose();
     } catch (err) {
       setError(err?.message || 'Invalid OTP. Please try again.');
@@ -303,7 +303,7 @@ function SheetContent({ onClose }) {
     clearError();
     setIsSubmitting(true);
     try {
-      await requestOtp({ phone: phone.trim(), shopId });
+      await requestEmailOtp({ email: email.trim().toLowerCase(), shopId });
     } catch (err) {
       setError(err?.message || 'Could not resend OTP.');
     } finally {
@@ -331,23 +331,23 @@ function SheetContent({ onClose }) {
       <ErrorBox message={error} />
       <Illustration />
 
-      {step === 'phone' ? (
-        <PhoneStep
-          phone={phone}
-          setPhone={(v) => { setPhone(v); clearError(); }}
+      {step === 'email' ? (
+        <EmailStep
+          email={email}
+          setEmail={(v) => { setEmail(v); clearError(); }}
           onSubmit={handleRequestOtp}
           isSubmitting={isSubmitting}
           oauthLoading={oauthLoading}
-          inputRef={phoneInputRef}
+          inputRef={emailInputRef}
         />
       ) : (
         <OtpStep
-          phone={phone.trim()}
+          email={email.trim().toLowerCase()}
           code={code}
           setCode={(v) => { setCode(v); clearError(); }}
           onSubmit={handleVerifyOtp}
           onResend={handleResend}
-          onChangePhone={() => { setStep('phone'); setCode(''); clearError(); }}
+          onChangeEmail={() => { setStep('email'); setCode(''); clearError(); }}
           isSubmitting={isSubmitting}
           oauthLoading={oauthLoading}
           inputRef={otpInputRef}
@@ -374,7 +374,7 @@ function SheetHeader({ onClose }) {
       <div>
         <h2 className="text-[17px] font-medium text-gray-900">Sign in</h2>
         <p className="text-[12px] text-gray-400 mt-0.5">
-          Use mobile OTP or continue with Google.
+          Use email OTP or continue with Google.
         </p>
       </div>
       <button

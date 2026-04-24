@@ -11,6 +11,47 @@
 
 const FALLBACK_BASE_URL = 'http://localhost:3001/api';
 
+function isApiLoggingEnabled() {
+  const v = process.env.NEXT_PUBLIC_LOG_API;
+  return v === '1' || v === 'true';
+}
+
+function safeJsonStringify(obj) {
+  try {
+    return JSON.stringify(obj);
+  } catch {
+    return '';
+  }
+}
+
+function sendClientApiLogToServer(payload) {
+  if (typeof window === 'undefined') return;
+  if (!isApiLoggingEnabled()) return;
+  // Avoid infinite loops if the log endpoint itself ever uses apiFetch.
+  if (payload?.url && String(payload.url).includes('/api/__client-api-log')) return;
+
+  const body = safeJsonStringify(payload);
+  if (!body) return;
+
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+      const blob = new Blob([body], { type: 'application/json' });
+      navigator.sendBeacon('/api/__client-api-log', blob);
+      return;
+    }
+  } catch {
+    // fall through
+  }
+
+  // Fallback (keepalive lets it finish during navigation)
+  fetch('/api/__client-api-log', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+    keepalive: true,
+  }).catch(() => {});
+}
+
 function getConfiguredBaseUrl() {
   const base =
     process.env.NEXT_PUBLIC_API_BASE_URL ||
@@ -153,6 +194,7 @@ export async function apiFetch(path, options = {}) {
     ...rest
   } = options;
 
+  const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
   const resolvedTenant = omitTenantHeader ? '' : tenantId ?? getTenantId();
   const resolvedToken = token ?? getAuthToken();
 
@@ -185,7 +227,8 @@ export async function apiFetch(path, options = {}) {
     fetchOpts.credentials = credentials;
   }
 
-  const response = await fetch(toUrl(path, query), fetchOpts);
+  const url = toUrl(path, query);
+  const response = await fetch(url, fetchOpts);
 
   const json = await parseJsonSafe(response);
   const apiStatus = json?.status;
@@ -197,6 +240,24 @@ export async function apiFetch(path, options = {}) {
     err.status = response.status;
     err.data = json;
     throw err;
+  }
+
+  if (isApiLoggingEnabled()) {
+    const endedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const ms = Math.round((endedAt - startedAt) * 10) / 10;
+    const line = `[API] ${method} ${url} -> ${response.status} (${ms}ms)`;
+    // Server logs go to terminal; browser logs go to console.
+    // For browser, also send to server so it appears in terminal.
+    // eslint-disable-next-line no-console
+    console.log(line);
+    sendClientApiLogToServer({
+      kind: 'apiFetch',
+      method,
+      url,
+      status: response.status,
+      ms,
+      at: new Date().toISOString(),
+    });
   }
 
   if (returnResponse) return json;
@@ -221,6 +282,7 @@ export async function apiFetchRoot(path, options = {}) {
     ...rest
   } = options;
 
+  const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
   const resolvedTenant = omitTenantHeader ? '' : tenantId ?? getTenantId();
   const resolvedToken = token ?? getAuthToken();
 
@@ -253,7 +315,8 @@ export async function apiFetchRoot(path, options = {}) {
     fetchOpts.credentials = credentials;
   }
 
-  const response = await fetch(toRootUrl(path, query), fetchOpts);
+  const url = toRootUrl(path, query);
+  const response = await fetch(url, fetchOpts);
 
   const json = await parseJsonSafe(response);
   const apiStatus = json?.status;
@@ -265,6 +328,22 @@ export async function apiFetchRoot(path, options = {}) {
     err.status = response.status;
     err.data = json;
     throw err;
+  }
+
+  if (isApiLoggingEnabled()) {
+    const endedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const ms = Math.round((endedAt - startedAt) * 10) / 10;
+    const line = `[API] ${method} ${url} -> ${response.status} (${ms}ms)`;
+    // eslint-disable-next-line no-console
+    console.log(line);
+    sendClientApiLogToServer({
+      kind: 'apiFetchRoot',
+      method,
+      url,
+      status: response.status,
+      ms,
+      at: new Date().toISOString(),
+    });
   }
 
   if (returnResponse) return json;

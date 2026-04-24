@@ -23,30 +23,29 @@ export default function Home() {
   // Load categories and products using TanStack Query
   const { data: categoriesData, isLoading: categoriesLoading } = useCategories();
   const { data: featuredData, isLoading: featuredLoading } = useProducts({
-    page: 1,
-    per_page: 8,
-    sort_by: 'popularity',
+    limit: 8,
+    sort_by: 'created_at',
     sort_order: 'desc',
   });
   const { data: bestSellersData, isLoading: bestSellersLoading } = useProducts({
-    page: 1,
-    per_page: 16,
-    sort_by: 'popularity',
+    limit: 16,
+    sort_by: 'created_at',
     sort_order: 'desc',
   });
   const { data: newArrivalsData, isLoading: newArrivalsLoading } = useProducts({
-    page: 1,
-    per_page: 24,
+    limit: 24,
     sort_by: 'created_at',
     sort_order: 'desc',
   });
   const { data: offersData, isLoading: offersLoading } = useProducts({
-    page: 1,
-    per_page: 100,
+    limit: 50,
+    sort_by: 'created_at',
+    sort_order: 'desc',
   });
 
   // Process data
-  const categories = categoriesData?.filter(cat => cat.isActive && (cat.level === 0 || cat.parentId == null)).slice(0, 12) || [];
+  // Home categories strip: show only parent categories (parentId == null).
+  const categories = categoriesData?.filter(cat => cat.isActive && cat.parentId == null).slice(0, 12) || [];
   const featuredProducts = featuredData?.products?.filter(p => p.isFeatured).slice(0, 8) || [];
   const bestSellers = bestSellersData?.products?.slice(0, 16) || [];
   const newArrivals = newArrivalsData?.products?.slice(0, 24) || [];
