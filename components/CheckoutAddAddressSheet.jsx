@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { updateStorefrontProfile, getShopIdFromEnv } from '../utils/authApi';
+import { updateStorefrontProfile, resolveShopId } from '../utils/authApi';
 
 function addressToForm(addr) {
   if (!addr) {
@@ -241,7 +241,8 @@ export default function CheckoutAddAddressSheet({
         : phoneFromProfile.replace(/\D/g, '').slice(0, 10)
     );
 
-    if (!getShopIdFromEnv()) {
+    const shopId = await resolveShopId();
+    if (!shopId) {
       setSubmitError('Shop is not configured (NEXT_PUBLIC_SHOP_ID).');
       return;
     }

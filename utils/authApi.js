@@ -12,15 +12,95 @@ import {
 /** Re-export for callers that imported OTP helpers from authApi. */
 export { normalizeOtpPhone, buildOtpVerifyRequestBody };
 
+const RESOLVED_SHOP_ID_STORAGE_KEY = 'yaadro_resolved_shop_id';
+const RESOLVED_SHOP_HOST_STORAGE_KEY = 'yaadro_resolved_shop_host';
+
 /** Shop UUID for storefront auth (OpenAPI: `shopId`). Set `NEXT_PUBLIC_SHOP_ID` in env. */
 export function getShopIdFromEnv() {
-  const id = process.env.NEXT_PUBLIC_SHOP_ID;
-  return id ? String(id).trim() : '';
+  const envShopId = process.env.NEXT_PUBLIC_SHOP_ID
+    ? String(process.env.NEXT_PUBLIC_SHOP_ID).trim()
+    : '';
+
+  if (typeof window === 'undefined') return envShopId;
+  if (process.env.NODE_ENV !== 'production') return envShopId;
+
+  const currentHost = String(window.location.host || '').toLowerCase().trim();
+  const cachedHost = window.localStorage.getItem(RESOLVED_SHOP_HOST_STORAGE_KEY) || '';
+  const cachedShopId = window.localStorage.getItem(RESOLVED_SHOP_ID_STORAGE_KEY) || '';
+  if (currentHost && cachedHost === currentHost && cachedShopId) return cachedShopId;
+
+  return '';
 }
 
-function resolveShopIdForOtp(explicitShopId) {
+function normalizeResolverResponse(payload) {
+  if (!payload || typeof payload !== 'object') return '';
+  const raw =
+    payload.shopId ??
+    payload.shop_id ??
+    payload.tenantId ??
+    payload.tenant_id ??
+    payload?.data?.shopId ??
+    payload?.data?.shop_id;
+  return raw ? String(raw).trim() : '';
+}
+
+function persistResolvedShopId(host, shopId) {
+  if (typeof window === 'undefined') return;
+  if (!host || !shopId) return;
+  window.localStorage.setItem(RESOLVED_SHOP_HOST_STORAGE_KEY, host);
+  window.localStorage.setItem(RESOLVED_SHOP_ID_STORAGE_KEY, shopId);
+}
+
+/**
+ * Resolve shop id for current host.
+ * - Development: always return NEXT_PUBLIC_SHOP_ID.
+ * - Production: resolve from tenant resolver API and cache by host.
+ */
+export async function resolveShopId() {
+  const envShopId = process.env.NEXT_PUBLIC_SHOP_ID
+    ? String(process.env.NEXT_PUBLIC_SHOP_ID).trim()
+    : '';
+
+  if (typeof window === 'undefined') return envShopId;
+  if (process.env.NODE_ENV !== 'production') return envShopId;
+
+  const host = String(window.location.host || '').toLowerCase().trim();
+  if (!host) return '';
+
+  const cachedHost = window.localStorage.getItem(RESOLVED_SHOP_HOST_STORAGE_KEY) || '';
+  const cachedShopId = window.localStorage.getItem(RESOLVED_SHOP_ID_STORAGE_KEY) || '';
+  if (cachedHost === host && cachedShopId) return cachedShopId;
+
+  const resolverUrl = process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL
+    ? String(process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL).trim()
+    : '';
+  if (!resolverUrl) return '';
+
+  try {
+    const url = new URL(resolverUrl);
+    url.searchParams.set('host', host);
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
+    if (!response.ok) return '';
+
+    const payload = await response.json();
+    const resolvedShopId = normalizeResolverResponse(payload);
+    if (resolvedShopId) {
+      persistResolvedShopId(host, resolvedShopId);
+    }
+    return resolvedShopId;
+  } catch {
+    return '';
+  }
+}
+
+async function resolveShopIdForOtp(explicitShopId) {
   const fromArg = explicitShopId != null ? String(explicitShopId).trim() : '';
-  return fromArg || getShopIdFromEnv();
+  if (fromArg) return fromArg;
+  return resolveShopId();
 }
 
 function normalizeOtpEmail(email) {
@@ -225,7 +305,7 @@ export function mapAppAddressToMeProfileAddress(addr) {
  * Always sends `phone` and `shopId` in the JSON body and `x-shop-id` when shop is known.
  */
 export async function requestOtp({ phone, shopId }) {
-  const resolvedShopId = resolveShopIdForOtp(shopId);
+  const resolvedShopId = await resolveShopIdForOtp(shopId);
   const resolvedPhone = normalizeOtpPhone(phone);
   if (!resolvedShopId) throw new Error('Missing shopId for OTP request.');
   if (!resolvedPhone) throw new Error('Missing phone number.');
@@ -241,7 +321,7 @@ export async function requestOtp({ phone, shopId }) {
  * Also sends header `x-shop-id` when shop is known.
  */
 export async function verifyOtp({ phone, shopId, code }) {
-  const resolvedShopId = resolveShopIdForOtp(shopId);
+  const resolvedShopId = await resolveShopIdForOtp(shopId);
   const body = buildOtpVerifyRequestBody({
     phone,
     shopId: resolvedShopId,
@@ -299,7 +379,7 @@ export async function verifyOtp({ phone, shopId, code }) {
  * Sends `{ email, shopId }` + `x-shop-id` when shop is known.
  */
 export async function requestEmailOtp({ email, shopId }) {
-  const resolvedShopId = resolveShopIdForOtp(shopId);
+  const resolvedShopId = await resolveShopIdForOtp(shopId);
   const resolvedEmail = normalizeOtpEmail(email);
   if (!resolvedShopId) throw new Error('Missing shopId for OTP request.');
   if (!resolvedEmail) throw new Error('Missing email address.');
@@ -313,7 +393,7 @@ export async function requestEmailOtp({ email, shopId }) {
  * Verify customer email OTP and issue session (POST /api/auth/email-otp/verify).
  */
 export async function verifyEmailOtp({ email, shopId, code }) {
-  const resolvedShopId = resolveShopIdForOtp(shopId);
+  const resolvedShopId = await resolveShopIdForOtp(shopId);
   const resolvedEmail = normalizeOtpEmail(email);
   const resolvedCode = code == null ? '' : String(code).trim();
   if (!resolvedShopId) throw new Error('Missing shopId for OTP verification.');
@@ -387,7 +467,7 @@ export async function getCurrentUser() {
  * POST /storefront/profile — update display name and/or phone (204). Requires `NEXT_PUBLIC_SHOP_ID` + `x-shop-id`.
  */
 export async function updateStorefrontProfile({ displayName, phone } = {}) {
-  const shopId = getShopIdFromEnv();
+  const shopId = await resolveShopId();
   if (!shopId) return;
 
   const body = {};

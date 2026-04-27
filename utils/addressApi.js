@@ -4,7 +4,7 @@
  */
 
 import { apiFetchRoot } from './apiClient';
-import { getShopIdFromEnv } from './authApi';
+import { resolveShopId } from './authApi';
 
 /**
  * Transform API address to frontend format
@@ -50,7 +50,7 @@ function transformAddress(apiAddress) {
  */
 export async function listAddresses() {
   try {
-    const shopId = getShopIdFromEnv();
+    const shopId = await resolveShopId();
     if (!shopId) throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for storefront address).');
 
     const response = await apiFetchRoot('/storefront/address', {
@@ -90,7 +90,7 @@ export async function getAddress(addressId) {
  */
 export async function createAddress(addressData) {
   try {
-    const shopId = getShopIdFromEnv();
+    const shopId = await resolveShopId();
     if (!shopId) throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for storefront address).');
 
     const rawVal = addressData.raw;
@@ -133,7 +133,7 @@ export async function createAddress(addressData) {
  */
 export async function updateAddress(addressId, addressData) {
   try {
-    const shopId = getShopIdFromEnv();
+    const shopId = await resolveShopId();
     if (!shopId) throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for storefront address).');
 
     const apiData = {};

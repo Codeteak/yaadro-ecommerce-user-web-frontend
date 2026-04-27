@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
-  getShopIdFromEnv,
+  resolveShopId,
   normalizeSession,
   requestEmailOtp,
   verifyEmailOtp,
@@ -238,7 +238,19 @@ function SheetContent({ onClose }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
 
-  const shopId = getShopIdFromEnv();
+  const [shopId, setShopId] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    async function hydrateShopId() {
+      const resolved = await resolveShopId();
+      if (active) setShopId(resolved || '');
+    }
+    hydrateShopId();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const clearError = () => setError('');
 

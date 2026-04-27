@@ -4,7 +4,7 @@
  */
 
 import { api, apiFetchRoot } from './apiClient';
-import { getShopIdFromEnv } from './authApi';
+import { resolveShopId } from './authApi';
 import { mediaObjectToUrl } from './mediaUrl';
 
 /**
@@ -296,7 +296,7 @@ export async function getProducts(params = {}) {
   try {
     const query = buildStorefrontProductsQuery(params);
 
-    const shopId = getShopIdFromEnv();
+    const shopId = await resolveShopId();
     if (!shopId) {
       throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/* requests on localhost).');
     }
@@ -328,7 +328,7 @@ export async function getProducts(params = {}) {
  */
 export async function getProductById(productId) {
   try {
-    const shopId = getShopIdFromEnv();
+    const shopId = await resolveShopId();
     const headers = shopId ? { 'x-shop-id': shopId } : undefined;
 
     const response = await apiFetchRoot(`/storefront/products/${encodeURIComponent(productId)}`, {
@@ -436,7 +436,7 @@ function flattenCategoryTree(nodes) {
  */
 export async function getCategoriesTree() {
   try {
-    const shopId = getShopIdFromEnv();
+    const shopId = await resolveShopId();
     const headers = shopId ? { 'x-shop-id': shopId } : undefined;
 
     // Storefront categories are fetched by parent_id; build a tree with a bounded recursion.

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Container from '../../../../components/Container';
 import { useAuth } from '../../../../context/AuthContext';
-import { exchangeOAuthJwt, getShopIdFromEnv, normalizeSession } from '../../../../utils/authApi';
+import { exchangeOAuthJwt, normalizeSession, resolveShopId } from '../../../../utils/authApi';
 
 export default function OAuthCompletePage() {
   const router = useRouter();
@@ -16,7 +16,7 @@ export default function OAuthCompletePage() {
     let cancelled = false;
 
     async function run() {
-      const shopId = getShopIdFromEnv();
+      const shopId = await resolveShopId();
       if (!shopId) {
         setStatus('error');
         setMessage('Missing NEXT_PUBLIC_SHOP_ID. Add your shop UUID to the environment.');

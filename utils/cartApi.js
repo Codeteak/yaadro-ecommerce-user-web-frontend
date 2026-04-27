@@ -4,7 +4,7 @@
  */
 
 import { apiFetchRoot } from './apiClient';
-import { getShopIdFromEnv } from './authApi';
+import { resolveShopId } from './authApi';
 import { getProductById } from './productApi';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -89,7 +89,7 @@ function transformCartItem(apiItem, product = null) {
  */
 export async function getCart() {
   try {
-    const shopId = getShopIdFromEnv();
+    const shopId = await resolveShopId();
     if (!shopId) {
       throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/* requests on localhost).');
     }
@@ -147,7 +147,7 @@ export async function addToCart(productInput, quantity = 1) {
     }
     const safeQuantity = Math.max(1, Number(quantity) || 1);
 
-    const shopId = getShopIdFromEnv();
+    const shopId = await resolveShopId();
     if (!shopId) {
       throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/* requests on localhost).');
     }
@@ -182,7 +182,7 @@ export async function addToCart(productInput, quantity = 1) {
  */
 export async function updateCartItem(itemId, quantity) {
   try {
-    const shopId = getShopIdFromEnv();
+    const shopId = await resolveShopId();
     if (!shopId) {
       throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/* requests on localhost).');
     }
@@ -211,7 +211,7 @@ export async function updateCartItem(itemId, quantity) {
  */
 export async function removeFromCart(itemId) {
   try {
-    const shopId = getShopIdFromEnv();
+    const shopId = await resolveShopId();
     if (!shopId) {
       throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/* requests on localhost).');
     }

@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: 'export',
+  trailingSlash: true,
+  skipTrailingSlashRedirect: true,
   // Dev: allow loading `/_next/static/*` when the site is opened via a tunnel hostname
   // (e.g. Cloudflare). Without this, chunks/CSS can 404/500 and the browser may throw
   // SyntaxError while parsing HTML or error bodies as JavaScript (often reported as layout.js).

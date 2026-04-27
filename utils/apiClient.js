@@ -27,29 +27,9 @@ function safeJsonStringify(obj) {
 function sendClientApiLogToServer(payload) {
   if (typeof window === 'undefined') return;
   if (!isApiLoggingEnabled()) return;
-  // Avoid infinite loops if the log endpoint itself ever uses apiFetch.
-  if (payload?.url && String(payload.url).includes('/api/__client-api-log')) return;
-
   const body = safeJsonStringify(payload);
   if (!body) return;
-
-  try {
-    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-      const blob = new Blob([body], { type: 'application/json' });
-      navigator.sendBeacon('/api/__client-api-log', blob);
-      return;
-    }
-  } catch {
-    // fall through
-  }
-
-  // Fallback (keepalive lets it finish during navigation)
-  fetch('/api/__client-api-log', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-    keepalive: true,
-  }).catch(() => {});
+  // Static S3/CloudFront deploy has no Next.js API routes, so browser-side API logs stay in console only.
 }
 
 function getConfiguredBaseUrl() {

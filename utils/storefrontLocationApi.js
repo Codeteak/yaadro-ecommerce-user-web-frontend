@@ -3,7 +3,7 @@
  */
 
 import { apiFetchRoot } from './apiClient';
-import { getShopIdFromEnv } from './authApi';
+import { resolveShopId } from './authApi';
 
 /**
  * @param {number} lat
@@ -11,7 +11,7 @@ import { getShopIdFromEnv } from './authApi';
  * @returns {Promise<{ serviceable: boolean, distanceM: number | null, maxRadiusM: number | null }>}
  */
 export async function checkDeliveryLocation(lat, lng) {
-  const shopId = getShopIdFromEnv();
+  const shopId = await resolveShopId();
   if (!shopId) {
     const err = new Error('Missing NEXT_PUBLIC_SHOP_ID');
     err.code = 'MISSING_SHOP_ID';

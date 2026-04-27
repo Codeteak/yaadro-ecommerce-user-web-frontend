@@ -4,7 +4,7 @@
  */
 
 import { apiFetchRoot } from './apiClient';
-import { getShopIdFromEnv } from './authApi';
+import { resolveShopId } from './authApi';
 
 function minorToMajor(minor) {
   const n = Number(minor ?? 0);
@@ -103,7 +103,7 @@ export async function verifyPayment(orderId, paymentData) {
  */
 export async function listOrders(params = {}) {
   try {
-    const shopId = getShopIdFromEnv();
+    const shopId = await resolveShopId();
     if (!shopId) throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/orders).');
 
     const response = await apiFetchRoot('/storefront/orders', {
@@ -140,7 +140,7 @@ export async function listOrders(params = {}) {
  */
 export async function getOrder(orderId) {
   try {
-    const shopId = getShopIdFromEnv();
+    const shopId = await resolveShopId();
     if (!shopId) throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/orders/:id).');
 
     const response = await apiFetchRoot(`/storefront/orders/${encodeURIComponent(orderId)}`, {

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { getShopIdFromEnv } from '../utils/authApi';
+import { resolveShopId } from '../utils/authApi';
 import { checkDeliveryLocation } from '../utils/storefrontLocationApi';
 
 const SESSION_WARN_KEY = 'yaadro-service-area-warned';
@@ -21,10 +21,10 @@ export function LocationServiceProvider({ children }) {
   const [errorMessage, setErrorMessage] = useState(null);
   const [showSheet, setShowSheet] = useState(false);
 
-  const runCheck = useCallback(() => {
+  const runCheck = useCallback(async () => {
     if (typeof window === 'undefined') return;
 
-    const shopId = getShopIdFromEnv();
+    const shopId = await resolveShopId();
     if (!shopId) {
       setPhase('done');
       setServiceable(null);

@@ -1,5 +1,5 @@
 import { apiFetchRoot } from './apiClient';
-import { getShopIdFromEnv } from './authApi';
+import { resolveShopId } from './authApi';
 
 function minorToMajor(minor) {
   const n = Number(minor ?? 0);
@@ -14,7 +14,7 @@ function minorToMajor(minor) {
  * Shop context: x-shop-id required
  */
 export async function placeStorefrontOrder({ addressId, notes }) {
-  const shopId = getShopIdFromEnv();
+  const shopId = await resolveShopId();
   if (!shopId) {
     throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/checkout).');
   }

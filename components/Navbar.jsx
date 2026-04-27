@@ -11,7 +11,7 @@ import { useAddress } from '../context/AddressContext';
 import { useLayoutHeights } from '../context/LayoutHeightsContext';
 import { useLocationService } from '../context/LocationServiceContext';
 import { useSearchProducts } from '../hooks/useProducts';
-import { getShopIdFromEnv } from '../utils/authApi';
+import { resolveShopId } from '../utils/authApi';
 import { User, MapPin } from 'lucide-react';
 // Category strip removed
 
@@ -32,6 +32,7 @@ export default function Navbar() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [showResults, setShowResults] = useState(false);
+  const [shopConfigured, setShopConfigured] = useState(false);
   const searchRef = useRef(null);
   const resultsRef = useRef(null);
   const navRef = useRef(null);
@@ -48,7 +49,17 @@ export default function Navbar() {
     ? [defaultAddress.city, defaultAddress.street || defaultAddress.address].filter(Boolean).slice(0, 2).join(', ') || 'Add address'
     : 'Add address';
 
-  const shopConfigured = Boolean(getShopIdFromEnv());
+  useEffect(() => {
+    let active = true;
+    async function hydrateShop() {
+      const shopId = await resolveShopId();
+      if (active) setShopConfigured(Boolean(shopId));
+    }
+    hydrateShop();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const locationStatus = (() => {
     if (!shopConfigured) return null;
