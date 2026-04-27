@@ -1,6 +1,8 @@
 import OrderDetailClient from './OrderDetailClient';
 
-export function generateStaticParams() {
+export const dynamicParams = false;
+
+export async function generateStaticParams() {
   return [];
 }
 
