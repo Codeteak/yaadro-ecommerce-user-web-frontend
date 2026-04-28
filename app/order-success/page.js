@@ -292,7 +292,7 @@ function OrderSuccessContent() {
   const router        = useRouter();
   const { getOrderById } = useOrder();
 
-  const orderId       = searchParams?.get('orderId') || `ORD-${Date.now()}`;
+  const orderId       = searchParams?.get('orderId') || 'ORD-PENDING';
   const paymentStatus = searchParams?.get('payment');
   const order         = getOrderById(orderId);
 

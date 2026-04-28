@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -33,14 +33,21 @@ export default function CartItem({ item }) {
     setShowNoteInput(false);
   };
 
-  // Calculate estimated delivery date (3-5 business days)
+  // Keep delivery estimate deterministic to avoid SSR/CSR hydration mismatch.
   const getEstimatedDelivery = () => {
     const today = new Date();
-    const deliveryDays = 3 + Math.floor(Math.random() * 3); // 3-5 days
+    const itemSeed = String(item.cartItemKey || item.id || item.name || '');
+    const hash = Array.from(itemSeed).reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    const deliveryDays = 3 + (hash % 3); // 3-5 days
     const deliveryDate = new Date(today);
     deliveryDate.setDate(today.getDate() + deliveryDays);
     return deliveryDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
+
+  const estimatedDelivery = useMemo(
+    () => getEstimatedDelivery(),
+    [item.cartItemKey, item.id, item.name]
+  );
 
   const imageSrc = item.image || '/images/dummy.png';
   const unitPrice = parseFloat(item.price);
@@ -132,7 +139,7 @@ export default function CartItem({ item }) {
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            Est. delivery: {getEstimatedDelivery()}
+            Est. delivery: {estimatedDelivery}
           </span>
         </div>
 
