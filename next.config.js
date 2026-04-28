@@ -1,7 +1,10 @@
 /** @type {import('next').NextConfig} */
+const isProduction = process.env.NODE_ENV === 'production';
+
 const nextConfig = {
   reactStrictMode: true,
-  output: 'export',
+  // Keep static export for production deployments, but allow dynamic routes in local dev.
+  output: isProduction ? 'export' : undefined,
   trailingSlash: true,
   skipTrailingSlashRedirect: true,
   // Dev: allow loading `/_next/static/*` when the site is opened via a tunnel hostname
