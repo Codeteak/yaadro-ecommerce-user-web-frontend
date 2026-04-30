@@ -54,6 +54,7 @@ function CategoryCard({ category }) {
   const children = (category.children || []).filter((c) => c.isActive !== false);
   const productCount = category.productCount ?? category._count?.products ?? 0;
   const hasChildren = children.length > 0;
+  const categorySlugOrId = category.slug || category.id;
 
   const imageUrl =
     typeof category.image === 'string' && category.image.trim().length > 0
@@ -63,7 +64,7 @@ function CategoryCard({ category }) {
 
   return (
     <Link
-      href={`/categories/${encodeURIComponent(category.id)}`}
+      href={`/categories/${encodeURIComponent(categorySlugOrId)}`}
       className="block bg-white rounded-[18px] overflow-hidden border border-gray-100 hover:border-gray-200 active:scale-[0.98] transition-all select-none"
     >
       <div className="relative min-h-[168px] w-full overflow-hidden">

@@ -47,7 +47,7 @@ function SubcategoryRailItem({ active, label, imageUrl, onClick }) {
 function findCategoryInTree(nodes, id) {
   if (!id || !nodes?.length) return null;
   for (const n of nodes) {
-    if (n.id === id) return n;
+    if (String(n.id) === String(id) || (n.slug && String(n.slug) === String(id))) return n;
     const found = findCategoryInTree(n.children || [], id);
     if (found) return found;
   }
@@ -77,7 +77,7 @@ function CategoryBrowseInner() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const categoryId = params?.categoryId ? decodeURIComponent(String(params.categoryId)) : '';
+  const categorySlugOrId = params?.categoryId ? decodeURIComponent(String(params.categoryId)) : '';
 
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -88,8 +88,8 @@ function CategoryBrowseInner() {
   const { data: categoryTree = [], isLoading: treeLoading } = useCategoriesTree();
 
   const category = useMemo(
-    () => findCategoryInTree(categoryTree, categoryId),
-    [categoryTree, categoryId]
+    () => findCategoryInTree(categoryTree, categorySlugOrId),
+    [categoryTree, categorySlugOrId]
   );
 
   const subcategories = useMemo(
@@ -101,7 +101,10 @@ function CategoryBrowseInner() {
   const validSub =
     subFromUrl && subcategories.some((s) => s.id === subFromUrl) ? subFromUrl : null;
 
-  const filterCategoryId = validSub || categoryId;
+  // Backend expects UUIDs for `category_id`. We accept slug in the URL, resolve it to the category,
+  // and then use the resolved UUID for fetching products.
+  const resolvedCategoryId = category?.id ? String(category.id) : '';
+  const filterCategoryId = validSub || resolvedCategoryId;
 
   const { data: productsData, isLoading: productsLoading } = useProducts({
     category_id: filterCategoryId,
@@ -144,19 +147,19 @@ function CategoryBrowseInner() {
 
   useEffect(() => {
     setBrandFilter('');
-  }, [validSub, categoryId]);
+  }, [validSub, categorySlugOrId]);
 
   useEffect(() => {
     if (!subFromUrl || validSub) return;
-    router.replace(`/categories/${encodeURIComponent(categoryId)}`, { scroll: false });
-  }, [subFromUrl, validSub, router, categoryId]);
+    router.replace(`/categories/${encodeURIComponent(categorySlugOrId)}`, { scroll: false });
+  }, [subFromUrl, validSub, router, categorySlugOrId]);
 
   const setSubFilter = (subId) => {
     if (!subId) {
-      router.replace(`/categories/${encodeURIComponent(categoryId)}`, { scroll: false });
+      router.replace(`/categories/${encodeURIComponent(categorySlugOrId)}`, { scroll: false });
     } else {
       router.replace(
-        `/categories/${encodeURIComponent(categoryId)}?sub=${encodeURIComponent(subId)}`,
+        `/categories/${encodeURIComponent(categorySlugOrId)}?sub=${encodeURIComponent(subId)}`,
         { scroll: false }
       );
     }
