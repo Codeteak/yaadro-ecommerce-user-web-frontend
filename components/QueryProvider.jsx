@@ -23,12 +23,13 @@ export default function QueryProvider({ children }) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      {/* React Query Devtools (Query Client inspector) */}
-      <ReactQueryDevtools
-        initialIsOpen={true}
-        buttonPosition="top-left"
-        position="bottom"
-      />
+      {process.env.NODE_ENV !== 'production' ? (
+        <ReactQueryDevtools
+          initialIsOpen={false}
+          buttonPosition="top-left"
+          position="bottom"
+        />
+      ) : null}
     </QueryClientProvider>
   );
 }
