@@ -135,7 +135,7 @@ export default function Navbar() {
     setSearchQuery('');
     setShowResults(false);
     const slugOrId = product?.slug || product?.id;
-    if (slugOrId) router.push(`/product?id=${encodeURIComponent(String(slugOrId).trim())}`);
+    if (slugOrId) router.push(`/product/?id=${encodeURIComponent(String(slugOrId).trim())}`);
   };
 
   const handleSearchSubmit = (e) => {

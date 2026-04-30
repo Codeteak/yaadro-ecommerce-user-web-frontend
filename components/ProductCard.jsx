@@ -255,7 +255,7 @@ export default function ProductCard({ product, isCarousel = false }) {
 
   return (
     <Link
-      href={`/product?id=${encodeURIComponent(String(productSlugOrId ?? '').trim())}`}
+      href={`/product/?id=${encodeURIComponent(String(productSlugOrId ?? '').trim())}`}
       scroll
       onClick={(e) => {
         if (suppressNavClickRef.current) {
