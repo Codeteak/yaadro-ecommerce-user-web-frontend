@@ -35,13 +35,19 @@ function sendClientApiLogToServer(payload) {
 function getConfiguredBaseUrl() {
   const base =
     process.env.NEXT_PUBLIC_API_BASE_URL ||
-    (process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : '') ||
+    (process.env.NEXT_PUBLIC_API_URL ? String(process.env.NEXT_PUBLIC_API_URL) : '') ||
     FALLBACK_BASE_URL;
 
-  return String(base).replace(/\/+$/, '');
+  const trimmed = String(base).trim().replace(/\/+$/, '');
+
+  // Normalize so the API base always includes `/api` exactly once.
+  // - If env already ends with `/api`, keep it.
+  // - If env is an origin (e.g. https://example.com), append `/api`.
+  if (trimmed.toLowerCase().endsWith('/api')) return trimmed;
+  return `${trimmed}/api`;
 }
 
-/** API host without `/api` (for routes mounted at root, e.g. `POST /auth/logout`). */
+/** API origin (host) without `/api` (useful for non-API static assets). */
 export function getApiOrigin() {
   return getConfiguredBaseUrl().replace(/\/?api\/?$/, '');
 }
@@ -295,7 +301,9 @@ export async function apiFetchRoot(path, options = {}) {
     fetchOpts.credentials = credentials;
   }
 
-  const url = toRootUrl(path, query);
+  // We keep `apiFetchRoot` for backwards compatibility, but all backend calls are under `/api`.
+  // (So this behaves the same as `apiFetch`.)
+  const url = toUrl(path, query);
   const response = await fetch(url, fetchOpts);
 
   const json = await parseJsonSafe(response);
