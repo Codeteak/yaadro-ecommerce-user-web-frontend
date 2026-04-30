@@ -123,7 +123,7 @@ Payment Status: ${order.paymentStatus}
     const order = orders.find(o => o.id === orderId);
     if (!order) return null;
 
-    const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/orders/${orderId}`;
+    const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/order?id=${encodeURIComponent(orderId)}`;
     
     if (typeof window !== 'undefined' && navigator.share) {
       navigator.share({
@@ -215,7 +215,7 @@ Payment Status: ${order.paymentStatus}
                           <div className="fixed inset-0 z-10" aria-hidden onClick={() => setMenuOpenId(null)} />
                           <div className="absolute right-0 top-full mt-1 z-20 min-w-[160px] py-1 bg-white rounded-xl border border-gray-200 shadow-lg">
                             <Link
-                              href={`/orders/${order.id}`}
+                              href={`/order?id=${encodeURIComponent(order.id)}`}
                               className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                               onClick={() => setMenuOpenId(null)}
                             >

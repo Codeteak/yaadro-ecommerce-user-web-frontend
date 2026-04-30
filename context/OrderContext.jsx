@@ -274,7 +274,7 @@ export function OrderProvider({ children }) {
     };
     
     const encoded = btoa(JSON.stringify(shareData));
-    const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/orders/${orderId}?shared=${encoded}`;
+    const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/order?id=${encodeURIComponent(orderId)}&shared=${encodeURIComponent(encoded)}`;
     
     if (typeof window !== 'undefined' && navigator.share) {
       navigator.share({

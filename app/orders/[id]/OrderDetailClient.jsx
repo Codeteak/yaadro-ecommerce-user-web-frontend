@@ -329,10 +329,11 @@ function ReturnModal({ order, onClose, onSubmit }) {
   );
 }
 
-function OrderDetailContent() {
+function OrderDetailContent({ orderId: orderIdProp = null }) {
   const params   = useParams();
   const router   = useRouter();
-  const { data: order, isLoading, error } = useOrderDetail(params.id);
+  const resolvedOrderId = orderIdProp != null ? String(orderIdProp).trim() : params.id;
+  const { data: order, isLoading, error } = useOrderDetail(resolvedOrderId);
   const cancelMutation  = useCancelOrder();
   const retryMutation   = useRetryPayment();
   const verifyMutation  = useVerifyPayment();
@@ -676,10 +677,12 @@ function OrderDetailContent() {
   );
 }
 
-export default function OrderDetailClient() {
+export default function OrderDetailClient({ orderId = null }) {
+  // If used from a query-param page, `orderId` is passed by parent.
+  // In normal /orders/[id] route, it is null and we read `useParams()`.
   return (
     <Suspense fallback={<LoadingState />}>
-      <OrderDetailContent />
+      <OrderDetailContent orderId={orderId} />
     </Suspense>
   );
 }

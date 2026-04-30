@@ -306,7 +306,7 @@ function OrderSuccessContent() {
     if (!isSuccess || !orderId) return;
     const timer = setInterval(() => {
       setCountdown((prev) => {
-        if (prev <= 1) { clearInterval(timer); router.push(`/orders/${orderId}`); return 0; }
+        if (prev <= 1) { clearInterval(timer); router.push(`/order?id=${encodeURIComponent(orderId)}`); return 0; }
         return prev - 1;
       });
     }, 1000);
@@ -399,7 +399,7 @@ function OrderSuccessContent() {
 
           {/* Actions */}
           <div style={styles.actions}>
-            <Link href={`/orders/${orderId}`} style={styles.btnPrimary}>
+            <Link href={`/order?id=${encodeURIComponent(orderId)}`} style={styles.btnPrimary}>
               <ArrowIcon />
               {isRejected ? 'View order & retry payment' : 'Track my order'}
             </Link>
