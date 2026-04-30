@@ -5,8 +5,11 @@ const nextConfig = {
   reactStrictMode: true,
   // Keep static export for production deployments, but allow dynamic routes in local dev.
   output: isProduction ? 'export' : undefined,
-  trailingSlash: true,
-  skipTrailingSlashRedirect: true,
+  // Static hosting compatibility: avoid requiring `/path/` for pages.
+  trailingSlash: false,
+  env: {
+    NEXT_PUBLIC_STATIC_HTML_ROUTES: isProduction ? '1' : '0',
+  },
   // Dev: allow loading `/_next/static/*` when the site is opened via a tunnel hostname
   // (e.g. Cloudflare). Without this, chunks/CSS can 404/500 and the browser may throw
   // SyntaxError while parsing HTML or error bodies as JavaScript (often reported as layout.js).

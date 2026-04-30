@@ -1,11 +1,11 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useBottomNavVisibility } from '../context/BottomNavVisibilityContext';
 import { useLayoutHeights } from '../context/LayoutHeightsContext';
 import { useCart } from '../context/CartContext';
+import ExportLink from './ExportLink';
 
 const HomeIcon = ({ active }) => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -83,7 +83,7 @@ export default function MobileBottomNav() {
           const count = showCartBadge ? cartCount : 0;
 
           return (
-            <Link
+            <ExportLink
               key={href}
               href={href}
               prefetch
@@ -121,7 +121,7 @@ export default function MobileBottomNav() {
               >
                 {label}
               </span>
-            </Link>
+            </ExportLink>
           );
         })}
       </nav>

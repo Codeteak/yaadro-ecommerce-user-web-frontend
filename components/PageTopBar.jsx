@@ -1,22 +1,23 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
+import ExportLink from './ExportLink';
+import { toExportedHref } from '../utils/toExportedHref';
 
 export default function PageTopBar({ title, subtitle, backHref, fallbackHref = '/', right = null }) {
   const router = useRouter();
 
   const handleBack = () => {
     if (backHref) {
-      router.push(backHref);
+      router.push(toExportedHref(backHref));
       return;
     }
     if (typeof window !== 'undefined' && window.history.length > 1) {
       router.back();
       return;
     }
-    router.push(fallbackHref);
+    router.push(toExportedHref(fallbackHref));
   };
 
   return (
@@ -24,13 +25,13 @@ export default function PageTopBar({ title, subtitle, backHref, fallbackHref = '
       <div className="mx-auto w-full max-w-6xl px-4 pt-[env(safe-area-inset-top)]">
         <div className={`flex items-center justify-between ${subtitle ? 'py-2' : 'h-14'}`}>
           {backHref ? (
-            <Link
+            <ExportLink
               href={backHref}
               className="w-10 h-10 rounded-xl hover:bg-gray-100 flex items-center justify-center"
               aria-label="Back"
             >
               <ChevronLeft className="w-6 h-6 text-gray-800" />
-            </Link>
+            </ExportLink>
           ) : (
             <button
               type="button"

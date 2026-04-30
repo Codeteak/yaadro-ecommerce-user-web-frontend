@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import CategoryIcon from './CategoryIcon';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import ExportLink from './ExportLink';
 
 export default function CategoryTreeItem({ category, depth = 0 }) {
   const [expanded, setExpanded] = useState(depth < 1);
@@ -34,7 +34,7 @@ export default function CategoryTreeItem({ category, depth = 0 }) {
         ) : (
           <span className="w-5 flex-shrink-0" aria-hidden />
         )}
-        <Link
+        <ExportLink
           href={`/products?category=${encodeURIComponent(category.name)}`}
           className="flex flex-1 items-center gap-3 min-w-0"
         >
@@ -48,7 +48,7 @@ export default function CategoryTreeItem({ category, depth = 0 }) {
           {productCount > 0 && (
             <span className="flex-shrink-0 text-xs text-gray-500 tabular-nums">{productCount} products</span>
           )}
-        </Link>
+        </ExportLink>
       </div>
       {hasChildren && expanded && (
         <div className="bg-gray-50/50">
