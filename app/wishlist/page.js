@@ -77,7 +77,7 @@ export default function WishlistPage() {
               key={item.id}
               className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 group relative"
             >
-              <Link href={`/products/${item.slug || item.id}`}>
+              <Link href={`/product?id=${encodeURIComponent(String(item.slug || item.id).trim())}`}>
                 <div className="relative h-64 overflow-hidden">
                   <Image
                     src={item.image}
@@ -111,7 +111,7 @@ export default function WishlistPage() {
               </button>
 
               <div className="p-4 min-w-0">
-                <Link href={`/products/${item.slug || item.id}`}>
+                <Link href={`/product?id=${encodeURIComponent(String(item.slug || item.id).trim())}`}>
                   <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-1 hover:text-gray-600 transition-colors line-clamp-2 break-words">
                     {item.name}
                   </h3>
@@ -129,7 +129,7 @@ export default function WishlistPage() {
                 </div>
                 <div className="flex gap-2">
                   <Link
-                    href={`/products/${item.slug || item.id}`}
+                    href={`/product?id=${encodeURIComponent(String(item.slug || item.id).trim())}`}
                     className="flex-1 text-center px-3 sm:px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors whitespace-nowrap"
                   >
                     View Details

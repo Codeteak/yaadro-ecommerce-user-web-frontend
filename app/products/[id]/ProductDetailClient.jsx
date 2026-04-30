@@ -104,7 +104,7 @@ function ReviewCard({ author, rating, text }) {
   );
 }
 
-export default function ProductDetailClient() {
+export default function ProductDetailClient({ productId = null }) {
   const params = useParams();
   const router = useRouter();
   const { addToCart, cartItems, updateQuantity, removeFromCart } = useCart();
@@ -113,7 +113,8 @@ export default function ProductDetailClient() {
 
   const [cartActionLoading, setCartActionLoading] = useState(false);
 
-  const { data: productData, isLoading: loading } = useProductWithRelated(params.id);
+  const resolvedId = productId != null ? String(productId) : params?.id;
+  const { data: productData, isLoading: loading } = useProductWithRelated(resolvedId);
   const product = productData?.product || null;
   const relatedProducts = productData?.relatedProducts || [];
 
