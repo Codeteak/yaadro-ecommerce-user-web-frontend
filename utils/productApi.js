@@ -83,7 +83,15 @@ function transformProduct(apiProduct) {
   }
 
   const images = apiProduct.images || [];
-  const firstImage = apiProduct.thumbnailUrl || (images.length > 0 ? images[0] : null);
+  const imageObjs = Array.isArray(images) ? images : [];
+  const normalizedLegacyImages = imageObjs
+    .map((img) => (typeof img === 'string' ? img : mediaObjectToUrl(img)))
+    .filter(Boolean);
+
+  const firstImage =
+    apiProduct.thumbnailUrl ||
+    mediaObjectToUrl(apiProduct.thumbnail) ||
+    (normalizedLegacyImages.length > 0 ? normalizedLegacyImages[0] : null);
 
   return {
     id: apiProduct.id,
@@ -100,7 +108,7 @@ function transformProduct(apiProduct) {
     subcategory: apiProduct.subcategory || '',
     description: apiProduct.description || '',
     image: firstImage || '/images/dummy.png',
-    images: images,
+    images: normalizedLegacyImages.length ? normalizedLegacyImages : [firstImage || '/images/dummy.png'],
     thumbnailUrl: apiProduct.thumbnailUrl || null,
     inStock: apiProduct.inStock !== undefined ? apiProduct.inStock : (apiProduct.stock > 0),
     stock: apiProduct.stock ?? 0,
