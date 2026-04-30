@@ -425,10 +425,6 @@ export default function CheckoutPage() {
       setShowLoginSheet(true);
       return;
     }
-    if (!selectedAddressId) {
-      showAlert('Please select a delivery address.', 'Required', 'warning');
-      return;
-    }
     if (cartItems.length === 0) {
       showAlert('Your cart is empty.', 'Empty Cart', 'warning');
       return;
@@ -442,20 +438,7 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
-      const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
-      if (!selectedAddress) {
-        showAlert('Please select a valid address.', 'Required', 'warning');
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (!hasValidCoordinates(selectedAddress)) {
-        const coords = await getLiveCoordinates();
-        await updateAddress(selectedAddressId, { lat: coords.lat, lng: coords.lng });
-      }
-
       const orderResponse = await placeStorefrontOrder({
-        addressId: selectedAddressId,
         notes: notes.trim() || undefined,
       });
 
