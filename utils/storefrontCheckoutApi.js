@@ -6,6 +6,19 @@ function minorToMajor(minor) {
   return Number.isFinite(n) ? n / 100 : 0;
 }
 
+async function ensureCartExists(shopId) {
+  // Best-effort. If cart already exists server still returns 200.
+  try {
+    await apiFetchRoot('/storefront/cart', {
+      method: 'POST',
+      headers: { 'x-shop-id': shopId },
+      omitTenantHeader: true,
+    });
+  } catch {
+    // ignore (checkout will surface real errors)
+  }
+}
+
 /**
  * Place order for current authenticated customer.
  *
@@ -21,6 +34,8 @@ export async function placeStorefrontOrder({ addressId, notes }) {
   if (!addressId) {
     throw new Error('addressId is required.');
   }
+
+  await ensureCartExists(shopId);
 
   const body = {
     addressId,
