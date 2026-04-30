@@ -24,6 +24,8 @@ export async function placeStorefrontOrder({ addressId, notes }) {
 
   const body = {
     addressId,
+    // Backend compatibility (some deployments expect snake_case)
+    address_id: addressId,
     ...(notes ? { notes } : {}),
   };
 
