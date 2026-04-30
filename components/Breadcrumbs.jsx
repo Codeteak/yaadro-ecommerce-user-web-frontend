@@ -1,6 +1,6 @@
 'use client';
 
-import ExportLink from './ExportLink';
+import Link from 'next/link';
 
 export default function Breadcrumbs({ items }) {
   if (!items || items.length === 0) return null;
@@ -21,9 +21,9 @@ export default function Breadcrumbs({ items }) {
               {isLast ? (
                 <span className="text-gray-900 font-medium">{item.label}</span>
               ) : (
-                <ExportLink href={item.href} className="hover:text-gray-900 transition-colors">
+                <Link href={item.href} className="hover:text-gray-900 transition-colors">
                   {item.label}
-                </ExportLink>
+                </Link>
               )}
             </li>
           );

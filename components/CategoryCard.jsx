@@ -1,13 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import CategoryIcon from './CategoryIcon';
-import ExportLink from './ExportLink';
 
 export default function CategoryCard({ category }) {
   const categoryName = typeof category === 'string' ? category : (category?.name || 'Category');
 
   return (
-    <ExportLink
+    <Link
       href={`/products?category=${encodeURIComponent(categoryName)}`}
       className="flex flex-col items-center gap-2 flex-shrink-0 group"
     >
@@ -21,6 +21,6 @@ export default function CategoryCard({ category }) {
       <h3 className="text-xs sm:text-sm md:text-base font-bold text-gray-800 text-center leading-tight max-w-[6.5rem] sm:max-w-[7rem] md:max-w-[8.5rem] break-words min-h-[2.25rem] flex items-center justify-center">
         {categoryName}
       </h3>
-    </ExportLink>
+    </Link>
   );
 }

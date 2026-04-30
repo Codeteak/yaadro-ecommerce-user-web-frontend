@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useCart } from '../context/CartContext';
 import { getEffectivePrice, formatRupeeINR } from '../utils/productUtils';
-import ExportLink from './ExportLink';
-import { toExportedHref } from '../utils/toExportedHref';
 
 export default function ProductCard({ product, isCarousel = false }) {
   const { addToCart, cartItems, updateQuantity, removeFromCart } = useCart();
@@ -255,8 +254,8 @@ export default function ProductCard({ product, isCarousel = false }) {
   };
 
   return (
-    <ExportLink
-      href={toExportedHref(`/product?id=${encodeURIComponent(String(productSlugOrId ?? '').trim())}`)}
+    <Link
+      href={`/product?id=${encodeURIComponent(String(productSlugOrId ?? '').trim())}`}
       scroll
       onClick={(e) => {
         if (suppressNavClickRef.current) {
@@ -403,7 +402,7 @@ export default function ProductCard({ product, isCarousel = false }) {
           </span>
         )}
       </div>
-    </ExportLink>
+    </Link>
   );
 }
 

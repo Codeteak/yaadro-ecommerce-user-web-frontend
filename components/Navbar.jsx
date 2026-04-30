@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useCart } from '../context/CartContext';
@@ -12,8 +13,6 @@ import { useLocationService } from '../context/LocationServiceContext';
 import { useSearchProducts } from '../hooks/useProducts';
 import { resolveShopId } from '../utils/authApi';
 import { User, MapPin } from 'lucide-react';
-import ExportLink from './ExportLink';
-import { toExportedHref } from '../utils/toExportedHref';
 // Category strip removed
 
 export default function Navbar() {
@@ -136,13 +135,13 @@ export default function Navbar() {
     setSearchQuery('');
     setShowResults(false);
     const slugOrId = product?.slug || product?.id;
-    if (slugOrId) router.push(toExportedHref(`/product?id=${encodeURIComponent(String(slugOrId).trim())}`));
+    if (slugOrId) router.push(`/product?id=${encodeURIComponent(String(slugOrId).trim())}`);
   };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      router.push(toExportedHref(`/products?search=${encodeURIComponent(searchQuery)}`));
+      router.push(`/products?search=${encodeURIComponent(searchQuery)}`);
       setShowResults(false);
     }
   };
@@ -168,25 +167,25 @@ export default function Navbar() {
                 </button>
               )}
             </div>
-            <ExportLink
+            <Link
               href="/profile"
               className="text-xs text-gray-600 truncate max-w-[180px] sm:max-w-xs hover:text-primary"
               title={addressLine}
             >
               {addressLine}
-            </ExportLink>
+            </Link>
           </div>
 
           {/* Right: profile icon + cart */}
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             {isAuthenticated ? (
-              <ExportLink
+              <Link
                 href="/settings"
                 className="flex items-center justify-center w-10 h-10 rounded-full text-gray-700 hover:bg-gray-100 hover:text-primary transition-colors"
                 aria-label="Settings"
               >
                 <User className="w-6 h-6" strokeWidth={2} />
-              </ExportLink>
+              </Link>
             ) : (
               <button
                 onClick={() => setShowLoginSheet(true)}
@@ -266,13 +265,13 @@ export default function Navbar() {
                   </button>
                 ))}
                 {searchQuery.trim() && (
-                  <ExportLink
+                  <Link
                     href={`/products?search=${encodeURIComponent(searchQuery)}`}
                     className="block w-full p-3 text-center text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border-t border-gray-200 mt-2"
                     onClick={() => setShowResults(false)}
                   >
                     View all results for "{searchQuery}"
-                  </ExportLink>
+                  </Link>
                 )}
                 </div>
               </div>
