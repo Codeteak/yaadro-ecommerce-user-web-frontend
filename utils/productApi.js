@@ -7,6 +7,26 @@ import { api, apiFetchRoot } from './apiClient';
 import { resolveShopId } from './authApi';
 import { mediaObjectToUrl } from './mediaUrl';
 
+function slugify(input) {
+  const s = input == null ? '' : String(input);
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/['"]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+}
+
+function resolveProductSlug(apiProduct) {
+  if (!apiProduct || typeof apiProduct !== 'object') return '';
+  const raw = apiProduct.slug != null ? String(apiProduct.slug).trim() : '';
+  if (raw) return raw;
+  const fromName = slugify(apiProduct.name);
+  if (fromName) return fromName;
+  return apiProduct.id != null ? String(apiProduct.id).trim() : '';
+}
+
 /**
  * Transform API product to frontend format
  */
@@ -50,7 +70,7 @@ function transformProduct(apiProduct) {
       id: apiProduct.id,
       name: apiProduct.name,
       shortName: apiProduct.name,
-      slug: apiProduct.slug || apiProduct.id,
+      slug: resolveProductSlug(apiProduct),
       price,
       originalPrice: offerPrice != null && offerPrice < price ? price : null,
       compareAtPrice: offerPrice != null && offerPrice < price ? price : null,
@@ -97,7 +117,7 @@ function transformProduct(apiProduct) {
     id: apiProduct.id,
     name: apiProduct.name,
     shortName: apiProduct.shortName || apiProduct.name,
-    slug: apiProduct.slug || apiProduct.id,
+    slug: resolveProductSlug(apiProduct),
     price: parseFloat(apiProduct.price) || 0,
     originalPrice: apiProduct.compareAtPrice ? parseFloat(apiProduct.compareAtPrice) : null,
     compareAtPrice: apiProduct.compareAtPrice ? parseFloat(apiProduct.compareAtPrice) : null,
