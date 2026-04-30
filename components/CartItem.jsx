@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -11,6 +11,11 @@ export default function CartItem({ item }) {
   const { addToWishlist } = useWishlist();
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [note, setNote] = useState(item.note || '');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleQuantityChange = (newQuantity) => {
     const itemKey = item.cartItemKey || item.id;
@@ -45,8 +50,8 @@ export default function CartItem({ item }) {
   };
 
   const estimatedDelivery = useMemo(
-    () => getEstimatedDelivery(),
-    [item.cartItemKey, item.id, item.name]
+    () => (mounted ? getEstimatedDelivery() : '—'),
+    [mounted, item.cartItemKey, item.id, item.name]
   );
 
   const imageSrc = item.image || '/images/dummy.png';

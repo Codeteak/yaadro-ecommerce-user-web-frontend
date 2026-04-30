@@ -31,7 +31,6 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className="overflow-x-hidden w-full max-w-full" style={{ overflowX: 'hidden' }}>
       <body
-        suppressHydrationWarning
         className="flex flex-col min-h-screen bg-gray-50 overflow-x-hidden w-full max-w-full"
         style={{ overflowX: 'hidden', maxWidth: '100vw' }}
       >

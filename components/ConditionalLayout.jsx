@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
 import Navbar from './Navbar';
 import Footer from './Footer';
@@ -11,15 +11,6 @@ export default function ConditionalLayout({ children }) {
   const pathname = usePathname();
   const { navbarHeight, bottomNavHeight } = useLayoutHeights();
   const { isVisible: bottomNavVisible } = useBottomNavVisibility();
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const mql = window.matchMedia('(max-width: 767px)');
-    const update = () => setIsMobile(mql.matches);
-    update();
-    mql.addEventListener('change', update);
-    return () => mql.removeEventListener('change', update);
-  }, []);
 
   const hideLayout =
     pathname === '/order-success' ||
@@ -40,12 +31,12 @@ export default function ConditionalLayout({ children }) {
 
   const mainPaddingTop = showNavbar ? navbarHeight : 0;
   const mainPaddingBottom = categoriesRoute
-    ? isMobile && bottomNavVisible
+    ? bottomNavVisible
       ? bottomNavHeight
       : 0
     : hideLayout
       ? 0
-      : isMobile && bottomNavVisible
+      : bottomNavVisible
         ? bottomNavHeight
         : 0;
 
@@ -74,7 +65,11 @@ export default function ConditionalLayout({ children }) {
       >
         {children}
       </main>
-      {!hideLayout && !isMobile && <Footer />}
+      {!hideLayout && (
+        <div className="hidden md:block">
+          <Footer />
+        </div>
+      )}
     </>
   );
 }
