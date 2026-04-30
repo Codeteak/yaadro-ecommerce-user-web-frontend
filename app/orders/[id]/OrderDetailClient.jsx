@@ -346,8 +346,26 @@ function OrderDetailContent() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
 
-  const seedId = order?.items?.[0]?.productId || order?.items?.[0]?.product?.id || null;
-  const { data: relatedData } = useProductWithRelated(seedId);
+  // Backend `/storefront/products/:id` expects a slug, not UUID.
+  // Prefer slug from nested product; fall back to slugified name; never pass UUID here.
+  const seedSlug =
+    order?.items?.[0]?.product?.slug ||
+    order?.items?.[0]?.product?.slugOrId ||
+    order?.items?.[0]?.product?.slug_or_id ||
+    order?.items?.[0]?.product?.productSlug ||
+    order?.items?.[0]?.productSlug ||
+    order?.items?.[0]?.product_name_slug ||
+    (order?.items?.[0]?.productName
+      ? String(order.items[0].productName)
+          .toLowerCase()
+          .trim()
+          .replace(/['"]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .slice(0, 80)
+      : null);
+
+  const { data: relatedData } = useProductWithRelated(seedSlug);
   const orderedIds = new Set((order?.items || []).map((it) => it.productId || it.product?.id).filter(Boolean));
   const related = (relatedData?.relatedProducts || []).filter((p) => p?.id && !orderedIds.has(p.id)).slice(0, 12);
 

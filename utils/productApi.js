@@ -7,6 +7,43 @@ import { api, apiFetchRoot } from './apiClient';
 import { resolveShopId } from './authApi';
 import { mediaObjectToUrl } from './mediaUrl';
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const SLUG_MAP_KEY = 'yaadro_product_slug_by_id_v1';
+const inMemorySlugById = new Map();
+
+function readSlugMapFromStorage() {
+  if (typeof window === 'undefined') return;
+  if (inMemorySlugById.size > 0) return;
+  try {
+    const raw = window.localStorage.getItem(SLUG_MAP_KEY);
+    if (!raw) return;
+    const obj = JSON.parse(raw);
+    if (!obj || typeof obj !== 'object') return;
+    for (const [k, v] of Object.entries(obj)) {
+      if (UUID_RE.test(k) && typeof v === 'string' && v.trim()) {
+        inMemorySlugById.set(k, v.trim());
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function writeSlugMapToStorage() {
+  if (typeof window === 'undefined') return;
+  try {
+    const obj = {};
+    // cap size to avoid unbounded storage growth
+    const entries = Array.from(inMemorySlugById.entries()).slice(-500);
+    for (const [k, v] of entries) obj[k] = v;
+    window.localStorage.setItem(SLUG_MAP_KEY, JSON.stringify(obj));
+  } catch {
+    // ignore
+  }
+}
+
 function slugify(input) {
   const s = input == null ? '' : String(input);
   return s
@@ -25,6 +62,16 @@ function resolveProductSlug(apiProduct) {
   const fromName = slugify(apiProduct.name);
   if (fromName) return fromName;
   return apiProduct.id != null ? String(apiProduct.id).trim() : '';
+}
+
+function rememberSlugMapping(apiProduct, slug) {
+  if (!apiProduct || typeof apiProduct !== 'object') return;
+  const id = apiProduct.id != null ? String(apiProduct.id).trim() : '';
+  if (!UUID_RE.test(id)) return;
+  const s = slug != null ? String(slug).trim() : '';
+  if (!s || UUID_RE.test(s)) return; // don't store UUID as slug
+  inMemorySlugById.set(id, s);
+  writeSlugMapToStorage();
 }
 
 /**
@@ -66,11 +113,13 @@ function transformProduct(apiProduct) {
     const image = thumbnailUrl || galleryUrls[0] || '/images/dummy.png';
     const images = galleryUrls.length ? galleryUrls : [image];
 
+    const slug = resolveProductSlug(apiProduct);
+    rememberSlugMapping(apiProduct, slug);
     return {
       id: apiProduct.id,
       name: apiProduct.name,
       shortName: apiProduct.name,
-      slug: resolveProductSlug(apiProduct),
+      slug,
       price,
       originalPrice: offerPrice != null && offerPrice < price ? price : null,
       compareAtPrice: offerPrice != null && offerPrice < price ? price : null,
@@ -113,11 +162,13 @@ function transformProduct(apiProduct) {
     mediaObjectToUrl(apiProduct.thumbnail) ||
     (normalizedLegacyImages.length > 0 ? normalizedLegacyImages[0] : null);
 
+  const slug = resolveProductSlug(apiProduct);
+  rememberSlugMapping(apiProduct, slug);
   return {
     id: apiProduct.id,
     name: apiProduct.name,
     shortName: apiProduct.shortName || apiProduct.name,
-    slug: resolveProductSlug(apiProduct),
+    slug,
     price: parseFloat(apiProduct.price) || 0,
     originalPrice: apiProduct.compareAtPrice ? parseFloat(apiProduct.compareAtPrice) : null,
     compareAtPrice: apiProduct.compareAtPrice ? parseFloat(apiProduct.compareAtPrice) : null,
@@ -359,7 +410,16 @@ export async function getProductById(productId) {
     const shopId = await resolveShopId();
     const headers = shopId ? { 'x-shop-id': shopId } : undefined;
 
-    const response = await apiFetchRoot(`/storefront/products/${encodeURIComponent(productId)}`, {
+    const raw = productId != null ? String(productId).trim() : '';
+    let lookup = raw;
+    if (UUID_RE.test(raw)) {
+      // Try to translate UUID -> slug if we have seen this product in list APIs.
+      readSlugMapFromStorage();
+      const mapped = inMemorySlugById.get(raw);
+      if (mapped) lookup = mapped;
+    }
+
+    const response = await apiFetchRoot(`/storefront/products/${encodeURIComponent(lookup)}`, {
       method: 'GET',
       headers,
       omitTenantHeader: true,

@@ -102,18 +102,9 @@ export async function getCart() {
     });
 
     const itemsRaw = Array.isArray(response?.items) ? response.items : [];
-    const productIds = [...new Set(itemsRaw.map((it) => it?.product_id).filter(Boolean))];
-    const productsById = new Map();
-    await Promise.all(
-      productIds.map(async (id) => {
-        const p = await getProductById(id);
-        if (p) productsById.set(id, p);
-      })
-    );
-
-    const items = itemsRaw
-      .map((it) => transformCartItem(it, productsById.get(it?.product_id) || null))
-      .filter(Boolean);
+    // Do NOT call `/storefront/products/:id` with UUIDs from cart lines.
+    // Backend product-detail endpoint expects slug. Cart API includes snapshots we can render with.
+    const items = itemsRaw.map((it) => transformCartItem(it, null)).filter(Boolean);
 
     const summary = response?.summary || {};
     const subtotal = minorToMajor(summary.total_price_minor);
