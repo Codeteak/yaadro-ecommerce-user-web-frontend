@@ -26,7 +26,7 @@ async function ensureCartExists(shopId) {
  * Auth: Bearer JWT (handled by apiFetchRoot)
  * Shop context: x-shop-id required
  */
-export async function placeStorefrontOrder({ addressId, notes } = {}) {
+export async function placeStorefrontOrder({ notes } = {}) {
   const shopId = await resolveShopId();
   if (!shopId) {
     throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/checkout).');
@@ -36,13 +36,6 @@ export async function placeStorefrontOrder({ addressId, notes } = {}) {
 
   const body = {
     ...(notes ? { notes } : {}),
-    ...(addressId
-      ? {
-          addressId,
-          // Backend compatibility (some deployments expect snake_case)
-          address_id: addressId,
-        }
-      : {}),
   };
 
   const res = await apiFetchRoot('/storefront/checkout', {
