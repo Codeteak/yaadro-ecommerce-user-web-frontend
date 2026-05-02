@@ -165,6 +165,7 @@ async function parseJsonSafe(response) {
  * @param {string} [options.tenantId] - Tenant override (otherwise resolved)
  * @param {RequestCredentials} [options.credentials] - use `include` for OAuth cookie exchange (cross-origin API)
  * @param {boolean} [options.omitTenantHeader] - skip X-Tenant-ID (e.g. auth registration)
+ * @param {boolean} [options.omitAuthHeader] - skip Authorization (e.g. OTP login while an expired token remains in localStorage)
  */
 export async function apiFetch(path, options = {}) {
   const {
@@ -177,12 +178,13 @@ export async function apiFetch(path, options = {}) {
     returnResponse = false,
     credentials,
     omitTenantHeader = false,
+    omitAuthHeader = false,
     ...rest
   } = options;
 
   const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
   const resolvedTenant = omitTenantHeader ? '' : tenantId ?? getTenantId();
-  const resolvedToken = token ?? getAuthToken();
+  const resolvedToken = omitAuthHeader ? '' : token ?? getAuthToken();
 
   const finalHeaders = new Headers(headers);
 
@@ -265,12 +267,13 @@ export async function apiFetchRoot(path, options = {}) {
     returnResponse = false,
     credentials,
     omitTenantHeader = false,
+    omitAuthHeader = false,
     ...rest
   } = options;
 
   const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
   const resolvedTenant = omitTenantHeader ? '' : tenantId ?? getTenantId();
-  const resolvedToken = token ?? getAuthToken();
+  const resolvedToken = omitAuthHeader ? '' : token ?? getAuthToken();
 
   const finalHeaders = new Headers(headers);
 

@@ -11,10 +11,15 @@ export function BottomNavVisibilityProvider({ children }) {
   const lastYRef = useRef(0);
   const rafRef = useRef(null);
 
+  const pathNoSlash = pathname?.replace(/\/+$/, '') || '';
+
   const hideForRoute =
     pathname === '/checkout' ||
     pathname === '/order-success' ||
     pathname === '/cart' ||
+    pathNoSlash === '/order' ||
+    pathNoSlash.startsWith('/orders/') ||
+    pathNoSlash === '/product' ||
     // Hide bottom nav on product detail pages
     (pathname?.startsWith('/products/') && pathname !== '/products');
 

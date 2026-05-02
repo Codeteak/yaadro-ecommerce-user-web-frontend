@@ -6,6 +6,7 @@
 import { api, apiFetchRoot } from './apiClient';
 import { resolveShopId } from './authApi';
 import { mediaObjectToUrl } from './mediaUrl';
+import { normalizeProductImages, PRODUCT_IMAGE_PLACEHOLDER } from './productImages';
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -106,12 +107,16 @@ function transformProduct(apiProduct) {
     const sortedImages = Array.isArray(apiProduct.images)
       ? [...apiProduct.images].sort((a, b) => (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0))
       : [];
-    const galleryUrls = sortedImages
-      .map((img) => mediaObjectToUrl(img))
-      .filter(Boolean);
 
-    const image = thumbnailUrl || galleryUrls[0] || '/images/dummy.png';
-    const images = galleryUrls.length ? galleryUrls : [image];
+    const imageUrls = normalizeProductImages({
+      thumbnail: apiProduct.thumbnail,
+      thumbnailUrl: thumbnailUrl || undefined,
+      imageUrl: apiProduct.imageUrl ?? apiProduct.image_url,
+      images: sortedImages,
+    });
+    const finalUrls = imageUrls.length > 0 ? imageUrls : [PRODUCT_IMAGE_PLACEHOLDER];
+    const image = finalUrls[0];
+    const images = finalUrls;
 
     const slug = resolveProductSlug(apiProduct);
     rememberSlugMapping(apiProduct, slug);
@@ -130,6 +135,8 @@ function transformProduct(apiProduct) {
       description: '',
       image,
       images,
+      imageUrls: finalUrls,
+      imageUrl: apiProduct.imageUrl ?? apiProduct.image_url ?? null,
       thumbnailUrl,
       inStock,
       stock: inStock ? 1 : 0,
@@ -153,14 +160,24 @@ function transformProduct(apiProduct) {
 
   const images = apiProduct.images || [];
   const imageObjs = Array.isArray(images) ? images : [];
-  const normalizedLegacyImages = imageObjs
-    .map((img) => (typeof img === 'string' ? img : mediaObjectToUrl(img)))
-    .filter(Boolean);
 
-  const firstImage =
-    apiProduct.thumbnailUrl ||
+  const thumbnailUrlStr =
+    (typeof apiProduct.thumbnailUrl === 'string' && apiProduct.thumbnailUrl.trim()) ||
     mediaObjectToUrl(apiProduct.thumbnail) ||
-    (normalizedLegacyImages.length > 0 ? normalizedLegacyImages[0] : null);
+    '';
+
+  const imageUrls = normalizeProductImages({
+    thumbnail: apiProduct.thumbnail,
+    thumbnailUrl: thumbnailUrlStr || undefined,
+    imageUrl: apiProduct.imageUrl ?? apiProduct.image_url,
+    images: imageObjs,
+    image:
+      typeof apiProduct.image === 'string' && apiProduct.image.trim()
+        ? apiProduct.image.trim()
+        : undefined,
+  });
+  const finalUrls = imageUrls.length > 0 ? imageUrls : [PRODUCT_IMAGE_PLACEHOLDER];
+  const firstImage = finalUrls[0];
 
   const slug = resolveProductSlug(apiProduct);
   rememberSlugMapping(apiProduct, slug);
@@ -178,9 +195,11 @@ function transformProduct(apiProduct) {
     category: apiProduct.category || apiProduct.subcategory || '',
     subcategory: apiProduct.subcategory || '',
     description: apiProduct.description || '',
-    image: firstImage || '/images/dummy.png',
-    images: normalizedLegacyImages.length ? normalizedLegacyImages : [firstImage || '/images/dummy.png'],
-    thumbnailUrl: apiProduct.thumbnailUrl || null,
+    image: firstImage,
+    images: finalUrls,
+    imageUrls: finalUrls,
+    imageUrl: apiProduct.imageUrl ?? apiProduct.image_url ?? null,
+    thumbnailUrl: apiProduct.thumbnailUrl || thumbnailUrlStr || null,
     inStock: apiProduct.inStock !== undefined ? apiProduct.inStock : (apiProduct.stock > 0),
     stock: apiProduct.stock ?? 0,
     minStockAlert: apiProduct.minStockAlert ?? null,

@@ -5,9 +5,11 @@ import { useAuth } from '../context/AuthContext';
 import {
   resolveShopId,
   normalizeSession,
-  requestEmailOtp,
-  verifyEmailOtp,
+  requestOtp,
+  verifyOtp,
+  normalizeOtpPhone,
   startGoogleOAuth,
+  updateProfile,
 } from '../utils/authApi';
 
 /* ─────────────────────────────────────────────
@@ -123,27 +125,28 @@ function GoogleButton({ onClick, loading, disabled }) {
 }
 
 /* ─────────────────────────────────────────────
-   Phone step
+   Phone step (SMS OTP)
 ───────────────────────────────────────────── */
-function EmailStep({ email, setEmail, onSubmit, isSubmitting, oauthLoading, inputRef }) {
+function PhoneStep({ phone, setPhone, onSubmit, isSubmitting, oauthLoading, inputRef }) {
   return (
     <form onSubmit={onSubmit} className="space-y-0">
-      <label htmlFor="email" className="block text-[12px] font-medium text-gray-700 mb-1.5">
-        Email address
+      <label htmlFor="phone" className="block text-[12px] font-medium text-gray-700 mb-1.5">
+        Mobile number
       </label>
       <input
         ref={inputRef}
-        type="email"
-        id="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="you@example.com"
-        autoComplete="email"
+        type="tel"
+        id="phone"
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        placeholder="e.g. 9876543210"
+        autoComplete="tel"
+        inputMode="tel"
         required
         className="w-full h-[46px] px-4 rounded-xl border-[1.5px] border-gray-200 text-[14px] text-gray-900 bg-gray-50 focus:outline-none focus:border-emerald-500 focus:bg-white transition placeholder-gray-400"
       />
       <p className="text-[11px] text-gray-400 mt-1.5 mb-4">
-        We'll send you a one-time password.
+        We’ll text you a 6-digit code (resend uses the same request after the server cooldown).
       </p>
       <PrimaryButton
         type="submit"
@@ -163,7 +166,7 @@ function EmailStep({ email, setEmail, onSubmit, isSubmitting, oauthLoading, inpu
 /* ─────────────────────────────────────────────
    OTP step
 ───────────────────────────────────────────── */
-function OtpStep({ email, code, setCode, onSubmit, onResend, onChangeEmail, isSubmitting, oauthLoading, inputRef }) {
+function OtpStep({ phone, code, setCode, onSubmit, onResend, onChangePhone, isSubmitting, oauthLoading, inputRef }) {
   return (
     <form onSubmit={onSubmit} className="space-y-0">
       {/* Sent badge */}
@@ -174,15 +177,15 @@ function OtpStep({ email, code, setCode, onSubmit, onResend, onChangeEmail, isSu
         OTP sent
       </div>
 
-      {/* Email + change */}
+      {/* Phone + change */}
       <div className="flex items-center justify-between mb-1.5">
         <label htmlFor="otp" className="text-[12px] font-medium text-gray-700">
           OTP sent to{' '}
-          <span className="text-gray-900 font-medium">{email}</span>
+          <span className="text-gray-900 font-medium">{phone}</span>
         </label>
         <button
           type="button"
-          onClick={onChangeEmail}
+          onClick={onChangePhone}
           className="text-[12px] font-medium text-emerald-600 hover:text-emerald-800 transition"
         >
           Change
@@ -228,11 +231,11 @@ function OtpStep({ email, code, setCode, onSubmit, onResend, onChangeEmail, isSu
 ───────────────────────────────────────────── */
 function SheetContent({ onClose }) {
   const { login } = useAuth();
-  const emailInputRef = useRef(null);
+  const phoneInputRef = useRef(null);
   const otpInputRef = useRef(null);
 
-  const [step, setStep] = useState('email');
-  const [email, setEmail] = useState('');
+  const [step, setStep] = useState('phone');
+  const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -264,21 +267,32 @@ function SheetContent({ onClose }) {
 
   /* ── Focus management ── */
   useEffect(() => {
-    const ref = step === 'email' ? emailInputRef : otpInputRef;
+    const ref = step === 'phone' ? phoneInputRef : otpInputRef;
     const t = setTimeout(() => ref.current?.focus?.(), 80);
     return () => clearTimeout(t);
   }, [step]);
 
-  /* ── Send OTP ── */
+  const normalizedPhone = () => normalizeOtpPhone(phone);
+
+  /* ── Send OTP (POST /api/auth/otp/request) ── */
   const handleRequestOtp = async (e) => {
     e.preventDefault();
     clearError();
     if (!ensureShopId()) return;
-    const nextEmail = email.trim().toLowerCase();
-    if (!nextEmail) { setError('Please enter your email address.'); return; }
+    const nextPhone = normalizedPhone();
+    if (!nextPhone) {
+      setError('Please enter your mobile number.');
+      return;
+    }
+    const digits = nextPhone.replace(/\D/g, '');
+    // After normalization, Indian numbers are +91 + 10 digits → 12 digits total in `digits`.
+    if (!nextPhone.startsWith('+91') || digits.length !== 12) {
+      setError('Enter a valid Indian mobile number (10 digits, or include +91).');
+      return;
+    }
     setIsSubmitting(true);
     try {
-      await requestEmailOtp({ email: nextEmail, shopId });
+      await requestOtp({ phone: nextPhone, shopId });
       setStep('otp');
     } catch (err) {
       setError(err?.message || 'Something went wrong. Please try again.');
@@ -287,21 +301,59 @@ function SheetContent({ onClose }) {
     }
   };
 
-  /* ── Verify OTP ── */
+  /* ── Verify OTP (POST /api/auth/otp/verify) ── */
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     clearError();
     if (!ensureShopId()) return;
-    const nextEmail = email.trim().toLowerCase();
+    const nextPhone = normalizedPhone();
     const nextCode = code.trim();
-    if (!nextEmail) { setError('Please enter your email address.'); return; }
-    if (!nextCode || nextCode.length < 4) { setError('Please enter the OTP code.'); return; }
+    if (!nextPhone) {
+      setError('Please enter your mobile number.');
+      return;
+    }
+    const phoneDigits = nextPhone.replace(/\D/g, '');
+    if (!nextPhone.startsWith('+91') || phoneDigits.length !== 12) {
+      setError('Enter a valid Indian mobile number (10 digits, or include +91).');
+      setStep('phone');
+      return;
+    }
+    if (!/^\d{6}$/.test(nextCode)) {
+      setError('Enter the 6-digit OTP from your SMS.');
+      return;
+    }
     setIsSubmitting(true);
     try {
-      const session = await verifyEmailOtp({ email: nextEmail, shopId, code: nextCode });
+      const session = await verifyOtp({ phone: nextPhone, shopId, code: nextCode });
       const { user, token, refreshToken } = normalizeSession(session);
       if (!token) throw new Error('Invalid response from server.');
-      login(user || { email: nextEmail }, { token, refreshToken });
+
+      const mergedUser =
+        user && typeof user === 'object'
+          ? { ...user, phone: user.phone || user.mobile || nextPhone }
+          : { phone: nextPhone };
+
+      // Persist tokens so PATCH /me/profile + storefront profile run before any post-login redirect.
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('token', token);
+        localStorage.setItem('authToken', token);
+        if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+      }
+
+      let syncedUser = null;
+      try {
+        syncedUser = await updateProfile({ phone: nextPhone });
+      } catch (syncErr) {
+        console.warn('Could not sync phone to profile:', syncErr?.message || syncErr);
+      }
+
+      const userForLogin =
+        syncedUser && typeof syncedUser === 'object'
+          ? { ...mergedUser, ...syncedUser, phone: syncedUser.phone || nextPhone }
+          : mergedUser;
+
+      login(userForLogin, { token, refreshToken });
+
       onClose();
     } catch (err) {
       setError(err?.message || 'Invalid OTP. Please try again.');
@@ -310,12 +362,23 @@ function SheetContent({ onClose }) {
     }
   };
 
-  /* ── Resend OTP ── */
+  /* ── Resend OTP (same as request) ── */
   const handleResend = async () => {
     clearError();
+    const nextPhone = normalizedPhone();
+    if (!nextPhone) {
+      setError('Please enter your mobile number.');
+      return;
+    }
+    const rd = nextPhone.replace(/\D/g, '');
+    if (!nextPhone.startsWith('+91') || rd.length !== 12) {
+      setError('Enter a valid Indian mobile number (10 digits, or include +91).');
+      setStep('phone');
+      return;
+    }
     setIsSubmitting(true);
     try {
-      await requestEmailOtp({ email: email.trim().toLowerCase(), shopId });
+      await requestOtp({ phone: nextPhone, shopId });
     } catch (err) {
       setError(err?.message || 'Could not resend OTP.');
     } finally {
@@ -343,23 +406,23 @@ function SheetContent({ onClose }) {
       <ErrorBox message={error} />
       <Illustration />
 
-      {step === 'email' ? (
-        <EmailStep
-          email={email}
-          setEmail={(v) => { setEmail(v); clearError(); }}
+      {step === 'phone' ? (
+        <PhoneStep
+          phone={phone}
+          setPhone={(v) => { setPhone(v); clearError(); }}
           onSubmit={handleRequestOtp}
           isSubmitting={isSubmitting}
           oauthLoading={oauthLoading}
-          inputRef={emailInputRef}
+          inputRef={phoneInputRef}
         />
       ) : (
         <OtpStep
-          email={email.trim().toLowerCase()}
+          phone={normalizedPhone()}
           code={code}
           setCode={(v) => { setCode(v); clearError(); }}
           onSubmit={handleVerifyOtp}
           onResend={handleResend}
-          onChangeEmail={() => { setStep('email'); setCode(''); clearError(); }}
+          onChangePhone={() => { setStep('phone'); setCode(''); clearError(); }}
           isSubmitting={isSubmitting}
           oauthLoading={oauthLoading}
           inputRef={otpInputRef}
@@ -386,7 +449,7 @@ function SheetHeader({ onClose }) {
       <div>
         <h2 className="text-[17px] font-medium text-gray-900">Sign in</h2>
         <p className="text-[12px] text-gray-400 mt-0.5">
-          Use email OTP or continue with Google.
+          Use mobile OTP or continue with Google.
         </p>
       </div>
       <button

@@ -12,15 +12,18 @@ export default function ConditionalLayout({ children }) {
   const { navbarHeight, bottomNavHeight } = useLayoutHeights();
   const { isVisible: bottomNavVisible } = useBottomNavVisibility();
 
+  const pathNoSlash = pathname?.replace(/\/+$/, '') || '';
+
   const hideLayout =
     pathname === '/order-success' ||
     pathname === '/checkout' ||
     pathname === '/profile' ||
-    pathname === '/settings' ||
     pathname === '/addresses' ||
     pathname === '/cart' ||
     pathname === '/orders' ||
     pathname?.startsWith('/orders/') ||
+    pathNoSlash === '/order' ||
+    pathNoSlash === '/product' ||
     // Product detail should be full-bleed (no header/footer)
     (pathname?.startsWith('/products/') && pathname !== '/products');
 

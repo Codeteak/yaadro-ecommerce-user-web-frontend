@@ -7,6 +7,7 @@ import { useCart } from '../../context/CartContext';
 import Container from '../../components/Container';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import { getEffectivePrice, formatRupeeINR } from '../../utils/productUtils';
+import { getResolvedProductImageUrls } from '../../utils/productImages';
 
 export default function WishlistPage() {
   const { wishlistItems, removeFromWishlist, clearWishlist } = useWishlist();
@@ -80,8 +81,8 @@ export default function WishlistPage() {
               <Link href={`/product?id=${encodeURIComponent(String(item.slug || item.id).trim())}`}>
                 <div className="relative h-64 overflow-hidden">
                   <Image
-                    src={item.image}
-                    alt={item.name}
+                    src={getResolvedProductImageUrls(item)[0]}
+                    alt={`${item.name} – image 1`}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-300"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

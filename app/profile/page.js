@@ -17,8 +17,6 @@ import {
   Package,
   MapPin,
   Heart,
-  Shield,
-  HelpCircle,
   LogOut,
   ChevronRight,
   Pencil,
@@ -111,8 +109,6 @@ function ProfilePageContent() {
     { id: 'orders', label: 'Orders', href: '/orders', Icon: Package },
     { id: 'addresses', label: 'Addresses', href: '/addresses', Icon: MapPin },
     { id: 'wishlist', label: 'Wishlist', href: '/wishlist', Icon: Heart },
-    { id: 'privacy', label: 'Privacy & account', href: '/settings', Icon: Shield },
-    { id: 'help', label: 'Help & Support', href: '/settings', Icon: HelpCircle },
     { id: 'logout', label: 'Logout', Icon: LogOut, isDanger: true },
   ];
 

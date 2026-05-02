@@ -12,6 +12,7 @@ import { useLayoutHeights } from '../context/LayoutHeightsContext';
 import { useLocationService } from '../context/LocationServiceContext';
 import { useSearchProducts } from '../hooks/useProducts';
 import { resolveShopId } from '../utils/authApi';
+import { getResolvedProductImageUrls } from '../utils/productImages';
 import { User, MapPin } from 'lucide-react';
 // Category strip removed
 
@@ -180,9 +181,9 @@ export default function Navbar() {
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             {isAuthenticated ? (
               <Link
-                href="/settings"
+                href="/profile"
                 className="flex items-center justify-center w-10 h-10 rounded-full text-gray-700 hover:bg-gray-100 hover:text-primary transition-colors"
-                aria-label="Settings"
+                aria-label="Profile"
               >
                 <User className="w-6 h-6" strokeWidth={2} />
               </Link>
@@ -251,8 +252,8 @@ export default function Navbar() {
                   >
                     <div className="relative w-12 h-12 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
                       <Image
-                        src={product.image || '/images/dummy.png'}
-                        alt={product.name}
+                        src={getResolvedProductImageUrls(product)[0]}
+                        alt={`${product.name} – image 1`}
                         fill
                         className="object-cover"
                         sizes="48px"

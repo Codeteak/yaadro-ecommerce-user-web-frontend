@@ -148,7 +148,7 @@ export default function AddressesPage() {
   if (!authHydrated || isLoadingUser) {
     return (
       <div className="flex h-[100dvh] flex-col overflow-hidden bg-gray-50">
-        <PageTopBar title="Addresses" backHref="/settings" fallbackHref="/" />
+        <PageTopBar title="Addresses" backHref="/profile" fallbackHref="/" />
         <div className="flex flex-1 items-center justify-center">
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
@@ -160,7 +160,7 @@ export default function AddressesPage() {
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-gray-50">
-      <PageTopBar title="Addresses" backHref="/settings" fallbackHref="/" />
+      <PageTopBar title="Addresses" backHref="/profile" fallbackHref="/" />
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-28 pt-6 md:pb-10">
         <div className="mx-auto max-w-lg">
@@ -298,8 +298,8 @@ export default function AddressesPage() {
           )}
 
           <p className="mt-6 text-center text-xs text-gray-400">
-            <Link href="/settings" className="text-primary font-medium">
-              Back to settings
+            <Link href="/profile" className="text-primary font-medium">
+              Back to profile
             </Link>
           </p>
         </div>

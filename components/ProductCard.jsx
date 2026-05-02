@@ -1,28 +1,23 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useCart } from '../context/CartContext';
 import { getEffectivePrice, formatRupeeINR } from '../utils/productUtils';
+import { getResolvedProductImageUrls } from '../utils/productImages';
+import ProductImageWithFallback from './ProductImageWithFallback';
 
 export default function ProductCard({ product, isCarousel = false }) {
   const { addToCart, cartItems, updateQuantity, removeFromCart } = useCart();
   const legacyOriginal =
     product.originalPrice != null ? parseFloat(product.originalPrice) : null;
   
-  // Handle multiple images
-  const productImages = product.images && Array.isArray(product.images) && product.images.length > 0
-    ? product.images
-    : product.image
-      ? [product.image]
-      : ['/images/dummy.png'];
+  const productImages = useMemo(() => getResolvedProductImageUrls(product), [product]);
   
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
   const carouselRef = useRef(null);
-  const autoPlayIntervalRef = useRef(null);
   /** Block navigation when user swiped the image carousel (tap vs swipe). */
   const suppressNavClickRef = useRef(false);
 
@@ -158,20 +153,9 @@ export default function ProductCard({ product, isCarousel = false }) {
   const productTag = product.tag || product.category;
   const productSlugOrId = product.slug || product.id;
 
-  // Auto-play carousel for multiple images
   useEffect(() => {
-    if (productImages.length > 1) {
-      autoPlayIntervalRef.current = setInterval(() => {
-        setCurrentImageIndex((prev) => (prev + 1) % productImages.length);
-      }, 3000); // Change image every 3 seconds
-      
-      return () => {
-        if (autoPlayIntervalRef.current) {
-          clearInterval(autoPlayIntervalRef.current);
-        }
-      };
-    }
-  }, [productImages.length]);
+    setCurrentImageIndex(0);
+  }, [product?.id, productImages.join('|')]);
 
   // Handle swipe gestures
   const minSwipeDistance = 50;
@@ -179,10 +163,6 @@ export default function ProductCard({ product, isCarousel = false }) {
   const onTouchStart = (e) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
-    // Pause auto-play on touch
-    if (autoPlayIntervalRef.current) {
-      clearInterval(autoPlayIntervalRef.current);
-    }
   };
 
   const onTouchMove = (e) => {
@@ -204,21 +184,11 @@ export default function ProductCard({ product, isCarousel = false }) {
       setCurrentImageIndex((prev) => (prev - 1 + productImages.length) % productImages.length);
       markSwipeSoNavClickIgnored();
     }
-
-    // Resume auto-play after swipe
-    if (productImages.length > 1) {
-      autoPlayIntervalRef.current = setInterval(() => {
-        setCurrentImageIndex((prev) => (prev + 1) % productImages.length);
-      }, 3000);
-    }
   };
 
   // Handle mouse drag (for desktop)
   const onMouseDown = (e) => {
     setTouchStart(e.clientX);
-    if (autoPlayIntervalRef.current) {
-      clearInterval(autoPlayIntervalRef.current);
-    }
   };
 
   const onMouseMove = (e) => {
@@ -244,13 +214,6 @@ export default function ProductCard({ product, isCarousel = false }) {
     }
     setTouchStart(null);
     setTouchEnd(null);
-
-    // Resume auto-play
-    if (productImages.length > 1) {
-      autoPlayIntervalRef.current = setInterval(() => {
-        setCurrentImageIndex((prev) => (prev + 1) % productImages.length);
-      }, 3000);
-    }
   };
 
   return (
@@ -284,10 +247,10 @@ export default function ProductCard({ product, isCarousel = false }) {
               style={{ transform: `translateX(-${currentImageIndex * 100}%)` }}
             >
               {productImages.map((img, idx) => (
-                <div key={idx} className="relative w-full h-full flex-shrink-0">
-                  <Image
+                <div key={`${idx}-${img}`} className="relative w-full h-full flex-shrink-0">
+                  <ProductImageWithFallback
                     src={img}
-                    alt={`${product.name} - Image ${idx + 1}`}
+                    alt={`${product.name} – image ${idx + 1}`}
                     fill
                     className="object-cover"
                     sizes="(max-width: 640px) 50vw, (max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
@@ -295,14 +258,32 @@ export default function ProductCard({ product, isCarousel = false }) {
                 </div>
               ))}
             </div>
-            
-            {/* Image indicators (dots) - only show if multiple images */}
+
             {productImages.length > 1 && (
-              <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 flex gap-1 z-10">
+              <div
+                className="absolute top-2 right-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white tabular-nums"
+                aria-label={`Image ${currentImageIndex + 1} of ${productImages.length}`}
+              >
+                {currentImageIndex + 1}/{productImages.length}
+              </div>
+            )}
+
+            {/* Image indicators — tap to select (multiple images only) */}
+            {productImages.length > 1 && (
+              <div className="absolute bottom-1 left-1/2 flex -translate-x-1/2 transform gap-1 z-10">
                 {productImages.map((_, idx) => (
-                  <div
+                  <button
                     key={idx}
-                    className={`w-1.5 h-1.5 rounded-full transition-all ${
+                    type="button"
+                    aria-label={`Show image ${idx + 1}`}
+                    aria-current={idx === currentImageIndex ? 'true' : undefined}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      markSwipeSoNavClickIgnored();
+                      setCurrentImageIndex(idx);
+                    }}
+                    className={`h-1.5 w-1.5 rounded-full transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white ${
                       idx === currentImageIndex ? 'bg-white' : 'bg-white/50'
                     }`}
                   />

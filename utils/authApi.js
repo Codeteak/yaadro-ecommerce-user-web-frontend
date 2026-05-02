@@ -114,11 +114,6 @@ async function resolveShopIdForOtp(explicitShopId) {
   return resolveShopId();
 }
 
-function normalizeOtpEmail(email) {
-  if (email == null) return '';
-  return String(email).trim().toLowerCase();
-}
-
 /**
  * Map SessionResponse (register / login / OAuth JWT) for AuthContext.
  */
@@ -323,7 +318,11 @@ export async function requestOtp({ phone, shopId }) {
   const body = { phone: resolvedPhone, shopId: resolvedShopId };
   const headers = {};
   if (resolvedShopId) headers['x-shop-id'] = resolvedShopId;
-  return api.post('/auth/otp/request', body, { omitTenantHeader: true, headers });
+  return api.post('/auth/otp/request', body, {
+    omitTenantHeader: true,
+    omitAuthHeader: true,
+    headers,
+  });
 }
 
 /**
@@ -344,76 +343,11 @@ export async function verifyOtp({ phone, shopId, code }) {
   const headers = {};
   if (resolvedShopId) headers['x-shop-id'] = resolvedShopId;
 
-  try {
-    const response = await api.post('/auth/otp/verify', body, { omitTenantHeader: true, headers });
-
-    let serialized = '';
-    try {
-      serialized = JSON.stringify(response, null, 2);
-    } catch {
-      serialized = String(response);
-    }
-
-    console.log('[auth/otp/verify] success', {
-      at: new Date().toISOString(),
-      requestMeta: { phone: body.phone, shopId: body.shopId, codeLength: body.code.length },
-      responseType: response === null ? 'null' : Array.isArray(response) ? 'array' : typeof response,
-      keys:
-        response && typeof response === 'object' && !Array.isArray(response)
-          ? Object.keys(response)
-          : undefined,
-    });
-    console.log('[auth/otp/verify] response body (full):\n', serialized);
-
-    return response;
-  } catch (err) {
-    console.error('[auth/otp/verify] error', {
-      at: new Date().toISOString(),
-      requestMeta: { phone: body.phone, shopId: body.shopId, codeLength: body.code.length },
-      message: err?.message,
-      status: err?.status,
-      data: err?.data,
-    });
-    if (err?.data !== undefined) {
-      try {
-        console.error('[auth/otp/verify] error data JSON:\n', JSON.stringify(err.data, null, 2));
-      } catch {
-        console.error('[auth/otp/verify] error data (raw):', err.data);
-      }
-    }
-    throw err;
-  }
-}
-
-/**
- * Request customer email OTP (POST /api/auth/email-otp/request)
- * Sends `{ email, shopId }` + `x-shop-id` when shop is known.
- */
-export async function requestEmailOtp({ email, shopId }) {
-  const resolvedShopId = await resolveShopIdForOtp(shopId);
-  const resolvedEmail = normalizeOtpEmail(email);
-  if (!resolvedShopId) throw new Error('Missing shopId for OTP request.');
-  if (!resolvedEmail) throw new Error('Missing email address.');
-  const body = { email: resolvedEmail, shopId: resolvedShopId };
-  const headers = {};
-  if (resolvedShopId) headers['x-shop-id'] = resolvedShopId;
-  return api.post('/auth/email-otp/request', body, { omitTenantHeader: true, headers });
-}
-
-/**
- * Verify customer email OTP and issue session (POST /api/auth/email-otp/verify).
- */
-export async function verifyEmailOtp({ email, shopId, code }) {
-  const resolvedShopId = await resolveShopIdForOtp(shopId);
-  const resolvedEmail = normalizeOtpEmail(email);
-  const resolvedCode = code == null ? '' : String(code).trim();
-  if (!resolvedShopId) throw new Error('Missing shopId for OTP verification.');
-  if (!resolvedEmail) throw new Error('Missing email address.');
-  if (!resolvedCode) throw new Error('Missing OTP code.');
-  const body = { email: resolvedEmail, shopId: resolvedShopId, code: resolvedCode };
-  const headers = {};
-  if (resolvedShopId) headers['x-shop-id'] = resolvedShopId;
-  return api.post('/auth/email-otp/verify', body, { omitTenantHeader: true, headers });
+  return api.post('/auth/otp/verify', body, {
+    omitTenantHeader: true,
+    omitAuthHeader: true,
+    headers,
+  });
 }
 
 /**

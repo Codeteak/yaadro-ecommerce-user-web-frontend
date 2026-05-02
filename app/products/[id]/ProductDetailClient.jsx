@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useProductWithRelated } from '../../../hooks/useProducts';
 import { useCart } from '../../../context/CartContext';
@@ -18,6 +17,8 @@ import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
 import Link from 'next/link';
 import ProductCarousel from '../../../components/ProductCarousel';
 import { SHOW_PRODUCT_EXTENDED_SECTIONS } from './productDetailFlags';
+import { getResolvedProductImageUrls } from '../../../utils/productImages';
+import ProductImageWithFallback from '../../../components/ProductImageWithFallback';
 
 function PillTag({ children, color = 'green' }) {
   const colorMap = {
@@ -126,11 +127,16 @@ export default function ProductDetailClient({ productId = null }) {
   const rating = product ? getProductRating(product) : 0;
   const discount = product ? getProductDiscount(product) : 0;
 
-  const imageSrc = product?.image || '/images/dummy.png';
-  const images =
-    product?.images && product.images.length > 0 ? product.images : [imageSrc];
+  const galleryUrls = useMemo(
+    () => (product ? getResolvedProductImageUrls(product) : []),
+    [product]
+  );
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  useEffect(() => {
+    setCurrentImageIndex(0);
+  }, [product?.id, galleryUrls.join('|')]);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
 
@@ -260,9 +266,17 @@ export default function ProductDetailClient({ productId = null }) {
   };
 
   const goToPrevious = () =>
-    setCurrentImageIndex((p) => (p - 1 + images.length) % images.length);
+    setCurrentImageIndex((p) => {
+      const n = galleryUrls.length;
+      if (n < 1) return 0;
+      return (p - 1 + n) % n;
+    });
   const goToNext = () =>
-    setCurrentImageIndex((p) => (p + 1) % images.length);
+    setCurrentImageIndex((p) => {
+      const n = galleryUrls.length;
+      if (n < 1) return 0;
+      return (p + 1) % n;
+    });
   const minSwipeDistance = 50;
   const onTouchStart = (e) => { setTouchEnd(null); setTouchStart(e.targetTouches[0].clientX); };
   const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
@@ -315,9 +329,9 @@ export default function ProductDetailClient({ productId = null }) {
             className="flex transition-transform duration-500 ease-in-out"
             style={{ transform: `translateX(-${currentImageIndex * 100}%)` }}
           >
-            {images.map((img, idx) => (
-              <div key={idx} className="w-full flex-shrink-0 flex items-center justify-center">
-                <Image
+            {galleryUrls.map((img, idx) => (
+              <div key={`${idx}-${img}`} className="w-full flex-shrink-0 flex items-center justify-center">
+                <ProductImageWithFallback
                   src={img}
                   alt={`${product.name} – image ${idx + 1}`}
                   width={1600}
@@ -356,7 +370,7 @@ export default function ProductDetailClient({ productId = null }) {
           </div>
         </div>
 
-        {images.length > 1 && (
+        {galleryUrls.length > 1 && (
           <>
             <button onClick={goToPrevious} className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 backdrop-blur flex items-center justify-center shadow-sm z-20" aria-label="Previous">
               <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -367,16 +381,29 @@ export default function ProductDetailClient({ productId = null }) {
           </>
         )}
 
-        {images.length > 1 && (
-          <div className="mt-2 flex justify-center">
-            <div className="flex items-center gap-1.5">
-              {images.map((_, idx) => (
+        {galleryUrls.length > 1 && (
+          <div className="mt-2 flex justify-center px-3">
+            <div className="flex max-w-full gap-2 overflow-x-auto py-1" role="tablist" aria-label="Product images">
+              {galleryUrls.map((u, idx) => (
                 <button
-                  key={idx}
+                  key={`thumb-${idx}-${u}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={idx === currentImageIndex}
+                  aria-label={`Show image ${idx + 1}`}
                   onClick={() => setCurrentImageIndex(idx)}
-                  className={`h-2 rounded-full transition-all ${idx === currentImageIndex ? 'w-7 bg-gray-800' : 'w-2 bg-gray-300'}`}
-                  aria-label={`Image ${idx + 1}`}
-                />
+                  className={`relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${
+                    idx === currentImageIndex ? 'border-emerald-600 ring-2 ring-emerald-500/30' : 'border-gray-200 opacity-80 hover:opacity-100'
+                  }`}
+                >
+                  <ProductImageWithFallback
+                    src={u}
+                    alt={`${product.name} – thumbnail ${idx + 1}`}
+                    fill
+                    className="object-cover"
+                    sizes="56px"
+                  />
+                </button>
               ))}
             </div>
           </div>

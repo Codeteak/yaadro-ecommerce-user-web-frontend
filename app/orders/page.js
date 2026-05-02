@@ -151,7 +151,7 @@ Payment Status: ${order.paymentStatus}
   if (!authHydrated || isLoadingUser) {
     return (
       <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-gray-50">
-        <PageTopBar title="Your Orders" backHref="/settings" fallbackHref="/" />
+        <PageTopBar title="Your Orders" backHref="/profile" fallbackHref="/" />
         <div className="flex flex-1 items-center justify-center">
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
@@ -163,7 +163,7 @@ Payment Status: ${order.paymentStatus}
 
   return (
     <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-gray-50">
-      <PageTopBar title="Your Orders" backHref="/settings" fallbackHref="/" />
+      <PageTopBar title="Your Orders" backHref="/profile" fallbackHref="/" />
 
       <div className="mx-auto min-h-0 w-full max-w-lg flex-1 overflow-y-auto overscroll-contain px-4 pb-28 pt-4 space-y-4 md:pb-8">
         {isLoading ? (
