@@ -51,9 +51,7 @@ function CategoryIcon({ name, strokeColor }) {
 ───────────────────────────────────────────── */
 function CategoryCard({ category }) {
   const { bg, stroke } = getCategoryColor(category.name);
-  const children = (category.children || []).filter((c) => c.isActive !== false);
   const productCount = category.productCount ?? category._count?.products ?? 0;
-  const hasChildren = children.length > 0;
   const categorySlugOrId = category.slug || category.id;
 
   const imageUrl =
@@ -77,10 +75,6 @@ function CategoryCard({ category }) {
               className="absolute inset-0 h-full w-full object-cover"
               loading="lazy"
             />
-            <div
-              className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/25 to-black/50"
-              aria-hidden
-            />
           </>
         ) : (
           <div className="absolute inset-0" style={{ background: bg }} aria-hidden />
@@ -88,21 +82,11 @@ function CategoryCard({ category }) {
 
         <div className="relative z-10 flex min-h-[168px] flex-col p-3.5">
           <div className="flex items-start justify-between gap-2">
-            <p
-              className={`text-[15px] font-bold leading-snug tracking-tight ${
-                onImage ? 'text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)]' : 'text-gray-900'
-              }`}
-            >
+            <p className="text-[15px] font-bold leading-snug tracking-tight text-gray-900">
               {category.name}
             </p>
             {productCount > 0 && (
-              <span
-                className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                  onImage
-                    ? 'bg-white/25 text-white backdrop-blur-sm'
-                    : 'bg-gray-900/10 text-gray-800'
-                }`}
-              >
+              <span className="flex-shrink-0 rounded-full bg-gray-900/10 px-2 py-0.5 text-[10px] font-semibold text-gray-800">
                 {productCount} items
               </span>
             )}
@@ -118,24 +102,6 @@ function CategoryCard({ category }) {
               </div>
             </div>
           )}
-
-          <div
-            className={`mt-auto flex items-center justify-between pt-3 ${
-              onImage ? 'text-white/95' : 'text-gray-700'
-            }`}
-          >
-            <span className={`text-[11px] font-semibold ${onImage ? 'drop-shadow-md' : ''}`}>
-              {hasChildren ? `${children.length} types · Shop` : 'Shop products'}
-            </span>
-            <svg
-              className={`h-3.5 w-3.5 ${onImage ? 'text-white' : 'text-gray-500'}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </div>
         </div>
       </div>
     </Link>

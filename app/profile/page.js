@@ -3,14 +3,13 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Container from '../../components/Container';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useActivityLog } from '../../context/ActivityLogContext';
 import { useOrdersList } from '../../hooks/useOrders';
-import { useUpdateProfile, useChangePassword } from '../../hooks/useAuth';
+import { useUpdateProfile } from '../../hooks/useAuth';
 import ConfirmModal from '../../components/ConfirmModal';
 import PageTopBar from '../../components/PageTopBar';
 import {
@@ -22,6 +21,15 @@ import {
   Pencil,
 } from 'lucide-react';
 
+/** National digits only (no +91); country code is shown separately in the form. */
+function nationalIndiaDigits(phone) {
+  if (!phone || typeof phone !== 'string') return '';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length >= 12 && digits.startsWith('91')) return digits.slice(2, 12);
+  if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1, 11);
+  return digits.slice(0, 10);
+}
+
 function ProfilePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -32,14 +40,13 @@ function ProfilePageContent() {
   const { logActivity } = useActivityLog();
   const { data: ordersData } = useOrdersList({ page: 1, per_page: 5 }, { enabled: isAuthenticated });
   const updateProfileMutation = useUpdateProfile();
-  const changePasswordMutation = useChangePassword();
   const recentOrders = ordersData?.orders || [];
 
   const [isEditing, setIsEditing] = useState(searchParams?.get('edit') === 'true');
   const [profileData, setProfileData] = useState({
     name: user?.name || 'User',
     email: user?.email || '',
-    phone: user?.phone || '',
+    phone: nationalIndiaDigits(user?.phone || ''),
     dateOfBirth: user?.dateOfBirth || '',
     gender: user?.gender || '',
   });
@@ -51,9 +58,9 @@ function ProfilePageContent() {
   useEffect(() => {
     if (user) {
       setProfileData({
-        name: user.name || `User ${user.phone?.slice(-4) || ''}`,
+        name: user.name || `User ${nationalIndiaDigits(user.phone || '').slice(-4) || ''}`,
         email: user.email || '',
-        phone: user.phone || '',
+        phone: nationalIndiaDigits(user.phone || ''),
         dateOfBirth: user.dateOfBirth || '',
         gender: user.gender || '',
       });
@@ -114,10 +121,12 @@ function ProfilePageContent() {
 
   if (isEditing) {
     return (
-      <div className="flex h-[100dvh] flex-col overflow-hidden bg-white">
-        <PageTopBar title="Edit Profile" fallbackHref="/profile" />
+      <div className="flex min-h-screen flex-col bg-white">
+        <div className="sticky top-0 z-20 shrink-0 bg-white">
+          <PageTopBar title="Edit Profile" fallbackHref="/profile" />
+        </div>
 
-        <div className="mx-auto min-h-0 w-full max-w-2xl flex-1 overflow-y-auto overscroll-contain px-4 py-6 pb-10">
+        <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 pb-24">
           <form onSubmit={handleProfileUpdate} className="space-y-5">
             {/* Profile Picture Section */}
             <div className="text-center mb-6">
@@ -153,48 +162,40 @@ function ProfilePageContent() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">E mail address</label>
-                <input
-                  type="email"
-                  value={profileData.email}
-                  disabled
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
-                />
-                <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Password</label>
-                <div className="relative">
+              {(profileData.email || '').trim() !== '' && (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">Email address</label>
                   <input
-                    type="password"
-                    value="••••••••••••"
+                    type="email"
+                    value={profileData.email}
                     disabled
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                    className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-600"
                   />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-4.803m5.596-3.856a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0z" />
-                    </svg>
-                  </button>
+                  <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Phone number</label>
                 <div className="flex gap-2">
-                  <select className="w-20 px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                  <select
+                    className="w-20 shrink-0 rounded-lg border border-gray-300 px-3 py-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-red-500"
+                    aria-label="Country code"
+                    disabled
+                  >
                     <option>+91</option>
                   </select>
                   <input
                     type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    placeholder="10-digit mobile number"
                     value={profileData.phone}
-                    onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setProfileData({ ...profileData, phone: v });
+                    }}
+                    className="min-w-0 flex-1 rounded-lg border border-gray-300 px-4 py-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-red-500"
                     required
                   />
                 </div>
@@ -237,10 +238,12 @@ function ProfilePageContent() {
   }
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-gray-50">
-      <PageTopBar title="My Profile" fallbackHref="/" />
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      <div className="sticky top-0 z-20 shrink-0">
+        <PageTopBar title="My Profile" fallbackHref="/" />
+      </div>
 
-      <div className="mx-auto max-w-2xl min-h-0 w-full flex-1 overflow-y-auto overscroll-contain pb-8">
+      <div className="mx-auto w-full max-w-2xl flex-1 pb-24">
         {/* Profile Header */}
         <div className="bg-white px-4 py-6 border-b border-gray-100">
           <div className="flex items-center gap-4">

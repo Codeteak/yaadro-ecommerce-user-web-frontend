@@ -315,6 +315,16 @@ function OrderSummary({ cartItems, cartTotal, onQuantityChange }) {
 /* ─────────────────────────────────────────────
    Empty state
 ───────────────────────────────────────────── */
+function CheckoutPageState({ title, subtitle }) {
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-2 px-6">
+      <div className="w-9 h-9 rounded-full border-2 border-emerald-200 border-t-emerald-600 animate-spin" />
+      {title ? <p className="text-sm font-medium text-gray-900 text-center">{title}</p> : null}
+      {subtitle ? <p className="text-xs text-gray-500 text-center max-w-xs">{subtitle}</p> : null}
+    </div>
+  );
+}
+
 function EmptyCheckout() {
   return (
     <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
@@ -340,7 +350,7 @@ function EmptyCheckout() {
 ───────────────────────────────────────────── */
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cartItems, cartTotal, clearCart, updateQuantity, removeFromCart } = useCart();
+  const { cartItems, cartTotal, clearCart, updateQuantity, removeFromCart, loading: cartLoading } = useCart();
   const {
     addresses,
     getDefaultAddress,
@@ -463,24 +473,30 @@ export default function CheckoutPage() {
     }
   };
 
-  /* ── Empty cart ── */
-  if (cartItems.length === 0) return <EmptyCheckout />;
-
+  /* ── Avoid empty-cart flash: hydrate auth first, then cart fetch / order placement ── */
   if (!authHydrated) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-emerald-200 border-t-emerald-600 animate-spin" />
-      </div>
-    );
+    return <CheckoutPageState title="Loading checkout…" />;
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-3 px-6">
-        <div className="w-8 h-8 rounded-full border-2 border-emerald-200 border-t-emerald-600 animate-spin" />
-        <p className="text-sm text-gray-500 text-center">Taking you to your cart to sign in…</p>
-      </div>
+      <CheckoutPageState
+        title="Taking you to your cart…"
+        subtitle="Sign in to complete checkout."
+      />
     );
+  }
+
+  if (isSubmitting) {
+    return <CheckoutPageState title="Placing your order…" subtitle="Please wait, do not close this page." />;
+  }
+
+  if (cartLoading && cartItems.length === 0) {
+    return <CheckoutPageState title="Loading your cart…" />;
+  }
+
+  if (cartItems.length === 0) {
+    return <EmptyCheckout />;
   }
 
   /* ─────────────────────────────────────────────

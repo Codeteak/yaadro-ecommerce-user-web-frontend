@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { updateStorefrontProfile, resolveShopId } from '../utils/authApi';
@@ -90,6 +90,11 @@ export default function CheckoutAddAddressSheet({
       setForm(addressToForm(editingAddress));
       setNameDraft(nameFromProfile ? '' : (nameFromAddress || ''));
       setPhoneDraft(phoneFromProfile ? '' : (phoneFromAddress || ''));
+      const la = Number(editingAddress.lat);
+      const ln = Number(editingAddress.lng);
+      if (Number.isFinite(la) && Number.isFinite(ln)) {
+        setGeoStatus('ready');
+      }
     } else {
       setForm(emptyForm());
       setNameDraft('');
@@ -254,7 +259,7 @@ export default function CheckoutAddAddressSheet({
     isDefault: true,
   });
 
-  const requestGeo = () => {
+  const requestGeo = useCallback(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       setGeoStatus('unavailable');
       return;
@@ -274,7 +279,18 @@ export default function CheckoutAddAddressSheet({
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60_000 }
     );
-  };
+  }, []);
+
+  /** On open: request GPS for new addresses; for edit, only if saved address has no coordinates. */
+  useEffect(() => {
+    if (!isOpen) return;
+    if (isEdit && editingAddress) {
+      const la = Number(editingAddress.lat);
+      const ln = Number(editingAddress.lng);
+      if (Number.isFinite(la) && Number.isFinite(ln)) return;
+    }
+    requestGeo();
+  }, [isOpen, isEdit, editingAddress?.id, editingAddress?.lat, editingAddress?.lng, requestGeo]);
 
   const ensureCoordinates = async () => {
     const lat = Number(form.lat);

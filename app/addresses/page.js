@@ -147,9 +147,11 @@ export default function AddressesPage() {
 
   if (!authHydrated || isLoadingUser) {
     return (
-      <div className="flex h-[100dvh] flex-col overflow-hidden bg-gray-50">
-        <PageTopBar title="Addresses" backHref="/profile" fallbackHref="/" />
-        <div className="flex flex-1 items-center justify-center">
+      <div className="flex min-h-screen flex-col bg-gray-50">
+        <div className="sticky top-0 z-20 shrink-0">
+          <PageTopBar title="Addresses" backHref="/profile" fallbackHref="/" />
+        </div>
+        <div className="flex flex-1 items-center justify-center px-4 pb-24 pt-8">
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
       </div>
@@ -159,10 +161,12 @@ export default function AddressesPage() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-gray-50">
-      <PageTopBar title="Addresses" backHref="/profile" fallbackHref="/" />
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      <div className="sticky top-0 z-20 shrink-0">
+        <PageTopBar title="Addresses" backHref="/profile" fallbackHref="/" />
+      </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-28 pt-6 md:pb-10">
+      <div className="flex-1 px-4 pb-24 pt-6 md:pb-24">
         <div className="mx-auto max-w-lg">
           {/* One address per account (storefront API) — only show add when none saved */}
           {addresses.length === 0 && (

@@ -12,18 +12,83 @@ function minorToMajor(minor) {
 }
 
 /**
+ * Map vendor/API fulfillment labels to our timeline + pill keys.
+ * e.g. backend "accepted" / "ACKNOWLEDGED" should not fall through to pending styling.
+ */
+export function normalizeFulfillmentStatus(raw) {
+  const s = String(raw || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+  if (!s) return 'pending';
+
+  const direct = {
+    pending: 'pending',
+    placed: 'pending',
+    new: 'pending',
+    created: 'pending',
+    open: 'pending',
+    accepted: 'confirmed',
+    accept: 'confirmed',
+    approved: 'confirmed',
+    acknowledged: 'confirmed',
+    acknowledgement: 'confirmed',
+    order_confirmed: 'confirmed',
+    confirmed: 'confirmed',
+    confirm: 'confirmed',
+    processing: 'processing',
+    in_progress: 'processing',
+    inprogress: 'processing',
+    packing: 'processing',
+    preparing: 'processing',
+    packed: 'processing',
+    shipped: 'shipped',
+    ship: 'shipped',
+    dispatched: 'shipped',
+    out_for_delivery: 'shipped',
+    outfordelivery: 'shipped',
+    delivering: 'shipped',
+    in_transit: 'shipped',
+    intransit: 'shipped',
+    delivered: 'delivered',
+    delivery: 'delivered',
+    completed: 'delivered',
+    complete: 'delivered',
+    cancelled: 'cancelled',
+    canceled: 'cancelled',
+  };
+  if (direct[s]) return direct[s];
+  if (s.includes('cancel')) return 'cancelled';
+  if (s.includes('deliver') && (s.includes('ed') || s.endsWith('ed'))) return 'delivered';
+  if (s.includes('deliver') || s.includes('ship') || s.includes('dispatch') || s.includes('transit')) return 'shipped';
+  if (s.includes('process') || s.includes('pack')) return 'processing';
+  if (s.includes('accept') || s.includes('confirm') || s.includes('approv')) return 'confirmed';
+  return 'pending';
+}
+
+/**
  * Transform API order to frontend format
  */
 function transformOrder(apiOrder) {
   if (!apiOrder) return null;
 
+  const rawStatus =
+    apiOrder.status || apiOrder.order_status || apiOrder.fulfillment_status || apiOrder.state || '';
+  const methodRaw = apiOrder.paymentMethod || apiOrder.payment_method || 'cod';
+  const paymentStatusRaw = apiOrder.paymentStatus || apiOrder.payment_status || '';
+
   return {
     id: apiOrder.id,
     // Storefront fields (snake_case)
     orderNumber: apiOrder.orderNumber || apiOrder.order_number || '',
-    status: apiOrder.status || '',
-    paymentMethod: apiOrder.paymentMethod || apiOrder.payment_method || 'cod',
-    paymentStatus: apiOrder.paymentStatus || (apiOrder.payment_method ? 'pending' : ''),
+    status: normalizeFulfillmentStatus(rawStatus),
+    paymentMethod: methodRaw,
+    paymentStatus: (() => {
+      if (paymentStatusRaw) return String(paymentStatusRaw).trim();
+      const m = String(methodRaw || '').toLowerCase();
+      if (m === 'cod' || m === 'cash_on_delivery') return 'cod';
+      return 'pending';
+    })(),
     paymentId: apiOrder.paymentId || null,
     subtotal: apiOrder.subtotal_minor != null ? minorToMajor(apiOrder.subtotal_minor) : parseFloat(apiOrder.subtotal || 0),
     tax: parseFloat(apiOrder.tax || 0),
@@ -44,6 +109,7 @@ function transformOrder(apiOrder) {
     cancelledAt: apiOrder.cancelledAt || null,
     cancelledReason: apiOrder.cancelledReason || null,
     deliveredAt: apiOrder.deliveredAt || apiOrder.delivered_at || null,
+    shippedAt: apiOrder.shippedAt || apiOrder.shipped_at || null,
     items: (apiOrder.items || []).map((item) => {
       const quantity = Number(item.quantity ?? 1) || 1;
       const unitPrice =

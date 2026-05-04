@@ -11,7 +11,7 @@ import Image from 'next/image';
 import ConfirmModal from '../../components/ConfirmModal';
 import PromptModal from '../../components/PromptModal';
 import PageTopBar from '../../components/PageTopBar';
-import { Check, MoreVertical, ShoppingCart, Percent, Package } from 'lucide-react';
+import { Check, MoreVertical, Package } from 'lucide-react';
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -27,7 +27,7 @@ export default function OrdersPage() {
     if (!isAuthenticated) router.replace('/');
   }, [authHydrated, isLoadingUser, isAuthenticated, router]);
   const cancelOrderMutation = useCancelOrder();
-  const { addToCart, cartCount } = useCart();
+  const { addToCart } = useCart();
   const [menuOpenId, setMenuOpenId] = useState(null);
   const { showAlert } = useAlert();
   const [filters, setFilters] = useState({
@@ -150,9 +150,11 @@ Payment Status: ${order.paymentStatus}
 
   if (!authHydrated || isLoadingUser) {
     return (
-      <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-gray-50">
-        <PageTopBar title="Your Orders" backHref="/profile" fallbackHref="/" />
-        <div className="flex flex-1 items-center justify-center">
+      <div className="flex min-h-screen flex-col bg-gray-50">
+        <div className="sticky top-0 z-20 shrink-0">
+          <PageTopBar title="Your Orders" backHref="/profile" fallbackHref="/" />
+        </div>
+        <div className="flex flex-1 items-center justify-center px-4 pb-24 pt-8">
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
       </div>
@@ -162,10 +164,12 @@ Payment Status: ${order.paymentStatus}
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-gray-50">
-      <PageTopBar title="Your Orders" backHref="/profile" fallbackHref="/" />
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      <div className="sticky top-0 z-20 shrink-0">
+        <PageTopBar title="Your Orders" backHref="/profile" fallbackHref="/" />
+      </div>
 
-      <div className="mx-auto min-h-0 w-full max-w-lg flex-1 overflow-y-auto overscroll-contain px-4 pb-28 pt-4 space-y-4 md:pb-8">
+      <div className="mx-auto w-full max-w-lg flex-1 space-y-4 px-4 pb-24 pt-4">
         {isLoading ? (
           <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
             <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent mx-auto" />
@@ -186,7 +190,20 @@ Payment Status: ${order.paymentStatus}
           </div>
         ) : (
           orders.map((order) => (
-            <div key={order.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div
+              key={order.id}
+              role="link"
+              tabIndex={0}
+              aria-label={`Order details for ${order.orderNumber || order.id}`}
+              className="cursor-pointer overflow-hidden rounded-2xl bg-white shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              onClick={() => router.push(`/order?id=${encodeURIComponent(order.id)}`)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  router.push(`/order?id=${encodeURIComponent(order.id)}`);
+                }
+              }}
+            >
               <div className="p-4">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
@@ -201,7 +218,7 @@ Payment Status: ${order.paymentStatus}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="font-bold text-gray-900">₹{order.total?.toFixed?.(0) ?? order.total}</span>
-                    <div className="relative">
+                    <div className="relative" onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
                         onClick={() => setMenuOpenId(menuOpenId === order.id ? null : order.id)}
@@ -212,8 +229,18 @@ Payment Status: ${order.paymentStatus}
                       </button>
                       {menuOpenId === order.id && (
                         <>
-                          <div className="fixed inset-0 z-10" aria-hidden onClick={() => setMenuOpenId(null)} />
-                          <div className="absolute right-0 top-full mt-1 z-20 min-w-[160px] py-1 bg-white rounded-xl border border-gray-200 shadow-lg">
+                          <div
+                            className="fixed inset-0 z-10"
+                            aria-hidden
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMenuOpenId(null);
+                            }}
+                          />
+                          <div
+                            className="absolute right-0 top-full z-20 mt-1 min-w-[160px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <Link
                               href={`/order?id=${encodeURIComponent(order.id)}`}
                               className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
@@ -270,17 +297,17 @@ Payment Status: ${order.paymentStatus}
                 </div>
 
                 {/* Rate Order | Order Again */}
-                <div className="flex gap-2">
+                <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                   <button
                     type="button"
-                    className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-800 font-medium text-sm hover:bg-gray-50 transition-colors"
+                    className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-50"
                   >
                     Rate Order
                   </button>
                   <button
                     type="button"
                     onClick={() => handleReorder(order)}
-                    className="flex-1 py-2.5 rounded-xl border border-primary text-primary font-medium text-sm hover:bg-primary/10 transition-colors"
+                    className="flex-1 rounded-xl border border-primary py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
                   >
                     Order Again
                   </button>
@@ -289,27 +316,6 @@ Payment Status: ${order.paymentStatus}
             </div>
           ))
         )}
-      </div>
-
-      {/* Bottom bar: discount offer + Cart */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-gray-800 text-white rounded-t-2xl px-4 py-3 flex items-center justify-between gap-4 md:hidden" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="flex-shrink-0 w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-            <Percent className="w-5 h-5" strokeWidth={2} />
-          </span>
-          <div className="min-w-0">
-            <p className="font-semibold text-sm truncate">Unlock extra ₹30 OFF</p>
-            <p className="text-xs text-white/80 truncate">Shop for ₹519 more</p>
-          </div>
-        </div>
-        <Link
-          href="/cart"
-          className="flex-shrink-0 flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl font-semibold text-sm"
-        >
-          <ShoppingCart className="w-5 h-5" strokeWidth={2} />
-          <span>Cart</span>
-          {cartCount > 0 && <span className="text-xs opacity-90">{cartCount} item{cartCount !== 1 ? 's' : ''}</span>}
-        </Link>
       </div>
 
       {/* Cancel Order Prompt Modal */}

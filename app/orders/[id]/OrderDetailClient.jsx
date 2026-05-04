@@ -21,7 +21,7 @@ function IconBack() {
     </svg>
   );
 }
-function IconCheck({ color = '#639922' }) {
+function IconCheck({ color = '#059669' }) {
   return (
     <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
       <path d="M2 5l2 2 4-4" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -51,8 +51,8 @@ function IconCancel() {
 }
 function IconReorder() {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-      <path d="M2 8a6 6 0 016-6 6 6 0 015.74 4.26M14 4v4h-4" stroke="#C0DD97" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-white" aria-hidden>
+      <path d="M2 8a6 6 0 016-6 6 6 0 015.74 4.26M14 4v4h-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -82,53 +82,49 @@ const TIMELINE_LABELS = {
 function fmtDate(d) {
   if (!d) return null;
   const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return null;
   return {
     day:  dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
     time: dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
   };
 }
 
-const STATUS_STYLES = {
-  confirmed:  { bg: '#EAF3DE', color: '#27500A', dot: '#639922' },
-  processing: { bg: '#EAF3DE', color: '#27500A', dot: '#639922' },
-  shipped:    { bg: '#E6F1FB', color: '#0C447C', dot: '#378ADD' },
-  delivered:  { bg: '#EAF3DE', color: '#27500A', dot: '#639922' },
-  cancelled:  { bg: '#FCEBEB', color: '#791F1F', dot: '#E24B4A' },
-  pending:    { bg: '#FAEEDA', color: '#633806', dot: '#EF9F27' },
+/** Tailwind rings — aligned with checkout / home (white + emerald) */
+const STATUS_PILL_CLASS = {
+  pending:    'bg-amber-50 text-amber-900 ring-1 ring-amber-200/90',
+  confirmed:  'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200/90',
+  processing: 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200/90',
+  shipped:    'bg-sky-50 text-sky-900 ring-1 ring-sky-200/90',
+  delivered:  'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200/90',
+  cancelled:  'bg-red-50 text-red-900 ring-1 ring-red-200/90',
 };
 
-const PAYMENT_STYLES = {
-  paid:     { bg: '#EAF3DE', color: '#27500A', dot: '#639922' },
-  success:  { bg: '#EAF3DE', color: '#27500A', dot: '#639922' },
-  pending:  { bg: '#FAEEDA', color: '#633806', dot: '#EF9F27' },
-  failed:   { bg: '#FCEBEB', color: '#791F1F', dot: '#E24B4A' },
-  refunded: { bg: '#F1EFE8', color: '#444441', dot: '#888780' },
+const PAYMENT_PILL_CLASS = {
+  paid:     'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200/90',
+  success:  'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200/90',
+  cod:      'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200/90',
+  pending:  'bg-amber-50 text-amber-900 ring-1 ring-amber-200/90',
+  failed:   'bg-red-50 text-red-900 ring-1 ring-red-200/90',
+  refunded: 'bg-gray-100 text-gray-700 ring-1 ring-gray-200/90',
 };
 
-function StatusPill({ label, styleMap, status }) {
-  const s = styleMap[status?.toLowerCase()] || styleMap.pending || { bg: '#F1EFE8', color: '#444441', dot: '#888780' };
+function StatusPill({ label, variant = 'fulfillment', status }) {
+  const key = String(status || 'pending').toLowerCase();
+  const map = variant === 'payment' ? PAYMENT_PILL_CLASS : STATUS_PILL_CLASS;
+  const cls = map[key] || (variant === 'payment' ? PAYMENT_PILL_CLASS.pending : STATUS_PILL_CLASS.pending);
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 99,
-      background: s.bg, color: s.color,
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.dot, display: 'inline-block' }} />
-      {label || status}
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${cls}`}
+    >
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-70" aria-hidden />
+      {label || key}
     </span>
   );
 }
 
-function Section({ children, style }) {
+function Section({ children, className = '' }) {
   return (
-    <div style={{
-      background: 'var(--color-background-primary)',
-      borderRadius: 16,
-      border: '0.5px solid var(--color-border-tertiary)',
-      overflow: 'hidden',
-      marginTop: 12,
-      ...style,
-    }}>
+    <div className={`mt-3 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm ${className}`}>
       {children}
     </div>
   );
@@ -136,75 +132,112 @@ function Section({ children, style }) {
 
 function SectionHeader({ title, right }) {
   return (
-    <div style={{
-      padding: '12px 16px',
-      borderBottom: '0.5px solid var(--color-border-tertiary)',
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    }}>
-      <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        {title}
-      </span>
-      {right && <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{right}</span>}
+    <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+      <span className="text-[11px] font-medium uppercase tracking-wider text-gray-500">{title}</span>
+      {right && <span className="text-xs text-gray-500">{right}</span>}
     </div>
   );
 }
 
+function pickStepDate(order, status) {
+  const created = order.createdAt;
+  const updated = order.updatedAt;
+  const delivered = order.deliveredAt;
+  const shipped = order.shippedAt;
+  if (status === 'delivered') return delivered || updated || created;
+  if (status === 'shipped') return shipped || updated || created;
+  if (status === 'pending') return created;
+  return updated || created;
+}
+
+function stepTimelineSubtitle(order, status, isActive, isDone, d) {
+  if (d) return `${d.day} · ${d.time}`;
+  if (status === 'shipped' && isActive) return 'Out for delivery';
+  if (isDone) return 'Completed';
+  if (isActive && status === 'pending') return 'Waiting for confirmation';
+  if (isActive) return 'In progress';
+  return '—';
+}
+
 function Timeline({ order }) {
+  if (order.status === 'cancelled') {
+    const cx = order.cancelledAt;
+    const d = fmtDate(cx);
+    return (
+      <div className="p-4">
+        <div className="rounded-xl border border-red-100 bg-red-50/90 px-3 py-3 text-[13px] text-red-900">
+          <p className="m-0 font-medium">Order cancelled</p>
+          {d ? (
+            <p className="mb-0 mt-1 text-[11px] text-red-800/90">
+              {d.day} · {d.time}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
   const currentIdx = STATUS_ORDER.indexOf(order.status);
-  const steps = STATUS_ORDER.slice(0, Math.max(currentIdx + 1, 2));
+  const safeIdx = currentIdx >= 0 ? currentIdx : 0;
+  const steps = STATUS_ORDER.slice(0, Math.max(safeIdx + 1, 1));
 
   return (
-    <div style={{ padding: 16 }}>
+    <div className="p-4">
       {steps.map((status, i) => {
-        const isDone   = i < steps.length - 1;
+        const isDone = i < steps.length - 1;
         const isActive = i === steps.length - 1;
-        const isLast   = i === steps.length - 1;
-        const dateRef  = status === 'delivered' ? order.deliveredAt : status === 'pending' ? order.createdAt : order.updatedAt;
+        const isLast = i === steps.length - 1;
+        const dateRef = pickStepDate(order, status);
         const d = fmtDate(dateRef);
+        const subtitle = stepTimelineSubtitle(order, status, isActive, isDone, d);
 
         return (
-          <div key={status} style={{ display: 'flex', gap: 12 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20, flexShrink: 0 }}>
-              <div style={{
-                width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, zIndex: 1,
-                background: isDone ? '#EAF3DE' : isActive ? '#27500A' : 'var(--color-background-secondary)',
-                border: `1.5px solid ${isDone ? '#639922' : isActive ? '#27500A' : 'var(--color-border-secondary)'}`,
-              }}>
+          <div key={status} className="flex gap-3">
+            <div className="flex w-5 shrink-0 flex-col items-center">
+              <div
+                className={`z-[1] flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-[1.5px] ${
+                  isDone
+                    ? 'border-emerald-500 bg-emerald-50'
+                    : isActive
+                      ? 'border-emerald-600 bg-emerald-600'
+                      : 'border-gray-200 bg-gray-50'
+                }`}
+              >
                 {isDone && <IconCheck />}
-                {isActive && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#C0DD97', display: 'block' }} />}
+                {isActive && <span className="block h-1.5 w-1.5 rounded-full bg-white" />}
               </div>
               {!isLast && (
-                <div style={{ width: 1.5, flex: 1, background: isDone ? '#97C459' : 'var(--color-border-tertiary)', margin: '2px 0' }} />
+                <div
+                  className={`my-0.5 w-[2px] flex-1 min-h-[20px] ${isDone ? 'bg-emerald-400' : 'bg-gray-200'}`}
+                />
               )}
             </div>
 
-            <div style={{ flex: 1, paddingBottom: isLast ? 0 : 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: isActive ? 'var(--color-text-primary)' : isDone ? 'var(--color-text-primary)' : 'var(--color-text-secondary)' }}>
+            <div className={`min-w-0 flex-1 ${isLast ? '' : 'pb-5'}`}>
+              <div
+                className={`text-[13px] font-medium ${
+                  isActive || isDone ? 'text-gray-900' : 'text-gray-500'
+                }`}
+              >
                 {TIMELINE_LABELS[status]}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-                {d ? `${d.day} · ${d.time}` : isActive && status === 'shipped' ? 'Out for delivery' : 'Pending'}
-              </div>
+              <div className="mt-0.5 text-[11px] text-gray-500">{subtitle}</div>
             </div>
           </div>
         );
       })}
 
-      {currentIdx < STATUS_ORDER.length - 1 && (
-        <div style={{ display: 'flex', gap: 12 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20, flexShrink: 0 }}>
-            <div style={{
-              width: 20, height: 20, borderRadius: '50%',
-              background: 'var(--color-background-secondary)',
-              border: '1.5px solid var(--color-border-secondary)',
-            }} />
+      {safeIdx < STATUS_ORDER.length - 1 && (
+        <div className="flex gap-3">
+          <div className="flex w-5 shrink-0 flex-col items-center">
+            <div className="h-5 w-5 shrink-0 rounded-full border-[1.5px] border-gray-200 bg-gray-50" />
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 500 }}>
-              {TIMELINE_LABELS[STATUS_ORDER[currentIdx + 1]]}
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-medium text-gray-500">
+              {TIMELINE_LABELS[STATUS_ORDER[safeIdx + 1]]}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-              {STATUS_ORDER[currentIdx + 1] === 'delivered' ? 'Expected today, 6–8 PM' : 'Upcoming'}
+            <div className="mt-0.5 text-[11px] text-gray-500">
+              {STATUS_ORDER[safeIdx + 1] === 'delivered' ? 'We will notify you when it ships' : 'Upcoming'}
             </div>
           </div>
         </div>
@@ -252,30 +285,32 @@ function downloadInvoice(order) {
 
 function LoadingState() {
   return (
-    <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-      <div style={{
-        width: 40, height: 40, borderRadius: '50%',
-        border: '2px solid #EAF3DE', borderTop: '2px solid #27500A',
-        animation: 'odSpin 0.8s linear infinite',
-      }} />
-      <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Loading order…</p>
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 bg-gray-50 px-4">
+      <div
+        className="h-10 w-10 animate-spin rounded-full border-2 border-emerald-100 border-t-emerald-600"
+        aria-hidden
+      />
+      <p className="text-sm text-gray-500">Loading order…</p>
     </div>
   );
 }
 
 function ErrorState({ message, ordersHref = '/orders' }) {
   return (
-    <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '0 24px', textAlign: 'center' }}>
-      <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#FCEBEB', border: '1.5px solid #F7C1C1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 bg-gray-50 px-6 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full border border-red-100 bg-red-50">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M10 6v5M10 14h.01M18 10A8 8 0 112 10a8 8 0 0116 0z" stroke="#A32D2D" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M10 6v5M10 14h.01M18 10A8 8 0 112 10a8 8 0 0116 0z" stroke="#b91c1c" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </div>
       <div>
-        <p style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 4 }}>Order not found</p>
-        <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{message || "This order doesn't exist or was removed."}</p>
+        <p className="mb-1 text-base font-medium text-gray-900">Order not found</p>
+        <p className="text-sm text-gray-500">{message || "This order doesn't exist or was removed."}</p>
       </div>
-      <Link href={ordersHref} style={{ padding: '10px 20px', borderRadius: 12, background: '#27500A', color: '#C0DD97', fontSize: 13, fontWeight: 500, textDecoration: 'none' }}>
+      <Link
+        href={ordersHref}
+        className="rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white no-underline hover:bg-emerald-700"
+      >
         View all orders
       </Link>
     </div>
@@ -290,37 +325,54 @@ function ReturnModal({ order, onClose, onSubmit }) {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' }}>
-      <div style={{ width: '100%', maxWidth: 480, background: 'var(--color-background-primary)', borderRadius: '20px 20px 0 0', border: '0.5px solid var(--color-border-tertiary)', padding: '20px 16px 32px', maxHeight: '80vh', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <p style={{ fontSize: 15, fontWeight: 500 }}>Request return / refund</p>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: 20, lineHeight: 1 }}>×</button>
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
+      <div className="max-h-[80vh] w-full max-w-[480px] overflow-y-auto rounded-t-[20px] border border-gray-100 bg-white px-4 pb-8 pt-5">
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-[15px] font-medium text-gray-900">Request return / refund</p>
+          <button type="button" onClick={onClose} className="cursor-pointer border-0 bg-transparent text-xl leading-none text-gray-400">
+            ×
+          </button>
         </div>
 
-        <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 10 }}>Select items to return</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+        <p className="mb-2.5 text-xs text-gray-500">Select items to return</p>
+        <div className="mb-3.5 flex flex-col gap-1.5">
           {order.items.map((item) => (
-            <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, border: `0.5px solid ${selected.includes(item.id) ? '#639922' : 'var(--color-border-tertiary)'}`, background: selected.includes(item.id) ? '#EAF3DE' : 'var(--color-background-secondary)', cursor: 'pointer' }}>
-              <input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggle(item.id)} style={{ accentColor: '#27500A' }} />
-              <span style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>{item.productName || item.name}</span>
+            <label
+              key={item.id}
+              className={`flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2 ${
+                selected.includes(item.id)
+                  ? 'border-emerald-300 bg-emerald-50'
+                  : 'border-gray-100 bg-gray-50'
+              }`}
+            >
+              <input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggle(item.id)} className="accent-emerald-600" />
+              <span className="text-[13px] text-gray-900">{item.productName || item.name}</span>
             </label>
           ))}
         </div>
 
-        <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 6 }}>Reason for return</p>
+        <p className="mb-1.5 text-xs text-gray-500">Reason for return</p>
         <textarea
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder="Describe your reason…"
           rows={3}
-          style={{ width: '100%', borderRadius: 10, border: '0.5px solid var(--color-border-secondary)', padding: '10px 12px', fontSize: 13, resize: 'vertical', background: 'var(--color-background-primary)', color: 'var(--color-text-primary)' }}
+          className="w-full resize-y rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-[13px] text-gray-900 placeholder:text-gray-400"
         />
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: '12px', borderRadius: 12, border: '0.5px solid var(--color-border-secondary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+        <div className="mt-3.5 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 cursor-pointer rounded-xl border border-gray-200 bg-gray-50 py-3 text-[13px] font-medium text-gray-900"
+          >
             Cancel
           </button>
-          <button onClick={() => onSubmit(selected, reason)} style={{ flex: 1, padding: '12px', borderRadius: 12, border: 'none', background: '#27500A', color: '#C0DD97', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+          <button
+            type="button"
+            onClick={() => onSubmit(selected, reason)}
+            className="flex-1 cursor-pointer rounded-xl border-0 bg-emerald-600 py-3 text-[13px] font-medium text-white hover:bg-emerald-700"
+          >
             Submit request
           </button>
         </div>
@@ -452,7 +504,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
         } finally { setIsRetrying(false); }
       },
       prefill: { name: user?.name || '', email: user?.email || '', contact: user?.phone || '' },
-      theme: { color: '#27500A' },
+      theme: { color: '#059669' },
       modal: { ondismiss: () => setIsRetrying(false) },
       notes: { order_id: ord.id || order.id, retry: 'true' },
     };
@@ -479,55 +531,100 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
 
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
 
-      <div style={{ background: 'var(--color-background-tertiary)', minHeight: '100svh', paddingBottom: 40 }}>
-        <div style={{ maxWidth: 480, margin: '0 auto' }}>
-
-          <div style={{ background: 'var(--color-background-primary)', borderBottom: '0.5px solid var(--color-border-tertiary)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, position: 'sticky', top: 0, zIndex: 10 }}>
-            <button onClick={() => router.push('/orders')} style={{ width: 32, height: 32, borderRadius: '50%', border: '0.5px solid var(--color-border-secondary)', background: 'var(--color-background-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+      <div className="min-h-svh bg-gray-50 pb-10">
+        <div className="mx-auto max-w-[480px]">
+          <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-100 bg-white px-4 py-3.5">
+            <button
+              type="button"
+              onClick={() => router.push('/orders')}
+              className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700"
+            >
               <IconBack />
             </button>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', margin: 0 }}>Order details</p>
-              <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', margin: 0, fontFamily: 'var(--font-mono)' }}>{order.orderNumber || order.id}</p>
+            <div className="min-w-0 flex-1">
+              <p className="m-0 text-base font-medium text-gray-900">Order details</p>
+              <p className="m-0 font-mono text-[11px] text-gray-500">{order.orderNumber || order.id}</p>
             </div>
-            <StatusPill label={order.status} styleMap={STATUS_STYLES} status={order.status} />
+            <StatusPill label={order.status} status={order.status} />
           </div>
 
-          <div style={{ padding: '0 12px' }}>
+          <div className="px-3">
             {canRetryPayment && (
-              <div style={{ marginTop: 12, borderRadius: 16, border: `0.5px solid ${order.paymentStatus === 'failed' ? '#F7C1C1' : '#FAC775'}`, background: order.paymentStatus === 'failed' ? '#FCEBEB' : '#FAEEDA', padding: '12px 14px', display: 'flex', gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: '50%', background: order.paymentStatus === 'failed' ? '#F7C1C1' : '#FAC775', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div
+                className={`mt-3 flex gap-2.5 rounded-2xl border p-3.5 ${
+                  order.paymentStatus === 'failed'
+                    ? 'border-red-100 bg-red-50'
+                    : 'border-amber-100 bg-amber-50'
+                }`}
+              >
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                    order.paymentStatus === 'failed' ? 'bg-red-100' : 'bg-amber-100'
+                  }`}
+                >
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path d="M8 5v4M8 11h.01M14 8A6 6 0 112 8a6 6 0 0112 0z" stroke={order.paymentStatus === 'failed' ? '#A32D2D' : '#633806'} strokeWidth="1.5" strokeLinecap="round" />
+                    <path
+                      d="M8 5v4M8 11h.01M14 8A6 6 0 112 8a6 6 0 0112 0z"
+                      stroke={order.paymentStatus === 'failed' ? '#b91c1c' : '#92400e'}
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
                   </svg>
                 </div>
                 <div>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: order.paymentStatus === 'failed' ? '#791F1F' : '#633806', margin: 0 }}>
+                  <p
+                    className={`m-0 text-[13px] font-medium ${
+                      order.paymentStatus === 'failed' ? 'text-red-900' : 'text-amber-900'
+                    }`}
+                  >
                     Payment {order.paymentStatus === 'failed' ? 'failed' : 'pending'}
                   </p>
-                  <p style={{ fontSize: 12, color: order.paymentStatus === 'failed' ? '#A32D2D' : '#854F0B', marginTop: 2, lineHeight: 1.5 }}>
-                    {order.paymentStatus === 'failed' ? 'Your payment could not be processed.' : 'Complete payment to confirm your order.'}
+                  <p
+                    className={`mt-0.5 text-xs leading-relaxed ${
+                      order.paymentStatus === 'failed' ? 'text-red-800' : 'text-amber-900/90'
+                    }`}
+                  >
+                    {order.paymentStatus === 'failed'
+                      ? 'Your payment could not be processed.'
+                      : 'Complete payment to confirm your order.'}
                   </p>
                   <button
+                    type="button"
                     onClick={handleRetryPayment}
                     disabled={isRetrying || retryMutation.isPending}
-                    style={{ marginTop: 8, padding: '7px 14px', borderRadius: 8, background: order.paymentStatus === 'failed' ? '#E24B4A' : '#EF9F27', color: order.paymentStatus === 'failed' ? '#FCEBEB' : '#412402', fontSize: 12, fontWeight: 500, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, opacity: (isRetrying || retryMutation.isPending) ? 0.6 : 1 }}
+                    className={`mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border-0 px-3.5 py-2 text-xs font-medium disabled:opacity-60 ${
+                      order.paymentStatus === 'failed'
+                        ? 'bg-red-600 text-white hover:bg-red-700'
+                        : 'bg-amber-600 text-white hover:bg-amber-700'
+                    }`}
                   >
-                    {isRetrying || retryMutation.isPending ? <><IconSpinner /> Processing…</> : <><IconRetry color={order.paymentStatus === 'failed' ? '#FCEBEB' : '#412402'} /> Retry payment</>}
+                    {isRetrying || retryMutation.isPending ? (
+                      <>
+                        <IconSpinner /> Processing…
+                      </>
+                    ) : (
+                      <>
+                        <IconRetry color="currentColor" /> Retry payment
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
             )}
 
-            <Section style={{ marginTop: 12 }}>
+            <Section>
               <SectionHeader
                 title="Order status"
                 right={fmtDate(order.createdAt)?.day}
               />
               <Timeline order={order} />
               {order.status === 'delivered' && (
-                <div style={{ padding: '0 16px 14px' }}>
-                  <button onClick={() => setShowReturn(true)} style={{ width: '100%', padding: '12px', borderRadius: 12, border: '0.5px solid #F5C4B3', background: '#FAECE7', color: '#712B13', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                <div className="px-4 pb-3.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowReturn(true)}
+                    className="w-full cursor-pointer rounded-xl border border-orange-100 bg-orange-50 py-3 text-[13px] font-medium text-orange-900 hover:bg-orange-100/80"
+                  >
                     Request return / refund
                   </button>
                 </div>
@@ -537,11 +634,11 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
             <Section>
               <SectionHeader title={`Items · ${order.items.length}`} right={fmt(order.subtotal)} />
               {order.items.map((item, idx) => (
-                <div key={item.id || idx} style={{
-                  padding: '12px 16px', display: 'flex', gap: 12, alignItems: 'center',
-                  borderTop: idx > 0 ? '0.5px solid var(--color-border-tertiary)' : 'none',
-                }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 10, background: 'var(--color-background-secondary)', border: '0.5px solid var(--color-border-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
+                <div
+                  key={item.id || idx}
+                  className={`flex items-center gap-3 px-4 py-3 ${idx > 0 ? 'border-t border-gray-100' : ''}`}
+                >
+                  <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
                     <Image
                       src={item.product?.images?.[0] || item.image || '/images/dummy.png'}
                       alt={item.productName || item.name || 'Item'}
@@ -550,17 +647,14 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                       sizes="48px"
                     />
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {item.productName || item.name}
-                    </p>
-                    <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-                      Qty {item.quantity}{item.productSku ? ` · SKU: ${item.productSku}` : ''}
+                  <div className="min-w-0 flex-1">
+                    <p className="m-0 truncate text-[13px] font-medium text-gray-900">{item.productName || item.name}</p>
+                    <p className="mt-0.5 text-[11px] text-gray-500">
+                      Qty {item.quantity}
+                      {item.productSku ? ` · SKU: ${item.productSku}` : ''}
                     </p>
                   </div>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}>
-                    {fmt(item.totalPrice)}
-                  </p>
+                  <p className="ml-auto shrink-0 whitespace-nowrap text-[13px] font-medium text-gray-900">{fmt(item.totalPrice)}</p>
                 </div>
               ))}
             </Section>
@@ -569,72 +663,107 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
               <SectionHeader title="Price summary" />
               {[
                 { label: 'Subtotal', value: fmt(order.subtotal) },
-                order.tax    > 0 ? { label: 'Tax',      value: fmt(order.tax) }      : null,
-                order.shipping   ? { label: 'Delivery', value: fmt(order.shipping) } : null,
-              ].filter(Boolean).map(({ label, value }) => (
-                <div key={label} style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--color-text-secondary)', borderTop: '0.5px solid var(--color-border-tertiary)' }}>
-                  <span>{label}</span><span style={{ color: 'var(--color-text-primary)' }}>{value}</span>
-                </div>
-              ))}
+                order.tax > 0 ? { label: 'Tax', value: fmt(order.tax) } : null,
+                order.shipping ? { label: 'Delivery', value: fmt(order.shipping) } : null,
+              ]
+                .filter(Boolean)
+                .map(({ label, value }) => (
+                  <div
+                    key={label}
+                    className="flex justify-between border-t border-gray-100 px-4 py-2.5 text-[13px] text-gray-500"
+                  >
+                    <span>{label}</span>
+                    <span className="text-gray-900">{value}</span>
+                  </div>
+                ))}
               {order.discount > 0 && (
-                <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', fontSize: 13, borderTop: '0.5px solid var(--color-border-tertiary)' }}>
-                  <span style={{ color: 'var(--color-text-secondary)' }}>Discount</span>
-                  <span style={{ color: '#27500A', fontWeight: 500 }}>−{fmt(order.discount)}</span>
+                <div className="flex justify-between border-t border-gray-100 px-4 py-2.5 text-[13px]">
+                  <span className="text-gray-500">Discount</span>
+                  <span className="font-medium text-emerald-700">−{fmt(order.discount)}</span>
                 </div>
               )}
-              <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)', borderTop: '0.5px solid var(--color-border-tertiary)' }}>
-                <span>Total paid</span><span>{fmt(order.total)}</span>
+              <div className="flex justify-between border-t border-gray-100 px-4 py-3 text-sm font-medium text-gray-900">
+                <span>Total paid</span>
+                <span>{fmt(order.total)}</span>
               </div>
             </Section>
 
             <Section>
               <SectionHeader title="Delivery & payment" />
-              <div style={{ padding: '12px 16px', fontSize: 13, color: 'var(--color-text-primary)', lineHeight: 1.7 }}>
-                {(addr.fullName || addr.name) && <p style={{ fontWeight: 500, margin: 0 }}>{addr.fullName || addr.name}{addr.phone ? ` · ${addr.phone}` : ''}</p>}
-                {(addr.street || addr.address) && <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{addr.street || addr.address}</p>}
-                {(addr.city || addr.state) && <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{[addr.city, addr.state].filter(Boolean).join(', ')}</p>}
-                {(addr.zipCode || addr.postalCode || addr.country) && <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{[addr.zipCode || addr.postalCode, addr.country].filter(Boolean).join(', ')}</p>}
-                {addr.landmark && <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', margin: '4px 0 0' }}>Near {addr.landmark}</p>}
-                {!Object.keys(addr).length && <p style={{ color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>No address on file</p>}
+              <div className="px-4 py-3 text-[13px] leading-relaxed text-gray-900">
+                {(addr.fullName || addr.name) && (
+                  <p className="m-0 font-medium">
+                    {addr.fullName || addr.name}
+                    {addr.phone ? ` · ${addr.phone}` : ''}
+                  </p>
+                )}
+                {(addr.street || addr.address) && <p className="m-0 text-gray-500">{addr.street || addr.address}</p>}
+                {(addr.city || addr.state) && (
+                  <p className="m-0 text-gray-500">{[addr.city, addr.state].filter(Boolean).join(', ')}</p>
+                )}
+                {(addr.zipCode || addr.postalCode || addr.country) && (
+                  <p className="m-0 text-gray-500">
+                    {[addr.zipCode || addr.postalCode, addr.country].filter(Boolean).join(', ')}
+                  </p>
+                )}
+                {addr.landmark && (
+                  <p className="mb-0 mt-1 text-[11px] text-gray-500">Near {addr.landmark}</p>
+                )}
+                {!Object.keys(addr).length && <p className="m-0 italic text-gray-500">No address on file</p>}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '0.5px solid var(--color-border-tertiary)' }}>
-                <div style={{ padding: '12px 16px', borderRight: '0.5px solid var(--color-border-tertiary)' }}>
-                  <p style={{ fontSize: 10, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Payment</p>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', marginTop: 3 }}>
+              <div className="grid grid-cols-2 border-t border-gray-100">
+                <div className="border-r border-gray-100 px-4 py-3">
+                  <p className="m-0 text-[10px] uppercase tracking-wider text-gray-500">Payment</p>
+                  <p className="mb-0 mt-1 text-[13px] font-medium text-gray-900">
                     {order.paymentMethod === 'cod' ? 'Cash on delivery' : order.paymentMethod || '—'}
                   </p>
                 </div>
-                <div style={{ padding: '12px 16px' }}>
-                  <p style={{ fontSize: 10, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Status</p>
-                  <div style={{ marginTop: 4 }}>
-                    <StatusPill styleMap={PAYMENT_STYLES} status={order.paymentStatus?.toLowerCase()} label={order.paymentStatus} />
+                <div className="px-4 py-3">
+                  <p className="m-0 text-[10px] uppercase tracking-wider text-gray-500">Status</p>
+                  <div className="mt-1">
+                    <StatusPill
+                      variant="payment"
+                      status={order.paymentStatus?.toLowerCase()}
+                      label={order.paymentStatus}
+                    />
                   </div>
                 </div>
               </div>
             </Section>
 
             <Section>
-              <div style={{ padding: 12, display: 'flex', gap: 8 }}>
+              <div className="flex gap-2 p-3">
                 {order.canCancel && (
                   <button
+                    type="button"
                     onClick={() => setShowCancelPrompt(true)}
                     disabled={cancelMutation.isPending}
-                    style={{ flex: 1, padding: 13, borderRadius: 12, background: '#FCEBEB', color: '#791F1F', fontSize: 13, fontWeight: 500, border: '0.5px solid #F7C1C1', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: cancelMutation.isPending ? 0.6 : 1 }}
+                    className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-red-100 bg-red-50 py-3.5 text-[13px] font-medium text-red-900 disabled:opacity-60"
                   >
-                    {cancelMutation.isPending ? <><IconSpinner /> Cancelling…</> : <><IconCancel /> Cancel order</>}
+                    {cancelMutation.isPending ? (
+                      <>
+                        <IconSpinner /> Cancelling…
+                      </>
+                    ) : (
+                      <>
+                        <IconCancel /> Cancel order
+                      </>
+                    )}
                   </button>
                 )}
                 {order.status === 'delivered' && (
                   <button
+                    type="button"
                     onClick={() => downloadInvoice(order)}
-                    style={{ flex: 1, padding: 13, borderRadius: 12, background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontSize: 13, fontWeight: 500, border: '0.5px solid var(--color-border-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                    className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 py-3.5 text-[13px] font-medium text-gray-900"
                   >
                     <IconDownload /> Invoice
                   </button>
                 )}
                 <button
+                  type="button"
                   onClick={handleReorder}
-                  style={{ flex: 1, padding: 13, borderRadius: 12, background: '#27500A', color: '#C0DD97', fontSize: 13, fontWeight: 500, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                  className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border-0 bg-emerald-600 py-3.5 text-[13px] font-medium text-white hover:bg-emerald-700"
                 >
                   <IconReorder /> Reorder
                 </button>
@@ -642,7 +771,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
             </Section>
 
             {related.length > 0 && (
-              <div style={{ marginTop: 20 }}>
+              <div className="mt-5">
                 <ProductCarousel products={related} title="You might also like" showMoreLink="/products" />
               </div>
             )}

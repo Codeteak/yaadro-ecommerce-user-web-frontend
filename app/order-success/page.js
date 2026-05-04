@@ -21,14 +21,14 @@ const safe = (v) => (v === null || v === undefined ? '' : String(v));
 
 function ConfettiDots() {
   const dots = [
-    { color: '#C0DD97', size: 7,  left: '8%',  delay: '0s',    dur: '3.2s' },
-    { color: '#97C459', size: 5,  left: '22%', delay: '0.4s',  dur: '2.8s' },
-    { color: '#EAF3DE', size: 9,  left: '38%', delay: '0.1s',  dur: '3.8s' },
-    { color: '#FAC775', size: 5,  left: '54%', delay: '0.7s',  dur: '2.5s' },
-    { color: '#C0DD97', size: 6,  left: '66%', delay: '0.2s',  dur: '3.5s' },
-    { color: '#97C459', size: 8,  left: '78%', delay: '0.5s',  dur: '2.9s' },
-    { color: '#EAF3DE', size: 5,  left: '88%', delay: '0.9s',  dur: '3.1s' },
-    { color: '#FAC775', size: 7,  left: '95%', delay: '0.3s',  dur: '4.0s' },
+    { color: '#a7f3d0', size: 7, left: '8%', delay: '0s', dur: '3.2s' },
+    { color: '#34d399', size: 5, left: '22%', delay: '0.4s', dur: '2.8s' },
+    { color: '#d1fae5', size: 9, left: '38%', delay: '0.1s', dur: '3.8s' },
+    { color: '#6ee7b7', size: 5, left: '54%', delay: '0.7s', dur: '2.5s' },
+    { color: '#a7f3d0', size: 6, left: '66%', delay: '0.2s', dur: '3.5s' },
+    { color: '#10b981', size: 8, left: '78%', delay: '0.5s', dur: '2.9s' },
+    { color: '#ecfdf5', size: 5, left: '88%', delay: '0.9s', dur: '3.1s' },
+    { color: '#059669', size: 7, left: '95%', delay: '0.3s', dur: '4.0s' },
   ];
 
   return (
@@ -58,13 +58,13 @@ function CheckIcon({ rejected }) {
   if (rejected) {
     return (
       <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-        <path d="M8 8l12 12M20 8L8 20" stroke="#FAC775" strokeWidth="2.5" strokeLinecap="round"/>
+        <path d="M8 8l12 12M20 8L8 20" stroke="#fef3c7" strokeWidth="2.5" strokeLinecap="round" />
       </svg>
     );
   }
   return (
     <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-      <path d="M7 14.5L11.5 19L21 9.5" stroke="#EAF3DE" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M7 14.5L11.5 19L21 9.5" stroke="#ecfdf5" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -84,20 +84,22 @@ function OrderCard({ order, orderId, paymentStatus }) {
           <div style={styles.orderIdLabel}>Order ID</div>
           <div style={styles.orderId}>{safe(order?.orderNumber || orderId)}</div>
         </div>
-        <div style={{
-          ...styles.statusPill,
-          background: paymentStatus === 'cancelled' || paymentStatus === 'failed'
-            ? '#FAEEDA' : '#EAF3DE',
-          color: paymentStatus === 'cancelled' || paymentStatus === 'failed'
-            ? '#854F0B' : '#3B6D11',
-        }}>
-          <span style={{
-            ...styles.statusDot,
-            background: paymentStatus === 'cancelled' || paymentStatus === 'failed'
-              ? '#EF9F27' : '#639922',
-          }} />
-          {paymentStatus === 'cancelled' || paymentStatus === 'failed'
-            ? 'Attention' : 'Confirmed'}
+        <div
+          style={{
+            ...styles.statusPill,
+            background:
+              paymentStatus === 'cancelled' || paymentStatus === 'failed' ? '#fef3c7' : '#d1fae5',
+            color: paymentStatus === 'cancelled' || paymentStatus === 'failed' ? '#92400e' : '#065f46',
+          }}
+        >
+          <span
+            style={{
+              ...styles.statusDot,
+              background:
+                paymentStatus === 'cancelled' || paymentStatus === 'failed' ? '#f59e0b' : '#059669',
+            }}
+          />
+          {paymentStatus === 'cancelled' || paymentStatus === 'failed' ? 'Attention' : 'Confirmed'}
         </div>
       </div>
 
@@ -154,8 +156,9 @@ function OrderCard({ order, orderId, paymentStatus }) {
           </div>
         )}
         {order?.discount != null && Number(order.discount) > 0 && (
-          <div style={{ ...styles.totalLine, color: '#3B6D11' }}>
-            <span>Discount</span><span>−{money(order.discount)}</span>
+          <div style={{ ...styles.totalLine, color: '#047857' }}>
+            <span>Discount</span>
+            <span>−{money(order.discount)}</span>
           </div>
         )}
         {order?.total != null && (
@@ -378,12 +381,23 @@ function OrderSuccessContent() {
           </div>
 
           {/* Icon */}
-          <div style={{
-            ...styles.iconRing,
-            background: isRejected ? '#FAEEDA' : '#EAF3DE',
-          }}>
-            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `2px solid ${isRejected ? '#EF9F27' : '#639922'}`, animation: 'osPulse 2s ease-out infinite', opacity: 0 }} />
-            <div style={{ ...styles.iconInner, background: isRejected ? '#EF9F27' : '#27500A' }}>
+          <div
+            style={{
+              ...styles.iconRing,
+              background: isRejected ? '#fef3c7' : '#d1fae5',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '50%',
+                border: `2px solid ${isRejected ? '#f59e0b' : '#059669'}`,
+                animation: 'osPulse 2s ease-out infinite',
+                opacity: 0,
+              }}
+            />
+            <div style={{ ...styles.iconInner, background: isRejected ? '#f59e0b' : '#059669' }}>
               <CheckIcon rejected={isRejected} />
             </div>
           </div>
@@ -437,7 +451,7 @@ function OrderSuccessContent() {
 function ArrowIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-      <path d="M3 8h10M9 4l4 4-4 4" stroke="#C0DD97" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M3 8h10M9 4l4 4-4 4" stroke="#ecfdf5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -454,11 +468,11 @@ function DownloadIcon() {
    Inline styles object (keeps JSX clean)
 ───────────────────────────────────────────────────────────── */
 const styles = {
-  /* Layout */
+  /* Layout — white + emerald, aligned with checkout */
   page: {
     minHeight: '100svh',
     width: '100%',
-    background: 'linear-gradient(180deg, #f0f7ea 0%, #ffffff 60%)',
+    background: 'linear-gradient(180deg, #ecfdf5 0%, #f9fafb 50%, #ffffff 100%)',
     display: 'flex',
     alignItems: 'flex-end',
     justifyContent: 'center',
@@ -471,9 +485,10 @@ const styles = {
     maxWidth: 440,
     background: '#ffffff',
     borderRadius: '24px 24px 0 0',
-    border: '0.5px solid #e5e7eb',
+    border: '1px solid #f3f4f6',
     borderBottom: 'none',
     paddingBottom: 40,
+    boxShadow: '0 -4px 24px rgba(15, 118, 110, 0.06)',
     animation: 'osSlideUp 0.4s cubic-bezier(0.22,1,0.36,1) both',
     position: 'relative',
     zIndex: 2,
@@ -570,8 +585,8 @@ const styles = {
   btnPrimary: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
     width: '100%', padding: '14px 16px',
-    borderRadius: 14, background: '#27500A',
-    color: '#C0DD97', fontSize: 14, fontWeight: 600,
+    borderRadius: 14, background: '#059669',
+    color: '#ffffff', fontSize: 14, fontWeight: 600,
     border: 'none', cursor: 'pointer', textDecoration: 'none',
     textAlign: 'center',
   },
@@ -605,11 +620,31 @@ const styles = {
 ───────────────────────────────────────────────────────────── */
 function SuspenseFallback() {
   return (
-    <div style={{ minHeight: '100svh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f7ea' }}>
+    <div
+      style={{
+        minHeight: '100svh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(180deg, #ecfdf5 0%, #f9fafb 100%)',
+      }}
+    >
       <div style={{ textAlign: 'center' }}>
-        <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#EAF3DE', border: '2px solid #639922', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: '50%',
+            background: '#d1fae5',
+            border: '2px solid #059669',
+            margin: '0 auto 12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
-            <path d="M7 14.5L11.5 19L21 9.5" stroke="#639922" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M7 14.5L11.5 19L21 9.5" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
         <p style={{ fontSize: 13, color: '#6b7280' }}>Preparing your order details…</p>

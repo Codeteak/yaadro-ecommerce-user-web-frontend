@@ -84,21 +84,40 @@ export function CartProvider({ children }) {
   const removeFromCartMutation = useRemoveFromCart();
   const clearCartMutation = useClearCart();
 
-  // On login, best-effort sync local cart into API cart once.
+  // On login, best-effort sync guest cart (memory + localStorage) into API cart once.
+  // After redirect login, memory is empty but `cart` may still be in localStorage — read both here
+  // so we do not depend on effect order vs. the hydration effect above.
   useEffect(() => {
     if (!useApiCart) {
       syncedLocalToApiRef.current = false;
       return;
     }
     if (syncedLocalToApiRef.current) return;
-    if (!localCartItems || localCartItems.length === 0) {
+
+    const getGuestCartLinesForSync = () => {
+      if (Array.isArray(localCartItems) && localCartItems.length > 0) {
+        return localCartItems;
+      }
+      if (typeof window === 'undefined') return [];
+      try {
+        const raw = localStorage.getItem('cart');
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    };
+
+    const lines = getGuestCartLinesForSync();
+    if (!lines.length) {
       syncedLocalToApiRef.current = true;
       return;
     }
 
     (async () => {
       try {
-        for (const it of localCartItems) {
+        for (const it of lines) {
           const qty = Number(it?.quantity ?? 1) || 1;
           if (!it?.id && !it?.productId && !it?.slug) continue;
           try {

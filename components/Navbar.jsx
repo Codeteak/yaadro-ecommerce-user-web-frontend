@@ -16,6 +16,111 @@ import { getResolvedProductImageUrls } from '../utils/productImages';
 import { User, MapPin } from 'lucide-react';
 // Category strip removed
 
+/** Rotating “Search for …” hint in the header bar (slides up, next keyword from below). */
+const SEARCH_HINT_WORDS = [
+  'milk',
+  'vegetables',
+  'fruits',
+  'rice',
+  'atta & flour',
+  'cooking oil',
+  'snacks',
+  'biscuits',
+  'spices & masala',
+  'ghee',
+  'paneer',
+  'eggs',
+  'bread',
+  'breakfast cereal',
+  'tea & coffee',
+  'juice & drinks',
+  'frozen foods',
+  'organic staples',
+  'dry fruits',
+  'honey',
+  'pickles',
+  'noodles & pasta',
+  'sugar & salt',
+  'cleaning supplies',
+  'baby care',
+  'personal care',
+];
+const SEARCH_HINT_SLIDE_MS = 2800;
+const SEARCH_HINT_TRANSITION_MS = 500;
+
+function NavbarSearchInput({ value, onChange, onFocus }) {
+  const slideWords = [...SEARCH_HINT_WORDS, SEARCH_HINT_WORDS[0]];
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [hintNoTransition, setHintNoTransition] = useState(false);
+  const empty = !value.trim();
+
+  useEffect(() => {
+    if (!empty) return undefined;
+    const id = setInterval(() => {
+      setSlideIndex((i) => i + 1);
+    }, SEARCH_HINT_SLIDE_MS);
+    return () => clearInterval(id);
+  }, [empty]);
+
+  useEffect(() => {
+    if (slideIndex < SEARCH_HINT_WORDS.length) return undefined;
+    const t = setTimeout(() => {
+      setHintNoTransition(true);
+      setSlideIndex(0);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setHintNoTransition(false));
+      });
+    }, SEARCH_HINT_TRANSITION_MS);
+    return () => clearTimeout(t);
+  }, [slideIndex]);
+
+  return (
+    <div className="relative min-w-0 flex-1">
+      {empty && (
+        <div
+          className="pointer-events-none absolute inset-0 z-0 flex items-center text-sm text-gray-500"
+          aria-hidden
+        >
+          <span className="shrink-0">Search for</span>
+          <span className="relative ml-px inline-block h-[1.25em] overflow-hidden">
+            <div
+              className={
+                hintNoTransition
+                  ? ''
+                  : 'transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)]'
+              }
+              style={{
+                transform: `translateY(calc(${-slideIndex} * 1.25em))`,
+              }}
+            >
+              {slideWords.map((word, i) => (
+                <div
+                  key={`${word}-${i}`}
+                  className="h-[1.25em] leading-[1.25em] whitespace-nowrap"
+                >
+                  {` "${word}"`}
+                </div>
+              ))}
+            </div>
+          </span>
+        </div>
+      )}
+      <input
+        type="text"
+        placeholder=""
+        value={value}
+        onChange={onChange}
+        onFocus={onFocus}
+        aria-label="Search products"
+        autoComplete="off"
+        className={`relative z-10 w-full border-0 bg-transparent outline-none text-sm caret-gray-900 ${
+          empty ? 'text-transparent' : 'text-gray-900'
+        }`}
+      />
+    </div>
+  );
+}
+
 export default function Navbar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -226,13 +331,10 @@ export default function Navbar() {
                 <svg className="w-5 h-5 text-gray-800 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z" />
                 </svg>
-                <input
-                  type="text"
-                  placeholder='Search for "Milk"'
+                <NavbarSearchInput
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => searchQuery.trim() && setShowResults(true)}
-                  className="w-full border-0 outline-none text-sm text-gray-900 placeholder:text-gray-500 bg-transparent"
                 />
               </div>
             </form>
