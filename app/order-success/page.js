@@ -111,11 +111,15 @@ function OrderCard({ order, orderId, paymentStatus }) {
             const qty   = item.quantity ?? 1;
             const unit  = item.unitPrice ?? item.price ?? 0;
             const total = item.totalPrice ?? (Number(unit) * qty);
+            const imgSrc =
+              item?.product?.images?.[0] ||
+              (typeof item?.image === 'string' ? item.image : item?.image?.url) ||
+              '';
             return (
               <div key={idx} style={styles.itemRow}>
                 <div style={styles.itemThumb}>
-                  {item.image
-                    ? <img src={item.image} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
+                  {imgSrc
+                    ? <img src={imgSrc} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
                     : <span style={{ fontSize: 18 }}>📦</span>
                   }
                 </div>
@@ -336,17 +340,6 @@ function OrderSuccessContent() {
     } catch (e) { console.error(e); }
   };
 
-  const handleDownloadHtml = () => {
-    try {
-      const html = buildBillHtml({ order, orderId, paymentStatus });
-      const blob = new Blob([html], { type: 'text/html' });
-      const url  = URL.createObjectURL(blob);
-      const a    = Object.assign(document.createElement('a'), { href: url, download: `bill-${order?.orderNumber || orderId}.html` });
-      document.body.appendChild(a); a.click();
-      document.body.removeChild(a); URL.revokeObjectURL(url);
-    } catch (e) { console.error(e); }
-  };
-
   return (
     <>
       {/* Keyframe injection */}
@@ -372,12 +365,22 @@ function OrderSuccessContent() {
       <div style={styles.page}>
         <ConfettiDots />
 
-        {/* Bottom sheet */}
+        {/* Full-screen page */}
         <div style={styles.sheet}>
-
-          {/* Drag handle */}
-          <div style={styles.handleWrap}>
-            <div style={styles.handle} />
+          {/* Top actions */}
+          <div style={styles.topBar}>
+            <button
+              type="button"
+              onClick={() => router.push('/')}
+              style={styles.topBarBtn}
+              aria-label="Back to home"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M15 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <div style={styles.topBarTitle}>Order status</div>
+            <div style={{ width: 38 }} />
           </div>
 
           {/* Icon */}
@@ -421,10 +424,6 @@ function OrderSuccessContent() {
             <button type="button" onClick={handleDownloadPdf} style={styles.btnSecondary}>
               <DownloadIcon />
               Download invoice
-            </button>
-
-            <button type="button" onClick={handleDownloadHtml} style={{ ...styles.btnSecondary, fontSize: 12, paddingTop: 10, paddingBottom: 10 }}>
-              Save as HTML
             </button>
 
             <Link href="/" style={styles.btnGhost}>
@@ -474,29 +473,56 @@ const styles = {
     width: '100%',
     background: 'linear-gradient(180deg, #ecfdf5 0%, #f9fafb 50%, #ffffff 100%)',
     display: 'flex',
-    alignItems: 'flex-end',
+    alignItems: 'stretch',
     justifyContent: 'center',
     position: 'relative',
     overflow: 'hidden',
-    paddingTop: 24,
+    padding: 0,
   },
   sheet: {
     width: '100%',
-    maxWidth: 440,
+    maxWidth: '100%',
     background: '#ffffff',
-    borderRadius: '24px 24px 0 0',
-    border: '1px solid #f3f4f6',
-    borderBottom: 'none',
+    borderRadius: 0,
+    border: 'none',
     paddingBottom: 40,
-    boxShadow: '0 -4px 24px rgba(15, 118, 110, 0.06)',
-    animation: 'osSlideUp 0.4s cubic-bezier(0.22,1,0.36,1) both',
+    boxShadow: 'none',
+    animation: 'osSlideUp 0.28s cubic-bezier(0.22,1,0.36,1) both',
     position: 'relative',
     zIndex: 2,
+    overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
   },
-
-  /* Handle */
-  handleWrap: { display: 'flex', justifyContent: 'center', padding: '12px 0 8px' },
-  handle: { width: 40, height: 4, borderRadius: 99, background: '#e5e7eb' },
+  topBar: {
+    position: 'sticky',
+    top: 0,
+    zIndex: 3,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '12px 14px',
+    borderBottom: '1px solid #f3f4f6',
+    background: 'rgba(255,255,255,0.92)',
+    backdropFilter: 'blur(10px)',
+  },
+  topBarBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    border: '1px solid #e5e7eb',
+    background: '#f9fafb',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#374151',
+    cursor: 'pointer',
+  },
+  topBarTitle: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: '#111827',
+    letterSpacing: '-0.01em',
+  },
 
   /* Icon */
   iconRing: {

@@ -1,8 +1,98 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useCategoriesTree } from '../../hooks/useProducts';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { useCategoriesTree, useSearchProducts } from '../../hooks/useProducts';
+import { getResolvedProductImageUrls } from '../../utils/productImages';
+
+/** Rotating hint (same UX as header search). */
+const FALLBACK_HINT_WORDS = [
+  'milk',
+  'vegetables',
+  'fruits',
+  'rice',
+  'atta & flour',
+  'cooking oil',
+  'snacks',
+  'biscuits',
+  'spices & masala',
+  'tea & coffee',
+];
+const SEARCH_HINT_SLIDE_MS = 2800;
+const SEARCH_HINT_TRANSITION_MS = 500;
+
+function RotatingHintInput({ value, onChange, hintWords, inputProps }) {
+  const slideWords = [...hintWords, hintWords[0]];
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [hintNoTransition, setHintNoTransition] = useState(false);
+  const empty = !String(value || '').trim();
+
+  useEffect(() => {
+    if (!empty) return undefined;
+    const id = setInterval(() => {
+      setSlideIndex((i) => i + 1);
+    }, SEARCH_HINT_SLIDE_MS);
+    return () => clearInterval(id);
+  }, [empty]);
+
+  useEffect(() => {
+    if (slideIndex < hintWords.length) return undefined;
+    const t = setTimeout(() => {
+      setHintNoTransition(true);
+      setSlideIndex(0);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setHintNoTransition(false));
+      });
+    }, SEARCH_HINT_TRANSITION_MS);
+    return () => clearTimeout(t);
+  }, [slideIndex, hintWords.length]);
+
+  return (
+    <div className="relative min-w-0 flex-1">
+      {empty && hintWords.length > 0 && (
+        <div
+          className="pointer-events-none absolute inset-0 z-0 flex items-center text-[13px] text-gray-500"
+          aria-hidden
+        >
+          <span className="shrink-0">Search for</span>
+          <span className="relative ml-px inline-block h-[1.25em] overflow-hidden">
+            <div
+              className={
+                hintNoTransition
+                  ? ''
+                  : 'transition-transform duration-500 ease-[cubic-bezier(0.33,1,0.68,1)]'
+              }
+              style={{
+                transform: `translateY(calc(${-slideIndex} * 1.25em))`,
+              }}
+            >
+              {slideWords.map((word, i) => (
+                <div
+                  key={`${word}-${i}`}
+                  className="h-[1.25em] leading-[1.25em] whitespace-nowrap"
+                >
+                  {` "${word}"`}
+                </div>
+              ))}
+            </div>
+          </span>
+        </div>
+      )}
+      <input
+        {...inputProps}
+        value={value}
+        onChange={onChange}
+        placeholder=""
+        autoComplete="off"
+        className={`relative z-10 w-full border-0 bg-transparent outline-none text-[13px] caret-gray-900 ${
+          empty ? 'text-transparent' : 'text-gray-900'
+        } ${inputProps?.className || ''}`}
+      />
+    </div>
+  );
+}
 
 /* ─────────────────────────────────────────────
    Color map — matched by category name keywords
@@ -125,12 +215,29 @@ function SkeletonCard() {
    Main page
 ───────────────────────────────────────────── */
 export default function CategoriesPage() {
+  const router = useRouter();
   const { data: categoryTree = [], isLoading } = useCategoriesTree();
   const [search, setSearch] = useState('');
 
   const rootCategories = (categoryTree || []).filter(
     (cat) => cat.isActive !== false && (cat.level === 0 || cat.parentId == null)
   );
+
+  const q = search.trim();
+  const { data: productSearchData, isLoading: productSearchLoading } = useSearchProducts({
+    q,
+    page: 1,
+    per_page: 8,
+  });
+  const productMatches = q.length >= 2 ? productSearchData?.products || [] : [];
+
+  const hintWords = useMemo(() => {
+    const words = (rootCategories || [])
+      .map((c) => String(c?.name || '').trim())
+      .filter(Boolean)
+      .slice(0, 12);
+    return words.length ? words : FALLBACK_HINT_WORDS;
+  }, [rootCategories]);
 
   const filtered = search.trim()
     ? rootCategories.filter((cat) => {
@@ -151,19 +258,31 @@ export default function CategoriesPage() {
 
       {/* Search bar */}
       <div className="px-4 pb-3 relative">
-        <svg
-          className="absolute left-7 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
-          fill="none" stroke="currentColor" viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search categories…"
-          className="w-full h-10 pl-9 pr-4 rounded-full border border-gray-200 bg-gray-50 text-[13px] text-gray-900 placeholder-gray-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
-        />
+        <div className="flex items-center gap-2 px-3 h-10 rounded-full border border-gray-200 bg-gray-50 focus-within:bg-white focus-within:border-emerald-500 transition">
+          <svg
+            className="h-4 w-4 text-gray-400 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+          <RotatingHintInput
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            hintWords={hintWords}
+            inputProps={{
+              type: 'text',
+              'aria-label': 'Search categories',
+            }}
+          />
+        </div>
       </div>
 
       {/* Category grid */}
@@ -192,6 +311,82 @@ export default function CategoriesPage() {
             ))
         }
       </div>
+
+      {/* Matching products (based on keywords) */}
+      {q.length >= 2 && (
+        <div className="px-4 mt-5">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] font-medium text-gray-400 uppercase tracking-widest">
+              Matching products
+            </p>
+            {productMatches.length > 0 && (
+              <Link
+                href={`/products?search=${encodeURIComponent(q)}`}
+                className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800"
+              >
+                View all
+              </Link>
+            )}
+          </div>
+
+          {productSearchLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-[66px] rounded-2xl border border-gray-100 bg-white animate-pulse"
+                />
+              ))}
+            </div>
+          ) : productMatches.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-4 py-4 text-center">
+              <p className="text-[13px] font-medium text-gray-700">No products found</p>
+              <p className="mt-1 text-[12px] text-gray-400">
+                Try a different keyword.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {productMatches.map((p) => {
+                const img = getResolvedProductImageUrls(p)[0];
+                const slugOrId = p?.slug || p?.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      if (!slugOrId) return;
+                      router.push(`/product?id=${encodeURIComponent(String(slugOrId).trim())}`);
+                    }}
+                    className="w-full flex items-center gap-3 rounded-2xl border border-gray-100 bg-white px-3.5 py-3 text-left hover:border-gray-200 active:scale-[0.99] transition"
+                  >
+                    <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-gray-50 border border-gray-100">
+                      <Image
+                        src={img}
+                        alt={p?.name || 'Product'}
+                        fill
+                        className="object-cover"
+                        sizes="48px"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-medium text-gray-900 truncate">
+                        {p?.name}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-gray-500 truncate">
+                        {p?.category || p?.categoryName || ''}
+                      </p>
+                    </div>
+                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* View all products CTA */}
       {!isLoading && filtered.length > 0 && (

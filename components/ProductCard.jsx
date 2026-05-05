@@ -7,7 +7,7 @@ import { getEffectivePrice, formatRupeeINR } from '../utils/productUtils';
 import { getResolvedProductImageUrls } from '../utils/productImages';
 import ProductImageWithFallback from './ProductImageWithFallback';
 
-export default function ProductCard({ product, isCarousel = false }) {
+export default function ProductCard({ product, isCarousel = false, variant = 'default' }) {
   const { addToCart, cartItems, updateQuantity, removeFromCart } = useCart();
   const legacyOriginal =
     product.originalPrice != null ? parseFloat(product.originalPrice) : null;
@@ -153,6 +153,11 @@ export default function ProductCard({ product, isCarousel = false }) {
   const productTag = product.tag || product.category;
   const productSlugOrId = product.slug || product.id;
 
+  const chromeClass =
+    variant === 'flat'
+      ? 'border-0 bg-transparent shadow-none hover:shadow-none hover:border-transparent active:shadow-none'
+      : 'border border-gray-200 bg-white hover:shadow-md hover:border-gray-200 active:shadow-lg active:border-gray-300';
+
   useEffect(() => {
     setCurrentImageIndex(0);
   }, [product?.id, productImages.join('|')]);
@@ -226,7 +231,7 @@ export default function ProductCard({ product, isCarousel = false }) {
           e.stopPropagation();
         }
       }}
-      className={`block rounded-2xl border border-gray-200 bg-white overflow-hidden touch-manipulation transition-all duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform hover:shadow-md hover:border-gray-200 active:scale-[0.97] active:shadow-lg active:border-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/45 ${
+      className={`block rounded-2xl overflow-hidden touch-manipulation transition-all duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/45 ${chromeClass} ${
         isCarousel ? 'w-[140px]' : 'w-full'
       }`}
     >

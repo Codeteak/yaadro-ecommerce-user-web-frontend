@@ -198,7 +198,7 @@ export default function Home() {
                 See All
               </Link>
             </div>
-            <ProductGrid products={bestSellers.slice(0, 8)} />
+            <ProductGrid products={bestSellers.slice(0, 8)} cardVariant="flat" />
           </Container>
         </section>
       )}
@@ -216,7 +216,7 @@ export default function Home() {
                 See All
               </Link>
             </div>
-            <ProductGrid products={specialOffers.slice(0, 8)} />
+            <ProductGrid products={specialOffers.slice(0, 8)} cardVariant="flat" />
           </Container>
         </section>
       )}
@@ -231,7 +231,7 @@ export default function Home() {
                 Show More
               </Link>
             </div>
-            <ProductGrid products={featuredProducts.slice(0, 8)} />
+            <ProductGrid products={featuredProducts.slice(0, 8)} cardVariant="flat" />
           </Container>
         </section>
       )}
@@ -246,7 +246,7 @@ export default function Home() {
                 See All
               </Link>
             </div>
-            <ProductGrid products={newArrivals.slice(0, 8)} />
+            <ProductGrid products={newArrivals.slice(0, 8)} cardVariant="flat" />
           </Container>
         </section>
       )}

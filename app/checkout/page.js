@@ -123,7 +123,7 @@ function StepBar({ current }) {
 /* ─────────────────────────────────────────────
    Address card
 ───────────────────────────────────────────── */
-function AddressCard({ address, selected, onSelect }) {
+function AddressCard({ address, selected, onSelect, onEdit }) {
   const { user } = useAuth();
   const labelColors = {
     Home: 'bg-emerald-100 text-emerald-800',
@@ -136,46 +136,63 @@ function AddressCard({ address, selected, onSelect }) {
     address.address;
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`w-full text-left rounded-2xl border p-3.5 flex items-start gap-3 transition-all ${
-        selected
-          ? 'border-2 border-emerald-500'
-          : 'border border-gray-100 hover:border-gray-200'
+    <div
+      className={`w-full rounded-2xl border p-3.5 flex items-start gap-3 transition-all ${
+        selected ? 'border-2 border-emerald-500' : 'border border-gray-100 hover:border-gray-200'
       } bg-white`}
     >
-      {/* Radio */}
-      <div
-        className={`w-[18px] h-[18px] rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors ${
-          selected ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300'
-        }`}
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex min-w-0 flex-1 items-start gap-3 text-left"
+        aria-pressed={selected}
       >
-        {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-      </div>
+        {/* Radio */}
+        <div
+          className={`w-[18px] h-[18px] rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors ${
+            selected ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300'
+          }`}
+        >
+          {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+        </div>
 
-      <div className="flex-1 min-w-0">
-        {address.label && (
-          <span className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full mb-1 ${pill}`}>
-            {address.label}
-          </span>
-        )}
-        <p className="text-[13px] font-medium text-gray-900 mb-0.5">
-          {address.fullName || user?.name || '—'}
-        </p>
-        <p className="text-[12px] text-gray-500 leading-relaxed">
-          {[streetLine, address.landmark, address.city, address.state]
-            .filter(Boolean)
-            .join(', ')}
-          {address.postalCode || address.zipCode
-            ? ` – ${address.postalCode || address.zipCode}`
-            : ''}
-        </p>
-        {(address.phone || user?.phone) && (
-          <p className="text-[12px] text-gray-400 mt-1">{address.phone || user?.phone}</p>
-        )}
-      </div>
-    </button>
+        <div className="flex-1 min-w-0">
+          {address.label && (
+            <span
+              className={`inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full mb-1 ${pill}`}
+            >
+              {address.label}
+            </span>
+          )}
+          <p className="text-[13px] font-medium text-gray-900 mb-0.5">
+            {address.fullName || user?.name || '—'}
+          </p>
+          <p className="text-[12px] text-gray-500 leading-relaxed">
+            {[streetLine, address.landmark, address.city, address.state].filter(Boolean).join(', ')}
+            {address.postalCode || address.zipCode ? ` – ${address.postalCode || address.zipCode}` : ''}
+          </p>
+          {(address.phone || user?.phone) && (
+            <p className="text-[12px] text-gray-400 mt-1">{address.phone || user?.phone}</p>
+          )}
+        </div>
+      </button>
+
+      <button
+        type="button"
+        onClick={onEdit}
+        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
+        aria-label="Edit address"
+      >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"
+          />
+        </svg>
+      </button>
+    </div>
   );
 }
 
@@ -224,7 +241,8 @@ function OrderSummary({ cartItems, cartTotal, onQuantityChange }) {
       <div className="space-y-3 mb-4">
         {cartItems.map((item) => {
           const unitPrice = item.selectedSize?.price ?? parseFloat(item.price);
-          const imgSrc = item.image || '/images/dummy.png';
+          const imgSrc =
+            (typeof item.image === 'string' ? item.image : item.image?.url) || '/images/dummy.png';
           const itemKey = item.cartItemKey ?? item.id;
           return (
             <div key={itemKey} className="flex gap-3">
@@ -368,6 +386,7 @@ export default function CheckoutPage() {
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAddAddressSheet, setShowAddAddressSheet] = useState(false);
+  const [editingAddress, setEditingAddress] = useState(null);
   const [showPhoneSheet, setShowPhoneSheet] = useState(false);
   const [phoneDraft, setPhoneDraft] = useState('');
   const [phoneOverride, setPhoneOverride] = useState('');
@@ -403,9 +422,22 @@ export default function CheckoutPage() {
       const created = await addAddress(addressData);
       if (created?.id) setSelectedAddressId(created.id);
       setShowAddAddressSheet(false);
+      setEditingAddress(null);
       showAlert('Address added successfully!', 'Success', 'success');
     } catch (err) {
       showAlert(err?.message || 'Failed to add address.', 'Error', 'error');
+    }
+  };
+
+  const handleUpdateAddress = async (id, addressData) => {
+    try {
+      await updateAddress(id, addressData);
+      setSelectedAddressId(id);
+      setShowAddAddressSheet(false);
+      setEditingAddress(null);
+      showAlert('Address updated successfully!', 'Success', 'success');
+    } catch (err) {
+      showAlert(err?.message || 'Failed to update address.', 'Error', 'error');
     }
   };
 
@@ -541,6 +573,10 @@ export default function CheckoutPage() {
                   address={addr}
                   selected={selectedAddressId === addr.id}
                   onSelect={() => setSelectedAddressId(addr.id)}
+                  onEdit={() => {
+                    setEditingAddress(addr);
+                    setShowAddAddressSheet(true);
+                  }}
                 />
               ))}
             </div>
@@ -550,7 +586,10 @@ export default function CheckoutPage() {
           {addresses.length === 0 && (
             <button
               type="button"
-              onClick={() => setShowAddAddressSheet(true)}
+              onClick={() => {
+                setEditingAddress(null);
+                setShowAddAddressSheet(true);
+              }}
               className="w-full mt-3 border-2 border-dashed border-gray-200 rounded-2xl py-3 flex items-center justify-center gap-2 text-[13px] font-medium text-gray-500 hover:border-emerald-400 hover:text-emerald-700 transition"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -640,8 +679,13 @@ export default function CheckoutPage() {
       {/* ── Add address sheet ── */}
       <CheckoutAddAddressSheet
         isOpen={showAddAddressSheet}
-        onClose={() => setShowAddAddressSheet(false)}
+        onClose={() => {
+          setShowAddAddressSheet(false);
+          setEditingAddress(null);
+        }}
         onCreate={handleCreateAddress}
+        onUpdate={handleUpdateAddress}
+        editingAddress={editingAddress}
         isSubmitting={isCreatingAddress}
         initialFullName={user?.name || ''}
         initialPhone={user?.phone || ''}

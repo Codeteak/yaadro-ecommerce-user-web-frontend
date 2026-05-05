@@ -30,6 +30,7 @@ export default function OrdersPage() {
   const { addToCart } = useCart();
   const [menuOpenId, setMenuOpenId] = useState(null);
   const { showAlert } = useAlert();
+  const [reorderLoadingId, setReorderLoadingId] = useState(null);
   const [filters, setFilters] = useState({
     status: '',
     dateFrom: '',
@@ -43,17 +44,71 @@ export default function OrdersPage() {
 
   const orders = ordersData?.orders || [];
 
-  const handleReorder = (order) => {
-    order.items.forEach(item => {
-      const product = {
-        id: item.productId,
-        name: item.productName,
-        price: item.unitPrice,
-        image: item.product?.images?.[0] || item.image || '/images/dummy.png',
-      };
-      addToCart(product, item.quantity || 1);
-    });
-    showAlert('Items added to cart!', 'Success', 'success');
+  const orderItemToCartProduct = (item) => {
+    const qty = Number(item?.quantity ?? 1) || 1;
+    const unitPriceRaw =
+      item?.unitPrice ??
+      item?.price ??
+      (item?.totalPrice != null ? Number(item.totalPrice) / qty : null);
+    const unitPrice = Number(unitPriceRaw);
+
+    const id =
+      item?.product?.id ??
+      item?.productId ??
+      item?.product_id ??
+      item?.productUUID ??
+      item?.productUuid ??
+      item?.id;
+
+    const name = item?.productName ?? item?.name ?? item?.product?.name ?? 'Item';
+    const image =
+      item?.product?.images?.[0] ||
+      (typeof item?.image === 'string' ? item.image : item?.image?.url) ||
+      '/images/dummy.png';
+
+    const selectedSize =
+      item?.selectedSize ||
+      (item?.weight && item?.unit
+        ? { weight: item.weight, unit: item.unit, price: Number.isFinite(unitPrice) ? unitPrice : undefined }
+        : null);
+
+    return {
+      id,
+      productId: id,
+      name,
+      image,
+      price: Number.isFinite(unitPrice) ? unitPrice : 0,
+      originalPrice: item?.originalPrice ?? item?.mrp ?? item?.listPrice ?? undefined,
+      selectedSize: selectedSize || undefined,
+      sizeDisplay: item?.sizeDisplay || undefined,
+      weight: item?.weight || undefined,
+      unit: item?.unit || undefined,
+      brand: item?.brand || item?.product?.brand || undefined,
+      category: item?.category || item?.product?.category || undefined,
+    };
+  };
+
+  const handleReorder = async (order) => {
+    const items = order?.items || [];
+    if (!items.length) {
+      showAlert('No items found in this order.', 'Reorder', 'warning');
+      return;
+    }
+    if (reorderLoadingId === order?.id) return;
+    setReorderLoadingId(order?.id ?? null);
+    try {
+      for (const item of items) {
+        const qty = Number(item?.quantity ?? 1) || 1;
+        const product = orderItemToCartProduct(item);
+        await addToCart(product, qty);
+      }
+      showAlert('Items added to cart!', 'Success', 'success');
+      router.push('/cart');
+    } catch (e) {
+      showAlert(e?.message || 'Failed to reorder. Please try again.', 'Error', 'error');
+    } finally {
+      setReorderLoadingId(null);
+    }
   };
 
   const handleCancel = (orderId) => {
@@ -286,7 +341,7 @@ Payment Status: ${order.paymentStatus}
                   {order.items?.slice(0, 6).map((item, idx) => (
                     <div key={item.id || idx} className="relative w-14 h-14 rounded-xl bg-gray-100 flex-shrink-0 overflow-hidden">
                       <Image
-                        src={item.image || '/images/dummy.png'}
+                        src={(typeof item.image === 'string' ? item.image : item.image?.url) || '/images/dummy.png'}
                         alt={item.productName || item.name || 'Item'}
                         fill
                         className="object-cover"
@@ -307,9 +362,17 @@ Payment Status: ${order.paymentStatus}
                   <button
                     type="button"
                     onClick={() => handleReorder(order)}
+                    disabled={reorderLoadingId === order.id}
                     className="flex-1 rounded-xl border border-primary py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
                   >
-                    Order Again
+                    {reorderLoadingId === order.id ? (
+                      <span className="inline-flex items-center justify-center gap-2">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-hidden />
+                        Adding…
+                      </span>
+                    ) : (
+                      'Order Again'
+                    )}
                   </button>
                 </div>
               </div>

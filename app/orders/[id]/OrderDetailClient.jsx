@@ -394,6 +394,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   const { showAlert }   = useAlert();
 
   const [isRetrying, setIsRetrying]     = useState(false);
+  const [isReordering, setIsReordering] = useState(false);
   const [showReturn, setShowReturn]     = useState(false);
   const [showCancelPrompt, setShowCancelPrompt] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -439,16 +440,71 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   const canRetryPayment = ['pending', 'failed'].includes(order.paymentStatus?.toLowerCase()) && order.paymentMethod !== 'cod';
   const addr = order.deliveryAddress || {};
 
-  const handleReorder = () => {
-    (order.items || []).forEach((item) => {
-      addToCart({
-        id:    item.productId,
-        name:  item.productName,
-        price: item.unitPrice,
-        image: item.product?.images?.[0] || item.image || '/images/dummy.png',
-      }, item.quantity || 1);
-    });
-    router.push('/cart');
+  const orderItemToCartProduct = (item) => {
+    const qty = Number(item?.quantity ?? 1) || 1;
+    const unitPriceRaw =
+      item?.unitPrice ??
+      item?.price ??
+      (item?.totalPrice != null ? Number(item.totalPrice) / qty : null);
+    const unitPrice = Number(unitPriceRaw);
+
+    const id =
+      item?.product?.id ??
+      item?.productId ??
+      item?.product_id ??
+      item?.productUUID ??
+      item?.productUuid ??
+      item?.id;
+
+    const name = item?.productName ?? item?.name ?? item?.product?.name ?? 'Item';
+    const image =
+      item?.product?.images?.[0] ||
+      (typeof item?.image === 'string' ? item.image : item?.image?.url) ||
+      '/images/dummy.png';
+
+    const selectedSize =
+      item?.selectedSize ||
+      (item?.weight && item?.unit
+        ? { weight: item.weight, unit: item.unit, price: Number.isFinite(unitPrice) ? unitPrice : undefined }
+        : null);
+
+    return {
+      id,
+      productId: id,
+      name,
+      image,
+      price: Number.isFinite(unitPrice) ? unitPrice : 0,
+      originalPrice: item?.originalPrice ?? item?.mrp ?? item?.listPrice ?? undefined,
+      selectedSize: selectedSize || undefined,
+      sizeDisplay: item?.sizeDisplay || undefined,
+      weight: item?.weight || undefined,
+      unit: item?.unit || undefined,
+      brand: item?.brand || item?.product?.brand || undefined,
+      category: item?.category || item?.product?.category || undefined,
+    };
+  };
+
+  const handleReorder = async () => {
+    const items = order?.items || [];
+    if (!items.length) {
+      showAlert('No items found in this order.', 'Reorder', 'warning');
+      return;
+    }
+    if (isReordering) return;
+    setIsReordering(true);
+    try {
+      for (const item of items) {
+        const qty = Number(item?.quantity ?? 1) || 1;
+        const product = orderItemToCartProduct(item);
+        await addToCart(product, qty);
+      }
+      showAlert('Items added to cart!', 'Success', 'success');
+      router.push('/cart');
+    } catch (e) {
+      showAlert(e?.message || 'Failed to reorder. Please try again.', 'Error', 'error');
+    } finally {
+      setIsReordering(false);
+    }
   };
 
   const handleCancelReasonSubmit = (reason) => {
@@ -640,7 +696,11 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                 >
                   <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
                     <Image
-                      src={item.product?.images?.[0] || item.image || '/images/dummy.png'}
+                      src={
+                        item.product?.images?.[0] ||
+                        (typeof item.image === 'string' ? item.image : item.image?.url) ||
+                        '/images/dummy.png'
+                      }
                       alt={item.productName || item.name || 'Item'}
                       fill
                       className="object-cover"
@@ -763,9 +823,18 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                 <button
                   type="button"
                   onClick={handleReorder}
-                  className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border-0 bg-emerald-600 py-3.5 text-[13px] font-medium text-white hover:bg-emerald-700"
+                  disabled={isReordering}
+                  className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border-0 bg-emerald-600 py-3.5 text-[13px] font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <IconReorder /> Reorder
+                  {isReordering ? (
+                    <>
+                      <IconSpinner /> Reordering…
+                    </>
+                  ) : (
+                    <>
+                      <IconReorder /> Reorder
+                    </>
+                  )}
                 </button>
               </div>
             </Section>

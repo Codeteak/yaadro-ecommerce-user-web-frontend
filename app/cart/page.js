@@ -42,7 +42,8 @@ function SectionLabel({ children }) {
 }
 
 function CartItemCard({ item, onQuantityChange, onRemove }) {
-  const imageSrc = item.image || '/images/dummy.png';
+  const imageSrc =
+    (typeof item.image === 'string' ? item.image : item.image?.url) || '/images/dummy.png';
   const unitPrice = item.selectedSize?.price ?? parseFloat(item.price);
   const originalPrice = item.originalPrice || null;
   const discountPct =
@@ -159,7 +160,7 @@ function SummaryCard({ cartItems, cartTotal }) {
       <div className="space-y-0 divide-y divide-gray-100 text-[13px]">
         <div className="flex justify-between py-2.5 text-gray-500">
           <span>Subtotal ({totalQty} items)</span>
-          <span className="font-medium text-gray-900">₹{cartTotal.toLocaleString('en-IN')}</span>
+          <span className="font-medium text-gray-900">₹{mrpTotal.toLocaleString('en-IN')}</span>
         </div>
         <div className="flex justify-between py-2.5 text-gray-500">
           <span>Shipping</span>
@@ -261,121 +262,6 @@ function EmptyCart() {
 }
 
 /* ─────────────────────────────────────────────
-   Save Cart Modal
-───────────────────────────────────────────── */
-function SaveCartModal({ title, placeholder, onSave, onClose }) {
-  const [name, setName] = useState('');
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4">
-      <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-5">
-        <h2 className="text-base font-medium text-gray-900 mb-4">{title}</h2>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={placeholder}
-          autoFocus
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') onSave(name);
-            if (e.key === 'Escape') onClose();
-          }}
-          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-4 bg-gray-50"
-        />
-        <div className="flex gap-3">
-          <button
-            onClick={() => onSave(name)}
-            className="flex-1 py-2.5 rounded-full bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition"
-          >
-            Save
-          </button>
-          <button
-            onClick={onClose}
-            className="flex-1 py-2.5 rounded-full bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────
-   Templates Modal
-───────────────────────────────────────────── */
-function TemplatesModal({ cartTemplates, cartItems, onSaveTemplate, onLoadTemplate, onDeleteTemplate, onClose }) {
-  const [name, setName] = useState('');
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4">
-      <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-5 max-h-[80vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-medium text-gray-900">Cart templates</h2>
-          <button onClick={onClose} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center">
-            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {cartItems.length > 0 && (
-          <div className="mb-5 p-3.5 bg-gray-50 rounded-xl">
-            <p className="text-xs font-medium text-gray-600 mb-2">Save current cart as template</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Template name…"
-                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                onKeyDown={(e) => { if (e.key === 'Enter') { onSaveTemplate(name); setName(''); } }}
-              />
-              <button
-                onClick={() => { onSaveTemplate(name); setName(''); }}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        )}
-
-        {cartTemplates?.length > 0 ? (
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-gray-500 mb-2">Saved templates</p>
-            {cartTemplates.map((t) => (
-              <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
-                <div>
-                  <p className="text-[13px] font-medium text-gray-800">{t.name}</p>
-                  <p className="text-[11px] text-gray-400">
-                    {t.items.length} items · {new Date(t.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => { onLoadTemplate(t.id); onClose(); }}
-                    className="text-[11px] font-medium px-3 py-1 rounded-full bg-emerald-600 text-white"
-                  >
-                    Add to cart
-                  </button>
-                  <button
-                    onClick={() => onDeleteTemplate(t.id)}
-                    className="text-[11px] font-medium px-3 py-1 rounded-full bg-red-50 text-red-700 border border-red-200"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-center text-sm text-gray-400 py-8">No templates saved yet</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────
    Main cart content
 ───────────────────────────────────────────── */
 function CartPageContent() {
@@ -388,23 +274,14 @@ function CartPageContent() {
     updateQuantity,
     removeFromCart,
     clearCart,
-    saveCart,
     loadSavedCart,
     deleteSavedCart,
     savedCarts,
-    saveCartAsTemplate,
-    loadCartTemplate,
-    deleteCartTemplate,
-    cartTemplates,
-    shareCart,
     loadSharedCart,
   } = useCart();
   const { showAlert } = useAlert();
 
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [deleteCartConfirm, setDeleteCartConfirm] = useState(null);
-  const [deleteTemplateConfirm, setDeleteTemplateConfirm] = useState(null);
 
   useEffect(() => {
     const shared = searchParams?.get('shared');
@@ -424,35 +301,7 @@ function CartPageContent() {
     setShowLoginSheet(true);
   };
 
-  const handleSaveCart = (name) => {
-    if (!name?.trim()) { showAlert('Please enter a name', 'Required', 'warning'); return; }
-    saveCart(name);
-    setShowSaveModal(false);
-    showAlert('Cart saved!', 'Success', 'success');
-  };
-
-  const handleSaveTemplate = (name) => {
-    if (!name?.trim()) { showAlert('Please enter a name', 'Required', 'warning'); return; }
-    saveCartAsTemplate(name);
-    showAlert('Template saved!', 'Success', 'success');
-  };
-
   /* ── Icons ── */
-  const SaveIcon = (
-    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-    </svg>
-  );
-  const ShareIcon = (
-    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-    </svg>
-  );
-  const TplIcon = (
-    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-    </svg>
-  );
   const TrashIcon = (
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -484,15 +333,6 @@ function CartPageContent() {
 
             {/* Action buttons */}
             <div className="flex flex-wrap gap-2 pt-1">
-              <ActionButton onClick={() => setShowSaveModal(true)} icon={SaveIcon}>
-                Save cart
-              </ActionButton>
-              <ActionButton onClick={shareCart} variant="green" icon={ShareIcon}>
-                Share cart
-              </ActionButton>
-              <ActionButton onClick={() => setShowTemplatesModal(true)} icon={TplIcon}>
-                Templates
-              </ActionButton>
               <ActionButton onClick={clearCart} variant="danger" icon={TrashIcon}>
                 Clear all
               </ActionButton>
@@ -537,43 +377,12 @@ function CartPageContent() {
         </div>
       )}
 
-      {/* ── Modals ── */}
-      {showSaveModal && (
-        <SaveCartModal
-          title="Save cart"
-          placeholder="Enter cart name…"
-          onSave={handleSaveCart}
-          onClose={() => setShowSaveModal(false)}
-        />
-      )}
-
-      {showTemplatesModal && (
-        <TemplatesModal
-          cartTemplates={cartTemplates}
-          cartItems={cartItems}
-          onSaveTemplate={handleSaveTemplate}
-          onLoadTemplate={loadCartTemplate}
-          onDeleteTemplate={(id) => setDeleteTemplateConfirm(id)}
-          onClose={() => setShowTemplatesModal(false)}
-        />
-      )}
-
       <ConfirmModal
         isOpen={deleteCartConfirm !== null}
         onClose={() => setDeleteCartConfirm(null)}
         onConfirm={() => { deleteSavedCart(deleteCartConfirm); setDeleteCartConfirm(null); }}
         title="Delete saved cart"
         message="Are you sure you want to delete this saved cart?"
-        confirmText="Yes, delete"
-        cancelText="Cancel"
-      />
-
-      <ConfirmModal
-        isOpen={deleteTemplateConfirm !== null}
-        onClose={() => setDeleteTemplateConfirm(null)}
-        onConfirm={() => { deleteCartTemplate(deleteTemplateConfirm); setDeleteTemplateConfirm(null); }}
-        title="Delete template"
-        message="Are you sure you want to delete this template?"
         confirmText="Yes, delete"
         cancelText="Cancel"
       />
