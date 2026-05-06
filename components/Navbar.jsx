@@ -16,6 +16,21 @@ import { getResolvedProductImageUrls } from '../utils/productImages';
 import { User, MapPin } from 'lucide-react';
 // Category strip removed
 
+function formatEtaFromDistanceM(distanceM) {
+  const d = Number(distanceM);
+  if (!Number.isFinite(d) || d <= 0) return null;
+  const km = d / 1000;
+
+  // Simple heuristic: packing + rider dispatch + travel time.
+  // Tunables chosen to be stable for short/long distances.
+  const baseMinutes = 4;
+  const minutesPerKm = 3.2;
+  const eta = Math.round(baseMinutes + km * minutesPerKm);
+
+  const clamped = Math.max(5, Math.min(eta, 90));
+  return `${clamped} min`;
+}
+
 /** Rotating “Search for …” hint in the header bar (slides up, next keyword from below). */
 const SEARCH_HINT_WORDS = [
   'milk',
@@ -131,6 +146,7 @@ export default function Navbar() {
   const {
     isChecking: isLocationChecking,
     serviceable: isServiceable,
+    distanceM,
     geoDenied: isGeoDenied,
     errorMessage: locationError,
     setShowServiceAreaSheet,
@@ -185,6 +201,13 @@ export default function Navbar() {
       return { label: 'Outside delivery zone', className: 'bg-orange-50 text-orange-900 border-orange-200' };
     }
     return null;
+  })();
+
+  const etaLabel = (() => {
+    if (!shopConfigured) return null;
+    if (isLocationChecking) return '—';
+    const formatted = formatEtaFromDistanceM(distanceM);
+    return formatted || '—';
   })();
 
   // Categories strip removed (header stays simpler).
@@ -260,7 +283,9 @@ export default function Navbar() {
           {/* Left: delivery time (bold) + active address */}
           <div className="flex flex-col min-w-0 flex-shrink gap-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-bold text-gray-900">5 min</span>
+              <span className="text-sm font-bold text-gray-900">
+                {etaLabel || '—'}
+              </span>
               {locationStatus && (
                 <button
                   type="button"

@@ -63,6 +63,14 @@ function urlFromAnyImageItem(item) {
   return '';
 }
 
+function pushAnyPossiblyCommaSeparated(push, raw) {
+  const str = typeof raw === 'string' ? raw : '';
+  if (!str) return;
+  // Some backends send multiple URLs as a single comma-separated string.
+  const segments = str.includes(',') ? parseCommaSeparatedImageUrl(str) : [str.trim()];
+  for (const seg of segments) push(seg);
+}
+
 /**
  * Ordered, deduplicated list: thumbnail first → `imageUrl` comma segments → `images[]` → legacy `image`.
  * @param {object} [input]
@@ -91,7 +99,7 @@ export function normalizeProductImages(input = {}) {
     (typeof input.thumbnailUrl === 'string' && input.thumbnailUrl.trim()) ||
     mediaObjectToUrl(input.thumbnail) ||
     '';
-  if (thumbStr) push(thumbStr);
+  if (thumbStr) pushAnyPossiblyCommaSeparated(push, thumbStr);
 
   for (const seg of parseCommaSeparatedImageUrl(input.imageUrl ?? input.image_url)) {
     push(seg);
@@ -99,11 +107,11 @@ export function normalizeProductImages(input = {}) {
 
   for (const item of sortImageRecords(input.images)) {
     const u = urlFromAnyImageItem(item);
-    if (u) push(u);
+    if (u) pushAnyPossiblyCommaSeparated(push, u);
   }
 
   if (typeof input.image === 'string' && input.image.trim()) {
-    push(input.image.trim());
+    pushAnyPossiblyCommaSeparated(push, input.image.trim());
   }
 
   return ordered;
