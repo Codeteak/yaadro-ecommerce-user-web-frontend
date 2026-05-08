@@ -17,6 +17,7 @@ export function BottomNavVisibilityProvider({ children }) {
     pathname === '/checkout' ||
     pathname === '/order-success' ||
     pathname === '/cart' ||
+    pathname === '/add/address' ||
     pathNoSlash === '/order' ||
     pathNoSlash.startsWith('/orders/') ||
     pathNoSlash === '/product' ||

@@ -11,6 +11,9 @@ const CartContext = createContext();
 export function CartProvider({ children }) {
   // Initialize cart state from localStorage if available (client-side only)
   const [isClient, setIsClient] = useState(false);
+  // Becomes true once cart has been hydrated at least once (from localStorage or API).
+  // Used by /cart and /checkout to show a loader instead of a momentary "empty cart" flash.
+  const [hasInitialized, setHasInitialized] = useState(false);
   const [showSidebarCart, setShowSidebarCart] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [savedCarts, setSavedCarts] = useState([]);
@@ -51,6 +54,8 @@ export function CartProvider({ children }) {
             console.error('Error parsing cart from localStorage:', error);
           }
         }
+        // Local cart is now hydrated (either with items or empty) — safe to render.
+        setHasInitialized(true);
       }
 
       // Load saved carts and templates from localStorage
@@ -76,6 +81,13 @@ export function CartProvider({ children }) {
 
   // Use API cart items if enabled, otherwise use local
   const cartItems = useApiCart ? apiCartItems : localCartItems;
+
+  // Mark cart as ready once the API query has finished its first fetch (auth users).
+  useEffect(() => {
+    if (!useApiCart) return;
+    if (loading) return;
+    setHasInitialized(true);
+  }, [useApiCart, loading]);
 
   // TanStack Query mutations and client
   const queryClient = useQueryClient();
@@ -523,6 +535,7 @@ export function CartProvider({ children }) {
     loadSharedCart,
     lastActivityTime,
     loading,
+    isCartReady: hasInitialized,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

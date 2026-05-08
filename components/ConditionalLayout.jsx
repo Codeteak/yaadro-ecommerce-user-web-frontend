@@ -19,6 +19,7 @@ export default function ConditionalLayout({ children }) {
     pathname === '/checkout' ||
     pathname === '/profile' ||
     pathname === '/addresses' ||
+    pathname === '/add/address' ||
     pathname === '/cart' ||
     pathname === '/orders' ||
     pathname?.startsWith('/orders/') ||

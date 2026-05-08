@@ -109,3 +109,57 @@ img, video, iframe {
   }
 }
 
+/* ──────────────────────────────────────────────────────────────────────
+   Leaflet — undo the global `* { max-width: 100% }` and
+   `img { max-width: 100%; height: auto }` resets *only* inside the map
+   container, so map tiles, markers, popups and controls keep their
+   intrinsic pixel sizes. Without this, tile <img> elements collapse and
+   the map appears blank.
+   ────────────────────────────────────────────────────────────────────── */
+.leaflet-container,
+.leaflet-container * {
+  max-width: none !important;
+}
+
+.leaflet-container img {
+  max-width: none !important;
+  max-height: none !important;
+  height: auto;
+}
+
+/* Address-picker marker — keep the original PNG crisp at any device pixel
+   ratio, give it a soft ground shadow so the 3D pin reads as planted, and a
+   small lift on hover for affordance. `object-fit: contain` prevents the
+   browser from squashing the PNG if Leaflet ever overrides its dimensions. */
+.address-map-pin {
+  filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.35));
+  transition: transform 150ms ease-out, filter 150ms ease-out;
+  cursor: grab;
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: high-quality;
+}
+
+.address-map-pin:hover {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.35));
+}
+
+.leaflet-marker-draggable.address-map-pin {
+  cursor: grab;
+}
+
+.leaflet-marker-draggable.address-map-pin:active {
+  cursor: grabbing;
+}
+
+/* Home / store map icons — smooth resize while zooming. */
+.address-map-icon {
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.25));
+  transition: width 200ms ease-out, height 200ms ease-out, transform 200ms ease-out;
+  pointer-events: none;
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: high-quality;
+}
+

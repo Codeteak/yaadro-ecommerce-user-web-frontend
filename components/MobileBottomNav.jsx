@@ -34,9 +34,19 @@ const CartIcon = ({ active }) => (
   </svg>
 );
 
+const ReorderIcon = ({ active }) => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth={active ? 2.2 : 2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12a9 9 0 1 1-3.2-6.9" />
+    <polyline points="21 4 21 9 16 9" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+);
+
 const navItems = [
   { href: '/', label: 'Home', Icon: HomeIcon },
   { href: '/categories', label: 'Categories', Icon: CategoriesIcon },
+  { href: '/orders', label: 'Reorder', Icon: ReorderIcon },
   { href: '/cart', label: 'Cart', Icon: CartIcon, showCartBadge: true },
 ];
 
@@ -89,7 +99,7 @@ export default function MobileBottomNav() {
               prefetch
               className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-3 py-2 transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
                 isActive
-                  ? 'bg-emerald-500 text-white shadow-sm'
+                  ? 'text-emerald-800'
                   : 'hover:bg-black/[0.04] active:scale-[0.98]'
               }`}
               aria-current={isActive ? 'page' : undefined}
@@ -97,15 +107,13 @@ export default function MobileBottomNav() {
               <span
                 className={`relative inline-flex transition-all duration-200 ${
                   isActive
-                    ? 'text-white -translate-y-px scale-105'
+                    ? 'text-emerald-800 -translate-y-px scale-105'
                     : 'text-gray-500'
                 }`}
               >
                 {showCartBadge && count > 0 && (
                   <span
-                    className={`absolute -right-1.5 -top-1.5 z-10 flex min-h-[1.35rem] min-w-[1.35rem] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold leading-none text-white shadow-sm ring-2 ${
-                      isActive ? 'ring-emerald-500' : 'ring-white'
-                    }`}
+                    className="absolute -right-1.5 -top-1.5 z-10 flex min-h-[1.35rem] min-w-[1.35rem] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold leading-none text-white shadow-sm ring-2 ring-white"
                     aria-label={`${count} items in cart`}
                   >
                     {count > 99 ? '99+' : count}
@@ -116,7 +124,7 @@ export default function MobileBottomNav() {
 
               <span
                 className={`text-[10px] font-semibold tracking-wide transition-colors duration-200 ${
-                  isActive ? 'text-white' : 'text-gray-500'
+                  isActive ? 'text-emerald-800' : 'text-gray-500'
                 }`}
               >
                 {label}

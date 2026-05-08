@@ -1,9 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { updateStorefrontProfile, resolveShopId } from '../utils/authApi';
+
+// Leaflet uses `window` at import time, so we load the picker only on the
+// client to keep this sheet SSR-safe.
+const AddressMapPicker = dynamic(() => import('./AddressMapPicker'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[240px] items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 text-xs text-gray-500">
+      Loading map…
+    </div>
+  ),
+});
 
 function addressToForm(addr) {
   if (!addr) {
@@ -438,6 +450,41 @@ export default function CheckoutAddAddressSheet({
                   : 'Location unavailable. Enter your address manually.'}
               </div>
             )}
+
+            {/* Map picker — drag the pin or search to set the delivery point. */}
+            <div className="mb-4">
+              <AddressMapPicker
+                value={
+                  Number.isFinite(Number(form.lat)) && Number.isFinite(Number(form.lng))
+                    ? { lat: Number(form.lat), lng: Number(form.lng) }
+                    : null
+                }
+                onChange={({ lat, lng }) => {
+                  setForm((prev) => ({ ...prev, lat, lng }));
+                  setGeoStatus('ready');
+                }}
+                onAddress={(resolved) => {
+                  // Auto-fill any blank fields from the reverse geocode.
+                  setForm((prev) => {
+                    const next = { ...prev };
+                    if (!String(prev.line1 || '').trim() && resolved.line1) next.line1 = resolved.line1;
+                    if (!String(prev.line2 || '').trim() && resolved.line2) next.line2 = resolved.line2;
+                    if (!String(prev.landmark || '').trim() && resolved.landmark) next.landmark = resolved.landmark;
+                    if (!touched.city && !String(prev.city || '').trim() && resolved.city) next.city = resolved.city;
+                    if (!touched.state && !String(prev.state || '').trim() && resolved.state) next.state = resolved.state;
+                    if (!touched.postalCode && !String(prev.postalCode || '').trim() && /^\d{6}$/.test(resolved.postalCode || '')) {
+                      next.postalCode = resolved.postalCode;
+                    }
+                    if (!String(prev.country || '').trim() && resolved.country) next.country = resolved.country;
+                    return next;
+                  });
+                  setPinLookupStatus('idle');
+                  setPinLookupMessage('');
+                }}
+                height={240}
+              />
+            </div>
+
 
             <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50 p-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Contact</p>

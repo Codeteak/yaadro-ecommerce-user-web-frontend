@@ -33,7 +33,19 @@ export default function CategoryCard({ category }) {
           priority={false}
         />
       </div>
-      <h3 className="text-xs sm:text-sm md:text-base font-bold text-white text-center leading-tight max-w-[6.5rem] sm:max-w-[7rem] md:max-w-[8.5rem] break-words min-h-[2.25rem] flex items-center justify-center">
+      <h3
+        className="text-[11px] sm:text-xs md:text-sm font-semibold text-white text-center leading-[1.15] max-w-[6.5rem] sm:max-w-[7rem] md:max-w-[8.5rem] break-words min-h-[2.4rem] flex items-center justify-center"
+        style={{
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+          textAlign: 'center',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        title={categoryName}
+      >
         {categoryName}
       </h3>
     </Link>

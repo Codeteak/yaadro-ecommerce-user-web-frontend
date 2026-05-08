@@ -379,12 +379,19 @@ export default function Home() {
   }
 
   const defaultAddress = getDefaultAddress();
-  const addressLine = defaultAddress
+  const rawAddressLine = defaultAddress
     ? [defaultAddress.city, defaultAddress.street || defaultAddress.address]
         .filter(Boolean)
         .slice(0, 2)
         .join(', ') || 'Add address'
     : 'Add address';
+  // Cap to 20 characters with an ellipsis so long addresses don't blow out
+  // the purple hero card layout.
+  const ADDRESS_MAX_LEN = 20;
+  const addressLine =
+    rawAddressLine.length > ADDRESS_MAX_LEN
+      ? `${rawAddressLine.slice(0, ADDRESS_MAX_LEN).trimEnd()}…`
+      : rawAddressLine;
 
   const locationStatus = (() => {
     if (isLocationChecking) {
@@ -1003,7 +1010,17 @@ export default function Home() {
                     <img
                       src={src}
                       alt=""
-                      className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.05]"
+                      loading="lazy"
+                      className="transition-transform duration-500 group-hover:scale-[1.05]"
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        objectPosition: 'center',
+                        display: 'block',
+                      }}
                       onError={(e) => {
                         e.currentTarget.src = CATEGORY_DUMMY_IMAGE;
                       }}
@@ -1025,23 +1042,66 @@ export default function Home() {
         </section>
       )}
 
-      {/* View All Products CTA */}
-      <section className="py-8 md:py-12 lg:py-16 bg-white">
+      {/* Footer */}
+      <footer className="relative bg-white pt-10 pb-8 md:pt-16 md:pb-12 border-t border-gray-100">
         <Container>
-          <div className="text-center px-4">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">Explore Our Full Catalog</h2>
-            <p className="text-gray-600 mb-6 md:mb-8 max-w-2xl mx-auto">
-              Discover thousands of products across all categories. Fresh, quality, and delivered to your doorstep.
-            </p>
-            <Link
-              href="/products"
-              className="inline-block bg-primary text-white px-8 py-3 rounded-lg text-base md:text-lg font-semibold hover:bg-primary-dark transition-colors"
+          <div className="px-4 md:px-0">
+            {/* Brand block */}
+            <div className="flex flex-col items-center text-center">
+              <h2
+                className="font-headingnow text-[80px] sm:text-[120px] md:text-[160px] lg:text-[200px] font-extrabold leading-none tracking-[0.07em] text-gray-300/90 select-none"
+                aria-label="Yaadro"
+              >
+                Yaadro
+              </h2>
+              <p className="mt-2 text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-[0.4em] text-emerald-400">
+                SHOP
+              </p>
+            </div>
+
+            {/* Legal links */}
+            <nav
+              className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] font-medium text-gray-600"
+              aria-label="Legal"
             >
-              View All Products
-            </Link>
+              <Link href="/privacy-policy" className="hover:text-emerald-700 transition-colors">
+                Privacy Policy
+              </Link>
+              <span aria-hidden className="h-1 w-1 rounded-full bg-gray-300" />
+              <Link href="/terms-and-conditions" className="hover:text-emerald-700 transition-colors">
+                Terms &amp; Conditions
+              </Link>
+            </nav>
+
+            {/* Divider */}
+            <div className="mx-auto mt-8 mb-6 h-px max-w-md bg-gray-100" />
+
+            {/* Maintained by */}
+            <a
+              href="https://codeteak.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mx-auto flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-800"
+              aria-label="Maintained by codeteak.com"
+            >
+              <span>Maintained by</span>
+              <Image
+                src="/codeteak-logo.png"
+                alt="Codeteak"
+                width={20}
+                height={20}
+                className="h-5 w-5 object-contain"
+              />
+              <span className="font-semibold text-gray-700">codeteak.com</span>
+            </a>
+
+            {/* Copyright */}
+            <p className="mt-3 text-center text-[11px] text-gray-400">
+              &copy; {new Date().getFullYear()} Yaadro. All rights reserved.
+            </p>
           </div>
         </Container>
-      </section>
+      </footer>
 
       {/* Floating "View cart" pill — only when there are items in cart.
           Sits above the mobile bottom nav when it's visible, drops to safe-area when nav slides away. */}

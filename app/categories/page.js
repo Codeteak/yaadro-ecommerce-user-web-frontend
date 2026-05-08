@@ -158,8 +158,16 @@ function CategoryCard({ category }) {
           <img
             src={imageUrl}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover object-center"
             loading="lazy"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'center',
+              display: 'block',
+            }}
             onError={(e) => {
               e.currentTarget.src = CATEGORY_DUMMY_IMAGE;
             }}

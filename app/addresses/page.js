@@ -7,8 +7,6 @@ import { useAddress } from '../../context/AddressContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import PageTopBar from '../../components/PageTopBar';
-import ConfirmModal from '../../components/ConfirmModal';
-import CheckoutAddAddressSheet from '../../components/CheckoutAddAddressSheet';
 import {
   Home,
   MapPin,
@@ -17,31 +15,16 @@ import {
   MoreVertical,
   Plus,
   Pencil,
-  Trash2,
   BadgeCheck,
 } from 'lucide-react';
 
 export default function AddressesPage() {
   const router = useRouter();
   const { isAuthenticated, authHydrated, isLoadingUser, user } = useAuth();
-  const {
-    addresses = [],
-    isLoading,
-    addAddress,
-    updateAddress,
-    deleteAddress,
-    setDefaultAddress,
-    isCreating,
-    isUpdating,
-    isDeleting,
-    isSettingDefault,
-  } = useAddress();
+  const { addresses = [], isLoading } = useAddress();
   const { showAlert } = useAlert();
 
   const [menuOpenId, setMenuOpenId] = useState(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [editingAddress, setEditingAddress] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
     if (!authHydrated) return;
@@ -92,57 +75,17 @@ export default function AddressesPage() {
   const isHome = (addr) => (addressLabel(addr) || '').toLowerCase() === 'home';
 
   const openCreate = () => {
+    // Storefront allows one saved address — if one exists, jump straight to edit.
     if (addresses.length >= 1) {
       openEdit(addresses[0]);
       return;
     }
-    setEditingAddress(null);
-    setSheetOpen(true);
+    router.push('/add/address?from=/addresses');
   };
 
   const openEdit = (addr) => {
-    setEditingAddress(addr);
-    setSheetOpen(true);
     setMenuOpenId(null);
-  };
-
-  const handleSheetCreate = async (data) => {
-    await addAddress(data);
-    setSheetOpen(false);
-    showAlert('Address saved.', 'Success', 'success');
-  };
-
-  const handleSheetUpdate = async (id, data) => {
-    await updateAddress(id, data);
-    setSheetOpen(false);
-    setEditingAddress(null);
-    showAlert('Address updated.', 'Success', 'success');
-  };
-
-  const handleDelete = async () => {
-    if (!deleteTarget?.id) return;
-    try {
-      await deleteAddress(deleteTarget.id);
-      showAlert('Address removed.', 'Success', 'success');
-    } catch (e) {
-      showAlert(
-        e?.message || 'Could not remove this address. It may not be supported for your account.',
-        'Cannot delete',
-        'warning'
-      );
-    } finally {
-      setDeleteTarget(null);
-    }
-  };
-
-  const handleSetDefault = async (id) => {
-    setMenuOpenId(null);
-    try {
-      await setDefaultAddress(id);
-      showAlert('Default address updated.', 'Success', 'success');
-    } catch (e) {
-      showAlert(e?.message || 'Could not update default.', 'Error', 'error');
-    }
+    router.push(`/add/address?from=/addresses&id=${encodeURIComponent(addr.id)}`);
   };
 
   if (!authHydrated || isLoadingUser) {
@@ -259,7 +202,7 @@ export default function AddressesPage() {
                         {menuOpenId === address.id && (
                           <>
                             <div className="fixed inset-0 z-10" aria-hidden onClick={() => setMenuOpenId(null)} />
-                            <div className="absolute right-0 top-full z-20 mt-1 min-w-[180px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                            <div className="absolute right-0 top-full z-20 mt-1 min-w-[160px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
                               <button
                                 type="button"
                                 className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
@@ -267,28 +210,6 @@ export default function AddressesPage() {
                               >
                                 <Pencil className="h-4 w-4" />
                                 Edit
-                              </button>
-                              {!address.isDefault && (
-                                <button
-                                  type="button"
-                                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
-                                  onClick={() => handleSetDefault(address.id)}
-                                  disabled={isSettingDefault}
-                                >
-                                  <BadgeCheck className="h-4 w-4" />
-                                  Set as default
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
-                                onClick={() => {
-                                  setMenuOpenId(null);
-                                  setDeleteTarget(address);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                Delete
                               </button>
                             </div>
                           </>
@@ -308,31 +229,6 @@ export default function AddressesPage() {
           </p>
         </div>
       </div>
-
-      <CheckoutAddAddressSheet
-        isOpen={sheetOpen}
-        onClose={() => {
-          setSheetOpen(false);
-          setEditingAddress(null);
-        }}
-        onCreate={handleSheetCreate}
-        onUpdate={handleSheetUpdate}
-        editingAddress={editingAddress}
-        isSubmitting={isCreating || isUpdating}
-        initialFullName={user?.name || ''}
-        initialPhone={user?.phone || ''}
-      />
-
-      <ConfirmModal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-        title="Remove address?"
-        message="This will remove the address from your account if your shop supports it."
-        confirmText={isDeleting ? 'Removing…' : 'Remove'}
-        cancelText="Cancel"
-        isDanger
-      />
     </div>
   );
 }

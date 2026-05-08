@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCart } from '../../context/CartContext';
 import { useAddress } from '../../context/AddressContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
-import CheckoutAddAddressSheet from '../../components/CheckoutAddAddressSheet';
+import ProductCarousel from '../../components/ProductCarousel';
+import { useProducts } from '../../hooks/useProducts';
 import { placeStorefrontOrder } from '../../utils/storefrontCheckoutApi';
 import { setPostLoginRedirect } from '../../utils/authSession';
+import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../utils/productImages';
 import { useUpdateProfile } from '../../hooks/useAuth';
 
 /* ─────────────────────────────────────────────
@@ -241,8 +243,13 @@ function OrderSummary({ cartItems, cartTotal, onQuantityChange }) {
       <div className="space-y-3 mb-4">
         {cartItems.map((item) => {
           const unitPrice = item.selectedSize?.price ?? parseFloat(item.price);
+          // Resolve from any of the API/local cart image shapes (imageUrl,
+          // imageUrls[], images[], thumbnail, nested item.product, etc.).
+          const resolvedImages = getResolvedProductImageUrls(item.product || item);
           const imgSrc =
-            (typeof item.image === 'string' ? item.image : item.image?.url) || '/images/dummy.png';
+            resolvedImages.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER) ||
+            (typeof item.image === 'string' ? item.image : item.image?.url) ||
+            PRODUCT_IMAGE_PLACEHOLDER;
           const itemKey = item.cartItemKey ?? item.id;
           return (
             <div key={itemKey} className="flex gap-3">
@@ -368,14 +375,12 @@ function EmptyCheckout() {
 ───────────────────────────────────────────── */
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cartItems, cartTotal, clearCart, updateQuantity, removeFromCart, loading: cartLoading } = useCart();
+  const searchParams = useSearchParams();
+  const { cartItems, cartTotal, clearCart, updateQuantity, removeFromCart, loading: cartLoading, isCartReady } = useCart();
   const {
     addresses,
     getDefaultAddress,
-    addAddress,
-    updateAddress,
     isLoading: isLoadingAddresses,
-    isCreating: isCreatingAddress,
   } = useAddress();
   const { isAuthenticated, user, setShowLoginSheet, authHydrated, refreshUser } = useAuth();
   const { showAlert } = useAlert();
@@ -385,17 +390,60 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showAddAddressSheet, setShowAddAddressSheet] = useState(false);
-  const [editingAddress, setEditingAddress] = useState(null);
+  // True from the moment the order is successfully placed until navigation completes —
+  // keeps the "Placing order…" loader on screen so the empty cart never flashes.
+  const [isFinishing, setIsFinishing] = useState(false);
   const [showPhoneSheet, setShowPhoneSheet] = useState(false);
   const [phoneDraft, setPhoneDraft] = useState('');
   const [phoneOverride, setPhoneOverride] = useState('');
+  const [showAddressSelector, setShowAddressSelector] = useState(false);
+
+  // Pool of products for the "Similar products" carousel — same query as home → cached.
+  const { data: similarPoolData } = useProducts({
+    limit: 50,
+    sort_by: 'created_at',
+    sort_order: 'desc',
+  });
+  const similarPool = similarPoolData?.products || [];
+
+  const cartProductIds = useMemo(
+    () =>
+      new Set(
+        cartItems
+          .map((item) => item.productId ?? item.product?.id ?? item.id)
+          .filter((id) => id != null)
+          .map((id) => String(id))
+      ),
+    [cartItems]
+  );
+
+  const similarProducts = useMemo(() => {
+    if (similarPool.length === 0) return [];
+    return similarPool
+      .filter((p) => p?.id != null && !cartProductIds.has(String(p.id)))
+      .slice(0, 12);
+  }, [similarPool, cartProductIds]);
 
   /* ── Set default address on mount ── */
   useEffect(() => {
     const defaultAddress = getDefaultAddress();
     if (defaultAddress) setSelectedAddressId(defaultAddress.id);
   }, [getDefaultAddress]);
+
+  /* ── If we just returned from /add/address?…&selectAddress=ID, pick that one. ── */
+  useEffect(() => {
+    const incomingId = searchParams.get('selectAddress');
+    if (!incomingId) return;
+    if (!Array.isArray(addresses) || addresses.length === 0) return;
+    const exists = addresses.some((a) => String(a.id) === String(incomingId));
+    if (exists) setSelectedAddressId(incomingId);
+
+    // Clean the query param so a subsequent default-address change can win.
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('selectAddress');
+    const qs = params.toString();
+    router.replace(qs ? `/checkout?${qs}` : '/checkout');
+  }, [searchParams, addresses, router]);
 
   /* ── Guests with items: never show checkout UI — send to cart and open login sheet ── */
   useEffect(() => {
@@ -417,28 +465,10 @@ export default function CheckoutPage() {
     await updateQuantity(key, nextQty);
   };
 
-  const handleCreateAddress = async (addressData) => {
-    try {
-      const created = await addAddress(addressData);
-      if (created?.id) setSelectedAddressId(created.id);
-      setShowAddAddressSheet(false);
-      setEditingAddress(null);
-      showAlert('Address added successfully!', 'Success', 'success');
-    } catch (err) {
-      showAlert(err?.message || 'Failed to add address.', 'Error', 'error');
-    }
-  };
-
-  const handleUpdateAddress = async (id, addressData) => {
-    try {
-      await updateAddress(id, addressData);
-      setSelectedAddressId(id);
-      setShowAddAddressSheet(false);
-      setEditingAddress(null);
-      showAlert('Address updated successfully!', 'Success', 'success');
-    } catch (err) {
-      showAlert(err?.message || 'Failed to update address.', 'Error', 'error');
-    }
+  const goToAddAddress = (addressId) => {
+    const params = new URLSearchParams({ from: '/checkout' });
+    if (addressId) params.set('id', addressId);
+    router.push(`/add/address?${params.toString()}`);
   };
 
   const handlePhoneSave = async () => {
@@ -486,6 +516,9 @@ export default function CheckoutPage() {
 
       if (!orderResponse?.orderId) throw new Error('Failed to create order');
 
+      // Latch the "finishing" flag BEFORE clearing the cart so the empty-cart UI
+      // never gets a chance to render between cartItems becoming [] and navigation.
+      setIsFinishing(true);
       await clearCart();
       router.push(
         `/order-success?orderId=${encodeURIComponent(orderResponse.orderId)}&orderNumber=${encodeURIComponent(
@@ -519,11 +552,15 @@ export default function CheckoutPage() {
     );
   }
 
-  if (isSubmitting) {
+  // Order in flight, or finishing up after a successful order — keep the loader
+  // on screen until navigation lands the user on /order-success.
+  if (isSubmitting || isFinishing) {
     return <CheckoutPageState title="Placing your order…" subtitle="Please wait, do not close this page." />;
   }
 
-  if (cartLoading && cartItems.length === 0) {
+  // Cart hasn't hydrated yet (first visit, just authenticated, or refetching) —
+  // never show "empty cart" until we know for sure.
+  if (!isCartReady || (cartLoading && cartItems.length === 0)) {
     return <CheckoutPageState title="Loading your cart…" />;
   }
 
@@ -573,10 +610,7 @@ export default function CheckoutPage() {
                   address={addr}
                   selected={selectedAddressId === addr.id}
                   onSelect={() => setSelectedAddressId(addr.id)}
-                  onEdit={() => {
-                    setEditingAddress(addr);
-                    setShowAddAddressSheet(true);
-                  }}
+                  onEdit={() => goToAddAddress(addr.id)}
                 />
               ))}
             </div>
@@ -586,10 +620,7 @@ export default function CheckoutPage() {
           {addresses.length === 0 && (
             <button
               type="button"
-              onClick={() => {
-                setEditingAddress(null);
-                setShowAddAddressSheet(true);
-              }}
+              onClick={() => goToAddAddress()}
               className="w-full mt-3 border-2 border-dashed border-gray-200 rounded-2xl py-3 flex items-center justify-center gap-2 text-[13px] font-medium text-gray-500 hover:border-emerald-400 hover:text-emerald-700 transition"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -614,6 +645,28 @@ export default function CheckoutPage() {
             cartTotal={cartTotal}
             onQuantityChange={handleOrderSummaryQuantity}
           />
+
+          {/* Add more items — full-width CTA */}
+          <Link
+            href="/products"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/40 px-4 py-3 text-[13px] font-semibold text-emerald-800 transition hover:border-emerald-500 hover:bg-emerald-50 active:scale-[0.99]"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            Add more items
+          </Link>
         </div>
 
         {/* ── Delivery notes ── */}
@@ -629,6 +682,29 @@ export default function CheckoutPage() {
         </div>
 
       </form>
+
+      {/* ── Similar products — generous top spacing for breathing room ── */}
+      {similarProducts.length > 0 && (
+        <section className="mt-10 mb-3" aria-label="Similar products">
+          <div className="px-4 mb-4 flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                You might also like
+              </h2>
+              <p className="mt-2 text-[13px] md:text-sm text-gray-500">
+                Add a few more items before you check out.
+              </p>
+            </div>
+            <Link
+              href="/products"
+              className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800 transition whitespace-nowrap"
+            >
+              See all
+            </Link>
+          </div>
+          <ProductCarousel products={similarProducts} showMoreLink="/products" />
+        </section>
+      )}
 
       {/* ── Sticky bottom bar ── */}
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 px-4 pt-3 pb-5">
@@ -646,18 +722,41 @@ export default function CheckoutPage() {
 
         <button
           type="button"
-          onClick={handleSubmit}
-          disabled={isSubmitting || !selectedAddressId}
+          onClick={(e) => {
+            // Address-first guard: send to /add/address (no addresses yet) or
+            // open the existing-address selector sheet — never disable the button.
+            if (!selectedAddressId) {
+              e.preventDefault();
+              if (addresses.length === 0) {
+                goToAddAddress();
+              } else {
+                setShowAddressSelector(true);
+              }
+              return;
+            }
+            handleSubmit(e);
+          }}
+          disabled={isSubmitting}
           className={`w-full h-12 rounded-full text-sm font-medium flex items-center justify-center gap-2 transition active:scale-[0.98] ${
-            isSubmitting || !selectedAddressId
+            isSubmitting
               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              : 'bg-emerald-600 text-white hover:bg-emerald-700'
+              : !selectedAddressId
+                ? 'bg-amber-500 text-white hover:bg-amber-600'
+                : 'bg-emerald-600 text-white hover:bg-emerald-700'
           }`}
         >
           {isSubmitting ? (
             <>
               <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
               Placing order…
+            </>
+          ) : !selectedAddressId ? (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Select address
             </>
           ) : (
             <>
@@ -668,28 +767,66 @@ export default function CheckoutPage() {
             </>
           )}
         </button>
-
-        {!selectedAddressId && (
-          <p className="text-center text-[11px] text-red-500 mt-2">
-            Select a delivery address to continue
-          </p>
-        )}
       </div>
 
-      {/* ── Add address sheet ── */}
-      <CheckoutAddAddressSheet
-        isOpen={showAddAddressSheet}
-        onClose={() => {
-          setShowAddAddressSheet(false);
-          setEditingAddress(null);
-        }}
-        onCreate={handleCreateAddress}
-        onUpdate={handleUpdateAddress}
-        editingAddress={editingAddress}
-        isSubmitting={isCreatingAddress}
-        initialFullName={user?.name || ''}
-        initialPhone={user?.phone || ''}
-      />
+      {/* ── Address selector sheet — pick an existing address or add a new one ── */}
+      {showAddressSelector && (
+        <div className="fixed inset-0 z-[65]">
+          <button
+            type="button"
+            aria-label="Close address selector"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowAddressSelector(false)}
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl">
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-gray-200" />
+            <h3 className="text-base font-semibold text-gray-900">Select delivery address</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Choose where we should deliver your order.
+            </p>
+
+            <div className="mt-4 space-y-2">
+              {addresses.map((addr) => (
+                <AddressCard
+                  key={addr.id}
+                  address={addr}
+                  selected={selectedAddressId === addr.id}
+                  onSelect={() => {
+                    setSelectedAddressId(addr.id);
+                    setShowAddressSelector(false);
+                  }}
+                  onEdit={() => {
+                    setShowAddressSelector(false);
+                    goToAddAddress(addr.id);
+                  }}
+                />
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddressSelector(false);
+                goToAddAddress();
+              }}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/40 px-4 py-3 text-[13px] font-semibold text-emerald-800 transition hover:border-emerald-500 hover:bg-emerald-50"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add a new address
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowAddressSelector(false)}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[13px] font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {showPhoneSheet && (
         <div className="fixed inset-0 z-[70]">

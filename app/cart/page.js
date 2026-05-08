@@ -9,6 +9,7 @@ import { useAlert } from '../../context/AlertContext';
 import { useAuth } from '../../context/AuthContext';
 import { useProducts } from '../../hooks/useProducts';
 import { setPostLoginRedirect } from '../../utils/authSession';
+import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../utils/productImages';
 import Container from '../../components/Container';
 import ConfirmModal from '../../components/ConfirmModal';
 import ProductCarousel from '../../components/ProductCarousel';
@@ -44,8 +45,13 @@ function SectionLabel({ children }) {
 }
 
 function CartItemCard({ item, onQuantityChange, onRemove }) {
+  // Resolve product image from any of the shapes the API/local cart can return:
+  // image / imageUrl / imageUrls[] / images[] / thumbnail / nested item.product.
+  const resolvedImages = getResolvedProductImageUrls(item.product || item);
   const imageSrc =
-    (typeof item.image === 'string' ? item.image : item.image?.url) || '/images/dummy.png';
+    resolvedImages.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER) ||
+    (typeof item.image === 'string' ? item.image : item.image?.url) ||
+    PRODUCT_IMAGE_PLACEHOLDER;
   const unitPrice = item.selectedSize?.price ?? parseFloat(item.price);
   const originalPrice = item.originalPrice || null;
   const discountPct =
@@ -280,6 +286,7 @@ function CartPageContent() {
     deleteSavedCart,
     savedCarts,
     loadSharedCart,
+    isCartReady,
   } = useCart();
   const { showAlert } = useAlert();
 
@@ -371,7 +378,12 @@ function CartPageContent() {
     <div className="min-h-screen bg-gray-50 pb-28 w-full max-w-full overflow-x-hidden">
       <TopBar itemCount={totalQty} />
 
-      {cartItems.length === 0 ? (
+      {!isCartReady ? (
+        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+          <div className="w-9 h-9 rounded-full border-2 border-emerald-200 border-t-emerald-600 animate-spin mb-3" />
+          <p className="text-sm font-medium text-gray-700">Loading your cart…</p>
+        </div>
+      ) : cartItems.length === 0 ? (
         <EmptyCart />
       ) : (
         <>
@@ -390,6 +402,28 @@ function CartPageContent() {
               />
             ))}
 
+            {/* Add more items — full-width CTA */}
+            <Link
+              href="/products"
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/40 px-4 py-3 text-[13px] font-semibold text-emerald-800 transition hover:border-emerald-500 hover:bg-emerald-50 active:scale-[0.99]"
+            >
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Add more items
+            </Link>
+
             {/* Action buttons */}
             <div className="flex flex-wrap gap-2 pt-1">
               <ActionButton onClick={clearCart} variant="danger" icon={TrashIcon}>
@@ -406,7 +440,7 @@ function CartPageContent() {
 
           {/* Similar products — suggestions based on cart contents (or random fallback) */}
           {similarProducts.length > 0 && (
-            <section className="mt-8 mb-3" aria-label="Similar products">
+            <section className="mt-12 mb-3" aria-label="Similar products">
               <div className="px-4 mb-4 flex items-end justify-between gap-3">
                 <div>
                   <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
