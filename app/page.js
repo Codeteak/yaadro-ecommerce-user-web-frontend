@@ -10,12 +10,17 @@ import { useAlert } from '../context/AlertContext';
 import { useAddress } from '../context/AddressContext';
 import { useLocationService } from '../context/LocationServiceContext';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { useBottomNavVisibility } from '../context/BottomNavVisibilityContext';
+import { useLayoutHeights } from '../context/LayoutHeightsContext';
 import ProductCarousel from '../components/ProductCarousel';
 import ProductCard from '../components/ProductCard';
 import ProductGrid from '../components/ProductGrid';
 import CategoryCard from '../components/CategoryCard';
 import Container from '../components/Container';
-import { User, MapPin, Search, ArrowRight } from 'lucide-react';
+import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../utils/productImages';
+import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../utils/categoryImage';
+import { User, MapPin, Search, ArrowRight, ShoppingCart } from 'lucide-react';
 
 // Bento spans (Tailwind safelist-friendly literals) that repeat to create a category mosaic.
 const BENTO_PATTERN = [
@@ -38,6 +43,9 @@ export default function Home() {
   const { showAlert } = useAlert();
   const { getDefaultAddress } = useAddress();
   const { isAuthenticated, user, setShowLoginSheet } = useAuth();
+  const { cartItems, cartCount } = useCart();
+  const { isVisible: bottomNavVisible, hideForRoute: bottomNavHidden } = useBottomNavVisibility();
+  const { bottomNavHeight } = useLayoutHeights();
   const {
     isChecking: isLocationChecking,
     serviceable: isServiceable,
@@ -984,20 +992,20 @@ export default function Home() {
             <div className="grid grid-cols-6 gap-2 sm:gap-3 auto-rows-[110px] sm:auto-rows-[130px] md:auto-rows-[150px] grid-flow-dense px-4 md:px-0">
               {allCategories.map((category, idx) => {
                 const span = getBentoSpan(idx);
-                const src = getCategoryImageSrc(category);
+                const src = getCategoryImageUrl(category) || CATEGORY_DUMMY_IMAGE;
                 return (
                   <Link
                     key={category.id}
                     href={`/products?category=${encodeURIComponent(category.name)}`}
-                    className={`group relative overflow-hidden rounded-2xl bg-gray-100 shadow-sm ring-1 ring-gray-100 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${span}`}
+                    className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 shadow-sm ring-1 ring-gray-100 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${span}`}
                     aria-label={category.name}
                   >
                     <img
-                      src={src || '/icons/dummy-category-card-icon.png'}
+                      src={src}
                       alt=""
-                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.06]"
+                      className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.05]"
                       onError={(e) => {
-                        e.currentTarget.src = '/icons/dummy-category-card-icon.png';
+                        e.currentTarget.src = CATEGORY_DUMMY_IMAGE;
                       }}
                     />
                     <div
@@ -1034,6 +1042,77 @@ export default function Home() {
           </div>
         </Container>
       </section>
+
+      {/* Floating "View cart" pill — only when there are items in cart.
+          Sits above the mobile bottom nav when it's visible, drops to safe-area when nav slides away. */}
+      {cartItems.length > 0 && (
+        <div
+          className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-4"
+          style={{
+            bottom:
+              !bottomNavHidden && bottomNavVisible && bottomNavHeight > 0
+                ? `${bottomNavHeight + 12}px`
+                : 'calc(1rem + env(safe-area-inset-bottom, 0px))',
+            transition: 'bottom 320ms cubic-bezier(0.22, 1, 0.36, 1)',
+            willChange: 'bottom',
+          }}
+          aria-hidden={cartItems.length === 0}
+        >
+          <Link
+            href="/cart"
+            className="pointer-events-auto group flex w-full max-w-[420px] items-center gap-3 rounded-full bg-emerald-600 px-3 py-2.5 shadow-[0_18px_45px_rgba(16,185,129,0.45)] ring-1 ring-emerald-500/40 backdrop-blur-sm transition-all duration-200 hover:bg-emerald-700 hover:shadow-[0_22px_55px_rgba(16,185,129,0.55)] active:scale-[0.98]"
+            aria-label={`Go to cart, ${cartCount} ${cartCount === 1 ? 'item' : 'items'}`}
+          >
+            {/* Stacked product thumbnails */}
+            <div className="flex flex-shrink-0 -space-x-3">
+              {cartItems.slice(0, 3).map((item, idx) => {
+                const src =
+                  getResolvedProductImageUrls(item?.product || item)[0] ||
+                  PRODUCT_IMAGE_PLACEHOLDER;
+                const key =
+                  item?.cartItemKey ?? item?.cartItemId ?? item?.id ?? `${idx}`;
+                return (
+                  <span
+                    key={key}
+                    className="relative inline-flex h-9 w-9 overflow-hidden rounded-full bg-white ring-2 ring-white"
+                    style={{ zIndex: 10 - idx }}
+                  >
+                    <img
+                      src={src}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = PRODUCT_IMAGE_PLACEHOLDER;
+                      }}
+                    />
+                  </span>
+                );
+              })}
+              {cartItems.length > 3 && (
+                <span
+                  className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-emerald-800 text-[11px] font-bold text-white ring-2 ring-white"
+                  style={{ zIndex: 1 }}
+                >
+                  +{cartItems.length - 3}
+                </span>
+              )}
+            </div>
+
+            {/* Label */}
+            <div className="min-w-0 flex-1 text-left text-white">
+              <p className="text-[11px] font-medium leading-none opacity-90">
+                {cartCount} {cartCount === 1 ? 'item' : 'items'} in cart
+              </p>
+              <p className="mt-1 text-sm font-bold leading-none">View cart</p>
+            </div>
+
+            {/* Trailing icon */}
+            <span className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white/20 text-white transition group-hover:bg-white/25">
+              <ShoppingCart className="h-4 w-4" strokeWidth={2.4} />
+            </span>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

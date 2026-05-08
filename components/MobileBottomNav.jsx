@@ -63,19 +63,19 @@ export default function MobileBottomNav() {
   return (
     <div
       ref={navRef}
-      className={`fixed bottom-0 left-0 right-0 z-50 md:hidden flex justify-center transition-transform duration-300 ease-out ${
+      className={`fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-black/10 bg-white/95 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] transition-transform duration-300 ease-out ${
         isVisible ? 'translate-y-0' : 'translate-y-full'
       }`}
       style={{
-        paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+        paddingTop: '8px',
+        paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
         willChange: 'transform',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
       }}
       aria-hidden={!isVisible}
     >
-      <nav
-        className="flex w-[80%] max-w-[28rem] items-center justify-center gap-1.5 rounded-full border border-black/10 bg-white px-3 py-2 shadow-[0_4px_24px_rgba(0,0,0,0.10)]"
-        style={{ backdropFilter: 'blur(12px)' }}
-      >
+      <nav className="flex w-full items-center justify-around gap-1 px-2">
         {navItems.map(({ href, label, Icon, showCartBadge }) => {
           const isActive =
             pathname === href || (href !== '/' && pathname?.startsWith(href));
@@ -87,7 +87,7 @@ export default function MobileBottomNav() {
               key={href}
               href={href}
               prefetch
-              className={`relative flex min-w-[5.5rem] flex-1 flex-col items-center justify-center gap-0.5 rounded-full px-4 py-2.5 transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
+              className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-3 py-2 transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
                 isActive
                   ? 'bg-emerald-500 text-white shadow-sm'
                   : 'hover:bg-black/[0.04] active:scale-[0.98]'

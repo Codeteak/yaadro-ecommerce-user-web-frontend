@@ -5,9 +5,47 @@ import { resolveShopId } from '../utils/authApi';
 import { checkDeliveryLocation } from '../utils/storefrontLocationApi';
 
 const SESSION_WARN_KEY = 'yaadro-service-area-warned';
+const DELIVERY_CACHE_KEY = 'yaadro-delivery-check-v1';
 
 /** Avoid duplicate geolocation prompts under React Strict Mode (dev). */
 let locationCheckInitStarted = false;
+
+/**
+ * Persisted delivery check.
+ * Once the user has granted location and the API has responded, we never re-prompt
+ * or re-call the API automatically — we always read from this cache. The user can
+ * still trigger a fresh check explicitly via `recheckLocation()`.
+ */
+function loadDeliveryCache() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(DELIVERY_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveDeliveryCache(payload) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(DELIVERY_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    /* quota / disabled — silently ignore */
+  }
+}
+
+function clearDeliveryCache() {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(DELIVERY_CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
 
 const LocationServiceContext = createContext(null);
 
@@ -54,6 +92,15 @@ export function LocationServiceProvider({ children }) {
           setDistanceM(data.distanceM);
           setMaxRadiusM(data.maxRadiusM);
           setPhase('done');
+          // Persist so we don't re-prompt or re-call the API on subsequent visits.
+          saveDeliveryCache({
+            serviceable: data.serviceable,
+            distanceM: data.distanceM,
+            maxRadiusM: data.maxRadiusM,
+            coords: { lat, lng },
+            shopId,
+            savedAt: Date.now(),
+          });
           if (!data.serviceable && typeof window !== 'undefined') {
             const warned = sessionStorage.getItem(SESSION_WARN_KEY);
             if (!warned) {
@@ -89,8 +136,35 @@ export function LocationServiceProvider({ children }) {
   useEffect(() => {
     if (locationCheckInitStarted) return;
     locationCheckInitStarted = true;
+
+    const cached = loadDeliveryCache();
+    if (cached) {
+      // Hydrate from localStorage. No geolocation prompt, no API call.
+      setServiceable(cached.serviceable ?? null);
+      setDistanceM(cached.distanceM ?? null);
+      setMaxRadiusM(cached.maxRadiusM ?? null);
+      setCoords(cached.coords ?? null);
+      setPhase('done');
+      return;
+    }
+
     runCheck();
   }, [runCheck]);
+
+  /** Force-refresh: clears the cache and re-runs the full check (will re-prompt). */
+  const recheckLocation = useCallback(() => {
+    clearDeliveryCache();
+    return runCheck();
+  }, [runCheck]);
+
+  const clearCachedLocation = useCallback(() => {
+    clearDeliveryCache();
+    setServiceable(null);
+    setDistanceM(null);
+    setMaxRadiusM(null);
+    setCoords(null);
+    setPhase('idle');
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -104,7 +178,8 @@ export function LocationServiceProvider({ children }) {
       errorMessage,
       showServiceAreaSheet: showSheet,
       setShowServiceAreaSheet: setShowSheet,
-      recheckLocation: runCheck,
+      recheckLocation,
+      clearCachedLocation,
     }),
     [
       phase,
@@ -115,7 +190,8 @@ export function LocationServiceProvider({ children }) {
       geoDenied,
       errorMessage,
       showSheet,
-      runCheck,
+      recheckLocation,
+      clearCachedLocation,
     ]
   );
 

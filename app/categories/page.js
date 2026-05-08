@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useCategoriesTree, useSearchProducts } from '../../hooks/useProducts';
 import { getResolvedProductImageUrls } from '../../utils/productImages';
+import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryImage';
 
 /** Rotating hint (same UX as header search). */
 const FALLBACK_HINT_WORDS = [
@@ -144,10 +145,7 @@ function CategoryCard({ category }) {
   const productCount = category.productCount ?? category._count?.products ?? 0;
   const categorySlugOrId = category.slug || category.id;
 
-  const imageUrl =
-    typeof category.image === 'string' && category.image.trim().length > 0
-      ? category.image.trim()
-      : null;
+  const imageUrl = getCategoryImageUrl(category);
   const onImage = !!imageUrl;
 
   return (
@@ -156,23 +154,34 @@ function CategoryCard({ category }) {
       className="block bg-white rounded-[18px] overflow-hidden border border-gray-100 hover:border-gray-200 active:scale-[0.98] transition-all select-none"
     >
       <div className="relative min-h-[168px] w-full overflow-hidden">
-        {imageUrl ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageUrl}
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover"
-              loading="lazy"
-            />
-          </>
+        {onImage ? (
+          <img
+            src={imageUrl}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover object-center"
+            loading="lazy"
+            onError={(e) => {
+              e.currentTarget.src = CATEGORY_DUMMY_IMAGE;
+            }}
+          />
         ) : (
-          <div className="absolute inset-0" style={{ background: bg }} aria-hidden />
+          <>
+            <div className="absolute inset-0" style={{ background: bg }} aria-hidden />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/85 shadow-sm"
+                aria-hidden
+              >
+                <CategoryIcon name={category.name} strokeColor={stroke} />
+              </div>
+            </div>
+          </>
         )}
 
-        <div className="relative z-10 flex min-h-[168px] flex-col p-3.5">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-[15px] font-bold leading-snug tracking-tight text-gray-900">
+        {/* Bottom name strip — readable regardless of image position */}
+        <div className="absolute inset-x-0 bottom-0 z-10 border-t border-black/5 bg-white/90 px-3 py-2 backdrop-blur-sm">
+          <div className="flex items-center justify-between gap-2">
+            <p className="min-w-0 truncate text-[13px] font-bold leading-snug text-gray-900">
               {category.name}
             </p>
             {productCount > 0 && (
@@ -181,17 +190,6 @@ function CategoryCard({ category }) {
               </span>
             )}
           </div>
-
-          {!onImage && (
-            <div className="mt-3 flex justify-center">
-              <div
-                className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/80 shadow-sm"
-                aria-hidden
-              >
-                <CategoryIcon name={category.name} strokeColor={stroke} />
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </Link>

@@ -1,15 +1,17 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useCart } from '../../context/CartContext';
 import { useAlert } from '../../context/AlertContext';
 import { useAuth } from '../../context/AuthContext';
+import { useProducts } from '../../hooks/useProducts';
 import { setPostLoginRedirect } from '../../utils/authSession';
 import Container from '../../components/Container';
 import ConfirmModal from '../../components/ConfirmModal';
+import ProductCarousel from '../../components/ProductCarousel';
 
 /* ─────────────────────────────────────────────
    Sub-components
@@ -291,6 +293,63 @@ function CartPageContent() {
 
   const totalQty = cartItems.reduce((a, i) => a + i.quantity, 0);
 
+  // Pool of products used to suggest "similar products". Same query as home → cached.
+  const { data: similarPoolData } = useProducts({
+    limit: 50,
+    sort_by: 'created_at',
+    sort_order: 'desc',
+  });
+  const similarPool = similarPoolData?.products || [];
+
+  const cartProductIds = useMemo(
+    () =>
+      new Set(
+        cartItems
+          .map((item) => item.productId ?? item.product?.id ?? item.id)
+          .filter((id) => id != null)
+          .map((id) => String(id))
+      ),
+    [cartItems]
+  );
+
+  const cartCategoryNames = useMemo(() => {
+    const names = new Set();
+    cartItems.forEach((item) => {
+      const cat =
+        item?.category?.name ??
+        item?.category ??
+        item?.categoryName ??
+        item?.product?.category?.name ??
+        item?.product?.category ??
+        null;
+      if (typeof cat === 'string' && cat.trim()) names.add(cat.trim().toLowerCase());
+    });
+    return names;
+  }, [cartItems]);
+
+  const similarProducts = useMemo(() => {
+    if (similarPool.length === 0) return [];
+    const candidates = similarPool.filter(
+      (p) => p?.id != null && !cartProductIds.has(String(p.id))
+    );
+    if (cartCategoryNames.size === 0) return candidates.slice(0, 12);
+    const matchesCart = (p) => {
+      const pc = (
+        p?.category?.name ??
+        p?.category ??
+        p?.categoryName ??
+        ''
+      )
+        .toString()
+        .trim()
+        .toLowerCase();
+      return pc && cartCategoryNames.has(pc);
+    };
+    const priority = candidates.filter(matchesCart);
+    const others = candidates.filter((p) => !matchesCart(p));
+    return [...priority, ...others].slice(0, 12);
+  }, [similarPool, cartProductIds, cartCategoryNames]);
+
   const handleProceedToCheckout = () => {
     if (!authHydrated) return;
     if (isAuthenticated) {
@@ -344,6 +403,29 @@ function CartPageContent() {
 
           {/* Order summary */}
           <SummaryCard cartItems={cartItems} cartTotal={cartTotal} />
+
+          {/* Similar products — suggestions based on cart contents (or random fallback) */}
+          {similarProducts.length > 0 && (
+            <section className="mt-8 mb-3" aria-label="Similar products">
+              <div className="px-4 mb-4 flex items-end justify-between gap-3">
+                <div>
+                  <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                    Similar Products
+                  </h2>
+                  <p className="mt-2 text-[13px] md:text-sm text-gray-500">
+                    You might also like these picks.
+                  </p>
+                </div>
+                <Link
+                  href="/products"
+                  className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800 transition whitespace-nowrap"
+                >
+                  See all
+                </Link>
+              </div>
+              <ProductCarousel products={similarProducts} showMoreLink="/products" />
+            </section>
+          )}
 
           {/* Saved carts */}
           <SavedCartsSection
