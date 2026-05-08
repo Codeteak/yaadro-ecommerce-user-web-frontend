@@ -17,6 +17,19 @@ import CategoryCard from '../components/CategoryCard';
 import Container from '../components/Container';
 import { User, MapPin, Search, ArrowRight } from 'lucide-react';
 
+// Bento spans (Tailwind safelist-friendly literals) that repeat to create a category mosaic.
+const BENTO_PATTERN = [
+  'col-span-6 sm:col-span-3 row-span-2',
+  'col-span-6 sm:col-span-3 row-span-1',
+  'col-span-3 sm:col-span-2 row-span-1',
+  'col-span-3 sm:col-span-2 row-span-2',
+  'col-span-3 sm:col-span-2 row-span-1',
+  'col-span-6 sm:col-span-3 row-span-1',
+  'col-span-3 sm:col-span-2 row-span-1',
+  'col-span-3 sm:col-span-2 row-span-1',
+];
+const getBentoSpan = (idx) => BENTO_PATTERN[idx % BENTO_PATTERN.length];
+
 export default function Home() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -144,7 +157,8 @@ export default function Home() {
 
   // Process data
   // Home categories strip: show only parent categories (parentId == null).
-  const categories = categoriesData?.filter(cat => cat.isActive && cat.parentId == null).slice(0, 12) || [];
+  const allCategories = categoriesData?.filter(cat => cat.isActive && cat.parentId == null) || [];
+  const categories = allCategories.slice(0, 12);
   const featuredProducts = featuredData?.products?.filter(p => p.isFeatured).slice(0, 8) || [];
   const bestSellers = bestSellersData?.products?.slice(0, 16) || [];
   const newArrivals = newArrivalsData?.products?.slice(0, 24) || [];
@@ -654,11 +668,12 @@ export default function Home() {
                   onPointerUp={handleCategoryMouseUp}
                   onPointerMove={handleCategoryMouseMove}
                   onPointerCancel={handleCategoryMouseUp}
-                  className="category-scroll-track flex items-center gap-4 overflow-x-auto overflow-y-hidden scrollbar-hide px-4 cursor-grab select-none touch-pan-x snap-x snap-mandatory scroll-smooth min-w-0 w-full"
+                  className="category-scroll-track flex items-center gap-4 overflow-x-auto overflow-y-hidden scrollbar-hide px-4 cursor-grab select-none touch-pan-x touch-pan-y snap-x snap-mandatory scroll-smooth min-w-0 w-full"
                   style={{
                     WebkitOverflowScrolling: 'touch',
                     overflowX: 'auto',
                     overflowY: 'hidden',
+                    touchAction: 'pan-x pan-y',
                   }}
                 >
                   <div className="flex items-stretch gap-4 flex-nowrap w-max flex-shrink-0 pb-2">
@@ -948,6 +963,55 @@ export default function Home() {
                 <span>See all</span>
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
+            </div>
+          </Container>
+        </section>
+      )}
+
+      {/* Shop by Category — Bento grid of all categories */}
+      {allCategories.length > 0 && (
+        <section className="py-8 md:py-12 lg:py-16 bg-white">
+          <Container>
+            <div className="mb-6 md:mb-8 px-4 md:px-0">
+              <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                Shop by Category
+              </h2>
+              <p className="mt-2 text-[13px] md:text-sm text-gray-500">
+                Browse every category — find what you need, fast.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-6 gap-2 sm:gap-3 auto-rows-[110px] sm:auto-rows-[130px] md:auto-rows-[150px] grid-flow-dense px-4 md:px-0">
+              {allCategories.map((category, idx) => {
+                const span = getBentoSpan(idx);
+                const src = getCategoryImageSrc(category);
+                return (
+                  <Link
+                    key={category.id}
+                    href={`/products?category=${encodeURIComponent(category.name)}`}
+                    className={`group relative overflow-hidden rounded-2xl bg-gray-100 shadow-sm ring-1 ring-gray-100 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${span}`}
+                    aria-label={category.name}
+                  >
+                    <img
+                      src={src || '/icons/dummy-category-card-icon.png'}
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.06]"
+                      onError={(e) => {
+                        e.currentTarget.src = '/icons/dummy-category-card-icon.png';
+                      }}
+                    />
+                    <div
+                      aria-hidden
+                      className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4">
+                      <h3 className="text-sm sm:text-base md:text-lg font-bold text-white leading-tight drop-shadow-md line-clamp-2">
+                        {category.name}
+                      </h3>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </Container>
         </section>

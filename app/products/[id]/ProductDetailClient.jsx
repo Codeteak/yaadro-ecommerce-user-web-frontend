@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useProductWithRelated } from '../../../hooks/useProducts';
+import { useProductWithRelated, useProducts } from '../../../hooks/useProducts';
 import { useCart } from '../../../context/CartContext';
 import { useRecentlyViewed } from '../../../context/RecentlyViewedContext';
 import { useAlert } from '../../../context/AlertContext';
@@ -177,7 +177,45 @@ export default function ProductDetailClient({ productId = null }) {
     (product?.storageType
       ? `Store in ${String(product.storageType).replace('_', ' ')}.`
       : null);
-  const frequentlyBoughtTogether = product?.frequentlyBoughtTogether ?? relatedProducts.slice(0, 4);
+  // Pool of products used to fill Similar / FBT when the API returns nothing.
+  // Reuses the same cached query as the home page (limit 50, newest first) → no extra network on most navigations.
+  const { data: fallbackPoolData } = useProducts({
+    limit: 50,
+    sort_by: 'created_at',
+    sort_order: 'desc',
+  });
+  const fallbackPool = fallbackPoolData?.products || [];
+
+  const shuffleArray = (input) => {
+    const arr = Array.isArray(input) ? [...input] : [];
+    for (let i = arr.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+
+  const similarItems = useMemo(() => {
+    if (Array.isArray(relatedProducts) && relatedProducts.length > 0) return relatedProducts;
+    if (!product?.id || fallbackPool.length === 0) return [];
+    const exclude = new Set([String(product.id)]);
+    const candidates = fallbackPool.filter((p) => p?.id != null && !exclude.has(String(p.id)));
+    return shuffleArray(candidates).slice(0, 8);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [relatedProducts, fallbackPool, product?.id]);
+
+  const fbtItems = useMemo(() => {
+    const apiFBT = product?.frequentlyBoughtTogether;
+    if (Array.isArray(apiFBT) && apiFBT.length > 0) return apiFBT;
+    if (!product?.id || fallbackPool.length === 0) return [];
+    const exclude = new Set([
+      String(product.id),
+      ...similarItems.map((p) => (p?.id != null ? String(p.id) : '')).filter(Boolean),
+    ]);
+    const candidates = fallbackPool.filter((p) => p?.id != null && !exclude.has(String(p.id)));
+    return shuffleArray(candidates).slice(0, 4);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.frequentlyBoughtTogether, fallbackPool, product?.id, similarItems]);
 
   const productToAddPayload = useMemo(
     () =>
@@ -649,13 +687,13 @@ export default function ProductDetailClient({ productId = null }) {
             )}
           </div>
 
-          {frequentlyBoughtTogether.length > 0 && (
+          {fbtItems.length > 0 && (
             <div className="mt-10">
               <h2 className="text-lg font-semibold text-gray-800 mb-4 px-1">
                 Frequently Bought Together
               </h2>
               <ProductCarousel
-                products={frequentlyBoughtTogether}
+                products={fbtItems}
                 showMoreLink={
                   product.category
                     ? `/products?category=${encodeURIComponent(product.category)}`
@@ -665,20 +703,28 @@ export default function ProductDetailClient({ productId = null }) {
             </div>
           )}
 
-          {relatedProducts.length > 0 && (
+          {similarItems.length > 0 && (
             <div className="mt-10 mb-4">
               <div className="flex items-center justify-between mb-4 px-1">
                 <h2 className="text-lg font-semibold text-gray-800">Similar Products</h2>
                 <Link
-                  href={`/products?category=${encodeURIComponent(product.category)}`}
+                  href={
+                    product.category
+                      ? `/products?category=${encodeURIComponent(product.category)}`
+                      : '/products'
+                  }
                   className="text-emerald-600 text-sm font-medium hover:underline"
                 >
                   View All
                 </Link>
               </div>
               <ProductCarousel
-                products={relatedProducts}
-                showMoreLink={`/products?category=${encodeURIComponent(product.category)}`}
+                products={similarItems}
+                showMoreLink={
+                  product.category
+                    ? `/products?category=${encodeURIComponent(product.category)}`
+                    : '/products'
+                }
               />
             </div>
           )}
@@ -747,12 +793,14 @@ export default function ProductDetailClient({ productId = null }) {
             )}
           </div>
 
-          <Link
-            href="/cart"
-            className="inline-flex min-h-[3.25rem] shrink-0 items-center justify-center rounded-2xl bg-green-600 px-5 text-sm font-semibold tracking-tight text-white shadow-md shadow-green-700/20 transition duration-200 hover:bg-green-700 hover:shadow-lg active:scale-[0.98] sm:min-h-[3.5rem] sm:px-6 sm:text-[15px]"
-          >
-            Go to cart
-          </Link>
+          {cartQty > 0 && (
+            <Link
+              href="/cart"
+              className="inline-flex min-h-[3.25rem] shrink-0 items-center justify-center rounded-2xl bg-green-600 px-5 text-sm font-semibold tracking-tight text-white shadow-md shadow-green-700/20 transition duration-200 hover:bg-green-700 hover:shadow-lg active:scale-[0.98] sm:min-h-[3.5rem] sm:px-6 sm:text-[15px]"
+            >
+              Go to cart
+            </Link>
+          )}
         </div>
       </div>
 

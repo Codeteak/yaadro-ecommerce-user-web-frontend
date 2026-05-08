@@ -150,7 +150,6 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     [cartActionLoading, cartLine, cartQty, cartUpdateKey, removeFromCart, updateQuantity]
   );
 
-  const productTag = product.tag || product.category;
   const productSlugOrId = product.slug || product.id;
 
   const chromeClass =
@@ -231,7 +230,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           e.stopPropagation();
         }
       }}
-      className={`block rounded-2xl overflow-hidden touch-manipulation transition-all duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/45 ${chromeClass} ${
+      className={`flex flex-col h-full rounded-2xl overflow-hidden touch-manipulation transition-all duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/45 ${chromeClass} ${
         isCarousel ? 'w-[140px]' : 'w-full'
       }`}
     >
@@ -353,8 +352,8 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           </div>
       </div>
 
-      <div className="flex flex-col gap-2 px-3 pb-3 pt-2 min-h-0">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+      <div className="flex flex-1 flex-col gap-2 px-3 pb-3 pt-2 min-h-0">
+        <div className="flex min-h-[34px] flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="inline-flex items-center rounded-md bg-green-600 px-2 py-1 text-base font-bold tabular-nums text-white shadow-sm">
             ₹{formatRupeeINR(currentPrice)}
           </span>
@@ -370,23 +369,15 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           )}
         </div>
 
-        <div className="block min-w-0">
+        <div className="block min-w-0 min-h-[2.5rem]">
           <h3 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 tracking-tight sm:text-[15px]">
             {product.name}
           </h3>
         </div>
 
-        {displayWeight && (
-          <p className="text-[11px] text-gray-500 leading-none">
-            1 pack · {displayWeight}
-          </p>
-        )}
-
-        {productTag && (
-          <span className="inline-flex self-start items-center px-2 py-0.5 text-[10px] font-medium text-gray-600 bg-gray-100 rounded-md">
-            {productTag}
-          </span>
-        )}
+        <p className="mt-auto text-[11px] text-gray-500 leading-none min-h-[12px]">
+          {displayWeight ? `1 pack · ${displayWeight}` : '\u00A0'}
+        </p>
       </div>
     </Link>
   );
