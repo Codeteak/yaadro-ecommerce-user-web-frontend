@@ -32,10 +32,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className="overflow-x-hidden w-full max-w-full" style={{ overflowX: 'hidden' }}>
       <body
-        className="flex flex-col min-h-screen bg-gray-50 overflow-x-hidden w-full max-w-full"
+        className="flex flex-col min-h-screen bg-white overflow-x-hidden w-full max-w-full"
         style={{ overflowX: 'hidden', maxWidth: '100vw' }}
       >
-        <ClientOnly fallback={<div className="min-h-screen w-full bg-gray-50" />}>
+        <ClientOnly fallback={<div className="min-h-screen w-full bg-white" />}>
           <QueryProvider>
             <AuthProvider>
               <AlertProvider>

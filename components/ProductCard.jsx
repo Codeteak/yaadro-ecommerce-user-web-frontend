@@ -238,7 +238,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       <div className="relative">
           <div
             ref={carouselRef}
-            className="relative w-full aspect-[4/5] overflow-hidden rounded-t-2xl p-1 max-h-[120px] cursor-grab active:cursor-grabbing pointer-events-auto"
+            className="relative w-full aspect-[4/5] overflow-hidden rounded-2xl p-1 max-h-[120px] cursor-grab active:cursor-grabbing pointer-events-auto"
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
@@ -257,7 +257,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
                     src={img}
                     alt={`${product.name} – image ${idx + 1}`}
                     fill
-                    className="object-cover"
+                    className="object-cover rounded-2xl"
                     sizes="(max-width: 640px) 50vw, (max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                   />
                 </div>
@@ -344,10 +344,10 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
                   e.stopPropagation();
                   void handleAddToCart();
                 }}
-                className="absolute bottom-2 right-2 px-3 py-1 border-2 border-pink-500 text-pink-600 text-[11px] font-semibold rounded-lg bg-white hover:bg-pink-50 transition shadow-sm z-10"
+                className="absolute bottom-2 right-2 z-10 flex h-9 w-9 items-center justify-center rounded-xl border-2 border-pink-500 bg-white text-pink-600 shadow-sm transition hover:bg-pink-50"
                 aria-label="Add to cart"
               >
-                ADD
+                <span className="text-[22px] font-extrabold leading-none">+</span>
               </button>
             )}
           </div>

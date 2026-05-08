@@ -170,6 +170,7 @@ export default function Navbar() {
   const addressLine = defaultAddress
     ? [defaultAddress.city, defaultAddress.street || defaultAddress.address].filter(Boolean).slice(0, 2).join(', ') || 'Add address'
     : 'Add address';
+  const addressHref = defaultAddress ? '/profile' : '/addresses';
 
   useEffect(() => {
     let active = true;
@@ -299,7 +300,7 @@ export default function Navbar() {
               )}
             </div>
             <Link
-              href="/profile"
+              href={addressHref}
               className="text-xs text-gray-600 truncate max-w-[180px] sm:max-w-xs hover:text-primary"
               title={addressLine}
             >

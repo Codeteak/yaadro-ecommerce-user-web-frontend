@@ -30,7 +30,8 @@ export default function ConditionalLayout({ children }) {
   /** Categories list + category browse: no global Navbar, but keep bottom inset for mobile nav */
   const categoriesRoute = pathname?.startsWith('/categories');
 
-  const showNavbar = !hideLayout && !categoriesRoute;
+  const homeRoute = pathNoSlash === '';
+  const showNavbar = !hideLayout && !categoriesRoute && !homeRoute;
 
   const mainPaddingTop = showNavbar ? navbarHeight : 0;
   const mainPaddingBottom = categoriesRoute
