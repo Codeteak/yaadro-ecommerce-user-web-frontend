@@ -6,13 +6,18 @@ import Link from 'next/link';
 import Image from 'next/image';
 import Script from 'next/script';
 import { useOrderDetail, useCancelOrder, useRetryPayment, useVerifyPayment } from '../../../hooks/useOrders';
+import { useRequireAuth } from '../../../hooks/useRequireAuth';
 import { useProductWithRelated } from '../../../hooks/useProducts';
 import { useCart } from '../../../context/CartContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useAlert } from '../../../context/AlertContext';
 import ProductCarousel from '../../../components/ProductCarousel';
+import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
+import PageTopBar from '../../../components/PageTopBar';
+import GuestAuthPrompt from '../../../components/GuestAuthPrompt';
 import ConfirmModal from '../../../components/ConfirmModal';
 import PromptModal from '../../../components/PromptModal';
+import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../../utils/productImages';
 
 function IconBack() {
   return (
@@ -51,8 +56,15 @@ function IconCancel() {
 }
 function IconReorder() {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-white" aria-hidden>
-      <path d="M2 8a6 6 0 016-6 6 6 0 015.74 4.26M14 4v4h-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-current" aria-hidden>
+      <path
+        d="M2 3h1.6l.45 2.1m0 0H13l-1.1 4.1H5.2m-1.15-4.1L5.2 9.2m0 0l-.9 1c-.28.3-.07.8.33.8H11.7"
+        stroke="currentColor"
+        strokeWidth="1.35"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M6.2 12.7a.9.9 0 11-1.8 0 .9.9 0 011.8 0zM12.3 12.7a.9.9 0 11-1.8 0 .9.9 0 011.8 0z" fill="currentColor" />
     </svg>
   );
 }
@@ -87,6 +99,17 @@ function fmtDate(d) {
     day:  dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
     time: dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
   };
+}
+
+function getOrderItemImage(item) {
+  const fromProduct = getResolvedProductImageUrls(item?.product || {});
+  const fromItem = getResolvedProductImageUrls(item || {});
+  return (
+    fromProduct.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER) ||
+    fromItem.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER) ||
+    (typeof item?.image === 'string' ? item.image : item?.image?.url) ||
+    PRODUCT_IMAGE_PLACEHOLDER
+  );
 }
 
 /** Tailwind rings — aligned with checkout / home (white + emerald) */
@@ -385,7 +408,10 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   const params   = useParams();
   const router   = useRouter();
   const resolvedOrderId = orderIdProp != null ? String(orderIdProp).trim() : params.id;
-  const { data: order, isLoading, error } = useOrderDetail(resolvedOrderId);
+  const { ok, ready } = useRequireAuth();
+  const { data: order, isLoading, error } = useOrderDetail(resolvedOrderId, {
+    enabled: ok && Boolean(resolvedOrderId),
+  });
   const cancelMutation  = useCancelOrder();
   const retryMutation   = useRetryPayment();
   const verifyMutation  = useVerifyPayment();
@@ -433,6 +459,30 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
     };
     return () => { console.warn = orig; };
   }, []);
+
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen flex-col bg-gray-50">
+        <div className="sticky top-0 z-20 shrink-0">
+          <PageTopBar title="Order details" backHref="/orders" fallbackHref="/" />
+        </div>
+        <div className="flex flex-1 items-center justify-center px-4 pb-24 pt-8">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!ok) {
+    return (
+      <GuestAuthPrompt
+        pageTitle="Order details"
+        backHref="/orders"
+        fallbackHref="/"
+        description="Sign in to view this order."
+      />
+    );
+  }
 
   if (isLoading) return <LoadingState />;
   if (error || !order) return <ErrorState message={error?.message} />;
@@ -587,7 +637,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
 
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
 
-      <div className="min-h-svh bg-gray-50 pb-10">
+      <div className="min-h-svh bg-gray-50 pb-28">
         <div className="mx-auto max-w-[480px]">
           <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-100 bg-white px-4 py-3.5">
             <button
@@ -696,11 +746,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                 >
                   <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
                     <Image
-                      src={
-                        item.product?.images?.[0] ||
-                        (typeof item.image === 'string' ? item.image : item.image?.url) ||
-                        '/images/dummy.png'
-                      }
+                      src={getOrderItemImage(item)}
                       alt={item.productName || item.name || 'Item'}
                       fill
                       className="object-cover"
@@ -824,7 +870,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                   type="button"
                   onClick={handleReorder}
                   disabled={isReordering}
-                  className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border-0 bg-emerald-600 py-3.5 text-[13px] font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-yellow-500 bg-yellow-400 py-3.5 text-[13px] font-semibold text-gray-900 hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isReordering ? (
                     <>
@@ -871,6 +917,8 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
         confirmText="Yes, cancel order"
         cancelText="No, keep order"
       />
+
+      <FloatingViewCartPill />
     </>
   );
 }

@@ -7,6 +7,8 @@ import Image from 'next/image';
 import { ArrowLeft, Check, Loader2, MapPin } from 'lucide-react';
 import { useAddress } from '../../../context/AddressContext';
 import { useAuth } from '../../../context/AuthContext';
+import GuestAuthPrompt from '../../../components/GuestAuthPrompt';
+import { useRequireAuth } from '../../../hooks/useRequireAuth';
 import { useAlert } from '../../../context/AlertContext';
 import { reverseGeocode } from '../../../utils/geocoding';
 import { updateStorefrontProfile, resolveShopId } from '../../../utils/authApi';
@@ -30,25 +32,29 @@ const ALLOWED_RETURN_ROUTES = new Set(['/checkout', '/addresses']);
 
 function buildAddressFromExisting(addr) {
   if (!addr) return null;
-  const building = String(addr.building || addr.apartment || addr.flat || '').trim();
-  const rawLine1 = String(
-    addr.line1 ||
+  const line1 = String(
+    addr.building ||
+      addr.apartment ||
+      addr.flat ||
+      addr.line1 ||
       (typeof addr.street === 'string' ? addr.street.split(',')[0] : '') ||
-      (typeof addr.address === 'string' ? addr.address.split(',')[0] : '') ||
       ''
   ).trim();
-  // We persist line1 as `${building}, ${line1}` to keep legacy backends happy.
-  // Strip that prefix back out on edit so the form shows the original line1.
-  const buildingPrefix = building ? `${building},` : '';
-  const line1 =
-    buildingPrefix && rawLine1.toLowerCase().startsWith(buildingPrefix.toLowerCase())
-      ? rawLine1.slice(buildingPrefix.length).trim()
-      : rawLine1;
   return {
     label: addr.label || 'Home',
-    building,
     line1,
-    line2: addr.line2 || '',
+    line2:
+      addr.line2 ||
+      addr.displayName ||
+      [
+        addr.landmark,
+        addr.city,
+        addr.state,
+        addr.postalCode || addr.zipCode,
+        addr.country,
+      ]
+        .filter(Boolean)
+        .join(', '),
     landmark: addr.landmark || '',
     city: addr.city || '',
     state: addr.state || '',
@@ -60,7 +66,6 @@ function buildAddressFromExisting(addr) {
 
 const EMPTY_FORM = {
   label: 'Home',
-  building: '',
   line1: '',
   line2: '',
   landmark: '',
@@ -78,7 +83,8 @@ export default function AddAddressPage() {
   const editId = sp.get('id') || '';
   const returnTo = ALLOWED_RETURN_ROUTES.has(fromParam) ? fromParam : '/addresses';
 
-  const { user, refreshUser, authHydrated, isAuthenticated, isLoadingUser } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const { ok, ready } = useRequireAuth();
   const { addresses = [], addAddress, updateAddress, isCreating, isUpdating } = useAddress();
   const { showAlert } = useAlert();
 
@@ -87,14 +93,6 @@ export default function AddAddressPage() {
     [editId, addresses]
   );
   const isEdit = Boolean(editingAddress?.id);
-
-  // ── Auth guard ──
-  useEffect(() => {
-    if (!authHydrated || isLoadingUser) return;
-    if (!isAuthenticated) {
-      router.replace('/');
-    }
-  }, [authHydrated, isLoadingUser, isAuthenticated, router]);
 
   // ── 2-step flow ──
   const [step, setStep] = useState(1);
@@ -114,6 +112,7 @@ export default function AddAddressPage() {
 
   const [resolvedAddress, setResolvedAddress] = useState(null);
   const [resolvingStatus, setResolvingStatus] = useState('idle'); // idle | loading | error
+  const [mapFocusRequest, setMapFocusRequest] = useState(null);
 
   /** GPS position for "your location" vs pinned centre (fixed pin flow). */
   const [userLocation, setUserLocation] = useState(null);
@@ -288,12 +287,7 @@ export default function AddAddressPage() {
   // ── Validation (step 2) ──
   const validation = useMemo(() => {
     const errors = {};
-    // Building / floor is only collected when adding a new address. On edit
-    // we keep whatever is already saved (and don't ask the user again).
-    if (!isEdit && !form.building.trim()) {
-      errors.building = 'Building / floor number is required';
-    }
-    if (!form.line1.trim()) errors.line1 = 'Address line 1 is required';
+    if (!form.line1.trim()) errors.line1 = 'Building / Apartment No is required';
     if (!form.city.trim()) errors.city = 'City is required';
     if (!form.state.trim()) errors.state = 'State is required';
     const pin = form.postalCode.replace(/\s/g, '').trim();
@@ -345,14 +339,22 @@ export default function AddAddressPage() {
     setResolvingStatus('idle');
     setForm((prev) => {
       const next = { ...prev };
-      // Roll all street-level details from the map (street/house + neighbourhood/
-      // suburb) into Address line 1. line2 is left untouched for manual entry.
-      if (!String(prev.line1 || '').trim()) {
-        const combined = [resolved.line1, resolved.line2]
-          .map((s) => String(s || '').trim())
-          .filter(Boolean)
-          .join(', ');
-        if (combined) next.line1 = combined;
+      // Keep line1 for user-entered building/apartment; auto-fill line2 from map.
+      if ((!touched.line2 && !String(prev.line2 || '').trim()) || !String(prev.line2 || '').trim()) {
+        const fullMapAddress =
+          String(resolved.displayName || '').trim() ||
+          [
+            resolved.line1,
+            resolved.line2,
+            resolved.landmark,
+            resolved.city,
+            resolved.state,
+            resolved.postalCode,
+            resolved.country,
+          ]
+            .filter(Boolean)
+            .join(', ');
+        if (fullMapAddress) next.line2 = fullMapAddress;
       }
       if (!String(prev.landmark || '').trim() && resolved.landmark) next.landmark = resolved.landmark;
       if (!String(prev.city || '').trim() && resolved.city) next.city = resolved.city;
@@ -367,19 +369,13 @@ export default function AddAddressPage() {
 
   // ── Submit ──
   const buildPayload = (nameResolved, phoneResolved) => {
-    const building = form.building.trim();
     const line1 = form.line1.trim();
     const line2 = form.line2.trim();
-    // Building / floor goes at the head of the address so any backend that only
-    // reads `street` / `address` / `line1` still gets the most specific delivery
-    // detail without needing a dedicated column.
-    const combinedLine1 = [building, line1].filter(Boolean).join(', ');
-    const combinedStreet = [building, line1, line2].filter(Boolean).join(', ');
+    const combinedStreet = [line1, line2].filter(Boolean).join(', ');
 
     return {
       label: form.label,
-      building,
-      line1: combinedLine1,
+      line1,
       line2,
       landmark: form.landmark.trim(),
       city: form.city.trim(),
@@ -390,7 +386,7 @@ export default function AddAddressPage() {
       lng: coords?.lng ?? null,
       raw: form.raw.trim() || null,
       street: combinedStreet,
-      address: combinedLine1,
+      address: combinedStreet || line1,
       zipCode: form.postalCode.replace(/\s/g, '').trim(),
       fullName: nameResolved,
       phone: String(phoneResolved || '').replace(/\D/g, '').slice(0, 10),
@@ -413,7 +409,6 @@ export default function AddAddressPage() {
     setTouched({
       name: true,
       phone: true,
-      ...(isEdit ? {} : { building: true }),
       line1: true,
       city: true,
       state: true,
@@ -468,8 +463,8 @@ export default function AddAddressPage() {
 
   const submitting = isCreating || isUpdating;
 
-  // ── Loading guard ──
-  if (!authHydrated || isLoadingUser) {
+  // ── Loading / auth guard ──
+  if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
         <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
@@ -477,7 +472,16 @@ export default function AddAddressPage() {
     );
   }
 
-  if (!isAuthenticated) return null;
+  if (!ok) {
+    return (
+      <GuestAuthPrompt
+        pageTitle={isEdit ? 'Edit address' : 'Add address'}
+        backHref={returnTo}
+        fallbackHref="/"
+        description="Sign in to save a delivery address."
+      />
+    );
+  }
 
   // Resolved-address preview text (shown on step 1).
   const previewLine1 =
@@ -527,6 +531,7 @@ export default function AddAddressPage() {
               onAddress={handleMapAddress}
               userLocation={userLocation}
               storeLocation={storeCoords}
+              focusRequest={mapFocusRequest}
             />
 
             {/* Floating back button — sits to the left of the map's search bar */}
@@ -549,7 +554,21 @@ export default function AddAddressPage() {
             {/* Distance / ETA strip */}
             {deliveryMetrics && (
               <div className="mb-4 grid gap-3 rounded-2xl border border-gray-100 bg-gray-50/80 p-3">
-                <div className="flex items-start gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (userLocation?.lat == null || userLocation?.lng == null) return;
+                    setMapFocusRequest({
+                      target: 'user',
+                      lat: userLocation.lat,
+                      lng: userLocation.lng,
+                      zoom: 17,
+                      ts: Date.now(),
+                    });
+                  }}
+                  disabled={userLocation?.lat == null || userLocation?.lng == null}
+                  className="flex w-full items-start gap-3 rounded-xl text-left transition hover:bg-gray-100/70 disabled:cursor-not-allowed disabled:opacity-60"
+                >
                   <Image
                     src="/home-icon.png"
                     alt=""
@@ -596,9 +615,21 @@ export default function AddAddressPage() {
                       </p>
                     )}
                   </div>
-                </div>
+                </button>
 
-                <div className="flex items-start gap-3 border-t border-gray-100 pt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMapFocusRequest({
+                      target: 'store',
+                      lat: storeCoords.lat,
+                      lng: storeCoords.lng,
+                      zoom: 17,
+                      ts: Date.now(),
+                    });
+                  }}
+                  className="flex w-full items-start gap-3 rounded-xl border-t border-gray-100 pt-3 text-left transition hover:bg-gray-100/70"
+                >
                   <Image
                     src="/store-icon.png"
                     alt=""
@@ -621,7 +652,7 @@ export default function AddAddressPage() {
                       Est. delivery ~{deliveryMetrics.etaMin} min
                     </p>
                   </div>
-                </div>
+                </button>
               </div>
             )}
 
@@ -749,31 +780,14 @@ export default function AddAddressPage() {
                 </select>
               </div>
 
-              {!isEdit && (
-                <div>
-                  <label className="text-xs font-semibold text-gray-700">
-                    Building name & floor number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    value={form.building}
-                    onChange={setField('building')}
-                    placeholder="e.g. Tower A, 3rd floor"
-                    className={inputCls('building')}
-                  />
-                  {err('building') && (
-                    <p className="mt-1 text-xs text-red-600">{err('building')}</p>
-                  )}
-                </div>
-              )}
-
               <div>
                 <label className="text-xs font-semibold text-gray-700">
-                  Address line 1 <span className="text-red-500">*</span>
+                  Building / Apartment No <span className="text-red-500">*</span>
                 </label>
                 <input
                   value={form.line1}
                   onChange={setField('line1')}
-                  placeholder="House / street"
+                  placeholder="e.g. Flat 402, Tower B"
                   className={inputCls('line1')}
                 />
                 {err('line1') && <p className="mt-1 text-xs text-red-600">{err('line1')}</p>}
@@ -781,12 +795,12 @@ export default function AddAddressPage() {
 
               <div>
                 <label className="text-xs font-semibold text-gray-700">
-                  Address line 2 <span className="text-gray-400">(optional)</span>
+                  Address line 2 (from map)
                 </label>
                 <input
                   value={form.line2}
                   onChange={setField('line2')}
-                  placeholder="Type anything you'd like the rider to know"
+                  placeholder="Auto-filled from selected map location"
                   className={inputCls('line2')}
                 />
               </div>

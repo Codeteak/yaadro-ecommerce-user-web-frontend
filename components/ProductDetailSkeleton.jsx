@@ -171,11 +171,16 @@ export default function ProductDetailSkeleton() {
         </Container>
       </div>
 
-      {/* Sticky bottom bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 px-4 py-3 flex items-center gap-3 safe-area-pb">
-        <Shimmer className="h-10 w-[7.25rem] rounded-full" />
-        <Shimmer className="flex-1 h-11 rounded-full" />
-        <Shimmer className="w-11 h-11 rounded-full flex-shrink-0" />
+      {/* Sticky bottom bar — matches cart / product detail chrome */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-gray-100 px-4 py-3 flex items-center gap-3"
+        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+      >
+        <div className="flex-1 space-y-1.5">
+          <Shimmer className="h-3 w-10" />
+          <Shimmer className="h-6 w-24" />
+        </div>
+        <Shimmer className="flex-1 h-11 rounded-full max-w-[55%]" />
       </div>
     </div>
   );

@@ -59,6 +59,7 @@ export function AuthProvider({ children }) {
           setUser(apiUser);
           if (apiUser) {
             localStorage.setItem('user', JSON.stringify(apiUser));
+            writeSessionExpiresAtFromLogin();
           }
         })
         .catch((error) => {
@@ -113,6 +114,7 @@ export function AuthProvider({ children }) {
               setRefreshToken(newTokens.refreshToken);
               localStorage.setItem('refreshToken', newTokens.refreshToken);
             }
+            writeSessionExpiresAtFromLogin();
           }
         } catch (error) {
           console.error('Token refresh failed:', error);
@@ -152,7 +154,7 @@ export function AuthProvider({ children }) {
   }, [user, token, refreshToken, isClient]);
 
   /**
-   * Login function - stores user + tokens (7-day client session window).
+   * Login function - stores user + tokens and starts/resets the client session window.
    * @returns {boolean} true if a full-page redirect was triggered (caller should skip client routing).
    */
   const login = (userData, tokens = {}) => {
@@ -249,6 +251,7 @@ export function AuthProvider({ children }) {
         } catch {
           // ignore storage write failures
         }
+        writeSessionExpiresAtFromLogin();
         return merged;
       });
     } catch (error) {

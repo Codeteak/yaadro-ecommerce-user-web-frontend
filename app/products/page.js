@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getProductRating, getProductDiscount } from '../../utils/productUtils';
 import { getProducts } from '../../utils/productApi';
 import ProductCard from '../../components/ProductCard';
+import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 
 /* ─────────────────────────────────────────────
    Constants
@@ -355,7 +356,7 @@ function ProductsContent() {
       )}
 
       {/* ── Grid ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 px-4 pb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 px-4 pb-28">
         {isLoading
           ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
           : filtered.length === 0
@@ -364,6 +365,8 @@ function ProductsContent() {
               <ProductCard key={product.id} product={product} />
             ))}
       </div>
+
+      <FloatingViewCartPill />
     </div>
   );
 }

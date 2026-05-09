@@ -12,6 +12,7 @@
     "tunnel:run": "cloudflared tunnel --config cloudflared/config.yaml run"
   },
   "dependencies": {
+    "@react-google-maps/api": "^2.20.8",
     "@tanstack/react-query": "5.96.2",
     "eslint-config-next": "14.2.33",
     "leaflet": "^1.9.4",

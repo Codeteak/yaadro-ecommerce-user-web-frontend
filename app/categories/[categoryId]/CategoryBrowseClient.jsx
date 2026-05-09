@@ -4,6 +4,7 @@ import { Suspense, useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import ProductCard from '../../../components/ProductCard';
+import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
 import { useCategoriesTree, useProducts } from '../../../hooks/useProducts';
 
 function categoryThumbUrl(cat) {
@@ -517,6 +518,8 @@ function CategoryBrowseInner() {
           )}
         </main>
       </div>
+
+      <FloatingViewCartPill />
     </div>
   );
 }

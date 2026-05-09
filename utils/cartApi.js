@@ -6,6 +6,7 @@
 import { apiFetchRoot } from './apiClient';
 import { resolveShopId } from './authApi';
 import { getProductById } from './productApi';
+import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from './productImages';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -45,6 +46,30 @@ async function ensureCartExists(shopId) {
   }
 }
 
+/** Image URL strings sometimes included on cart line snapshots when `product` is omitted. */
+function snapshotImageFromCartApiItem(apiItem) {
+  if (!apiItem || typeof apiItem !== 'object') return '';
+  const keys = [
+    'image_snapshot',
+    'image_snapshot_url',
+    'image_url_snapshot',
+    'product_image_url',
+    'thumbnail_url',
+    'thumbnail_snapshot',
+    'image_url',
+    'cover_image_url',
+    'primary_image_url',
+    'picture_url',
+    'photo_url',
+  ];
+  for (const k of keys) {
+    const v = apiItem[k];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  if (typeof apiItem.image === 'string' && apiItem.image.trim()) return apiItem.image.trim();
+  return '';
+}
+
 /**
  * Transform API cart item to frontend format
  */
@@ -61,25 +86,51 @@ function transformCartItem(apiItem, product = null) {
   const effectiveUnitPrice = offerUnitPrice != null && offerUnitPrice > 0 ? offerUnitPrice : unitPrice;
   const originalPrice = offerUnitPrice != null && offerUnitPrice > 0 && unitPrice > effectiveUnitPrice ? unitPrice : null;
 
+  const nestedProduct =
+    product ||
+    (apiItem.product && typeof apiItem.product === 'object' ? apiItem.product : null) ||
+    (apiItem.product_snapshot && typeof apiItem.product_snapshot === 'object'
+      ? apiItem.product_snapshot
+      : null);
+
+  const snapshotImg = snapshotImageFromCartApiItem(apiItem);
+  const fromNestedGallery =
+    nestedProduct != null
+      ? getResolvedProductImageUrls(nestedProduct).find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER)
+      : '';
+
+  const primaryImage =
+    fromNestedGallery ||
+    snapshotImg ||
+    (typeof nestedProduct?.image === 'string' && nestedProduct.image.trim() ? nestedProduct.image.trim() : '') ||
+    '/images/dummy.png';
+
+  const imagesList =
+    Array.isArray(nestedProduct?.images) && nestedProduct.images.length > 0
+      ? nestedProduct.images
+      : snapshotImg
+        ? [snapshotImg]
+        : [];
+
   return {
     id: apiItem.id,
     cartItemId: apiItem.id, // Backend cart item ID
-    product: product || null,
-    productId: apiItem.product_id || apiItem.productId || product?.id,
+    product: nestedProduct,
+    productId: apiItem.product_id || apiItem.productId || nestedProduct?.id,
     quantity,
     price: effectiveUnitPrice,
     originalPrice,
     total: effectiveUnitPrice * quantity,
     // Map product fields to top level for backward compatibility
-    name: product?.name || apiItem.title_snapshot || '',
-    image: product?.image || product?.images?.[0] || '/images/dummy.png',
-    images: product?.images || [],
-    stock: product?.stock || 0,
-    inStock: product?.inStock ?? true,
-    unit: product?.unit || apiItem.unit_label || '',
-    weight: product?.weight || null,
+    name: nestedProduct?.name || apiItem.title_snapshot || '',
+    image: primaryImage,
+    images: imagesList,
+    stock: nestedProduct?.stock || 0,
+    inStock: nestedProduct?.inStock ?? true,
+    unit: nestedProduct?.unit || apiItem.unit_label || '',
+    weight: nestedProduct?.weight || null,
     // Keep original product data
-    originalProduct: product || null,
+    originalProduct: nestedProduct || null,
   };
 }
 
@@ -104,7 +155,17 @@ export async function getCart() {
     const itemsRaw = Array.isArray(response?.items) ? response.items : [];
     // Do NOT call `/storefront/products/:id` with UUIDs from cart lines.
     // Backend product-detail endpoint expects slug. Cart API includes snapshots we can render with.
-    const items = itemsRaw.map((it) => transformCartItem(it, null)).filter(Boolean);
+    const items = itemsRaw
+      .map((it) => {
+        const embedded =
+          it.product && typeof it.product === 'object'
+            ? it.product
+            : it.product_snapshot && typeof it.product_snapshot === 'object'
+              ? it.product_snapshot
+              : null;
+        return transformCartItem(it, embedded);
+      })
+      .filter(Boolean);
 
     const summary = response?.summary || {};
     const subtotal = minorToMajor(summary.total_price_minor);

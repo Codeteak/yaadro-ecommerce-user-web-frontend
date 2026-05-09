@@ -31,11 +31,15 @@ export default function ConditionalLayout({ children }) {
   /** Categories list + category browse: no global Navbar, but keep bottom inset for mobile nav */
   const categoriesRoute = pathname?.startsWith('/categories');
 
+  /** Search has its own sticky bar — hide global Navbar only */
+  const searchRoute = pathname === '/search' || pathname?.startsWith('/search/');
+
   const homeRoute = pathNoSlash === '';
-  const showNavbar = !hideLayout && !categoriesRoute && !homeRoute;
+  const showNavbar =
+    !hideLayout && !categoriesRoute && !homeRoute && !searchRoute;
 
   const mainPaddingTop = showNavbar ? navbarHeight : 0;
-  const mainPaddingBottom = categoriesRoute
+  const mainPaddingBottom = categoriesRoute || searchRoute
     ? bottomNavVisible
       ? bottomNavHeight
       : 0

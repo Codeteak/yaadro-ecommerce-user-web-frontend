@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAddress } from '../../context/AddressContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import PageTopBar from '../../components/PageTopBar';
+import GuestAuthPrompt from '../../components/GuestAuthPrompt';
+import { useRequireAuth } from '../../hooks/useRequireAuth';
 import {
   Home,
   MapPin,
@@ -20,17 +22,12 @@ import {
 
 export default function AddressesPage() {
   const router = useRouter();
-  const { isAuthenticated, authHydrated, isLoadingUser, user } = useAuth();
+  const { ok, ready } = useRequireAuth();
+  const { user } = useAuth();
   const { addresses = [], isLoading } = useAddress();
   const { showAlert } = useAlert();
 
   const [menuOpenId, setMenuOpenId] = useState(null);
-
-  useEffect(() => {
-    if (!authHydrated) return;
-    if (isLoadingUser) return;
-    if (!isAuthenticated) router.replace('/');
-  }, [authHydrated, isLoadingUser, isAuthenticated, router]);
 
   const handleShareAddress = (address) => {
     setMenuOpenId(null);
@@ -88,7 +85,7 @@ export default function AddressesPage() {
     router.push(`/add/address?from=/addresses&id=${encodeURIComponent(addr.id)}`);
   };
 
-  if (!authHydrated || isLoadingUser) {
+  if (!ready) {
     return (
       <div className="flex min-h-screen flex-col bg-gray-50">
         <div className="sticky top-0 z-20 shrink-0">
@@ -101,7 +98,16 @@ export default function AddressesPage() {
     );
   }
 
-  if (!isAuthenticated) return null;
+  if (!ok) {
+    return (
+      <GuestAuthPrompt
+        pageTitle="Addresses"
+        backHref="/profile"
+        fallbackHref="/"
+        description="Sign in to manage your delivery addresses."
+      />
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">

@@ -1,12 +1,27 @@
 /**
  * Client-side session window after OTP (and other) logins.
- * Persists for 7 days; stored auth is cleared after that.
+ * Stored auth is cleared after this duration unless the session is touched again
+ * (login, token refresh, or successful profile fetch).
+ *
+ * Override with NEXT_PUBLIC_AUTH_SESSION_DAYS (1–730); default 365.
  */
 
 export const AUTH_SESSION_EXPIRES_KEY = 'yaadro_auth_session_expires_at';
 
 
 export const POST_LOGIN_REDIRECT_KEY = 'yaadro_post_login_redirect';
+
+const parsedSessionDays =
+  typeof process !== 'undefined' && process.env.NEXT_PUBLIC_AUTH_SESSION_DAYS
+    ? parseInt(process.env.NEXT_PUBLIC_AUTH_SESSION_DAYS, 10)
+    : NaN;
+const sessionDays =
+  Number.isFinite(parsedSessionDays) && parsedSessionDays > 0
+    ? Math.min(parsedSessionDays, 730)
+    : 365;
+
+/** Wall-clock session length in milliseconds (default one year). */
+export const SESSION_DURATION_MS = sessionDays * 24 * 60 * 60 * 1000;
 
 export function setPostLoginRedirect(path) {
   if (typeof window === 'undefined') return;
@@ -19,9 +34,6 @@ export function clearPostLoginRedirect() {
   if (typeof window === 'undefined') return;
   window.sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
 }
-
-/** 7 days in milliseconds */
-export const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function readSessionExpiresAtMs() {
   if (typeof window === 'undefined') return null;
@@ -41,7 +53,7 @@ export function clearSessionExpiresAt() {
   window.localStorage.removeItem(AUTH_SESSION_EXPIRES_KEY);
 }
 
-/** If true, client should clear auth (7-day window ended). */
+/** If true, client should clear auth (session window ended). */
 export function isClientSessionExpired() {
   const exp = readSessionExpiresAtMs();
   if (exp == null) return false;
@@ -49,7 +61,7 @@ export function isClientSessionExpired() {
 }
 
 /**
- * Users who already had a token before this feature: start a 7-day window once.
+ * Users who already had a token before session expiry was tracked: start one window once.
  */
 export function ensureSessionExpiryForExistingLogin() {
   if (typeof window === 'undefined') return;

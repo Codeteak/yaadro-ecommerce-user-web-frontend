@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -10,17 +10,50 @@ import { useAlert } from '../context/AlertContext';
 import { useAddress } from '../context/AddressContext';
 import { useLocationService } from '../context/LocationServiceContext';
 import { useAuth } from '../context/AuthContext';
-import { useCart } from '../context/CartContext';
-import { useBottomNavVisibility } from '../context/BottomNavVisibilityContext';
-import { useLayoutHeights } from '../context/LayoutHeightsContext';
 import ProductCarousel from '../components/ProductCarousel';
 import ProductCard from '../components/ProductCard';
 import ProductGrid from '../components/ProductGrid';
 import CategoryCard from '../components/CategoryCard';
 import Container from '../components/Container';
-import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../utils/productImages';
+import FloatingViewCartPill from '../components/FloatingViewCartPill';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../utils/categoryImage';
-import { User, MapPin, Search, ArrowRight, ShoppingCart } from 'lucide-react';
+
+/** Compact category tile for the sticky home header (light theme). */
+function StickyHomeCategoryChip({ category }) {
+  const categoryName = typeof category === 'object' ? category?.name || 'Category' : String(category);
+  const catObj = typeof category === 'object' ? category : { name: categoryName };
+  const initialSrc = getCategoryImageUrl(catObj);
+  const [imgSrc, setImgSrc] = useState(initialSrc || CATEGORY_DUMMY_IMAGE);
+  const isDummy = imgSrc === CATEGORY_DUMMY_IMAGE;
+
+  return (
+    <Link
+      href={`/products?category=${encodeURIComponent(categoryName)}`}
+      className="flex w-[68px] flex-shrink-0 flex-col items-center gap-1 active:scale-[0.97] transition-transform"
+    >
+      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-gray-100 shadow-sm ring-1 ring-gray-200/90">
+        <Image
+          src={imgSrc}
+          alt={isDummy ? '' : categoryName}
+          fill
+          className={isDummy ? 'object-contain p-1.5' : 'object-cover object-center'}
+          sizes="48px"
+          onError={() => {
+            if (!isDummy) setImgSrc(CATEGORY_DUMMY_IMAGE);
+          }}
+          unoptimized
+        />
+      </div>
+      <span
+        className="max-w-[4.25rem] text-center text-[10px] font-semibold leading-snug text-gray-800 line-clamp-2"
+        title={categoryName}
+      >
+        {categoryName}
+      </span>
+    </Link>
+  );
+}
+import { User, MapPin, Search, ArrowRight } from 'lucide-react';
 
 // Bento spans (Tailwind safelist-friendly literals) that repeat to create a category mosaic.
 const BENTO_PATTERN = [
@@ -35,6 +68,65 @@ const BENTO_PATTERN = [
 ];
 const getBentoSpan = (idx) => BENTO_PATTERN[idx % BENTO_PATTERN.length];
 
+// Fresh Zone taxonomy derived from common supermarket "fresh" departments.
+const FRESH_CATEGORY_KEYWORDS = [
+  'fresh',
+  'fruit',
+  'fruits',
+  'vegetable',
+  'vegetables',
+  'dairy',
+  'milk',
+  'egg',
+  'eggs',
+  'meat',
+  'seafood',
+  'fish',
+  'chicken',
+  'mutton',
+  'poultry',
+  'bakery',
+  'bread',
+  'paneer',
+  'curd',
+  'buttermilk',
+];
+
+const FRESH_PRODUCT_KEYWORDS = [
+  'fresh',
+  'organic',
+  'farm',
+  'juice',
+  'fruit',
+  'vegetable',
+  'milk',
+  'egg',
+  'bread',
+  'paneer',
+  'curd',
+  'fish',
+  'chicken',
+  'meat',
+  'seafood',
+  'leafy',
+  'herb',
+];
+
+const NON_FRESH_KEYWORDS = [
+  'frozen',
+  'snack',
+  'pantry',
+  'cleaning',
+  'personal care',
+  'baby care',
+  'health',
+  'wellness',
+  'spice',
+  'condiment',
+  'home',
+  'kitchen',
+];
+
 export default function Home() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -43,9 +135,6 @@ export default function Home() {
   const { showAlert } = useAlert();
   const { getDefaultAddress } = useAddress();
   const { isAuthenticated, user, setShowLoginSheet } = useAuth();
-  const { cartItems, cartCount } = useCart();
-  const { isVisible: bottomNavVisible, hideForRoute: bottomNavHidden } = useBottomNavVisibility();
-  const { bottomNavHeight } = useLayoutHeights();
   const {
     isChecking: isLocationChecking,
     serviceable: isServiceable,
@@ -136,6 +225,8 @@ export default function Home() {
   }, [targetEtaMinutes]);
 
   const categoryScrollRef = useRef(null);
+  const heroSectionRef = useRef(null);
+  const [stickyCategoryNavVisible, setStickyCategoryNavVisible] = useState(false);
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
   const scrollLeftRef = useRef(0);
@@ -159,6 +250,11 @@ export default function Home() {
   });
   const { data: offersData, isLoading: offersLoading } = useProducts({
     limit: 50,
+    sort_by: 'created_at',
+    sort_order: 'desc',
+  });
+  const { data: freshZoneData, isLoading: freshZoneLoading } = useProducts({
+    limit: 200,
     sort_by: 'created_at',
     sort_order: 'desc',
   });
@@ -218,12 +314,92 @@ export default function Home() {
     return false;
   };
 
+  const normalizeText = (value) =>
+    (value ?? '')
+      .toString()
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const hasAnyKeyword = (text, keywords) => keywords.some((keyword) => text.includes(keyword));
+
+  const getProductFreshText = (product) =>
+    normalizeText(
+      [
+        product?.name,
+        product?.title,
+        product?.description,
+        product?.category?.name,
+        product?.categoryName,
+        product?.category_name,
+        product?.category,
+      ]
+        .filter(Boolean)
+        .join(' ')
+    );
+
+  const allFreshZoneProducts = freshZoneData?.products ?? [];
+
+  const freshZoneCategories = useMemo(() => {
+    if (!allCategories.length || !allFreshZoneProducts.length) return [];
+
+    const scored = allCategories
+      .map((cat) => {
+        const catText = normalizeText([cat?.name, cat?.slug].filter(Boolean).join(' '));
+        const categoryProducts = allFreshZoneProducts.filter((p) => productMatchesCategory(p, cat));
+        if (!categoryProducts.length) {
+          return { category: cat, score: Number.NEGATIVE_INFINITY };
+        }
+
+        const categoryMatchScore = hasAnyKeyword(catText, FRESH_CATEGORY_KEYWORDS) ? 6 : 0;
+        const categoryPenalty = hasAnyKeyword(catText, NON_FRESH_KEYWORDS) ? -5 : 0;
+
+        let productFreshHits = 0;
+        let productPenaltyHits = 0;
+        categoryProducts.forEach((p) => {
+          const pText = getProductFreshText(p);
+          if (hasAnyKeyword(pText, FRESH_PRODUCT_KEYWORDS)) productFreshHits += 1;
+          if (hasAnyKeyword(pText, NON_FRESH_KEYWORDS)) productPenaltyHits += 1;
+        });
+
+        const productSignalScore = productFreshHits * 2 - productPenaltyHits;
+        const score = categoryMatchScore + productSignalScore + categoryPenalty;
+
+        return { category: cat, score };
+      })
+      .filter((item) => item.score >= 3)
+      .sort((a, b) => b.score - a.score)
+      .map((item) => item.category);
+
+    return scored;
+  }, [allCategories, allFreshZoneProducts]);
+
   const freshZoneSelectedCategory =
-    freshZoneCategoryId == null ? null : categories.find((c) => String(c.id) === String(freshZoneCategoryId)) || null;
+    freshZoneCategoryId == null
+      ? null
+      : freshZoneCategories.find((c) => String(c.id) === String(freshZoneCategoryId)) || null;
+
+  useEffect(() => {
+    if (freshZoneCategoryId == null) return;
+    const stillExists = freshZoneCategories.some((c) => String(c.id) === String(freshZoneCategoryId));
+    if (!stillExists) setFreshZoneCategoryId(null);
+  }, [freshZoneCategoryId, freshZoneCategories]);
+
+  const freshZoneBaseProducts = useMemo(() => {
+    if (!allFreshZoneProducts.length) return [];
+    const freshCategoryProducts = allFreshZoneProducts.filter((p) =>
+      freshZoneCategories.some((c) => productMatchesCategory(p, c))
+    );
+    return freshCategoryProducts.filter((product, index, arr) => {
+      const productId = product?.id ?? product?._id ?? `${product?.name || ''}-${index}`;
+      return arr.findIndex((p) => String(p?.id ?? p?._id ?? '') === String(productId)) === index;
+    });
+  }, [allFreshZoneProducts, freshZoneCategories]);
 
   const freshZoneProducts = freshZoneSelectedCategory
-    ? specialOffers.filter((p) => productMatchesCategory(p, freshZoneSelectedCategory))
-    : specialOffers;
+    ? freshZoneBaseProducts.filter((p) => productMatchesCategory(p, freshZoneSelectedCategory))
+    : freshZoneBaseProducts;
 
   const orderAgainSelectedCategory =
     orderAgainCategoryId == null
@@ -234,7 +410,35 @@ export default function Home() {
     ? newArrivals.filter((p) => productMatchesCategory(p, orderAgainSelectedCategory))
     : newArrivals;
 
-  const loading = categoriesLoading || featuredLoading || bestSellersLoading || newArrivalsLoading || offersLoading;
+  const loading =
+    categoriesLoading ||
+    featuredLoading ||
+    bestSellersLoading ||
+    newArrivalsLoading ||
+    offersLoading ||
+    freshZoneLoading;
+
+  useEffect(() => {
+    if (loading) return undefined;
+    const hero = heroSectionRef.current;
+    if (!hero || categories.length === 0) {
+      setStickyCategoryNavVisible(false);
+      return undefined;
+    }
+
+    const update = () => {
+      const rect = hero.getBoundingClientRect();
+      setStickyCategoryNavVisible(rect.bottom <= 2);
+    };
+
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [loading, categories.length]);
 
   const handleCategoryMouseDown = (e) => {
     if (!categoryScrollRef.current) return;
@@ -474,10 +678,39 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Sticky category strip — appears after scrolling past the hero */}
+      {!loading && categories.length > 0 && (
+        <div
+          className={`fixed inset-x-0 top-0 z-[65] transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none ${
+            stickyCategoryNavVisible
+              ? 'translate-y-0 opacity-100 pointer-events-auto'
+              : 'pointer-events-none -translate-y-[calc(100%+8px)] opacity-0'
+          }`}
+          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+          aria-hidden={!stickyCategoryNavVisible}
+        >
+          <div className="border-b border-gray-100/90 bg-white/95 shadow-[0_8px_28px_rgba(15,23,42,0.07)] backdrop-blur-md">
+            <div
+              role="region"
+              aria-label="Browse categories"
+              className="scrollbar-hide overflow-x-auto overflow-y-hidden px-3 pb-2 pt-2.5 touch-pan-x"
+              style={{ WebkitOverflowScrolling: 'touch' }}
+            >
+              <div className="flex w-max items-start gap-3 pb-0.5 pr-1">
+                {categories.map((category) => (
+                  <StickyHomeCategoryChip key={category.id} category={category} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Home: categories carousel + banners hidden */}
 
       {/* Purple hero section (more than half page) */}
       <section
+        ref={heroSectionRef}
         className="w-full relative overflow-hidden"
         style={{
           background: '#902bf5',
@@ -734,7 +967,7 @@ export default function Home() {
       )}
 
       {/* Special Offers Section */}
-      {specialOffers.length > 0 && (
+      {freshZoneProducts.length > 0 && (
         <section className="relative overflow-hidden bg-white min-h-[680px] rounded-[32px] mx-4 sm:mx-6 md:mx-8 my-6">
           {/* Background video */}
           <div className="pointer-events-none absolute inset-0 z-0">
@@ -764,7 +997,7 @@ export default function Home() {
               </div>
             </div>
             {/* Category tabs (carousel) */}
-            {categories.length > 0 && (
+            {freshZoneCategories.length > 0 && (
               <div className="w-screen relative left-1/2 -translate-x-1/2 mb-10">
                 <div className="overflow-x-auto scrollbar-hide pb-1 snap-x snap-mandatory">
                   <div className="flex w-max gap-2 px-4 mx-auto">
@@ -780,7 +1013,7 @@ export default function Home() {
                       <span>All</span>
                     </button>
 
-                    {categories.map((cat) => {
+                    {freshZoneCategories.map((cat) => {
                       const active = freshZoneCategoryId != null && String(freshZoneCategoryId) === String(cat.id);
                       const src = getCategoryImageSrc(cat);
                       return (
@@ -1025,12 +1258,8 @@ export default function Home() {
                         e.currentTarget.src = CATEGORY_DUMMY_IMAGE;
                       }}
                     />
-                    <div
-                      aria-hidden
-                      className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent"
-                    />
                     <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4">
-                      <h3 className="text-sm sm:text-base md:text-lg font-bold text-white leading-tight drop-shadow-md line-clamp-2">
+                      <h3 className="text-sm sm:text-base md:text-lg font-extrabold text-white leading-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.65)] line-clamp-2">
                         {category.name}
                       </h3>
                     </div>
@@ -1103,76 +1332,7 @@ export default function Home() {
         </Container>
       </footer>
 
-      {/* Floating "View cart" pill — only when there are items in cart.
-          Sits above the mobile bottom nav when it's visible, drops to safe-area when nav slides away. */}
-      {cartItems.length > 0 && (
-        <div
-          className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-4"
-          style={{
-            bottom:
-              !bottomNavHidden && bottomNavVisible && bottomNavHeight > 0
-                ? `${bottomNavHeight + 12}px`
-                : 'calc(1rem + env(safe-area-inset-bottom, 0px))',
-            transition: 'bottom 320ms cubic-bezier(0.22, 1, 0.36, 1)',
-            willChange: 'bottom',
-          }}
-          aria-hidden={cartItems.length === 0}
-        >
-          <Link
-            href="/cart"
-            className="pointer-events-auto group flex w-full max-w-[420px] items-center gap-3 rounded-full bg-emerald-600 px-3 py-2.5 shadow-[0_18px_45px_rgba(16,185,129,0.45)] ring-1 ring-emerald-500/40 backdrop-blur-sm transition-all duration-200 hover:bg-emerald-700 hover:shadow-[0_22px_55px_rgba(16,185,129,0.55)] active:scale-[0.98]"
-            aria-label={`Go to cart, ${cartCount} ${cartCount === 1 ? 'item' : 'items'}`}
-          >
-            {/* Stacked product thumbnails */}
-            <div className="flex flex-shrink-0 -space-x-3">
-              {cartItems.slice(0, 3).map((item, idx) => {
-                const src =
-                  getResolvedProductImageUrls(item?.product || item)[0] ||
-                  PRODUCT_IMAGE_PLACEHOLDER;
-                const key =
-                  item?.cartItemKey ?? item?.cartItemId ?? item?.id ?? `${idx}`;
-                return (
-                  <span
-                    key={key}
-                    className="relative inline-flex h-9 w-9 overflow-hidden rounded-full bg-white ring-2 ring-white"
-                    style={{ zIndex: 10 - idx }}
-                  >
-                    <img
-                      src={src}
-                      alt=""
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src = PRODUCT_IMAGE_PLACEHOLDER;
-                      }}
-                    />
-                  </span>
-                );
-              })}
-              {cartItems.length > 3 && (
-                <span
-                  className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-emerald-800 text-[11px] font-bold text-white ring-2 ring-white"
-                  style={{ zIndex: 1 }}
-                >
-                  +{cartItems.length - 3}
-                </span>
-              )}
-            </div>
-
-            {/* Label */}
-            <div className="min-w-0 flex-1 text-left text-white">
-              <p className="text-[11px] font-medium leading-none opacity-90">
-                {cartCount} {cartCount === 1 ? 'item' : 'items'} in cart
-              </p>
-              <p className="mt-1 text-sm font-bold leading-none">View cart</p>
-            </div>
-
-            {/* Trailing icon */}
-            <span className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white/20 text-white transition group-hover:bg-white/25">
-              <ShoppingCart className="h-4 w-4" strokeWidth={2.4} />
-            </span>
-          </Link>
-        </div>
-      )}
+      <FloatingViewCartPill />
     </div>
   );
 }

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useOrdersList, useCancelOrder } from '../../hooks/useOrders';
+import { useProducts } from '../../hooks/useProducts';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
@@ -11,21 +12,39 @@ import Image from 'next/image';
 import ConfirmModal from '../../components/ConfirmModal';
 import PromptModal from '../../components/PromptModal';
 import PageTopBar from '../../components/PageTopBar';
+import GuestAuthPrompt from '../../components/GuestAuthPrompt';
+import { useRequireAuth } from '../../hooks/useRequireAuth';
+import ProductCarousel from '../../components/ProductCarousel';
 import { Check, MoreVertical, Package } from 'lucide-react';
+import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../utils/productImages';
+
+function getOrderStatusTone(status = '') {
+  const s = String(status || '').toLowerCase();
+  if (s === 'delivered') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  if (s === 'cancelled' || s === 'canceled') return 'bg-red-50 text-red-700 border-red-200';
+  if (s === 'processing' || s === 'confirmed') return 'bg-blue-50 text-blue-700 border-blue-200';
+  if (s === 'shipped' || s === 'out_for_delivery') return 'bg-amber-50 text-amber-700 border-amber-200';
+  return 'bg-gray-50 text-gray-700 border-gray-200';
+}
+
+function getOrderItemImage(item) {
+  const fromProduct = getResolvedProductImageUrls(item?.product || {});
+  const fromItem = getResolvedProductImageUrls(item || {});
+  return (
+    fromProduct.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER) ||
+    fromItem.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER) ||
+    (typeof item?.image === 'string' ? item.image : item?.image?.url) ||
+    PRODUCT_IMAGE_PLACEHOLDER
+  );
+}
 
 export default function OrdersPage() {
   const router = useRouter();
-  const { isAuthenticated, authHydrated, isLoadingUser } = useAuth();
+  const { ok, ready } = useRequireAuth();
   const { data: ordersData, isLoading, error } = useOrdersList(
     { page: 1, per_page: 100 },
-    { enabled: authHydrated && isAuthenticated }
+    { enabled: ok }
   );
-
-  useEffect(() => {
-    if (!authHydrated) return;
-    if (isLoadingUser) return;
-    if (!isAuthenticated) router.replace('/');
-  }, [authHydrated, isLoadingUser, isAuthenticated, router]);
   const cancelOrderMutation = useCancelOrder();
   const { addToCart } = useCart();
   const [menuOpenId, setMenuOpenId] = useState(null);
@@ -43,6 +62,135 @@ export default function OrdersPage() {
   const [cancelReason, setCancelReason] = useState('');
 
   const orders = ordersData?.orders || [];
+  const allOrderedItems = useMemo(
+    () => orders.flatMap((o) => (Array.isArray(o.items) ? o.items : [])),
+    [orders]
+  );
+
+  // Similar products for order-history page:
+  // exclude already ordered products, then prioritize ordered categories.
+  const { data: recommendPoolData } = useProducts({
+    limit: 60,
+    sort_by: 'created_at',
+    sort_order: 'desc',
+  });
+  const recommendPool = recommendPoolData?.products || [];
+  const orderedProductIds = useMemo(
+    () =>
+      new Set(
+        allOrderedItems
+          .map((item) => item?.productId ?? item?.product?.id ?? item?.id)
+          .filter((id) => id != null)
+          .map((id) => String(id))
+      ),
+    [allOrderedItems]
+  );
+  const orderedCategoryNames = useMemo(() => {
+    const names = new Set();
+    allOrderedItems.forEach((item) => {
+      const cat = (
+        item?.category?.name ??
+        item?.category ??
+        item?.categoryName ??
+        item?.product?.category?.name ??
+        item?.product?.category ??
+        ''
+      )
+        .toString()
+        .trim()
+        .toLowerCase();
+      if (cat) names.add(cat);
+    });
+    return names;
+  }, [allOrderedItems]);
+
+  // One pipeline: each product appears in at most one section (priority: Similar → Buy again → Trending).
+  const { similarProducts, buyAgainFavorites, trendingPicks } = useMemo(() => {
+    const empty = { similarProducts: [], buyAgainFavorites: [], trendingPicks: [] };
+    if (!recommendPool.length) return empty;
+
+    const eligible = recommendPool.filter((p) => p?.id != null && !orderedProductIds.has(String(p.id)));
+    if (!eligible.length) return empty;
+
+    const poolIndex = new Map(eligible.map((p, i) => [String(p.id), i]));
+
+    const productCategoryKey = (p) =>
+      (
+        p?.category?.name ??
+        p?.category ??
+        p?.categoryName ??
+        p?.category_name ??
+        ''
+      )
+        .toString()
+        .trim()
+        .toLowerCase();
+
+    const matchesOrderedCategory = (p) => {
+      const c = productCategoryKey(p);
+      return Boolean(c && orderedCategoryNames.has(c));
+    };
+
+    const orderedNameTokens = new Set(
+      allOrderedItems
+        .map((item) => item?.productName ?? item?.name ?? '')
+        .map((name) => String(name).trim().toLowerCase())
+        .filter(Boolean)
+        .flatMap((name) => name.split(/\s+/).filter((w) => w.length >= 4))
+    );
+
+    const nameTokenHits = (p) => {
+      const name = (p?.name ?? '').toString().trim().toLowerCase();
+      if (!name || orderedNameTokens.size === 0) return 0;
+      let hits = 0;
+      for (const t of orderedNameTokens) {
+        if (name.includes(t)) hits += 1;
+      }
+      return hits;
+    };
+
+    const sortByNewest = (a, b) => (poolIndex.get(String(a.id)) ?? 0) - (poolIndex.get(String(b.id)) ?? 0);
+
+    const takeUnique = (sorted, used, limit) => {
+      const out = [];
+      for (const p of sorted) {
+        if (out.length >= limit) break;
+        const id = String(p.id);
+        if (used.has(id)) continue;
+        used.add(id);
+        out.push(p);
+      }
+      return out;
+    };
+
+    const used = new Set();
+
+    // 1) Similar: same category as something you ordered; rank by name relevance then newest.
+    const similarCandidates = eligible.filter(matchesOrderedCategory);
+    const similarSorted = [...similarCandidates].sort((a, b) => {
+      const nt = nameTokenHits(b) - nameTokenHits(a);
+      if (nt !== 0) return nt;
+      return sortByNewest(a, b);
+    });
+    const similarProducts = takeUnique(similarSorted, used, 12);
+
+    // 2) Buy again: from what’s left; strong name-token match + mild category boost, then newest.
+    const remainingAfterSimilar = eligible.filter((p) => !used.has(String(p.id)));
+    const buyAgainScore = (p) => nameTokenHits(p) * 4 + (matchesOrderedCategory(p) ? 1 : 0);
+    const buyAgainSorted = [...remainingAfterSimilar].sort((a, b) => {
+      const s = buyAgainScore(b) - buyAgainScore(a);
+      if (s !== 0) return s;
+      return sortByNewest(a, b);
+    });
+    const buyAgainFavorites = takeUnique(buyAgainSorted, used, 12);
+
+    // 3) Trending: newest products not already placed (pool is created_at desc).
+    const remainingAfterBuyAgain = eligible.filter((p) => !used.has(String(p.id)));
+    const trendingSorted = [...remainingAfterBuyAgain].sort(sortByNewest);
+    const trendingPicks = takeUnique(trendingSorted, used, 12);
+
+    return { similarProducts, buyAgainFavorites, trendingPicks };
+  }, [recommendPool, orderedProductIds, orderedCategoryNames, allOrderedItems]);
 
   const orderItemToCartProduct = (item) => {
     const qty = Number(item?.quantity ?? 1) || 1;
@@ -203,7 +351,7 @@ Payment Status: ${order.paymentStatus}
     return `Placed at ${day}${suffix} ${d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}, ${d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
   };
 
-  if (!authHydrated || isLoadingUser) {
+  if (!ready) {
     return (
       <div className="flex min-h-screen flex-col bg-gray-50">
         <div className="sticky top-0 z-20 shrink-0">
@@ -216,7 +364,16 @@ Payment Status: ${order.paymentStatus}
     );
   }
 
-  if (!isAuthenticated) return null;
+  if (!ok) {
+    return (
+      <GuestAuthPrompt
+        pageTitle="Your Orders"
+        backHref="/profile"
+        fallbackHref="/"
+        description="Sign in to view your orders and track deliveries."
+      />
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
@@ -262,8 +419,18 @@ Payment Status: ${order.paymentStatus}
               <div className="p-4">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-gray-900">
-                      Order {order.status === 'delivered' ? 'delivered' : order.status}
+                    <span className="font-bold text-gray-900 inline-flex items-center gap-1.5">
+                      <span>Order</span>
+                      {String(order.status || '').toLowerCase() === 'pending' ? (
+                        <span
+                          className="inline-flex items-center px-2.5 py-0.5 text-[12px] font-extrabold text-gray-900 bg-center bg-no-repeat bg-cover"
+                          style={{ backgroundImage: "url('/paint-brush.png')" }}
+                        >
+                          Pending
+                        </span>
+                      ) : (
+                        <span>{order.status === 'delivered' ? 'delivered' : order.status}</span>
+                      )}
                     </span>
                     {order.status === 'delivered' && (
                       <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
@@ -336,38 +503,96 @@ Payment Status: ${order.paymentStatus}
                 </div>
                 <p className="text-sm text-gray-500 mb-3">{formatPlacedAt(order.createdAt)}</p>
 
-                {/* Product thumbnails */}
-                <div className="flex gap-2 overflow-x-auto scrollbar-hide mb-4 -mx-1">
-                  {order.items?.slice(0, 6).map((item, idx) => (
-                    <div key={item.id || idx} className="relative w-14 h-14 rounded-xl bg-gray-100 flex-shrink-0 overflow-hidden">
-                      <Image
-                        src={(typeof item.image === 'string' ? item.image : item.image?.url) || '/images/dummy.png'}
-                        alt={item.productName || item.name || 'Item'}
-                        fill
-                        className="object-cover"
-                        sizes="56px"
-                      />
+                {/* Status + stacked products + quick item details */}
+                <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50/60 p-3">
+                  {(() => {
+                    const orderItems = Array.isArray(order.items) ? order.items : [];
+                    const visibleItems = orderItems.slice(0, 4);
+                    const itemCount =
+                      Number(
+                        order.itemCount ??
+                        order.itemsCount ??
+                        order.items_count ??
+                        order.total_items ??
+                        order.totalItems ??
+                        orderItems.length
+                      ) || 0;
+                    return (
+                      <>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold capitalize ${getOrderStatusTone(order.status)}`}
+                    >
+                      {String(order.status || 'pending').replaceAll('_', ' ')}
+                    </span>
+                    <span className="text-[11px] text-gray-500">
+                      {itemCount} item{itemCount !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="flex min-w-[76px] items-center">
+                      {visibleItems.map((item, idx) => (
+                        <div
+                          key={item.id || idx}
+                          className="relative h-10 w-10 overflow-hidden rounded-lg border-2 border-white bg-gray-100 shadow-sm"
+                          style={{ marginLeft: idx === 0 ? 0 : -10, zIndex: 10 - idx }}
+                        >
+                          <Image
+                            src={getOrderItemImage(item)}
+                            alt={item.productName || item.name || 'Item'}
+                            fill
+                            className="object-cover"
+                            sizes="40px"
+                          />
+                        </div>
+                      ))}
+                      {itemCount > 4 && (
+                        <span className="-ml-2 inline-flex h-10 w-10 items-center justify-center rounded-lg border-2 border-white bg-gray-200 text-[11px] font-semibold text-gray-700">
+                          +{itemCount - 4}
+                        </span>
+                      )}
                     </div>
-                  ))}
+
+                    <div className="min-w-0 flex-1 space-y-1">
+                      {orderItems.slice(0, 2).map((item, idx) => (
+                        <p key={item.id || idx} className="truncate text-[12px] text-gray-700">
+                          <span className="font-medium text-gray-900">{item.productName || item.name || 'Item'}</span>
+                          <span className="text-gray-500"> x{item.quantity || 1}</span>
+                        </p>
+                      ))}
+                      {itemCount > 2 && (
+                        <p className="text-[11px] text-gray-500">
+                          +{itemCount - 2} more product{itemCount - 2 !== 1 ? 's' : ''}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
-                {/* Rate Order | Order Again */}
+                {/* Package illustration | Order Again */}
                 <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-50"
-                  >
-                    Rate Order
-                  </button>
+                  <div className="flex flex-1 items-center justify-center py-1">
+                    <Image
+                      src="/fill-box.png"
+                      alt="Packed order"
+                      width={56}
+                      height={56}
+                      className="h-14 w-14 object-contain"
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={() => handleReorder(order)}
                     disabled={reorderLoadingId === order.id}
-                    className="flex-1 rounded-xl border border-primary py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+                    className="flex-1 rounded-xl border border-yellow-500 bg-yellow-400 py-2.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-yellow-300"
                   >
                     {reorderLoadingId === order.id ? (
                       <span className="inline-flex items-center justify-center gap-2">
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" aria-hidden />
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-900 border-t-transparent" aria-hidden />
                         Adding…
                       </span>
                     ) : (
@@ -378,6 +603,48 @@ Payment Status: ${order.paymentStatus}
               </div>
             </div>
           ))
+        )}
+
+        {orders.length > 0 && similarProducts.length > 0 && (
+          <section className="mt-2" aria-label="Similar products">
+            <div className="px-1 mb-3">
+              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                Similar Products
+              </h2>
+              <p className="mt-1.5 text-[13px] text-gray-500">
+                Based on your order history.
+              </p>
+            </div>
+            <ProductCarousel products={similarProducts} showMoreLink="/products" />
+          </section>
+        )}
+
+        {orders.length > 0 && buyAgainFavorites.length > 0 && (
+          <section className="mt-4" aria-label="Buy again favorites">
+            <div className="px-1 mb-3">
+              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                Buy Again Favorites
+              </h2>
+              <p className="mt-1.5 text-[13px] text-gray-500">
+                Top picks close to items you already purchased.
+              </p>
+            </div>
+            <ProductCarousel products={buyAgainFavorites} showMoreLink="/products" />
+          </section>
+        )}
+
+        {orders.length > 0 && trendingPicks.length > 0 && (
+          <section className="mt-4" aria-label="Trending picks">
+            <div className="px-1 mb-3">
+              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                Trending Picks
+              </h2>
+              <p className="mt-1.5 text-[13px] text-gray-500">
+                New and popular products you might like.
+              </p>
+            </div>
+            <ProductCarousel products={trendingPicks} showMoreLink="/products" />
+          </section>
         )}
       </div>
 

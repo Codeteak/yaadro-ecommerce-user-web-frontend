@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { PRODUCT_IMAGE_PLACEHOLDER } from '../utils/productImages';
 
@@ -18,12 +18,30 @@ export default function ProductImageWithFallback({
   priority = false,
 }) {
   const [imgSrc, setImgSrc] = useState(() => src || PRODUCT_IMAGE_PLACEHOLDER);
+  // `ready` controls whether we show the skeleton overlay.
+  // We intentionally avoid re-showing the skeleton on background data refreshes
+  // when an image was already rendered once (prevents "skeleton on top of data").
   const [ready, setReady] = useState(false);
+  const hasEverLoadedRef = useRef(false);
+  const prevSrcRef = useRef(null);
 
   useEffect(() => {
-    setImgSrc(src || PRODUCT_IMAGE_PLACEHOLDER);
-    setReady(false);
+    const next = src || PRODUCT_IMAGE_PLACEHOLDER;
+    const prev = prevSrcRef.current;
+    prevSrcRef.current = next;
+
+    setImgSrc(next);
+    // Only show skeleton if we haven't successfully rendered any image yet.
+    // If we already rendered once, keep the old "ready" state while the new image loads.
+    if (!hasEverLoadedRef.current && next !== prev) {
+      setReady(false);
+    }
   }, [src]);
+
+  const markReady = () => {
+    hasEverLoadedRef.current = true;
+    setReady(true);
+  };
 
   return (
     <div className={fill ? 'relative w-full h-full' : 'relative'}>
@@ -41,11 +59,11 @@ export default function ProductImageWithFallback({
           className={className}
           sizes={sizes}
           priority={priority}
-          onLoad={() => setReady(true)}
-          onLoadingComplete={() => setReady(true)}
+          onLoad={markReady}
+          onLoadingComplete={markReady}
           onError={() => {
             setImgSrc(PRODUCT_IMAGE_PLACEHOLDER);
-            setReady(true);
+            markReady();
           }}
         />
       ) : (
@@ -57,11 +75,11 @@ export default function ProductImageWithFallback({
           className={className}
           sizes={sizes}
           priority={priority}
-          onLoad={() => setReady(true)}
-          onLoadingComplete={() => setReady(true)}
+          onLoad={markReady}
+          onLoadingComplete={markReady}
           onError={() => {
             setImgSrc(PRODUCT_IMAGE_PLACEHOLDER);
-            setReady(true);
+            markReady();
           }}
         />
       )}

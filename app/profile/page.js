@@ -12,6 +12,8 @@ import { useOrdersList } from '../../hooks/useOrders';
 import { useUpdateProfile } from '../../hooks/useAuth';
 import ConfirmModal from '../../components/ConfirmModal';
 import PageTopBar from '../../components/PageTopBar';
+import GuestAuthPrompt from '../../components/GuestAuthPrompt';
+import { useRequireAuth } from '../../hooks/useRequireAuth';
 import {
   Package,
   MapPin,
@@ -33,12 +35,13 @@ function nationalIndiaDigits(phone) {
 function ProfilePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isAuthenticated, logout, deleteAccount, refreshUser } = useAuth();
+  const { ok, ready } = useRequireAuth();
+  const { user, logout, deleteAccount, refreshUser } = useAuth();
   const { showAlert } = useAlert();
   const { cartItems } = useCart();
   const { wishlistItems } = useWishlist();
   const { logActivity } = useActivityLog();
-  const { data: ordersData } = useOrdersList({ page: 1, per_page: 5 }, { enabled: isAuthenticated });
+  const { data: ordersData } = useOrdersList({ page: 1, per_page: 5 }, { enabled: ok });
   const updateProfileMutation = useUpdateProfile();
   const recentOrders = ordersData?.orders || [];
 
@@ -118,6 +121,29 @@ function ProfilePageContent() {
     { id: 'wishlist', label: 'Wishlist', href: '/wishlist', Icon: Heart },
     { id: 'logout', label: 'Logout', Icon: LogOut, isDanger: true },
   ];
+
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen flex-col bg-gray-50">
+        <div className="sticky top-0 z-20 shrink-0 bg-white">
+          <PageTopBar title="My Profile" fallbackHref="/" />
+        </div>
+        <div className="flex flex-1 items-center justify-center px-4 pb-24 pt-8">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!ok) {
+    return (
+      <GuestAuthPrompt
+        pageTitle="My Profile"
+        fallbackHref="/"
+        description="Sign in to view your profile and account settings."
+      />
+    );
+  }
 
   if (isEditing) {
     return (

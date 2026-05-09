@@ -57,25 +57,30 @@ export function useVerifyPayment() {
 /**
  * List orders query
  */
-export function useOrdersList(params = {}) {
+export function useOrdersList(params = {}, queryOptions = {}) {
+  const { enabled = true, ...rest } = queryOptions;
   return useQuery({
     queryKey: orderKeys.list(params),
     queryFn: () => listOrders(params),
     staleTime: 30000, // 30 seconds
     refetchOnWindowFocus: true,
+    enabled,
+    ...rest,
   });
 }
 
 /**
  * Get order details query
  */
-export function useOrderDetail(orderId) {
+export function useOrderDetail(orderId, queryOptions = {}) {
+  const { enabled: enabledOpt = true, ...rest } = queryOptions;
   return useQuery({
     queryKey: orderKeys.detail(orderId),
     queryFn: () => getOrder(orderId),
-    enabled: !!orderId,
+    enabled: !!orderId && enabledOpt,
     staleTime: 30000, // 30 seconds
     refetchOnWindowFocus: true,
+    ...rest,
   });
 }
 

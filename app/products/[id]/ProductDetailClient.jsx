@@ -38,11 +38,12 @@ function PillTag({ children, color = 'green' }) {
   );
 }
 
-function SectionLabel({ children }) {
+/** Matches home page section typography (e.g. Buy Again / Best Sellers blocks). */
+function DetailSectionTitle({ children }) {
   return (
-    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-widest mb-3">
+    <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
       {children}
-    </p>
+    </h2>
   );
 }
 
@@ -108,7 +109,7 @@ function ReviewCard({ author, rating, text }) {
 export default function ProductDetailClient({ productId = null }) {
   const params = useParams();
   const router = useRouter();
-  const { addToCart, cartItems, updateQuantity, removeFromCart } = useCart();
+  const { addToCart, cartItems, cartTotal, cartCount, updateQuantity, removeFromCart } = useCart();
   const { addToRecentlyViewed } = useRecentlyViewed();
   const { showAlert } = useAlert();
 
@@ -355,7 +356,7 @@ export default function ProductDetailClient({ productId = null }) {
   }
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden bg-gray-50 pb-36 sm:pb-40">
+    <div className="w-full max-w-full overflow-x-hidden bg-gray-50 pb-28">
       <section className="relative w-full bg-white overflow-hidden pb-6">
         <div
           className="relative"
@@ -368,13 +369,16 @@ export default function ProductDetailClient({ productId = null }) {
             style={{ transform: `translateX(-${currentImageIndex * 100}%)` }}
           >
             {galleryUrls.map((img, idx) => (
-              <div key={`${idx}-${img}`} className="w-full flex-shrink-0 flex items-center justify-center">
+              <div
+                key={`${idx}-${img}`}
+                className="flex w-full flex-shrink-0 items-center justify-center bg-white min-h-[58vh] sm:min-h-[64vh] md:min-h-[70vh]"
+              >
                 <ProductImageWithFallback
                   src={img}
                   alt={`${product.name} – image ${idx + 1}`}
                   width={1600}
                   height={1600}
-                  className="w-full h-auto max-h-[120vw] sm:max-h-[90vw] object-contain"
+                  className="h-auto w-full max-h-[min(90vh,140vw)] object-contain sm:max-h-[min(86vh,95vw)] md:max-h-[min(82vh,56rem)]"
                   sizes="100vw"
                   priority={idx === 0}
                 />
@@ -395,17 +399,7 @@ export default function ProductDetailClient({ productId = null }) {
             </svg>
           </button>
 
-          <div className="flex gap-2">
-            <button
-              onClick={handleShare}
-              className="w-10 h-10 rounded-full bg-white/80 backdrop-blur flex items-center justify-center shadow-sm"
-              aria-label="Share"
-            >
-              <svg className="text-gray-800" style={{width:'18px',height:'18px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-              </svg>
-            </button>
-          </div>
+          <div className="w-10" aria-hidden />
         </div>
 
         {galleryUrls.length > 1 && (
@@ -471,7 +465,7 @@ export default function ProductDetailClient({ productId = null }) {
               </div>
 
               <div className="space-y-3 sm:space-y-4">
-                <h1 className="text-[24px] sm:text-[32px] md:text-[36px] font-bold text-gray-900 leading-[1.15] uppercase tracking-[0.05em] text-balance">
+                <h1 className="text-2xl sm:text-3xl md:text-[28px] font-bold text-gray-900 leading-snug text-balance">
                   {product.name}
                 </h1>
 
@@ -523,14 +517,56 @@ export default function ProductDetailClient({ productId = null }) {
                       </span>
                     </div>
                   )}
+                  <div className="ml-auto flex flex-shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleShare()}
+                      className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-yellow-500 bg-yellow-100 px-3 text-[13px] font-semibold text-gray-900 shadow-sm transition hover:bg-yellow-200"
+                      aria-label="Share product"
+                    >
+                      <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                        />
+                      </svg>
+                      Share
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleAddToCart()}
+                      disabled={!product.inStock || cartActionLoading}
+                      className={`inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border px-3.5 text-[13px] font-semibold shadow-sm transition ${
+                        product.inStock
+                          ? 'border-green-600 bg-green-600 text-white hover:bg-green-700 disabled:opacity-70'
+                          : 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
+                      }`}
+                    >
+                      {cartActionLoading ? (
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden />
+                      ) : (
+                        <svg className="h-4 w-4 shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                          />
+                        </svg>
+                      )}
+                      {product.inStock ? 'Add to cart' : 'Unavailable'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </section>
 
             {availableSizes.length > 1 && (
               <>
-                <SectionLabel>Size / Variant</SectionLabel>
-                <div className="flex flex-wrap gap-2 mb-5">
+                <DetailSectionTitle>Size / Variant</DetailSectionTitle>
+                <div className="flex flex-wrap gap-2 mb-5 mt-3">
                   {availableSizes.map((size, i) => {
                     const isActive =
                       selectedSize?.weight === size.weight && selectedSize?.unit === size.unit;
@@ -558,8 +594,8 @@ export default function ProductDetailClient({ productId = null }) {
 
             {SHOW_PRODUCT_EXTENDED_SECTIONS && (
               <>
-                <SectionLabel>Key Details</SectionLabel>
-                <div className="grid grid-cols-2 gap-2.5 mb-5">
+                <DetailSectionTitle>Key Details</DetailSectionTitle>
+                <div className="grid grid-cols-2 gap-2.5 mb-5 mt-3">
                   {product.brand && <InfoCard label="Brand" value={product.brand} />}
                   {product.category && (
                     <InfoCard label="Category" value={product.category} />
@@ -587,8 +623,8 @@ export default function ProductDetailClient({ productId = null }) {
 
             {product.description && (
               <>
-                <SectionLabel>Description</SectionLabel>
-                <p className="text-[13px] text-gray-500 leading-relaxed mb-5 whitespace-pre-wrap">
+                <DetailSectionTitle>Description</DetailSectionTitle>
+                <p className="mt-2 text-[13px] md:text-sm text-gray-500 leading-relaxed mb-5 whitespace-pre-wrap">
                   {product.description}
                 </p>
                 <Divider />
@@ -597,8 +633,8 @@ export default function ProductDetailClient({ productId = null }) {
 
             {product.ingredients && (
               <>
-                <SectionLabel>Ingredients</SectionLabel>
-                <p className="text-[13px] text-gray-500 leading-relaxed mb-5 whitespace-pre-wrap">
+                <DetailSectionTitle>Ingredients</DetailSectionTitle>
+                <p className="mt-2 text-[13px] md:text-sm text-gray-500 leading-relaxed mb-5 whitespace-pre-wrap">
                   {product.ingredients}
                 </p>
                 <Divider />
@@ -607,15 +643,15 @@ export default function ProductDetailClient({ productId = null }) {
 
             {SHOW_PRODUCT_EXTENDED_SECTIONS && (
               <>
-                <SectionLabel>Nutritional info (per 100g)</SectionLabel>
+                <DetailSectionTitle>Nutritional info (per 100g)</DetailSectionTitle>
                 {nutritionalInformation ? (
-                  <p className="text-[13px] text-gray-500 leading-relaxed mb-5 whitespace-pre-wrap">
+                  <p className="mt-2 text-[13px] md:text-sm text-gray-500 leading-relaxed mb-5 whitespace-pre-wrap">
                     {typeof nutritionalInformation === 'string'
                       ? nutritionalInformation
                       : JSON.stringify(nutritionalInformation)}
                   </p>
                 ) : (
-                  <div className="border border-gray-100 rounded-xl overflow-hidden mb-5 text-[12px]">
+                  <div className="mt-2 border border-gray-100 rounded-xl overflow-hidden mb-5 text-[12px]">
                     {[
                       ['Energy', '892 kcal'],
                       ['Total fat', '99.1 g'],
@@ -639,12 +675,12 @@ export default function ProductDetailClient({ productId = null }) {
 
             {(allergenInformation || storageInstructions) && (
               <>
-                <SectionLabel>Allergens & Storage</SectionLabel>
+                <DetailSectionTitle>Allergens & Storage</DetailSectionTitle>
                 {allergenInformation && (
-                  <p className="text-[13px] text-gray-500 leading-relaxed mb-2">{allergenInformation}</p>
+                  <p className="mt-2 text-[13px] md:text-sm text-gray-500 leading-relaxed mb-2">{allergenInformation}</p>
                 )}
                 {storageInstructions && (
-                  <p className="text-[13px] text-gray-500 leading-relaxed mb-5">{storageInstructions}</p>
+                  <p className="text-[13px] md:text-sm text-gray-500 leading-relaxed mb-5">{storageInstructions}</p>
                 )}
                 <Divider />
               </>
@@ -652,8 +688,8 @@ export default function ProductDetailClient({ productId = null }) {
 
             {SHOW_PRODUCT_EXTENDED_SECTIONS && (
               <>
-                <SectionLabel>Coupons & Offers</SectionLabel>
-                <div className="bg-gray-50 rounded-2xl p-3.5 space-y-3 mb-5">
+                <DetailSectionTitle>Coupons & Offers</DetailSectionTitle>
+                <div className="bg-gray-50 rounded-2xl p-3.5 space-y-3 mb-5 mt-3">
                   <OfferRow iconBg="bg-emerald-100" iconColor="text-emerald-700">
                     <strong>10% cashback</strong> on Amazon Pay Balance. Min order ₹299.
                   </OfferRow>
@@ -670,8 +706,8 @@ export default function ProductDetailClient({ productId = null }) {
 
                 <Divider />
 
-                <SectionLabel>Customer Reviews</SectionLabel>
-                <div className="space-y-2.5 mb-5">
+                <DetailSectionTitle>Customer Reviews</DetailSectionTitle>
+                <div className="space-y-2.5 mb-5 mt-3">
                   <ReviewCard
                     author="Priya M."
                     rating={5}
@@ -689,9 +725,14 @@ export default function ProductDetailClient({ productId = null }) {
 
           {fbtItems.length > 0 && (
             <div className="mt-10">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4 px-1">
-                Frequently Bought Together
-              </h2>
+              <div className="px-1 mb-4">
+                <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                  Frequently Bought Together
+                </h2>
+                <p className="mt-2 text-[13px] md:text-sm text-gray-500">
+                  Often purchased with this item.
+                </p>
+              </div>
               <ProductCarousel
                 products={fbtItems}
                 showMoreLink={
@@ -705,15 +746,22 @@ export default function ProductDetailClient({ productId = null }) {
 
           {similarItems.length > 0 && (
             <div className="mt-10 mb-4">
-              <div className="flex items-center justify-between mb-4 px-1">
-                <h2 className="text-lg font-semibold text-gray-800">Similar Products</h2>
+              <div className="flex items-end justify-between gap-3 mb-4 px-1">
+                <div>
+                  <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                    Similar Products
+                  </h2>
+                  <p className="mt-2 text-[13px] md:text-sm text-gray-500">
+                    More you might like in this range.
+                  </p>
+                </div>
                 <Link
                   href={
                     product.category
                       ? `/products?category=${encodeURIComponent(product.category)}`
                       : '/products'
                   }
-                  className="text-emerald-600 text-sm font-medium hover:underline"
+                  className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800 transition whitespace-nowrap"
                 >
                   View All
                 </Link>
@@ -731,77 +779,89 @@ export default function ProductDetailClient({ productId = null }) {
         </Container>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-100/90 bg-white/95 px-4 py-4 shadow-[0_-8px_32px_rgba(15,23,42,0.08)] backdrop-blur-md sm:px-5 sm:py-5 safe-area-pb">
-        <div className="mx-auto flex max-w-2xl items-center gap-3 sm:gap-4">
-          <div className="min-w-0 flex-1 flex items-stretch">
-            {cartQty === 0 ? (
-              <button
-                type="button"
-                onClick={() => void handleAddToCart()}
-                disabled={!product.inStock || cartActionLoading}
-                className={`flex min-h-[3.25rem] w-full items-center justify-center gap-2.5 rounded-2xl px-4 text-sm font-semibold tracking-tight shadow-sm transition-all duration-200 sm:min-h-[3.5rem] sm:text-[15px] ${
-                  product.inStock
-                    ? 'bg-emerald-600 text-white shadow-emerald-600/25 hover:bg-emerald-700 hover:shadow-md active:scale-[0.99] disabled:opacity-70'
-                    : 'cursor-not-allowed bg-gray-200 text-gray-400'
-                }`}
-              >
-                {cartActionLoading ? (
-                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                ) : (
-                  <svg className="h-5 w-5 shrink-0 opacity-95" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                    />
-                  </svg>
-                )}
-                {product.inStock
-                  ? `Add to cart · ₹${formatRupeeINR(effectivePrice)}`
-                  : 'Out of Stock'}
-              </button>
-            ) : (
-              <div className="flex min-h-[3.25rem] w-full items-stretch overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm sm:min-h-[3.5rem]">
-                <button
-                  type="button"
-                  onClick={() => void handleStepperDecrement()}
-                  disabled={cartActionLoading}
-                  className="flex min-w-[3rem] items-center justify-center bg-white text-xl font-medium text-gray-700 transition hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50"
-                  aria-label="Decrease quantity"
-                >
-                  −
-                </button>
-                <div className="flex min-w-0 flex-1 flex-col items-center justify-center border-x border-gray-100 bg-white px-3 py-1.5">
-                  <span className="text-base font-bold tabular-nums leading-none text-gray-900">
-                    {cartQty}
-                  </span>
-                  <span className="mt-0.5 text-[11px] font-medium tabular-nums text-gray-500">
-                    ₹{lineSubtotal}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void handleStepperIncrement()}
-                  disabled={cartActionLoading || cartQty >= 10}
-                  className="flex min-w-[3rem] items-center justify-center bg-white text-xl font-medium text-gray-700 transition hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50"
-                  aria-label="Increase quantity"
-                >
-                  +
-                </button>
-              </div>
-            )}
-          </div>
-
+      {/* Same sticky bottom chrome as cart page; content row uses items-start when a second summary line appears so controls sit on the top edge of the bar. */}
+      <div
+        className={`fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-gray-100 px-4 py-3 flex w-full gap-3 ${
+          cartQty > 0 ? 'items-start' : 'items-center'
+        }`}
+        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+      >
+        <div className={`flex-1 min-w-0 ${cartQty > 0 ? 'pt-0.5' : ''}`}>
+          <p className="text-[11px] text-gray-400">
+            {cartQty > 0 ? 'Total' : cartCount > 0 ? 'Cart total' : 'Price'}
+          </p>
+          <p className="text-lg font-medium text-gray-900 tabular-nums">
+            ₹{(cartQty > 0 || cartCount > 0 ? cartTotal : effectivePrice).toLocaleString('en-IN')}
+          </p>
           {cartQty > 0 && (
-            <Link
-              href="/cart"
-              className="inline-flex min-h-[3.25rem] shrink-0 items-center justify-center rounded-2xl bg-green-600 px-5 text-sm font-semibold tracking-tight text-white shadow-md shadow-green-700/20 transition duration-200 hover:bg-green-700 hover:shadow-lg active:scale-[0.98] sm:min-h-[3.5rem] sm:px-6 sm:text-[15px]"
-            >
-              Go to cart
-            </Link>
+            <p className="mt-0.5 text-[11px] text-gray-400 tabular-nums">
+              This item: ₹{lineSubtotal} · Qty {cartQty}
+            </p>
           )}
         </div>
+
+        {cartQty > 0 && (
+          <div className="flex h-11 shrink-0 items-stretch overflow-hidden rounded-full border border-gray-200 bg-white">
+            <button
+              type="button"
+              onClick={() => void handleStepperDecrement()}
+              disabled={cartActionLoading}
+              className="flex w-11 items-center justify-center bg-white text-lg font-medium text-gray-700 transition hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50"
+              aria-label="Decrease quantity"
+            >
+              −
+            </button>
+            <div className="flex min-w-[2.5rem] flex-col items-center justify-center border-x border-gray-100 bg-white px-2">
+              <span className="text-sm font-bold tabular-nums leading-none text-gray-900">{cartQty}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleStepperIncrement()}
+              disabled={cartActionLoading || cartQty >= 10}
+              className="flex w-11 items-center justify-center bg-white text-lg font-medium text-gray-700 transition hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50"
+              aria-label="Increase quantity"
+            >
+              +
+            </button>
+          </div>
+        )}
+
+        {cartQty === 0 ? (
+          <button
+            type="button"
+            onClick={() => void handleAddToCart()}
+            disabled={!product.inStock || cartActionLoading}
+            className={`flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-sm font-medium transition whitespace-nowrap active:scale-[0.98] ${
+              product.inStock
+                ? 'bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-70'
+                : 'cursor-not-allowed bg-gray-200 text-gray-400'
+            }`}
+          >
+            {cartActionLoading ? (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden />
+            ) : (
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+                />
+              </svg>
+            )}
+            {product.inStock ? 'Add to cart' : 'Out of stock'}
+          </button>
+        ) : (
+          <Link
+            href="/cart"
+            className="flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-sm font-medium transition bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98] whitespace-nowrap"
+          >
+            Go to cart
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        )}
       </div>
 
     </div>

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useCategoriesTree, useSearchProducts } from '../../hooks/useProducts';
 import { getResolvedProductImageUrls } from '../../utils/productImages';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryImage';
+import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 
 /** Rotating hint (same UX as header search). */
 const FALLBACK_HINT_WORDS = [
@@ -254,7 +255,7 @@ export default function CategoriesPage() {
     : rootCategories;
 
   return (
-    <div className="min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden pb-10 pt-[env(safe-area-inset-top,0px)]">
+    <div className="min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden pb-28 pt-[env(safe-area-inset-top,0px)]">
 
       {/* Hero heading */}
       <div className="px-4 pt-4 pb-2">
@@ -411,6 +412,8 @@ export default function CategoriesPage() {
           </Link>
         </div>
       )}
+
+      <FloatingViewCartPill />
     </div>
   );
 }

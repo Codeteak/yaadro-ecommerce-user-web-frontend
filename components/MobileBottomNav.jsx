@@ -91,24 +91,31 @@ export default function MobileBottomNav() {
             pathname === href || (href !== '/' && pathname?.startsWith(href));
 
           const count = showCartBadge ? cartCount : 0;
+          const isCartTab = !!showCartBadge;
 
           return (
             <Link
               key={href}
               href={href}
               prefetch
-              className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-3 py-2 transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
-                isActive
-                  ? 'text-emerald-800'
-                  : 'hover:bg-black/[0.04] active:scale-[0.98]'
+              className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-3 py-2 transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 ${
+                isCartTab ? 'focus-visible:ring-gray-400/40' : 'focus-visible:ring-emerald-500/40'
+              } ${
+                isActive && isCartTab
+                  ? 'bg-gray-100/95 text-gray-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-gray-200/80'
+                  : isActive
+                    ? 'text-emerald-800'
+                    : 'hover:bg-black/[0.04] active:scale-[0.98]'
               }`}
               aria-current={isActive ? 'page' : undefined}
             >
               <span
                 className={`relative inline-flex transition-all duration-200 ${
-                  isActive
-                    ? 'text-emerald-800 -translate-y-px scale-105'
-                    : 'text-gray-500'
+                  isActive && isCartTab
+                    ? 'text-gray-900 -translate-y-px scale-105'
+                    : isActive
+                      ? 'text-emerald-800 -translate-y-px scale-105'
+                      : 'text-gray-500'
                 }`}
               >
                 {showCartBadge && count > 0 && (
@@ -124,7 +131,11 @@ export default function MobileBottomNav() {
 
               <span
                 className={`text-[10px] font-semibold tracking-wide transition-colors duration-200 ${
-                  isActive ? 'text-emerald-800' : 'text-gray-500'
+                  isActive && isCartTab
+                    ? 'text-gray-900'
+                    : isActive
+                      ? 'text-emerald-800'
+                      : 'text-gray-500'
                 }`}
               >
                 {label}

@@ -9,10 +9,11 @@ import { useAlert } from '../../context/AlertContext';
 import { useAuth } from '../../context/AuthContext';
 import { useProducts } from '../../hooks/useProducts';
 import { setPostLoginRedirect } from '../../utils/authSession';
-import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../utils/productImages';
+import { getCartLinePreviewImageSrc } from '../../utils/productImages';
 import Container from '../../components/Container';
 import ConfirmModal from '../../components/ConfirmModal';
 import ProductCarousel from '../../components/ProductCarousel';
+import ProductImageWithFallback from '../../components/ProductImageWithFallback';
 
 /* ─────────────────────────────────────────────
    Sub-components
@@ -45,14 +46,9 @@ function SectionLabel({ children }) {
 }
 
 function CartItemCard({ item, onQuantityChange, onRemove }) {
-  // Resolve product image from any of the shapes the API/local cart can return:
-  // image / imageUrl / imageUrls[] / images[] / thumbnail / nested item.product.
-  const resolvedImages = getResolvedProductImageUrls(item.product || item);
-  const imageSrc =
-    resolvedImages.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER) ||
-    (typeof item.image === 'string' ? item.image : item.image?.url) ||
-    PRODUCT_IMAGE_PLACEHOLDER;
+  const imageSrc = getCartLinePreviewImageSrc(item);
   const unitPrice = item.selectedSize?.price ?? parseFloat(item.price);
+  const cartItemRef = item.cartItemKey ?? item.cartItemId ?? item.id;
   const originalPrice = item.originalPrice || null;
   const discountPct =
     originalPrice && originalPrice > unitPrice
@@ -63,12 +59,13 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
     <div className="bg-white rounded-2xl border border-gray-100 p-3 flex gap-3">
       {/* Image */}
       <div className="w-[72px] h-[72px] rounded-xl bg-gray-50 flex-shrink-0 overflow-hidden flex items-center justify-center">
-        <Image
+        <ProductImageWithFallback
           src={imageSrc}
           alt={item.name}
           width={72}
           height={72}
           className="w-full h-full object-contain"
+          sizes="72px"
         />
       </div>
 
@@ -101,7 +98,7 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
           {/* Qty stepper */}
           <div className="flex items-center border border-gray-200 rounded-full overflow-hidden">
             <button
-              onClick={() => onQuantityChange(item.id, item.quantity - 1)}
+              onClick={() => onQuantityChange(cartItemRef, item.quantity - 1)}
               disabled={item.quantity <= 1}
               className="w-8 h-7 flex items-center justify-center text-base text-gray-700 disabled:text-gray-300 hover:bg-gray-50 transition"
               aria-label="Decrease"
@@ -112,7 +109,7 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
               {item.quantity}
             </span>
             <button
-              onClick={() => onQuantityChange(item.id, item.quantity + 1)}
+              onClick={() => onQuantityChange(cartItemRef, item.quantity + 1)}
               disabled={item.quantity >= 10}
               className="w-8 h-7 flex items-center justify-center text-base text-gray-700 disabled:text-gray-300 hover:bg-gray-50 transition"
               aria-label="Increase"
@@ -125,7 +122,7 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
 
       {/* Remove */}
       <button
-        onClick={() => onRemove(item.id)}
+        onClick={() => onRemove(cartItemRef)}
         className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0 self-start hover:bg-red-50 hover:text-red-500 transition"
         aria-label="Remove item"
       >
@@ -246,25 +243,62 @@ function SavedCartsSection({ savedCarts, onLoad, onDelete }) {
   );
 }
 
-function EmptyCart() {
+function EmptyCart({ carouselSections = [] }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-5">
-        <svg className="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
+    <div className="w-full max-w-full pb-4">
+      <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+        <div className="mx-auto mb-6 flex w-full max-w-[220px] justify-center">
+          <Image
+            src="/empty-box.png"
+            alt="Empty cart — open box"
+            width={440}
+            height={440}
+            className="h-auto w-full max-h-[200px] object-contain drop-shadow-[0_8px_24px_rgba(15,23,42,0.08)]"
+            sizes="(max-width: 420px) 72vw, 220px"
+            priority
+          />
+        </div>
+        <h2 className="text-lg font-medium text-gray-900 mb-2 inline-flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
+          <span>Your cart is</span>
+          <span
+            className="inline-flex items-center justify-center px-[1.1rem] py-[0.2rem] text-[1.07rem] font-semibold leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)] bg-[url('/red-brush.png')] bg-center bg-no-repeat [background-size:100%_100%]"
+          >
+            Empty
+          </span>
+        </h2>
+        <p className="text-sm text-gray-400 mb-6">Add products to start your order</p>
+        <Link
+          href="/products"
+          className="inline-flex items-center justify-center bg-emerald-600 text-white text-sm font-medium px-5 py-2.5 rounded-full hover:bg-emerald-700 transition"
+        >
+          Shop now
+        </Link>
       </div>
-      <h2 className="text-lg font-medium text-gray-900 mb-2">Your cart is empty</h2>
-      <p className="text-sm text-gray-400 mb-6">Add products to start your order</p>
-      <Link
-        href="/products"
-        className="inline-flex items-center gap-2 bg-emerald-600 text-white text-sm font-medium px-5 py-2.5 rounded-full hover:bg-emerald-700 transition"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-        </svg>
-        Shop now
-      </Link>
+
+      {carouselSections.map(({ key, title, description, products }) =>
+        products.length > 0 ? (
+          <section key={key} className="mt-8 px-4" aria-label={title}>
+            <div className="mb-4">
+              <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                {title}
+              </h2>
+              <p className="mt-2 text-[13px] md:text-sm text-gray-500">{description}</p>
+            </div>
+            <ProductCarousel products={products} showMoreLink="/products" />
+            <div className="mt-4 flex justify-center">
+              <Link
+                href="/products"
+                className="inline-flex items-center gap-2 text-[12px] font-medium text-emerald-700 hover:text-emerald-800 transition"
+              >
+                <span>See all</span>
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+          </section>
+        ) : null
+      )}
     </div>
   );
 }
@@ -357,6 +391,26 @@ function CartPageContent() {
     return [...priority, ...others].slice(0, 12);
   }, [similarPool, cartProductIds, cartCategoryNames]);
 
+  /** Two non-overlapping carousels below empty-cart CTA (same catalog pool as Similar Products). */
+  const emptyCartCarouselSections = useMemo(() => {
+    const list = similarPool.filter((p) => p?.id != null);
+    if (list.length === 0) return [];
+    return [
+      {
+        key: 'empty-picks-1',
+        title: 'You might like',
+        description: 'Popular picks you can add anytime.',
+        products: list.slice(0, 8),
+      },
+      {
+        key: 'empty-picks-2',
+        title: 'More to explore',
+        description: 'Recently listed items worth a look.',
+        products: list.slice(8, 16),
+      },
+    ];
+  }, [similarPool]);
+
   const handleProceedToCheckout = () => {
     if (!authHydrated) return;
     if (isAuthenticated) {
@@ -384,7 +438,7 @@ function CartPageContent() {
           <p className="text-sm font-medium text-gray-700">Loading your cart…</p>
         </div>
       ) : cartItems.length === 0 ? (
-        <EmptyCart />
+        <EmptyCart carouselSections={emptyCartCarouselSections} />
       ) : (
         <>
           {/* Cart items */}
@@ -430,6 +484,34 @@ function CartPageContent() {
                 Clear all
               </ActionButton>
             </div>
+
+            {/* Similar products — suggestions based on cart contents (or random fallback) */}
+            {similarProducts.length > 0 && (
+              <section className="mt-6" aria-label="Similar products">
+                <div className="mb-4">
+                  <div>
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                      Similar Products
+                    </h2>
+                    <p className="mt-2 text-[13px] md:text-sm text-gray-500">
+                      You might also like these picks.
+                    </p>
+                  </div>
+                </div>
+                <ProductCarousel products={similarProducts} showMoreLink="/products" />
+                <div className="mt-4 flex justify-center">
+                  <Link
+                    href="/products"
+                    className="inline-flex items-center gap-2 text-[12px] font-medium text-emerald-700 hover:text-emerald-800 transition"
+                  >
+                    <span>See all</span>
+                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                </div>
+              </section>
+            )}
           </div>
 
           {/* Savings banner */}
@@ -437,29 +519,6 @@ function CartPageContent() {
 
           {/* Order summary */}
           <SummaryCard cartItems={cartItems} cartTotal={cartTotal} />
-
-          {/* Similar products — suggestions based on cart contents (or random fallback) */}
-          {similarProducts.length > 0 && (
-            <section className="mt-12 mb-3" aria-label="Similar products">
-              <div className="px-4 mb-4 flex items-end justify-between gap-3">
-                <div>
-                  <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
-                    Similar Products
-                  </h2>
-                  <p className="mt-2 text-[13px] md:text-sm text-gray-500">
-                    You might also like these picks.
-                  </p>
-                </div>
-                <Link
-                  href="/products"
-                  className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800 transition whitespace-nowrap"
-                >
-                  See all
-                </Link>
-              </div>
-              <ProductCarousel products={similarProducts} showMoreLink="/products" />
-            </section>
-          )}
 
           {/* Saved carts */}
           <SavedCartsSection

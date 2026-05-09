@@ -45,17 +45,32 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       : legacyOriginal != null && legacyOriginal > currentPrice
         ? legacyOriginal
         : null;
+  const displayListPrice =
+    strikeList ??
+    (basePrice > currentPrice + 1e-9 ? basePrice : null);
+  /** Rupee savings for ribbon — mirrors footer line; fallback when strike list logic misses edge cases. */
+  const saveRupees = useMemo(() => {
+    const fromStrike =
+      strikeList != null && strikeList > currentPrice + 1e-9
+        ? strikeList - currentPrice
+        : 0;
+    if (fromStrike > 0.004) return Math.round(fromStrike * 100) / 100;
+    const fromBase =
+      basePrice > currentPrice + 1e-9 ? basePrice - currentPrice : 0;
+    if (fromBase > 0.004) return Math.round(fromBase * 100) / 100;
+    return null;
+  }, [strikeList, currentPrice, basePrice]);
   const displayWeight = selectedSize ? `${selectedSize.weight} ${selectedSize.unit}` : (product.weight && product.unit ? `${product.weight} ${product.unit}` : '');
 
   const productToAddPayload = useMemo(
     () => ({
       ...product,
       price: currentPrice,
-      ...(strikeList != null ? { originalPrice: strikeList } : {}),
+      ...(displayListPrice != null ? { originalPrice: displayListPrice } : {}),
       selectedSize,
       sizeDisplay: displayWeight,
     }),
-    [product, currentPrice, strikeList, selectedSize, displayWeight]
+    [product, currentPrice, displayListPrice, selectedSize, displayWeight]
   );
 
   /** Cart line for this card’s product + selected size (matches CartContext keys). */
@@ -247,7 +262,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
             onMouseLeave={onMouseUp}
           >
             <div 
-              className="flex transition-transform duration-500 ease-in-out h-full"
+              className="relative z-0 flex h-full transition-transform duration-500 ease-in-out"
               style={{ transform: `translateX(-${currentImageIndex * 100}%)` }}
             >
               {productImages.map((img, idx) => (
@@ -262,6 +277,21 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
                 </div>
               ))}
             </div>
+
+            {/* After transformed carousel so ribbon isn’t covered by compositor layer; full diagonal strip (no tiny clip box). */}
+            {saveRupees != null && saveRupees >= 0.005 && (
+              <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden rounded-2xl" aria-hidden>
+                <div
+                  className={`absolute bg-gradient-to-br from-red-600 via-red-700 to-red-900 py-[5px] text-center font-extrabold uppercase tracking-wide text-white shadow-[0_3px_10px_rgba(153,27,27,0.55),inset_0_1px_0_rgba(255,255,255,0.28)] ${
+                    isCarousel
+                      ? 'left-[-48px] top-[11px] w-[130px] -rotate-45 text-[8px] leading-tight'
+                      : 'left-[-44px] top-[14px] w-[152px] -rotate-45 text-[9px] leading-tight sm:left-[-40px] sm:top-[17px] sm:w-[164px] sm:text-[10px]'
+                  }`}
+                >
+                  <span className="tabular-nums">Save ₹{formatRupeeINR(saveRupees)}</span>
+                </div>
+              </div>
+            )}
 
             {productImages.length > 1 && (
               <div
@@ -357,14 +387,14 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           <span className="inline-flex items-center rounded-md bg-green-600 px-2 py-1 text-base font-bold tabular-nums text-white shadow-sm">
             ₹{formatRupeeINR(currentPrice)}
           </span>
-          {strikeList != null && (
+          {displayListPrice != null && (
             <span className="text-xs text-gray-400 line-through tabular-nums">
-              ₹{formatRupeeINR(strikeList)}
+              ₹{formatRupeeINR(displayListPrice)}
             </span>
           )}
-          {strikeList != null && strikeList > currentPrice + 1e-9 && (
+          {saveRupees != null && (
             <span className="text-[11px] font-semibold text-emerald-700 tabular-nums">
-              Save ₹{formatRupeeINR(strikeList - currentPrice)}
+              Save ₹{formatRupeeINR(saveRupees)}
             </span>
           )}
         </div>

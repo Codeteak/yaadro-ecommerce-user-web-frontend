@@ -11,6 +11,23 @@ function minorToMajor(minor) {
   return Number.isFinite(n) ? n / 100 : 0;
 }
 
+function resolveOrderItemImage(item = {}) {
+  return (
+    item?.product_image_snapshot ||
+    item?.productImage ||
+    item?.product_image ||
+    item?.image_url ||
+    item?.imageUrl ||
+    item?.thumbnail_url ||
+    item?.thumbnailUrl ||
+    item?.product?.images?.[0] ||
+    item?.product?.imageUrl ||
+    item?.product?.image ||
+    item?.image ||
+    '/images/dummy.png'
+  );
+}
+
 /**
  * Map vendor/API fulfillment labels to our timeline + pill keys.
  * e.g. backend "accepted" / "ACKNOWLEDGED" should not fall through to pending styling.
@@ -110,6 +127,16 @@ function transformOrder(apiOrder) {
     cancelledReason: apiOrder.cancelledReason || null,
     deliveredAt: apiOrder.deliveredAt || apiOrder.delivered_at || null,
     shippedAt: apiOrder.shippedAt || apiOrder.shipped_at || null,
+    itemCount:
+      Number(
+        apiOrder.itemCount ??
+          apiOrder.item_count ??
+          apiOrder.itemsCount ??
+          apiOrder.items_count ??
+          apiOrder.total_items ??
+          apiOrder.totalItems ??
+          (Array.isArray(apiOrder.items) ? apiOrder.items.length : 0)
+      ) || 0,
     items: (apiOrder.items || []).map((item) => {
       const quantity = Number(item.quantity ?? 1) || 1;
       const unitPrice =
@@ -131,7 +158,7 @@ function transformOrder(apiOrder) {
         product: item.product || {},
         // For display purposes (UI expects these)
         name: productName,
-        image: item.product?.images?.[0] || item.product?.image || '/images/dummy.png',
+        image: resolveOrderItemImage(item),
         price: unitPrice,
       };
     }),
@@ -178,11 +205,7 @@ export async function listOrders(params = {}) {
       omitTenantHeader: true,
     });
 
-    const orders = (response?.orders || []).map((o) => {
-      const base = transformOrder(o);
-      // list endpoint doesn't include items; keep empty array to satisfy UI
-      return base ? { ...base, items: [] } : null;
-    }).filter(Boolean);
+    const orders = (response?.orders || []).map((o) => transformOrder(o)).filter(Boolean);
 
     return {
       orders,
@@ -221,15 +244,16 @@ export async function getOrder(orderId) {
       order.items = items.map((it) => ({
         id: it.id,
         productId: it.product_id,
-        productName: it.product_name_snapshot || 'Product',
+        productName: it.product_name_snapshot || it.product_name || it.name || 'Product',
         quantity: Number(it.quantity ?? 1) || 1,
         unitPrice: minorToMajor(it.unit_price_minor_snapshot),
         totalPrice: minorToMajor(it.line_total_minor),
-        name: it.product_name_snapshot || 'Product',
-        image: '/images/dummy.png',
+        name: it.product_name_snapshot || it.product_name || it.name || 'Product',
+        image: resolveOrderItemImage(it),
         price: minorToMajor(it.unit_price_minor_snapshot),
-        product: {},
+        product: it.product || {},
       }));
+      order.itemCount = order.items.length;
     }
     return order;
   } catch (error) {

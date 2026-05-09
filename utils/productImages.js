@@ -137,3 +137,64 @@ export function getResolvedProductImageUrls(product) {
   });
   return list.length > 0 ? list : [PRODUCT_IMAGE_PLACEHOLDER];
 }
+
+/**
+ * One display `src` for a cart line (local optimistic shape or API cart row).
+ * Merges nested `product` over the line so thumbnails win over stale/dummy `item.image`.
+ */
+export function getCartLinePreviewImageSrc(item) {
+  if (!item || typeof item !== 'object') return PRODUCT_IMAGE_PLACEHOLDER;
+
+  const productObj =
+    item.product && typeof item.product === 'object' && !Array.isArray(item.product)
+      ? item.product
+      : {};
+
+  const merged = { ...item, ...productObj };
+
+  const urls = getResolvedProductImageUrls(merged);
+  const best = urls.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER);
+  if (best) return best;
+
+  const snapshotKeys = [
+    'image_snapshot',
+    'image_snapshot_url',
+    'image_url_snapshot',
+    'product_image_url',
+    'thumbnail_url',
+    'thumbnail_snapshot',
+    'cover_image_url',
+    'primary_image_url',
+    'picture_url',
+    'photo_url',
+  ];
+  for (const k of snapshotKeys) {
+    const raw = item[k];
+    if (typeof raw === 'string' && raw.trim()) {
+      const u = toImageSrcString(raw.trim());
+      if (isValidImageReference(u)) return u;
+    }
+  }
+
+  const thumb =
+    (typeof item.thumbnailUrl === 'string' && item.thumbnailUrl.trim()) ||
+    mediaObjectToUrl(item.thumbnail) ||
+    '';
+  if (thumb) {
+    const u = toImageSrcString(thumb);
+    if (isValidImageReference(u)) return u;
+  }
+
+  const imgField =
+    typeof item.image === 'object' && item.image && typeof item.image.url === 'string'
+      ? item.image.url
+      : typeof item.image === 'string'
+        ? item.image
+        : '';
+  if (imgField && imgField.trim()) {
+    const u = toImageSrcString(imgField.trim());
+    if (isValidImageReference(u) && u !== PRODUCT_IMAGE_PLACEHOLDER) return u;
+  }
+
+  return PRODUCT_IMAGE_PLACEHOLDER;
+}

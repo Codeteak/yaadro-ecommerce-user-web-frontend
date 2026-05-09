@@ -7,6 +7,8 @@ import { useAlert } from './AlertContext';
 import { useCartQuery, useAddToCart, useUpdateCartItem, useRemoveFromCart, useClearCart } from '../hooks/useCart';
 
 const CartContext = createContext();
+const GUEST_CART_STORAGE_KEY = 'cart';
+const API_CART_CACHE_STORAGE_KEY = 'cartApiCache';
 
 export function CartProvider({ children }) {
   // Initialize cart state from localStorage if available (client-side only)
@@ -34,29 +36,27 @@ export function CartProvider({ children }) {
   // Local cart state for unauthenticated users
   const [localCartItems, setLocalCartItems] = useState([]);
 
-  // Initialize client and load local cart
+  // Initialize client and load local cart/cache first for instant UX.
   useEffect(() => {
     setIsClient(true);
     
     if (typeof window !== 'undefined') {
-      // Load local cart if not authenticated
-      if (!isAuthenticated || !token) {
-        const savedCart = localStorage.getItem('cart');
-        if (savedCart) {
-          try {
-            const parsed = JSON.parse(savedCart);
-            setLocalCartItems(parsed);
-            const lastActivity = localStorage.getItem('cartLastActivity');
-            if (lastActivity) {
-              setLastActivityTime(parseInt(lastActivity));
-            }
-          } catch (error) {
-            console.error('Error parsing cart from localStorage:', error);
+      const storageKey = isAuthenticated && token ? API_CART_CACHE_STORAGE_KEY : GUEST_CART_STORAGE_KEY;
+      const savedCart = localStorage.getItem(storageKey);
+      if (savedCart) {
+        try {
+          const parsed = JSON.parse(savedCart);
+          setLocalCartItems(Array.isArray(parsed) ? parsed : []);
+          const lastActivity = localStorage.getItem('cartLastActivity');
+          if (lastActivity) {
+            setLastActivityTime(parseInt(lastActivity));
           }
+        } catch (error) {
+          console.error('Error parsing cart from localStorage:', error);
         }
-        // Local cart is now hydrated (either with items or empty) — safe to render.
-        setHasInitialized(true);
       }
+      // Cart is now hydrated (either with items or empty) — safe to render instantly.
+      setHasInitialized(true);
 
       // Load saved carts and templates from localStorage
       const savedCartsData = localStorage.getItem('savedCarts');
@@ -79,15 +79,18 @@ export function CartProvider({ children }) {
     }
   }, [isAuthenticated, token]);
 
-  // Use API cart items if enabled, otherwise use local
-  const cartItems = useApiCart ? apiCartItems : localCartItems;
+  // Local-first: for auth users show cached cart immediately while API loads.
+  const cartItems = useApiCart
+    ? (loading ? localCartItems : apiCartItems)
+    : localCartItems;
 
-  // Mark cart as ready once the API query has finished its first fetch (auth users).
+  // Keep local API cache fresh when authenticated cart data arrives.
   useEffect(() => {
     if (!useApiCart) return;
     if (loading) return;
+    setLocalCartItems(apiCartItems);
     setHasInitialized(true);
-  }, [useApiCart, loading]);
+  }, [useApiCart, loading, apiCartItems]);
 
   // TanStack Query mutations and client
   const queryClient = useQueryClient();
@@ -107,12 +110,9 @@ export function CartProvider({ children }) {
     if (syncedLocalToApiRef.current) return;
 
     const getGuestCartLinesForSync = () => {
-      if (Array.isArray(localCartItems) && localCartItems.length > 0) {
-        return localCartItems;
-      }
       if (typeof window === 'undefined') return [];
       try {
-        const raw = localStorage.getItem('cart');
+        const raw = localStorage.getItem(GUEST_CART_STORAGE_KEY);
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? parsed : [];
@@ -139,9 +139,9 @@ export function CartProvider({ children }) {
             console.error('Skipping invalid local cart item during API sync:', itemErr);
           }
         }
-        setLocalCartItems([]);
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('cart');
+          // Guest cart is merged into account cart; keep API cache untouched.
+          localStorage.removeItem(GUEST_CART_STORAGE_KEY);
           localStorage.removeItem('cartLastActivity');
         }
       } catch (e) {
@@ -154,10 +154,11 @@ export function CartProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useApiCart]);
 
-  // Save cart to localStorage whenever it changes (only if not authenticated)
+  // Save cart to localStorage whenever it changes.
   useEffect(() => {
-    if (isClient && typeof window !== 'undefined' && !isAuthenticated) {
-      localStorage.setItem('cart', JSON.stringify(localCartItems));
+    if (isClient && typeof window !== 'undefined') {
+      const storageKey = isAuthenticated ? API_CART_CACHE_STORAGE_KEY : GUEST_CART_STORAGE_KEY;
+      localStorage.setItem(storageKey, JSON.stringify(localCartItems));
       setLastActivityTime(Date.now());
       localStorage.setItem('cartLastActivity', Date.now().toString());
     }
@@ -191,6 +192,31 @@ export function CartProvider({ children }) {
 
     try {
       if (useApiCart && isAuthenticated && token) {
+        // Optimistic local cache update for instant UX.
+        setLocalCartItems((prevItems) => {
+          const sizeKey = product.selectedSize
+            ? `${product.selectedSize.weight}${product.selectedSize.unit}`
+            : 'default';
+          const cartItemKey = `${product.id}_${sizeKey}`;
+          const existingItem = prevItems.find((item) => {
+            const itemSizeKey = item.selectedSize
+              ? `${item.selectedSize.weight}${item.selectedSize.unit}`
+              : 'default';
+            return `${item.id}_${itemSizeKey}` === cartItemKey;
+          });
+          if (existingItem) {
+            return prevItems.map((item) => {
+              const itemSizeKey = item.selectedSize
+                ? `${item.selectedSize.weight}${item.selectedSize.unit}`
+                : 'default';
+              return `${item.id}_${itemSizeKey}` === cartItemKey
+                ? { ...item, quantity: item.quantity + quantity }
+                : item;
+            });
+          }
+          return [...prevItems, { ...product, quantity, cartItemKey }];
+        });
+
         // Use API if authenticated
         // Check if item already exists in cart
         const existingItem = cartItems.find(item => 
@@ -284,6 +310,11 @@ export function CartProvider({ children }) {
       );
 
       if (useApiCart && isAuthenticated && token && item?.cartItemId) {
+        setLocalCartItems(prevItems =>
+          prevItems.filter(item =>
+            item.cartItemKey !== idOrKey && item.id !== idOrKey && item.cartItemId !== idOrKey
+          )
+        );
         // Use API if authenticated
         await removeFromCartMutation.mutateAsync(item.cartItemId);
         // Query will refetch automatically
@@ -316,6 +347,13 @@ export function CartProvider({ children }) {
       );
 
       if (useApiCart && isAuthenticated && token && item?.cartItemId) {
+        setLocalCartItems(prevItems =>
+          prevItems.map(item =>
+            (item.cartItemKey === idOrKey || item.id === idOrKey || item.cartItemId === idOrKey)
+              ? { ...item, quantity }
+              : item
+          )
+        );
         // Use API if authenticated
         await updateCartItemMutation.mutateAsync({ itemId: item.cartItemId, quantity });
         // Query will refetch automatically
@@ -360,6 +398,7 @@ export function CartProvider({ children }) {
   const clearCart = async () => {
     try {
       if (useApiCart && isAuthenticated && token) {
+        setLocalCartItems([]);
         // Use API if authenticated
         await clearCartMutation.mutateAsync();
         // Query will update automatically
