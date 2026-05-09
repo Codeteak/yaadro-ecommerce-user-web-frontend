@@ -11,7 +11,7 @@ import { useAlert } from '../../context/AlertContext';
 import ProductCarousel from '../../components/ProductCarousel';
 import { useProducts } from '../../hooks/useProducts';
 import { placeStorefrontOrder } from '../../utils/storefrontCheckoutApi';
-import { setPostLoginRedirect } from '../../utils/authSession';
+import { useLoginNavigation } from '../../hooks/useLoginNavigation';
 import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../utils/productImages';
 import { useUpdateProfile } from '../../hooks/useAuth';
 
@@ -382,7 +382,8 @@ export default function CheckoutPage() {
     getDefaultAddress,
     isLoading: isLoadingAddresses,
   } = useAddress();
-  const { isAuthenticated, user, setShowLoginSheet, authHydrated, refreshUser } = useAuth();
+  const { isAuthenticated, user, authHydrated, refreshUser } = useAuth();
+  const { goToLogin } = useLoginNavigation();
   const { showAlert } = useAlert();
   const updateProfileMutation = useUpdateProfile();
   // Storefront order placement: POST /storefront/checkout
@@ -445,16 +446,14 @@ export default function CheckoutPage() {
     router.replace(qs ? `/checkout?${qs}` : '/checkout');
   }, [searchParams, addresses, router]);
 
-  /* ── Guests with items: never show checkout UI — send to cart and open login sheet ── */
+  /* ── Guests with items: require login, then return here ── */
   useEffect(() => {
     if (!authHydrated) return;
     if (cartItems.length === 0) return;
     if (!isAuthenticated) {
-      setPostLoginRedirect('/checkout');
-      setShowLoginSheet(true);
-      router.replace('/cart');
+      goToLogin('/checkout');
     }
-  }, [authHydrated, isAuthenticated, cartItems.length, router, setShowLoginSheet]);
+  }, [authHydrated, isAuthenticated, cartItems.length, goToLogin]);
 
   const handleOrderSummaryQuantity = async (item, nextQty) => {
     const key = item.cartItemKey ?? item.id;
@@ -494,7 +493,7 @@ export default function CheckoutPage() {
     e?.preventDefault();
 
     if (!isAuthenticated) {
-      setShowLoginSheet(true);
+      goToLogin('/checkout');
       return;
     }
     if (cartItems.length === 0) {

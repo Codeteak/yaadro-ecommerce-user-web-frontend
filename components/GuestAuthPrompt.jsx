@@ -1,7 +1,7 @@
 'use client';
 
 import PageTopBar from './PageTopBar';
-import { useAuth } from '../context/AuthContext';
+import { useLoginNavigation } from '../hooks/useLoginNavigation';
 
 export default function GuestAuthPrompt({
   pageTitle,
@@ -9,7 +9,7 @@ export default function GuestAuthPrompt({
   backHref,
   fallbackHref = '/',
 }) {
-  const { setShowLoginSheet } = useAuth();
+  const { goToLogin } = useLoginNavigation();
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
@@ -21,7 +21,7 @@ export default function GuestAuthPrompt({
         <p className="mt-2 max-w-sm text-sm text-gray-600">{description}</p>
         <button
           type="button"
-          onClick={() => setShowLoginSheet(true)}
+          onClick={() => goToLogin()}
           className="mt-6 rounded-full bg-primary px-8 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:opacity-95"
         >
           Sign in

@@ -14,7 +14,6 @@ import { LocationServiceProvider } from '../context/LocationServiceContext';
 import ConditionalLayout from '../components/ConditionalLayout';
 import MobileBottomNav from '../components/MobileBottomNav';
 import CartSidebar from '../components/CartSidebar';
-import LoginBottomSheetWrapper from '../components/LoginBottomSheetWrapper';
 import ServiceAreaBottomSheet from '../components/ServiceAreaBottomSheet';
 import ClientOnly from '../components/ClientOnly';
 
@@ -53,7 +52,6 @@ export default function RootLayout({ children }) {
                                   </ConditionalLayout>
                                   <MobileBottomNav />
                                   <CartSidebar />
-                                  <LoginBottomSheetWrapper />
                                   <ServiceAreaBottomSheet />
                                 </LocationServiceProvider>
                               </LayoutHeightsProvider>

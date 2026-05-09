@@ -14,6 +14,7 @@ export function BottomNavVisibilityProvider({ children }) {
   const pathNoSlash = pathname?.replace(/\/+$/, '') || '';
 
   const hideForRoute =
+    pathname === '/login' ||
     pathname === '/checkout' ||
     pathname === '/order-success' ||
     pathname === '/cart' ||

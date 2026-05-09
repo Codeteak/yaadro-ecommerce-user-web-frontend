@@ -17,6 +17,7 @@ export default function ConditionalLayout({ children }) {
   const hideLayout =
     pathname === '/order-success' ||
     pathname === '/checkout' ||
+    pathname === '/login' ||
     pathname === '/profile' ||
     pathname === '/addresses' ||
     pathname === '/add/address' ||

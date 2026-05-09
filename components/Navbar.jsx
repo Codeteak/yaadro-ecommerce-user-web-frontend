@@ -11,6 +11,7 @@ import { useAddress } from '../context/AddressContext';
 import { useLayoutHeights } from '../context/LayoutHeightsContext';
 import { useLocationService } from '../context/LocationServiceContext';
 import { useSearchProducts } from '../hooks/useProducts';
+import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { resolveShopId } from '../utils/authApi';
 import { getResolvedProductImageUrls } from '../utils/productImages';
 import { User, MapPin } from 'lucide-react';
@@ -140,7 +141,8 @@ export default function Navbar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { cartCount, setShowSidebarCart } = useCart();
-  const { isAuthenticated, user, setShowLoginSheet } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const { goToLogin } = useLoginNavigation();
   const { getDefaultAddress } = useAddress();
   const { setNavbarHeight } = useLayoutHeights();
   const {
@@ -259,7 +261,7 @@ export default function Navbar() {
   }, [setNavbarHeight]);
 
   // Hide navbar on checkout page - MUST be after all hooks
-  if (pathname === '/checkout') return null;
+  if (pathname === '/checkout' || pathname === '/login') return null;
 
   const handleProductClick = (product) => {
     setSearchQuery('');
@@ -320,7 +322,7 @@ export default function Navbar() {
               </Link>
             ) : (
               <button
-                onClick={() => setShowLoginSheet(true)}
+                onClick={() => goToLogin()}
                 className="flex items-center justify-center w-10 h-10 rounded-full text-gray-700 hover:bg-gray-100 hover:text-primary transition-colors"
                 aria-label="Login"
               >

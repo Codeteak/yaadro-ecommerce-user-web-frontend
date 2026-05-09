@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCategories, useProducts } from '../hooks/useProducts';
+import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useAlert } from '../context/AlertContext';
 import { useAddress } from '../context/AddressContext';
 import { useLocationService } from '../context/LocationServiceContext';
@@ -134,7 +135,8 @@ export default function Home() {
   
   const { showAlert } = useAlert();
   const { getDefaultAddress } = useAddress();
-  const { isAuthenticated, user, setShowLoginSheet } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const { goToLogin } = useLoginNavigation();
   const {
     isChecking: isLocationChecking,
     serviceable: isServiceable,
@@ -876,7 +878,7 @@ export default function Home() {
                     if (isAuthenticated) {
                       window.location.href = '/profile';
                     } else {
-                      setShowLoginSheet(true);
+                      goToLogin();
                     }
                   }}
                   className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/20 backdrop-blur hover:bg-black/25 transition"

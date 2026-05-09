@@ -11,6 +11,14 @@ export const AUTH_SESSION_EXPIRES_KEY = 'yaadro_auth_session_expires_at';
 
 export const POST_LOGIN_REDIRECT_KEY = 'yaadro_post_login_redirect';
 
+/** Safe in-app path only (relative, no open redirects). */
+export function sanitizeInternalPath(path) {
+  if (path == null || typeof path !== 'string') return null;
+  const t = path.trim();
+  if (!t.startsWith('/') || t.startsWith('//')) return null;
+  return t;
+}
+
 const parsedSessionDays =
   typeof process !== 'undefined' && process.env.NEXT_PUBLIC_AUTH_SESSION_DAYS
     ? parseInt(process.env.NEXT_PUBLIC_AUTH_SESSION_DAYS, 10)
@@ -25,14 +33,27 @@ export const SESSION_DURATION_MS = sessionDays * 24 * 60 * 60 * 1000;
 
 export function setPostLoginRedirect(path) {
   if (typeof window === 'undefined') return;
-  if (typeof path === 'string' && path.startsWith('/') && !path.startsWith('//')) {
-    window.sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, path);
-  }
+  const safe = sanitizeInternalPath(path);
+  if (safe) window.sessionStorage.setItem(POST_LOGIN_REDIRECT_KEY, safe);
 }
 
 export function clearPostLoginRedirect() {
   if (typeof window === 'undefined') return;
   window.sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+}
+
+/** Peek stored return path without clearing (e.g. logged-in user hits `/login`). */
+export function getPostLoginRedirect() {
+  if (typeof window === 'undefined') return null;
+  return sanitizeInternalPath(window.sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY));
+}
+
+/** Read and clear — use once after successful login. */
+export function takePostLoginRedirect() {
+  if (typeof window === 'undefined') return null;
+  const next = getPostLoginRedirect();
+  clearPostLoginRedirect();
+  return next;
 }
 
 export function readSessionExpiresAtMs() {

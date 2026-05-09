@@ -1,13 +1,12 @@
 'use client';
 
 import { useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { setPostLoginRedirect } from '../utils/authSession';
 
 /**
- * Guest visits → opens login sheet and stores current URL for post-login redirect.
- * Does not navigate away from the requested route.
+ * Guest visits → redirect to `/login` with return URL stored for after sign-in.
  *
  * @returns {{ ok: boolean, ready: boolean }}
  *   ready — auth hydration finished (safe to branch UI)
@@ -15,7 +14,8 @@ import { setPostLoginRedirect } from '../utils/authSession';
  */
 export function useRequireAuth() {
   const pathname = usePathname() || '/';
-  const { isAuthenticated, authHydrated, isLoadingUser, setShowLoginSheet } = useAuth();
+  const router = useRouter();
+  const { isAuthenticated, authHydrated, isLoadingUser } = useAuth();
 
   useEffect(() => {
     if (!authHydrated || isLoadingUser) return;
@@ -24,8 +24,8 @@ export function useRequireAuth() {
     const search = typeof window !== 'undefined' ? window.location.search : '';
     const returnPath = `${pathname}${search}`;
     setPostLoginRedirect(returnPath);
-    setShowLoginSheet(true);
-  }, [authHydrated, isLoadingUser, isAuthenticated, pathname, setShowLoginSheet]);
+    router.replace('/login');
+  }, [authHydrated, isLoadingUser, isAuthenticated, pathname, router]);
 
   const ready = authHydrated && !isLoadingUser;
   const ok = Boolean(ready && isAuthenticated);

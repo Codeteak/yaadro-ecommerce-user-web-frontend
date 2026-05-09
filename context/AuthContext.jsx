@@ -8,7 +8,7 @@ import {
   ensureSessionExpiryForExistingLogin,
   isClientSessionExpired,
   writeSessionExpiresAtFromLogin,
-  POST_LOGIN_REDIRECT_KEY,
+  takePostLoginRedirect,
 } from '../utils/authSession';
 import { normalizeCustomer } from '../utils/authApi';
 
@@ -19,7 +19,6 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [refreshToken, setRefreshToken] = useState(null);
   const [isClient, setIsClient] = useState(false);
-  const [showLoginSheet, setShowLoginSheet] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(false);
   /** False until first client auth hydration from localStorage runs (avoids redirect flash before token/user are restored). */
   const [authHydrated, setAuthHydrated] = useState(false);
@@ -169,11 +168,9 @@ export function AuthProvider({ children }) {
       localStorage.setItem('refreshToken', tokens.refreshToken);
     }
     writeSessionExpiresAtFromLogin();
-    setShowLoginSheet(false);
     if (typeof window !== 'undefined') {
-      const next = window.sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY);
-      if (next && next.startsWith('/') && !next.startsWith('//')) {
-        window.sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
+      const next = takePostLoginRedirect();
+      if (next) {
         window.location.assign(next);
         return true;
       }
@@ -273,8 +270,6 @@ export function AuthProvider({ children }) {
     deleteAccount,
     isAuthenticated,
     authHydrated,
-    showLoginSheet,
-    setShowLoginSheet,
     isLoadingUser,
     refreshUser,
   };

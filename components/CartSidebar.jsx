@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { formatRupeeINR } from '../utils/productUtils';
-import { setPostLoginRedirect } from '../utils/authSession';
+import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import CartItem from './CartItem';
 
 export default function CartSidebar() {
   const router = useRouter();
   const { cartItems, cartTotal, showSidebarCart, setShowSidebarCart } = useCart();
-  const { isAuthenticated, authHydrated, setShowLoginSheet } = useAuth();
+  const { isAuthenticated, authHydrated } = useAuth();
+  const { goToLogin } = useLoginNavigation();
 
   const handleClose = () => setShowSidebarCart(false);
 
@@ -22,8 +23,7 @@ export default function CartSidebar() {
       router.push('/checkout');
       return;
     }
-    setPostLoginRedirect('/checkout');
-    setShowLoginSheet(true);
+    goToLogin('/checkout');
   };
 
   return (

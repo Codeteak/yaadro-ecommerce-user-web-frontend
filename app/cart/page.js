@@ -8,7 +8,7 @@ import { useCart } from '../../context/CartContext';
 import { useAlert } from '../../context/AlertContext';
 import { useAuth } from '../../context/AuthContext';
 import { useProducts } from '../../hooks/useProducts';
-import { setPostLoginRedirect } from '../../utils/authSession';
+import { useLoginNavigation } from '../../hooks/useLoginNavigation';
 import { getCartLinePreviewImageSrc } from '../../utils/productImages';
 import Container from '../../components/Container';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -309,7 +309,8 @@ function EmptyCart({ carouselSections = [] }) {
 function CartPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, authHydrated, setShowLoginSheet } = useAuth();
+  const { isAuthenticated, authHydrated } = useAuth();
+  const { goToLogin } = useLoginNavigation();
   const {
     cartItems,
     cartTotal,
@@ -417,8 +418,7 @@ function CartPageContent() {
       router.push('/checkout');
       return;
     }
-    setPostLoginRedirect('/checkout');
-    setShowLoginSheet(true);
+    goToLogin('/checkout');
   };
 
   /* ── Icons ── */

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useCategoriesTree, useSearchProducts } from '../../hooks/useProducts';
+import { useCategoriesTree, useSearchProducts, useProducts } from '../../hooks/useProducts';
+import ProductCarousel from '../../components/ProductCarousel';
 import { getResolvedProductImageUrls } from '../../utils/productImages';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryImage';
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
@@ -226,6 +227,27 @@ export default function CategoriesPage() {
   const { data: categoryTree = [], isLoading } = useCategoriesTree();
   const [search, setSearch] = useState('');
 
+  const { data: newArrivalsData } = useProducts({
+    limit: 14,
+    sort_by: 'created_at',
+    sort_order: 'desc',
+  });
+  const { data: valuePicksData } = useProducts({
+    limit: 24,
+    sort_by: 'price',
+    sort_order: 'asc',
+  });
+
+  const newArrivalsProducts = useMemo(
+    () => newArrivalsData?.products?.slice(0, 14) || [],
+    [newArrivalsData?.products]
+  );
+  const valuePickProducts = useMemo(() => {
+    const pool = valuePicksData?.products || [];
+    const skip = new Set(newArrivalsProducts.map((p) => p.id));
+    return pool.filter((p) => !skip.has(p.id)).slice(0, 14);
+  }, [valuePicksData?.products, newArrivalsProducts]);
+
   const rootCategories = (categoryTree || []).filter(
     (cat) => cat.isActive !== false && (cat.level === 0 || cat.parentId == null)
   );
@@ -257,10 +279,12 @@ export default function CategoriesPage() {
   return (
     <div className="min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden pb-28 pt-[env(safe-area-inset-top,0px)]">
 
-      {/* Hero heading */}
+      {/* Hero heading — matches section title typography (`font-headingnow`) */}
       <div className="px-4 pt-4 pb-2">
-        <h1 className="text-[20px] font-medium text-gray-900 mb-0.5">Browse categories</h1>
-        <p className="text-[13px] text-gray-400">Tap any category to explore products</p>
+        <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1] mb-1.5">
+          Browse categories
+        </h1>
+        <p className="text-[13px] text-gray-500">Tap any category to explore products</p>
       </div>
 
       {/* Search bar */}
@@ -318,6 +342,35 @@ export default function CategoriesPage() {
             ))
         }
       </div>
+
+      {/* Product carousels */}
+      {newArrivalsProducts.length > 0 && (
+        <section className="mt-8 px-4" aria-label="New arrivals">
+          <div className="mb-4">
+            <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+              New arrivals
+            </h2>
+            <p className="mt-2 text-[13px] md:text-sm text-gray-500">
+              Recently added products across the store.
+            </p>
+          </div>
+          <ProductCarousel products={newArrivalsProducts} showMoreLink="/products" />
+        </section>
+      )}
+
+      {valuePickProducts.length > 0 && (
+        <section className="mt-8 px-4" aria-label="Great value picks">
+          <div className="mb-4">
+            <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+              Great value picks
+            </h2>
+            <p className="mt-2 text-[13px] md:text-sm text-gray-500">
+              Lower-priced essentials to fill your basket.
+            </p>
+          </div>
+          <ProductCarousel products={valuePickProducts} showMoreLink="/products" />
+        </section>
+      )}
 
       {/* Matching products (based on keywords) */}
       {q.length >= 2 && (
