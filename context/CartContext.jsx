@@ -22,6 +22,8 @@ const API_CART_CACHE_STORAGE_KEY = 'cartApiCache';
 export function CartProvider({ children }) {
   // Initialize cart state from localStorage if available (client-side only)
   const [isClient, setIsClient] = useState(false);
+  /** False until useLayoutEffect has read `cart` / `cartApiCache` — avoids empty-cart flash on first paint. */
+  const [hasHydratedLocalCart, setHasHydratedLocalCart] = useState(false);
   const [showSidebarCart, setShowSidebarCart] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [savedCarts, setSavedCarts] = useState([]);
@@ -36,8 +38,29 @@ export function CartProvider({ children }) {
   const syncedLocalToApiRef = useRef(false);
 
   // Load cart using TanStack Query (disabled for now)
-  const { data: cartData, isLoading: loading } = useCartQuery({ enabled: useApiCart });
+  const {
+    data: cartData,
+    isLoading: loading,
+    isFetching: cartQueryFetching,
+  } = useCartQuery({ enabled: useApiCart });
   const apiCartItems = useApiCart ? (cartData?.items || []) : [];
+
+  /**
+   * Lines removed optimistically can briefly reappear when TanStack refetches and the
+   * server/cache still lists the old row — `mergeServerCartWithLocalLines` is server-driven.
+   * We hide these ids until the refetch settles (see remove mutation onSuccess timeout).
+   */
+  const [pendingRemovedCartItemIds, setPendingRemovedCartItemIds] = useState([]);
+
+  useEffect(() => {
+    if (!useApiCart) setPendingRemovedCartItemIds([]);
+  }, [useApiCart]);
+
+  const apiCartItemsForMerge = useMemo(() => {
+    if (!pendingRemovedCartItemIds.length) return apiCartItems;
+    const drop = new Set(pendingRemovedCartItemIds.map(String));
+    return apiCartItems.filter((it) => !drop.has(String(it.cartItemId ?? it.id)));
+  }, [apiCartItems, pendingRemovedCartItemIds]);
 
   // Local cart state for unauthenticated users
   const [localCartItems, setLocalCartItems] = useState([]);
@@ -84,20 +107,22 @@ export function CartProvider({ children }) {
         console.error('Error parsing cart templates:', error);
       }
     }
+
+    setHasHydratedLocalCart(true);
   }, [isAuthenticated, token]);
 
   // Merged view: API truth + optimistic pending lines + client-persisted image snapshots.
   const cartItems = useMemo(() => {
     if (!useApiCart) return localCartItems;
-    return mergeServerCartWithLocalLines(apiCartItems, localCartItems);
-  }, [useApiCart, apiCartItems, localCartItems]);
+    return mergeServerCartWithLocalLines(apiCartItemsForMerge, localCartItems);
+  }, [useApiCart, apiCartItemsForMerge, localCartItems]);
 
   // Keep local cache aligned with server while preserving snapshot URLs from the client.
   useEffect(() => {
     if (!useApiCart) return;
     if (loading) return;
-    setLocalCartItems((prev) => mergeServerCartWithLocalLines(apiCartItems, prev));
-  }, [useApiCart, loading, apiCartItems]);
+    setLocalCartItems((prev) => mergeServerCartWithLocalLines(apiCartItemsForMerge, prev));
+  }, [useApiCart, loading, apiCartItemsForMerge]);
 
   // TanStack Query mutations and client
   const queryClient = useQueryClient();
@@ -193,7 +218,7 @@ export function CartProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClient, lastActivityTime, isAuthenticated, localCartItems.length]);
 
-  // Add item to cart — local state + localStorage first (no await on API for signed-in users).
+  // Add item to cart — local state + localStorage first; signed-in path returns a Promise so callers (e.g. Order again) can await the API.
   const addToCart = async (product, quantity = 1) => {
     const addQty = Math.max(1, Number(quantity) || 1);
     const storageKey =
@@ -214,6 +239,7 @@ export function CartProvider({ children }) {
     if (isClient && typeof window !== 'undefined') {
       persistCartLinesImmediate(nextItems, storageKey);
     }
+    setLastActivityTime(Date.now());
 
     if (useApiCart && isAuthenticated && token) {
       const existingWithId = nextItems.find(
@@ -222,7 +248,7 @@ export function CartProvider({ children }) {
           cartLinesMatch(it, persistable)
       );
 
-      void (async () => {
+      return (async () => {
         try {
           if (existingWithId) {
             await updateCartItemMutation.mutateAsync({
@@ -248,9 +274,9 @@ export function CartProvider({ children }) {
           } else {
             showAlert('Failed to add item to cart. Please try again.', 'Error', 'error');
           }
+          throw error;
         }
       })();
-      return;
     }
   };
 
@@ -266,6 +292,9 @@ export function CartProvider({ children }) {
       isAuthenticated && token ? API_CART_CACHE_STORAGE_KEY : GUEST_CART_STORAGE_KEY;
 
     if (useApiCart && isAuthenticated && token && item?.cartItemId) {
+      const removedId = String(item.cartItemId);
+      setPendingRemovedCartItemIds((prev) => (prev.includes(removedId) ? prev : [...prev, removedId]));
+
       const prevSnapshot = localCartItemsRef.current.map((x) => ({ ...x }));
       const nextItems = prevSnapshot.filter(
         (row) =>
@@ -277,8 +306,17 @@ export function CartProvider({ children }) {
         persistCartLinesImmediate(nextItems, storageKey);
       }
       removeFromCartMutation.mutate(item.cartItemId, {
+        onSuccess: () => {
+          // Allow time for any in-flight refetch to return; then stop hiding this id.
+          if (typeof window !== 'undefined') {
+            window.setTimeout(() => {
+              setPendingRemovedCartItemIds((prev) => prev.filter((id) => id !== removedId));
+            }, 4000);
+          }
+        },
         onError: (error) => {
           console.error('Error removing from cart:', error);
+          setPendingRemovedCartItemIds((prev) => prev.filter((id) => id !== removedId));
           setLocalCartItems(prevSnapshot);
           localCartItemsRef.current = prevSnapshot;
           if (isClient && typeof window !== 'undefined') {
@@ -374,6 +412,7 @@ export function CartProvider({ children }) {
   const clearCart = async () => {
     try {
       if (useApiCart && isAuthenticated && token) {
+        setPendingRemovedCartItemIds([]);
         setLocalCartItems([]);
         // Use API if authenticated
         await clearCartMutation.mutateAsync();
@@ -550,6 +589,8 @@ export function CartProvider({ children }) {
     loadSharedCart,
     lastActivityTime,
     loading,
+    cartQueryFetching,
+    hasHydratedLocalCart,
     /** Always true — cart UI reads from localStorage (layout) + query merge; no full-page cart gate. */
     isCartReady: true,
   };

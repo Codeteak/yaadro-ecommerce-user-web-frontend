@@ -19,7 +19,31 @@ import ProductImageWithFallback from '../../components/ProductImageWithFallback'
    Sub-components
 ───────────────────────────────────────────── */
 
+/** Shown while localStorage / API cart is still resolving — avoids the empty-state flash. */
+function CartPageLoadingSkeleton() {
+  return (
+    <div className="px-4 pt-4 space-y-2.5 mb-4" aria-busy="true" aria-label="Loading cart">
+      <SectionLabel>Items</SectionLabel>
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="flex gap-3 rounded-2xl border border-gray-100 bg-white p-3 animate-pulse"
+        >
+          <div className="h-[72px] w-[72px] shrink-0 rounded-xl bg-gray-100" />
+          <div className="min-w-0 flex-1 space-y-2 py-1">
+            <div className="h-4 w-4/5 rounded bg-gray-100" />
+            <div className="h-3 w-1/2 rounded bg-gray-100" />
+            <div className="mt-2 h-8 w-28 rounded-full bg-gray-100" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function TopBar({ itemCount }) {
+  const countLabel =
+    itemCount == null ? '…' : `${itemCount} item${itemCount !== 1 ? 's' : ''}`;
   return (
     <div className="bg-white border-b border-gray-100 px-4 py-3.5 flex items-center gap-3 sticky top-0 z-30">
       <Link
@@ -32,7 +56,7 @@ function TopBar({ itemCount }) {
         </svg>
       </Link>
       <span className="text-base font-medium text-gray-900">My cart</span>
-      <span className="ml-auto text-xs text-gray-400">{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+      <span className="ml-auto text-xs text-gray-400">{countLabel}</span>
     </div>
   );
 }
@@ -99,9 +123,8 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
           <div className="flex items-center border border-gray-200 rounded-full overflow-hidden">
             <button
               onClick={() => onQuantityChange(cartItemRef, item.quantity - 1)}
-              disabled={item.quantity <= 1}
-              className="w-8 h-7 flex items-center justify-center text-base text-gray-700 disabled:text-gray-300 hover:bg-gray-50 transition"
-              aria-label="Decrease"
+              className="w-8 h-7 flex items-center justify-center text-base text-gray-700 hover:bg-gray-50 transition"
+              aria-label={item.quantity <= 1 ? 'Remove item' : 'Decrease quantity'}
             >
               −
             </button>
@@ -299,6 +322,9 @@ function CartPageContent() {
     deleteSavedCart,
     savedCarts,
     loadSharedCart,
+    loading: cartQueryLoading,
+    cartQueryFetching,
+    hasHydratedLocalCart,
   } = useCart();
   const { showAlert } = useAlert();
 
@@ -311,6 +337,11 @@ function CartPageContent() {
   }, [searchParams]);
 
   const totalQty = cartItems.reduce((a, i) => a + i.quantity, 0);
+
+  /** Include `cartQueryFetching` so post–“Order again” refetch does not flash the empty cart UI. */
+  const showCartLoading =
+    !hasHydratedLocalCart ||
+    (cartItems.length === 0 && (cartQueryLoading || cartQueryFetching));
 
   // Pool of products used to suggest "similar products". Same query as home → cached.
   const { data: similarPoolData } = useProducts({
@@ -418,9 +449,11 @@ function CartPageContent() {
     <div
       className={`min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden ${cartItems.length > 0 ? 'pb-32' : 'pb-28'}`}
     >
-      <TopBar itemCount={totalQty} />
+      <TopBar itemCount={showCartLoading ? null : totalQty} />
 
-      {cartItems.length === 0 ? (
+      {showCartLoading ? (
+        <CartPageLoadingSkeleton />
+      ) : cartItems.length === 0 ? (
         <EmptyCart carouselSections={emptyCartCarouselSections} />
       ) : (
         <>
@@ -429,7 +462,7 @@ function CartPageContent() {
             <SectionLabel>Items</SectionLabel>
             {cartItems.map((item) => (
               <CartItemCard
-                key={item.id}
+                key={item.cartItemKey ?? item.cartItemId ?? item.id}
                 item={item}
                 onQuantityChange={(id, qty) => {
                   if (qty < 1) removeFromCart(id);

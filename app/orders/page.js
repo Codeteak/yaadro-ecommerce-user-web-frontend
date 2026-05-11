@@ -3,10 +3,13 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useOrdersList, useCancelOrder } from '../../hooks/useOrders';
 import { useProducts } from '../../hooks/useProducts';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
+import { cartKeys } from '../../hooks/useCart';
+import { getCart } from '../../utils/cartApi';
 import { useAlert } from '../../context/AlertContext';
 import Image from 'next/image';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -40,6 +43,8 @@ function getOrderItemImage(item) {
 
 export default function OrdersPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuth();
   const { ok, ready } = useRequireAuth();
   const { data: ordersData, isLoading, error } = useOrdersList(
     { page: 1, per_page: 100 },
@@ -249,6 +254,16 @@ export default function OrdersPage() {
         const qty = Number(item?.quantity ?? 1) || 1;
         const product = orderItemToCartProduct(item);
         await addToCart(product, qty);
+      }
+      if (isAuthenticated) {
+        try {
+          await queryClient.fetchQuery({
+            queryKey: cartKeys.cart(),
+            queryFn: getCart,
+          });
+        } catch (e) {
+          console.error('Cart refresh after reorder:', e);
+        }
       }
       showAlert('Items added to cart!', 'Success', 'success');
       router.push('/cart');

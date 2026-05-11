@@ -149,7 +149,18 @@ export function mergeServerCartWithLocalLines(serverLines, localLines) {
     (c) => !c.cartItemId && !server.some((s) => cartLinesMatch(s, c))
   );
 
-  return [...enriched, ...pending];
+  /** Lines already on the API client (have cartItemId) but missing from this server snapshot — e.g. first GET after add before replica catches up. */
+  const orphanWithId = client.filter((c) => {
+    if (!c?.cartItemId) return false;
+    const cid = String(c.cartItemId ?? c.id ?? '');
+    if (!cid) return false;
+    return !server.some(
+      (s) =>
+        String(s.cartItemId ?? s.id ?? '') === cid || cartLinesMatch(s, c)
+    );
+  });
+
+  return [...enriched, ...pending, ...orphanWithId];
 }
 
 export function persistCartLinesImmediate(items, storageKey) {

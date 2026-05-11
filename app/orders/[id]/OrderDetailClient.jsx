@@ -2,6 +2,7 @@
 
 import { useState, Suspense, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
 import Script from 'next/script';
@@ -10,6 +11,8 @@ import { useRequireAuth } from '../../../hooks/useRequireAuth';
 import { useProductWithRelated } from '../../../hooks/useProducts';
 import { useCart } from '../../../context/CartContext';
 import { useAuth } from '../../../context/AuthContext';
+import { cartKeys } from '../../../hooks/useCart';
+import { getCart } from '../../../utils/cartApi';
 import { useAlert } from '../../../context/AlertContext';
 import ProductCarousel from '../../../components/ProductCarousel';
 import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
@@ -407,6 +410,7 @@ function ReturnModal({ order, onClose, onSubmit }) {
 function OrderDetailContent({ orderId: orderIdProp = null }) {
   const params   = useParams();
   const router   = useRouter();
+  const queryClient = useQueryClient();
   const resolvedOrderId = orderIdProp != null ? String(orderIdProp).trim() : params.id;
   const { ok, ready } = useRequireAuth();
   const { data: order, isLoading, error } = useOrderDetail(resolvedOrderId, {
@@ -547,6 +551,16 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
         const qty = Number(item?.quantity ?? 1) || 1;
         const product = orderItemToCartProduct(item);
         await addToCart(product, qty);
+      }
+      if (user) {
+        try {
+          await queryClient.fetchQuery({
+            queryKey: cartKeys.cart(),
+            queryFn: getCart,
+          });
+        } catch (e) {
+          console.error('Cart refresh after reorder:', e);
+        }
       }
       showAlert('Items added to cart!', 'Success', 'success');
       router.push('/cart');
