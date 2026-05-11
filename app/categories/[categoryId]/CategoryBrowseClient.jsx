@@ -27,7 +27,12 @@ function SubcategoryRailItem({ active, label, imageUrl, onClick }) {
       <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100">
         {imageUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+          <img
+            src={imageUrl}
+            alt=""
+            className="absolute inset-0 block h-full w-full scale-110 object-cover object-center"
+            loading="lazy"
+          />
         ) : (
           <span className="flex h-full w-full items-center justify-center text-[15px] font-bold text-gray-400">
             {(label || '?').slice(0, 1).toUpperCase()}

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useTransition, Suspense } from 'react';
-import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useCategories, useCategoriesTree } from '../../hooks/useProducts';
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
@@ -198,20 +197,6 @@ function ProductsContent() {
           <h1 className="min-w-0 flex-1 truncate text-center text-[15px] font-bold text-gray-900 sm:text-[16px]">
             Products
           </h1>
-          <Link
-            href="/wishlist"
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-700"
-            aria-label="Wishlist"
-          >
-            <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.8}
-                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-              />
-            </svg>
-          </Link>
           <button
             type="button"
             onClick={onSearchOpenToggle}
