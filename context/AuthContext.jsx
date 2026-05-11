@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { refreshAccessToken, getCurrentUser } from '../utils/authApi';
+import { getMsUntilAccessTokenRefresh } from '../utils/jwtExp';
 import { getAuthToken } from '../utils/apiClient';
 import {
   clearSessionExpiresAt,
@@ -23,108 +24,164 @@ export function AuthProvider({ children }) {
   /** False until first client auth hydration from localStorage runs (avoids redirect flash before token/user are restored). */
   const [authHydrated, setAuthHydrated] = useState(false);
 
-  // Initialize tokens from localStorage and fetch user from API
-  useEffect(() => {
-    setIsClient(true);
-    if (typeof window === 'undefined') {
-      setAuthHydrated(true);
-      return;
-    }
-
-    ensureSessionExpiryForExistingLogin();
-    if (isClientSessionExpired()) {
+  const logout = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    setRefreshToken(null);
+    if (typeof window !== 'undefined') {
       localStorage.removeItem('user');
       localStorage.removeItem('token');
       localStorage.removeItem('authToken');
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       clearSessionExpiresAt();
-      setToken(null);
-      setRefreshToken(null);
-      setUser(null);
+    }
+  }, []);
+
+  // Initialize tokens from localStorage and fetch user from API
+  useEffect(() => {
+    setIsClient(true);
+    if (typeof window === 'undefined') {
       setAuthHydrated(true);
-      return;
+      return undefined;
     }
 
-    const savedToken = localStorage.getItem('token') || localStorage.getItem('authToken');
+    ensureSessionExpiryForExistingLogin();
+    if (isClientSessionExpired()) {
+      logout();
+      setAuthHydrated(true);
+      return undefined;
+    }
+
+    const savedToken =
+      localStorage.getItem('token') ||
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('accessToken');
     const savedRefreshToken = localStorage.getItem('refreshToken');
     const savedUser = localStorage.getItem('user');
 
-    if (savedToken) {
+    if (savedRefreshToken) setRefreshToken(savedRefreshToken);
+
+    let cancelled = false;
+
+    async function hydrate() {
+      if (!savedToken) {
+        if (savedUser) {
+          try {
+            setUser(JSON.parse(savedUser));
+          } catch (error) {
+            console.error('Error parsing user from localStorage:', error);
+          }
+        }
+        if (!cancelled) setAuthHydrated(true);
+        return;
+      }
+
       setToken(savedToken);
       setIsLoadingUser(true);
-      getCurrentUser()
-        .then((apiUser) => {
-          setUser(apiUser);
-          if (apiUser) {
-            localStorage.setItem('user', JSON.stringify(apiUser));
-            writeSessionExpiresAtFromLogin();
-          }
-        })
-        .catch((error) => {
-          console.error('Error fetching user:', error);
-          if (error?.status === 401 || /invalid|expired/i.test(error?.message || '')) {
-            setToken(null);
-            setRefreshToken(null);
-            localStorage.removeItem('token');
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('refreshToken');
-            clearSessionExpiresAt();
-          }
-          if (savedUser) {
-            try {
-              setUser(JSON.parse(savedUser));
-            } catch (parseError) {
-              console.error('Error parsing user from localStorage:', parseError);
-            }
-          }
-        })
-        .finally(() => {
-          setIsLoadingUser(false);
-          setAuthHydrated(true);
-        });
-    } else if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        const apiUser = await getCurrentUser();
+        if (cancelled) return;
+        setUser(apiUser);
+        if (apiUser) {
+          localStorage.setItem('user', JSON.stringify(apiUser));
+          writeSessionExpiresAtFromLogin();
+        }
       } catch (error) {
-        console.error('Error parsing user from localStorage:', error);
-      }
-      setAuthHydrated(true);
-    } else {
-      setAuthHydrated(true);
-    }
-
-    if (savedRefreshToken) setRefreshToken(savedRefreshToken);
-  }, []);
-
-  // Auto-refresh token if expired
-  useEffect(() => {
-    if (refreshToken && token && typeof window !== 'undefined') {
-      // Check if token is about to expire (you might want to decode JWT to check expiry)
-      // For now, we'll refresh on mount if refreshToken exists
-      const refreshInterval = setInterval(async () => {
-        try {
-          const newTokens = await refreshAccessToken(refreshToken);
-          if (newTokens.token) {
-            setToken(newTokens.token);
-            localStorage.setItem('token', newTokens.token);
-            localStorage.setItem('authToken', newTokens.token);
-            if (newTokens.refreshToken) {
-              setRefreshToken(newTokens.refreshToken);
-              localStorage.setItem('refreshToken', newTokens.refreshToken);
+        if (cancelled) return;
+        console.error('Error fetching user:', error);
+        const unauthorized =
+          error?.status === 401 || /invalid|expired/i.test(error?.message || '');
+        if (unauthorized && savedRefreshToken) {
+          try {
+            const newTokens = await refreshAccessToken(savedRefreshToken);
+            if (cancelled) return;
+            if (newTokens?.token) {
+              localStorage.setItem('token', newTokens.token);
+              localStorage.setItem('authToken', newTokens.token);
+              setToken(newTokens.token);
+              if (newTokens.refreshToken) {
+                localStorage.setItem('refreshToken', newTokens.refreshToken);
+                setRefreshToken(newTokens.refreshToken);
+              }
+              writeSessionExpiresAtFromLogin();
+              const apiUser2 = await getCurrentUser();
+              if (cancelled) return;
+              setUser(apiUser2);
+              if (apiUser2) {
+                localStorage.setItem('user', JSON.stringify(apiUser2));
+                writeSessionExpiresAtFromLogin();
+              }
+              return;
             }
-            writeSessionExpiresAtFromLogin();
+          } catch (refreshErr) {
+            console.error('Session refresh on load failed:', refreshErr);
           }
-        } catch (error) {
-          console.error('Token refresh failed:', error);
-          // If refresh fails, logout user
+        }
+        if (unauthorized) {
           logout();
         }
-      }, 15 * 60 * 1000); // Refresh every 15 minutes
-
-      return () => clearInterval(refreshInterval);
+        if (savedUser) {
+          try {
+            setUser(JSON.parse(savedUser));
+          } catch (parseError) {
+            console.error('Error parsing user from localStorage:', parseError);
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingUser(false);
+          setAuthHydrated(true);
+        }
+      }
     }
-  }, [refreshToken, token]);
+
+    hydrate();
+    return () => {
+      cancelled = true;
+    };
+  }, [logout]);
+
+  // Proactive refresh before access JWT expires; extends client session window on success.
+  useEffect(() => {
+    if (!token || typeof window === 'undefined') return undefined;
+
+    const rt = localStorage.getItem('refreshToken') || refreshToken;
+    if (!rt) return undefined;
+
+    let cancelled = false;
+    const delayMs = getMsUntilAccessTokenRefresh(token);
+
+    const id = window.setTimeout(async () => {
+      if (cancelled) return;
+      const storedRt = localStorage.getItem('refreshToken');
+      if (!storedRt) return;
+      try {
+        const newTokens = await refreshAccessToken(storedRt);
+        if (cancelled) return;
+        if (!newTokens?.token) {
+          logout();
+          return;
+        }
+        setToken(newTokens.token);
+        localStorage.setItem('token', newTokens.token);
+        localStorage.setItem('authToken', newTokens.token);
+        if (newTokens.refreshToken) {
+          setRefreshToken(newTokens.refreshToken);
+          localStorage.setItem('refreshToken', newTokens.refreshToken);
+        }
+        writeSessionExpiresAtFromLogin();
+      } catch (error) {
+        console.error('Token refresh failed:', error);
+        if (!cancelled) logout();
+      }
+    }, delayMs);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
+  }, [token, refreshToken, logout]);
 
   // Save auth state to localStorage whenever it changes
   useEffect(() => {
@@ -158,10 +215,11 @@ export function AuthProvider({ children }) {
    */
   const login = (userData, tokens = {}) => {
     setUser(normalizeCustomer(userData) || userData);
-    if (tokens?.token) {
-      setToken(tokens.token);
-      localStorage.setItem('token', tokens.token);
-      localStorage.setItem('authToken', tokens.token);
+    const access = tokens?.token || tokens?.accessToken;
+    if (access) {
+      setToken(access);
+      localStorage.setItem('token', access);
+      localStorage.setItem('authToken', access);
     }
     if (tokens?.refreshToken) {
       setRefreshToken(tokens.refreshToken);
@@ -176,21 +234,6 @@ export function AuthProvider({ children }) {
       }
     }
     return false;
-  };
-
-  // Logout function
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    setRefreshToken(null);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      clearSessionExpiresAt();
-    }
   };
 
   // Delete account function - removes all user data

@@ -529,13 +529,36 @@ export async function changePassword(passwordData) {
  * @param {string} refreshToken - Refresh token
  * @returns {Promise<{token: string, refreshToken: string}>}
  */
+/**
+ * Normalize refresh-token endpoint payload (login-style `accessToken`, wrapped `data`, etc.).
+ * @param {object} response — already unwrapped `data` when API uses `{ status, data }`
+ */
+function normalizeRefreshResponse(response, previousRefreshToken) {
+  if (!response || typeof response !== 'object') {
+    return { token: null, refreshToken: previousRefreshToken || null };
+  }
+  const layer =
+    response.data != null && typeof response.data === 'object'
+      ? response.data
+      : response;
+  const token =
+    layer.accessToken ||
+    layer.token ||
+    response.accessToken ||
+    response.token ||
+    null;
+  const nextRefresh =
+    layer.refreshToken ||
+    response.refreshToken ||
+    previousRefreshToken ||
+    null;
+  return { token, refreshToken: nextRefresh };
+}
+
 export async function refreshAccessToken(refreshToken) {
   try {
     const response = await api.post('/auth/refresh-token', { refreshToken });
-    return {
-      token: response?.token || response?.data?.token,
-      refreshToken: response?.refreshToken || response?.data?.refreshToken,
-    };
+    return normalizeRefreshResponse(response, refreshToken);
   } catch (error) {
     console.error('Error refreshing token:', error);
     throw error;
