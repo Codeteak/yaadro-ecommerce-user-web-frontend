@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useBottomNavVisibility } from '../context/BottomNavVisibilityContext';
 import { useLayoutHeights } from '../context/LayoutHeightsContext';
-import { useCart } from '../context/CartContext';
 
 const HomeIcon = ({ active }) => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -25,12 +24,12 @@ const CategoriesIcon = ({ active }) => (
   </svg>
 );
 
-const CartIcon = ({ active }) => (
+const ProductsIcon = ({ active }) => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
     strokeWidth={active ? 2.2 : 2} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-    <line x1="3" y1="6" x2="21" y2="6" />
-    <path d="M16 10a4 4 0 0 1-8 0" />
+    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+    <line x1="12" y1="22.08" x2="12" y2="12" />
   </svg>
 );
 
@@ -46,15 +45,14 @@ const ReorderIcon = ({ active }) => (
 const navItems = [
   { href: '/', label: 'Home', Icon: HomeIcon },
   { href: '/categories', label: 'Categories', Icon: CategoriesIcon },
+  { href: '/products', label: 'Products', Icon: ProductsIcon },
   { href: '/orders', label: 'Reorder', Icon: ReorderIcon },
-  { href: '/cart', label: 'Cart', Icon: CartIcon, showCartBadge: true },
 ];
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const { isVisible, hideForRoute } = useBottomNavVisibility();
   const { setBottomNavHeight } = useLayoutHeights();
-  const { cartCount } = useCart();
   const navRef = useRef(null);
 
   useEffect(() => {
@@ -86,56 +84,31 @@ export default function MobileBottomNav() {
       aria-hidden={!isVisible}
     >
       <nav className="flex w-full items-center justify-around gap-1 px-2">
-        {navItems.map(({ href, label, Icon, showCartBadge }) => {
+        {navItems.map(({ href, label, Icon }) => {
           const isActive =
             pathname === href || (href !== '/' && pathname?.startsWith(href));
-
-          const count = showCartBadge ? cartCount : 0;
-          const isCartTab = !!showCartBadge;
 
           return (
             <Link
               key={href}
               href={href}
               prefetch
-              className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-3 py-2 transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 ${
-                isCartTab ? 'focus-visible:ring-gray-400/40' : 'focus-visible:ring-emerald-500/40'
-              } ${
-                isActive && isCartTab
-                  ? 'bg-gray-100/95 text-gray-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-gray-200/80'
-                  : isActive
-                    ? 'text-emerald-800'
-                    : 'hover:bg-black/[0.04] active:scale-[0.98]'
+              className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-3 py-2 transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
+                isActive ? 'text-emerald-800' : 'text-gray-500 hover:bg-black/[0.04] active:scale-[0.98]'
               }`}
               aria-current={isActive ? 'page' : undefined}
             >
               <span
                 className={`relative inline-flex transition-all duration-200 ${
-                  isActive && isCartTab
-                    ? 'text-gray-900 -translate-y-px scale-105'
-                    : isActive
-                      ? 'text-emerald-800 -translate-y-px scale-105'
-                      : 'text-gray-500'
+                  isActive ? 'text-emerald-800 -translate-y-px scale-105' : 'text-gray-500'
                 }`}
               >
-                {showCartBadge && count > 0 && (
-                  <span
-                    className="absolute -right-1.5 -top-1.5 z-10 flex min-h-[1.35rem] min-w-[1.35rem] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold leading-none text-white shadow-sm ring-2 ring-white"
-                    aria-label={`${count} items in cart`}
-                  >
-                    {count > 99 ? '99+' : count}
-                  </span>
-                )}
                 <Icon active={isActive} />
               </span>
 
               <span
                 className={`text-[10px] font-semibold tracking-wide transition-colors duration-200 ${
-                  isActive && isCartTab
-                    ? 'text-gray-900'
-                    : isActive
-                      ? 'text-emerald-800'
-                      : 'text-gray-500'
+                  isActive ? 'text-emerald-800' : 'text-gray-500'
                 }`}
               >
                 {label}

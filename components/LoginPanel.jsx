@@ -83,6 +83,19 @@ function Illustration() {
 }
 
 function PhoneStep({ phone, setPhone, onSubmit, isSubmitting, inputRef }) {
+  const handlePhoneKeyDown = (e) => {
+    if (e.key !== 'Enter' && e.key !== 'NumpadEnter') return;
+    if (isSubmitting) return;
+    const form = e.currentTarget.form;
+    if (!form) return;
+    e.preventDefault();
+    try {
+      form.requestSubmit();
+    } catch {
+      /* submit button disabled while loading */
+    }
+  };
+
   return (
     <form onSubmit={onSubmit} className="space-y-0">
       <label htmlFor="login-phone" className="block text-[12px] font-medium text-gray-700 mb-1.5">
@@ -94,6 +107,7 @@ function PhoneStep({ phone, setPhone, onSubmit, isSubmitting, inputRef }) {
         id="login-phone"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
+        onKeyDown={handlePhoneKeyDown}
         placeholder="e.g. 9876543210"
         autoComplete="tel"
         inputMode="tel"

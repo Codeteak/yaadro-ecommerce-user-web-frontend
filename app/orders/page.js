@@ -608,7 +608,7 @@ Payment Status: ${order.paymentStatus}
         {orders.length > 0 && similarProducts.length > 0 && (
           <section className="mt-2" aria-label="Similar products">
             <div className="px-1 mb-3">
-              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
                 Similar Products
               </h2>
               <p className="mt-1.5 text-[13px] text-gray-500">
@@ -622,7 +622,7 @@ Payment Status: ${order.paymentStatus}
         {orders.length > 0 && buyAgainFavorites.length > 0 && (
           <section className="mt-4" aria-label="Buy again favorites">
             <div className="px-1 mb-3">
-              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
                 Buy Again Favorites
               </h2>
               <p className="mt-1.5 text-[13px] text-gray-500">
@@ -636,7 +636,7 @@ Payment Status: ${order.paymentStatus}
         {orders.length > 0 && trendingPicks.length > 0 && (
           <section className="mt-4" aria-label="Trending picks">
             <div className="px-1 mb-3">
-              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
                 Trending Picks
               </h2>
               <p className="mt-1.5 text-[13px] text-gray-500">

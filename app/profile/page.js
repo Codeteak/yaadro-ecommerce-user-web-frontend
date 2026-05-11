@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import { useCart } from '../../context/CartContext';
-import { useWishlist } from '../../context/WishlistContext';
 import { useActivityLog } from '../../context/ActivityLogContext';
 import { useOrdersList } from '../../hooks/useOrders';
 import { useUpdateProfile } from '../../hooks/useAuth';
@@ -17,7 +16,6 @@ import { useRequireAuth } from '../../hooks/useRequireAuth';
 import {
   Package,
   MapPin,
-  Heart,
   LogOut,
   ChevronRight,
   Pencil,
@@ -39,7 +37,6 @@ function ProfilePageContent() {
   const { user, logout, deleteAccount, refreshUser } = useAuth();
   const { showAlert } = useAlert();
   const { cartItems } = useCart();
-  const { wishlistItems } = useWishlist();
   const { logActivity } = useActivityLog();
   const { data: ordersData } = useOrdersList({ page: 1, per_page: 5 }, { enabled: ok });
   const updateProfileMutation = useUpdateProfile();
@@ -118,7 +115,6 @@ function ProfilePageContent() {
   const menuItems = [
     { id: 'orders', label: 'Orders', href: '/orders', Icon: Package },
     { id: 'addresses', label: 'Addresses', href: '/addresses', Icon: MapPin },
-    { id: 'wishlist', label: 'Wishlist', href: '/wishlist', Icon: Heart },
     { id: 'logout', label: 'Logout', Icon: LogOut, isDanger: true },
   ];
 
@@ -300,14 +296,10 @@ function ProfilePageContent() {
         </div>
 
         {/* Quick Stats */}
-        <div className="bg-white px-4 py-4 border-b border-gray-100 grid grid-cols-3 gap-4">
+        <div className="bg-white px-4 py-4 border-b border-gray-100 grid grid-cols-2 gap-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-gray-900">{recentOrders.length}</div>
             <p className="text-xs text-gray-600 mt-1">Orders</p>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">{wishlistItems.length}</div>
-            <p className="text-xs text-gray-600 mt-1">Wishlist</p>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-gray-900">{cartItems.length}</div>

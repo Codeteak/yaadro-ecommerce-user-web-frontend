@@ -21,8 +21,10 @@ export default function PageTopBar({ title, subtitle, backHref, fallbackHref = '
 
   return (
     <div className="w-full bg-white/95 backdrop-blur border-b border-gray-200">
-      <div className="mx-auto w-full max-w-6xl px-4 pt-[env(safe-area-inset-top)]">
-        <div className={`flex items-center justify-between ${subtitle ? 'py-2' : 'h-14'}`}>
+      <div className="mx-auto w-full max-w-6xl px-3 sm:px-4 pt-[env(safe-area-inset-top)]">
+        <div
+          className={`flex items-center justify-between ${subtitle ? 'py-1.5 sm:py-2' : 'h-12 min-h-[3rem] sm:h-14 sm:min-h-0'}`}
+        >
           {backHref ? (
             <Link
               href={backHref}
@@ -42,10 +44,10 @@ export default function PageTopBar({ title, subtitle, backHref, fallbackHref = '
             </button>
           )}
 
-          <div className="flex-1 px-3 text-center min-w-0">
-            <div className="text-base font-extrabold text-gray-900 truncate">{title}</div>
+          <div className="flex-1 px-2 sm:px-3 text-center min-w-0">
+            <div className="text-sm sm:text-base font-extrabold text-gray-900 truncate">{title}</div>
             {subtitle ? (
-              <div className="text-xs text-gray-500 mt-0.5 truncate">{subtitle}</div>
+              <div className="text-[11px] sm:text-xs text-gray-500 mt-0.5 truncate">{subtitle}</div>
             ) : null}
           </div>
 

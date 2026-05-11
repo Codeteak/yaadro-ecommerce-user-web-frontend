@@ -141,8 +141,6 @@ export default function Home() {
     isChecking: isLocationChecking,
     serviceable: isServiceable,
     distanceM,
-    geoDenied: isGeoDenied,
-    errorMessage: locationError,
     setShowServiceAreaSheet,
     recheckLocation,
   } = useLocationService();
@@ -482,10 +480,9 @@ export default function Home() {
       <div className="w-full max-w-full overflow-x-hidden min-h-screen" aria-busy="true" aria-live="polite">
         {/* Purple hero skeleton (matches current home style) */}
         <section
-          className="w-full relative overflow-hidden"
+          className="home-hero-minh w-full relative overflow-hidden"
           style={{
             background: '#902bf5',
-            minHeight: '78vh',
             borderBottomLeftRadius: 44,
             borderBottomRightRadius: 44,
             WebkitMaskImage: '-webkit-radial-gradient(white, black)',
@@ -516,7 +513,7 @@ export default function Home() {
           />
 
           <Container className="px-0 sm:px-0 lg:px-0 xl:px-0 2xl:px-0">
-          <div className="relative min-h-[78vh] flex flex-col pt-6 md:pt-8 pb-20 sm:pb-24 overflow-hidden">
+          <div className="relative home-hero-minh flex flex-col pt-5 pb-16 max-[430px]:pb-14 sm:pt-6 md:pt-8 sm:pb-24 overflow-hidden">
               {/* Top row skeleton */}
               <div className="relative z-20 flex items-start justify-between gap-3">
                 <div className="inline-flex w-auto max-w-[78vw] sm:max-w-[520px] items-stretch rounded-2xl border border-white/15 bg-black/20 backdrop-blur px-3 py-2.5">
@@ -599,23 +596,18 @@ export default function Home() {
       ? `${rawAddressLine.slice(0, ADDRESS_MAX_LEN).trimEnd()}…`
       : rawAddressLine;
 
+  /** Only when true do we show ETA + address in the hero (confirmed in-zone). */
+  const showHeroEtaAndAddress = isServiceable === true && !isLocationChecking;
+
   const locationStatus = (() => {
     if (isLocationChecking) {
       return { label: 'Checking area…', tone: 'neutral' };
     }
-    if (isGeoDenied) {
-      return { label: 'Location off', tone: 'warn' };
+    if (showHeroEtaAndAddress) {
+      return { label: 'Delivery available', tone: 'ok' };
     }
-    if (locationError) {
-      return { label: "Can't verify area", tone: 'warn' };
-    }
-    if (isServiceable === true) {
-      return { label: 'Delivery Available ', tone: 'ok' };
-    }
-    if (isServiceable === false) {
-      return { label: 'Delivery Not Available', tone: 'bad' };
-    }
-    return { label: 'Set delivery area', tone: 'neutral' };
+    // Not in-zone, can't verify, or location off — single red-style message in hero.
+    return { label: 'Delivery not available', tone: 'bad' };
   })();
 
   return (
@@ -713,10 +705,9 @@ export default function Home() {
       {/* Purple hero section (more than half page) */}
       <section
         ref={heroSectionRef}
-        className="w-full relative overflow-hidden"
+        className="home-hero-minh w-full relative overflow-hidden"
         style={{
           background: '#902bf5',
-          minHeight: '78vh',
           borderBottomLeftRadius: 44,
           borderBottomRightRadius: 44,
           WebkitMaskImage: '-webkit-radial-gradient(white, black)',
@@ -746,7 +737,7 @@ export default function Home() {
           aria-hidden
         />
         <Container className="px-0 sm:px-0 lg:px-0 xl:px-0 2xl:px-0">
-            <div className="relative text-white min-h-[78vh] flex flex-col pt-6 md:pt-8 pb-20 sm:pb-24 overflow-hidden">
+            <div className="relative text-white home-hero-minh flex flex-col pt-5 pb-16 max-[430px]:pb-14 sm:pt-6 md:pt-8 sm:pb-24 overflow-hidden">
             {/* Confetti keyframes (scoped) */}
             <style>{`
               @keyframes homeConfettiBurst {
@@ -811,53 +802,80 @@ export default function Home() {
                   </span>
                 )}
 
-                {/* ETA block (left) */}
-                <div className="flex w-14 shrink-0 flex-col items-center justify-center  text-white">
-                  <span className="text-[28px] sm:text-[32px] font-extrabold tabular-nums leading-none">
-                    {animatedEta == null ? '—' : animatedEta}
-                  </span>
-                  <span className="mt-0.5 text-[14px] tracking-[0.1em] sm:text-[16px] font-bold opacity-90 leading-none">
-                    {animatedEta == null ? '' : 'min'}
-                  </span>
-                </div>
+                {showHeroEtaAndAddress ? (
+                  <>
+                    {/* ETA block (left) — only when delivery is confirmed for this location */}
+                    <div className="flex w-14 shrink-0 flex-col items-center justify-center text-white">
+                      <span className="text-[28px] sm:text-[32px] font-extrabold tabular-nums leading-none">
+                        {animatedEta == null ? '—' : animatedEta}
+                      </span>
+                      <span className="mt-0.5 text-[14px] tracking-[0.1em] sm:text-[16px] font-bold opacity-90 leading-none">
+                        {animatedEta == null ? '' : 'min'}
+                      </span>
+                    </div>
 
-                {/* Status + address (right) */}
-                <div className="min-w-0 flex-1 pl-3">
-                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Status + address (right) */}
+                    <div className="min-w-0 flex-1 pl-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-2.5 py-1 text-[11px] font-semibold text-green-500">
+                          <MapPin className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2.5} />
+                          <span className="truncate max-w-[220px]">{locationStatus.label}</span>
+                        </span>
+                      </div>
+                      {defaultAddress ? (
+                        <p className="mt-1.5 text-[13px] font-medium text-white/90 truncate">{addressLine}</p>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            router.push('/addresses');
+                          }}
+                          className="mt-1 inline-flex items-center rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/90 hover:bg-white/15"
+                          aria-label="Add address"
+                        >
+                          Add address
+                        </button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5 py-0.5">
                     <span
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                        locationStatus.tone === 'ok'
-                          ? 'bg-emerald-400/20 text-green-500'
-                          : locationStatus.tone === 'bad'
-                            ? 'bg-red-400/20 text-red-50'
-                            : locationStatus.tone === 'warn'
-                              ? 'bg-amber-300/20 text-amber-50'
-                              : 'bg-white/15 text-white'
+                      className={`inline-flex w-fit max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold ${
+                        isLocationChecking
+                          ? 'bg-white/15 text-white'
+                          : 'bg-red-600 text-white shadow-sm ring-1 ring-red-500/80'
                       }`}
                     >
                       <MapPin className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2.5} />
-                      <span className="truncate max-w-[220px]">{locationStatus.label}</span>
+                      <span className="truncate">{locationStatus.label}</span>
                     </span>
-                  </div>
-                  {defaultAddress ? (
-                    <p className="mt-1.5 text-[13px] font-medium text-white/90 truncate">
-                      {addressLine}
+                    <p className="text-[12px] font-medium text-white/85">
+                      {isLocationChecking
+                        ? 'Hang tight while we check your area…'
+                        : 'Pick a new spot on the map or update your saved address.'}
                     </p>
-                  ) : (
                     <button
                       type="button"
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        router.push('/addresses');
+                        if (defaultAddress?.id) {
+                          router.push(
+                            `/add/address?id=${encodeURIComponent(String(defaultAddress.id))}&from=/`
+                          );
+                        } else {
+                          router.push('/add/address?from=/');
+                        }
                       }}
-                      className="mt-1 inline-flex items-center rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/90 hover:bg-white/15"
-                      aria-label="Add address"
+                      className="mt-1 inline-flex w-fit items-center justify-center rounded-full bg-white px-3.5 py-2 text-[12px] font-bold text-[#902bf5] shadow-md ring-1 ring-white/30 transition hover:bg-white/95 active:scale-[0.98]"
                     >
-                      Add address
+                      Change address
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-shrink-0 items-center gap-2">
@@ -891,7 +909,7 @@ export default function Home() {
 
             {/* Tagline below the availability card */}
             <div className="relative z-[9] mt-4 max-w-[92vw]">
-              <p className="text-left text-[52px] sm:text-[72px] font-extrabold tracking-[0.03em] leading-[0.95] text-white drop-shadow-[0_14px_40px_rgba(0,0,0,0.55)]">
+              <p className="text-left text-home-hero-headline font-extrabold text-white drop-shadow-[0_14px_40px_rgba(0,0,0,0.55)]">
                 Groceries in Minutes ... 
               </p>
             </div>
@@ -942,11 +960,11 @@ export default function Home() {
 
       {/* Best Sellers Section */}
       {bestSellers.length > 0 && (
-        <section className="py-8 md:py-12 lg:py-16">
+        <section className="py-6 sm:py-8 md:py-12 lg:py-16 [@media(max-height:720px)]:py-5 [@media(max-height:720px)]:sm:py-6">
           <Container>
-            <div className="flex items-start justify-between mb-4 md:mb-6 px-4 md:px-0">
+            <div className="flex items-start justify-between mb-4 md:mb-6 px-3 sm:px-4 md:px-0">
               <div>
-                <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow">
+                <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow">
                   Best Sellers
                 </h2>
                 <p className="text-gray-600 mt-1">Most loved picks, trending right now</p>
@@ -970,7 +988,7 @@ export default function Home() {
 
       {/* Special Offers Section */}
       {freshZoneProducts.length > 0 && (
-        <section className="relative overflow-hidden bg-white min-h-[680px] rounded-[32px] mx-4 sm:mx-6 md:mx-8 my-6">
+        <section className="fresh-zone-minh relative overflow-hidden bg-white rounded-[32px] mx-3 sm:mx-6 md:mx-8 my-4 sm:my-6">
           {/* Background video */}
           <div className="pointer-events-none absolute inset-0 z-0">
             <video
@@ -989,10 +1007,10 @@ export default function Home() {
             </video>
           </div>
 
-          <Container className="relative z-[2] py-14 md:py-20 lg:py-24">
-            <div className="flex flex-col items-center text-center gap-2 mb-8 px-4 md:px-0">
+          <Container className="relative z-[2] py-10 sm:py-14 md:py-20 lg:py-24 [@media(max-height:720px)]:py-8">
+            <div className="flex flex-col items-center text-center gap-2 mb-6 sm:mb-8 px-3 sm:px-4 md:px-0">
               <div className="w-full">
-                <h2 className="text-5xl md:text-6xl font-extrabold text-white font-headingnow">
+                <h2 className="text-fresh-zone-heading font-extrabold text-white font-headingnow md:text-6xl">
                   FRESH ZONE
                 </h2>
                 <p className="text-gray-200 mt-1">Handpicked daily essentials</p>
@@ -1082,10 +1100,10 @@ export default function Home() {
 
       {/* Featured Products Grid (8 items) */}
       {featuredProducts.length > 0 && (
-        <section className="py-8 md:py-12 lg:py-16">
+        <section className="py-6 sm:py-8 md:py-12 lg:py-16 [@media(max-height:720px)]:py-5 [@media(max-height:720px)]:sm:py-6">
           <Container>
-            <div className="flex items-center justify-between mb-4 md:mb-6 px-4 md:px-0">
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Featured Products</h2>
+            <div className="flex items-center justify-between mb-4 md:mb-6 px-3 sm:px-4 md:px-0">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">Featured Products</h2>
               <Link href="/products" className="text-primary-dark hover:text-primary-dark font-semibold text-sm md:text-base">
                 Show More
               </Link>
@@ -1097,10 +1115,10 @@ export default function Home() {
 
       {/* Order Again Section */}
       {newArrivals.length > 0 && (
-        <section className="py-8 md:py-12 lg:py-16 bg-white">
+        <section className="py-6 sm:py-8 md:py-12 lg:py-16 bg-white [@media(max-height:720px)]:py-5 [@media(max-height:720px)]:sm:py-6">
           <Container>
-            <div className="mb-4 md:mb-6 px-4 md:px-0">
-              <h2 className="text-4xl md:text-5xl font-extrabold text-gray-800 font-headingnow leading-[1]">
+            <div className="mb-4 md:mb-6 px-3 sm:px-4 md:px-0">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-800 font-headingnow leading-[1]">
                 Buy Again
               </h2>
               <p className="mt-2 text-[13px] md:text-sm text-gray-500">
@@ -1220,10 +1238,10 @@ export default function Home() {
 
       {/* Shop by Category — Bento grid of all categories */}
       {allCategories.length > 0 && (
-        <section className="py-8 md:py-12 lg:py-16 bg-white">
+        <section className="py-6 sm:py-8 md:py-12 lg:py-16 bg-white [@media(max-height:720px)]:py-5 [@media(max-height:720px)]:sm:py-6">
           <Container>
-            <div className="mb-6 md:mb-8 px-4 md:px-0">
-              <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+            <div className="mb-5 sm:mb-6 md:mb-8 px-3 sm:px-4 md:px-0">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
                 Shop by Category
               </h2>
               <p className="mt-2 text-[13px] md:text-sm text-gray-500">
@@ -1231,7 +1249,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="grid grid-cols-6 gap-2 sm:gap-3 auto-rows-[110px] sm:auto-rows-[130px] md:auto-rows-[150px] grid-flow-dense px-4 md:px-0">
+            <div className="grid grid-cols-6 gap-2 sm:gap-3 auto-rows-[92px] sm:auto-rows-[130px] md:auto-rows-[150px] grid-flow-dense px-3 sm:px-4 md:px-0">
               {allCategories.map((category, idx) => {
                 const span = getBentoSpan(idx);
                 const src = getCategoryImageUrl(category) || CATEGORY_DUMMY_IMAGE;
@@ -1274,18 +1292,18 @@ export default function Home() {
       )}
 
       {/* Footer */}
-      <footer className="relative bg-white pt-10 pb-8 md:pt-16 md:pb-12 border-t border-gray-100">
+      <footer className="relative bg-white pt-8 pb-6 sm:pt-10 sm:pb-8 md:pt-16 md:pb-12 border-t border-gray-100 [@media(max-height:720px)]:pt-6 [@media(max-height:720px)]:pb-5">
         <Container>
-          <div className="px-4 md:px-0">
+          <div className="px-3 sm:px-4 md:px-0">
             {/* Brand block */}
             <div className="flex flex-col items-center text-center">
               <h2
-                className="font-headingnow text-[80px] sm:text-[120px] md:text-[160px] lg:text-[200px] font-extrabold leading-none tracking-[0.07em] text-gray-300/90 select-none"
+                className="font-headingnow text-footer-brand-wordmark font-extrabold text-gray-300/90 select-none"
                 aria-label="Yaadro"
               >
                 Yaadro
               </h2>
-              <p className="mt-2 text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-[0.4em] text-emerald-400">
+              <p className="mt-2 text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-[0.35em] sm:tracking-[0.4em] text-emerald-400">
                 SHOP
               </p>
             </div>

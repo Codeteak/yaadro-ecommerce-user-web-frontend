@@ -281,7 +281,7 @@ export default function CategoriesPage() {
 
       {/* Hero heading — matches section title typography (`font-headingnow`) */}
       <div className="px-4 pt-4 pb-2">
-        <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1] mb-1.5">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1] mb-1.5">
           Browse categories
         </h1>
         <p className="text-[13px] text-gray-500">Tap any category to explore products</p>
@@ -347,7 +347,7 @@ export default function CategoriesPage() {
       {newArrivalsProducts.length > 0 && (
         <section className="mt-8 px-4" aria-label="New arrivals">
           <div className="mb-4">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
               New arrivals
             </h2>
             <p className="mt-2 text-[13px] md:text-sm text-gray-500">
@@ -361,7 +361,7 @@ export default function CategoriesPage() {
       {valuePickProducts.length > 0 && (
         <section className="mt-8 px-4" aria-label="Great value picks">
           <div className="mb-4">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
               Great value picks
             </h2>
             <p className="mt-2 text-[13px] md:text-sm text-gray-500">

@@ -118,17 +118,19 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         setShowSizeSelector(true);
         return;
       }
-      setCartActionLoading(true);
-      try {
-        if (cartQty === 0) {
+      if (cartQty === 0) {
+        setCartActionLoading(true);
+        try {
           await addToCart(productToAddPayload, 1);
-        } else if (cartUpdateKey != null) {
-          await updateQuantity(cartUpdateKey, cartQty + 1);
+        } catch {
+          /* CartContext already alerts */
+        } finally {
+          setCartActionLoading(false);
         }
-      } catch {
-        /* CartContext already alerts */
-      } finally {
-        setCartActionLoading(false);
+        return;
+      }
+      if (cartUpdateKey != null) {
+        updateQuantity(cartUpdateKey, cartQty + 1);
       }
     },
     [
@@ -144,22 +146,15 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   );
 
   const handleDecrement = useCallback(
-    async (e) => {
+    (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (cartActionLoading) return;
       if (!cartLine || cartQty <= 0 || cartUpdateKey == null) return;
-      setCartActionLoading(true);
-      try {
-        if (cartQty <= 1) {
-          await removeFromCart(cartUpdateKey);
-        } else {
-          await updateQuantity(cartUpdateKey, cartQty - 1);
-        }
-      } catch {
-        /* CartContext already alerts */
-      } finally {
-        setCartActionLoading(false);
+      if (cartQty <= 1) {
+        removeFromCart(cartUpdateKey);
+      } else {
+        updateQuantity(cartUpdateKey, cartQty - 1);
       }
     },
     [cartActionLoading, cartLine, cartQty, cartUpdateKey, removeFromCart, updateQuantity]

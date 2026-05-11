@@ -38,7 +38,7 @@ export default function WishlistPage() {
                 />
               </svg>
             </div>
-            <h1 className="text-4xl font-bold text-gray-800 mb-4">Your Wishlist is Empty</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mb-4">Your Wishlist is Empty</h1>
             <p className="text-gray-600 mb-8">
               Start adding products to your wishlist to save them for later.
             </p>
@@ -59,7 +59,7 @@ export default function WishlistPage() {
       <Container>
         <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Wishlist', href: '/wishlist' }]} />
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 md:mb-8 px-4 md:px-0 mt-2">
-          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800">
+          <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800">
             My Wishlist ({wishlistItems.length})
           </h1>
           {wishlistItems.length > 0 && (

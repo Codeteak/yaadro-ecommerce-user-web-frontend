@@ -8,16 +8,18 @@ import { ArrowLeft, Check, Loader2, MapPin } from 'lucide-react';
 import { useAddress } from '../../../context/AddressContext';
 import { useAuth } from '../../../context/AuthContext';
 import GuestAuthPrompt from '../../../components/GuestAuthPrompt';
+import ConfirmModal from '../../../components/ConfirmModal';
 import { useRequireAuth } from '../../../hooks/useRequireAuth';
 import { useAlert } from '../../../context/AlertContext';
 import { reverseGeocode } from '../../../utils/geocoding';
 import { updateStorefrontProfile, resolveShopId } from '../../../utils/authApi';
-import {
-  haversineKm,
-  formatDistanceKm,
-  estimateDeliveryMinutes,
-} from '../../../utils/geoDistance';
+import { haversineKm, formatDistanceKm } from '../../../utils/geoDistance';
 import { getStoreCoordinates } from '../../../utils/storeLocation';
+import { checkDeliveryLocation } from '../../../utils/storefrontLocationApi';
+import { useLocationService } from '../../../context/LocationServiceContext';
+
+/** Map circle + UI when API has not returned a max radius yet (meters). */
+const DELIVERY_RADIUS_FALLBACK_M = Number(process.env.NEXT_PUBLIC_DELIVERY_RADIUS_FALLBACK_M) || 8000;
 
 // Leaflet uses `window` at import time — load only on the client.
 const AddressMapPicker = dynamic(
@@ -28,7 +30,7 @@ const AddressMapPicker = dynamic(
   }
 );
 
-const ALLOWED_RETURN_ROUTES = new Set(['/checkout', '/addresses']);
+const ALLOWED_RETURN_ROUTES = new Set(['/checkout', '/addresses', '/']);
 
 function buildAddressFromExisting(addr) {
   if (!addr) return null;
@@ -76,6 +78,32 @@ const EMPTY_FORM = {
   raw: '',
 };
 
+function backupStorageKey(addressId) {
+  return `yaadro_address_edit_prev_${addressId}`;
+}
+
+function abandonedSessionKey(addressId) {
+  return `yaadro_address_edit_abandoned_${addressId}`;
+}
+
+function buildEditSnapshot(editingAddress) {
+  if (!editingAddress?.id) return null;
+  const lat = editingAddress.lat != null ? Number(editingAddress.lat) : null;
+  const lng = editingAddress.lng != null ? Number(editingAddress.lng) : null;
+  return {
+    version: 1,
+    savedAt: Date.now(),
+    addressId: String(editingAddress.id),
+    form: buildAddressFromExisting(editingAddress) ?? { ...EMPTY_FORM },
+    coords:
+      lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)
+        ? { lat, lng }
+        : null,
+    nameDraft: String(editingAddress.fullName || ''),
+    phoneDraft: String(editingAddress.phone || ''),
+  };
+}
+
 export default function AddAddressPage() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -87,6 +115,7 @@ export default function AddAddressPage() {
   const { ok, ready } = useRequireAuth();
   const { addresses = [], addAddress, updateAddress, isCreating, isUpdating } = useAddress();
   const { showAlert } = useAlert();
+  const { maxRadiusM: locationMaxRadiusM } = useLocationService();
 
   const editingAddress = useMemo(
     () => (editId ? addresses.find((a) => String(a.id) === String(editId)) : null),
@@ -98,17 +127,7 @@ export default function AddAddressPage() {
   const [step, setStep] = useState(1);
 
   // ── Coordinates / resolved address from map ──
-  const [coords, setCoords] = useState(() => {
-    if (
-      editingAddress?.lat != null &&
-      editingAddress?.lng != null &&
-      Number.isFinite(Number(editingAddress.lat)) &&
-      Number.isFinite(Number(editingAddress.lng))
-    ) {
-      return { lat: Number(editingAddress.lat), lng: Number(editingAddress.lng) };
-    }
-    return null;
-  });
+  const [coords, setCoords] = useState(null);
 
   const [resolvedAddress, setResolvedAddress] = useState(null);
   const [resolvingStatus, setResolvingStatus] = useState('idle'); // idle | loading | error
@@ -120,10 +139,8 @@ export default function AddAddressPage() {
 
   const storeCoords = useMemo(() => getStoreCoordinates(), []);
 
-  // ── Form fields (step 2) ──
-  const [form, setForm] = useState(() =>
-    isEdit ? buildAddressFromExisting(editingAddress) ?? { ...EMPTY_FORM } : { ...EMPTY_FORM }
-  );
+  // ── Form fields (step 2) — edit flow hydrates via effect (backup + clear or restore) ──
+  const [form, setForm] = useState(() => ({ ...EMPTY_FORM }));
   const [touched, setTouched] = useState({});
 
   // ── Contact (name / phone) ──
@@ -142,13 +159,88 @@ export default function AddAddressPage() {
   const pinAbortRef = useRef(null);
   const lastPinRef = useRef('');
 
-  // Hydrate the form & contact drafts when the editing target appears (after hooks).
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [isDraftDirty, setIsDraftDirty] = useState(false);
+  const editInitForIdRef = useRef(null);
+
+  const markDirty = useCallback(() => {
+    if (isEdit) setIsDraftDirty(true);
+  }, [isEdit]);
+
+  // Edit mode: backup previous address to localStorage, then clear form for a fresh entry.
+  // If user left without saving earlier (abandoned), restore from backup instead of clearing again.
   useEffect(() => {
-    if (!isEdit || !editingAddress) return;
-    setForm(buildAddressFromExisting(editingAddress) ?? { ...EMPTY_FORM });
-    if (!nameFromProfile) setNameDraft(editingAddress.fullName || '');
-    if (!phoneFromProfile) setPhoneDraft(editingAddress.phone || '');
-  }, [isEdit, editingAddress?.id, nameFromProfile, phoneFromProfile]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!isEdit || !editingAddress?.id || String(editingAddress.id) !== String(editId)) return;
+    if (editInitForIdRef.current === editId) return;
+
+    const backupKey = backupStorageKey(editId);
+    const abandonedKey = abandonedSessionKey(editId);
+
+    try {
+      const abandoned =
+        typeof sessionStorage !== 'undefined' && sessionStorage.getItem(abandonedKey) === '1';
+      const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(backupKey) : null;
+
+      if (abandoned && raw) {
+        const snap = JSON.parse(raw);
+        if (snap?.form && typeof snap.form === 'object') {
+          setForm({ ...EMPTY_FORM, ...snap.form });
+        } else {
+          setForm({ ...EMPTY_FORM });
+        }
+        if (snap?.coords?.lat != null && snap?.coords?.lng != null) {
+          setCoords({ lat: Number(snap.coords.lat), lng: Number(snap.coords.lng) });
+        } else {
+          setCoords(null);
+        }
+        if (typeof snap?.nameDraft === 'string' && !nameFromProfile) setNameDraft(snap.nameDraft);
+        if (typeof snap?.phoneDraft === 'string' && !phoneFromProfile) setPhoneDraft(snap.phoneDraft);
+        setResolvedAddress(null);
+        setResolvingStatus('idle');
+        setStep(1);
+        setTouched({});
+        setIsDraftDirty(false);
+        lastPinRef.current = '';
+        sessionStorage.removeItem(abandonedKey);
+        editInitForIdRef.current = editId;
+        return;
+      }
+
+      const snapshot = buildEditSnapshot(editingAddress);
+      if (snapshot && typeof localStorage !== 'undefined') {
+        localStorage.setItem(backupKey, JSON.stringify(snapshot));
+      }
+
+      setForm({ ...EMPTY_FORM });
+      setCoords(null);
+      setResolvedAddress(null);
+      setResolvingStatus('idle');
+      setStep(1);
+      setTouched({});
+      if (!nameFromProfile) setNameDraft('');
+      if (!phoneFromProfile) setPhoneDraft('');
+      setIsDraftDirty(false);
+      lastPinRef.current = '';
+      editInitForIdRef.current = editId;
+    } catch (e) {
+      console.warn('Address edit init backup failed', e);
+      editInitForIdRef.current = editId;
+    }
+  }, [isEdit, editingAddress, editId, nameFromProfile, phoneFromProfile]);
+
+  useEffect(() => {
+    if (!isEdit || !isDraftDirty) return;
+    const onBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [isEdit, isDraftDirty]);
+
+  useEffect(() => {
+    if (!editId) editInitForIdRef.current = null;
+  }, [editId]);
 
   // ── PIN auto-fill effect (debounced) ──
   useEffect(() => {
@@ -251,14 +343,69 @@ export default function AddAddressPage() {
 
   const deliveryMetrics = useMemo(() => {
     if (!coords?.lat || !coords?.lng) return null;
-    const distStoreKm = haversineKm(coords.lat, coords.lng, storeCoords.lat, storeCoords.lng);
-    const etaMin = estimateDeliveryMinutes(distStoreKm, { bufferMin: 10, avgUrbanKmh: 22 });
     let userVsPinKm = null;
     if (userLocation?.lat != null && userLocation?.lng != null) {
       userVsPinKm = haversineKm(userLocation.lat, userLocation.lng, coords.lat, coords.lng);
     }
-    return { distStoreKm, etaMin, userVsPinKm };
-  }, [coords, storeCoords, userLocation]);
+    return { userVsPinKm };
+  }, [coords, userLocation]);
+
+  /** Live delivery check for the map pin (debounced). */
+  const [pinDeliveryCheck, setPinDeliveryCheck] = useState({
+    loading: false,
+    serviceable: null,
+    distanceM: null,
+    maxRadiusM: null,
+    error: null,
+  });
+
+  useEffect(() => {
+    if (!coords?.lat || !coords?.lng) {
+      setPinDeliveryCheck({
+        loading: false,
+        serviceable: null,
+        distanceM: null,
+        maxRadiusM: null,
+        error: null,
+      });
+      return;
+    }
+    let cancelled = false;
+    const t = window.setTimeout(async () => {
+      setPinDeliveryCheck((prev) => ({ ...prev, loading: true, error: null }));
+      try {
+        const data = await checkDeliveryLocation(coords.lat, coords.lng);
+        if (cancelled) return;
+        setPinDeliveryCheck({
+          loading: false,
+          serviceable: !!data.serviceable,
+          distanceM: data.distanceM,
+          maxRadiusM: data.maxRadiusM,
+          error: null,
+        });
+      } catch (e) {
+        if (cancelled) return;
+        setPinDeliveryCheck({
+          loading: false,
+          serviceable: null,
+          distanceM: null,
+          maxRadiusM: null,
+          error: e?.message || 'Could not verify delivery',
+        });
+      }
+    }, 420);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [coords?.lat, coords?.lng]);
+
+  const mapDeliveryRadiusM =
+    pinDeliveryCheck.maxRadiusM ??
+    (typeof locationMaxRadiusM === 'number' && locationMaxRadiusM > 0
+      ? locationMaxRadiusM
+      : null) ??
+    DELIVERY_RADIUS_FALLBACK_M;
 
   // ── On editing (with existing coords) → reverse geocode once for preview text ──
   useEffect(() => {
@@ -319,6 +466,7 @@ export default function AddAddressPage() {
     const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     setForm((prev) => ({ ...prev, [key]: v }));
     setTouched((prev) => ({ ...prev, [key]: true }));
+    markDirty();
   };
 
   const setPostalCode = (e) => {
@@ -327,16 +475,22 @@ export default function AddAddressPage() {
     setTouched((prev) => ({ ...prev, postalCode: true }));
     setPinLookupStatus('idle');
     setPinLookupMessage('');
+    markDirty();
   };
 
   // ── Map → form auto-fill (only blanks; never overwrites touched fields) ──
-  const handleMapChange = useCallback(({ lat, lng }) => {
-    setCoords({ lat, lng });
-  }, []);
+  const handleMapChange = useCallback(
+    ({ lat, lng }) => {
+      setCoords({ lat, lng });
+      markDirty();
+    },
+    [markDirty]
+  );
 
   const handleMapAddress = useCallback((resolved) => {
     setResolvedAddress(resolved);
     setResolvingStatus('idle');
+    markDirty();
     setForm((prev) => {
       const next = { ...prev };
       // Keep line1 for user-entered building/apartment; auto-fill line2 from map.
@@ -365,7 +519,7 @@ export default function AddAddressPage() {
       if (!String(prev.country || '').trim() && resolved.country) next.country = resolved.country;
       return next;
     });
-  }, []);
+  }, [markDirty]);
 
   // ── Submit ──
   const buildPayload = (nameResolved, phoneResolved) => {
@@ -403,6 +557,26 @@ export default function AddAddressPage() {
     },
     [returnTo, router]
   );
+
+  const requestLeave = useCallback(() => {
+    if (!isEdit) {
+      router.replace(returnTo);
+      return;
+    }
+    if (!isDraftDirty && step === 1) {
+      router.replace(returnTo);
+      return;
+    }
+    setShowLeaveModal(true);
+  }, [isEdit, isDraftDirty, step, router, returnTo]);
+
+  const confirmLeaveIncompleteEdit = useCallback(() => {
+    if (editId && typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(abandonedSessionKey(editId), '1');
+    }
+    setShowLeaveModal(false);
+    router.replace(returnTo);
+  }, [editId, router, returnTo]);
 
   const handleSave = async () => {
     setSubmitError('');
@@ -453,6 +627,15 @@ export default function AddAddressPage() {
         const created = await addAddress(payload);
         createdId = created?.id || null;
         showAlert('Address saved.', 'Success', 'success');
+      }
+
+      if (typeof window !== 'undefined' && editId) {
+        try {
+          localStorage.removeItem(backupStorageKey(editId));
+          sessionStorage.removeItem(abandonedSessionKey(editId));
+        } catch {
+          /* noop */
+        }
       }
 
       navigateBackWith(createdId);
@@ -531,13 +714,15 @@ export default function AddAddressPage() {
               onAddress={handleMapAddress}
               userLocation={userLocation}
               storeLocation={storeCoords}
+              showStoreMarker={false}
+              deliveryRadiusM={mapDeliveryRadiusM}
               focusRequest={mapFocusRequest}
             />
 
             {/* Floating back button — sits to the left of the map's search bar */}
             <button
               type="button"
-              onClick={() => router.replace(returnTo)}
+              onClick={requestLeave}
               aria-label="Back"
               className="absolute left-3 top-3 z-[1100] inline-flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-800 shadow-md hover:bg-gray-50"
               style={{ marginTop: 'env(safe-area-inset-top)' }}
@@ -551,7 +736,45 @@ export default function AddAddressPage() {
             className="relative z-10 shrink-0 border-t border-gray-100 bg-white px-4 pt-4 shadow-[0_-12px_30px_rgba(0,0,0,0.08)]"
             style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
           >
-            {/* Distance / ETA strip */}
+            {/* Delivery at map pin — bottom sheet (same area as distance / confirm) */}
+            <div
+              className={`mb-4 rounded-2xl border px-3 py-3 ${
+                pinDeliveryCheck.loading
+                  ? 'border-gray-200 bg-gray-50 text-gray-800'
+                  : pinDeliveryCheck.error
+                    ? 'border-amber-200 bg-amber-50 text-amber-950'
+                    : pinDeliveryCheck.serviceable === true
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-950'
+                      : pinDeliveryCheck.serviceable === false
+                        ? 'border-red-200 bg-red-50 text-red-950'
+                        : 'border-gray-200 bg-gray-50 text-gray-800'
+              }`}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">
+                Delivery at map pin
+              </p>
+              {pinDeliveryCheck.loading && (
+                <p className="mt-1 text-[13px] font-medium">Checking whether we deliver here…</p>
+              )}
+              {!pinDeliveryCheck.loading && pinDeliveryCheck.error && (
+                <p className="mt-1 text-[13px] font-medium">{pinDeliveryCheck.error}</p>
+              )}
+              {!pinDeliveryCheck.loading && !pinDeliveryCheck.error && pinDeliveryCheck.serviceable === true && (
+                <p className="mt-1 text-[14px] font-bold text-emerald-900">Delivery available at this spot</p>
+              )}
+              {!pinDeliveryCheck.loading && !pinDeliveryCheck.error && pinDeliveryCheck.serviceable === false && (
+                <p className="mt-1 text-[13px] font-semibold">
+                  Delivery not available — move the map so the pin sits inside the green zone.
+                </p>
+              )}
+              {!pinDeliveryCheck.loading && !pinDeliveryCheck.error && pinDeliveryCheck.serviceable == null && (
+                <p className="mt-1 text-[13px] font-medium text-gray-600">
+                  Pan the map; we’ll check this spot automatically.
+                </p>
+              )}
+            </div>
+
+            {/* Distance strip — your GPS vs map pin */}
             {deliveryMetrics && (
               <div className="mb-4 grid gap-3 rounded-2xl border border-gray-100 bg-gray-50/80 p-3">
                 <button
@@ -616,43 +839,6 @@ export default function AddAddressPage() {
                     )}
                   </div>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMapFocusRequest({
-                      target: 'store',
-                      lat: storeCoords.lat,
-                      lng: storeCoords.lng,
-                      zoom: 17,
-                      ts: Date.now(),
-                    });
-                  }}
-                  className="flex w-full items-start gap-3 rounded-xl border-t border-gray-100 pt-3 text-left transition hover:bg-gray-100/70"
-                >
-                  <Image
-                    src="/store-icon.png"
-                    alt=""
-                    width={36}
-                    height={36}
-                    className="h-9 w-9 shrink-0 object-contain"
-                    unoptimized
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-                      Store / fulfilment
-                    </p>
-                    <p className="mt-0.5 text-[12px] text-gray-800">
-                      <span className="font-semibold">
-                        {formatDistanceKm(deliveryMetrics.distStoreKm)}
-                      </span>{' '}
-                      from store
-                    </p>
-                    <p className="mt-1 text-[13px] font-semibold text-emerald-700">
-                      Est. delivery ~{deliveryMetrics.etaMin} min
-                    </p>
-                  </div>
-                </button>
               </div>
             )}
 
@@ -679,6 +865,7 @@ export default function AddAddressPage() {
                   return;
                 }
                 setSubmitError('');
+                if (isEdit) markDirty();
                 setStep(2);
               }}
               disabled={!coords}
@@ -732,6 +919,7 @@ export default function AddAddressPage() {
                     onChange={(e) => {
                       setNameDraft(e.target.value);
                       setSubmitError('');
+                      markDirty();
                     }}
                     autoComplete="name"
                     placeholder="Name as on phone bill / ID"
@@ -753,6 +941,7 @@ export default function AddAddressPage() {
                     onChange={(e) => {
                       setPhoneDraft(e.target.value);
                       setSubmitError('');
+                      markDirty();
                     }}
                     inputMode="numeric"
                     autoComplete="tel"
@@ -917,6 +1106,16 @@ export default function AddAddressPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={showLeaveModal}
+        onClose={() => setShowLeaveModal(false)}
+        onConfirm={confirmLeaveIncompleteEdit}
+        title="Leave without finishing?"
+        message="You have not saved this address update. Your previous address is stored on this device — if you leave, you can open edit again to restore it, or enter a new address from scratch. Your account still has the last saved address until you complete Save."
+        confirmText="Leave"
+        cancelText="Keep editing"
+      />
     </div>
   );
 }

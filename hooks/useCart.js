@@ -5,6 +5,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCart, addToCart as apiAddToCart, updateCartItem, removeFromCart as apiRemoveFromCart, clearCart as apiClearCart } from '../utils/cartApi';
 
+function sumLineTotals(items) {
+  const list = Array.isArray(items) ? items : [];
+  return list.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 0), 0);
+}
+
 // Query keys
 export const cartKeys = {
   all: ['cart'],
@@ -50,8 +55,17 @@ export function useUpdateCartItem() {
 
   return useMutation({
     mutationFn: ({ itemId, quantity }) => updateCartItem(itemId, quantity),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: cartKeys.cart() });
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData(cartKeys.cart(), (old) => {
+        if (!old || !Array.isArray(old.items)) return old;
+        const nextItems = old.items.map((it) =>
+          String(it.cartItemId ?? it.id) === String(variables.itemId)
+            ? { ...it, ...data.cartItem, quantity: variables.quantity }
+            : it
+        );
+        const t = sumLineTotals(nextItems);
+        return { ...old, items: nextItems, subtotal: t, total: t };
+      });
     },
   });
 }
@@ -64,8 +78,13 @@ export function useRemoveFromCart() {
 
   return useMutation({
     mutationFn: (itemId) => apiRemoveFromCart(itemId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: cartKeys.cart() });
+    onSuccess: (_void, itemId) => {
+      queryClient.setQueryData(cartKeys.cart(), (old) => {
+        if (!old || !Array.isArray(old.items)) return { items: [], subtotal: 0, total: 0 };
+        const nextItems = old.items.filter((it) => String(it.cartItemId ?? it.id) !== String(itemId));
+        const t = sumLineTotals(nextItems);
+        return { ...old, items: nextItems, subtotal: t, total: t };
+      });
     },
   });
 }

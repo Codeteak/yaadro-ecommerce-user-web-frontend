@@ -1,10 +1,19 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import { useAlert } from './AlertContext';
-import { useCartQuery, useAddToCart, useUpdateCartItem, useRemoveFromCart, useClearCart } from '../hooks/useCart';
+import { useCartQuery, useAddToCart, useUpdateCartItem, useRemoveFromCart, useClearCart, cartKeys } from '../hooks/useCart';
+import {
+  addOrMergeCartLine,
+  applyAddRollback,
+  buildAddRollbackTarget,
+  buildPersistableCartLineFromProduct,
+  cartLinesMatch,
+  mergeServerCartWithLocalLines,
+  persistCartLinesImmediate,
+} from '../utils/cartLinePersist';
 
 const CartContext = createContext();
 const GUEST_CART_STORAGE_KEY = 'cart';
@@ -13,9 +22,6 @@ const API_CART_CACHE_STORAGE_KEY = 'cartApiCache';
 export function CartProvider({ children }) {
   // Initialize cart state from localStorage if available (client-side only)
   const [isClient, setIsClient] = useState(false);
-  // Becomes true once cart has been hydrated at least once (from localStorage or API).
-  // Used by /cart and /checkout to show a loader instead of a momentary "empty cart" flash.
-  const [hasInitialized, setHasInitialized] = useState(false);
   const [showSidebarCart, setShowSidebarCart] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [savedCarts, setSavedCarts] = useState([]);
@@ -35,61 +41,62 @@ export function CartProvider({ children }) {
 
   // Local cart state for unauthenticated users
   const [localCartItems, setLocalCartItems] = useState([]);
-
-  // Initialize client and load local cart/cache first for instant UX.
+  const localCartItemsRef = useRef([]);
   useEffect(() => {
-    setIsClient(true);
-    
-    if (typeof window !== 'undefined') {
-      const storageKey = isAuthenticated && token ? API_CART_CACHE_STORAGE_KEY : GUEST_CART_STORAGE_KEY;
-      const savedCart = localStorage.getItem(storageKey);
-      if (savedCart) {
-        try {
-          const parsed = JSON.parse(savedCart);
-          setLocalCartItems(Array.isArray(parsed) ? parsed : []);
-          const lastActivity = localStorage.getItem('cartLastActivity');
-          if (lastActivity) {
-            setLastActivityTime(parseInt(lastActivity));
-          }
-        } catch (error) {
-          console.error('Error parsing cart from localStorage:', error);
-        }
-      }
-      // Cart is now hydrated (either with items or empty) — safe to render instantly.
-      setHasInitialized(true);
+    localCartItemsRef.current = localCartItems;
+  }, [localCartItems]);
 
-      // Load saved carts and templates from localStorage
-      const savedCartsData = localStorage.getItem('savedCarts');
-      if (savedCartsData) {
-        try {
-          setSavedCarts(JSON.parse(savedCartsData));
-        } catch (error) {
-          console.error('Error parsing saved carts:', error);
+  // Hydrate cart + saved carts from localStorage before paint (avoids full-page cart loaders).
+  useLayoutEffect(() => {
+    setIsClient(true);
+
+    if (typeof window === 'undefined') return;
+
+    const storageKey = isAuthenticated && token ? API_CART_CACHE_STORAGE_KEY : GUEST_CART_STORAGE_KEY;
+    const savedCart = localStorage.getItem(storageKey);
+    if (savedCart) {
+      try {
+        const parsed = JSON.parse(savedCart);
+        setLocalCartItems(Array.isArray(parsed) ? parsed : []);
+        const lastActivity = localStorage.getItem('cartLastActivity');
+        if (lastActivity) {
+          setLastActivityTime(parseInt(lastActivity, 10));
         }
+      } catch (error) {
+        console.error('Error parsing cart from localStorage:', error);
       }
-      
-      const templatesData = localStorage.getItem('cartTemplates');
-      if (templatesData) {
-        try {
-          setCartTemplates(JSON.parse(templatesData));
-        } catch (error) {
-          console.error('Error parsing cart templates:', error);
-        }
+    }
+
+    const savedCartsData = localStorage.getItem('savedCarts');
+    if (savedCartsData) {
+      try {
+        setSavedCarts(JSON.parse(savedCartsData));
+      } catch (error) {
+        console.error('Error parsing saved carts:', error);
+      }
+    }
+
+    const templatesData = localStorage.getItem('cartTemplates');
+    if (templatesData) {
+      try {
+        setCartTemplates(JSON.parse(templatesData));
+      } catch (error) {
+        console.error('Error parsing cart templates:', error);
       }
     }
   }, [isAuthenticated, token]);
 
-  // Local-first: for auth users show cached cart immediately while API loads.
-  const cartItems = useApiCart
-    ? (loading ? localCartItems : apiCartItems)
-    : localCartItems;
+  // Merged view: API truth + optimistic pending lines + client-persisted image snapshots.
+  const cartItems = useMemo(() => {
+    if (!useApiCart) return localCartItems;
+    return mergeServerCartWithLocalLines(apiCartItems, localCartItems);
+  }, [useApiCart, apiCartItems, localCartItems]);
 
-  // Keep local API cache fresh when authenticated cart data arrives.
+  // Keep local cache aligned with server while preserving snapshot URLs from the client.
   useEffect(() => {
     if (!useApiCart) return;
     if (loading) return;
-    setLocalCartItems(apiCartItems);
-    setHasInitialized(true);
+    setLocalCartItems((prev) => mergeServerCartWithLocalLines(apiCartItems, prev));
   }, [useApiCart, loading, apiCartItems]);
 
   // TanStack Query mutations and client
@@ -186,197 +193,166 @@ export function CartProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClient, lastActivityTime, isAuthenticated, localCartItems.length]);
 
-  // Add item to cart
+  // Add item to cart — local state + localStorage first (no await on API for signed-in users).
   const addToCart = async (product, quantity = 1) => {
-    const productId = product.id || product.productId;
+    const addQty = Math.max(1, Number(quantity) || 1);
+    const storageKey =
+      isAuthenticated && token ? API_CART_CACHE_STORAGE_KEY : GUEST_CART_STORAGE_KEY;
 
-    try {
-      if (useApiCart && isAuthenticated && token) {
-        // Optimistic local cache update for instant UX.
-        setLocalCartItems((prevItems) => {
-          const sizeKey = product.selectedSize
-            ? `${product.selectedSize.weight}${product.selectedSize.unit}`
-            : 'default';
-          const cartItemKey = `${product.id}_${sizeKey}`;
-          const existingItem = prevItems.find((item) => {
-            const itemSizeKey = item.selectedSize
-              ? `${item.selectedSize.weight}${item.selectedSize.unit}`
-              : 'default';
-            return `${item.id}_${itemSizeKey}` === cartItemKey;
-          });
-          if (existingItem) {
-            return prevItems.map((item) => {
-              const itemSizeKey = item.selectedSize
-                ? `${item.selectedSize.weight}${item.selectedSize.unit}`
-                : 'default';
-              return `${item.id}_${itemSizeKey}` === cartItemKey
-                ? { ...item, quantity: item.quantity + quantity }
-                : item;
-            });
-          }
-          return [...prevItems, { ...product, quantity, cartItemKey }];
-        });
-
-        // Use API if authenticated
-        // Check if item already exists in cart
-        const existingItem = cartItems.find(item => 
-          item.productId === productId || (item.product && item.product.id === productId)
-        );
-
-        if (existingItem && existingItem.cartItemId) {
-          // Item exists, update quantity
-          const newQuantity = existingItem.quantity + quantity;
-          await updateCartItemMutation.mutateAsync({ itemId: existingItem.cartItemId, quantity: newQuantity });
-        } else {
-          // Item doesn't exist, add new
-          try {
-            await addToCartMutation.mutateAsync({ productId: product, quantity });
-          } catch (error) {
-            // If error says item already exists, reload cart and update
-            if (error.message?.includes('unique') || error.message?.includes('already exists')) {
-              // Refetch cart to get the existing item
-              // Backend cart is disabled; keep local cart only.
-              throw error;
-              const foundItem = refreshedCart?.items?.find(item => 
-                item.productId === productId || (item.product && item.product.id === productId)
-              );
-              if (foundItem && foundItem.cartItemId) {
-                const newQuantity = foundItem.quantity + quantity;
-                await updateCartItemMutation.mutateAsync({ itemId: foundItem.cartItemId, quantity: newQuantity });
-              } else {
-                throw error;
-              }
-            } else {
-              throw error;
-            }
-          }
-        }
-      } else {
-        // Use localStorage if not authenticated
-        setLocalCartItems(prevItems => {
-          const sizeKey = product.selectedSize 
-            ? `${product.selectedSize.weight}${product.selectedSize.unit}` 
-            : 'default';
-          const cartItemKey = `${product.id}_${sizeKey}`;
-          
-          const existingItem = prevItems.find(item => {
-            const itemSizeKey = item.selectedSize 
-              ? `${item.selectedSize.weight}${item.selectedSize.unit}` 
-              : 'default';
-            return `${item.id}_${itemSizeKey}` === cartItemKey;
-          });
-          
-          let newItems;
-          let addedItem;
-          if (existingItem) {
-            newItems = prevItems.map(item => {
-              const itemSizeKey = item.selectedSize 
-                ? `${item.selectedSize.weight}${item.selectedSize.unit}` 
-                : 'default';
-              const itemKey = `${item.id}_${itemSizeKey}`;
-              if (itemKey === cartItemKey) {
-                addedItem = { ...item, quantity: item.quantity + quantity };
-                return addedItem;
-              }
-              return item;
-            });
-          } else {
-            addedItem = { ...product, quantity, cartItemKey };
-            newItems = [...prevItems, addedItem];
-          }
-
-          return newItems;
-        });
-      }
-
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      // Show error message to user
-      if (error.message?.includes('Insufficient stock')) {
-        showAlert(error.message, 'Insufficient Stock', 'warning');
-      } else {
-        showAlert('Failed to add item to cart. Please try again.', 'Error', 'error');
-      }
-      throw error;
-    }
-  };
-
-  // Remove item from cart (by cartItemKey or id)
-  const removeFromCart = async (idOrKey) => {
-    try {
-      // Find the cart item ID (backend ID)
-      const item = cartItems.find(item => 
-        item.cartItemKey === idOrKey || item.id === idOrKey || item.cartItemId === idOrKey
-      );
-
-      if (useApiCart && isAuthenticated && token && item?.cartItemId) {
-        setLocalCartItems(prevItems =>
-          prevItems.filter(item =>
-            item.cartItemKey !== idOrKey && item.id !== idOrKey && item.cartItemId !== idOrKey
-          )
-        );
-        // Use API if authenticated
-        await removeFromCartMutation.mutateAsync(item.cartItemId);
-        // Query will refetch automatically
-      } else {
-        // Use localStorage if not authenticated
-        setLocalCartItems(prevItems => 
-          prevItems.filter(item => 
-            item.cartItemKey !== idOrKey && item.id !== idOrKey && item.cartItemId !== idOrKey
-          )
-        );
-      }
-    } catch (error) {
-      console.error('Error removing from cart:', error);
-      showAlert('Failed to remove item from cart. Please try again.', 'Error', 'error');
-      throw error;
-    }
-  };
-
-  // Update quantity of an item (by cartItemKey or id)
-  const updateQuantity = async (idOrKey, quantity) => {
-    if (quantity <= 0) {
-      await removeFromCart(idOrKey);
+    const persistable = buildPersistableCartLineFromProduct(product);
+    if (!persistable) {
+      showAlert('Could not add this product to the cart.', 'Error', 'error');
       return;
     }
 
-    try {
-      // Find the cart item ID (backend ID)
-      const item = cartItems.find(item => 
-        item.cartItemKey === idOrKey || item.id === idOrKey || item.cartItemId === idOrKey
+    const prev = localCartItemsRef.current;
+    const rollback = buildAddRollbackTarget(prev, persistable, addQty);
+    const nextItems = addOrMergeCartLine(prev, persistable, addQty);
+
+    setLocalCartItems(nextItems);
+    localCartItemsRef.current = nextItems;
+    if (isClient && typeof window !== 'undefined') {
+      persistCartLinesImmediate(nextItems, storageKey);
+    }
+
+    if (useApiCart && isAuthenticated && token) {
+      const existingWithId = nextItems.find(
+        (it) =>
+          it.cartItemId &&
+          cartLinesMatch(it, persistable)
       );
 
-      if (useApiCart && isAuthenticated && token && item?.cartItemId) {
-        setLocalCartItems(prevItems =>
-          prevItems.map(item =>
-            (item.cartItemKey === idOrKey || item.id === idOrKey || item.cartItemId === idOrKey)
-              ? { ...item, quantity }
-              : item
-          )
-        );
-        // Use API if authenticated
-        await updateCartItemMutation.mutateAsync({ itemId: item.cartItemId, quantity });
-        // Query will refetch automatically
-      } else {
-        // Use localStorage if not authenticated
-        setLocalCartItems(prevItems =>
-          prevItems.map(item =>
-            (item.cartItemKey === idOrKey || item.id === idOrKey || item.cartItemId === idOrKey) 
-              ? { ...item, quantity } 
-              : item
-          )
-        );
-        setLastActivityTime(Date.now());
-      }
-    } catch (error) {
-      console.error('Error updating cart quantity:', error);
-      if (error.message?.includes('Insufficient stock')) {
-        showAlert(error.message, 'Insufficient Stock', 'warning');
-      } else {
-        showAlert('Failed to update quantity. Please try again.', 'Error', 'error');
-      }
-      throw error;
+      void (async () => {
+        try {
+          if (existingWithId) {
+            await updateCartItemMutation.mutateAsync({
+              itemId: existingWithId.cartItemId,
+              quantity: existingWithId.quantity,
+            });
+          } else {
+            await addToCartMutation.mutateAsync({ productId: product, quantity: addQty });
+          }
+        } catch (error) {
+          console.error('Error adding to cart (API):', error);
+          setLocalCartItems((p) => {
+            const rolled = applyAddRollback(p, rollback);
+            localCartItemsRef.current = rolled;
+            if (isClient && typeof window !== 'undefined') {
+              persistCartLinesImmediate(rolled, storageKey);
+            }
+            return rolled;
+          });
+          queryClient.invalidateQueries({ queryKey: cartKeys.cart() });
+          if (error.message?.includes('Insufficient stock')) {
+            showAlert(error.message, 'Insufficient Stock', 'warning');
+          } else {
+            showAlert('Failed to add item to cart. Please try again.', 'Error', 'error');
+          }
+        }
+      })();
+      return;
     }
+  };
+
+  // Remove item from cart (by cartItemKey or id) — optimistic UI; API runs in background.
+  const removeFromCart = (idOrKey) => {
+    const item = cartItems.find(
+      (row) =>
+        row.cartItemKey === idOrKey || row.id === idOrKey || row.cartItemId === idOrKey
+    );
+    if (!item) return;
+
+    const storageKey =
+      isAuthenticated && token ? API_CART_CACHE_STORAGE_KEY : GUEST_CART_STORAGE_KEY;
+
+    if (useApiCart && isAuthenticated && token && item?.cartItemId) {
+      const prevSnapshot = localCartItemsRef.current.map((x) => ({ ...x }));
+      const nextItems = prevSnapshot.filter(
+        (row) =>
+          row.cartItemKey !== idOrKey && row.id !== idOrKey && row.cartItemId !== idOrKey
+      );
+      setLocalCartItems(nextItems);
+      localCartItemsRef.current = nextItems;
+      if (isClient && typeof window !== 'undefined') {
+        persistCartLinesImmediate(nextItems, storageKey);
+      }
+      removeFromCartMutation.mutate(item.cartItemId, {
+        onError: (error) => {
+          console.error('Error removing from cart:', error);
+          setLocalCartItems(prevSnapshot);
+          localCartItemsRef.current = prevSnapshot;
+          if (isClient && typeof window !== 'undefined') {
+            persistCartLinesImmediate(prevSnapshot, storageKey);
+          }
+          queryClient.invalidateQueries({ queryKey: cartKeys.cart() });
+          showAlert('Failed to remove item from cart. Please try again.', 'Error', 'error');
+        },
+      });
+      return;
+    }
+
+    setLocalCartItems((prevItems) =>
+      prevItems.filter(
+        (row) =>
+          row.cartItemKey !== idOrKey && row.id !== idOrKey && row.cartItemId !== idOrKey
+      )
+    );
+  };
+
+  const lineMatchesKey = (row, key) =>
+    row.cartItemKey === key || row.id === key || row.cartItemId === key;
+
+  // Update quantity of an item (by cartItemKey or id) — optimistic UI; API runs in background.
+  const updateQuantity = (idOrKey, quantity) => {
+    if (quantity <= 0) {
+      removeFromCart(idOrKey);
+      return;
+    }
+
+    const item = cartItems.find((row) => lineMatchesKey(row, idOrKey));
+    if (!item) return;
+
+    const storageKey =
+      isAuthenticated && token ? API_CART_CACHE_STORAGE_KEY : GUEST_CART_STORAGE_KEY;
+
+    if (useApiCart && isAuthenticated && token && item?.cartItemId) {
+      const prevSnapshot = localCartItemsRef.current.map((x) => ({ ...x }));
+      const nextItems = prevSnapshot.map((row) =>
+        lineMatchesKey(row, idOrKey) ? { ...row, quantity } : row
+      );
+      setLocalCartItems(nextItems);
+      localCartItemsRef.current = nextItems;
+      if (isClient && typeof window !== 'undefined') {
+        persistCartLinesImmediate(nextItems, storageKey);
+      }
+      updateCartItemMutation.mutate(
+        { itemId: item.cartItemId, quantity },
+        {
+          onError: (error) => {
+            console.error('Error updating cart quantity:', error);
+            setLocalCartItems(prevSnapshot);
+            localCartItemsRef.current = prevSnapshot;
+            if (isClient && typeof window !== 'undefined') {
+              persistCartLinesImmediate(prevSnapshot, storageKey);
+            }
+            queryClient.invalidateQueries({ queryKey: cartKeys.cart() });
+            if (error.message?.includes('Insufficient stock')) {
+              showAlert(error.message, 'Insufficient Stock', 'warning');
+            } else {
+              showAlert('Failed to update quantity. Please try again.', 'Error', 'error');
+            }
+          },
+        }
+      );
+      return;
+    }
+
+    setLocalCartItems((prevItems) =>
+      prevItems.map((row) =>
+        lineMatchesKey(row, idOrKey) ? { ...row, quantity } : row
+      )
+    );
+    setLastActivityTime(Date.now());
   };
 
   // Update cart item note
@@ -574,7 +550,8 @@ export function CartProvider({ children }) {
     loadSharedCart,
     lastActivityTime,
     loading,
-    isCartReady: hasInitialized,
+    /** Always true — cart UI reads from localStorage (layout) + query merge; no full-page cart gate. */
+    isCartReady: true,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

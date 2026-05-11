@@ -67,6 +67,10 @@ export default function AddressMapPicker({
   centerPinMode = false,
   userLocation = null,
   storeLocation = null,
+  /** When false, the shop pin is hidden (delivery circle can still use `storeLocation` as centre). */
+  showStoreMarker = true,
+  /** Delivery radius in metres, centred on `storeLocation` (e.g. API `maxRadiusM`). */
+  deliveryRadiusM = null,
   focusRequest = null,
 }) {
   const { isLoaded, loadError } = useJsApiLoader({
@@ -92,6 +96,9 @@ export default function AddressMapPicker({
   const [searchOpen, setSearchOpen] = useState(false);
 
   const mapRef = useRef(null);
+  /** Set when `GoogleMap` fires `onLoad` so delivery circle attaches after the map exists. */
+  const [mapInstance, setMapInstance] = useState(null);
+  const deliveryCircleRef = useRef(null);
   const geocoderRef = useRef(null);
   const placesServiceRef = useRef(null);
   const markerLibRef = useRef(null);
@@ -260,6 +267,7 @@ export default function AddressMapPicker({
 
   const onMapLoad = useCallback(async (map) => {
     mapRef.current = map;
+    setMapInstance(map);
     if (window?.google?.maps) {
       geocoderRef.current = new window.google.maps.Geocoder();
       placesServiceRef.current = new window.google.maps.places.AutocompleteService();
@@ -270,6 +278,47 @@ export default function AddressMapPicker({
       }
     }
   }, []);
+
+  useEffect(() => () => setMapInstance(null), []);
+
+  // Service radius from shop (circle) — helps users align the pin with deliverable area.
+  useEffect(() => {
+    if (!mapInstance || !isLoaded || typeof window === 'undefined' || !window.google?.maps) {
+      return undefined;
+    }
+    const lat = Number(storeLocation?.lat);
+    const lng = Number(storeLocation?.lng);
+    const r = Number(deliveryRadiusM);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(r) || r <= 0) {
+      if (deliveryCircleRef.current) {
+        deliveryCircleRef.current.setMap(null);
+        deliveryCircleRef.current = null;
+      }
+      return undefined;
+    }
+    if (deliveryCircleRef.current) {
+      deliveryCircleRef.current.setMap(null);
+      deliveryCircleRef.current = null;
+    }
+    deliveryCircleRef.current = new window.google.maps.Circle({
+      map: mapInstance,
+      center: { lat, lng },
+      radius: r,
+      strokeColor: '#047857',
+      strokeOpacity: 0.95,
+      strokeWeight: 2,
+      fillColor: '#34d399',
+      fillOpacity: 0.14,
+      clickable: false,
+      zIndex: 0,
+    });
+    return () => {
+      if (deliveryCircleRef.current) {
+        deliveryCircleRef.current.setMap(null);
+        deliveryCircleRef.current = null;
+      }
+    };
+  }, [mapInstance, isLoaded, storeLocation?.lat, storeLocation?.lng, deliveryRadiusM]);
 
   const handleIdle = useCallback(() => {
     const map = mapRef.current;
@@ -314,7 +363,11 @@ export default function AddressMapPicker({
       });
     }
 
-    if (storeLocation?.lat != null && storeLocation?.lng != null) {
+    if (
+      showStoreMarker &&
+      storeLocation?.lat != null &&
+      storeLocation?.lng != null
+    ) {
       storeMarkerRef.current = new AdvancedMarkerElement({
         map,
         position: { lat: storeLocation.lat, lng: storeLocation.lng },
@@ -355,6 +408,7 @@ export default function AddressMapPicker({
     userLocation?.lng,
     storeLocation?.lat,
     storeLocation?.lng,
+    showStoreMarker,
     centerPinMode,
     point.lat,
     point.lng,

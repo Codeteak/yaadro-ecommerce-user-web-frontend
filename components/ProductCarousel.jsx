@@ -15,7 +15,7 @@ export default function ProductCarousel({ products, title, showMoreLink }) {
     <div className="relative w-full max-w-full overflow-x-hidden">
       {title && (
         <div className="flex items-center justify-between mb-6 pl-4 sm:pl-6 lg:pl-8 pr-0">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-800">{title}</h2>
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">{title}</h2>
           {showMoreLink && (
             <a
               href={showMoreLink}

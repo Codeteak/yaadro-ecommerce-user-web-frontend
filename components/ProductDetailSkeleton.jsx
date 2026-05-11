@@ -173,6 +173,7 @@ export default function ProductDetailSkeleton() {
 
       {/* Sticky bottom bar — matches cart / product detail chrome */}
       <div
+        id="yaadro-pdp-bottom-bar"
         className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-gray-100 px-4 py-3 flex items-center gap-3"
         style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
       >

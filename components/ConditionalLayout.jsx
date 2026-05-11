@@ -32,15 +32,22 @@ export default function ConditionalLayout({ children }) {
   /** Categories list + category browse: no global Navbar, but keep bottom inset for mobile nav */
   const categoriesRoute = pathname?.startsWith('/categories');
 
+  /** Products listing uses in-page browse chrome — hide global Navbar */
+  const productsListingRoute = pathNoSlash === '/products';
+
   /** Search has its own sticky bar — hide global Navbar only */
   const searchRoute = pathname === '/search' || pathname?.startsWith('/search/');
 
   const homeRoute = pathNoSlash === '';
   const showNavbar =
-    !hideLayout && !categoriesRoute && !homeRoute && !searchRoute;
+    !hideLayout &&
+    !categoriesRoute &&
+    !homeRoute &&
+    !searchRoute &&
+    !productsListingRoute;
 
   const mainPaddingTop = showNavbar ? navbarHeight : 0;
-  const mainPaddingBottom = categoriesRoute || searchRoute
+  const mainPaddingBottom = categoriesRoute || searchRoute || productsListingRoute
     ? bottomNavVisible
       ? bottomNavHeight
       : 0
@@ -65,9 +72,9 @@ export default function ConditionalLayout({ children }) {
         </Suspense>
       )}
       <main
-        className="flex-grow w-full max-w-full overflow-x-hidden transition-[padding] duration-300 ease-out"
+        className="flex-grow w-full max-w-full overflow-x-clip transition-[padding] duration-300 ease-out"
         style={{
-          overflowX: 'hidden',
+          overflowX: 'clip',
           maxWidth: '100vw',
           paddingTop: mainPaddingTop,
           paddingBottom: mainPaddingBottom,

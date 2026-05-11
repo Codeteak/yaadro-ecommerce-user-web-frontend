@@ -112,6 +112,13 @@ export function normalizeProductImages(input = {}) {
 
   if (typeof input.image === 'string' && input.image.trim()) {
     pushAnyPossiblyCommaSeparated(push, input.image.trim());
+  } else if (
+    typeof input.image === 'object' &&
+    input.image !== null &&
+    !Array.isArray(input.image)
+  ) {
+    const u = mediaObjectToUrl(input.image);
+    if (u) pushAnyPossiblyCommaSeparated(push, u);
   }
 
   return ordered;
@@ -140,7 +147,8 @@ export function getResolvedProductImageUrls(product) {
 
 /**
  * One display `src` for a cart line (local optimistic shape or API cart row).
- * Merges nested `product` over the line so thumbnails win over stale/dummy `item.image`.
+ * Merges the line over nested `product` so `transformCartItem` / optimistic rows keep resolved
+ * string URLs and `images[]`, and are not overwritten by raw API `product.image` objects.
  */
 export function getCartLinePreviewImageSrc(item) {
   if (!item || typeof item !== 'object') return PRODUCT_IMAGE_PLACEHOLDER;
@@ -150,7 +158,7 @@ export function getCartLinePreviewImageSrc(item) {
       ? item.product
       : {};
 
-  const merged = { ...item, ...productObj };
+  const merged = { ...productObj, ...item };
 
   const urls = getResolvedProductImageUrls(merged);
   const best = urls.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER);

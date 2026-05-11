@@ -16,11 +16,14 @@ import CartSavingsCelebration from './CartSavingsCelebration';
 const MOBILE_BOTTOM_NAV_FALLBACK_PX = 72;
 /** Visual gap between pill bottom edge and top of tab bar. */
 const GAP_ABOVE_BOTTOM_NAV_PX = 14;
-
-/** Fixed pill above the mobile bottom nav — portaled to `body` so it stacks above nav (not trapped under `<main>` overflow). */
-export default function FloatingViewCartPill() {
+/**
+ * Floating cart pill above the mobile tab bar (or above optional fixed bottom chrome).
+ * @param {number} [stackAboveBottomPx] — When set (e.g. PDP), CSS `bottom` in px; measure from the
+ *   owning page using the fixed bar’s `getBoundingClientRect().top` vs `visualViewport`.
+ */
+export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
   const [mounted, setMounted] = useState(false);
-  const { cartItems, cartCount, cartTotal, loading, isCartReady } = useCart();
+  const { cartItems, cartCount, cartTotal, loading } = useCart();
   const { isVisible: bottomNavVisible, hideForRoute: bottomNavHidden } = useBottomNavVisibility();
   const { bottomNavHeight } = useLayoutHeights();
 
@@ -38,15 +41,12 @@ export default function FloatingViewCartPill() {
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    if (!isCartReady) return;
     if (cartItems.length === 0) {
       userSawEmptyCartRef.current = true;
     }
-  }, [isCartReady, cartItems.length]);
+  }, [cartItems.length]);
 
   useEffect(() => {
-    if (!isCartReady) return;
-
     const loadingJustEnded = prevLoadingRef.current && !loading;
     prevLoadingRef.current = loading;
 
@@ -104,7 +104,7 @@ export default function FloatingViewCartPill() {
 
     prevSavingsRef.current = nextSavings;
     prevCartCountRef.current = cartCount;
-  }, [isCartReady, loading, cartItems, cartTotal, cartCount]);
+  }, [loading, cartItems, cartTotal, cartCount]);
 
   useEffect(() => {
     return () => {
@@ -120,14 +120,21 @@ export default function FloatingViewCartPill() {
     ? Math.max(Number(bottomNavHeight) || 0, MOBILE_BOTTOM_NAV_FALLBACK_PX) + GAP_ABOVE_BOTTOM_NAV_PX
     : null;
 
+  const stackedAboveFixedChromePx =
+    typeof stackAboveBottomPx === 'number' && stackAboveBottomPx > 0 && liftPx == null
+      ? Math.ceil(stackAboveBottomPx)
+      : null;
+
   const pill = (
     <div
-      className="pointer-events-none fixed inset-x-0 z-[55] flex justify-center px-4"
+      className="pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-4"
       style={{
         bottom:
           liftPx != null
             ? `${liftPx}px`
-            : 'calc(1rem + env(safe-area-inset-bottom, 0px))',
+            : stackedAboveFixedChromePx != null
+              ? `${stackedAboveFixedChromePx}px`
+              : 'calc(1rem + env(safe-area-inset-bottom, 0px))',
         transition: 'bottom 300ms cubic-bezier(0.22, 1, 0.36, 1)',
         willChange: 'bottom',
       }}

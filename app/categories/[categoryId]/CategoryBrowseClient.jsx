@@ -205,7 +205,7 @@ function CategoryBrowseInner() {
     : `All ${category.name}`;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28 pt-[env(safe-area-inset-top,0px)] w-full max-w-full overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50 pb-28 pt-[env(safe-area-inset-top,0px)] w-full max-w-full overflow-x-clip">
       <header className="sticky top-0 z-40 border-b border-gray-100 bg-white">
         <div className="flex items-center gap-2 px-3 py-2.5 sm:px-4">
           <button

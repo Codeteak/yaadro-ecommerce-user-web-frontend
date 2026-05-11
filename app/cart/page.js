@@ -10,7 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useProducts } from '../../hooks/useProducts';
 import { useLoginNavigation } from '../../hooks/useLoginNavigation';
 import { getCartLinePreviewImageSrc } from '../../utils/productImages';
-import Container from '../../components/Container';
+import { computeCartSavings, getCartBottomBarPricing } from '../../utils/cartSavings';
 import ConfirmModal from '../../components/ConfirmModal';
 import ProductCarousel from '../../components/ProductCarousel';
 import ProductImageWithFallback from '../../components/ProductImageWithFallback';
@@ -152,12 +152,9 @@ function ActionButton({ onClick, variant = 'default', icon, children }) {
 }
 
 function SummaryCard({ cartItems, cartTotal }) {
-  const mrpTotal = cartItems.reduce((acc, item) => {
-    const mrp = item.originalPrice || (item.selectedSize?.price ?? parseFloat(item.price));
-    return acc + mrp * item.quantity;
-  }, 0);
-  const discount = mrpTotal - cartTotal;
-  const totalQty = cartItems.reduce((a, i) => a + i.quantity, 0);
+  const { mrpTotal, savings } = getCartBottomBarPricing(cartItems, cartTotal);
+  const discount = savings > 0.009 ? savings : 0;
+  const totalQty = cartItems.reduce((a, i) => a + (Number(i.quantity) || 1), 0);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4 mx-4 mb-3">
@@ -184,25 +181,6 @@ function SummaryCard({ cartItems, cartTotal }) {
           <span>₹{cartTotal.toLocaleString('en-IN')}</span>
         </div>
       </div>
-    </div>
-  );
-}
-
-function SavingsBanner({ cartItems, cartTotal }) {
-  const mrpTotal = cartItems.reduce((acc, item) => {
-    const mrp = item.originalPrice || (item.selectedSize?.price ?? parseFloat(item.price));
-    return acc + mrp * item.quantity;
-  }, 0);
-  const savings = mrpTotal - cartTotal;
-  if (savings <= 0) return null;
-  return (
-    <div className="mx-4 mb-3 flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-xl px-3.5 py-2.5">
-      <svg className="w-4 h-4 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      <p className="text-[12px] font-medium text-emerald-800">
-        You're saving ₹{savings.toLocaleString('en-IN')} on this order
-      </p>
     </div>
   );
 }
@@ -279,7 +257,7 @@ function EmptyCart({ carouselSections = [] }) {
         products.length > 0 ? (
           <section key={key} className="mt-8 px-4" aria-label={title}>
             <div className="mb-4">
-              <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
                 {title}
               </h2>
               <p className="mt-2 text-[13px] md:text-sm text-gray-500">{description}</p>
@@ -321,7 +299,6 @@ function CartPageContent() {
     deleteSavedCart,
     savedCarts,
     loadSharedCart,
-    isCartReady,
   } = useCart();
   const { showAlert } = useAlert();
 
@@ -368,6 +345,15 @@ function CartPageContent() {
     });
     return names;
   }, [cartItems]);
+
+  const orderSavings = useMemo(
+    () => computeCartSavings(cartItems, cartTotal),
+    [cartItems, cartTotal]
+  );
+  const bottomBarPricing = useMemo(
+    () => getCartBottomBarPricing(cartItems, cartTotal),
+    [cartItems, cartTotal]
+  );
 
   const similarProducts = useMemo(() => {
     if (similarPool.length === 0) return [];
@@ -429,15 +415,12 @@ function CartPageContent() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28 w-full max-w-full overflow-x-hidden">
+    <div
+      className={`min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden ${cartItems.length > 0 ? 'pb-32' : 'pb-28'}`}
+    >
       <TopBar itemCount={totalQty} />
 
-      {!isCartReady ? (
-        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-          <div className="w-9 h-9 rounded-full border-2 border-emerald-200 border-t-emerald-600 animate-spin mb-3" />
-          <p className="text-sm font-medium text-gray-700">Loading your cart…</p>
-        </div>
-      ) : cartItems.length === 0 ? (
+      {cartItems.length === 0 ? (
         <EmptyCart carouselSections={emptyCartCarouselSections} />
       ) : (
         <>
@@ -490,7 +473,7 @@ function CartPageContent() {
               <section className="mt-6" aria-label="Similar products">
                 <div className="mb-4">
                   <div>
-                    <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
                       Similar Products
                     </h2>
                     <p className="mt-2 text-[13px] md:text-sm text-gray-500">
@@ -514,9 +497,6 @@ function CartPageContent() {
             )}
           </div>
 
-          {/* Savings banner */}
-          <SavingsBanner cartItems={cartItems} cartTotal={cartTotal} />
-
           {/* Order summary */}
           <SummaryCard cartItems={cartItems} cartTotal={cartTotal} />
 
@@ -529,26 +509,66 @@ function CartPageContent() {
         </>
       )}
 
-      {/* ── Sticky bottom bar ── */}
+      {/* ── Sticky bottom bar (savings strip + checkout row) ── */}
       {cartItems.length > 0 && (
-        <div
-          className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-gray-100 px-4 py-3 flex items-center gap-3"
-          style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
-        >
-          <div className="flex-1">
-            <p className="text-[11px] text-gray-400">Total</p>
-            <p className="text-lg font-medium text-gray-900">₹{cartTotal.toLocaleString('en-IN')}</p>
-          </div>
-          <button
-            type="button"
-            onClick={handleProceedToCheckout}
-            className="flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-sm font-medium transition bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98] whitespace-nowrap"
+        <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col border-t border-gray-100 bg-white/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(15,23,42,0.06)]">
+          {orderSavings > 0 && (
+            <div
+              className="flex items-center justify-center gap-1.5 border-b border-white/15 px-3 py-2 text-center"
+              style={{ backgroundColor: '#00a63d' }}
+            >
+              <svg
+                className="h-3.5 w-3.5 flex-shrink-0 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <p className="text-[11px] font-semibold leading-tight text-white">
+                You&apos;re saving ₹{orderSavings.toLocaleString('en-IN')} on this order
+              </p>
+            </div>
+          )}
+          <div
+            className="flex items-center gap-3 px-4 py-3"
+            style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
           >
-            Checkout
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] text-gray-400">Total</p>
+              <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <p className="text-lg font-semibold text-gray-900 tabular-nums">
+                  ₹{bottomBarPricing.payable.toLocaleString('en-IN')}
+                </p>
+                {bottomBarPricing.hasOffer && (
+                  <>
+                    <p className="text-sm text-gray-400 line-through tabular-nums">
+                      ₹{bottomBarPricing.mrpTotal.toLocaleString('en-IN')}
+                    </p>
+                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                      Save ₹{Math.round(bottomBarPricing.savings).toLocaleString('en-IN')}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleProceedToCheckout}
+              className="flex h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-emerald-600 text-sm font-medium text-white transition hover:bg-emerald-700 active:scale-[0.98]"
+            >
+              Checkout
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
 
@@ -570,18 +590,7 @@ function CartPageContent() {
 ───────────────────────────────────────────── */
 export default function CartPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-gray-50 animate-pulse">
-          <div className="bg-white border-b border-gray-100 h-14" />
-          <div className="px-4 pt-4 space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white rounded-2xl h-24 border border-gray-100" />
-            ))}
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" aria-hidden />}>
       <CartPageContent />
     </Suspense>
   );

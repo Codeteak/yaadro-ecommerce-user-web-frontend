@@ -1,20 +1,43 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { resolveShopId } from '../utils/authApi';
 import { checkDeliveryLocation } from '../utils/storefrontLocationApi';
+import { useAuth } from './AuthContext';
+import { useAddress } from './AddressContext';
 
 const SESSION_WARN_KEY = 'yaadro-service-area-warned';
 const DELIVERY_CACHE_KEY = 'yaadro-delivery-check-v1';
 
+/** ~11 m — treat cached coords as the same delivery point as the saved address pin. */
+const COORD_MATCH_EPS = 1e-4;
+
+function coordsApproxEqual(a, b) {
+  if (!a || !b) return false;
+  const la = Number(a.lat);
+  const ln = Number(a.lng);
+  const lb = Number(b.lat);
+  const mb = Number(b.lng);
+  if (![la, ln, lb, mb].every((n) => Number.isFinite(n))) return false;
+  return Math.abs(la - lb) < COORD_MATCH_EPS && Math.abs(ln - mb) < COORD_MATCH_EPS;
+}
+
 /** Avoid duplicate geolocation prompts under React Strict Mode (dev). */
-let locationCheckInitStarted = false;
+let gpsLocationCheckInitStarted = false;
 
 /**
  * Persisted delivery check.
- * Once the user has granted location and the API has responded, we never re-prompt
- * or re-call the API automatically — we always read from this cache. The user can
- * still trigger a fresh check explicitly via `recheckLocation()`.
+ * When no saved address coordinates exist, we cache the GPS-based result so we
+ * do not re-prompt on every visit. Saved-address checks use the same cache when
+ * the stored coords match the default address pin (same API as the map picker).
  */
 function loadDeliveryCache() {
   if (typeof window === 'undefined') return null;
@@ -50,6 +73,9 @@ function clearDeliveryCache() {
 const LocationServiceContext = createContext(null);
 
 export function LocationServiceProvider({ children }) {
+  const { isAuthenticated } = useAuth();
+  const { addresses, isLoading: addressesLoading } = useAddress();
+
   const [phase, setPhase] = useState('idle');
   const [serviceable, setServiceable] = useState(null);
   const [distanceM, setDistanceM] = useState(null);
@@ -59,7 +85,79 @@ export function LocationServiceProvider({ children }) {
   const [errorMessage, setErrorMessage] = useState(null);
   const [showSheet, setShowSheet] = useState(false);
 
-  const runCheck = useCallback(async () => {
+  const defaultAddress = useMemo(
+    () => addresses.find((a) => a.isDefault) || addresses[0] || null,
+    [addresses]
+  );
+
+  /** Same point the map / add-address flow uses for `checkDeliveryLocation`. */
+  const addressCheckCoords = useMemo(() => {
+    if (!defaultAddress) return null;
+    const lat = Number(defaultAddress.lat);
+    const lng = Number(defaultAddress.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return { lat, lng };
+  }, [defaultAddress]);
+
+  const maybeWarnOutsideZone = useCallback((inZone) => {
+    if (inZone || typeof window === 'undefined') return;
+    const warned = sessionStorage.getItem(SESSION_WARN_KEY);
+    if (!warned) {
+      sessionStorage.setItem(SESSION_WARN_KEY, '1');
+      setShowSheet(true);
+    }
+  }, []);
+
+  const applyDeliveryResult = useCallback(
+    (data, point, shopId) => {
+      setCoords(point);
+      setServiceable(data.serviceable);
+      setDistanceM(data.distanceM);
+      setMaxRadiusM(data.maxRadiusM);
+      setPhase('done');
+      saveDeliveryCache({
+        serviceable: data.serviceable,
+        distanceM: data.distanceM,
+        maxRadiusM: data.maxRadiusM,
+        coords: { lat: point.lat, lng: point.lng },
+        shopId,
+        savedAt: Date.now(),
+      });
+      maybeWarnOutsideZone(data.serviceable);
+    },
+    [maybeWarnOutsideZone]
+  );
+
+  const runCheckAtLatLng = useCallback(
+    async (lat, lng) => {
+      const shopId = await resolveShopId();
+      if (!shopId) {
+        setPhase('done');
+        setServiceable(null);
+        setErrorMessage(null);
+        return;
+      }
+      setPhase('fetching');
+      setErrorMessage(null);
+      setGeoDenied(false);
+      try {
+        const data = await checkDeliveryLocation(lat, lng);
+        applyDeliveryResult(data, { lat, lng }, shopId);
+      } catch (e) {
+        const msg = e?.message || 'Could not verify delivery area.';
+        setPhase('done');
+        setServiceable(null);
+        if (e?.code === 'MISSING_SHOP_ID') {
+          setErrorMessage(null);
+        } else {
+          setErrorMessage(msg);
+        }
+      }
+    },
+    [applyDeliveryResult]
+  );
+
+  const runGpsCheck = useCallback(async () => {
     if (typeof window === 'undefined') return;
 
     const shopId = await resolveShopId();
@@ -88,26 +186,7 @@ export function LocationServiceProvider({ children }) {
         setPhase('fetching');
         try {
           const data = await checkDeliveryLocation(lat, lng);
-          setServiceable(data.serviceable);
-          setDistanceM(data.distanceM);
-          setMaxRadiusM(data.maxRadiusM);
-          setPhase('done');
-          // Persist so we don't re-prompt or re-call the API on subsequent visits.
-          saveDeliveryCache({
-            serviceable: data.serviceable,
-            distanceM: data.distanceM,
-            maxRadiusM: data.maxRadiusM,
-            coords: { lat, lng },
-            shopId,
-            savedAt: Date.now(),
-          });
-          if (!data.serviceable && typeof window !== 'undefined') {
-            const warned = sessionStorage.getItem(SESSION_WARN_KEY);
-            if (!warned) {
-              sessionStorage.setItem(SESSION_WARN_KEY, '1');
-              setShowSheet(true);
-            }
-          }
+          applyDeliveryResult(data, { lat, lng }, shopId);
         } catch (e) {
           const msg = e?.message || 'Could not verify delivery area.';
           setPhase('done');
@@ -131,15 +210,82 @@ export function LocationServiceProvider({ children }) {
       },
       { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
     );
-  }, []);
+  }, [applyDeliveryResult]);
 
+  const waitForAddresses = isAuthenticated && addressesLoading;
+
+  /** Default-address pin — same API coords as the map “delivery available” strip. */
   useEffect(() => {
-    if (locationCheckInitStarted) return;
-    locationCheckInitStarted = true;
+    if (typeof window === 'undefined') return;
+    if (waitForAddresses) return;
+    if (!addressCheckCoords) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const shopId = await resolveShopId();
+      if (!shopId || cancelled) {
+        if (!cancelled) {
+          setPhase('done');
+          setServiceable(null);
+        }
+        return;
+      }
+
+      const cached = loadDeliveryCache();
+      if (
+        cached &&
+        cached.shopId === shopId &&
+        cached.coords &&
+        coordsApproxEqual(cached.coords, addressCheckCoords)
+      ) {
+        setServiceable(cached.serviceable ?? null);
+        setDistanceM(cached.distanceM ?? null);
+        setMaxRadiusM(cached.maxRadiusM ?? null);
+        setCoords(addressCheckCoords);
+        setPhase('done');
+        setErrorMessage(null);
+        setGeoDenied(false);
+        return;
+      }
+
+      if (cancelled) return;
+      await runCheckAtLatLng(addressCheckCoords.lat, addressCheckCoords.lng);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    waitForAddresses,
+    addressCheckCoords?.lat,
+    addressCheckCoords?.lng,
+    runCheckAtLatLng,
+  ]);
+
+  const hadSavedPinRef = useRef(false);
+
+  /** GPS + cache path only when there is no saved address pin to check. */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (waitForAddresses) return;
+    if (addressCheckCoords) {
+      hadSavedPinRef.current = true;
+      return;
+    }
+
+    if (hadSavedPinRef.current) {
+      hadSavedPinRef.current = false;
+      gpsLocationCheckInitStarted = false;
+      // Old cache was for the saved pin — do not treat it as the user’s current GPS check.
+      clearDeliveryCache();
+    }
+
+    if (gpsLocationCheckInitStarted) return;
+    gpsLocationCheckInitStarted = true;
 
     const cached = loadDeliveryCache();
     if (cached) {
-      // Hydrate from localStorage. No geolocation prompt, no API call.
       setServiceable(cached.serviceable ?? null);
       setDistanceM(cached.distanceM ?? null);
       setMaxRadiusM(cached.maxRadiusM ?? null);
@@ -148,17 +294,23 @@ export function LocationServiceProvider({ children }) {
       return;
     }
 
-    runCheck();
-  }, [runCheck]);
+    runGpsCheck();
+  }, [waitForAddresses, addressCheckCoords, runGpsCheck]);
 
-  /** Force-refresh: clears the cache and re-runs the full check (will re-prompt). */
+  /** Force-refresh: clears cache and re-runs using saved pin if present, else GPS. */
   const recheckLocation = useCallback(() => {
     clearDeliveryCache();
-    return runCheck();
-  }, [runCheck]);
+    gpsLocationCheckInitStarted = false;
+    if (addressCheckCoords) {
+      setPhase('fetching');
+      return runCheckAtLatLng(addressCheckCoords.lat, addressCheckCoords.lng);
+    }
+    return runGpsCheck();
+  }, [addressCheckCoords, runCheckAtLatLng, runGpsCheck]);
 
   const clearCachedLocation = useCallback(() => {
     clearDeliveryCache();
+    gpsLocationCheckInitStarted = false;
     setServiceable(null);
     setDistanceM(null);
     setMaxRadiusM(null);

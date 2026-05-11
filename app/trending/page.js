@@ -29,7 +29,7 @@ export default function TrendingPage() {
     <div className="w-full max-w-full overflow-x-hidden pb-20 md:pb-8">
       <Container>
         <div className="py-6 md:py-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2 px-4 md:px-0">Trending</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-2 px-3 sm:px-4 md:px-0">Trending</h1>
           <p className="text-gray-600 mb-6 px-4 md:px-0">Popular picks right now</p>
           <div className="px-4 md:px-0">
             {products.length > 0 ? (

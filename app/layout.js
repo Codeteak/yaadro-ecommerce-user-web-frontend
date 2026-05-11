@@ -29,10 +29,10 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className="overflow-x-hidden w-full max-w-full" style={{ overflowX: 'hidden' }}>
+    <html lang="en" className="overflow-x-clip w-full max-w-full" style={{ overflowX: 'clip' }}>
       <body
-        className="flex flex-col min-h-screen bg-white overflow-x-hidden w-full max-w-full"
-        style={{ overflowX: 'hidden', maxWidth: '100vw' }}
+        className="flex flex-col min-h-screen bg-white overflow-x-clip w-full max-w-full"
+        style={{ overflowX: 'clip', maxWidth: '100vw' }}
       >
         <ClientOnly fallback={<div className="min-h-screen w-full bg-white" />}>
           <QueryProvider>

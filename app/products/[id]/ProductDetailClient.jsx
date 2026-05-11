@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useProductWithRelated, useProducts } from '../../../hooks/useProducts';
 import { useCart } from '../../../context/CartContext';
@@ -19,6 +19,10 @@ import ProductCarousel from '../../../components/ProductCarousel';
 import { SHOW_PRODUCT_EXTENDED_SECTIONS } from './productDetailFlags';
 import { getResolvedProductImageUrls } from '../../../utils/productImages';
 import ProductImageWithFallback from '../../../components/ProductImageWithFallback';
+import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
+
+/** Gap between cart pill bottom and the top edge of the PDP fixed bottom bar. */
+const CART_PILL_GAP_ABOVE_PDP_BAR_PX = 12;
 
 function PillTag({ children, color = 'green' }) {
   const colorMap = {
@@ -41,7 +45,7 @@ function PillTag({ children, color = 'green' }) {
 /** Matches home page section typography (e.g. Buy Again / Best Sellers blocks). */
 function DetailSectionTitle({ children }) {
   return (
-    <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
       {children}
     </h2>
   );
@@ -140,6 +144,10 @@ export default function ProductDetailClient({ productId = null }) {
   }, [product?.id, galleryUrls.join('|')]);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
+
+  const pdpBottomBarRef = useRef(null);
+  /** CSS `bottom` (px) so the cart pill sits above the PDP bar, from the bar's top edge + gap. */
+  const [cartPillStackBottomPx, setCartPillStackBottomPx] = useState(120);
 
   const availableSizes =
     product?.sizes ||
@@ -255,6 +263,35 @@ export default function ProductDetailClient({ productId = null }) {
 
   const lineSubtotal = formatRupeeINR(effectivePrice * (cartQty || 0));
 
+  useLayoutEffect(() => {
+    const el = pdpBottomBarRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      const rect = el.getBoundingClientRect();
+      const vv = window.visualViewport;
+      const visibleBottomY = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      // CSS `bottom` on the pill: distance from viewport bottom to pill bottom — from bar top + gap.
+      const fromBarTop = Math.ceil(visibleBottomY - rect.top + CART_PILL_GAP_ABOVE_PDP_BAR_PX);
+      const fromBarHeight = Math.ceil(rect.height + CART_PILL_GAP_ABOVE_PDP_BAR_PX);
+      setCartPillStackBottomPx(Math.max(fromBarTop, fromBarHeight));
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener('resize', measure);
+    const vv = window.visualViewport;
+    vv?.addEventListener('resize', measure);
+    vv?.addEventListener('scroll', measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+      vv?.removeEventListener('resize', measure);
+      vv?.removeEventListener('scroll', measure);
+    };
+  }, [cartQty, cartCount, product?.id]);
+
   const handleAddToCart = useCallback(async () => {
     if (!productToAddPayload || !product?.inStock) return;
     setCartActionLoading(true);
@@ -265,28 +302,18 @@ export default function ProductDetailClient({ productId = null }) {
     }
   }, [addToCart, productToAddPayload, product?.inStock]);
 
-  const handleStepperIncrement = useCallback(async () => {
+  const handleStepperIncrement = useCallback(() => {
     if (cartActionLoading || !productToAddPayload || cartUpdateKey == null) return;
     if (cartQty >= 10) return;
-    setCartActionLoading(true);
-    try {
-      await updateQuantity(cartUpdateKey, cartQty + 1);
-    } finally {
-      setCartActionLoading(false);
-    }
+    updateQuantity(cartUpdateKey, cartQty + 1);
   }, [cartActionLoading, productToAddPayload, cartUpdateKey, cartQty, updateQuantity]);
 
-  const handleStepperDecrement = useCallback(async () => {
+  const handleStepperDecrement = useCallback(() => {
     if (cartActionLoading || cartUpdateKey == null || cartQty <= 0) return;
-    setCartActionLoading(true);
-    try {
-      if (cartQty <= 1) {
-        await removeFromCart(cartUpdateKey);
-      } else {
-        await updateQuantity(cartUpdateKey, cartQty - 1);
-      }
-    } finally {
-      setCartActionLoading(false);
+    if (cartQty <= 1) {
+      removeFromCart(cartUpdateKey);
+    } else {
+      updateQuantity(cartUpdateKey, cartQty - 1);
     }
   }, [cartActionLoading, cartUpdateKey, cartQty, removeFromCart, updateQuantity]);
 
@@ -371,7 +398,7 @@ export default function ProductDetailClient({ productId = null }) {
             {galleryUrls.map((img, idx) => (
               <div
                 key={`${idx}-${img}`}
-                className="flex w-full flex-shrink-0 items-center justify-center bg-white min-h-[58vh] sm:min-h-[64vh] md:min-h-[70vh]"
+                className="flex w-full flex-shrink-0 items-center justify-center bg-white min-h-[min(58vh,62svh)] sm:min-h-[64vh] md:min-h-[70vh]"
               >
                 <ProductImageWithFallback
                   src={img}
@@ -465,7 +492,7 @@ export default function ProductDetailClient({ productId = null }) {
               </div>
 
               <div className="space-y-3 sm:space-y-4">
-                <h1 className="text-2xl sm:text-3xl md:text-[28px] font-bold text-gray-900 leading-snug text-balance">
+                <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-[28px] font-bold text-gray-900 leading-snug text-balance">
                   {product.name}
                 </h1>
 
@@ -503,25 +530,27 @@ export default function ProductDetailClient({ productId = null }) {
                   )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-0.5">
-                  <span className="inline-flex min-h-[3rem] items-center rounded-xl bg-green-600 px-3.5 py-2 text-3xl font-bold text-white shadow-sm tabular-nums sm:min-h-0 sm:text-[2rem]">
-                    ₹{formatRupeeINR(effectivePrice)}
-                  </span>
-                  {mrpDisplay != null && (
-                    <div className="flex flex-col justify-center">
-                      <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                        MRP
-                      </span>
-                      <span className="text-base font-medium text-gray-400 line-through tabular-nums">
-                        ₹{formatRupeeINR(mrpDisplay)}
-                      </span>
-                    </div>
-                  )}
-                  <div className="ml-auto flex flex-shrink-0 items-center gap-2">
+                <div className="space-y-3 pt-0.5">
+                  <div className="flex flex-wrap items-end gap-3 sm:gap-4">
+                    <span className="inline-flex min-h-[2.75rem] items-center rounded-xl bg-green-600 px-3 py-2 text-2xl font-bold text-white shadow-sm tabular-nums sm:min-h-0 sm:px-3.5 sm:py-2 sm:text-3xl md:text-[2rem]">
+                      ₹{formatRupeeINR(effectivePrice)}
+                    </span>
+                    {mrpDisplay != null && (
+                      <div className="flex flex-col justify-center pb-0.5">
+                        <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                          MRP
+                        </span>
+                        <span className="text-base font-medium text-gray-400 line-through tabular-nums">
+                          ₹{formatRupeeINR(mrpDisplay)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex w-full flex-wrap gap-2 sm:gap-2.5">
                     <button
                       type="button"
                       onClick={() => void handleShare()}
-                      className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-yellow-500 bg-yellow-100 px-3 text-[13px] font-semibold text-gray-900 shadow-sm transition hover:bg-yellow-200"
+                      className="inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border border-yellow-500 bg-yellow-100 px-3 text-[13px] font-semibold text-gray-900 shadow-sm transition hover:bg-yellow-200 sm:flex-initial sm:min-w-[7.5rem]"
                       aria-label="Share product"
                     >
                       <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -538,7 +567,7 @@ export default function ProductDetailClient({ productId = null }) {
                       type="button"
                       onClick={() => void handleAddToCart()}
                       disabled={!product.inStock || cartActionLoading}
-                      className={`inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border px-3.5 text-[13px] font-semibold shadow-sm transition ${
+                      className={`inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border px-3.5 text-[13px] font-semibold shadow-sm transition sm:flex-initial sm:min-w-[9.5rem] ${
                         product.inStock
                           ? 'border-green-600 bg-green-600 text-white hover:bg-green-700 disabled:opacity-70'
                           : 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
@@ -547,7 +576,13 @@ export default function ProductDetailClient({ productId = null }) {
                       {cartActionLoading ? (
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden />
                       ) : (
-                        <svg className="h-4 w-4 shrink-0 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                        <svg
+                          className={`h-4 w-4 shrink-0 ${product.inStock ? 'text-white' : 'text-gray-400'}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden
+                        >
                           <path
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -726,7 +761,7 @@ export default function ProductDetailClient({ productId = null }) {
           {fbtItems.length > 0 && (
             <div className="mt-10">
               <div className="px-1 mb-4">
-                <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
                   Frequently Bought Together
                 </h2>
                 <p className="mt-2 text-[13px] md:text-sm text-gray-500">
@@ -748,7 +783,7 @@ export default function ProductDetailClient({ productId = null }) {
             <div className="mt-10 mb-4">
               <div className="flex items-end justify-between gap-3 mb-4 px-1">
                 <div>
-                  <h2 className="text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
                     Similar Products
                   </h2>
                   <p className="mt-2 text-[13px] md:text-sm text-gray-500">
@@ -781,6 +816,8 @@ export default function ProductDetailClient({ productId = null }) {
 
       {/* Same sticky bottom chrome as cart page; content row uses items-start when a second summary line appears so controls sit on the top edge of the bar. */}
       <div
+        ref={pdpBottomBarRef}
+        id="yaadro-pdp-bottom-bar"
         className={`fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-gray-100 px-4 py-3 flex w-full gap-3 ${
           cartQty > 0 ? 'items-start' : 'items-center'
         }`}
@@ -864,6 +901,7 @@ export default function ProductDetailClient({ productId = null }) {
         )}
       </div>
 
+      <FloatingViewCartPill stackAboveBottomPx={cartPillStackBottomPx} />
     </div>
   );
 }

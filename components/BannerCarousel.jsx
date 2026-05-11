@@ -81,12 +81,12 @@ export default function BannerCarousel({ banners = [] }) {
                 <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
                   <div className="text-center text-white px-4">
                     {banner.title && (
-                      <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold mb-2">
+                      <h2 className="text-xl sm:text-2xl md:text-4xl lg:text-5xl font-bold mb-2">
                         {banner.title}
                       </h2>
                     )}
                     {banner.subtitle && (
-                      <p className="text-lg md:text-xl lg:text-2xl">
+                      <p className="text-base sm:text-lg md:text-xl lg:text-2xl">
                         {banner.subtitle}
                       </p>
                     )}
