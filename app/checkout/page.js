@@ -16,6 +16,7 @@ import { getCartLinePreviewImageSrc } from '../../utils/productImages';
 import { getCartBottomBarPricing } from '../../utils/cartSavings';
 import { useUpdateProfile } from '../../hooks/useAuth';
 import { useLocationService } from '../../context/LocationServiceContext';
+import ConfirmModal from '../../components/ConfirmModal';
 
 /* ─────────────────────────────────────────────
    Small helpers
@@ -362,6 +363,12 @@ function OrderSummary({ cartItems, cartTotal, onQuantityChange, onRemove }) {
         <span>Total</span>
         <span className="tabular-nums">₹{cartTotal.toLocaleString('en-IN')}</span>
       </div>
+      <marquee
+        className="mt-2 block w-full rounded-md bg-red-600 py-1.5 text-[12px] font-medium tracking-wide text-white"
+        scrollAmount={4}
+      >
+        {Array.from({ length: 16 }, () => 'Price may vary').join('        ·        ')}
+      </marquee>
     </div>
   );
 }
@@ -432,6 +439,7 @@ export default function CheckoutPage() {
   const [phoneDraft, setPhoneDraft] = useState('');
   const [phoneOverride, setPhoneOverride] = useState('');
   const [showAddressSelector, setShowAddressSelector] = useState(false);
+  const [showPriceVaryConfirm, setShowPriceVaryConfirm] = useState(false);
 
   // Pool of products for the "Similar products" carousel — same query as home → cached.
   const { data: similarPoolData } = useProducts({
@@ -549,33 +557,8 @@ export default function CheckoutPage() {
     }
   };
 
-  /* ── Place order ── */
-  const handleSubmit = async (e) => {
-    e?.preventDefault();
-
-    if (!isAuthenticated) {
-      goToLogin('/checkout');
-      return;
-    }
-    if (cartItems.length === 0) {
-      showAlert('Your cart is empty.', 'Empty Cart', 'warning');
-      return;
-    }
-    if (isDeliveryServiceable !== true) {
-      showAlert(
-        'We can only take orders when delivery is available for your location. Check your area or change address, then try again.',
-        'Delivery not available',
-        'warning'
-      );
-      setShowServiceAreaSheet(true);
-      return;
-    }
-    if (!hasUserPhone(user) && !phoneOverride) {
-      setPhoneDraft('');
-      setShowPhoneSheet(true);
-      return;
-    }
-
+  /* ── Place order (runs after “price may vary” confirmation) ── */
+  const executePlaceOrder = async () => {
     setIsSubmitting(true);
 
     try {
@@ -605,6 +588,37 @@ export default function CheckoutPage() {
       showAlert(err?.message || 'Failed to place order. Please try again.', 'Error', 'error');
       setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault();
+
+    if (isSubmitting) return;
+
+    if (!isAuthenticated) {
+      goToLogin('/checkout');
+      return;
+    }
+    if (cartItems.length === 0) {
+      showAlert('Your cart is empty.', 'Empty Cart', 'warning');
+      return;
+    }
+    if (isDeliveryServiceable !== true) {
+      showAlert(
+        'We can only take orders when delivery is available for your location. Check your area or change address, then try again.',
+        'Delivery not available',
+        'warning'
+      );
+      setShowServiceAreaSheet(true);
+      return;
+    }
+    if (!hasUserPhone(user) && !phoneOverride) {
+      setPhoneDraft('');
+      setShowPhoneSheet(true);
+      return;
+    }
+
+    setShowPriceVaryConfirm(true);
   };
 
   /* ── Auth: show shell immediately (no full-screen spinner); redirect runs in effect when needed. ── */
@@ -802,8 +816,15 @@ export default function CheckoutPage() {
 
       </form>
 
-      {/* ── Sticky bottom bar ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 px-4 pt-3 pb-5">
+      {/* ── Sticky bottom bar (marquee is full bar width; padded block below) ── */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 w-full max-w-[100vw] overflow-x-hidden bg-white border-t border-gray-100">
+        <marquee
+          className="block w-full bg-red-600 py-0.5 text-[10px] font-medium leading-tight text-white"
+          scrollAmount={3}
+        >
+          {Array.from({ length: 16 }, () => 'Price may vary').join('        ·        ')}
+        </marquee>
+        <div className="px-4 pt-3 pb-5">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-[11px] text-gray-400">Total payable</p>
@@ -853,9 +874,9 @@ export default function CheckoutPage() {
             }
             handleSubmit(e);
           }}
-          disabled={isSubmitting || (!!selectedAddressId && isDeliveryChecking)}
+          disabled={isSubmitting || showPriceVaryConfirm || (!!selectedAddressId && isDeliveryChecking)}
           className={`w-full h-12 rounded-full text-sm font-medium flex items-center justify-center gap-2 transition active:scale-[0.98] ${
-            isSubmitting || (!!selectedAddressId && isDeliveryChecking)
+            isSubmitting || showPriceVaryConfirm || (!!selectedAddressId && isDeliveryChecking)
               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
               : !selectedAddressId
                 ? 'bg-amber-500 text-white hover:bg-amber-600'
@@ -899,7 +920,20 @@ export default function CheckoutPage() {
             </>
           )}
         </button>
+        </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showPriceVaryConfirm}
+        onClose={() => setShowPriceVaryConfirm(false)}
+        onConfirm={() => {
+          void executePlaceOrder();
+        }}
+        title="Price may vary"
+        message="Totals shown at checkout are estimates. The final amount may change based on availability, offers, or pricing at fulfilment. Do you want to continue and place this order?"
+        confirmText="Place order"
+        cancelText="Cancel"
+      />
 
       {/* ── Address selector sheet — pick an existing address or add a new one ── */}
       {showAddressSelector && (

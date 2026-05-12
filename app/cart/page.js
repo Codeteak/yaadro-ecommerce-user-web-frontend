@@ -204,6 +204,12 @@ function SummaryCard({ cartItems, cartTotal }) {
           <span>₹{cartTotal.toLocaleString('en-IN')}</span>
         </div>
       </div>
+      <marquee
+        className="mt-2 block w-full rounded-md bg-red-600 py-1.5 text-[12px] font-medium tracking-wide text-white"
+        scrollAmount={4}
+      >
+        {Array.from({ length: 16 }, () => 'Price may vary').join('        ·        ')}
+      </marquee>
     </div>
   );
 }
