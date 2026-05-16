@@ -5,7 +5,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import { useAlert } from './AlertContext';
 import { useCartQuery, useAddToCart, useUpdateCartItem, useRemoveFromCart, useClearCart, cartKeys } from '../hooks/useCart';
-import { expandCartItemsWithBundleRewards, sumCartDisplayUnits } from '../utils/cartPromotions';
+import {
+  applyGuestCartBundleQuantities,
+  expandCartItemsWithBundleRewards,
+  isBundleRewardCartLine,
+  sumCartDisplayUnits,
+} from '../utils/cartPromotions';
 import {
   addOrMergeCartLine,
   applyAddRollback,
@@ -23,6 +28,14 @@ function buildDisplayCartItems(serverLines, localLines) {
       ? mergeServerCartWithLocalLines(serverLines, localLines)
       : localLines;
   return sortCartItemsForDisplay(expandCartItemsWithBundleRewards(merged));
+}
+
+function buildGuestDisplayCartItems(localLines) {
+  const paidOnly = (Array.isArray(localLines) ? localLines : []).filter(
+    (it) => !isBundleRewardCartLine(it)
+  );
+  const withBundle = applyGuestCartBundleQuantities(paidOnly);
+  return sortCartItemsForDisplay(expandCartItemsWithBundleRewards(withBundle));
 }
 
 const CartContext = createContext();
@@ -90,7 +103,10 @@ export function CartProvider({ children }) {
     if (savedCart) {
       try {
         const parsed = JSON.parse(savedCart);
-        setLocalCartItems(Array.isArray(parsed) ? parsed : []);
+        const paidOnly = Array.isArray(parsed)
+          ? parsed.filter((it) => !isBundleRewardCartLine(it))
+          : [];
+        setLocalCartItems(applyGuestCartBundleQuantities(paidOnly));
         const lastActivity = localStorage.getItem('cartLastActivity');
         if (lastActivity) {
           setLastActivityTime(parseInt(lastActivity, 10));
@@ -123,7 +139,7 @@ export function CartProvider({ children }) {
 
   // Merged view: API truth + optimistic pending lines + client-persisted image snapshots.
   const cartItems = useMemo(() => {
-    if (!useApiCart) return localCartItems;
+    if (!useApiCart) return buildGuestDisplayCartItems(localCartItems);
     return buildDisplayCartItems(apiCartItemsForMerge, localCartItems);
   }, [useApiCart, apiCartItemsForMerge, localCartItems]);
 
@@ -201,7 +217,8 @@ export function CartProvider({ children }) {
   useEffect(() => {
     if (isClient && typeof window !== 'undefined') {
       const storageKey = isAuthenticated ? API_CART_CACHE_STORAGE_KEY : GUEST_CART_STORAGE_KEY;
-      localStorage.setItem(storageKey, JSON.stringify(localCartItems));
+      const paidOnly = localCartItems.filter((it) => !isBundleRewardCartLine(it));
+      localStorage.setItem(storageKey, JSON.stringify(paidOnly));
       setLastActivityTime(Date.now());
       localStorage.setItem('cartLastActivity', Date.now().toString());
     }
@@ -243,7 +260,8 @@ export function CartProvider({ children }) {
 
     const prev = localCartItemsRef.current;
     const rollback = buildAddRollbackTarget(prev, persistable, addQty);
-    const nextItems = addOrMergeCartLine(prev, persistable, addQty);
+    const merged = addOrMergeCartLine(prev, persistable, addQty);
+    const nextItems = useApiCart ? merged : applyGuestCartBundleQuantities(merged);
 
     setLocalCartItems(nextItems);
     localCartItemsRef.current = nextItems;
@@ -340,9 +358,14 @@ export function CartProvider({ children }) {
     }
 
     setLocalCartItems((prevItems) =>
-      prevItems.filter(
-        (row) =>
-          row.cartItemKey !== idOrKey && row.id !== idOrKey && row.cartItemId !== idOrKey
+      applyGuestCartBundleQuantities(
+        prevItems.filter(
+          (row) =>
+            !isBundleRewardCartLine(row) &&
+            row.cartItemKey !== idOrKey &&
+            row.id !== idOrKey &&
+            row.cartItemId !== idOrKey
+        )
       )
     );
   };
@@ -410,11 +433,12 @@ export function CartProvider({ children }) {
       return;
     }
 
-    setLocalCartItems((prevItems) =>
-      prevItems.map((row) =>
-        lineMatchesKey(row, idOrKey) ? { ...row, quantity } : row
-      )
-    );
+    setLocalCartItems((prevItems) => {
+      const updated = prevItems
+        .filter((row) => !isBundleRewardCartLine(row))
+        .map((row) => (lineMatchesKey(row, idOrKey) ? { ...row, quantity } : row));
+      return applyGuestCartBundleQuantities(updated);
+    });
     setLastActivityTime(Date.now());
   };
 

@@ -121,6 +121,11 @@ export function buildPersistableCartLineFromProduct(product) {
       ? product.category
       : product.category?.name ?? product.categoryName ?? undefined;
 
+  const bundleRules =
+    product.bundleRules ??
+    product.bundle_rules ??
+    (Array.isArray(product.product?.bundleRules) ? product.product.bundleRules : null);
+
   const leanProduct = {
     id: productId ?? id,
     name: product.name,
@@ -128,6 +133,7 @@ export function buildPersistableCartLineFromProduct(product) {
     thumbnailUrl: typeof product.thumbnailUrl === 'string' ? product.thumbnailUrl : undefined,
     imageUrl: product.imageUrl ?? product.image_url ?? undefined,
     image: typeof product.image === 'string' ? product.image : undefined,
+    ...(Array.isArray(bundleRules) && bundleRules.length ? { bundleRules } : {}),
   };
 
   return {
@@ -148,21 +154,24 @@ export function buildPersistableCartLineFromProduct(product) {
     category,
     product: leanProduct,
     cartItemKey,
+    ...(Array.isArray(bundleRules) && bundleRules.length ? { bundleRules } : {}),
   };
 }
 
 export function addOrMergeCartLine(prevItems, persistableLine, addQty) {
   const safeAdd = Math.max(1, Number(addQty) || 1);
+  const paidOnly = (Array.isArray(prevItems) ? prevItems : []).filter(
+    (it) => !isBundleRewardCartLine(it)
+  );
   const key = persistableLine.cartItemKey;
-  const idx = prevItems.findIndex((it) => {
-    if (isBundleRewardCartLine(it)) return false;
+  const idx = paidOnly.findIndex((it) => {
     const ik = it.cartItemKey ?? `${it.id ?? it.productId}_${cartLineSizeKey(it)}`;
     return ik === key;
   });
   if (idx === -1) {
-    return [...prevItems, { ...persistableLine, quantity: safeAdd }];
+    return [...paidOnly, { ...persistableLine, quantity: safeAdd }];
   }
-  return prevItems.map((row, i) => {
+  return paidOnly.map((row, i) => {
     if (i !== idx) return row;
     return {
       ...row,

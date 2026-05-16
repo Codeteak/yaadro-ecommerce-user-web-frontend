@@ -155,6 +155,27 @@ function hasBundleRewardForParent(items, parentId) {
   });
 }
 
+/** Apply buy-X-get-Y free/display quantities on guest (localStorage) cart lines. */
+export function applyGuestCartLineBundleQuantities(item) {
+  if (!item || isBundleRewardCartLine(item)) return item;
+  const paid = Math.max(1, Number(item.quantity) || 0);
+  const line = { ...item, quantity: paid };
+  const free = getBundleFreeExtraOnPaidLine(line);
+  return {
+    ...line,
+    quantity: paid,
+    displayQuantity: paid + free,
+    freeQuantity: free,
+  };
+}
+
+export function applyGuestCartBundleQuantities(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter((it) => !isBundleRewardCartLine(it))
+    .map(applyGuestCartLineBundleQuantities);
+}
+
 /**
  * Ensures buy-X-get-Y free units appear as their own cart row in the UI.
  * Idempotent when the API already returns `…:bundle-reward` lines.
