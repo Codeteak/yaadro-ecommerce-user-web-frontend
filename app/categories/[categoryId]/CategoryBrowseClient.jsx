@@ -30,7 +30,7 @@ function SubcategoryRailItem({ active, label, imageUrl, onClick }) {
           <img
             src={imageUrl}
             alt=""
-            className="absolute inset-0 block h-full w-full scale-110 object-cover object-center"
+            className="absolute inset-0 block h-full w-full object-contain object-center"
             loading="lazy"
           />
         ) : (
@@ -434,7 +434,7 @@ function CategoryBrowseInner() {
                 <div className="relative h-11 w-11 overflow-hidden rounded-lg bg-gray-100">
                   {imageUrl ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+                    <img src={imageUrl} alt="" className="h-full w-full object-contain object-center" />
                   ) : (
                     <span className="flex h-full w-full items-center justify-center text-[12px] font-bold text-gray-400">
                       All
@@ -464,7 +464,7 @@ function CategoryBrowseInner() {
                     <div className="relative h-11 w-11 overflow-hidden rounded-lg bg-gray-100">
                       {thumb ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={thumb} alt="" className="h-full w-full object-cover" loading="lazy" />
+                        <img src={thumb} alt="" className="h-full w-full object-contain object-center" loading="lazy" />
                       ) : (
                         <span className="flex h-full w-full items-center justify-center text-[12px] font-bold text-gray-400">
                           {sub.name.slice(0, 1).toUpperCase()}

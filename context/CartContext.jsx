@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import { useAlert } from './AlertContext';
 import { useCartQuery, useAddToCart, useUpdateCartItem, useRemoveFromCart, useClearCart, cartKeys } from '../hooks/useCart';
+import { expandCartItemsWithBundleRewards, sumCartDisplayUnits } from '../utils/cartPromotions';
 import {
   addOrMergeCartLine,
   applyAddRollback,
@@ -13,7 +14,16 @@ import {
   cartLinesMatch,
   mergeServerCartWithLocalLines,
   persistCartLinesImmediate,
+  sortCartItemsForDisplay,
 } from '../utils/cartLinePersist';
+
+function buildDisplayCartItems(serverLines, localLines) {
+  const merged =
+    Array.isArray(serverLines) && serverLines.length > 0
+      ? mergeServerCartWithLocalLines(serverLines, localLines)
+      : localLines;
+  return sortCartItemsForDisplay(expandCartItemsWithBundleRewards(merged));
+}
 
 const CartContext = createContext();
 const GUEST_CART_STORAGE_KEY = 'cart';
@@ -114,14 +124,15 @@ export function CartProvider({ children }) {
   // Merged view: API truth + optimistic pending lines + client-persisted image snapshots.
   const cartItems = useMemo(() => {
     if (!useApiCart) return localCartItems;
-    return mergeServerCartWithLocalLines(apiCartItemsForMerge, localCartItems);
+    return buildDisplayCartItems(apiCartItemsForMerge, localCartItems);
   }, [useApiCart, apiCartItemsForMerge, localCartItems]);
 
   // Keep local cache aligned with server while preserving snapshot URLs from the client.
   useEffect(() => {
     if (!useApiCart) return;
     if (loading) return;
-    setLocalCartItems((prev) => mergeServerCartWithLocalLines(apiCartItemsForMerge, prev));
+    if (!apiCartItemsForMerge.length) return;
+    setLocalCartItems((prev) => buildDisplayCartItems(apiCartItemsForMerge, prev));
   }, [useApiCart, loading, apiCartItemsForMerge]);
 
   // TanStack Query mutations and client
@@ -165,7 +176,7 @@ export function CartProvider({ children }) {
           const qty = Number(it?.quantity ?? 1) || 1;
           if (!it?.id && !it?.productId && !it?.slug) continue;
           try {
-            await addToCartMutation.mutateAsync({ productId: it, quantity: qty });
+            await addToCartMutation.mutateAsync({ productId: it, delta: qty });
           } catch (itemErr) {
             // Continue syncing remaining items instead of failing the whole batch.
             console.error('Skipping invalid local cart item during API sync:', itemErr);
@@ -242,21 +253,19 @@ export function CartProvider({ children }) {
     setLastActivityTime(Date.now());
 
     if (useApiCart && isAuthenticated && token) {
-      const existingWithId = nextItems.find(
-        (it) =>
-          it.cartItemId &&
-          cartLinesMatch(it, persistable)
-      );
-
       return (async () => {
         try {
-          if (existingWithId) {
-            await updateCartItemMutation.mutateAsync({
-              itemId: existingWithId.cartItemId,
-              quantity: existingWithId.quantity,
-            });
-          } else {
-            await addToCartMutation.mutateAsync({ productId: product, quantity: addQty });
+          const cartData = await addToCartMutation.mutateAsync({
+            productId: product,
+            delta: addQty,
+          });
+          if (cartData?.items?.length) {
+            const displayItems = buildDisplayCartItems(cartData.items, []);
+            setLocalCartItems(displayItems);
+            localCartItemsRef.current = displayItems;
+            if (isClient && typeof window !== 'undefined') {
+              persistCartLinesImmediate(displayItems, storageKey);
+            }
           }
         } catch (error) {
           console.error('Error adding to cart (API):', error);
@@ -268,7 +277,7 @@ export function CartProvider({ children }) {
             }
             return rolled;
           });
-          queryClient.invalidateQueries({ queryKey: cartKeys.cart() });
+          queryClient.invalidateQueries({ queryKey: cartKeys.all });
           if (error.message?.includes('Insufficient stock')) {
             showAlert(error.message, 'Insufficient Stock', 'warning');
           } else {
@@ -287,6 +296,7 @@ export function CartProvider({ children }) {
         row.cartItemKey === idOrKey || row.id === idOrKey || row.cartItemId === idOrKey
     );
     if (!item) return;
+    if (item.isBundleReward) return;
 
     const storageKey =
       isAuthenticated && token ? API_CART_CACHE_STORAGE_KEY : GUEST_CART_STORAGE_KEY;
@@ -322,7 +332,7 @@ export function CartProvider({ children }) {
           if (isClient && typeof window !== 'undefined') {
             persistCartLinesImmediate(prevSnapshot, storageKey);
           }
-          queryClient.invalidateQueries({ queryKey: cartKeys.cart() });
+          queryClient.invalidateQueries({ queryKey: cartKeys.all });
           showAlert('Failed to remove item from cart. Please try again.', 'Error', 'error');
         },
       });
@@ -349,11 +359,16 @@ export function CartProvider({ children }) {
 
     const item = cartItems.find((row) => lineMatchesKey(row, idOrKey));
     if (!item) return;
+    if (item.isBundleReward) return;
 
     const storageKey =
       isAuthenticated && token ? API_CART_CACHE_STORAGE_KEY : GUEST_CART_STORAGE_KEY;
 
     if (useApiCart && isAuthenticated && token && item?.cartItemId) {
+      const currentQty = Number(item.quantity) || 0;
+      const delta = quantity - currentQty;
+      if (delta === 0) return;
+
       const prevSnapshot = localCartItemsRef.current.map((x) => ({ ...x }));
       const nextItems = prevSnapshot.map((row) =>
         lineMatchesKey(row, idOrKey) ? { ...row, quantity } : row
@@ -364,8 +379,18 @@ export function CartProvider({ children }) {
         persistCartLinesImmediate(nextItems, storageKey);
       }
       updateCartItemMutation.mutate(
-        { itemId: item.cartItemId, quantity },
+        { itemId: item.cartItemId, delta },
         {
+          onSuccess: (cartData) => {
+            if (cartData?.items?.length) {
+              const displayItems = buildDisplayCartItems(cartData.items, []);
+              setLocalCartItems(displayItems);
+              localCartItemsRef.current = displayItems;
+              if (isClient && typeof window !== 'undefined') {
+                persistCartLinesImmediate(displayItems, storageKey);
+              }
+            }
+          },
           onError: (error) => {
             console.error('Error updating cart quantity:', error);
             setLocalCartItems(prevSnapshot);
@@ -373,7 +398,7 @@ export function CartProvider({ children }) {
             if (isClient && typeof window !== 'undefined') {
               persistCartLinesImmediate(prevSnapshot, storageKey);
             }
-            queryClient.invalidateQueries({ queryKey: cartKeys.cart() });
+            queryClient.invalidateQueries({ queryKey: cartKeys.all });
             if (error.message?.includes('Insufficient stock')) {
               showAlert(error.message, 'Insufficient Stock', 'warning');
             } else {
@@ -557,14 +582,20 @@ export function CartProvider({ children }) {
     }
   };
 
-  // Calculate total number of items in cart
-  const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+  const cartCount =
+    useApiCart && cartData?.displayUnitsTotal != null
+      ? cartData.displayUnitsTotal
+      : sumCartDisplayUnits(cartItems);
 
-  // Calculate total price of all items in cart
-  const cartTotal = cartItems.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0
-  );
+  const cartTotal =
+    useApiCart && cartData?.total != null && Number.isFinite(Number(cartData.total))
+      ? Number(cartData.total)
+      : cartItems.reduce((total, item) => {
+          if (item.isBundleReward) return total;
+          const line = Number(item.lineTotal);
+          if (Number.isFinite(line) && line >= 0) return total + line;
+          return total + (Number(item.price) || 0) * (Number(item.quantity) || 0);
+        }, 0);
 
   const value = {
     cartItems,

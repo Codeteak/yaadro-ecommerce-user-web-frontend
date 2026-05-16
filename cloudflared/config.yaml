@@ -17,6 +17,6 @@ credentials-file: ./cloudflared/credentials.json
 
 ingress:
   - hostname: cu.yaadro.online
-    service: http://localhost:3000
+    service: http://localhost:3003
   # If you use another port, change the line above (e.g. http://localhost:3001).
   - service: http_status:404

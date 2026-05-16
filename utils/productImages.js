@@ -13,6 +13,7 @@ const UUID_RE =
 export function isValidImageReference(segment) {
   const t = String(segment ?? '').trim();
   if (!t) return false;
+  if (t.startsWith('data:image/')) return true;
   if (/^https?:\/\//i.test(t)) return true;
   if (t.startsWith('//') && t.length > 2) return true;
   if (t.startsWith('/') && !t.startsWith('//')) return true;
@@ -26,6 +27,72 @@ export function toImageSrcString(ref) {
   if (!t) return '';
   if (t.startsWith('//')) return `https:${t}`;
   return t;
+}
+
+/**
+ * Fix backend URLs like `https://cdn.example.com/data:image/jpeg;base64,...`.
+ * Returns empty when nothing usable remains.
+ */
+export function sanitizeCartImageReference(ref) {
+  const t = String(ref ?? '').trim();
+  if (!t) return '';
+
+  const dataIdx = t.indexOf('data:image/');
+  if (dataIdx > 0) return t.slice(dataIdx);
+
+  const nestedHttp = t.match(/https?:\/\/[^/]+\/(https?:\/\/.+)$/i);
+  if (nestedHttp?.[1]) return nestedHttp[1];
+
+  return t;
+}
+
+/**
+ * Ordered image candidates from a storefront cart line (GET /storefront/cart item).
+ * @returns {string[]}
+ */
+export function resolveCartLineImageUrls(apiItem) {
+  if (!apiItem || typeof apiItem !== 'object') return [];
+
+  const ordered = [];
+  const seen = new Set();
+
+  const pushRaw = (raw) => {
+    const cleaned = sanitizeCartImageReference(raw);
+    if (!cleaned) return;
+    const segments = cleaned.includes(',')
+      ? parseCommaSeparatedImageUrl(cleaned)
+      : [cleaned];
+    for (const seg of segments) {
+      const u = toImageSrcString(seg);
+      if (!u || !isValidImageReference(u)) continue;
+      const key = u.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      ordered.push(u);
+    }
+  };
+
+  pushRaw(apiItem.global_image_url ?? apiItem.globalImageUrl);
+  pushRaw(apiItem.thumbnail_url ?? apiItem.thumbnail);
+  pushRaw(apiItem.image_url ?? apiItem.imageUrl);
+
+  const mediaUrl = mediaObjectToUrl(apiItem.image);
+  if (mediaUrl) pushRaw(mediaUrl);
+  else if (typeof apiItem.image === 'string') pushRaw(apiItem.image);
+
+  for (const u of normalizeProductImages({
+    imageUrl: apiItem.image_url ?? apiItem.imageUrl,
+    thumbnailUrl: apiItem.thumbnail_url ?? apiItem.thumbnail,
+    thumbnail: apiItem.thumbnail,
+    image: apiItem.image,
+  })) {
+    const key = u.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    ordered.push(u);
+  }
+
+  return ordered;
 }
 
 /**
@@ -164,13 +231,19 @@ export function getCartLinePreviewImageSrc(item) {
   const best = urls.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER);
   if (best) return best;
 
+  const fromApiLine = resolveCartLineImageUrls(item);
+  if (fromApiLine.length > 0) return fromApiLine[0];
+
   const snapshotKeys = [
+    'global_image_url',
+    'globalImageUrl',
     'image_snapshot',
     'image_snapshot_url',
     'image_url_snapshot',
     'product_image_url',
     'thumbnail_url',
     'thumbnail_snapshot',
+    'image_url',
     'cover_image_url',
     'primary_image_url',
     'picture_url',
@@ -179,8 +252,14 @@ export function getCartLinePreviewImageSrc(item) {
   for (const k of snapshotKeys) {
     const raw = item[k];
     if (typeof raw === 'string' && raw.trim()) {
-      const u = toImageSrcString(raw.trim());
-      if (isValidImageReference(u)) return u;
+      const cleaned = sanitizeCartImageReference(raw.trim());
+      const segments = cleaned.includes(',')
+        ? parseCommaSeparatedImageUrl(cleaned)
+        : [cleaned];
+      for (const seg of segments) {
+        const u = toImageSrcString(seg);
+        if (isValidImageReference(u)) return u;
+      }
     }
   }
 
@@ -200,7 +279,8 @@ export function getCartLinePreviewImageSrc(item) {
         ? item.image
         : '';
   if (imgField && imgField.trim()) {
-    const u = toImageSrcString(imgField.trim());
+    const cleaned = sanitizeCartImageReference(imgField.trim());
+    const u = toImageSrcString(cleaned);
     if (isValidImageReference(u) && u !== PRODUCT_IMAGE_PLACEHOLDER) return u;
   }
 

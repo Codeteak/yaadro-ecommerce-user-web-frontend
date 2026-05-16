@@ -385,7 +385,7 @@ export default function Navbar() {
                         src={getResolvedProductImageUrls(product)[0]}
                         alt={`${product.name} – image 1`}
                         fill
-                        className="object-cover"
+                        className="object-contain"
                         sizes="48px"
                       />
                     </div>

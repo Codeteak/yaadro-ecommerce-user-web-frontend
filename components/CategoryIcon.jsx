@@ -51,7 +51,7 @@ export default function CategoryIcon({ category, className = '', size = 'md', fr
   if (icon && isImageUrl(icon)) {
     return (
       <span className={photoWrap}>
-        <Image src={icon} alt={name} fill className="object-cover" sizes={imageSizes} />
+        <Image src={icon} alt={name} fill className="object-contain object-center p-0.5" sizes={imageSizes} />
       </span>
     );
   }
@@ -72,7 +72,7 @@ export default function CategoryIcon({ category, className = '', size = 'md', fr
   if (image && isImageUrl(image)) {
     return (
       <span className={photoWrap}>
-        <Image src={image} alt={name} fill className="object-cover" sizes={imageSizes} />
+        <Image src={image} alt={name} fill className="object-contain object-center p-0.5" sizes={imageSizes} />
       </span>
     );
   }
@@ -81,7 +81,7 @@ export default function CategoryIcon({ category, className = '', size = 'md', fr
   if (imageUrl && isImageUrl(imageUrl)) {
     return (
       <span className={photoWrap}>
-        <Image src={imageUrl} alt={name} fill className="object-cover" sizes={imageSizes} />
+        <Image src={imageUrl} alt={name} fill className="object-contain object-center p-0.5" sizes={imageSizes} />
       </span>
     );
   }

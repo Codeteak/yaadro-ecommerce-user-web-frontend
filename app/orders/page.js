@@ -557,7 +557,7 @@ Payment Status: ${order.paymentStatus}
                             src={getOrderItemImage(item)}
                             alt={item.productName || item.name || 'Item'}
                             fill
-                            className="object-cover"
+                            className="object-contain"
                             sizes="40px"
                           />
                         </div>

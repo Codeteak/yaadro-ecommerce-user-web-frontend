@@ -72,7 +72,7 @@ export default function BannerCarousel({ banners = [] }) {
                 src={banner.image}
                 alt={banner.title || 'Banner'}
                 fill
-                className="object-cover"
+                className="object-contain object-center"
                 priority={index === currentIndex}
                 sizes="100vw"
               />

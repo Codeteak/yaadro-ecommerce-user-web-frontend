@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCart } from '../../context/CartContext';
 import { useAddress } from '../../context/AddressContext';
 import { useAuth } from '../../context/AuthContext';
@@ -11,9 +12,14 @@ import ProductCarousel from '../../components/ProductCarousel';
 import ProductImageWithFallback from '../../components/ProductImageWithFallback';
 import { useProducts } from '../../hooks/useProducts';
 import { placeStorefrontOrder } from '../../utils/storefrontCheckoutApi';
+import { getApiErrorCode, getCheckoutErrorMessage } from '../../utils/apiErrors';
+import { useCartQuery, cartKeys } from '../../hooks/useCart';
+import { couponKeys } from '../../hooks/useCoupons';
 import { useLoginNavigation } from '../../hooks/useLoginNavigation';
+import CheckoutCouponsSection from '../../components/CheckoutCouponsSection';
 import { getCartLinePreviewImageSrc } from '../../utils/productImages';
 import { getCartBottomBarPricing } from '../../utils/cartSavings';
+import { formatInrFromMinor, minorToMajor } from '../../utils/currencyMinor';
 import { useUpdateProfile } from '../../hooks/useAuth';
 import { useLocationService } from '../../context/LocationServiceContext';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -233,16 +239,27 @@ function CodBadge() {
 /* ─────────────────────────────────────────────
    Order items summary
 ───────────────────────────────────────────── */
-function OrderSummary({ cartItems, cartTotal, onQuantityChange, onRemove }) {
+function OrderSummary({
+  cartItems,
+  cartTotal,
+  couponDiscount = 0,
+  onQuantityChange,
+  onRemove,
+}) {
   const { mrpTotal, savings } = getCartBottomBarPricing(cartItems, cartTotal);
+  const promoDiscount = Math.max(0, savings - (couponDiscount > 0.009 ? couponDiscount : 0));
   const discount = savings > 0.009 ? savings : 0;
-  const totalQty = cartItems.reduce((a, i) => a + (Number(i.quantity) || 1), 0);
+  const totalQty = cartItems.reduce(
+    (a, i) => a + (Number(i.displayQuantity) || Number(i.quantity) || 1),
+    0
+  );
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4">
       {/* Item rows */}
       <div className="space-y-3 mb-4">
         {cartItems.map((item) => {
+          const isBundleReward = !!item.isBundleReward;
           const qty = Number(item.quantity) || 1;
           const effectiveUnit = Number.parseFloat(String(item.price ?? '0')) || 0;
           const listUnitRaw =
@@ -251,9 +268,12 @@ function OrderSummary({ cartItems, cartTotal, onQuantityChange, onRemove }) {
               : item.selectedSize?.price != null && Number.isFinite(Number(item.selectedSize.price))
                 ? Number(item.selectedSize.price)
                 : null;
-          const linePay = effectiveUnit * qty;
+          const linePay =
+            Number.isFinite(Number(item.lineTotal)) && item.lineTotal >= 0
+              ? Number(item.lineTotal)
+              : effectiveUnit * qty;
           const showListStrike =
-            listUnitRaw != null && listUnitRaw > effectiveUnit + 1e-9;
+            !isBundleReward && listUnitRaw != null && listUnitRaw > effectiveUnit + 1e-9;
           const imgSrc = getCartLinePreviewImageSrc(item);
           const lineKey = item.cartItemKey ?? item.cartItemId ?? item.id;
           return (
@@ -269,11 +289,21 @@ function OrderSummary({ cartItems, cartTotal, onQuantityChange, onRemove }) {
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-medium text-gray-900 truncate">{item.name}</p>
+                <p className="text-[12px] font-medium text-gray-900 truncate">
+                  {item.name}
+                  {isBundleReward && (
+                    <span className="ml-1.5 rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold uppercase text-emerald-800">
+                      Free
+                    </span>
+                  )}
+                </p>
                 <p className="text-[11px] text-gray-400">
                   {item.sizeDisplay || (item.weight ? `${item.weight} ${item.unit}` : '')}
                 </p>
                 <div className="mt-2 flex items-center justify-between gap-2">
+                  {isBundleReward ? (
+                    <span className="text-[12px] text-gray-600">Qty: {qty}</span>
+                  ) : (
                   <div className="flex flex-shrink-0 items-center overflow-hidden rounded-full border border-gray-200">
                     <button
                       type="button"
@@ -297,9 +327,10 @@ function OrderSummary({ cartItems, cartTotal, onQuantityChange, onRemove }) {
                       +
                     </button>
                   </div>
+                  )}
                   <div className="flex flex-shrink-0 flex-col items-end gap-0.5 text-right">
                     <p className="text-[13px] font-medium tabular-nums text-gray-900">
-                      ₹{linePay.toLocaleString('en-IN')}
+                      {isBundleReward ? 'FREE' : `₹${linePay.toLocaleString('en-IN')}`}
                     </p>
                     {showListStrike && (
                       <p className="text-[11px] text-gray-400 line-through tabular-nums">
@@ -309,7 +340,7 @@ function OrderSummary({ cartItems, cartTotal, onQuantityChange, onRemove }) {
                   </div>
                 </div>
               </div>
-              {onRemove && lineKey != null && (
+              {onRemove && lineKey != null && !isBundleReward && (
                 <button
                   type="button"
                   onClick={() => onRemove(lineKey)}
@@ -347,11 +378,19 @@ function OrderSummary({ cartItems, cartTotal, onQuantityChange, onRemove }) {
             Free
           </span>
         </div>
-        {discount > 0 && (
+        {promoDiscount > 0.009 && (
           <div className="flex justify-between text-gray-500">
-            <span>Discount</span>
+            <span>Promo savings</span>
             <span className="font-medium text-emerald-700 tabular-nums">
-              −₹{discount.toLocaleString('en-IN')}
+              −₹{promoDiscount.toLocaleString('en-IN')}
+            </span>
+          </div>
+        )}
+        {couponDiscount > 0.009 && (
+          <div className="flex justify-between text-gray-500">
+            <span>Coupon</span>
+            <span className="font-medium text-emerald-700 tabular-nums">
+              −₹{couponDiscount.toLocaleString('en-IN')}
             </span>
           </div>
         )}
@@ -412,6 +451,7 @@ function EmptyCheckout() {
 export default function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const { cartItems, cartTotal, clearCart, updateQuantity, removeFromCart } = useCart();
   const {
     addresses,
@@ -427,19 +467,65 @@ export default function CheckoutPage() {
     serviceable: isDeliveryServiceable,
     setShowServiceAreaSheet,
   } = useLocationService();
-  // Storefront order placement: POST /storefront/checkout
 
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // True from the moment the order is successfully placed until navigation completes —
-  // keeps the "Placing order…" loader on screen so the empty cart never flashes.
   const [isFinishing, setIsFinishing] = useState(false);
   const [showPhoneSheet, setShowPhoneSheet] = useState(false);
   const [phoneDraft, setPhoneDraft] = useState('');
   const [phoneOverride, setPhoneOverride] = useState('');
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [showPriceVaryConfirm, setShowPriceVaryConfirm] = useState(false);
+  const [selectedCouponCode, setSelectedCouponCode] = useState('');
+
+  const { data: cartApiData, isFetching: cartPreviewFetching } = useCartQuery({
+    enabled: !!isAuthenticated,
+    couponCode: selectedCouponCode || undefined,
+  });
+
+  const cartSubtotalMinor = useMemo(() => {
+    if (cartApiData?.subtotalBeforeCouponMinor != null) {
+      return cartApiData.subtotalBeforeCouponMinor;
+    }
+    return Math.round((Number(cartTotal) || 0) * 100);
+  }, [cartApiData?.subtotalBeforeCouponMinor, cartTotal]);
+
+  const displayCartTotal = useMemo(() => {
+    if (cartApiData?.total != null && Number.isFinite(Number(cartApiData.total))) {
+      return Number(cartApiData.total);
+    }
+    return Number(cartTotal) || 0;
+  }, [cartApiData?.total, cartTotal]);
+
+  const couponDiscountMajor = useMemo(() => {
+    if (cartApiData?.couponDiscountMinor > 0) {
+      return minorToMajor(cartApiData.couponDiscountMinor);
+    }
+    const preview = cartApiData?.promotions?.coupon;
+    if (preview?.status === 'applied' && preview.discountMinor > 0) {
+      return minorToMajor(preview.discountMinor);
+    }
+    return 0;
+  }, [cartApiData?.couponDiscountMinor, cartApiData?.promotions?.coupon]);
+
+  useEffect(() => {
+    const preview = cartApiData?.promotions?.coupon;
+    if (!selectedCouponCode || !preview || cartPreviewFetching) return;
+    if (preview.status === 'not_applicable') {
+      setSelectedCouponCode('');
+      showAlert(
+        preview.reasonMessage || 'This coupon cannot be applied to your cart.',
+        'Coupon',
+        'warning'
+      );
+    }
+  }, [
+    cartApiData?.promotions?.coupon,
+    selectedCouponCode,
+    cartPreviewFetching,
+    showAlert,
+  ]);
 
   // Pool of products for the "Similar products" carousel — same query as home → cached.
   const { data: similarPoolData } = useProducts({
@@ -490,8 +576,8 @@ export default function CheckoutPage() {
   }, [similarPool, cartProductIds]);
 
   const bottomBarPricing = useMemo(
-    () => getCartBottomBarPricing(cartItems, cartTotal),
-    [cartItems, cartTotal]
+    () => getCartBottomBarPricing(cartItems, displayCartTotal),
+    [cartItems, displayCartTotal]
   );
 
   /* ── Set default address on mount ── */
@@ -525,6 +611,7 @@ export default function CheckoutPage() {
   }, [authHydrated, isAuthenticated, cartItems.length, goToLogin]);
 
   const handleOrderSummaryQuantity = (item, nextQty) => {
+    if (item?.isBundleReward) return;
     const key = item.cartItemKey ?? item.cartItemId ?? item.id;
     if (nextQty < 1) {
       removeFromCart(key);
@@ -564,6 +651,7 @@ export default function CheckoutPage() {
     try {
       const orderResponse = await placeStorefrontOrder({
         notes: notes.trim() || undefined,
+        couponCode: selectedCouponCode.trim() || undefined,
       });
 
       if (!orderResponse?.orderId) throw new Error('Failed to create order');
@@ -585,7 +673,25 @@ export default function CheckoutPage() {
         setIsSubmitting(false);
         return;
       }
-      showAlert(err?.message || 'Failed to place order. Please try again.', 'Error', 'error');
+      const code = getApiErrorCode(err) || err?.code;
+      if (code === 'PRICE_CHANGED') {
+        await queryClient.invalidateQueries({ queryKey: cartKeys.all });
+        await queryClient.invalidateQueries({ queryKey: couponKeys.all });
+      }
+      const couponCodes = new Set([
+        'COUPON_NOT_FOUND',
+        'COUPON_NOT_APPLICABLE',
+        'COUPON_NO_CART_BENEFIT',
+        'COUPON_EXHAUSTED',
+        'MIN_SUBTOTAL_NOT_MET',
+        'FIRST_ORDER_ONLY_NOT_MET',
+        'NEW_CUSTOMER_ONLY_NOT_MET',
+        'EMPTY_CART_WITH_COUPON',
+      ]);
+      if (couponCodes.has(code)) {
+        setSelectedCouponCode('');
+      }
+      showAlert(getCheckoutErrorMessage(err), code === 'PRICE_CHANGED' ? 'Cart updated' : 'Error', code === 'PRICE_CHANGED' ? 'warning' : 'error');
       setIsSubmitting(false);
     }
   };
@@ -721,6 +827,19 @@ export default function CheckoutPage() {
           <CodBadge />
         </div>
 
+        {/* ── Coupons (applied at checkout via POST /storefront/checkout) ── */}
+        <div className="px-4 pt-5 pb-1">
+          <CheckoutCouponsSection
+            cartSubtotalMinor={cartSubtotalMinor}
+            selectedCouponCode={selectedCouponCode}
+            onSelectCouponCode={setSelectedCouponCode}
+            couponPreview={cartApiData?.promotions?.coupon}
+            suggestedCoupons={cartApiData?.promotions?.suggestedCoupons}
+            isPreviewLoading={cartPreviewFetching}
+            promotionsPaused={cartApiData?.promotions?.paused}
+          />
+        </div>
+
         {/* ── You might also like (above order summary) ── */}
         {checkoutMightLikeSection && (
           <section
@@ -753,7 +872,8 @@ export default function CheckoutPage() {
           <SectionLabel>Order summary</SectionLabel>
           <OrderSummary
             cartItems={cartItems}
-            cartTotal={cartTotal}
+            cartTotal={displayCartTotal}
+            couponDiscount={couponDiscountMajor}
             onQuantityChange={handleOrderSummaryQuantity}
             onRemove={removeFromCart}
           />

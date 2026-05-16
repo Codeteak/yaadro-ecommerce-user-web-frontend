@@ -172,7 +172,7 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
                     alt=""
                     width={36}
                     height={36}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain"
                     sizes="36px"
                   />
                 </span>

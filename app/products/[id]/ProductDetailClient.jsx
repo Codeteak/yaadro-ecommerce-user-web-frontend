@@ -11,6 +11,8 @@ import {
   getProductDiscount,
   getEffectivePrice,
   formatRupeeINR,
+  formatBundleRuleLabel,
+  getPrimaryBundleRule,
 } from '../../../utils/productUtils';
 import Container from '../../../components/Container';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
@@ -20,6 +22,8 @@ import { SHOW_PRODUCT_EXTENDED_SECTIONS } from './productDetailFlags';
 import { getResolvedProductImageUrls } from '../../../utils/productImages';
 import ProductImageWithFallback from '../../../components/ProductImageWithFallback';
 import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
+import { getCartLineDisplayQty } from '../../../utils/cartPromotions';
+import { findPaidCartLine } from '../../../utils/cartLinePersist';
 
 /** Gap between cart pill bottom and the top edge of the PDP fixed bottom bar. */
 const CART_PILL_GAP_ABOVE_PDP_BAR_PX = 12;
@@ -131,6 +135,11 @@ export default function ProductDetailClient({ productId = null }) {
 
   const rating = product ? getProductRating(product) : 0;
   const discount = product ? getProductDiscount(product) : 0;
+  const bundleLabel = useMemo(() => {
+    if (!product) return null;
+    const rule = getPrimaryBundleRule(product);
+    return rule ? formatBundleRuleLabel(rule) : null;
+  }, [product]);
 
   const galleryUrls = useMemo(
     () => (product ? getResolvedProductImageUrls(product) : []),
@@ -240,23 +249,14 @@ export default function ProductDetailClient({ productId = null }) {
     [product, effectivePrice, mrpDisplay, selectedSize, displayWeight]
   );
 
-  const cartLine = useMemo(() => {
-    if (!product) return null;
-    const productId = product.id;
-    const sizeKey = selectedSize
-      ? `${selectedSize.weight}${selectedSize.unit}`
-      : 'default';
-    return cartItems.find((item) => {
-      const pid = item.productId ?? item.product?.id ?? item.id;
-      if (String(pid) !== String(productId)) return false;
-      const itemSizeKey = item.selectedSize
-        ? `${item.selectedSize.weight}${item.selectedSize.unit}`
-        : 'default';
-      return itemSizeKey === sizeKey;
-    });
-  }, [cartItems, product, selectedSize]);
+  const cartLine = useMemo(
+    () => (product ? findPaidCartLine(cartItems, product.id, selectedSize) : null),
+    [cartItems, product, selectedSize]
+  );
 
-  const cartQty = cartLine?.quantity ?? 0;
+  const paidCartQty = cartLine?.quantity ?? 0;
+  const cartBadgeQty = cartLine ? getCartLineDisplayQty(cartLine) : 0;
+  const cartQty = paidCartQty;
   const cartUpdateKey = cartLine
     ? cartLine.cartItemKey ?? cartLine.cartItemId ?? cartLine.id
     : null;
@@ -459,7 +459,7 @@ export default function ProductDetailClient({ productId = null }) {
                     src={u}
                     alt={`${product.name} – thumbnail ${idx + 1}`}
                     fill
-                    className="object-cover"
+                    className="object-contain"
                     sizes="56px"
                   />
                 </button>
@@ -484,6 +484,7 @@ export default function ProductDetailClient({ productId = null }) {
                 {discountValue != null && discountValue > 0 && (
                   <PillTag color="discountGreen">₹{formatRupeeINR(discountValue)} off</PillTag>
                 )}
+                {bundleLabel && <PillTag color="green">{bundleLabel}</PillTag>}
                 {product.inStock ? (
                   <PillTag color="blue">In Stock</PillTag>
                 ) : (
@@ -833,6 +834,7 @@ export default function ProductDetailClient({ productId = null }) {
           {cartQty > 0 && (
             <p className="mt-0.5 text-[11px] text-gray-400 tabular-nums">
               This item: ₹{lineSubtotal} · Qty {cartQty}
+              {bundleFreeExtra > 0 ? ` (+${bundleFreeExtra} free)` : ''}
             </p>
           )}
         </div>

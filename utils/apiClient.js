@@ -227,6 +227,7 @@ export async function apiFetch(path, options = {}) {
     const err = new Error(typeof message === 'string' ? message : String(message));
     err.status = response.status;
     err.data = json;
+    if (json?.error?.code) err.code = json.error.code;
     throw err;
   }
 
@@ -318,6 +319,7 @@ export async function apiFetchRoot(path, options = {}) {
     const err = new Error(typeof message === 'string' ? message : String(message));
     err.status = response.status;
     err.data = json;
+    if (json?.error?.code) err.code = json.error.code;
     throw err;
   }
 

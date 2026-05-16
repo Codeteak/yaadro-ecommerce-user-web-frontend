@@ -37,7 +37,7 @@ function StickyHomeCategoryChip({ category }) {
           src={imgSrc}
           alt={isDummy ? '' : categoryName}
           fill
-          className={isDummy ? 'object-contain p-1.5' : 'object-cover object-center'}
+          className={isDummy ? 'object-contain p-1.5' : 'object-contain object-center p-1'}
           sizes="48px"
           onError={() => {
             if (!isDummy) setImgSrc(CATEGORY_DUMMY_IMAGE);
@@ -491,7 +491,7 @@ export default function Home() {
           {/* Background video */}
           <div className="pointer-events-none absolute inset-0 z-0">
             <video
-              className="h-full w-full object-cover object-bottom"
+              className="h-full w-full object-contain object-center"
               autoPlay
               muted
               loop
@@ -716,7 +716,7 @@ export default function Home() {
         {/* Background video */}
         <div className="pointer-events-none absolute inset-0 z-0">
           <video
-            className="h-full w-full object-cover object-bottom"
+            className="h-full w-full object-contain object-center"
             autoPlay
             muted
             loop
@@ -992,7 +992,7 @@ export default function Home() {
           {/* Background video */}
           <div className="pointer-events-none absolute inset-0 z-0">
             <video
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain object-center"
               autoPlay
               muted
               loop
@@ -1264,14 +1264,8 @@ export default function Home() {
                       src={src}
                       alt=""
                       loading="lazy"
-                      className="transition-transform duration-500 group-hover:scale-[1.05]"
+                      className="absolute inset-0 h-full w-full object-cover object-center"
                       style={{
-                        position: 'absolute',
-                        inset: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        objectPosition: 'center',
                         display: 'block',
                       }}
                       onError={(e) => {

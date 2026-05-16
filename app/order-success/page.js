@@ -119,7 +119,7 @@ function OrderCard({ order, orderId, paymentStatus }) {
               <div key={idx} style={styles.itemRow}>
                 <div style={styles.itemThumb}>
                   {imgSrc
-                    ? <img src={imgSrc} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
+                    ? <img src={imgSrc} alt={name} style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', borderRadius: 8 }} />
                     : <span style={{ fontSize: 18 }}>📦</span>
                   }
                 </div>

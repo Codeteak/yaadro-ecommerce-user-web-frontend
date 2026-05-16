@@ -3,8 +3,15 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useCart } from '../context/CartContext';
-import { getEffectivePrice, formatRupeeINR } from '../utils/productUtils';
+import {
+  getEffectivePrice,
+  formatRupeeINR,
+  formatBundleRuleLabel,
+  getPrimaryBundleRule,
+} from '../utils/productUtils';
 import { getResolvedProductImageUrls } from '../utils/productImages';
+import { getCartLineDisplayQty } from '../utils/cartPromotions';
+import { findPaidCartLine } from '../utils/cartLinePersist';
 import ProductImageWithFallback from './ProductImageWithFallback';
 
 export default function ProductCard({ product, isCarousel = false, variant = 'default' }) {
@@ -62,6 +69,11 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   }, [strikeList, currentPrice, basePrice]);
   const displayWeight = selectedSize ? `${selectedSize.weight} ${selectedSize.unit}` : (product.weight && product.unit ? `${product.weight} ${product.unit}` : '');
 
+  const bundleLabel = useMemo(() => {
+    const rule = getPrimaryBundleRule(product);
+    return rule ? formatBundleRuleLabel(rule) : null;
+  }, [product]);
+
   const productToAddPayload = useMemo(
     () => ({
       ...product,
@@ -74,22 +86,13 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   );
 
   /** Cart line for this card’s product + selected size (matches CartContext keys). */
-  const cartLine = useMemo(() => {
-    const productId = product.id;
-    const sizeKey = selectedSize
-      ? `${selectedSize.weight}${selectedSize.unit}`
-      : 'default';
-    return cartItems.find((item) => {
-      const pid = item.productId ?? item.product?.id ?? item.id;
-      if (String(pid) !== String(productId)) return false;
-      const itemSizeKey = item.selectedSize
-        ? `${item.selectedSize.weight}${item.selectedSize.unit}`
-        : 'default';
-      return itemSizeKey === sizeKey;
-    });
-  }, [cartItems, product.id, selectedSize]);
+  const cartLine = useMemo(
+    () => findPaidCartLine(cartItems, product.id, selectedSize),
+    [cartItems, product.id, selectedSize]
+  );
 
-  const cartQty = cartLine?.quantity ?? 0;
+  const paidCartQty = cartLine?.quantity ?? 0;
+  const cartBadgeQty = cartLine ? getCartLineDisplayQty(cartLine) : 0;
   const cartUpdateKey = cartLine
     ? cartLine.cartItemKey ?? cartLine.cartItemId ?? cartLine.id
     : null;
@@ -118,7 +121,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         setShowSizeSelector(true);
         return;
       }
-      if (cartQty === 0) {
+      if (paidCartQty === 0) {
         setCartActionLoading(true);
         try {
           await addToCart(productToAddPayload, 1);
@@ -130,14 +133,14 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         return;
       }
       if (cartUpdateKey != null) {
-        updateQuantity(cartUpdateKey, cartQty + 1);
+        updateQuantity(cartUpdateKey, paidCartQty + 1);
       }
     },
     [
       cartActionLoading,
       availableSizes.length,
       selectedSize,
-      cartQty,
+      paidCartQty,
       cartUpdateKey,
       addToCart,
       productToAddPayload,
@@ -150,14 +153,14 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       e.preventDefault();
       e.stopPropagation();
       if (cartActionLoading) return;
-      if (!cartLine || cartQty <= 0 || cartUpdateKey == null) return;
-      if (cartQty <= 1) {
+      if (!cartLine || paidCartQty <= 0 || cartUpdateKey == null) return;
+      if (paidCartQty <= 1) {
         removeFromCart(cartUpdateKey);
       } else {
-        updateQuantity(cartUpdateKey, cartQty - 1);
+        updateQuantity(cartUpdateKey, paidCartQty - 1);
       }
     },
-    [cartActionLoading, cartLine, cartQty, cartUpdateKey, removeFromCart, updateQuantity]
+    [cartActionLoading, cartLine, paidCartQty, cartUpdateKey, removeFromCart, updateQuantity]
   );
 
   const productSlugOrId = product.slug || product.id;
@@ -266,21 +269,20 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
                     src={img}
                     alt={`${product.name} – image ${idx + 1}`}
                     fill
-                    className="object-cover rounded-2xl"
+                    className="object-contain rounded-2xl object-center"
                     sizes="(max-width: 640px) 50vw, (max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                   />
                 </div>
               ))}
             </div>
 
-            {/* After transformed carousel so ribbon isn’t covered by compositor layer; full diagonal strip (no tiny clip box). */}
             {saveRupees != null && saveRupees >= 0.005 && (
               <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden rounded-2xl" aria-hidden>
                 <div
-                  className={`absolute bg-gradient-to-br from-red-600 via-red-700 to-red-900 py-[5px] text-center font-extrabold uppercase tracking-wide text-white shadow-[0_3px_10px_rgba(153,27,27,0.55),inset_0_1px_0_rgba(255,255,255,0.28)] ${
+                  className={`absolute flex items-center justify-center whitespace-nowrap bg-gradient-to-br from-red-600 via-red-700 to-red-900 text-center font-extrabold uppercase leading-none tracking-wide text-white shadow-[0_3px_10px_rgba(153,27,27,0.55),inset_0_1px_0_rgba(255,255,255,0.28)] ${
                     isCarousel
-                      ? 'left-[-48px] top-[11px] w-[130px] -rotate-45 text-[8px] leading-tight'
-                      : 'left-[-44px] top-[14px] w-[152px] -rotate-45 text-[9px] leading-tight sm:left-[-40px] sm:top-[17px] sm:w-[164px] sm:text-[10px]'
+                      ? 'left-[-50px] top-[8px] min-h-[22px] w-[134px] -rotate-45 px-1 py-2 text-[8px]'
+                      : 'left-[-46px] top-[11px] min-h-[28px] w-[158px] -rotate-45 px-1.5 py-2.5 text-[9px] sm:left-[-42px] sm:top-[14px] sm:min-h-[30px] sm:w-[170px] sm:py-3 sm:text-[10px]'
                   }`}
                 >
                   <span className="tabular-nums">Save ₹{formatRupeeINR(saveRupees)}</span>
@@ -332,7 +334,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
                   role="status"
                 />
               </div>
-            ) : cartQty > 0 ? (
+            ) : cartBadgeQty > 0 ? (
               <div
                 className="absolute bottom-2 right-2 z-10 flex items-stretch overflow-hidden rounded-lg border-2 border-pink-500 bg-white text-pink-600 shadow-sm"
                 onClick={(e) => {
@@ -349,7 +351,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
                   −
                 </button>
                 <span className="flex min-w-[22px] items-center justify-center border-x border-pink-200 px-1 text-[11px] font-bold tabular-nums">
-                  {cartQty}
+                  {cartBadgeQty}
                 </span>
                 <button
                   type="button"
@@ -378,20 +380,33 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       </div>
 
       <div className="flex flex-1 flex-col gap-2 px-3 pb-3 pt-2 min-h-0">
-        <div className="flex min-h-[34px] flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span className="inline-flex items-center rounded-md bg-green-600 px-2 py-1 text-base font-bold tabular-nums text-white shadow-sm">
-            ₹{formatRupeeINR(currentPrice)}
-          </span>
-          {displayListPrice != null && (
-            <span className="text-xs text-gray-400 line-through tabular-nums">
-              ₹{formatRupeeINR(displayListPrice)}
+        <div className="flex min-h-[34px] flex-col gap-1">
+          {bundleLabel && (
+            <span
+              className={`self-start rounded-md bg-gradient-to-r from-emerald-600 to-emerald-700 font-bold text-white shadow-sm ${
+                isCarousel
+                  ? 'max-w-full px-1.5 py-0.5 text-[8px] leading-tight'
+                  : 'px-2 py-0.5 text-[10px] leading-snug sm:text-[11px]'
+              }`}
+            >
+              {bundleLabel}
             </span>
           )}
-          {saveRupees != null && (
-            <span className="text-[11px] font-semibold text-emerald-700 tabular-nums">
-              Save ₹{formatRupeeINR(saveRupees)}
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="inline-flex items-center rounded-md bg-green-600 px-2 py-1 text-base font-bold tabular-nums text-white shadow-sm">
+              ₹{formatRupeeINR(currentPrice)}
             </span>
-          )}
+            {displayListPrice != null && (
+              <span className="text-xs text-gray-400 line-through tabular-nums">
+                ₹{formatRupeeINR(displayListPrice)}
+              </span>
+            )}
+            {saveRupees != null && (
+              <span className="text-[11px] font-semibold text-emerald-700 tabular-nums">
+                Save ₹{formatRupeeINR(saveRupees)}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="block min-w-0 min-h-[2.5rem]">

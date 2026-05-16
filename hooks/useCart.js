@@ -4,28 +4,45 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCart, addToCart as apiAddToCart, updateCartItem, removeFromCart as apiRemoveFromCart, clearCart as apiClearCart } from '../utils/cartApi';
-
-function sumLineTotals(items) {
-  const list = Array.isArray(items) ? items : [];
-  return list.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 0), 0);
-}
+import { couponKeys } from './useCoupons';
 
 // Query keys
 export const cartKeys = {
   all: ['cart'],
-  cart: () => [...cartKeys.all],
+  /** @param {string|undefined} couponCode Optional coupon preview (GET /storefront/cart?couponCode=) */
+  cart: (couponCode) => [
+    ...cartKeys.all,
+    couponCode ? String(couponCode).trim().toUpperCase() : '',
+  ],
 };
 
+function syncCartFromMutation(queryClient, cartData) {
+  if (!cartData?.items) return;
+  queryClient.setQueryData(cartKeys.cart(), cartData);
+  // Refresh coupon-preview cart queries only — avoid racing GET /cart over mutation payload.
+  queryClient.invalidateQueries({
+    queryKey: cartKeys.all,
+    predicate: (query) => {
+      const code = query.queryKey?.[1];
+      return typeof code === 'string' && code.length > 0;
+    },
+  });
+  queryClient.invalidateQueries({ queryKey: couponKeys.all });
+}
+
 /**
- * Get current user's cart
+ * Get current user's cart (optional coupon preview on read).
  */
 export function useCartQuery(options = {}) {
+  const { couponCode, ...queryOptions } = options;
+  const normalizedCoupon = couponCode ? String(couponCode).trim() : '';
+
   return useQuery({
-    queryKey: cartKeys.cart(),
-    queryFn: () => getCart(),
+    queryKey: cartKeys.cart(normalizedCoupon || undefined),
+    queryFn: () => getCart({ couponCode: normalizedCoupon || undefined }),
     staleTime: 1000 * 30, // 30 seconds
     refetchOnWindowFocus: true,
-    ...options,
+    ...queryOptions,
   });
 }
 
@@ -36,11 +53,12 @@ export function useAddToCart() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ productId, quantity }) => apiAddToCart(productId, quantity),
-    onSuccess: () => {
-      // Invalidate and refetch cart
-      queryClient.invalidateQueries({ queryKey: cartKeys.cart() });
+    mutationFn: ({ productId, quantity, delta, couponCode }) => {
+      const amount = delta ?? quantity ?? 1;
+      const options = couponCode ? { couponCode } : {};
+      return apiAddToCart(productId, amount, options);
     },
+    onSuccess: (cartData) => syncCartFromMutation(queryClient, cartData),
     onError: (error) => {
       console.error('Error adding to cart:', error);
     },
@@ -54,19 +72,15 @@ export function useUpdateCartItem() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ itemId, quantity }) => updateCartItem(itemId, quantity),
-    onSuccess: (data, variables) => {
-      queryClient.setQueryData(cartKeys.cart(), (old) => {
-        if (!old || !Array.isArray(old.items)) return old;
-        const nextItems = old.items.map((it) =>
-          String(it.cartItemId ?? it.id) === String(variables.itemId)
-            ? { ...it, ...data.cartItem, quantity: variables.quantity }
-            : it
-        );
-        const t = sumLineTotals(nextItems);
-        return { ...old, items: nextItems, subtotal: t, total: t };
-      });
+    mutationFn: ({ itemId, quantity, delta, couponCode }) => {
+      const opts = { couponCode: couponCode || undefined };
+      if (delta != null && Number.isFinite(Number(delta))) {
+        opts.delta = Math.trunc(Number(delta));
+        return updateCartItem(itemId, undefined, opts);
+      }
+      return updateCartItem(itemId, quantity, opts);
     },
+    onSuccess: (cartData) => syncCartFromMutation(queryClient, cartData),
   });
 }
 
@@ -77,15 +91,13 @@ export function useRemoveFromCart() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (itemId) => apiRemoveFromCart(itemId),
-    onSuccess: (_void, itemId) => {
-      queryClient.setQueryData(cartKeys.cart(), (old) => {
-        if (!old || !Array.isArray(old.items)) return { items: [], subtotal: 0, total: 0 };
-        const nextItems = old.items.filter((it) => String(it.cartItemId ?? it.id) !== String(itemId));
-        const t = sumLineTotals(nextItems);
-        return { ...old, items: nextItems, subtotal: t, total: t };
-      });
+    mutationFn: (itemId, options) => {
+      if (typeof itemId === 'object' && itemId != null) {
+        return apiRemoveFromCart(itemId.itemId, { couponCode: itemId.couponCode });
+      }
+      return apiRemoveFromCart(itemId, options);
     },
+    onSuccess: (cartData) => syncCartFromMutation(queryClient, cartData),
   });
 }
 
@@ -98,7 +110,7 @@ export function useClearCart() {
   return useMutation({
     mutationFn: () => apiClearCart(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: cartKeys.cart() });
+      queryClient.invalidateQueries({ queryKey: cartKeys.all });
       queryClient.setQueryData(cartKeys.cart(), { items: [], subtotal: 0, total: 0 });
     },
   });

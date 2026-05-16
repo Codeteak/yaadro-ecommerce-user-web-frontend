@@ -3,6 +3,11 @@
 import { useMemo, useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useCart } from '../context/CartContext';
+import {
+  getBundleFreeExtraOnPaidLine,
+  getCartLineDisplayQty,
+  getCartLinePaidQty,
+} from '../utils/cartPromotions';
 import { useWishlist } from '../context/WishlistContext';
 import { formatRupeeINR } from '../utils/productUtils';
 
@@ -54,9 +59,18 @@ export default function CartItem({ item }) {
     [mounted, item.cartItemKey, item.id, item.name]
   );
 
+  const isBundleReward = !!item.isBundleReward;
+  const paidQty = isBundleReward ? Number(item.quantity) || 1 : getCartLinePaidQty(item);
+  const displayQty = isBundleReward ? paidQty : getCartLineDisplayQty(item);
+  const bundleFreeExtra = isBundleReward ? 0 : getBundleFreeExtraOnPaidLine(item);
   const imageSrc = item.image || '/images/dummy.png';
   const unitPrice = parseFloat(item.price);
-  const lineTotal = Number.isFinite(unitPrice) ? unitPrice * item.quantity : 0;
+  const lineTotal =
+    Number.isFinite(Number(item.lineTotal)) && item.lineTotal >= 0
+      ? Number(item.lineTotal)
+      : Number.isFinite(unitPrice)
+        ? unitPrice * item.quantity
+        : 0;
   const originalPrice =
     item.originalPrice != null ? parseFloat(item.originalPrice) : null;
   const hasDiscount =
@@ -71,7 +85,7 @@ export default function CartItem({ item }) {
           src={imageSrc}
           alt={item.name}
           fill
-          className="object-cover"
+          className="object-contain object-center"
           sizes="64px"
         />
       </div>
@@ -83,10 +97,21 @@ export default function CartItem({ item }) {
             <h3 className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2">
               {item.name}
             </h3>
+            {isBundleReward && (
+              <span className="mt-1 inline-block rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800">
+                Free
+              </span>
+            )}
             {item.sizeDisplay && (
               <p className="text-[11px] text-gray-500 mt-0.5">{item.sizeDisplay}</p>
             )}
+            {!isBundleReward && bundleFreeExtra > 0 && (
+              <p className="text-[11px] font-medium text-emerald-700 mt-0.5">
+                +{bundleFreeExtra} free (bundle)
+              </p>
+            )}
           </div>
+          {!isBundleReward && (
           <button
             onClick={handleRemove}
             className="text-gray-400 hover:text-red-500 transition"
@@ -96,13 +121,20 @@ export default function CartItem({ item }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
+          )}
         </div>
 
         <div className="mt-1 flex items-center gap-2">
-          <span className="bg-green-600 text-white text-xs font-semibold px-2 py-1 rounded-md">
-            ₹{formatRupeeINR(unitPrice)}
-          </span>
-          {hasDiscount && (
+          {isBundleReward ? (
+            <span className="rounded-md bg-emerald-600 px-2 py-1 text-xs font-semibold text-white">
+              FREE
+            </span>
+          ) : (
+            <span className="rounded-md bg-green-600 px-2 py-1 text-xs font-semibold text-white">
+              ₹{formatRupeeINR(unitPrice)}
+            </span>
+          )}
+          {!isBundleReward && hasDiscount && (
             <>
               <span className="text-[11px] text-gray-500 line-through">
                 ₹{formatRupeeINR(originalPrice)}
@@ -115,26 +147,37 @@ export default function CartItem({ item }) {
         </div>
 
         <div className="mt-2 flex items-center justify-between">
+          {isBundleReward ? (
+            <span className="text-sm font-semibold text-gray-800">Qty: {item.quantity}</span>
+          ) : (
           <div className="flex items-center gap-2">
             <button
-              onClick={() => handleQuantityChange(item.quantity - 1)}
+              onClick={() => handleQuantityChange(paidQty - 1)}
               className="w-7 h-7 rounded-md bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-sm font-semibold"
             >
               -
             </button>
-            <span className="w-8 text-center text-sm font-semibold text-gray-800">
-              {item.quantity}
+            <span
+              className="w-8 text-center text-sm font-semibold text-gray-800"
+              title={
+                bundleFreeExtra > 0 ? `${paidQty} paid + ${bundleFreeExtra} free` : undefined
+              }
+            >
+              {displayQty}
             </span>
             <button
-              onClick={() => handleQuantityChange(item.quantity + 1)}
+              onClick={() => handleQuantityChange(paidQty + 1)}
               className="w-7 h-7 rounded-md bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-sm font-semibold"
             >
               +
             </button>
           </div>
+          )}
 
           <div className="text-right">
-            <p className="text-sm font-semibold text-gray-900">₹{formatRupeeINR(lineTotal)}</p>
+            <p className="text-sm font-semibold text-gray-900">
+              {isBundleReward ? 'FREE' : `₹${formatRupeeINR(lineTotal)}`}
+            </p>
           </div>
         </div>
 
@@ -157,6 +200,7 @@ export default function CartItem({ item }) {
         )}
 
         {/* Actions */}
+        {!isBundleReward && (
         <div className="mt-2 flex items-center gap-2 flex-wrap">
           <button
             onClick={handleSaveForLater}
@@ -213,6 +257,7 @@ export default function CartItem({ item }) {
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );

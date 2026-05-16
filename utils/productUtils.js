@@ -127,6 +127,38 @@ export function isOnSale(product) {
   );
 }
 
+/** Human-readable label for storefront `bundle_rules[]` (e.g. Buy 2 Get 1 free). */
+export function formatBundleRuleLabel(rule) {
+  if (!rule || typeof rule !== 'object') return '';
+  const buy = Number(rule.buy_qty ?? rule.buyQty);
+  const get = Number(rule.get_qty ?? rule.getQty);
+  const reward = rule.reward_type ?? rule.rewardType;
+  if (Number.isFinite(buy) && buy > 0 && Number.isFinite(get) && get > 0) {
+    if (reward === 'free') return `Buy ${buy} Get ${get} free`;
+    return `Buy ${buy} Get ${get}`;
+  }
+  return 'Bundle offer';
+}
+
+/** Shorter copy for diagonal corner ribbons on narrow product tiles. */
+export function formatBundleRibbonLabel(rule, { compact = false } = {}) {
+  if (!rule || typeof rule !== 'object') return '';
+  const buy = Number(rule.buy_qty ?? rule.buyQty);
+  const get = Number(rule.get_qty ?? rule.getQty);
+  const reward = rule.reward_type ?? rule.rewardType;
+  if (compact && Number.isFinite(buy) && buy > 0 && Number.isFinite(get) && get > 0) {
+    if (reward === 'free') return `B${buy}G${get} FREE`;
+    return `B${buy}G${get}`;
+  }
+  return formatBundleRuleLabel(rule);
+}
+
+export function getPrimaryBundleRule(product) {
+  const rules = product?.bundleRules ?? product?.bundle_rules;
+  if (!Array.isArray(rules) || !rules.length) return null;
+  return rules[0];
+}
+
 // Get product popularity score (based on ratings, views, sales, etc.)
 export function getPopularityScore(product) {
   // Use ratings count and average as popularity indicator

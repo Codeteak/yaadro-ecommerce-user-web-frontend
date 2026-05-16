@@ -84,7 +84,7 @@ export default function WishlistPage() {
                     src={getResolvedProductImageUrls(item)[0]}
                     alt={`${item.name} – image 1`}
                     fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="object-contain object-center"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   />
                 </div>

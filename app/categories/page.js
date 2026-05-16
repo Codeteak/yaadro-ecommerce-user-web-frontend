@@ -166,7 +166,7 @@ function CategoryCard({ category }) {
               inset: 0,
               width: '100%',
               height: '100%',
-              objectFit: 'cover',
+              objectFit: 'contain',
               objectPosition: 'center',
               display: 'block',
             }}
@@ -425,7 +425,7 @@ export default function CategoriesPage() {
                         src={img}
                         alt={p?.name || 'Product'}
                         fill
-                        className="object-cover"
+                        className="object-contain"
                         sizes="48px"
                       />
                     </div>

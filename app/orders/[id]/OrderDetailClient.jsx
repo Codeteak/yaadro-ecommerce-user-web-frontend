@@ -763,7 +763,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                       src={getOrderItemImage(item)}
                       alt={item.productName || item.name || 'Item'}
                       fill
-                      className="object-cover"
+                      className="object-contain"
                       sizes="48px"
                     />
                   </div>

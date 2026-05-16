@@ -5,6 +5,7 @@
 
 import { api, apiFetchRoot } from './apiClient';
 import { resolveShopId } from './authApi';
+import { minorToMajor, parseMinorInt } from './currencyMinor';
 import { mediaObjectToUrl } from './mediaUrl';
 import { normalizeProductImages, PRODUCT_IMAGE_PLACEHOLDER } from './productImages';
 
@@ -89,15 +90,28 @@ function transformProduct(apiProduct) {
   };
 
   // Storefront catalog shape (minor currency units + availability)
-  if (apiProduct.price_minor_per_unit !== undefined) {
-    const priceMinor = Number(apiProduct.price_minor_per_unit || 0);
-    const offerMinor =
-      apiProduct.offer_price_minor_per_unit !== undefined && apiProduct.offer_price_minor_per_unit !== null
-        ? Number(apiProduct.offer_price_minor_per_unit || 0)
-        : null;
+  const isStorefrontCatalog =
+    apiProduct.price_minor_per_unit !== undefined ||
+    apiProduct.final_price_minor !== undefined ||
+    apiProduct.actual_price_minor !== undefined ||
+    apiProduct.total_price_minor !== undefined;
 
-    const price = Number.isFinite(priceMinor) ? priceMinor / 100 : 0;
-    const offerPrice = Number.isFinite(offerMinor) ? offerMinor / 100 : null;
+  if (isStorefrontCatalog) {
+    const listMinor =
+      parseMinorInt(apiProduct.actual_price_minor ?? apiProduct.total_price_minor) ||
+      parseMinorInt(apiProduct.price_minor_per_unit);
+    const finalMinor =
+      parseMinorInt(apiProduct.final_price_minor) ||
+      parseMinorInt(apiProduct.offer_price_minor_per_unit) ||
+      listMinor;
+    const offerLayerMinor = parseMinorInt(apiProduct.offer_price_minor);
+    const promoLayerMinor = parseMinorInt(apiProduct.promo_price_minor);
+    const totalDiscountMinor = parseMinorInt(apiProduct.total_discount_minor);
+
+    const listPrice = minorToMajor(listMinor);
+    const finalPrice = minorToMajor(finalMinor);
+    const hasDiscount = listPrice > 0 && finalPrice < listPrice - 1e-9;
+    const offerPrice = hasDiscount ? finalPrice : null;
 
     const availability = apiProduct.availability || 'unknown';
     const inStock = availability === 'in_stock';
@@ -120,16 +134,39 @@ function transformProduct(apiProduct) {
 
     const slug = resolveProductSlug(apiProduct);
     rememberSlugMapping(apiProduct, slug);
+
+    const discountFromApi = totalDiscountMinor > 0 && listMinor > 0
+      ? (totalDiscountMinor / listMinor) * 100
+      : 0;
+    const discountPercentage =
+      discountFromApi > 0
+        ? Math.round(discountFromApi)
+        : hasDiscount
+          ? Math.round(((listPrice - finalPrice) / listPrice) * 100)
+          : 0;
+
+    const bundleRules = Array.isArray(apiProduct.bundle_rules)
+      ? apiProduct.bundle_rules
+      : Array.isArray(apiProduct.bundleRules)
+        ? apiProduct.bundleRules
+        : [];
+
     return {
       id: apiProduct.id,
       name: apiProduct.name,
       shortName: apiProduct.name,
       slug,
-      price,
-      originalPrice: offerPrice != null && offerPrice < price ? price : null,
-      compareAtPrice: offerPrice != null && offerPrice < price ? price : null,
+      price: listPrice,
+      originalPrice: hasDiscount ? listPrice : null,
+      compareAtPrice: hasDiscount ? listPrice : null,
       offerPrice,
       offerPriceEffective: offerPrice,
+      promoPrice: promoLayerMinor > 0 ? minorToMajor(promoLayerMinor) : null,
+      actualPriceMinor: listMinor,
+      finalPriceMinor: finalMinor,
+      offerPriceMinor: offerLayerMinor,
+      promoPriceMinor: promoLayerMinor,
+      totalDiscountMinor,
       category: normalizeCategoryName(apiProduct.category) || apiProduct.category_slug || '',
       subcategory: '',
       description: '',
@@ -145,12 +182,11 @@ function transformProduct(apiProduct) {
       brand: '',
       sku: '',
       barcode: '',
-      discountPercentage:
-        offerPrice != null && price > 0 ? Math.round(((price - offerPrice) / price) * 100) : 0,
+      discountPercentage,
+      bundleRules,
       shop: null,
       createdAt: apiProduct.created_at || '',
       updatedAt: apiProduct.updated_at || '',
-      // keep raw fields around for UI that wants them
       availability,
       thumbnail: apiProduct.thumbnail || null,
       categoryId: apiProduct.category_id || null,

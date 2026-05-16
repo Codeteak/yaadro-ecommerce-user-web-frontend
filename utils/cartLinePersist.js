@@ -3,6 +3,7 @@ import {
   getResolvedProductImageUrls,
   PRODUCT_IMAGE_PLACEHOLDER,
 } from './productImages';
+import { isBundleRewardCartLine } from './cartPromotions';
 
 export function cartLineSizeKey(item) {
   if (item?.selectedSize && typeof item.selectedSize === 'object') {
@@ -14,11 +15,80 @@ export function cartLineSizeKey(item) {
 }
 
 export function cartLinesMatch(a, b) {
+  const aBundle = isBundleRewardCartLine(a);
+  const bBundle = isBundleRewardCartLine(b);
+  if (aBundle !== bBundle) return false;
+
+  if (aBundle && bBundle) {
+    const idA = String(a?.cartItemId ?? a?.id ?? '');
+    const idB = String(b?.cartItemId ?? b?.id ?? '');
+    if (idA && idB && idA === idB) return true;
+    const srcA = a?.bundleSourceCartItemId ?? a?.bundle_source_cart_item_id;
+    const srcB = b?.bundleSourceCartItemId ?? b?.bundle_source_cart_item_id;
+    return (
+      srcA != null &&
+      srcB != null &&
+      String(srcA) === String(srcB) &&
+      cartLineSizeKey(a) === cartLineSizeKey(b)
+    );
+  }
+
   const pa = a?.productId ?? a?.product?.id ?? a?.id;
   const pb = b?.productId ?? b?.product?.id ?? b?.id;
   if (pa == null || pb == null) return false;
   if (String(pa) !== String(pb)) return false;
   return cartLineSizeKey(a) === cartLineSizeKey(b);
+}
+
+/** Paid cart row for a product (ignores `:bundle-reward` free lines). */
+export function findPaidCartLine(cartItems, productId, selectedSize = null) {
+  if (!Array.isArray(cartItems) || productId == null) return null;
+  const sizeKey = selectedSize
+    ? `${selectedSize.weight}${selectedSize.unit}`
+    : 'default';
+  return (
+    cartItems.find((item) => {
+      if (isBundleRewardCartLine(item)) return false;
+      const pid = item.productId ?? item.product?.id ?? item.id;
+      if (String(pid) !== String(productId)) return false;
+      return cartLineSizeKey(item) === sizeKey;
+    }) ?? null
+  );
+}
+
+/** Paid lines first; each free bundle line directly under its paid parent. */
+export function sortCartItemsForDisplay(items) {
+  if (!Array.isArray(items) || !items.length) return [];
+  const paid = items.filter((it) => !isBundleRewardCartLine(it));
+  const rewards = items.filter((it) => isBundleRewardCartLine(it));
+  const out = [];
+  const usedRewardIds = new Set();
+
+  for (const p of paid) {
+    out.push(p);
+    const parentId = String(p.cartItemId ?? p.id ?? '');
+    for (const r of rewards) {
+      const rid = String(r.cartItemId ?? r.id ?? '');
+      if (usedRewardIds.has(rid)) continue;
+      const src = String(
+        r.bundleSourceCartItemId ??
+          r.bundle_source_item_id ??
+          r.bundle_source_cart_item_id ??
+          ''
+      );
+      if (src && parentId && src === parentId) {
+        out.push(r);
+        usedRewardIds.add(rid);
+      }
+    }
+  }
+
+  for (const r of rewards) {
+    const rid = String(r.cartItemId ?? r.id ?? '');
+    if (!usedRewardIds.has(rid)) out.push(r);
+  }
+
+  return out;
 }
 
 /**
@@ -85,6 +155,7 @@ export function addOrMergeCartLine(prevItems, persistableLine, addQty) {
   const safeAdd = Math.max(1, Number(addQty) || 1);
   const key = persistableLine.cartItemKey;
   const idx = prevItems.findIndex((it) => {
+    if (isBundleRewardCartLine(it)) return false;
     const ik = it.cartItemKey ?? `${it.id ?? it.productId}_${cartLineSizeKey(it)}`;
     return ik === key;
   });
@@ -112,6 +183,7 @@ export function mergeServerCartWithLocalLines(serverLines, localLines) {
   if (!server.length) return client;
 
   const enriched = server.map((s) => {
+    if (isBundleRewardCartLine(s)) return s;
     const hint = client.find((c) => cartLinesMatch(s, c));
     if (!hint) return s;
     const sSrc = getCartLinePreviewImageSrc(s);
@@ -124,13 +196,35 @@ export function mergeServerCartWithLocalLines(serverLines, localLines) {
     // While PATCH/DELETE is in flight, TanStack cache may still hold old qty — prefer matching client line.
     const quantity =
       idsMatch && Number.isFinite(hq) && hq !== sq ? hq : sq;
+    const displayQuantity =
+      Number(s.displayQuantity) > quantity
+        ? Number(s.displayQuantity)
+        : Number(hint.displayQuantity) > quantity
+          ? Number(hint.displayQuantity)
+          : quantity;
+    const freeQuantity =
+      Number(s.freeQuantity) > 0
+        ? Number(s.freeQuantity)
+        : Number(hint.freeQuantity) > 0
+          ? Number(hint.freeQuantity)
+          : Math.max(0, displayQuantity - quantity);
+
     const base =
       sSrc !== PRODUCT_IMAGE_PLACEHOLDER || hSrc === PRODUCT_IMAGE_PLACEHOLDER
-        ? { ...s, name: s.name || hint.name, quantity, cartItemKey: hint.cartItemKey ?? s.cartItemKey }
+        ? {
+            ...s,
+            name: s.name || hint.name,
+            quantity,
+            displayQuantity,
+            freeQuantity,
+            cartItemKey: hint.cartItemKey ?? s.cartItemKey,
+          }
         : {
             ...s,
             name: s.name || hint.name,
             quantity,
+            displayQuantity,
+            freeQuantity,
             cartItemKey: hint.cartItemKey ?? s.cartItemKey,
             image: hint.image,
             imageUrls: hint.imageUrls ?? hint.images,

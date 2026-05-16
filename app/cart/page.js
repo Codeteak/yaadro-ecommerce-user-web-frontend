@@ -11,6 +11,12 @@ import { useProducts } from '../../hooks/useProducts';
 import { useLoginNavigation } from '../../hooks/useLoginNavigation';
 import { getCartLinePreviewImageSrc } from '../../utils/productImages';
 import { computeCartSavings, getCartBottomBarPricing } from '../../utils/cartSavings';
+import {
+  getBundleFreeExtraOnPaidLine,
+  getCartLineDisplayQty,
+  getCartLinePaidQty,
+  sumCartDisplayUnits,
+} from '../../utils/cartPromotions';
 import ConfirmModal from '../../components/ConfirmModal';
 import ProductCarousel from '../../components/ProductCarousel';
 import ProductImageWithFallback from '../../components/ProductImageWithFallback';
@@ -70,17 +76,29 @@ function SectionLabel({ children }) {
 }
 
 function CartItemCard({ item, onQuantityChange, onRemove }) {
+  const isBundleReward = !!item.isBundleReward;
+  const paidQty = isBundleReward ? Number(item.quantity) || 1 : getCartLinePaidQty(item);
+  const displayQty = isBundleReward ? paidQty : getCartLineDisplayQty(item);
+  const bundleFreeExtra = isBundleReward ? 0 : getBundleFreeExtraOnPaidLine(item);
   const imageSrc = getCartLinePreviewImageSrc(item);
   const unitPrice = item.selectedSize?.price ?? parseFloat(item.price);
   const cartItemRef = item.cartItemKey ?? item.cartItemId ?? item.id;
   const originalPrice = item.originalPrice || null;
+  const lineTotal =
+    Number.isFinite(Number(item.lineTotal)) && item.lineTotal >= 0
+      ? Number(item.lineTotal)
+      : unitPrice * (Number(item.quantity) || 1);
   const discountPct =
-    originalPrice && originalPrice > unitPrice
+    !isBundleReward && originalPrice && originalPrice > unitPrice
       ? Math.round(((originalPrice - unitPrice) / originalPrice) * 100)
       : 0;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-3 flex gap-3">
+    <div
+      className={`bg-white rounded-2xl border border-gray-100 p-3 flex gap-3 ${
+        isBundleReward ? 'ml-3 border-emerald-100 bg-emerald-50/40' : ''
+      }`}
+    >
       {/* Image */}
       <div className="w-[72px] h-[72px] rounded-xl bg-gray-50 flex-shrink-0 overflow-hidden flex items-center justify-center">
         <ProductImageWithFallback
@@ -97,19 +115,32 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-medium text-gray-900 leading-snug truncate mb-0.5">
           {item.name}
+          {isBundleReward && (
+            <span className="ml-2 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-emerald-800">
+              Free
+            </span>
+          )}
         </p>
         <p className="text-[11px] text-gray-400 mb-2">
           {item.sizeDisplay || (item.weight && item.unit ? `${item.weight} ${item.unit}` : '')}
           {item.brand ? ` · ${item.brand}` : ''}
         </p>
+        {!isBundleReward && bundleFreeExtra > 0 && (
+          <p className="text-[11px] font-medium text-emerald-700 mb-1">
+            {bundleFreeExtra} free with bundle offer
+            {displayQty > paidQty ? ` · ${displayQty} in cart total` : ''}
+          </p>
+        )}
 
         <div className="flex items-center justify-between">
           {/* Price */}
           <div className="flex items-baseline gap-1.5">
             <span className="text-[15px] font-medium text-gray-900">
-              ₹{(unitPrice * item.quantity).toLocaleString('en-IN')}
+              {isBundleReward
+                ? 'FREE'
+                : `₹${lineTotal.toLocaleString('en-IN')}`}
             </span>
-            {originalPrice && originalPrice > unitPrice && (
+            {!isBundleReward && originalPrice && originalPrice > unitPrice && (
               <span className="text-[11px] text-gray-400 line-through">
                 ₹{(originalPrice * item.quantity).toLocaleString('en-IN')}
               </span>
@@ -119,31 +150,44 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
             )}
           </div>
 
-          {/* Qty stepper */}
-          <div className="flex items-center border border-gray-200 rounded-full overflow-hidden">
-            <button
-              onClick={() => onQuantityChange(cartItemRef, item.quantity - 1)}
-              className="w-8 h-7 flex items-center justify-center text-base text-gray-700 hover:bg-gray-50 transition"
-              aria-label={item.quantity <= 1 ? 'Remove item' : 'Decrease quantity'}
-            >
-              −
-            </button>
-            <span className="text-[13px] font-medium text-gray-900 min-w-[20px] text-center">
-              {item.quantity}
-            </span>
-            <button
-              onClick={() => onQuantityChange(cartItemRef, item.quantity + 1)}
-              disabled={item.quantity >= 10}
-              className="w-8 h-7 flex items-center justify-center text-base text-gray-700 disabled:text-gray-300 hover:bg-gray-50 transition"
-              aria-label="Increase"
-            >
-              +
-            </button>
-          </div>
+          {isBundleReward ? (
+            <span className="text-[12px] font-medium text-gray-600">Qty: {item.quantity}</span>
+          ) : (
+            <div className="flex items-center overflow-hidden rounded-full border border-gray-200">
+              <button
+                type="button"
+                onClick={() => onQuantityChange(cartItemRef, paidQty - 1)}
+                className="flex h-7 w-8 items-center justify-center text-base text-gray-700 transition hover:bg-gray-50"
+                aria-label={paidQty <= 1 ? 'Remove item' : 'Decrease quantity'}
+              >
+                −
+              </button>
+              <span
+                className="min-w-[20px] text-center text-[13px] font-medium text-gray-900"
+                title={
+                  bundleFreeExtra > 0
+                    ? `${paidQty} paid + ${bundleFreeExtra} free`
+                    : undefined
+                }
+              >
+                {displayQty}
+              </span>
+              <button
+                type="button"
+                onClick={() => onQuantityChange(cartItemRef, paidQty + 1)}
+                disabled={paidQty >= 10}
+                className="flex h-7 w-8 items-center justify-center text-base text-gray-700 transition hover:bg-gray-50 disabled:text-gray-300"
+                aria-label="Increase quantity"
+              >
+                +
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Remove */}
+      {!isBundleReward && (
       <button
         onClick={() => onRemove(cartItemRef)}
         className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0 self-start hover:bg-red-50 hover:text-red-500 transition"
@@ -153,6 +197,7 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
         </svg>
       </button>
+      )}
     </div>
   );
 }
@@ -174,10 +219,10 @@ function ActionButton({ onClick, variant = 'default', icon, children }) {
   );
 }
 
-function SummaryCard({ cartItems, cartTotal }) {
+function SummaryCard({ cartItems, cartTotal, totalQty: totalQtyProp }) {
   const { mrpTotal, savings } = getCartBottomBarPricing(cartItems, cartTotal);
   const discount = savings > 0.009 ? savings : 0;
-  const totalQty = cartItems.reduce((a, i) => a + (Number(i.quantity) || 1), 0);
+  const totalQty = totalQtyProp ?? cartItems.reduce((a, i) => a + (Number(i.quantity) || 1), 0);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4 mx-4 mb-3">
@@ -320,6 +365,7 @@ function CartPageContent() {
   const { goToLogin } = useLoginNavigation();
   const {
     cartItems,
+    cartCount,
     cartTotal,
     updateQuantity,
     removeFromCart,
@@ -342,7 +388,7 @@ function CartPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  const totalQty = cartItems.reduce((a, i) => a + i.quantity, 0);
+  const totalQty = cartCount > 0 ? cartCount : sumCartDisplayUnits(cartItems);
 
   /** Include `cartQueryFetching` so post–“Order again” refetch does not flash the empty cart UI. */
   const showCartLoading =
@@ -537,7 +583,7 @@ function CartPageContent() {
           </div>
 
           {/* Order summary */}
-          <SummaryCard cartItems={cartItems} cartTotal={cartTotal} />
+          <SummaryCard cartItems={cartItems} cartTotal={cartTotal} totalQty={totalQty} />
 
           {/* Saved carts */}
           <SavedCartsSection

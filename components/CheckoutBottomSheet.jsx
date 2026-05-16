@@ -35,7 +35,7 @@ export default function CheckoutBottomSheet({
                     src={item.image || item.product?.images?.[0] || '/images/dummy.png'}
                     alt={item.name}
                     fill
-                    className="object-cover"
+                    className="object-contain"
                     sizes="48px"
                   />
                 </div>
