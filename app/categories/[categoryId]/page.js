@@ -1,27 +1,21 @@
 import CategoryBrowseClient from './CategoryBrowseClient';
+import {
+  BUILD_FALLBACK_CATEGORY_SLUGS,
+  fetchCategorySlugsAtBuildTime,
+  warnBuildApiUnavailable,
+} from '../../../utils/buildTimeApi';
 
 export async function generateStaticParams() {
   // Keep export builds working even if API isn't reachable at build time.
-  // In local dev we allow dynamic params; in production export we attempt to pre-render known slugs.
   if (process.env.NODE_ENV !== 'production') return [];
 
   try {
-    const { getCategoriesTree } = await import('../../../utils/productApi');
-    const tree = await getCategoriesTree();
-
-    const out = [];
-    const walk = (nodes) => {
-      (nodes || []).forEach((n) => {
-        const slugOrId = n?.slug || n?.id;
-        if (slugOrId) out.push({ categoryId: String(slugOrId) });
-        if (n?.children?.length) walk(n.children);
-      });
-    };
-    walk(tree);
-
-    return out.length ? out : [{ categoryId: '__placeholder__' }];
-  } catch {
-    return [{ categoryId: '__placeholder__' }];
+    const slugs = await fetchCategorySlugsAtBuildTime();
+    const ids = slugs.length ? slugs : BUILD_FALLBACK_CATEGORY_SLUGS;
+    return ids.map((categoryId) => ({ categoryId: String(categoryId) }));
+  } catch (err) {
+    warnBuildApiUnavailable('Category tree', err);
+    return BUILD_FALLBACK_CATEGORY_SLUGS.map((categoryId) => ({ categoryId }));
   }
 }
 

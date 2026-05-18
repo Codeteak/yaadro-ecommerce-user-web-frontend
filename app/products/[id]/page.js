@@ -1,26 +1,15 @@
 import ProductDetailClient from './ProductDetailClient';
 import { products as staticProducts } from '../../../data/products';
+import {
+  fetchAtBuildTime,
+  getBuildApiBaseUrl,
+  unwrapApiPayload,
+  warnBuildApiUnavailable,
+} from '../../../utils/buildTimeApi';
 
 // In production we use `output: 'export'` (static export), so Next.js needs a fixed
 // list of params to pre-render. In local dev, keep this route fully dynamic.
 export const dynamicParams = process.env.NODE_ENV !== 'production';
-
-function getApiBaseUrl() {
-  const fallback = 'http://localhost:3001/api';
-  const base =
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    (process.env.NEXT_PUBLIC_API_URL ? `${String(process.env.NEXT_PUBLIC_API_URL).trim().replace(/\/+$/, '')}/api` : '') ||
-    fallback;
-  const trimmed = String(base).trim().replace(/\/+$/, '');
-  return trimmed.toLowerCase().endsWith('/api') ? trimmed : `${trimmed}/api`;
-}
-
-function unwrapPayload(json) {
-  if (!json || typeof json !== 'object') return json;
-  // supports { status, data } envelope
-  if ('data' in json && json.data && typeof json.data === 'object') return json.data;
-  return json;
-}
 
 export async function generateStaticParams() {
   if (process.env.NODE_ENV !== 'production') return [];
@@ -31,16 +20,14 @@ export async function generateStaticParams() {
 
   const fetchedIds = [];
   try {
-    const base = getApiBaseUrl();
+    const base = getBuildApiBaseUrl();
     const headers = { Accept: 'application/json' };
     if (shopId) headers['x-shop-id'] = shopId;
 
     const limit = 50;
     for (let offset = 0; offset <= 5000; offset += limit) {
       const url = `${base}/storefront/products?limit=${limit}&offset=${offset}`;
-      const res = await fetch(url, { headers, method: 'GET' });
-      if (!res.ok) break;
-      const json = unwrapPayload(await res.json());
+      const json = unwrapApiPayload(await fetchAtBuildTime(url, { headers }));
       const list = json?.products || [];
       if (!Array.isArray(list) || list.length === 0) break;
       for (const p of list) {
@@ -49,8 +36,8 @@ export async function generateStaticParams() {
       }
       if (list.length < limit) break;
     }
-  } catch {
-    // ignore and fall back to static seed below
+  } catch (err) {
+    warnBuildApiUnavailable('Product list', err);
   }
 
   const seedIds = (staticProducts || [])

@@ -603,7 +603,11 @@ export async function getCategoriesTree() {
 
     return await fetchChildren(null);
   } catch (error) {
-    console.error('Error fetching category tree:', error);
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      // generateStaticParams logs a single build warning; avoid duplicate stack traces.
+    } else {
+      console.error('Error fetching category tree:', error);
+    }
     return [];
   }
 }
