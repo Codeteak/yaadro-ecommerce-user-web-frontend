@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildOtpVerifyRequestBody,
+  normalizePhoneForApi,
   sanitizeOtpVerifyApiPayload,
 } from './otpVerifyPayload.js';
 
@@ -34,4 +35,27 @@ test('sanitizeOtpVerifyApiPayload strips unknown keys', () => {
     code: '9999',
   });
   assert.equal('requestedSessionDays' in clean, false);
+});
+
+test('normalizePhoneForApi strips +91 and returns 10 digits', () => {
+  assert.equal(normalizePhoneForApi('+91 98765 43210'), '9876543210');
+  assert.equal(normalizePhoneForApi('919876543210'), '9876543210');
+  assert.equal(normalizePhoneForApi('09876543210'), '9876543210');
+  assert.equal(normalizePhoneForApi('9876543210'), '9876543210');
+  assert.equal(normalizePhoneForApi('+919876543210'), '9876543210');
+});
+
+test('normalizePhoneForApi rejects numbers not starting with 6-9', () => {
+  assert.equal(normalizePhoneForApi('5876543210'), '');
+  assert.equal(normalizePhoneForApi('1234567890'), '');
+});
+
+test('buildOtpVerifyRequestBody never sends +91 prefix', () => {
+  const body = buildOtpVerifyRequestBody({
+    phone: '+919876543210',
+    shopId: 'shop-1',
+    code: '123456',
+  });
+  assert.equal(body.phone, '9876543210');
+  assert.equal(body.phone.includes('+'), false);
 });

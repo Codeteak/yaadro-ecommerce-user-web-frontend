@@ -5,27 +5,86 @@
 
 import { apiFetchRoot } from './apiClient';
 import { resolveShopId } from './authApi';
+import {
+  minorToMajor,
+  parseMinorInt,
+  parseOrderQuantity,
+} from './orderPromotions';
 
-function minorToMajor(minor) {
-  const n = Number(minor ?? 0);
-  return Number.isFinite(n) ? n / 100 : 0;
+function firstImageUrl(value) {
+  if (value == null || value === '') return null;
+  const s = String(value).trim();
+  if (!s) return null;
+  if (s.includes(',')) return s.split(',')[0].trim() || null;
+  return s;
 }
 
 function resolveOrderItemImage(item = {}) {
+  const nested =
+    typeof item?.image === 'object' && item?.image != null ? item.image.url : item?.image;
   return (
-    item?.product_image_snapshot ||
-    item?.productImage ||
-    item?.product_image ||
-    item?.image_url ||
-    item?.imageUrl ||
-    item?.thumbnail_url ||
-    item?.thumbnailUrl ||
+    firstImageUrl(item?.product_image_snapshot) ||
+    firstImageUrl(item?.productImage) ||
+    firstImageUrl(item?.product_image) ||
+    firstImageUrl(item?.image_url) ||
+    firstImageUrl(item?.imageUrl) ||
+    firstImageUrl(item?.thumbnail_url) ||
+    firstImageUrl(item?.thumbnailUrl) ||
+    firstImageUrl(item?.thumbnail) ||
+    firstImageUrl(nested) ||
     item?.product?.images?.[0] ||
-    item?.product?.imageUrl ||
-    item?.product?.image ||
-    item?.image ||
+    firstImageUrl(item?.product?.imageUrl) ||
+    firstImageUrl(item?.product?.image) ||
     '/images/dummy.png'
   );
+}
+
+function transformOrderItem(item) {
+  if (!item) return null;
+  const quantity = parseOrderQuantity(item.quantity);
+  const unitPriceMinor = parseMinorInt(item.unit_price_minor_snapshot ?? item.unitPriceMinorSnapshot);
+  const lineTotalMinor = parseMinorInt(item.line_total_minor ?? item.lineTotalMinor);
+  const listPriceMinor = parseMinorInt(item.list_price_minor ?? item.listPriceMinor);
+  const lineDiscountMinor = parseMinorInt(item.line_discount_minor ?? item.lineDiscountMinor);
+  const appliedPromotionIds = Array.isArray(item.applied_promotion_ids)
+    ? item.applied_promotion_ids
+    : Array.isArray(item.appliedPromotionIds)
+      ? item.appliedPromotionIds
+      : [];
+  const productName =
+    item.product_name_snapshot ||
+    item.productName ||
+    item.product_name ||
+    item.name ||
+    'Product';
+  const unitPrice = unitPriceMinor > 0 ? minorToMajor(unitPriceMinor) : parseFloat(item.unitPrice || item.unit_price || 0);
+  const totalPrice =
+    lineTotalMinor > 0
+      ? minorToMajor(lineTotalMinor)
+      : parseFloat(item.totalPrice || item.total_price || 0) || unitPrice * quantity;
+  const listPrice = listPriceMinor > 0 ? minorToMajor(listPriceMinor) : null;
+
+  return {
+    id: item.id,
+    productId: item.product_id ?? item.productId,
+    productSlug: item.product_slug ?? item.productSlug,
+    productName,
+    productSku: item.productSku ?? item.product_sku,
+    unitLabel: item.unit_label_snapshot ?? item.unitLabel ?? '',
+    quantity,
+    unitPrice,
+    listPrice,
+    lineDiscountMinor,
+    lineDiscount: minorToMajor(lineDiscountMinor),
+    totalPrice,
+    appliedPromotionIds,
+    hasOffer: appliedPromotionIds.length > 0 || lineDiscountMinor > 0,
+    product: item.product || {},
+    name: productName,
+    image: resolveOrderItemImage(item),
+    price: unitPrice,
+    discount: parseFloat(item.discount || 0),
+  };
 }
 
 /**
@@ -93,6 +152,20 @@ function transformOrder(apiOrder) {
     apiOrder.status || apiOrder.order_status || apiOrder.fulfillment_status || apiOrder.state || '';
   const methodRaw = apiOrder.paymentMethod || apiOrder.payment_method || 'cod';
   const paymentStatusRaw = apiOrder.paymentStatus || apiOrder.payment_status || '';
+  const promotionDiscountMinor = parseMinorInt(
+    apiOrder.promotion_discount_total_minor ?? apiOrder.promotionDiscountTotalMinor
+  );
+  const couponCode =
+    apiOrder.coupon_code_normalized ??
+    apiOrder.couponCode ??
+    apiOrder.coupon_code ??
+    null;
+  const appliedPromotionIds = Array.isArray(apiOrder.applied_promotion_ids)
+    ? apiOrder.applied_promotion_ids
+    : Array.isArray(apiOrder.appliedPromotionIds)
+      ? apiOrder.appliedPromotionIds
+      : [];
+  const promotionDiscountMajor = minorToMajor(promotionDiscountMinor);
 
   return {
     id: apiOrder.id,
@@ -111,10 +184,17 @@ function transformOrder(apiOrder) {
     tax: parseFloat(apiOrder.tax || 0),
     shipping:
       apiOrder.delivery_fee_minor != null ? minorToMajor(apiOrder.delivery_fee_minor) : parseFloat(apiOrder.shipping || 0),
-    discount: parseFloat(apiOrder.discount || 0),
+    discount:
+      promotionDiscountMajor > 0
+        ? promotionDiscountMajor
+        : parseFloat(apiOrder.discount || 0),
     total: apiOrder.total_minor != null ? minorToMajor(apiOrder.total_minor) : parseFloat(apiOrder.total || 0),
+    promotionDiscountMinor,
+    promotionDiscountMajor,
+    couponCode: couponCode ? String(couponCode).trim() : null,
+    appliedPromotionIds,
     offerId: apiOrder.offerId || null,
-    offerCode: apiOrder.offerCode || null,
+    offerCode: apiOrder.offerCode || couponCode || null,
     offerDetails: apiOrder.offerDetails || null,
     deliveryAddress:
       apiOrder.deliveryAddress ||
@@ -137,31 +217,7 @@ function transformOrder(apiOrder) {
           apiOrder.totalItems ??
           (Array.isArray(apiOrder.items) ? apiOrder.items.length : 0)
       ) || 0,
-    items: (apiOrder.items || []).map((item) => {
-      const quantity = Number(item.quantity ?? 1) || 1;
-      const unitPrice =
-        item.unit_price_minor_snapshot != null
-          ? minorToMajor(item.unit_price_minor_snapshot)
-          : parseFloat(item.unitPrice || item.unit_price || 0);
-      const totalPrice =
-        item.line_total_minor != null ? minorToMajor(item.line_total_minor) : parseFloat(item.totalPrice || item.total_price || 0);
-      const productName = item.productName || item.product_name || item.product_name_snapshot || 'Product';
-      return {
-        id: item.id,
-        productId: item.productId || item.product_id,
-        productName,
-        productSku: item.productSku || item.product_sku,
-        quantity,
-        unitPrice,
-        totalPrice: totalPrice || unitPrice * quantity,
-        discount: parseFloat(item.discount || 0),
-        product: item.product || {},
-        // For display purposes (UI expects these)
-        name: productName,
-        image: resolveOrderItemImage(item),
-        price: unitPrice,
-      };
-    }),
+    items: (apiOrder.items || []).map(transformOrderItem).filter(Boolean),
     createdAt: apiOrder.createdAt || apiOrder.created_at || apiOrder.placed_at || '',
     updatedAt: apiOrder.updatedAt || apiOrder.updated_at || '',
     // Storefront API doesn't expose cancel/modify endpoints in current docs
@@ -238,21 +294,13 @@ export async function getOrder(orderId) {
       omitTenantHeader: true,
     });
 
-    const order = transformOrder(response?.order || null);
+    const apiOrder = response?.order || null;
     const items = Array.isArray(response?.items) ? response.items : [];
-    if (order) {
-      order.items = items.map((it) => ({
-        id: it.id,
-        productId: it.product_id,
-        productName: it.product_name_snapshot || it.product_name || it.name || 'Product',
-        quantity: Number(it.quantity ?? 1) || 1,
-        unitPrice: minorToMajor(it.unit_price_minor_snapshot),
-        totalPrice: minorToMajor(it.line_total_minor),
-        name: it.product_name_snapshot || it.product_name || it.name || 'Product',
-        image: resolveOrderItemImage(it),
-        price: minorToMajor(it.unit_price_minor_snapshot),
-        product: it.product || {},
-      }));
+    const order = transformOrder(
+      apiOrder ? { ...apiOrder, items: items.length ? items : apiOrder.items } : null
+    );
+    if (order && items.length) {
+      order.items = items.map(transformOrderItem).filter(Boolean);
       order.itemCount = order.items.length;
     }
     return order;

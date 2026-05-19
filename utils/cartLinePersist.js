@@ -3,7 +3,12 @@ import {
   getResolvedProductImageUrls,
   PRODUCT_IMAGE_PLACEHOLDER,
 } from './productImages';
-import { isBundleRewardCartLine } from './cartPromotions';
+import {
+  applyGuestCartBundleQuantities,
+  isBundleRewardCartLine,
+  readLineFreeQuantity,
+  stripPaidCartLinesOnly,
+} from './cartPromotions';
 
 export function cartLineSizeKey(item) {
   if (item?.selectedSize && typeof item.selectedSize === 'object') {
@@ -57,6 +62,15 @@ export function findPaidCartLine(cartItems, productId, selectedSize = null) {
 }
 
 /** Paid lines first; each free bundle line directly under its paid parent. */
+/** Paid lines only, with bundle free/display fields for optimistic cart UI. */
+export function syncPaidCartCacheLines(serverLines, localLines = []) {
+  const server = stripPaidCartLinesOnly(serverLines);
+  const local = stripPaidCartLinesOnly(localLines);
+  const merged =
+    server.length > 0 ? mergeServerCartWithLocalLines(server, local) : local;
+  return applyGuestCartBundleQuantities(stripPaidCartLinesOnly(merged));
+}
+
 export function sortCartItemsForDisplay(items) {
   if (!Array.isArray(items) || !items.length) return [];
   const paid = items.filter((it) => !isBundleRewardCartLine(it));
@@ -202,21 +216,18 @@ export function mergeServerCartWithLocalLines(serverLines, localLines) {
     const idsMatch = sid.length > 0 && hid.length > 0 && sid === hid;
     const sq = Number(s.quantity) || 1;
     const hq = Number(hint.quantity);
-    // While PATCH/DELETE is in flight, TanStack cache may still hold old qty — prefer matching client line.
-    const quantity =
-      idsMatch && Number.isFinite(hq) && hq !== sq ? hq : sq;
-    const displayQuantity =
-      Number(s.displayQuantity) > quantity
-        ? Number(s.displayQuantity)
-        : Number(hint.displayQuantity) > quantity
-          ? Number(hint.displayQuantity)
-          : quantity;
-    const freeQuantity =
-      Number(s.freeQuantity) > 0
-        ? Number(s.freeQuantity)
-        : Number(hint.freeQuantity) > 0
-          ? Number(hint.freeQuantity)
-          : Math.max(0, displayQuantity - quantity);
+    // While PATCH is in flight, TanStack cache may still hold old qty / offer_quantity — prefer client.
+    const clientQtyWins = idsMatch && Number.isFinite(hq) && hq !== sq;
+    const quantity = clientQtyWins ? hq : sq;
+    const freeQuantity = clientQtyWins
+      ? readLineFreeQuantity(hint)
+      : readLineFreeQuantity(s) || readLineFreeQuantity(hint);
+    const displayQuantity = clientQtyWins
+      ? Math.max(quantity, Number(hint.displayQuantity) || quantity + freeQuantity)
+      : Math.max(
+          quantity,
+          Number(s.displayQuantity) || Number(hint.displayQuantity) || quantity + freeQuantity
+        );
 
     const base =
       sSrc !== PRODUCT_IMAGE_PLACEHOLDER || hSrc === PRODUCT_IMAGE_PLACEHOLDER
@@ -226,6 +237,11 @@ export function mergeServerCartWithLocalLines(serverLines, localLines) {
             quantity,
             displayQuantity,
             freeQuantity,
+            offer_quantity: freeQuantity,
+            offerQuantity: freeQuantity,
+            free_quantity: freeQuantity,
+            display_quantity: displayQuantity,
+            paid_quantity: quantity,
             cartItemKey: hint.cartItemKey ?? s.cartItemKey,
           }
         : {
@@ -234,6 +250,11 @@ export function mergeServerCartWithLocalLines(serverLines, localLines) {
             quantity,
             displayQuantity,
             freeQuantity,
+            offer_quantity: freeQuantity,
+            offerQuantity: freeQuantity,
+            free_quantity: freeQuantity,
+            display_quantity: displayQuantity,
+            paid_quantity: quantity,
             cartItemKey: hint.cartItemKey ?? s.cartItemKey,
             image: hint.image,
             imageUrls: hint.imageUrls ?? hint.images,

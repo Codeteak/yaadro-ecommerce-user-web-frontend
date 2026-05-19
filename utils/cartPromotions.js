@@ -2,6 +2,43 @@
  * Storefront cart promotion helpers (SKU campaigns, bundle BOGO reward lines).
  */
 
+import { formatBundleRuleLabel, getPrimaryBundleRule } from './productUtils';
+
+export function stripPaidCartLinesOnly(items) {
+  return (Array.isArray(items) ? items : []).filter((it) => !isBundleRewardCartLine(it));
+}
+
+export function getCartLineBundleRule(item) {
+  if (!item || isBundleRewardCartLine(item)) return null;
+  return (
+    getPrimaryBundleRule(item?.product) ||
+    getPrimaryBundleRule({
+      bundleRules: item?.bundleRules,
+      bundle_rules: item?.bundle_rules,
+    })
+  );
+}
+
+export function getCartLineBundleLabel(item) {
+  const rule = getCartLineBundleRule(item);
+  return rule ? formatBundleRuleLabel(rule) : null;
+}
+
+export function bundleRewardMatchesParent(rewardLine, parentId) {
+  const pid = String(parentId || '');
+  if (!pid || !isBundleRewardCartLine(rewardLine)) return false;
+  const rid = String(rewardLine.cartItemId ?? rewardLine.id ?? '');
+  if (rid === `${pid}:bundle-reward`) return true;
+  return (
+    String(
+      rewardLine.bundleSourceCartItemId ??
+        rewardLine.bundle_source_item_id ??
+        rewardLine.bundle_source_cart_item_id ??
+        ''
+    ) === pid
+  );
+}
+
 export function isBundleRewardCartLine(apiItem) {
   if (!apiItem) return false;
   const id = String(apiItem.id ?? apiItem.cartItemId ?? '');
@@ -27,12 +64,37 @@ function readQuantityFields(item) {
     };
   }
   const paid = Number(item?.paid_quantity ?? item?.paidQuantity) || Number(item?.quantity) || 0;
+  const hasOffer = item?.offer_quantity != null || item?.offerQuantity != null;
+  const offerQty = Number(item?.offer_quantity ?? item?.offerQuantity);
+  const freeFromOffer =
+    hasOffer && Number.isFinite(offerQty) && offerQty >= 0 ? Math.floor(offerQty) : null;
+  const free =
+    freeFromOffer != null
+      ? freeFromOffer
+      : Number(item?.free_quantity ?? item?.freeQuantity) || 0;
+  const display =
+    Number(item?.display_quantity ?? item?.displayQuantity) || paid + free || paid;
   return {
     paid,
-    free: Number(item?.free_quantity ?? item?.freeQuantity) || 0,
-    display: Number(item?.display_quantity ?? item?.displayQuantity) || paid,
+    free,
+    display: display > 0 ? display : paid,
     billable: Number(item?.billable_quantity ?? item?.billableQuantity) || paid,
+    hasExplicitOffer: hasOffer,
   };
+}
+
+/** Free units on a line from API `offer_quantity` / `free_quantity` / display − paid (no rule inference). */
+export function readLineFreeQuantity(line) {
+  if (!line) return 0;
+  if (line.offer_quantity != null || line.offerQuantity != null) {
+    return Math.max(0, Number(line.offer_quantity ?? line.offerQuantity) || 0);
+  }
+  const fq = Number(line.freeQuantity ?? line.free_quantity);
+  if (Number.isFinite(fq) && fq >= 0) return fq;
+  const dq = Number(line.displayQuantity ?? line.display_quantity);
+  const pq = getCartLinePaidQty(line);
+  if (Number.isFinite(dq) && dq > pq) return dq - pq;
+  return 0;
 }
 
 /** Infer free units from product `bundle_rules` when the cart API omits `free_quantity`. */
@@ -97,10 +159,14 @@ export function sumCartDisplayUnits(items) {
   );
 }
 
-/** Free units on a paid line (from API `free_quantity` or `display_quantity − paid`). */
+/** Free units on a paid line (from API `offer_quantity` / `free_quantity` or bundle rules). */
 export function getBundleFreeExtraOnPaidLine(item) {
   if (!item || isBundleRewardCartLine(item)) return 0;
   const nested = readQuantityFields(item);
+  if (nested.hasExplicitOffer) return Math.max(0, nested.free);
+  if (item.offer_quantity != null || item.offerQuantity != null) {
+    return readLineFreeQuantity(item);
+  }
   if (nested.free > 0) return nested.free;
   const free = Number(item.freeQuantity ?? item.free_quantity);
   if (Number.isFinite(free) && free > 0) return free;
@@ -140,19 +206,7 @@ export function buildSyntheticBundleRewardLine(paidLine, freeQty, parentId) {
 function hasBundleRewardForParent(items, parentId) {
   const pid = String(parentId || '');
   if (!pid) return false;
-  return items.some((it) => {
-    if (!isBundleRewardCartLine(it)) return false;
-    const rid = String(it.cartItemId ?? it.id ?? '');
-    if (rid === `${pid}:bundle-reward`) return true;
-    return (
-      String(
-        it.bundleSourceCartItemId ??
-          it.bundle_source_item_id ??
-          it.bundle_source_cart_item_id ??
-          ''
-      ) === pid
-    );
-  });
+  return items.some((it) => bundleRewardMatchesParent(it, pid));
 }
 
 /** Apply buy-X-get-Y free/display quantities on guest (localStorage) cart lines. */
@@ -164,8 +218,13 @@ export function applyGuestCartLineBundleQuantities(item) {
   return {
     ...line,
     quantity: paid,
-    displayQuantity: paid + free,
+    paid_quantity: paid,
+    offer_quantity: free,
+    offerQuantity: free,
+    free_quantity: free,
     freeQuantity: free,
+    displayQuantity: paid + free,
+    display_quantity: paid + free,
   };
 }
 
@@ -178,22 +237,33 @@ export function applyGuestCartBundleQuantities(items) {
 
 /**
  * Ensures buy-X-get-Y free units appear as their own cart row in the UI.
- * Idempotent when the API already returns `…:bundle-reward` lines.
+ * Recomputes free-line qty when paid qty changes (API or guest cart).
  */
 export function expandCartItemsWithBundleRewards(items) {
   if (!Array.isArray(items) || !items.length) return [];
 
-  const out = [...items];
+  const paidLines = stripPaidCartLinesOnly(items);
+  const rewardLines = items.filter((it) => isBundleRewardCartLine(it));
+  const out = [...paidLines];
 
-  for (const paid of items) {
-    if (isBundleRewardCartLine(paid)) continue;
-    const parentId = String(paid.cartItemId ?? paid.id ?? '');
-    if (!parentId || hasBundleRewardForParent(out, parentId)) continue;
+  for (const paid of paidLines) {
+    const parentId = String(paid.cartItemId ?? paid.id ?? paid.productId ?? '');
+    if (!parentId) continue;
 
     const freeQty = getBundleFreeExtraOnPaidLine(paid);
     if (freeQty <= 0) continue;
 
-    out.push(buildSyntheticBundleRewardLine(paid, freeQty, parentId));
+    const apiReward = rewardLines.find((r) => bundleRewardMatchesParent(r, parentId));
+    if (apiReward) {
+      out.push({
+        ...apiReward,
+        quantity: Math.max(1, Number(apiReward.quantity) || freeQty),
+        displayQuantity: Math.max(1, Number(apiReward.displayQuantity) || freeQty),
+        freeQuantity: Math.max(1, Number(apiReward.freeQuantity) || freeQty),
+      });
+    } else {
+      out.push(buildSyntheticBundleRewardLine(paid, freeQty, parentId));
+    }
   }
 
   return out;
@@ -277,6 +347,12 @@ export function normalizeCartPromotions(raw) {
 
   return {
     paused: !!raw.paused,
+    types,
+    promotionIds: appliedPromotionIds,
+    hasOffer: types.includes('offer'),
+    hasSku: types.includes('sku'),
+    hasBundle: types.includes('bundle'),
+    hasCoupon: types.includes('coupon'),
     auto,
     coupon: {
       code: couponRaw.code ? String(couponRaw.code).toUpperCase() : null,
@@ -289,11 +365,45 @@ export function normalizeCartPromotions(raw) {
   };
 }
 
+const COUPON_REASON_MESSAGES = {
+  COUPON_NO_CART_BENEFIT: 'This coupon has no cart discount rules.',
+  COUPON_NOT_FOUND: 'This coupon code was not found.',
+  COUPON_NOT_APPLICABLE: 'This coupon cannot be used on this order.',
+  COUPON_EXHAUSTED: 'This coupon has reached its usage limit.',
+  MIN_SUBTOTAL_NOT_MET: 'Cart subtotal is below the minimum for this coupon.',
+  FIRST_ORDER_ONLY_NOT_MET: 'Valid on first order only.',
+  NEW_CUSTOMER_ONLY_NOT_MET: 'Valid for new customers only.',
+  EMPTY_CART_WITH_COUPON: 'Add items to your cart before applying a coupon.',
+};
+
+/** User-facing copy for `promotions.coupon` preview from GET /storefront/cart?couponCode= */
+export function formatCartCouponPreviewMessage(coupon) {
+  if (!coupon || typeof coupon !== 'object') return null;
+  const msg = String(coupon.reasonMessage ?? coupon.reason_message ?? '').trim();
+  if (msg) return msg;
+  const code = coupon.reasonCode ?? coupon.reason_code;
+  if (code && COUPON_REASON_MESSAGES[code]) return COUPON_REASON_MESSAGES[code];
+  if (coupon.status === 'not_applicable') return 'This coupon cannot be applied to your cart.';
+  return null;
+}
+
 export function formatCouponIneligibilityHint(codes) {
-  const list = Array.isArray(codes) ? codes : [];
+  const list = Array.isArray(codes) ? codes : codes ? [codes] : [];
   if (!list.length) return null;
-  if (list.includes('MIN_SUBTOTAL_NOT_MET')) return 'Cart subtotal is below the minimum for this coupon';
-  if (list.includes('FIRST_ORDER_ONLY_NOT_MET')) return 'Valid on first order only';
-  if (list.includes('NEW_CUSTOMER_ONLY_NOT_MET')) return 'Valid for new customers only';
+  for (const code of list) {
+    if (code && COUPON_REASON_MESSAGES[code]) return COUPON_REASON_MESSAGES[code];
+  }
+  if (list.includes('MIN_SUBTOTAL_NOT_MET')) return COUPON_REASON_MESSAGES.MIN_SUBTOTAL_NOT_MET;
+  if (list.includes('FIRST_ORDER_ONLY_NOT_MET')) return COUPON_REASON_MESSAGES.FIRST_ORDER_ONLY_NOT_MET;
+  if (list.includes('NEW_CUSTOMER_ONLY_NOT_MET')) return COUPON_REASON_MESSAGES.NEW_CUSTOMER_ONLY_NOT_MET;
   return 'Not applicable to this order';
+}
+
+/** True when GET cart preview applied the selected coupon (1000 minor = ₹10). */
+export function isCartCouponPreviewApplied(coupon, selectedCode) {
+  if (!coupon || !selectedCode) return false;
+  if (coupon.status !== 'applied') return false;
+  return (
+    String(coupon.code || '').toUpperCase() === String(selectedCode).trim().toUpperCase()
+  );
 }

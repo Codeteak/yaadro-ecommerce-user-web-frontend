@@ -35,7 +35,9 @@ function syncCartFromMutation(queryClient, cartData) {
  */
 export function useCartQuery(options = {}) {
   const { couponCode, ...queryOptions } = options;
-  const normalizedCoupon = couponCode ? String(couponCode).trim() : '';
+  const normalizedCoupon = couponCode
+    ? String(couponCode).trim().toUpperCase()
+    : '';
 
   return useQuery({
     queryKey: cartKeys.cart(normalizedCoupon || undefined),

@@ -52,11 +52,21 @@ function readCartLineQuantityFields(apiItem) {
     };
   }
   const rawQty = Number(apiItem?.quantity ?? 1) || 1;
+  const offerQty = Number(apiItem?.offer_quantity ?? apiItem?.offerQuantity);
+  const freeFromOffer =
+    Number.isFinite(offerQty) && offerQty >= 0 ? Math.floor(offerQty) : 0;
+  const free =
+    Number(apiItem?.free_quantity ?? apiItem?.freeQuantity) || freeFromOffer || 0;
+  const paid = Number(apiItem?.paid_quantity ?? apiItem?.paidQuantity) || rawQty;
+  const display =
+    Number(apiItem?.display_quantity ?? apiItem?.displayQuantity) ||
+    paid + free ||
+    rawQty;
   return {
-    billable: Number(apiItem?.billable_quantity ?? apiItem?.billableQuantity) || rawQty,
-    paid: Number(apiItem?.paid_quantity ?? apiItem?.paidQuantity) || rawQty,
-    free: Number(apiItem?.free_quantity ?? apiItem?.freeQuantity) || 0,
-    display: Number(apiItem?.display_quantity ?? apiItem?.displayQuantity) || rawQty,
+    billable: Number(apiItem?.billable_quantity ?? apiItem?.billableQuantity) || paid,
+    paid,
+    free,
+    display: display > 0 ? display : paid,
   };
 }
 
@@ -71,7 +81,9 @@ function normalizeStorefrontCartItemRaw(apiItem) {
   const pricing = apiItem.pricing && typeof apiItem.pricing === 'object' ? apiItem.pricing : null;
   const promo = apiItem.promo && typeof apiItem.promo === 'object' ? apiItem.promo : null;
 
-  if (!hasNestedQty && !pricing && !promo) return apiItem;
+  const hasOfferQty =
+    apiItem.offer_quantity != null || apiItem.offerQuantity != null;
+  if (!hasNestedQty && !pricing && !promo && !hasOfferQty) return apiItem;
 
   const qty = readCartLineQuantityFields(apiItem);
   const isBundleReward = isBundleRewardCartLine(apiItem);
@@ -99,7 +111,9 @@ function normalizeStorefrontCartItemRaw(apiItem) {
     billable_quantity: qty.billable || lineQty,
     paid_quantity: qty.paid,
     free_quantity: qty.free,
-    display_quantity: qty.display > 0 ? qty.display : lineQty,
+    offer_quantity: qty.free,
+    offerQuantity: qty.free,
+    display_quantity: qty.display > 0 ? qty.display : lineQty + qty.free,
     list_price_minor_per_unit: pricing?.list_minor ?? apiItem.list_price_minor_per_unit,
     offer_price_minor_per_unit: pricing?.offer_minor ?? apiItem.offer_price_minor_per_unit,
     final_price_minor: pricing?.final_minor ?? apiItem.final_price_minor,
@@ -277,9 +291,18 @@ function transformCartItem(apiItem, product = null) {
     paidCartItemId: getPaidCartItemId(normalized),
     product: nestedProduct,
     productId,
+    bundleRules:
+      nestedProduct?.bundleRules ??
+      nestedProduct?.bundle_rules ??
+      (Array.isArray(normalized.bundle_rules) ? normalized.bundle_rules : undefined),
     quantity,
-    displayQuantity: Number.isFinite(displayQty) && displayQty > 0 ? displayQty : quantity,
-    freeQuantity: Number.isFinite(freeQty) && freeQty > 0 ? freeQty : 0,
+    paid_quantity: quantity,
+    offer_quantity: Number.isFinite(freeQty) && freeQty >= 0 ? freeQty : 0,
+    offerQuantity: Number.isFinite(freeQty) && freeQty >= 0 ? freeQty : 0,
+    free_quantity: Number.isFinite(freeQty) && freeQty >= 0 ? freeQty : 0,
+    displayQuantity:
+      Number.isFinite(displayQty) && displayQty > 0 ? displayQty : quantity + (freeQty || 0),
+    freeQuantity: Number.isFinite(freeQty) && freeQty >= 0 ? freeQty : 0,
     isBundleReward,
     bundleSourceCartItemId:
       normalized.bundle_source_item_id ??
@@ -434,7 +457,9 @@ export async function getCart(options = {}) {
       throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/* requests on localhost).');
     }
 
-    const couponCode = String(options.couponCode || '').trim();
+    const couponCode = String(options.couponCode || '')
+      .trim()
+      .toUpperCase();
     const query = couponCode ? { couponCode } : undefined;
 
     await ensureCartExists(shopId);
@@ -476,7 +501,9 @@ export async function addToCart(productInput, delta = 1, options = {}) {
     await ensureCartExists(shopId);
 
     const body = { productId, delta: safeDelta };
-    const couponCode = String(options.couponCode || '').trim();
+    const couponCode = String(options.couponCode || '')
+      .trim()
+      .toUpperCase();
     if (couponCode) body.couponCode = couponCode;
 
     const response = await apiFetchRoot('/storefront/cart/items', {
@@ -524,7 +551,9 @@ export async function updateCartItem(itemId, quantity, options = {}) {
       throw new Error('Provide delta or quantity for cart item update.');
     }
 
-    const couponCode = String(options.couponCode || '').trim();
+    const couponCode = String(options.couponCode || '')
+      .trim()
+      .toUpperCase();
     if (couponCode) body.couponCode = couponCode;
 
     const response = await apiFetchRoot(`/storefront/cart/items/${itemId}`, {
@@ -558,7 +587,9 @@ export async function removeFromCart(itemId, options = {}) {
     }
 
     const body = {};
-    const couponCode = String(options.couponCode || '').trim();
+    const couponCode = String(options.couponCode || '')
+      .trim()
+      .toUpperCase();
     if (couponCode) body.couponCode = couponCode;
 
     const response = await apiFetchRoot(`/storefront/cart/items/${itemId}`, {

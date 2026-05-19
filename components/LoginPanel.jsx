@@ -3,14 +3,17 @@
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useAuth } from '../context/AuthContext';
+import IndianPhoneInput from './IndianPhoneInput';
 import {
   resolveShopId,
   normalizeSession,
   requestOtp,
   verifyOtp,
-  normalizeOtpPhone,
+  normalizePhoneForApi,
+  formatPhoneForDisplay,
   updateProfile,
 } from '../utils/authApi';
+import { getIndianPhoneSubmitError } from '../utils/indianPhone';
 
 function ErrorBox({ message }) {
   if (!message) return null;
@@ -101,18 +104,15 @@ function PhoneStep({ phone, setPhone, onSubmit, isSubmitting, inputRef }) {
       <label htmlFor="login-phone" className="block text-[12px] font-medium text-gray-700 mb-1.5">
         Mobile number
       </label>
-      <input
+      <IndianPhoneInput
         ref={inputRef}
-        type="tel"
         id="login-phone"
         value={phone}
-        onChange={(e) => setPhone(e.target.value)}
+        onChange={setPhone}
         onKeyDown={handlePhoneKeyDown}
-        placeholder="e.g. 9876543210"
-        autoComplete="tel"
-        inputMode="tel"
-        required
-        className="mb-4 w-full h-[46px] px-4 rounded-xl border-[1.5px] border-gray-200 text-[14px] text-gray-900 bg-gray-50 focus:outline-none focus:border-emerald-500 focus:bg-white transition placeholder-gray-400"
+        showValidHint={false}
+        className="mb-4"
+        inputClassName="w-full h-[46px] px-4 rounded-xl border-[1.5px] text-[14px] text-gray-900 bg-gray-50 focus:outline-none focus:bg-white transition placeholder-gray-400 border-gray-200 focus:border-emerald-500"
       />
       <PrimaryButton type="submit" loading={isSubmitting} loadingText="Sending…">
         Send OTP
@@ -219,20 +219,17 @@ export default function LoginPanel({ className = '' }) {
     return () => clearTimeout(t);
   }, [step]);
 
-  const normalizedPhone = () => normalizeOtpPhone(phone);
+  const apiPhone = () => normalizePhoneForApi(phone);
+  const displayPhone = () => formatPhoneForDisplay(phone);
 
   const handleRequestOtp = async (e) => {
     e.preventDefault();
     clearError();
     if (!ensureShopId()) return;
-    const nextPhone = normalizedPhone();
-    if (!nextPhone) {
-      setError('Please enter your mobile number.');
-      return;
-    }
-    const digits = nextPhone.replace(/\D/g, '');
-    if (!nextPhone.startsWith('+91') || digits.length !== 12) {
-      setError('Enter a valid Indian mobile number (10 digits, or include +91).');
+    const nextPhone = apiPhone();
+    const phoneErr = getIndianPhoneSubmitError(nextPhone);
+    if (phoneErr) {
+      setError(phoneErr);
       return;
     }
     setIsSubmitting(true);
@@ -250,15 +247,11 @@ export default function LoginPanel({ className = '' }) {
     e.preventDefault();
     clearError();
     if (!ensureShopId()) return;
-    const nextPhone = normalizedPhone();
+    const nextPhone = apiPhone();
     const nextCode = code.trim();
-    if (!nextPhone) {
-      setError('Please enter your mobile number.');
-      return;
-    }
-    const phoneDigits = nextPhone.replace(/\D/g, '');
-    if (!nextPhone.startsWith('+91') || phoneDigits.length !== 12) {
-      setError('Enter a valid Indian mobile number (10 digits, or include +91).');
+    const phoneErr = getIndianPhoneSubmitError(nextPhone);
+    if (phoneErr) {
+      setError(phoneErr);
       setStep('phone');
       return;
     }
@@ -305,14 +298,10 @@ export default function LoginPanel({ className = '' }) {
 
   const handleResend = async () => {
     clearError();
-    const nextPhone = normalizedPhone();
-    if (!nextPhone) {
-      setError('Please enter your mobile number.');
-      return;
-    }
-    const rd = nextPhone.replace(/\D/g, '');
-    if (!nextPhone.startsWith('+91') || rd.length !== 12) {
-      setError('Enter a valid Indian mobile number (10 digits, or include +91).');
+    const nextPhone = apiPhone();
+    const phoneErr = getIndianPhoneSubmitError(nextPhone);
+    if (phoneErr) {
+      setError(phoneErr);
       setStep('phone');
       return;
     }
@@ -344,7 +333,7 @@ export default function LoginPanel({ className = '' }) {
         />
       ) : (
         <OtpStep
-          phone={normalizedPhone()}
+          phone={displayPhone()}
           code={code}
           setCode={(v) => {
             setCode(v);

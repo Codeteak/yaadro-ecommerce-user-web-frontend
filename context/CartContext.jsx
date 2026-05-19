@@ -8,7 +8,10 @@ import { useCartQuery, useAddToCart, useUpdateCartItem, useRemoveFromCart, useCl
 import {
   applyGuestCartBundleQuantities,
   expandCartItemsWithBundleRewards,
+  getCartLinePaidQty,
   isBundleRewardCartLine,
+  bundleRewardMatchesParent,
+  stripPaidCartLinesOnly,
   sumCartDisplayUnits,
 } from '../utils/cartPromotions';
 import {
@@ -20,6 +23,7 @@ import {
   mergeServerCartWithLocalLines,
   persistCartLinesImmediate,
   sortCartItemsForDisplay,
+  syncPaidCartCacheLines,
 } from '../utils/cartLinePersist';
 
 function buildDisplayCartItems(serverLines, localLines) {
@@ -31,10 +35,7 @@ function buildDisplayCartItems(serverLines, localLines) {
 }
 
 function buildGuestDisplayCartItems(localLines) {
-  const paidOnly = (Array.isArray(localLines) ? localLines : []).filter(
-    (it) => !isBundleRewardCartLine(it)
-  );
-  const withBundle = applyGuestCartBundleQuantities(paidOnly);
+  const withBundle = applyGuestCartBundleQuantities(stripPaidCartLinesOnly(localLines));
   return sortCartItemsForDisplay(expandCartItemsWithBundleRewards(withBundle));
 }
 
@@ -148,7 +149,7 @@ export function CartProvider({ children }) {
     if (!useApiCart) return;
     if (loading) return;
     if (!apiCartItemsForMerge.length) return;
-    setLocalCartItems((prev) => buildDisplayCartItems(apiCartItemsForMerge, prev));
+    setLocalCartItems((prev) => syncPaidCartCacheLines(apiCartItemsForMerge, prev));
   }, [useApiCart, loading, apiCartItemsForMerge]);
 
   // TanStack Query mutations and client
@@ -278,11 +279,11 @@ export function CartProvider({ children }) {
             delta: addQty,
           });
           if (cartData?.items?.length) {
-            const displayItems = buildDisplayCartItems(cartData.items, []);
-            setLocalCartItems(displayItems);
-            localCartItemsRef.current = displayItems;
+            const paidCache = syncPaidCartCacheLines(cartData.items, []);
+            setLocalCartItems(paidCache);
+            localCartItemsRef.current = paidCache;
             if (isClient && typeof window !== 'undefined') {
-              persistCartLinesImmediate(displayItems, storageKey);
+              persistCartLinesImmediate(paidCache, storageKey);
             }
           }
         } catch (error) {
@@ -323,11 +324,13 @@ export function CartProvider({ children }) {
       const removedId = String(item.cartItemId);
       setPendingRemovedCartItemIds((prev) => (prev.includes(removedId) ? prev : [...prev, removedId]));
 
-      const prevSnapshot = localCartItemsRef.current.map((x) => ({ ...x }));
-      const nextItems = prevSnapshot.filter(
-        (row) =>
-          row.cartItemKey !== idOrKey && row.id !== idOrKey && row.cartItemId !== idOrKey
-      );
+      const parentId = String(item.cartItemId ?? item.id ?? '');
+      const prevSnapshot = stripPaidCartLinesOnly(localCartItemsRef.current).map((x) => ({ ...x }));
+      const nextItems = prevSnapshot.filter((row) => {
+        if (lineMatchesKey(row, idOrKey)) return false;
+        if (parentId && bundleRewardMatchesParent(row, parentId)) return false;
+        return true;
+      });
       setLocalCartItems(nextItems);
       localCartItemsRef.current = nextItems;
       if (isClient && typeof window !== 'undefined') {
@@ -380,37 +383,39 @@ export function CartProvider({ children }) {
       return;
     }
 
-    const item = cartItems.find((row) => lineMatchesKey(row, idOrKey));
+    const item = cartItems.find(
+      (row) => !isBundleRewardCartLine(row) && lineMatchesKey(row, idOrKey)
+    );
     if (!item) return;
-    if (item.isBundleReward) return;
 
     const storageKey =
       isAuthenticated && token ? API_CART_CACHE_STORAGE_KEY : GUEST_CART_STORAGE_KEY;
 
     if (useApiCart && isAuthenticated && token && item?.cartItemId) {
-      const currentQty = Number(item.quantity) || 0;
+      const currentQty = getCartLinePaidQty(item);
       const delta = quantity - currentQty;
       if (delta === 0) return;
 
-      const prevSnapshot = localCartItemsRef.current.map((x) => ({ ...x }));
-      const nextItems = prevSnapshot.map((row) =>
+      const prevSnapshot = stripPaidCartLinesOnly(localCartItemsRef.current).map((x) => ({ ...x }));
+      const nextPaid = prevSnapshot.map((row) =>
         lineMatchesKey(row, idOrKey) ? { ...row, quantity } : row
       );
-      setLocalCartItems(nextItems);
-      localCartItemsRef.current = nextItems;
+      const optimisticCache = applyGuestCartBundleQuantities(nextPaid);
+      setLocalCartItems(optimisticCache);
+      localCartItemsRef.current = optimisticCache;
       if (isClient && typeof window !== 'undefined') {
-        persistCartLinesImmediate(nextItems, storageKey);
+        persistCartLinesImmediate(optimisticCache, storageKey);
       }
       updateCartItemMutation.mutate(
         { itemId: item.cartItemId, delta },
         {
           onSuccess: (cartData) => {
             if (cartData?.items?.length) {
-              const displayItems = buildDisplayCartItems(cartData.items, []);
-              setLocalCartItems(displayItems);
-              localCartItemsRef.current = displayItems;
+              const paidCache = syncPaidCartCacheLines(cartData.items, []);
+              setLocalCartItems(paidCache);
+              localCartItemsRef.current = paidCache;
               if (isClient && typeof window !== 'undefined') {
-                persistCartLinesImmediate(displayItems, storageKey);
+                persistCartLinesImmediate(paidCache, storageKey);
               }
             }
           },

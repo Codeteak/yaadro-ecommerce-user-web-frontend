@@ -5,6 +5,9 @@ import dynamic from 'next/dynamic';
 import { X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { updateStorefrontProfile, resolveShopId } from '../utils/authApi';
+import { normalizePhoneForApi } from '../utils/otpVerifyPayload';
+import { getIndianPhoneSubmitError } from '../utils/indianPhone';
+import IndianPhoneInput from './IndianPhoneInput';
 
 // Leaflet uses `window` at import time, so we load the picker only on the
 // client to keep this sheet SSR-safe.
@@ -230,13 +233,13 @@ export default function CheckoutAddAddressSheet({
     }
 
     if (needsPhoneField) {
-      const p =
-        phoneDraft.replace(/\D/g, '').slice(0, 10) || phoneFromAddress.replace(/\D/g, '').slice(0, 10);
-      if (!p) errors.phone = 'Enter your 10-digit mobile number';
-      else if (!/^\d{10}$/.test(p)) errors.phone = 'Mobile must be 10 digits';
+      const phoneErr = getIndianPhoneSubmitError(
+        phoneDraft || phoneFromAddress
+      );
+      if (phoneErr) errors.phone = phoneErr;
     } else {
-      const p = phoneFromProfile.replace(/\D/g, '').slice(0, 10);
-      if (p && !/^\d{10}$/.test(p)) errors.phone = 'Update your phone in profile';
+      const phoneErr = getIndianPhoneSubmitError(phoneFromProfile);
+      if (phoneErr) errors.phone = 'Update your phone in profile';
     }
 
     return { errors, ok: Object.keys(errors).length === 0 };
@@ -267,7 +270,7 @@ export default function CheckoutAddAddressSheet({
     address: form.line1.trim(),
     zipCode: form.postalCode.replace(/\s/g, '').trim(),
     fullName: nameResolved,
-    phone: String(phoneResolved || '').replace(/\D/g, '').slice(0, 10),
+    phone: normalizePhoneForApi(phoneResolved),
     isDefault: true,
   });
 
@@ -355,11 +358,9 @@ export default function CheckoutAddAddressSheet({
     if (!validation.ok) return;
 
     const finalName = (needsNameField ? nameDraft.trim() || nameFromAddress : nameFromProfile).trim();
-    const finalPhone = (
-      needsPhoneField
-        ? phoneDraft.replace(/\D/g, '').slice(0, 10) || phoneFromAddress.replace(/\D/g, '').slice(0, 10)
-        : phoneFromProfile.replace(/\D/g, '').slice(0, 10)
-    );
+    const finalPhone = needsPhoneField
+      ? normalizePhoneForApi(phoneDraft) || normalizePhoneForApi(phoneFromAddress)
+      : normalizePhoneForApi(phoneFromProfile);
 
     const shopId = await resolveShopId();
     if (!shopId) {
@@ -518,18 +519,19 @@ export default function CheckoutAddAddressSheet({
                   <label className="text-xs font-semibold text-gray-800">
                     Mobile number <span className="text-red-500">*</span>
                   </label>
-                  <input
+                  <IndianPhoneInput
                     value={phoneDraft}
-                    onChange={(e) => {
-                      setPhoneDraft(e.target.value);
+                    onChange={(v) => {
+                      setPhoneDraft(v);
                       setSubmitError('');
                     }}
-                    inputMode="numeric"
-                    autoComplete="tel"
+                    inputClassName={inputCls('phone')}
                     placeholder="10-digit mobile"
-                    className={inputCls('phone')}
+                    showValidHint={false}
                   />
-                  {err('phone') && <p className="mt-1 text-xs text-red-600">{err('phone')}</p>}
+                  {err('phone') && (
+                    <p className="mt-1 text-xs text-red-600">{err('phone')}</p>
+                  )}
                 </div>
               ) : (
                 <p className="mt-2 text-sm text-gray-800">{phoneFromProfile}</p>

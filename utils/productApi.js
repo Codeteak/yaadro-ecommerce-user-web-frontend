@@ -422,6 +422,46 @@ export function buildStorefrontProductsQuery(raw = {}) {
 }
 
 /**
+ * Normalize `GET /storefront/products` body.
+ * Backend may return a flat `{ products }` list or group by `{ categories: [{ products }] }`.
+ */
+export function extractStorefrontProductsPayload(response) {
+  if (!response || typeof response !== 'object') {
+    return { rawProducts: [], nextCursor: null };
+  }
+
+  const payload =
+    response.data && typeof response.data === 'object' && !Array.isArray(response.data)
+      ? response.data
+      : response;
+
+  const nextCursor = payload.nextCursor ?? payload.next_cursor ?? null;
+
+  if (Array.isArray(payload.products)) {
+    return { rawProducts: payload.products, nextCursor };
+  }
+
+  if (Array.isArray(payload.categories)) {
+    const seen = new Set();
+    const rawProducts = [];
+    for (const cat of payload.categories) {
+      if (!cat || !Array.isArray(cat.products)) continue;
+      for (const p of cat.products) {
+        const id = p?.id != null ? String(p.id) : '';
+        if (id) {
+          if (seen.has(id)) continue;
+          seen.add(id);
+        }
+        rawProducts.push(p);
+      }
+    }
+    return { rawProducts, nextCursor };
+  }
+
+  return { rawProducts: [], nextCursor: null };
+}
+
+/**
  * List products — `GET /storefront/products` with `x-shop-id` header.
  * @param {object} params — passed through {@link buildStorefrontProductsQuery}
  * @returns {Promise<{ products: Array, pagination: { nextCursor: string|null } }>}
@@ -443,10 +483,12 @@ export async function getProducts(params = {}) {
       omitTenantHeader: true,
     });
 
+    const { rawProducts, nextCursor } = extractStorefrontProductsPayload(response);
+
     return {
-      products: (response?.products || []).map(transformProduct),
+      products: rawProducts.map(transformProduct).filter(Boolean),
       pagination: {
-        nextCursor: response?.nextCursor ?? null,
+        nextCursor,
       },
     };
   } catch (error) {

@@ -13,6 +13,7 @@ import { getCartLinePreviewImageSrc } from '../../utils/productImages';
 import { computeCartSavings, getCartBottomBarPricing } from '../../utils/cartSavings';
 import {
   getBundleFreeExtraOnPaidLine,
+  getCartLineBundleLabel,
   getCartLineDisplayQty,
   getCartLinePaidQty,
   sumCartDisplayUnits,
@@ -80,6 +81,7 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
   const paidQty = isBundleReward ? Number(item.quantity) || 1 : getCartLinePaidQty(item);
   const displayQty = isBundleReward ? paidQty : getCartLineDisplayQty(item);
   const bundleFreeExtra = isBundleReward ? 0 : getBundleFreeExtraOnPaidLine(item);
+  const bundleLabel = isBundleReward ? null : getCartLineBundleLabel(item);
   const imageSrc = getCartLinePreviewImageSrc(item);
   const unitPrice = item.selectedSize?.price ?? parseFloat(item.price);
   const cartItemRef = item.cartItemKey ?? item.cartItemId ?? item.id;
@@ -100,15 +102,22 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
       }`}
     >
       {/* Image */}
-      <div className="w-[72px] h-[72px] rounded-xl bg-gray-50 flex-shrink-0 overflow-hidden flex items-center justify-center">
-        <ProductImageWithFallback
-          src={imageSrc}
-          alt={item.name}
-          width={72}
-          height={72}
-          className="w-full h-full object-contain"
-          sizes="72px"
-        />
+      <div className="relative w-[72px] h-[72px] flex-shrink-0">
+        {bundleLabel && (
+          <span className="absolute left-0 top-0 z-10 max-w-[68px] rounded-br-lg rounded-tl-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-1 py-0.5 text-[8px] font-bold leading-tight text-white shadow-sm">
+            {bundleLabel}
+          </span>
+        )}
+        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-xl bg-gray-50">
+          <ProductImageWithFallback
+            src={imageSrc}
+            alt={item.name}
+            width={72}
+            height={72}
+            className="h-full w-full object-contain"
+            sizes="72px"
+          />
+        </div>
       </div>
 
       {/* Body */}
@@ -170,7 +179,7 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
                     : undefined
                 }
               >
-                {displayQty}
+                {paidQty}
               </span>
               <button
                 type="button"

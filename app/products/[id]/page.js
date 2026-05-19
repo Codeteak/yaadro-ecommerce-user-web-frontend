@@ -6,6 +6,7 @@ import {
   unwrapApiPayload,
   warnBuildApiUnavailable,
 } from '../../../utils/buildTimeApi';
+import { extractStorefrontProductsPayload } from '../../../utils/productApi';
 
 // In production we use `output: 'export'` (static export), so Next.js needs a fixed
 // list of params to pre-render. In local dev, keep this route fully dynamic.
@@ -28,7 +29,7 @@ export async function generateStaticParams() {
     for (let offset = 0; offset <= 5000; offset += limit) {
       const url = `${base}/storefront/products?limit=${limit}&offset=${offset}`;
       const json = unwrapApiPayload(await fetchAtBuildTime(url, { headers }));
-      const list = json?.products || [];
+      const { rawProducts: list } = extractStorefrontProductsPayload(json);
       if (!Array.isArray(list) || list.length === 0) break;
       for (const p of list) {
         const id = String(p?.slug || p?.id || '').trim();

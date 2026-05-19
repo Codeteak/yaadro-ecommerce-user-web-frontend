@@ -21,14 +21,9 @@ import {
   Pencil,
 } from 'lucide-react';
 
-/** National digits only (no +91); country code is shown separately in the form. */
-function nationalIndiaDigits(phone) {
-  if (!phone || typeof phone !== 'string') return '';
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length >= 12 && digits.startsWith('91')) return digits.slice(2, 12);
-  if (digits.length === 11 && digits.startsWith('0')) return digits.slice(1, 11);
-  return digits.slice(0, 10);
-}
+import { normalizePhoneForApi } from '../../utils/otpVerifyPayload';
+import IndianPhoneInput from '../../components/IndianPhoneInput';
+import { getIndianPhoneSubmitError } from '../../utils/indianPhone';
 
 function ProfilePageContent() {
   const router = useRouter();
@@ -46,7 +41,7 @@ function ProfilePageContent() {
   const [profileData, setProfileData] = useState({
     name: user?.name || 'User',
     email: user?.email || '',
-    phone: nationalIndiaDigits(user?.phone || ''),
+    phone: normalizePhoneForApi(user?.phone || ''),
     dateOfBirth: user?.dateOfBirth || '',
     gender: user?.gender || '',
   });
@@ -58,9 +53,9 @@ function ProfilePageContent() {
   useEffect(() => {
     if (user) {
       setProfileData({
-        name: user.name || `User ${nationalIndiaDigits(user.phone || '').slice(-4) || ''}`,
+        name: user.name || `User ${normalizePhoneForApi(user.phone || '').slice(-4) || ''}`,
         email: user.email || '',
-        phone: nationalIndiaDigits(user.phone || ''),
+        phone: normalizePhoneForApi(user.phone || ''),
         dateOfBirth: user.dateOfBirth || '',
         gender: user.gender || '',
       });
@@ -69,6 +64,11 @@ function ProfilePageContent() {
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
+    const phoneErr = getIndianPhoneSubmitError(profileData.phone);
+    if (phoneErr) {
+      showAlert(phoneErr, 'Invalid phone', 'warning');
+      return;
+    }
     try {
       const updateData = {
         name: profileData.name,
@@ -207,18 +207,14 @@ function ProfilePageContent() {
                   >
                     <option>+91</option>
                   </select>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    autoComplete="tel-national"
-                    placeholder="10-digit mobile number"
+                  <IndianPhoneInput
                     value={profileData.phone}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(/\D/g, '').slice(0, 10);
-                      setProfileData({ ...profileData, phone: v });
-                    }}
-                    className="min-w-0 flex-1 rounded-lg border border-gray-300 px-4 py-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-red-500"
+                    onChange={(v) => setProfileData({ ...profileData, phone: v })}
+                    className="min-w-0 flex-1"
+                    inputClassName="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-red-500"
+                    placeholder="10-digit mobile number"
                     required
+                    showValidHint={false}
                   />
                 </div>
               </div>

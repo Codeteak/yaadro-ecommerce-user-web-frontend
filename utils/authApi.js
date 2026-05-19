@@ -6,11 +6,17 @@
 import { api, apiFetch, apiFetchRoot } from './apiClient';
 import {
   normalizeOtpPhone,
+  normalizePhoneForApi,
   buildOtpVerifyRequestBody,
 } from './otpVerifyPayload.js';
 
 /** Re-export for callers that imported OTP helpers from authApi. */
-export { normalizeOtpPhone, buildOtpVerifyRequestBody };
+export {
+  normalizeOtpPhone,
+  normalizePhoneForApi,
+  formatPhoneForDisplay,
+  buildOtpVerifyRequestBody,
+} from './otpVerifyPayload';
 
 const RESOLVED_SHOP_ID_STORAGE_KEY = 'yaadro_resolved_shop_id';
 const RESOLVED_SHOP_HOST_STORAGE_KEY = 'yaadro_resolved_shop_host';
@@ -191,10 +197,7 @@ export function normalizeCustomerFromMeProfile(profile) {
     '';
 
   const phoneRaw = u.phone ?? u.mobile ?? c.phone ?? stored?.phone ?? '';
-  const phone =
-    phoneRaw != null && String(phoneRaw).trim() !== ''
-      ? String(phoneRaw).replace(/\s/g, '').trim()
-      : '';
+  const phone = normalizePhoneForApi(phoneRaw);
 
   const email =
     (u.email != null && String(u.email).trim()) || (stored?.email != null && String(stored.email).trim()) || '';
@@ -256,7 +259,7 @@ export function normalizeCustomer(raw) {
     stored?.mobile ??
     '';
 
-  const phone = phoneRaw != null && String(phoneRaw).trim() !== '' ? String(phoneRaw).replace(/\s/g, '').trim() : '';
+  const phone = normalizePhoneForApi(phoneRaw);
 
   return {
     ...raw,

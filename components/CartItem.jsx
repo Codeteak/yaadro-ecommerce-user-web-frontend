@@ -5,7 +5,6 @@ import Image from 'next/image';
 import { useCart } from '../context/CartContext';
 import {
   getBundleFreeExtraOnPaidLine,
-  getCartLineDisplayQty,
   getCartLinePaidQty,
 } from '../utils/cartPromotions';
 import { useWishlist } from '../context/WishlistContext';
@@ -61,7 +60,6 @@ export default function CartItem({ item }) {
 
   const isBundleReward = !!item.isBundleReward;
   const paidQty = isBundleReward ? Number(item.quantity) || 1 : getCartLinePaidQty(item);
-  const displayQty = isBundleReward ? paidQty : getCartLineDisplayQty(item);
   const bundleFreeExtra = isBundleReward ? 0 : getBundleFreeExtraOnPaidLine(item);
   const imageSrc = item.image || '/images/dummy.png';
   const unitPrice = parseFloat(item.price);
@@ -163,7 +161,7 @@ export default function CartItem({ item }) {
                 bundleFreeExtra > 0 ? `${paidQty} paid + ${bundleFreeExtra} free` : undefined
               }
             >
-              {displayQty}
+              {paidQty}
             </span>
             <button
               onClick={() => handleQuantityChange(paidQty + 1)}

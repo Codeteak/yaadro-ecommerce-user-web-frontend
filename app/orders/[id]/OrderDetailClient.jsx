@@ -21,6 +21,13 @@ import GuestAuthPrompt from '../../../components/GuestAuthPrompt';
 import ConfirmModal from '../../../components/ConfirmModal';
 import PromptModal from '../../../components/PromptModal';
 import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../../utils/productImages';
+import {
+  formatInrMajor,
+  getOrderLineOfferLabel,
+  getOrderPromotionSummary,
+  inferOrderLinePaidQuantity,
+  parseOrderQuantity,
+} from '../../../utils/orderPromotions';
 
 function IconBack() {
   return (
@@ -165,6 +172,144 @@ function SectionHeader({ title, right }) {
   );
 }
 
+function OfferBadge({ children }) {
+  return (
+    <span className="inline-flex items-center rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-200/80">
+      {children}
+    </span>
+  );
+}
+
+function OrderPromotionsSection({ order }) {
+  const promo = getOrderPromotionSummary(order);
+  if (!promo.hasPromotions) return null;
+
+  const lineOffers = (order.items || []).filter((it) => it.hasOffer);
+
+  return (
+    <Section>
+      <SectionHeader title="Offers & coupons" />
+      <div className="space-y-3 px-4 py-3">
+        {promo.couponCode && (
+          <div className="flex items-start justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/80 px-3 py-2.5">
+            <div>
+              <p className="m-0 text-[10px] font-medium uppercase tracking-wider text-emerald-800/80">
+                Coupon applied
+              </p>
+              <p className="mb-0 mt-1 font-mono text-sm font-semibold text-emerald-900">{promo.couponCode}</p>
+            </div>
+            {promo.promotionDiscountMajor > 0 && (
+              <p className="m-0 shrink-0 text-sm font-semibold text-emerald-700">
+                −{formatInrMajor(promo.promotionDiscountMajor)}
+              </p>
+            )}
+          </div>
+        )}
+
+        {promo.promotionDiscountMajor > 0 && !promo.couponCode && (
+          <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 text-[13px]">
+            <span className="text-gray-600">Promotion savings</span>
+            <span className="font-medium text-emerald-700">−{formatInrMajor(promo.promotionDiscountMajor)}</span>
+          </div>
+        )}
+
+        {promo.promotionDiscountMajor > 0 && promo.couponCode && (
+          <div className="flex items-center justify-between text-[12px] text-gray-500">
+            <span>Total promotion savings on this order</span>
+            <span className="font-medium text-emerald-700">−{formatInrMajor(promo.promotionDiscountMajor)}</span>
+          </div>
+        )}
+
+        {lineOffers.length > 0 && (
+          <div>
+            <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-gray-500">Item offers</p>
+            <ul className="m-0 list-none space-y-2 p-0">
+              {lineOffers.map((item) => {
+                const label = getOrderLineOfferLabel(item);
+                const displayQty = parseOrderQuantity(item.quantity);
+                const paidQty = inferOrderLinePaidQuantity(item);
+                const qtyNote =
+                  paidQty > 0 && displayQty > paidQty
+                    ? `${paidQty} paid + ${displayQty - paidQty} free`
+                    : `Qty ${displayQty}`;
+                return (
+                  <li
+                    key={item.id}
+                    className="flex items-start justify-between gap-2 rounded-lg border border-gray-100 bg-white px-2.5 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="m-0 truncate text-[12px] font-medium text-gray-900">
+                        {item.productName || item.name}
+                      </p>
+                      <p className="m-0 mt-0.5 text-[11px] text-gray-500">{qtyNote}</p>
+                      {label && (
+                        <div className="mt-1.5">
+                          <OfferBadge>{label}</OfferBadge>
+                        </div>
+                      )}
+                    </div>
+                    {item.lineDiscount > 0 && (
+                      <span className="shrink-0 text-[12px] font-medium text-emerald-700">
+                        −{formatInrMajor(item.lineDiscount)}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </div>
+    </Section>
+  );
+}
+
+function OrderItemRow({ item }) {
+  const displayQty = parseOrderQuantity(item.quantity);
+  const paidQty = inferOrderLinePaidQuantity(item);
+  const offerLabel = getOrderLineOfferLabel(item);
+  const unitLabel = item.unitLabel ? String(item.unitLabel).trim() : '';
+  const listPrice = item.listPrice;
+  const showListStrike =
+    listPrice != null && Number.isFinite(listPrice) && listPrice > (item.unitPrice || 0) + 0.009;
+
+  let qtyText = `Qty ${displayQty}`;
+  if (unitLabel) qtyText += ` ${unitLabel}`;
+  if (paidQty > 0 && displayQty > paidQty) {
+    qtyText = `${paidQty} paid + ${displayQty - paidQty} free${unitLabel ? ` · ${unitLabel}` : ''}`;
+  }
+
+  return (
+    <>
+      <div className="min-w-0 flex-1">
+        <p className="m-0 truncate text-[13px] font-medium text-gray-900">{item.productName || item.name}</p>
+        <p className="mt-0.5 text-[11px] text-gray-500">
+          {qtyText}
+          {item.productSku ? ` · SKU: ${item.productSku}` : ''}
+        </p>
+        {offerLabel && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <OfferBadge>{offerLabel}</OfferBadge>
+            {item.lineDiscount > 0 && (
+              <span className="text-[11px] font-medium text-emerald-700">
+                Saved {formatInrMajor(item.lineDiscount)}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="ml-auto shrink-0 text-right">
+        <p className="m-0 whitespace-nowrap text-[13px] font-medium text-gray-900">{fmt(item.totalPrice)}</p>
+        {showListStrike && (
+          <p className="m-0 mt-0.5 text-[11px] text-gray-400 line-through">
+            {fmt(listPrice * displayQty)}
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
+
 function pickStepDate(order, status) {
   const created = order.createdAt;
   const updated = order.updatedAt;
@@ -273,18 +418,28 @@ function Timeline({ order }) {
 }
 
 function downloadInvoice(order) {
+  const promo = getOrderPromotionSummary(order);
   const lines = [
     `INVOICE`,
     `Order: ${order.orderNumber || order.id}`,
     `Date:  ${new Date(order.createdAt).toLocaleString()}`,
+    ...(promo.couponCode ? [`Coupon: ${promo.couponCode}`] : []),
     ``,
     `Items:`,
-    ...(order.items || []).map((it) => `  ${it.productName || it.name} ×${it.quantity}  ${fmt(it.totalPrice)}`),
+    ...(order.items || []).map((it) => {
+      const label = getOrderLineOfferLabel(it);
+      const suffix = label ? ` (${label})` : '';
+      return `  ${it.productName || it.name} ×${it.quantity}  ${fmt(it.totalPrice)}${suffix}`;
+    }),
     ``,
     `Subtotal : ${fmt(order.subtotal)}`,
     `Tax      : ${fmt(order.tax)}`,
     `Shipping : ${fmt(order.shipping)}`,
-    `Discount : −${fmt(order.discount)}`,
+    ...(order.discount > 0
+      ? [
+          `${promo.couponCode ? `Coupon (${promo.couponCode})` : 'Offers & promotions'} : −${fmt(order.discount)}`,
+        ]
+      : []),
     `Total    : ${fmt(order.total)}`,
     ``,
     `Shipping address:`,
@@ -493,6 +648,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
 
   const canRetryPayment = ['pending', 'failed'].includes(order.paymentStatus?.toLowerCase()) && order.paymentMethod !== 'cod';
   const addr = order.deliveryAddress || {};
+  const orderPromo = getOrderPromotionSummary(order);
 
   const orderItemToCartProduct = (item) => {
     const qty = Number(item?.quantity ?? 1) || 1;
@@ -751,6 +907,8 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
               )}
             </Section>
 
+            <OrderPromotionsSection order={order} />
+
             <Section>
               <SectionHeader title={`Items · ${order.items.length}`} right={fmt(order.subtotal)} />
               {order.items.map((item, idx) => (
@@ -767,14 +925,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                       sizes="48px"
                     />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="m-0 truncate text-[13px] font-medium text-gray-900">{item.productName || item.name}</p>
-                    <p className="mt-0.5 text-[11px] text-gray-500">
-                      Qty {item.quantity}
-                      {item.productSku ? ` · SKU: ${item.productSku}` : ''}
-                    </p>
-                  </div>
-                  <p className="ml-auto shrink-0 whitespace-nowrap text-[13px] font-medium text-gray-900">{fmt(item.totalPrice)}</p>
+                  <OrderItemRow item={item} />
                 </div>
               ))}
             </Section>
@@ -798,7 +949,9 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                 ))}
               {order.discount > 0 && (
                 <div className="flex justify-between border-t border-gray-100 px-4 py-2.5 text-[13px]">
-                  <span className="text-gray-500">Discount</span>
+                  <span className="text-gray-500">
+                    {orderPromo.couponCode ? `Coupon (${orderPromo.couponCode})` : 'Offers & promotions'}
+                  </span>
                   <span className="font-medium text-emerald-700">−{fmt(order.discount)}</span>
                 </div>
               )}

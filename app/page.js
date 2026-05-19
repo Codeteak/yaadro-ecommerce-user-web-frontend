@@ -263,7 +263,7 @@ export default function Home() {
   // Home categories strip: show only parent categories (parentId == null).
   const allCategories = categoriesData?.filter(cat => cat.isActive && cat.parentId == null) || [];
   const categories = allCategories.slice(0, 12);
-  const featuredProducts = featuredData?.products?.filter(p => p.isFeatured).slice(0, 8) || [];
+  const featuredProducts = featuredData?.products?.slice(0, 8) || [];
   const bestSellers = bestSellersData?.products?.slice(0, 16) || [];
   const newArrivals = newArrivalsData?.products?.slice(0, 24) || [];
   const specialOffers = offersData?.products

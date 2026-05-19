@@ -20,6 +20,10 @@ import CheckoutCouponsSection from '../../components/CheckoutCouponsSection';
 import { getCartLinePreviewImageSrc } from '../../utils/productImages';
 import { getCartBottomBarPricing } from '../../utils/cartSavings';
 import { formatInrFromMinor, minorToMajor } from '../../utils/currencyMinor';
+import { formatCartCouponPreviewMessage } from '../../utils/cartPromotions';
+import { normalizePhoneForApi } from '../../utils/otpVerifyPayload';
+import { getIndianPhoneSubmitError, isValidIndianMobile } from '../../utils/indianPhone';
+import IndianPhoneInput from '../../components/IndianPhoneInput';
 import { useUpdateProfile } from '../../hooks/useAuth';
 import { useLocationService } from '../../context/LocationServiceContext';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -48,12 +52,11 @@ function Divider() {
 function hasUserPhone(user) {
   if (!user || typeof user !== 'object') return false;
   const raw = user.phone ?? user.mobile ?? user.phoneNumber ?? '';
-  return String(raw).replace(/\s/g, '').length > 0;
+  return normalizePhoneForApi(raw).length === 10;
 }
 
 function isValidPhoneInput(value) {
-  const v = String(value || '').replace(/\s/g, '').trim();
-  return /^[0-9+][0-9]{7,31}$/.test(v);
+  return isValidIndianMobile(value);
 }
 
 function hasValidCoordinates(address) {
@@ -243,11 +246,14 @@ function OrderSummary({
   cartItems,
   cartTotal,
   couponDiscount = 0,
-  onQuantityChange,
+  promotionDiscount = null,
   onRemove,
 }) {
   const { mrpTotal, savings } = getCartBottomBarPricing(cartItems, cartTotal);
-  const promoDiscount = Math.max(0, savings - (couponDiscount > 0.009 ? couponDiscount : 0));
+  const promoDiscount =
+    promotionDiscount != null && promotionDiscount > 0.009
+      ? promotionDiscount
+      : Math.max(0, savings - (couponDiscount > 0.009 ? couponDiscount : 0));
   const discount = savings > 0.009 ? savings : 0;
   const totalQty = cartItems.reduce(
     (a, i) => a + (Number(i.displayQuantity) || Number(i.quantity) || 1),
@@ -301,33 +307,7 @@ function OrderSummary({
                   {item.sizeDisplay || (item.weight ? `${item.weight} ${item.unit}` : '')}
                 </p>
                 <div className="mt-2 flex items-center justify-between gap-2">
-                  {isBundleReward ? (
-                    <span className="text-[12px] text-gray-600">Qty: {qty}</span>
-                  ) : (
-                  <div className="flex flex-shrink-0 items-center overflow-hidden rounded-full border border-gray-200">
-                    <button
-                      type="button"
-                      onClick={() => onQuantityChange(item, item.quantity - 1)}
-                      disabled={item.quantity <= 1}
-                      className="flex h-7 w-8 items-center justify-center text-base text-gray-700 transition hover:bg-gray-50 disabled:text-gray-300"
-                      aria-label="Decrease quantity"
-                    >
-                      −
-                    </button>
-                    <span className="min-w-[22px] text-center text-[13px] font-medium tabular-nums text-gray-900">
-                      {item.quantity}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onQuantityChange(item, item.quantity + 1)}
-                      disabled={item.quantity >= 10}
-                      className="flex h-7 w-8 items-center justify-center text-base text-gray-700 transition hover:bg-gray-50 disabled:text-gray-300"
-                      aria-label="Increase quantity"
-                    >
-                      +
-                    </button>
-                  </div>
-                  )}
+                  <span className="text-[12px] text-gray-600">Qty: {qty}</span>
                   <div className="flex flex-shrink-0 flex-col items-end gap-0.5 text-right">
                     <p className="text-[13px] font-medium tabular-nums text-gray-900">
                       {isBundleReward ? 'FREE' : `₹${linePay.toLocaleString('en-IN')}`}
@@ -452,7 +432,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const { cartItems, cartTotal, clearCart, updateQuantity, removeFromCart } = useCart();
+  const { cartItems, cartTotal, clearCart, removeFromCart } = useCart();
   const {
     addresses,
     getDefaultAddress,
@@ -509,13 +489,21 @@ export default function CheckoutPage() {
     return 0;
   }, [cartApiData?.couponDiscountMinor, cartApiData?.promotions?.coupon]);
 
+  const promotionDiscountMajor = useMemo(() => {
+    if (cartApiData?.promotionDiscountMinor > 0) {
+      return minorToMajor(cartApiData.promotionDiscountMinor);
+    }
+    return null;
+  }, [cartApiData?.promotionDiscountMinor]);
+
   useEffect(() => {
     const preview = cartApiData?.promotions?.coupon;
     if (!selectedCouponCode || !preview || cartPreviewFetching) return;
     if (preview.status === 'not_applicable') {
       setSelectedCouponCode('');
       showAlert(
-        preview.reasonMessage || 'This coupon cannot be applied to your cart.',
+        formatCartCouponPreviewMessage(preview) ||
+          'This coupon cannot be applied to your cart.',
         'Coupon',
         'warning'
       );
@@ -610,16 +598,6 @@ export default function CheckoutPage() {
     }
   }, [authHydrated, isAuthenticated, cartItems.length, goToLogin]);
 
-  const handleOrderSummaryQuantity = (item, nextQty) => {
-    if (item?.isBundleReward) return;
-    const key = item.cartItemKey ?? item.cartItemId ?? item.id;
-    if (nextQty < 1) {
-      removeFromCart(key);
-      return;
-    }
-    updateQuantity(key, nextQty);
-  };
-
   const goToAddAddress = (addressId) => {
     const params = new URLSearchParams({ from: '/checkout' });
     if (addressId) params.set('id', addressId);
@@ -627,9 +605,10 @@ export default function CheckoutPage() {
   };
 
   const handlePhoneSave = async () => {
-    const normalized = String(phoneDraft || '').replace(/\s/g, '').trim();
-    if (!isValidPhoneInput(normalized)) {
-      showAlert('Please enter a valid phone number.', 'Invalid phone', 'warning');
+    const normalized = normalizePhoneForApi(phoneDraft);
+    const phoneErr = getIndianPhoneSubmitError(phoneDraft);
+    if (!isValidPhoneInput(normalized) || phoneErr) {
+      showAlert(phoneErr || 'Please enter a valid 10-digit mobile number.', 'Invalid phone', 'warning');
       return;
     }
 
@@ -874,7 +853,7 @@ export default function CheckoutPage() {
             cartItems={cartItems}
             cartTotal={displayCartTotal}
             couponDiscount={couponDiscountMajor}
-            onQuantityChange={handleOrderSummaryQuantity}
+            promotionDiscount={promotionDiscountMajor}
             onRemove={removeFromCart}
           />
 
@@ -1128,12 +1107,12 @@ export default function CheckoutPage() {
             <p className="mt-1 text-sm text-gray-500">
               Phone number is required before placing your order.
             </p>
-            <input
-              type="tel"
+            <IndianPhoneInput
               value={phoneDraft}
-              onChange={(ev) => setPhoneDraft(ev.target.value)}
-              placeholder="+919876543210"
-              className="mt-4 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              onChange={setPhoneDraft}
+              className="mt-4"
+              inputClassName="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              showValidHint={false}
             />
             <div className="mt-4 flex gap-2">
               <button

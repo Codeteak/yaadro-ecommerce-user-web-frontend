@@ -13,6 +13,9 @@ import { useRequireAuth } from '../../../hooks/useRequireAuth';
 import { useAlert } from '../../../context/AlertContext';
 import { reverseGeocode } from '../../../utils/geocoding';
 import { updateStorefrontProfile, resolveShopId } from '../../../utils/authApi';
+import { normalizePhoneForApi } from '../../../utils/otpVerifyPayload';
+import { getIndianPhoneSubmitError } from '../../../utils/indianPhone';
+import IndianPhoneInput from '../../../components/IndianPhoneInput';
 import { haversineKm, formatDistanceKm } from '../../../utils/geoDistance';
 import { getStoreCoordinates } from '../../../utils/storeLocation';
 import { checkDeliveryLocation } from '../../../utils/storefrontLocationApi';
@@ -446,9 +449,8 @@ export default function AddAddressPage() {
       if (!n || n.length < 2) errors.name = 'Enter your full name';
     }
     if (needsPhone) {
-      const p = phoneDraft.replace(/\D/g, '').slice(0, 10);
-      if (!p) errors.phone = 'Enter your 10-digit mobile number';
-      else if (!/^\d{10}$/.test(p)) errors.phone = 'Mobile must be 10 digits';
+      const phoneErr = getIndianPhoneSubmitError(phoneDraft);
+      if (phoneErr) errors.phone = phoneErr;
     }
 
     return { errors, ok: Object.keys(errors).length === 0 };
@@ -543,7 +545,7 @@ export default function AddAddressPage() {
       address: combinedStreet || line1,
       zipCode: form.postalCode.replace(/\s/g, '').trim(),
       fullName: nameResolved,
-      phone: String(phoneResolved || '').replace(/\D/g, '').slice(0, 10),
+      phone: normalizePhoneForApi(phoneResolved),
       isDefault: true,
     };
   };
@@ -597,9 +599,9 @@ export default function AddAddressPage() {
     }
 
     const finalName = needsName ? nameDraft.trim() : nameFromProfile;
-    const finalPhone = (needsPhone
-      ? phoneDraft.replace(/\D/g, '').slice(0, 10)
-      : phoneFromProfile.replace(/\D/g, '').slice(0, 10));
+    const finalPhone = needsPhone
+      ? normalizePhoneForApi(phoneDraft)
+      : normalizePhoneForApi(phoneFromProfile);
 
     try {
       const shopId = await resolveShopId();
@@ -936,19 +938,20 @@ export default function AddAddressPage() {
                   <label className="text-xs font-semibold text-gray-800">
                     Mobile number <span className="text-red-500">*</span>
                   </label>
-                  <input
+                  <IndianPhoneInput
                     value={phoneDraft}
-                    onChange={(e) => {
-                      setPhoneDraft(e.target.value);
+                    onChange={(v) => {
+                      setPhoneDraft(v);
                       setSubmitError('');
                       markDirty();
                     }}
-                    inputMode="numeric"
-                    autoComplete="tel"
+                    inputClassName={inputCls('phone')}
                     placeholder="10-digit mobile"
-                    className={inputCls('phone')}
+                    showValidHint={false}
                   />
-                  {err('phone') && <p className="mt-1 text-xs text-red-600">{err('phone')}</p>}
+                  {err('phone') && (
+                    <p className="mt-1 text-xs text-red-600">{err('phone')}</p>
+                  )}
                 </div>
               ) : (
                 <p className="mt-1 text-sm text-gray-800">{phoneFromProfile}</p>

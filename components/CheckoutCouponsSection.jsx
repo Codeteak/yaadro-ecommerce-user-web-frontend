@@ -7,7 +7,11 @@ import {
   formatCouponBenefitLabel,
   formatCouponMinCartHint,
 } from '../utils/storefrontCouponsApi';
-import { formatCouponIneligibilityHint } from '../utils/cartPromotions';
+import {
+  formatCartCouponPreviewMessage,
+  formatCouponIneligibilityHint,
+  isCartCouponPreviewApplied,
+} from '../utils/cartPromotions';
 import { formatInrFromMinor } from '../utils/currencyMinor';
 
 function CouponRow({ coupon, cartSubtotalMinor, selected, onSelect, onClear }) {
@@ -110,10 +114,17 @@ export default function CheckoutCouponsSection({
     });
   }, [coupons]);
 
-  const previewApplied =
-    couponPreview?.status === 'applied' &&
-    selectedCouponCode &&
-    String(couponPreview.code || '').toUpperCase() === String(selectedCouponCode).toUpperCase();
+  const previewApplied = isCartCouponPreviewApplied(couponPreview, selectedCouponCode);
+
+  const previewNotApplicable =
+    !!selectedCouponCode &&
+    couponPreview?.status === 'not_applicable' &&
+    String(couponPreview.code || '').toUpperCase() ===
+      String(selectedCouponCode).toUpperCase();
+
+  const previewFailureMessage = previewNotApplicable
+    ? formatCartCouponPreviewMessage(couponPreview)
+    : null;
 
   const previewDiscountLabel =
     previewApplied && couponPreview.discountMinor > 0
@@ -225,11 +236,22 @@ export default function CheckoutCouponsSection({
       {selectedCouponCode && (
         <div
           className={`mt-3 flex items-center justify-between gap-2 rounded-xl px-3 py-2 ${
-            previewApplied ? 'bg-emerald-50' : 'bg-amber-50'
+            previewApplied
+              ? 'bg-emerald-50'
+              : previewNotApplicable
+                ? 'bg-red-50'
+                : 'bg-amber-50'
           }`}
         >
           <p
-            className={`text-[12px] ${previewApplied ? 'text-emerald-900' : 'text-amber-900'}`}
+            className={`text-[12px] ${
+              previewApplied
+                ? 'text-emerald-900'
+                : previewNotApplicable
+                  ? 'text-red-800'
+                  : 'text-amber-900'
+            }`}
+            role={previewNotApplicable ? 'alert' : undefined}
           >
             <span className="font-mono font-semibold">{selectedCouponCode}</span>
             {previewApplied && previewDiscountLabel ? (
@@ -237,6 +259,10 @@ export default function CheckoutCouponsSection({
                 {' '}
                 — saves {previewDiscountLabel} on this order
               </>
+            ) : previewNotApplicable && previewFailureMessage ? (
+              <> — {previewFailureMessage}</>
+            ) : isPreviewLoading ? (
+              <> — checking coupon…</>
             ) : (
               <> — previewing discount…</>
             )}
