@@ -6,7 +6,7 @@ const nextConfig = {
   // Keep static export for production deployments, but allow dynamic routes in local dev.
   output: isProduction ? 'export' : undefined,
   // Clean URLs (`/cart`, `/product`, etc.) export as `/cart/index.html`, `/product/index.html`.
-  // CloudFront should rewrite clean paths to `.../index.html` at the edge.
+  // Cloudflare Pages serves directory indexes; `public/_redirects` handles SPA deep links.
   trailingSlash: true,
   skipTrailingSlashRedirect: true,
   // Dev: allow loading `/_next/static/*` when the site is opened via a tunnel hostname

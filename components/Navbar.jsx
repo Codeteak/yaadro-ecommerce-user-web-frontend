@@ -401,7 +401,7 @@ export default function Navbar() {
                     className="block w-full p-3 text-center text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border-t border-gray-200 mt-2"
                     onClick={() => setShowResults(false)}
                   >
-                    View all results for "{searchQuery}"
+                    View all results for &quot;{searchQuery}&quot;
                   </Link>
                 )}
                 </div>

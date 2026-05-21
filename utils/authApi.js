@@ -24,6 +24,26 @@ import {
   resolveShopIdFromDomain,
 } from './shopResolver';
 
+function getCurrentShopDomain() {
+  if (typeof window === 'undefined') return '';
+  return String(window.location.hostname || '').toLowerCase().trim();
+}
+
+function readCachedShopIdForDomain(domain) {
+  if (!domain || typeof window === 'undefined') return '';
+  const cachedHost = window.localStorage.getItem(RESOLVED_SHOP_HOST_STORAGE_KEY) || '';
+  const cachedShopId = window.localStorage.getItem(RESOLVED_SHOP_ID_STORAGE_KEY) || '';
+  return cachedHost === domain && cachedShopId ? cachedShopId : '';
+}
+
+/** User-facing message when shop/tenant cannot be resolved. */
+export function getShopIdConfigError() {
+  if (process.env.NODE_ENV !== 'production') {
+    return 'Missing shop ID. Set NEXT_PUBLIC_SHOP_ID in your environment.';
+  }
+  return 'This store could not be loaded for this domain. Check that the domain is registered with the backend, or try again.';
+}
+
 /** Shop UUID for storefront auth (OpenAPI: `shopId`). Set `NEXT_PUBLIC_SHOP_ID` in env. */
 export function getShopIdFromEnv() {
   const envShopId = process.env.NEXT_PUBLIC_SHOP_ID
@@ -33,12 +53,7 @@ export function getShopIdFromEnv() {
   if (typeof window === 'undefined') return envShopId;
   if (process.env.NODE_ENV !== 'production') return envShopId;
 
-  const currentHost = String(window.location.host || '').toLowerCase().trim();
-  const cachedHost = window.localStorage.getItem(RESOLVED_SHOP_HOST_STORAGE_KEY) || '';
-  const cachedShopId = window.localStorage.getItem(RESOLVED_SHOP_ID_STORAGE_KEY) || '';
-  if (currentHost && cachedHost === currentHost && cachedShopId) return cachedShopId;
-
-  return '';
+  return readCachedShopIdForDomain(getCurrentShopDomain()) || '';
 }
 
 /**

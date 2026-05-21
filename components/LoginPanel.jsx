@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import IndianPhoneInput from './IndianPhoneInput';
 import {
   resolveShopId,
+  getShopIdConfigError,
   normalizeSession,
   requestOtp,
   verifyOtp,
@@ -232,12 +233,16 @@ export default function LoginPanel({ className = '' }) {
 
   const clearError = () => setError('');
 
-  const ensureShopId = () => {
-    if (!shopId) {
-      setError('Missing shop ID. Set NEXT_PUBLIC_SHOP_ID in your environment.');
-      return false;
+  /** Resolves shop for current domain; returns shop UUID or empty string. */
+  const ensureShopId = async () => {
+    const resolved = await resolveShopId();
+    const id = resolved ? String(resolved).trim() : '';
+    if (id) {
+      if (id !== shopId) setShopId(id);
+      return id;
     }
-    return true;
+    setError(getShopIdConfigError());
+    return '';
   };
 
   useEffect(() => {
@@ -259,7 +264,8 @@ export default function LoginPanel({ className = '' }) {
   const handleRequestOtp = async (e) => {
     e.preventDefault();
     clearError();
-    if (!ensureShopId()) return;
+    const resolvedShopId = await ensureShopId();
+    if (!resolvedShopId) return;
     const nextPhone = apiPhone();
     const phoneErr = getIndianPhoneSubmitError(nextPhone);
     if (phoneErr) {
@@ -268,7 +274,7 @@ export default function LoginPanel({ className = '' }) {
     }
     setIsSubmitting(true);
     try {
-      await requestOtp({ phone: nextPhone, shopId });
+      await requestOtp({ phone: nextPhone, shopId: resolvedShopId });
       setStep('otp');
       setResendSecondsLeft(OTP_RESEND_COOLDOWN_SEC);
     } catch (err) {
@@ -281,7 +287,8 @@ export default function LoginPanel({ className = '' }) {
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     clearError();
-    if (!ensureShopId()) return;
+    const resolvedShopId = await ensureShopId();
+    if (!resolvedShopId) return;
     const nextPhone = apiPhone();
     const phoneErr = getIndianPhoneSubmitError(nextPhone);
     if (phoneErr) {
@@ -296,7 +303,7 @@ export default function LoginPanel({ className = '' }) {
     }
     setIsSubmitting(true);
     try {
-      const session = await verifyOtp({ phone: nextPhone, shopId, code: nextCode });
+      const session = await verifyOtp({ phone: nextPhone, shopId: resolvedShopId, code: nextCode });
       const { user, token, refreshToken } = normalizeSession(session);
       if (!token) throw new Error('Invalid response from server.');
 
@@ -334,6 +341,8 @@ export default function LoginPanel({ className = '' }) {
   const handleResend = async () => {
     if (resendSecondsLeft > 0 || isSubmitting) return;
     clearError();
+    const resolvedShopId = await ensureShopId();
+    if (!resolvedShopId) return;
     const nextPhone = apiPhone();
     const phoneErr = getIndianPhoneSubmitError(nextPhone);
     if (phoneErr) {
@@ -343,7 +352,7 @@ export default function LoginPanel({ className = '' }) {
     }
     setIsSubmitting(true);
     try {
-      await requestOtp({ phone: nextPhone, shopId });
+      await requestOtp({ phone: nextPhone, shopId: resolvedShopId });
       setResendSecondsLeft(OTP_RESEND_COOLDOWN_SEC);
     } catch (err) {
       setError(err?.message || 'Could not resend OTP.');

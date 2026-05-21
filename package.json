@@ -1,7 +1,10 @@
 {
-  "name": "ecommerce-mvp",
+  "name": "yaadro-ecommerce-user-web-frontend",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,7 +12,9 @@
     "lint": "next lint",
     "test:otp-payload": "node --test utils/otpVerifyPayload.test.mjs",
     "tunnel:login": "cloudflared tunnel login",
-    "tunnel:run": "cloudflared tunnel --config cloudflared/config.yaml run"
+    "tunnel:run": "cloudflared tunnel --config cloudflared/config.yaml run",
+    "pages:dev": "wrangler pages dev out",
+    "pages:deploy": "npm run build && wrangler pages deploy out --project-name=yaadro-ecommerce-user-web-frontend"
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.8",
@@ -28,6 +33,7 @@
     "@tanstack/react-query-devtools": "5.96.2",
     "autoprefixer": "10.4.27",
     "postcss": "8.5.9",
-    "tailwindcss": "4.2.2"
+    "tailwindcss": "4.2.2",
+    "wrangler": "^4.14.0"
   }
 }

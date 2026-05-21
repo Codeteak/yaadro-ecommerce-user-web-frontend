@@ -29,7 +29,7 @@ function sendClientApiLogToServer(payload) {
   if (!isApiLoggingEnabled()) return;
   const body = safeJsonStringify(payload);
   if (!body) return;
-  // Static S3/CloudFront deploy has no Next.js API routes, so browser-side API logs stay in console only.
+  // Static Cloudflare Pages deploy has no Next.js API routes, so browser-side API logs stay in console only.
 }
 
 function getConfiguredBaseUrl() {

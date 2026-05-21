@@ -1,0 +1,4 @@
+# SPA fallback when no static file exists (Cloudflare Pages serves real files first).
+# Do NOT add /_next/* rewrites — they can cause chunk URLs to return index.html →
+# "Uncaught SyntaxError: Unexpected identifier" in main-app-*.js
+/*  /index.html  200
