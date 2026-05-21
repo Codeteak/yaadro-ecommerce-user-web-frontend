@@ -1,0 +1,67 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: deploy-cloudflare-pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      NODE_ENV: production
+      # Override via repository variable CLOUDFLARE_PAGES_PROJECT_NAME if needed
+      CLOUDFLARE_PAGES_PROJECT_NAME: yaadro-ecommerce-user-web-frontend
+      NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
+      NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+      NEXT_PUBLIC_SHOP_ID: ${{ vars.NEXT_PUBLIC_SHOP_ID }}
+      NEXT_PUBLIC_TENANT_RESOLVER_URL: ${{ vars.NEXT_PUBLIC_TENANT_RESOLVER_URL }}
+      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ vars.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+      NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID }}
+      NEXT_PUBLIC_MEDIA_BASE_URL: ${{ vars.NEXT_PUBLIC_MEDIA_BASE_URL }}
+      NEXT_PUBLIC_AUTH_SESSION_DAYS: ${{ vars.NEXT_PUBLIC_AUTH_SESSION_DAYS }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build static export
+        run: npm run build
+
+      - name: Verify build output
+        run: |
+          test -f out/index.html
+          test -f out/_redirects
+          echo "Build output OK ($(find out -type f | wc -l) files)"
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: ${{ env.CLOUDFLARE_PAGES_PROJECT_NAME }}
+          directory: out
+          branch: main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}

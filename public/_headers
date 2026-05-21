@@ -1,0 +1,9 @@
+# Immutable Next.js build assets
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# HTML — short cache; deploy updates replace the bundle
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin

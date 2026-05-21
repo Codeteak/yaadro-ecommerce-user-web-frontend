@@ -40,4 +40,9 @@ next-env.d.ts
 *.md
 !README.md
 !working_doc.md
+!docs/deploy-cloudflare-pages.md
+
+# Wrangler local state
+.wrangler/
+.dev.vars
 

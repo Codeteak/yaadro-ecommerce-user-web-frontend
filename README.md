@@ -74,9 +74,24 @@ ecommerce/
 ## Available Scripts
 
 - `npm run dev` - Start development server
-- `npm run build` - Build for production
+- `npm run build` - Build for production (static export to `out/`)
 - `npm start` - Start production server
 - `npm run lint` - Run ESLint
+- `npm run pages:dev` - Preview `out/` locally with Wrangler (run `build` first)
+- `npm run pages:deploy` - Build and deploy to Cloudflare Pages (requires API token)
+
+## Production deployment (Cloudflare Pages)
+
+| | |
+|--|--|
+| **Project** | `yaadro-ecommerce-user-web-frontend` |
+| **Domains** | `testshop.yaadro.online`, `marketfresh.in` |
+| **CI/CD** | GitHub Actions on push to `main` |
+
+Setup: [docs/deploy-cloudflare-pages.md](docs/deploy-cloudflare-pages.md)
+
+Required GitHub **secrets**: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`  
+Required GitHub **variables** (production environment): `NEXT_PUBLIC_*` — see `.env.example` and deploy doc.
 
 ## Key Features Explained
 

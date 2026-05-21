@@ -1,0 +1,4 @@
+# Cloudflare Pages — static export + client-side routes (orders, deep links).
+# Static files in out/ are served first; this SPA fallback replaces AWS CloudFront 403/404 → index.html.
+/_next/*  /_next/:splat  200
+/*  /index.html  200
