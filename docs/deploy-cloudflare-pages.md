@@ -18,7 +18,10 @@ Static Next.js export (`out/`) is deployed by GitHub Actions to **Cloudflare Pag
    - `yaadro.online` (for `testshop.yaadro.online`)
    - `marketfresh.in` (apex and optionally `www`)
 3. **Workers & Pages** → create project **`yaadro-ecommerce-user-web-frontend`** (name must match `wrangler.toml` / workflow), or let the first GitHub deploy create it.
-4. Disable **automatic Git builds** on the Pages project if you deploy only via GitHub Actions (Settings → Builds → disconnect Git or set to “None” / Direct Upload workflow only). Otherwise you may get duplicate builds.
+4. **Avoid duplicate deploys (important):** This repo deploys via **GitHub Actions** only. If you connected the same repo in Cloudflare Pages, **disconnect** it:
+   - Pages → **yaadro-ecommerce-user-web-frontend** → **Settings** → **Builds**
+   - **Disconnect** Git repository (or delete the Pages project and recreate as **Direct Upload** / empty project without Git)
+   - Otherwise every push runs **two** builds: Cloudflare’s built-in CI **and** `.github/workflows/deploy-cloudflare-pages.yml`
 
 ## 2) API token and GitHub secrets
 

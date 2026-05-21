@@ -19,7 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     env:
-      NODE_ENV: production
       # Override via repository variable CLOUDFLARE_PAGES_PROJECT_NAME if needed
       CLOUDFLARE_PAGES_PROJECT_NAME: yaadro-ecommerce-user-web-frontend
       NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
@@ -49,6 +48,8 @@ jobs:
 
       - name: Build static export
         run: npm run build
+        env:
+          NODE_ENV: production
 
       - name: Verify build output
         run: |
