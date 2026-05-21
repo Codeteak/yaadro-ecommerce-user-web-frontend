@@ -115,6 +115,15 @@ npm run pages:dev      # local Pages preview of out/
 
 `public/_redirects` is copied into `out/` and provides SPA fallback for routes not pre-rendered at build time (e.g. `/orders/<uuid>/`), replacing the old CloudFront 403/404 → `index.html` behavior.
 
+### White screen / `SyntaxError: Unexpected identifier 'world'`
+
+Usually the browser loaded **HTML** (often `index.html`) for a `/_next/static/...js` URL instead of JavaScript.
+
+1. **Custom domain must be on the Pages project** (the one deployed by GitHub / `*.pages.dev`), not an old **Worker** with the same name.
+2. After changing `_redirects`, **push to `main`** so CI redeploys, then **purge cache** for `testshop.yaadro.online` (Caching → Configuration → Purge Everything).
+3. In Cloudflare zone **Speed** settings, turn off **Rocket Loader** and **Auto Minify JavaScript** for the storefront hostnames.
+4. Hard-refresh the browser (Ctrl+Shift+R) or use a private window.
+
 ## 9) Verification checklist
 
 - [ ] `https://testshop.yaadro.online/` loads
@@ -125,6 +134,25 @@ npm run pages:dev      # local Pages preview of out/
 - [ ] Push to `main` runs deploy workflow successfully
 
 ## 10) Troubleshooting deploy failures
+
+### `Authentication failed` (code `9106`)
+
+Wrangler cannot call the Cloudflare API. Fix in order:
+
+1. **Secrets live on the `production` environment**  
+   This workflow uses `environment: production`. Add secrets under:  
+   **Settings → Environments → production → Environment secrets**  
+   (Repository secrets also work if not overridden by an empty environment secret.)
+
+2. **Recreate the API token** (Custom Token):
+   - Account → **Cloudflare Pages** → **Edit**
+   - Account Resources → **Include** → **Yaadroshop@gmail.com's Account**
+   - No IP restriction (GitHub runners use changing IPs)
+   - Copy token once → update `CLOUDFLARE_API_TOKEN` (no leading/trailing spaces)
+
+3. **`CLOUDFLARE_ACCOUNT_ID`** = **Account ID** from **Workers & Pages** right sidebar (not Zone ID). Paste again with no spaces.
+
+4. **Re-run** the deploy workflow after saving both secrets.
 
 ### `Project not found` (code `8000007`)
 

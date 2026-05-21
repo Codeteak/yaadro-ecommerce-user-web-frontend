@@ -1,8 +1,14 @@
-# Immutable Next.js build assets
+# Immutable Next.js build assets (must stay cacheable; do not rewrite these URLs)
 /_next/static/*
   Cache-Control: public, max-age=31536000, immutable
 
-# HTML — short cache; deploy updates replace the bundle
+# HTML shell — avoid stale index.html referencing removed JS chunks after deploy
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+/
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Security headers (all responses)
 /*
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
