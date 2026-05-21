@@ -37,7 +37,21 @@ Add to GitHub repository (or **`production`** environment):
 | Type | Name |
 |------|------|
 | Secret | `CLOUDFLARE_API_TOKEN` |
-| Secret | `CLOUDFLARE_ACCOUNT_ID` (Dashboard → Workers & Pages → right sidebar **Account ID**) |
+| Secret | `CLOUDFLARE_ACCOUNT_ID` — see below (common misconfiguration) |
+
+### `CLOUDFLARE_ACCOUNT_ID` (read carefully)
+
+Must be the **Account ID**, not a Zone ID.
+
+1. Open [Cloudflare Dashboard](https://dash.cloudflare.com)
+2. Go to **Workers & Pages** (any page in that section)
+3. Copy **Account ID** from the **right sidebar** (32-character hex)
+
+Do **not** use DNS zone ID from **yaadro.online** or **marketfresh.in** — that causes:
+
+`Project not found` / error code `8000007` even when the project appears in the UI.
+
+Optional: set repository variable `CLOUDFLARE_PAGES_PROJECT_NAME` if the Pages project name in the dashboard differs from `yaadro-ecommerce-user-web-frontend`.
 
 Remove obsolete AWS secrets/variables when migration is complete: `AWS_ROLE_ARN`, `AWS_REGION`, `S3_BUCKET`, `CLOUDFRONT_DISTRIBUTION_ID`.
 
@@ -110,6 +124,20 @@ npm run pages:dev      # local Pages preview of out/
 - [ ] Login/OTP resolves shop for each hostname
 - [ ] Push to `main` runs deploy workflow successfully
 
-## 10) Decommission AWS
+## 10) Troubleshooting deploy failures
+
+### `Project not found` (code `8000007`)
+
+1. Fix **`CLOUDFLARE_ACCOUNT_ID`** — must be **Account ID** from Workers & Pages sidebar, not a DNS Zone ID.
+2. In Cloudflare → **Workers & Pages**, confirm the project name is exactly **`yaadro-ecommerce-user-web-frontend`** (or set GitHub variable `CLOUDFLARE_PAGES_PROJECT_NAME` to match the dashboard).
+3. Re-run **Deploy to Cloudflare Pages** after updating secrets.
+
+The workflow uses **Wrangler** (`wrangler pages deploy`), which can create the Pages project on first successful deploy if it does not exist yet.
+
+### Build OK but deploy never runs
+
+Only **CI** runs on some pushes. Check for a separate workflow run: **Deploy to Cloudflare Pages**.
+
+## 11) Decommission AWS
 
 After domains are stable on Pages: delete CloudFront distribution, empty S3 bucket, remove IAM OIDC role, remove AWS GitHub configuration.
