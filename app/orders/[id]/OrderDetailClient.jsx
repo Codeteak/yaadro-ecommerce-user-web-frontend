@@ -25,6 +25,7 @@ import {
   formatInrMajor,
   getOrderLineOfferLabel,
   getOrderPromotionSummary,
+  getShopLineFulfillmentMeta,
   inferOrderLinePaidQuantity,
   parseOrderQuantity,
 } from '../../../utils/orderPromotions';
@@ -122,6 +123,12 @@ function getOrderItemImage(item) {
   );
 }
 
+/** Lines the customer still sees (omits `isDeleted` fulfillment snapshots). */
+function getVisibleOrderItems(order) {
+  if (!order?.items?.length) return [];
+  return order.items.filter((it) => it && !it.isDeleted);
+}
+
 /** Tailwind rings — aligned with checkout / home (white + emerald) */
 const STATUS_PILL_CLASS = {
   pending:    'bg-amber-50 text-amber-900 ring-1 ring-amber-200/90',
@@ -180,11 +187,19 @@ function OfferBadge({ children }) {
   );
 }
 
+function ShopQtyAdjustedBadge() {
+  return (
+    <span className="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 ring-1 ring-amber-200/80">
+      Shop updated qty
+    </span>
+  );
+}
+
 function OrderPromotionsSection({ order }) {
   const promo = getOrderPromotionSummary(order);
   if (!promo.hasPromotions) return null;
 
-  const lineOffers = (order.items || []).filter((it) => it.hasOffer);
+  const lineOffers = getVisibleOrderItems(order).filter((it) => it.hasOffer);
 
   return (
     <Section>
@@ -265,7 +280,8 @@ function OrderPromotionsSection({ order }) {
 }
 
 function OrderItemRow({ item }) {
-  const displayQty = parseOrderQuantity(item.quantity);
+  const meta = getShopLineFulfillmentMeta(item);
+  const displayQty = meta.currentQty;
   const paidQty = inferOrderLinePaidQuantity(item);
   const offerLabel = getOrderLineOfferLabel(item);
   const unitLabel = item.unitLabel ? String(item.unitLabel).trim() : '';
@@ -275,8 +291,18 @@ function OrderItemRow({ item }) {
 
   let qtyText = `Qty ${displayQty}`;
   if (unitLabel) qtyText += ` ${unitLabel}`;
+
   if (paidQty > 0 && displayQty > paidQty) {
     qtyText = `${paidQty} paid + ${displayQty - paidQty} free${unitLabel ? ` · ${unitLabel}` : ''}`;
+    if (meta.showShopQtyUpdate && meta.originalQty != null) {
+      qtyText += ` · you ordered ${meta.originalQty}`;
+    }
+  } else if (meta.showShopQtyUpdate) {
+    if (meta.originalQty != null && Math.abs(meta.originalQty - displayQty) > 1e-6) {
+      qtyText = `Fulfilling ${displayQty}${unitLabel ? ` ${unitLabel}` : ''} (you ordered ${meta.originalQty})`;
+    } else {
+      qtyText = `Qty ${displayQty}${unitLabel ? ` ${unitLabel}` : ''} · updated by store`;
+    }
   }
 
   return (
@@ -287,22 +313,23 @@ function OrderItemRow({ item }) {
           {qtyText}
           {item.productSku ? ` · SKU: ${item.productSku}` : ''}
         </p>
-        {offerLabel && (
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          {meta.showShopQtyUpdate && <ShopQtyAdjustedBadge />}
+          {offerLabel && (
             <OfferBadge>{offerLabel}</OfferBadge>
-            {item.lineDiscount > 0 && (
-              <span className="text-[11px] font-medium text-emerald-700">
-                Saved {formatInrMajor(item.lineDiscount)}
-              </span>
-            )}
-          </div>
-        )}
+          )}
+          {item.lineDiscount > 0 && (
+            <span className="text-[11px] font-medium text-emerald-700">
+              Saved {formatInrMajor(item.lineDiscount)}
+            </span>
+          )}
+        </div>
       </div>
       <div className="ml-auto shrink-0 text-right">
         <p className="m-0 whitespace-nowrap text-[13px] font-medium text-gray-900">{fmt(item.totalPrice)}</p>
         {showListStrike && (
           <p className="m-0 mt-0.5 text-[11px] text-gray-400 line-through">
-            {fmt(listPrice * displayQty)}
+            {fmt(listPrice * (displayQty || 1))}
           </p>
         )}
       </div>
@@ -419,6 +446,7 @@ function Timeline({ order }) {
 
 function downloadInvoice(order) {
   const promo = getOrderPromotionSummary(order);
+  const visibleItems = getVisibleOrderItems(order);
   const lines = [
     `INVOICE`,
     `Order: ${order.orderNumber || order.id}`,
@@ -426,10 +454,17 @@ function downloadInvoice(order) {
     ...(promo.couponCode ? [`Coupon: ${promo.couponCode}`] : []),
     ``,
     `Items:`,
-    ...(order.items || []).map((it) => {
+    ...visibleItems.map((it) => {
       const label = getOrderLineOfferLabel(it);
+      const meta = getShopLineFulfillmentMeta(it);
       const suffix = label ? ` (${label})` : '';
-      return `  ${it.productName || it.name} ×${it.quantity}  ${fmt(it.totalPrice)}${suffix}`;
+      let extra = '';
+      if (meta.showShopQtyUpdate && meta.originalQty != null) {
+        extra = ` [shop qty: ordered ${meta.originalQty} → fulfilling ${meta.currentQty}]`;
+      } else if (meta.showShopQtyUpdate) {
+        extra = ' [quantity updated by store]';
+      }
+      return `  ${it.productName || it.name} ×${it.quantity}  ${fmt(it.totalPrice)}${suffix}${extra}`;
     }),
     ``,
     `Subtotal : ${fmt(order.subtotal)}`,
@@ -517,7 +552,7 @@ function ReturnModal({ order, onClose, onSubmit }) {
 
         <p className="mb-2.5 text-xs text-gray-500">Select items to return</p>
         <div className="mb-3.5 flex flex-col gap-1.5">
-          {order.items.map((item) => (
+          {getVisibleOrderItems(order).map((item) => (
             <label
               key={item.id}
               className={`flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2 ${
@@ -585,17 +620,20 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
 
+  const visibleOrderItems = order ? getVisibleOrderItems(order) : [];
+  const firstVisibleItem = visibleOrderItems[0];
+
   // Backend `/storefront/products/:id` expects a slug, not UUID.
   // Prefer slug from nested product; fall back to slugified name; never pass UUID here.
   const seedSlug =
-    order?.items?.[0]?.product?.slug ||
-    order?.items?.[0]?.product?.slugOrId ||
-    order?.items?.[0]?.product?.slug_or_id ||
-    order?.items?.[0]?.product?.productSlug ||
-    order?.items?.[0]?.productSlug ||
-    order?.items?.[0]?.product_name_slug ||
-    (order?.items?.[0]?.productName
-      ? String(order.items[0].productName)
+    firstVisibleItem?.product?.slug ||
+    firstVisibleItem?.product?.slugOrId ||
+    firstVisibleItem?.product?.slug_or_id ||
+    firstVisibleItem?.product?.productSlug ||
+    firstVisibleItem?.productSlug ||
+    firstVisibleItem?.product_name_slug ||
+    (firstVisibleItem?.productName
+      ? String(firstVisibleItem.productName)
           .toLowerCase()
           .trim()
           .replace(/['"]/g, '')
@@ -605,7 +643,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
       : null);
 
   const { data: relatedData } = useProductWithRelated(seedSlug);
-  const orderedIds = new Set((order?.items || []).map((it) => it.productId || it.product?.id).filter(Boolean));
+  const orderedIds = new Set(visibleOrderItems.map((it) => it.productId || it.product?.id).filter(Boolean));
   const related = (relatedData?.relatedProducts || []).filter((p) => p?.id && !orderedIds.has(p.id)).slice(0, 12);
 
   useEffect(() => {
@@ -695,7 +733,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   };
 
   const handleReorder = async () => {
-    const items = order?.items || [];
+    const items = order ? getVisibleOrderItems(order) : [];
     if (!items.length) {
       showAlert('No items found in this order.', 'Reorder', 'warning');
       return;
@@ -910,8 +948,14 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
             <OrderPromotionsSection order={order} />
 
             <Section>
-              <SectionHeader title={`Items · ${order.items.length}`} right={fmt(order.subtotal)} />
-              {order.items.map((item, idx) => (
+              <SectionHeader title={`Items · ${getVisibleOrderItems(order).length}`} right={fmt(order.subtotal)} />
+              {getVisibleOrderItems(order).some((it) => getShopLineFulfillmentMeta(it).showShopQtyUpdate) && (
+                <div className="border-b border-amber-100 bg-amber-50/70 px-4 py-2.5 text-[11px] leading-snug text-amber-950">
+                  Some quantities may differ from what you ordered if the store adjusted them while fulfilling this order.
+                  Lines marked <span className="font-semibold">Shop updated qty</span> show those changes.
+                </div>
+              )}
+              {getVisibleOrderItems(order).map((item, idx) => (
                 <div
                   key={item.id || idx}
                   className={`flex items-center gap-3 px-4 py-3 ${idx > 0 ? 'border-t border-gray-100' : ''}`}

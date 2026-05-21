@@ -22,7 +22,7 @@ import { SHOW_PRODUCT_EXTENDED_SECTIONS } from './productDetailFlags';
 import { getResolvedProductImageUrls } from '../../../utils/productImages';
 import ProductImageWithFallback from '../../../components/ProductImageWithFallback';
 import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
-import { getCartLineDisplayQty } from '../../../utils/cartPromotions';
+import { getCartLineDisplayQty, getBundleFreeExtraOnPaidLine } from '../../../utils/cartPromotions';
 import { findPaidCartLine } from '../../../utils/cartLinePersist';
 
 /** Gap between cart pill bottom and the top edge of the PDP fixed bottom bar. */
@@ -257,6 +257,8 @@ export default function ProductDetailClient({ productId = null }) {
   const paidCartQty = cartLine?.quantity ?? 0;
   const cartBadgeQty = cartLine ? getCartLineDisplayQty(cartLine) : 0;
   const cartQty = paidCartQty;
+  const bundleFreeExtra =
+    cartLine && !cartLine.isBundleReward ? getBundleFreeExtraOnPaidLine(cartLine) : 0;
   const cartUpdateKey = cartLine
     ? cartLine.cartItemKey ?? cartLine.cartItemId ?? cartLine.id
     : null;

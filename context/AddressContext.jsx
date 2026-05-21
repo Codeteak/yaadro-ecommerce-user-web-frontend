@@ -1,6 +1,7 @@
 'use client';
 
-import { createContext, useContext, useMemo } from 'react';
+import { createContext, useContext, useMemo, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import {
   useAddressesList,
@@ -8,15 +9,43 @@ import {
   useUpdateAddress,
   useDeleteAddress,
   useSetDefaultAddress,
+  addressKeys,
 } from '../hooks/useAddresses';
 
 const AddressContext = createContext();
 
 export function AddressProvider({ children }) {
   const { isAuthenticated } = useAuth();
-  
+  const queryClient = useQueryClient();
+
   // Fetch addresses from API only if authenticated
   const { data: apiAddresses = [], isLoading, error } = useAddressesList(isAuthenticated);
+
+  /** Installed PWAs often miss window focus events; refresh linked address when app tabs back or resumes from bfcache. */
+  useEffect(() => {
+    if (!isAuthenticated || typeof window === 'undefined') return undefined;
+
+    const invalidate = () => {
+      void queryClient.invalidateQueries({ queryKey: addressKeys.all });
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') invalidate();
+    };
+
+    /** iOS/Android standalone: restoring from suspended state */
+    const onPageShow = (event) => {
+      if (event.persisted) invalidate();
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pageshow', onPageShow);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pageshow', onPageShow);
+    };
+  }, [isAuthenticated, queryClient]);
   
   const createAddressMutation = useCreateAddress();
   const updateAddressMutation = useUpdateAddress();

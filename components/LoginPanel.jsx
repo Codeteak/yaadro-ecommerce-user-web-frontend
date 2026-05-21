@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useWebOtp } from '../hooks/useWebOtp';
 import Image from 'next/image';
 import { useAuth } from '../context/AuthContext';
 import IndianPhoneInput from './IndianPhoneInput';
@@ -13,6 +14,7 @@ import {
   formatPhoneForDisplay,
   updateProfile,
 } from '../utils/authApi';
+import { normalizeOtpCodeInput } from '../utils/otpVerifyPayload';
 import { getIndianPhoneSubmitError } from '../utils/indianPhone';
 
 function ErrorBox({ message }) {
@@ -153,10 +155,13 @@ function OtpStep({ phone, code, setCode, onSubmit, onResend, onChangePhone, isSu
         type="text"
         id="login-otp"
         value={code}
-        onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+        onChange={(e) => setCode(normalizeOtpCodeInput(e.target.value).slice(0, 8))}
         inputMode="numeric"
         placeholder="● ● ● ● ● ●"
+        name="one-time-code"
         autoComplete="one-time-code"
+        autoCapitalize="off"
+        spellCheck={false}
         required
         className="w-full h-[52px] px-4 rounded-xl border-[1.5px] border-gray-200 text-[22px] font-medium text-gray-900 bg-gray-50 focus:outline-none focus:border-emerald-500 focus:bg-white transition text-center tracking-[.3em] placeholder-gray-300"
       />
@@ -219,6 +224,13 @@ export default function LoginPanel({ className = '' }) {
     return () => clearTimeout(t);
   }, [step]);
 
+  const applyOtpFromSms = useCallback((digits) => {
+    setCode(normalizeOtpCodeInput(digits).slice(0, 8));
+    clearError();
+  }, []);
+
+  useWebOtp(step === 'otp', applyOtpFromSms, { timeoutMs: 120000, maxLength: 8 });
+
   const apiPhone = () => normalizePhoneForApi(phone);
   const displayPhone = () => formatPhoneForDisplay(phone);
 
@@ -248,15 +260,15 @@ export default function LoginPanel({ className = '' }) {
     clearError();
     if (!ensureShopId()) return;
     const nextPhone = apiPhone();
-    const nextCode = code.trim();
     const phoneErr = getIndianPhoneSubmitError(nextPhone);
     if (phoneErr) {
       setError(phoneErr);
       setStep('phone');
       return;
     }
-    if (!/^\d{6}$/.test(nextCode)) {
-      setError('Enter the 6-digit OTP from your SMS.');
+    const nextCode = normalizeOtpCodeInput(code);
+    if (!/^\d{4,8}$/.test(nextCode)) {
+      setError('Enter the OTP from your SMS (4–8 digits).');
       return;
     }
     setIsSubmitting(true);

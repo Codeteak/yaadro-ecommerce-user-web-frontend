@@ -4,7 +4,9 @@
 
 export function parseOrderQuantity(raw) {
   const n = parseFloat(String(raw ?? '1'));
-  return Number.isFinite(n) && n > 0 ? n : 1;
+  if (!Number.isFinite(n)) return 1;
+  if (n === 0) return 0;
+  return n > 0 ? n : 1;
 }
 
 export function parseMinorInt(value) {
@@ -62,6 +64,71 @@ export function getOrderLineOfferLabel(item) {
     return 'Offer applied';
   }
   return null;
+}
+
+/**
+ * Line fulfilled by shop: removed line, or qty changed from what customer ordered.
+ * Backend may send `originalQuantity`, `isDeleted`, `quantityAdjusted`, etc.
+ */
+export function getShopLineFulfillmentMeta(item) {
+  if (!item || typeof item !== 'object') {
+    return {
+      isDeleted: false,
+      currentQty: 1,
+      originalQty: null,
+      showRemoved: false,
+      showShopQtyUpdate: false,
+    };
+  }
+
+  const isDeleted =
+    item.isDeleted === true ||
+    item.is_deleted === true ||
+    item.deleted === true ||
+    item.removed === true;
+
+  const currentQty = parseOrderQuantity(item.quantity);
+
+  const rawOriginal =
+    item.originalQuantity ??
+    item.original_quantity ??
+    item.orderedQuantity ??
+    item.ordered_quantity ??
+    item.placedQuantity ??
+    item.placed_quantity ??
+    item.requestedQuantity ??
+    item.requested_quantity ??
+    item.customerQuantity ??
+    item.customer_quantity ??
+    null;
+  let originalQty = null;
+  if (rawOriginal != null && rawOriginal !== '') {
+    const n = parseFloat(String(rawOriginal));
+    if (Number.isFinite(n) && n > 0) originalQty = n;
+  }
+
+  const explicitAdjust =
+    item.quantityAdjusted === true ||
+    item.quantity_adjusted === true ||
+    item.shopQuantityAdjusted === true ||
+    item.shopQuantityUpdated === true ||
+    item.shop_quantity_updated === true ||
+    item.shopUpdated === true ||
+    item.shop_updated === true;
+
+  const qtyDiffers =
+    originalQty != null && Math.abs(originalQty - currentQty) > 1e-6;
+
+  const showShopQtyUpdate =
+    !isDeleted && (explicitAdjust || qtyDiffers);
+
+  return {
+    isDeleted,
+    currentQty,
+    originalQty,
+    showRemoved: isDeleted,
+    showShopQtyUpdate,
+  };
 }
 
 export function getOrderPromotionSummary(order) {

@@ -49,6 +49,19 @@ export function formatPhoneForDisplay(phone) {
 }
 
 /**
+ * Strip invisible chars / spaces from pasted OTP so backend receives digits only.
+ * @param {unknown} code
+ * @returns {string}
+ */
+export function normalizeOtpCodeInput(code) {
+  return String(code ?? '')
+    .replace(/\u00a0/g, '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\D/g, '')
+    .trim();
+}
+
+/**
  * Builds the verify payload with exactly three keys (in insertion order: phone, shopId, code).
  * @param {{ phone: unknown, shopId: unknown, code: unknown }} input
  * @returns {OtpVerifyRequestBody}
@@ -57,7 +70,7 @@ export function buildOtpVerifyRequestBody({ phone, shopId, code }) {
   return {
     phone: normalizePhoneForApi(phone),
     shopId: shopId != null ? String(shopId).trim() : '',
-    code: code != null ? String(code).trim() : '',
+    code: normalizeOtpCodeInput(code),
   };
 }
 
@@ -73,6 +86,6 @@ export function sanitizeOtpVerifyApiPayload(raw) {
   return buildOtpVerifyRequestBody({
     phone: raw.phone,
     shopId: raw.shopId,
-    code: raw.code,
+    code: raw.code != null ? normalizeOtpCodeInput(raw.code) : '',
   });
 }

@@ -29,8 +29,11 @@ export function useAddressesList(enabled = true) {
     queryKey: addressKeys.list(),
     queryFn: listAddresses,
     enabled: enabled,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    // Standalone / installed PWA rarely gets window focus like a tab; rely on invalidate + visibility refetch instead of long staleness.
+    staleTime: 30 * 1000,
     refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
   });
 }
 
@@ -59,8 +62,13 @@ export function useCreateAddress() {
       queryClient.setQueryData(addressKeys.list(), (old) => {
         const prev = Array.isArray(old) ? old : [];
         if (!created?.id) return prev;
-        const exists = prev.some((a) => a?.id === created.id);
-        return exists ? prev : [created, ...prev];
+        const idx = prev.findIndex((a) => String(a?.id) === String(created.id));
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = { ...prev[idx], ...created };
+          return next;
+        }
+        return [created, ...prev];
       });
       // Then revalidate from server
       queryClient.invalidateQueries({ queryKey: addressKeys.lists() });
@@ -80,9 +88,20 @@ export function useUpdateAddress() {
   return useMutation({
     mutationFn: ({ addressId, addressData }) => updateAddress(addressId, addressData),
     onSuccess: (data, variables) => {
-      // Invalidate addresses list
+      // Storefront linked address PATCH returns refreshed row — upsert immediately (invalidate refetch still runs async).
+      if (data?.id) {
+        queryClient.setQueryData(addressKeys.list(), (old) => {
+          const prev = Array.isArray(old) ? old : [];
+          const idx = prev.findIndex((a) => String(a?.id) === String(data.id));
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = { ...prev[idx], ...data };
+            return next;
+          }
+          return [data];
+        });
+      }
       queryClient.invalidateQueries({ queryKey: addressKeys.lists() });
-      // Invalidate specific address detail
       queryClient.invalidateQueries({ queryKey: addressKeys.detail(variables.addressId) });
     },
     onError: (error) => {

@@ -115,24 +115,54 @@ export async function resolveShopId() {
 }
 
 async function resolveShopIdForOtp(explicitShopId) {
-  const fromArg = explicitShopId != null ? String(explicitShopId).trim() : '';
-  if (fromArg) return fromArg;
-  return resolveShopId();
+  const explicit = explicitShopId != null ? String(explicitShopId).trim() : '';
+  const runtime = await resolveShopId();
+  const rt = runtime != null ? String(runtime).trim() : '';
+  // Prefer freshly resolved shop for the current origin so OTP request + verify always use the same
+  // tenant (avoids stale React state vs domain resolver / cache drift on PWA or slow hydrate).
+  return rt || explicit || '';
 }
 
 /**
  * Map SessionResponse (register / login / OAuth JWT) for AuthContext.
+ * Supports camelCase and snake_case tokens and common `{ data, session }` envelopes.
  */
 export function normalizeSession(session) {
   if (!session || typeof session !== 'object') {
     return { user: null, token: null, refreshToken: null };
   }
-  const rawUser = session.user || session.customer || null;
+
+  let root = session;
+  if (root.data != null && typeof root.data === 'object' && !Array.isArray(root.data)) {
+    root = { ...session, ...root.data };
+  }
+  const merged =
+    root.session != null && typeof root.session === 'object' && !Array.isArray(root.session)
+      ? { ...root, ...root.session }
+      : root;
+
+  const rawUser =
+    merged.user ||
+    merged.customer ||
+    merged.profile ||
+    merged.account ||
+    null;
   const normalizedUser = rawUser ? normalizeCustomer(rawUser) : null;
+
+  const token =
+    merged.accessToken ||
+    merged.token ||
+    merged.access_token ||
+    merged.jwt ||
+    merged.idToken ||
+    merged.id_token ||
+    null;
+  const refreshToken = merged.refreshToken || merged.refresh_token || null;
+
   return {
     user: normalizedUser || rawUser,
-    token: session.accessToken || session.token || null,
-    refreshToken: session.refreshToken || null,
+    token: token != null && String(token).trim() ? String(token).trim() : null,
+    refreshToken: refreshToken != null && String(refreshToken).trim() ? String(refreshToken).trim() : null,
   };
 }
 

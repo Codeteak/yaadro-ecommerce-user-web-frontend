@@ -64,6 +64,38 @@ function transformOrderItem(item) {
       : parseFloat(item.totalPrice || item.total_price || 0) || unitPrice * quantity;
   const listPrice = listPriceMinor > 0 ? minorToMajor(listPriceMinor) : null;
 
+  const isDeleted =
+    item.isDeleted === true ||
+    item.is_deleted === true ||
+    item.deleted === true ||
+    item.removed === true;
+
+  const originalQuantity = (() => {
+    const raw =
+      item.originalQuantity ??
+      item.original_quantity ??
+      item.orderedQuantity ??
+      item.ordered_quantity ??
+      item.placedQuantity ??
+      item.placed_quantity ??
+      item.requestedQuantity ??
+      item.requested_quantity ??
+      null;
+    if (raw == null || raw === '') return null;
+    const n = parseFloat(String(raw));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  })();
+
+  const shopQuantityAdjusted =
+    item.quantityAdjusted === true ||
+    item.quantity_adjusted === true ||
+    item.shopQuantityUpdated === true ||
+    item.shop_quantity_updated === true ||
+    item.shopUpdated === true ||
+    item.shop_updated === true;
+
+  const hasOffer =
+    !isDeleted && (appliedPromotionIds.length > 0 || lineDiscountMinor > 0);
   return {
     id: item.id,
     productId: item.product_id ?? item.productId,
@@ -78,7 +110,10 @@ function transformOrderItem(item) {
     lineDiscount: minorToMajor(lineDiscountMinor),
     totalPrice,
     appliedPromotionIds,
-    hasOffer: appliedPromotionIds.length > 0 || lineDiscountMinor > 0,
+    hasOffer,
+    isDeleted,
+    originalQuantity,
+    shopQuantityAdjusted,
     product: item.product || {},
     name: productName,
     image: resolveOrderItemImage(item),

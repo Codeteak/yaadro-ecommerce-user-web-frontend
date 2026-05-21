@@ -109,7 +109,7 @@ export function LocationServiceProvider({ children }) {
   }, []);
 
   const applyDeliveryResult = useCallback(
-    (data, point, shopId) => {
+    (data, point, shopId, linkedAddressId = null) => {
       setCoords(point);
       setServiceable(data.serviceable);
       setDistanceM(data.distanceM);
@@ -122,6 +122,9 @@ export function LocationServiceProvider({ children }) {
         coords: { lat: point.lat, lng: point.lng },
         shopId,
         savedAt: Date.now(),
+        ...(linkedAddressId != null && linkedAddressId !== ''
+          ? { addressId: String(linkedAddressId) }
+          : {}),
       });
       maybeWarnOutsideZone(data.serviceable);
     },
@@ -129,7 +132,7 @@ export function LocationServiceProvider({ children }) {
   );
 
   const runCheckAtLatLng = useCallback(
-    async (lat, lng) => {
+    async (lat, lng, linkedAddressId = null) => {
       const shopId = await resolveShopId();
       if (!shopId) {
         setPhase('done');
@@ -142,7 +145,7 @@ export function LocationServiceProvider({ children }) {
       setGeoDenied(false);
       try {
         const data = await checkDeliveryLocation(lat, lng);
-        applyDeliveryResult(data, { lat, lng }, shopId);
+        applyDeliveryResult(data, { lat, lng }, shopId, linkedAddressId);
       } catch (e) {
         const msg = e?.message || 'Could not verify delivery area.';
         setPhase('done');
@@ -237,7 +240,8 @@ export function LocationServiceProvider({ children }) {
         cached &&
         cached.shopId === shopId &&
         cached.coords &&
-        coordsApproxEqual(cached.coords, addressCheckCoords)
+        coordsApproxEqual(cached.coords, addressCheckCoords) &&
+        String(cached.addressId ?? '') === String(defaultAddress?.id ?? '')
       ) {
         setServiceable(cached.serviceable ?? null);
         setDistanceM(cached.distanceM ?? null);
@@ -250,7 +254,7 @@ export function LocationServiceProvider({ children }) {
       }
 
       if (cancelled) return;
-      await runCheckAtLatLng(addressCheckCoords.lat, addressCheckCoords.lng);
+      await runCheckAtLatLng(addressCheckCoords.lat, addressCheckCoords.lng, defaultAddress?.id ?? null);
     })();
 
     return () => {
@@ -260,6 +264,7 @@ export function LocationServiceProvider({ children }) {
     waitForAddresses,
     addressCheckCoords?.lat,
     addressCheckCoords?.lng,
+    defaultAddress?.id,
     runCheckAtLatLng,
   ]);
 
@@ -303,10 +308,10 @@ export function LocationServiceProvider({ children }) {
     gpsLocationCheckInitStarted = false;
     if (addressCheckCoords) {
       setPhase('fetching');
-      return runCheckAtLatLng(addressCheckCoords.lat, addressCheckCoords.lng);
+      return runCheckAtLatLng(addressCheckCoords.lat, addressCheckCoords.lng, defaultAddress?.id ?? null);
     }
     return runGpsCheck();
-  }, [addressCheckCoords, runCheckAtLatLng, runGpsCheck]);
+  }, [addressCheckCoords, defaultAddress?.id, runCheckAtLatLng, runGpsCheck]);
 
   const clearCachedLocation = useCallback(() => {
     clearDeliveryCache();

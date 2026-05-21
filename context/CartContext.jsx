@@ -94,12 +94,16 @@ export function CartProvider({ children }) {
   }, [localCartItems]);
 
   // Hydrate cart + saved carts from localStorage before paint (avoids full-page cart loaders).
+  // For signed-in users, never apply an *empty* `cartApiCache` — token refresh / auth re-hydration
+  // re-runs this effect; writing `[]` here would wipe client snapshot lines while GET /cart refetches.
+  // Guest carts still apply `[]` so a cleared cart stays cleared after reload.
   useLayoutEffect(() => {
     setIsClient(true);
 
     if (typeof window === 'undefined') return;
 
-    const storageKey = isAuthenticated && token ? API_CART_CACHE_STORAGE_KEY : GUEST_CART_STORAGE_KEY;
+    const useApiStorage = !!(isAuthenticated && token);
+    const storageKey = useApiStorage ? API_CART_CACHE_STORAGE_KEY : GUEST_CART_STORAGE_KEY;
     const savedCart = localStorage.getItem(storageKey);
     if (savedCart) {
       try {
@@ -107,7 +111,13 @@ export function CartProvider({ children }) {
         const paidOnly = Array.isArray(parsed)
           ? parsed.filter((it) => !isBundleRewardCartLine(it))
           : [];
-        setLocalCartItems(applyGuestCartBundleQuantities(paidOnly));
+        if (useApiStorage) {
+          if (paidOnly.length > 0) {
+            setLocalCartItems(applyGuestCartBundleQuantities(paidOnly));
+          }
+        } else {
+          setLocalCartItems(applyGuestCartBundleQuantities(paidOnly));
+        }
         const lastActivity = localStorage.getItem('cartLastActivity');
         if (lastActivity) {
           setLastActivityTime(parseInt(lastActivity, 10));
