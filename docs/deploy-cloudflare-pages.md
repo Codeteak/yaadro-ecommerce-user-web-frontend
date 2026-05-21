@@ -7,6 +7,7 @@ Static Next.js export (`out/`) is deployed by GitHub Actions to **Cloudflare Pag
 | Pages project | `yaadro-ecommerce-user-web-frontend` |
 | Production branch | `main` |
 | Build command | `npm run build` |
+| Node.js (CI) | **22** (required by Wrangler 4.x) |
 | Output directory | `out` |
 | Custom domains | `testshop.yaadro.online`, `marketfresh.in` (+ `www.marketfresh.in` recommended) |
 
