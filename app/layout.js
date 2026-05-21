@@ -16,11 +16,19 @@ import MobileBottomNav from '../components/MobileBottomNav';
 import CartSidebar from '../components/CartSidebar';
 import ServiceAreaBottomSheet from '../components/ServiceAreaBottomSheet';
 import ClientOnly from '../components/ClientOnly';
+import { ShopBrandingProvider } from '../context/ShopBrandingContext';
 
 export const metadata = {
-  title: 'Yaadro - Professional Supermarket Ecommerce',
+  title: {
+    default: 'Yaadro',
+    template: '%s | Yaadro',
+  },
   description: 'Professional supermarket ecommerce platform',
   manifest: '/manifest.json',
+  openGraph: {
+    type: 'website',
+    siteName: 'Yaadro',
+  },
 };
 
 export const viewport = {
@@ -35,6 +43,7 @@ export default function RootLayout({ children }) {
         style={{ overflowX: 'clip', maxWidth: '100vw' }}
       >
         <ClientOnly fallback={<div className="min-h-screen w-full bg-white" />}>
+          <ShopBrandingProvider>
           <QueryProvider>
             <AuthProvider>
               <AlertProvider>
@@ -65,6 +74,7 @@ export default function RootLayout({ children }) {
               </AlertProvider>
             </AuthProvider>
           </QueryProvider>
+          </ShopBrandingProvider>
         </ClientOnly>
       </body>
     </html>

@@ -12,6 +12,8 @@ import { useUpdateProfile } from '../../hooks/useAuth';
 import ConfirmModal from '../../components/ConfirmModal';
 import PageTopBar from '../../components/PageTopBar';
 import GuestAuthPrompt from '../../components/GuestAuthPrompt';
+import ProfileOffersSection from '../../components/profile/ProfileOffersSection';
+import ProfileCouponsSection from '../../components/profile/ProfileCouponsSection';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
 import {
   Package,
@@ -301,6 +303,18 @@ function ProfilePageContent() {
             <div className="text-2xl font-bold text-gray-900">{cartItems.length}</div>
             <p className="text-xs text-gray-600 mt-1">Cart items</p>
           </div>
+        </div>
+
+        {/* Category offers */}
+        <div className="mx-4 mt-4 rounded-lg border border-gray-100 bg-white p-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Category offers</h3>
+          <ProfileOffersSection />
+        </div>
+
+        {/* Coupons */}
+        <div className="mx-4 mt-4 rounded-lg border border-gray-100 bg-white p-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Available coupons</h3>
+          <ProfileCouponsSection />
         </div>
 
         {/* Menu Items */}

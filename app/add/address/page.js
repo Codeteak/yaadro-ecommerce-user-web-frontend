@@ -9,8 +9,8 @@ import { useAddress } from '../../../context/AddressContext';
 import { useAuth } from '../../../context/AuthContext';
 import GuestAuthPrompt from '../../../components/GuestAuthPrompt';
 import ConfirmModal from '../../../components/ConfirmModal';
+import SuccessCelebrationModal from '../../../components/SuccessCelebrationModal';
 import { useRequireAuth } from '../../../hooks/useRequireAuth';
-import { useAlert } from '../../../context/AlertContext';
 import { reverseGeocode } from '../../../utils/geocoding';
 import { updateStorefrontProfile, resolveShopId } from '../../../utils/authApi';
 import { normalizePhoneForApi } from '../../../utils/otpVerifyPayload';
@@ -117,7 +117,6 @@ export default function AddAddressPage() {
   const { user, refreshUser } = useAuth();
   const { ok, ready } = useRequireAuth();
   const { addresses = [], addAddress, updateAddress, isCreating, isUpdating } = useAddress();
-  const { showAlert } = useAlert();
   const { maxRadiusM: locationMaxRadiusM } = useLocationService();
 
   const editingAddress = useMemo(
@@ -163,6 +162,7 @@ export default function AddAddressPage() {
   const lastPinRef = useRef('');
 
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [addressSuccess, setAddressSuccess] = useState(null);
   const [isDraftDirty, setIsDraftDirty] = useState(false);
   const editInitForIdRef = useRef(null);
 
@@ -624,11 +624,19 @@ export default function AddAddressPage() {
       if (isEdit && editingAddress?.id) {
         await updateAddress(editingAddress.id, payload);
         createdId = editingAddress.id;
-        showAlert('Address updated.', 'Success', 'success');
+        setAddressSuccess({
+          createdId,
+          title: 'Address updated',
+          message: 'Your delivery address has been saved successfully.',
+        });
       } else {
         const created = await addAddress(payload);
         createdId = created?.id || null;
-        showAlert('Address saved.', 'Success', 'success');
+        setAddressSuccess({
+          createdId,
+          title: 'Address saved',
+          message: 'Your new delivery address is ready to use.',
+        });
       }
 
       if (typeof window !== 'undefined' && editId) {
@@ -639,8 +647,6 @@ export default function AddAddressPage() {
           /* noop */
         }
       }
-
-      navigateBackWith(createdId);
     } catch (e) {
       setSubmitError(e?.message || 'Could not save. Try again.');
     }
@@ -1118,6 +1124,18 @@ export default function AddAddressPage() {
         message="You have not saved this address update. Your previous address is stored on this device — if you leave, you can open edit again to restore it, or enter a new address from scratch. Your account still has the last saved address until you complete Save."
         confirmText="Leave"
         cancelText="Keep editing"
+      />
+
+      <SuccessCelebrationModal
+        open={!!addressSuccess}
+        title={addressSuccess?.title}
+        message={addressSuccess?.message}
+        actionLabel="Continue"
+        onContinue={() => {
+          const id = addressSuccess?.createdId;
+          setAddressSuccess(null);
+          navigateBackWith(id);
+        }}
       />
     </div>
   );

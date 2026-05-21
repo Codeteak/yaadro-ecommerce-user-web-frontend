@@ -126,7 +126,18 @@ function PhoneStep({ phone, setPhone, onSubmit, isSubmitting, inputRef }) {
   );
 }
 
-function OtpStep({ phone, code, setCode, onSubmit, onResend, onChangePhone, isSubmitting, inputRef }) {
+function OtpStep({
+  phone,
+  code,
+  setCode,
+  onSubmit,
+  onResend,
+  onChangePhone,
+  isSubmitting,
+  inputRef,
+  resendSecondsLeft = 0,
+}) {
+  const resendDisabled = isSubmitting || resendSecondsLeft > 0;
   return (
     <form onSubmit={onSubmit} className="space-y-0">
       <div className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 mb-3">
@@ -174,8 +185,8 @@ function OtpStep({ phone, code, setCode, onSubmit, onResend, onChangePhone, isSu
           </svg>
         </PrimaryButton>
 
-        <SecondaryButton onClick={onResend} disabled={isSubmitting}>
-          Resend OTP
+        <SecondaryButton onClick={onResend} disabled={resendDisabled}>
+          {resendSecondsLeft > 0 ? `Resend OTP in ${resendSecondsLeft}s` : 'Resend OTP'}
         </SecondaryButton>
       </div>
     </form>
@@ -195,6 +206,17 @@ export default function LoginPanel({ className = '' }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [shopId, setShopId] = useState('');
+  const [resendSecondsLeft, setResendSecondsLeft] = useState(0);
+
+  const OTP_RESEND_COOLDOWN_SEC = 30;
+
+  useEffect(() => {
+    if (resendSecondsLeft <= 0) return undefined;
+    const t = setInterval(() => {
+      setResendSecondsLeft((s) => (s <= 1 ? 0 : s - 1));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [resendSecondsLeft]);
 
   useEffect(() => {
     let active = true;
@@ -248,6 +270,7 @@ export default function LoginPanel({ className = '' }) {
     try {
       await requestOtp({ phone: nextPhone, shopId });
       setStep('otp');
+      setResendSecondsLeft(OTP_RESEND_COOLDOWN_SEC);
     } catch (err) {
       setError(err?.message || 'Something went wrong. Please try again.');
     } finally {
@@ -309,6 +332,7 @@ export default function LoginPanel({ className = '' }) {
   };
 
   const handleResend = async () => {
+    if (resendSecondsLeft > 0 || isSubmitting) return;
     clearError();
     const nextPhone = apiPhone();
     const phoneErr = getIndianPhoneSubmitError(nextPhone);
@@ -320,6 +344,7 @@ export default function LoginPanel({ className = '' }) {
     setIsSubmitting(true);
     try {
       await requestOtp({ phone: nextPhone, shopId });
+      setResendSecondsLeft(OTP_RESEND_COOLDOWN_SEC);
     } catch (err) {
       setError(err?.message || 'Could not resend OTP.');
     } finally {
@@ -356,10 +381,12 @@ export default function LoginPanel({ className = '' }) {
           onChangePhone={() => {
             setStep('phone');
             setCode('');
+            setResendSecondsLeft(0);
             clearError();
           }}
           isSubmitting={isSubmitting}
           inputRef={otpInputRef}
+          resendSecondsLeft={resendSecondsLeft}
         />
       )}
     </div>

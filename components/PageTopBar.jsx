@@ -3,9 +3,11 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
+import { usePageTitle } from '../context/ShopBrandingContext';
 
 export default function PageTopBar({ title, subtitle, backHref, fallbackHref = '/', right = null }) {
   const router = useRouter();
+  usePageTitle(title);
 
   const handleBack = () => {
     if (backHref) {

@@ -18,19 +18,11 @@ export {
   buildOtpVerifyRequestBody,
 } from './otpVerifyPayload';
 
-const RESOLVED_SHOP_ID_STORAGE_KEY = 'yaadro_resolved_shop_id';
-const RESOLVED_SHOP_HOST_STORAGE_KEY = 'yaadro_resolved_shop_host';
-
-function getDefaultTenantResolverUrl() {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL
-    ? String(process.env.NEXT_PUBLIC_API_BASE_URL).trim()
-    : process.env.NEXT_PUBLIC_API_URL
-    ? `${String(process.env.NEXT_PUBLIC_API_URL).trim().replace(/\/+$/, '')}/api`
-    : '';
-  if (!base) return '';
-  const apiBase = base.replace(/\/+$/, '');
-  return `${apiBase}/shops/resolve-by-domain`;
-}
+import {
+  RESOLVED_SHOP_HOST_STORAGE_KEY,
+  RESOLVED_SHOP_ID_STORAGE_KEY,
+  resolveShopIdFromDomain,
+} from './shopResolver';
 
 /** Shop UUID for storefront auth (OpenAPI: `shopId`). Set `NEXT_PUBLIC_SHOP_ID` in env. */
 export function getShopIdFromEnv() {
@@ -49,69 +41,13 @@ export function getShopIdFromEnv() {
   return '';
 }
 
-function normalizeResolverResponse(payload) {
-  if (!payload || typeof payload !== 'object') return '';
-  const raw =
-    payload.shopId ??
-    payload.shop_id ??
-    payload.tenantId ??
-    payload.tenant_id ??
-    payload?.data?.shopId ??
-    payload?.data?.shop_id;
-  return raw ? String(raw).trim() : '';
-}
-
-function persistResolvedShopId(host, shopId) {
-  if (typeof window === 'undefined') return;
-  if (!host || !shopId) return;
-  window.localStorage.setItem(RESOLVED_SHOP_HOST_STORAGE_KEY, host);
-  window.localStorage.setItem(RESOLVED_SHOP_ID_STORAGE_KEY, shopId);
-}
-
 /**
  * Resolve shop id for current domain.
  * - Development: always return NEXT_PUBLIC_SHOP_ID.
  * - Production: resolve from tenant resolver API and cache by domain.
  */
 export async function resolveShopId() {
-  const envShopId = process.env.NEXT_PUBLIC_SHOP_ID
-    ? String(process.env.NEXT_PUBLIC_SHOP_ID).trim()
-    : '';
-
-  if (typeof window === 'undefined') return envShopId;
-  if (process.env.NODE_ENV !== 'production') return envShopId;
-
-  const domain = String(window.location.hostname || '').toLowerCase().trim();
-  if (!domain) return '';
-
-  const cachedHost = window.localStorage.getItem(RESOLVED_SHOP_HOST_STORAGE_KEY) || '';
-  const cachedShopId = window.localStorage.getItem(RESOLVED_SHOP_ID_STORAGE_KEY) || '';
-  if (cachedHost === domain && cachedShopId) return cachedShopId;
-
-  const resolverUrl = process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL
-    ? String(process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL).trim()
-    : getDefaultTenantResolverUrl();
-  if (!resolverUrl) return '';
-
-  try {
-    const url = new URL(resolverUrl);
-    url.searchParams.set('domain', domain);
-
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-    });
-    if (!response.ok) return '';
-
-    const payload = await response.json();
-    const resolvedShopId = normalizeResolverResponse(payload);
-    if (resolvedShopId) {
-      persistResolvedShopId(domain, resolvedShopId);
-    }
-    return resolvedShopId;
-  } catch {
-    return '';
-  }
+  return resolveShopIdFromDomain();
 }
 
 async function resolveShopIdForOtp(explicitShopId) {

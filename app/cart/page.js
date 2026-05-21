@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useCart } from '../../context/CartContext';
+import { usePageTitle } from '../../context/ShopBrandingContext';
 import { useAlert } from '../../context/AlertContext';
 import { useAuth } from '../../context/AuthContext';
 import { useProducts } from '../../hooks/useProducts';
@@ -368,6 +369,7 @@ function EmptyCart({ carouselSections = [] }) {
    Main cart content
 ───────────────────────────────────────────── */
 function CartPageContent() {
+  usePageTitle('Cart');
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, authHydrated } = useAuth();
@@ -384,7 +386,6 @@ function CartPageContent() {
     savedCarts,
     loadSharedCart,
     loading: cartQueryLoading,
-    cartQueryFetching,
     hasHydratedLocalCart,
   } = useCart();
   const { showAlert } = useAlert();
@@ -399,10 +400,9 @@ function CartPageContent() {
 
   const totalQty = cartCount > 0 ? cartCount : sumCartDisplayUnits(cartItems);
 
-  /** Include `cartQueryFetching` so post–“Order again” refetch does not flash the empty cart UI. */
+  /** Only block on initial load — not background refetches when the cart is already empty. */
   const showCartLoading =
-    !hasHydratedLocalCart ||
-    (cartItems.length === 0 && (cartQueryLoading || cartQueryFetching));
+    !hasHydratedLocalCart || (cartItems.length === 0 && cartQueryLoading);
 
   // Pool of products used to suggest "similar products". Same query as home → cached.
   const { data: similarPoolData } = useProducts({

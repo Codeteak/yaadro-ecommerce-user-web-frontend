@@ -60,6 +60,7 @@ export function CartProvider({ children }) {
   // Use API cart when authenticated; otherwise use local cart.
   const useApiCart = !!(isAuthenticated && token);
   const syncedLocalToApiRef = useRef(false);
+  const wasAuthenticatedRef = useRef(false);
 
   // Load cart using TanStack Query (disabled for now)
   const {
@@ -164,6 +165,24 @@ export function CartProvider({ children }) {
 
   // TanStack Query mutations and client
   const queryClient = useQueryClient();
+
+  /** After logout (auth → guest), drop in-memory cart — not on initial guest page load. */
+  useEffect(() => {
+    if (isAuthenticated) {
+      wasAuthenticatedRef.current = true;
+      return;
+    }
+    if (!wasAuthenticatedRef.current) return;
+    wasAuthenticatedRef.current = false;
+    setPendingRemovedCartItemIds([]);
+    setLocalCartItems([]);
+    localCartItemsRef.current = [];
+    syncedLocalToApiRef.current = false;
+    setSavedCarts([]);
+    setCartTemplates([]);
+    queryClient.removeQueries({ queryKey: cartKeys.all });
+  }, [isAuthenticated, queryClient]);
+
   const addToCartMutation = useAddToCart();
   const updateCartItemMutation = useUpdateCartItem();
   const removeFromCartMutation = useRemoveFromCart();
@@ -288,7 +307,7 @@ export function CartProvider({ children }) {
             productId: product,
             delta: addQty,
           });
-          if (cartData?.items?.length) {
+          if (cartData?.items != null) {
             const paidCache = syncPaidCartCacheLines(cartData.items, []);
             setLocalCartItems(paidCache);
             localCartItemsRef.current = paidCache;
@@ -347,12 +366,15 @@ export function CartProvider({ children }) {
         persistCartLinesImmediate(nextItems, storageKey);
       }
       removeFromCartMutation.mutate(item.cartItemId, {
-        onSuccess: () => {
-          // Allow time for any in-flight refetch to return; then stop hiding this id.
-          if (typeof window !== 'undefined') {
-            window.setTimeout(() => {
-              setPendingRemovedCartItemIds((prev) => prev.filter((id) => id !== removedId));
-            }, 4000);
+        onSuccess: (cartData) => {
+          setPendingRemovedCartItemIds((prev) => prev.filter((id) => id !== removedId));
+          if (cartData?.items != null) {
+            const paidCache = syncPaidCartCacheLines(cartData.items, []);
+            setLocalCartItems(paidCache);
+            localCartItemsRef.current = paidCache;
+            if (isClient && typeof window !== 'undefined') {
+              persistCartLinesImmediate(paidCache, storageKey);
+            }
           }
         },
         onError: (error) => {
@@ -420,7 +442,7 @@ export function CartProvider({ children }) {
         { itemId: item.cartItemId, delta },
         {
           onSuccess: (cartData) => {
-            if (cartData?.items?.length) {
+            if (cartData?.items != null) {
               const paidCache = syncPaidCartCacheLines(cartData.items, []);
               setLocalCartItems(paidCache);
               localCartItemsRef.current = paidCache;
@@ -478,6 +500,11 @@ export function CartProvider({ children }) {
       if (useApiCart && isAuthenticated && token) {
         setPendingRemovedCartItemIds([]);
         setLocalCartItems([]);
+        localCartItemsRef.current = [];
+        if (isClient && typeof window !== 'undefined') {
+          localStorage.removeItem(API_CART_CACHE_STORAGE_KEY);
+          localStorage.removeItem(GUEST_CART_STORAGE_KEY);
+        }
         // Use API if authenticated
         await clearCartMutation.mutateAsync();
         // Query will update automatically

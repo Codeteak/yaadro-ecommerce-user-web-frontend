@@ -250,7 +250,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       <div className="relative">
           <div
             ref={carouselRef}
-            className="relative w-full aspect-[4/5] overflow-hidden rounded-2xl p-1 max-h-[120px] cursor-grab active:cursor-grabbing pointer-events-auto"
+            className="relative w-full aspect-[4/5] overflow-hidden rounded-2xl max-h-[120px] cursor-grab active:cursor-grabbing pointer-events-auto"
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
@@ -269,7 +269,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
                     src={img}
                     alt={`${product.name} – image ${idx + 1}`}
                     fill
-                    className="object-contain rounded-2xl object-center"
+                    className="object-cover object-center"
                     sizes="(max-width: 640px) 50vw, (max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                   />
                 </div>

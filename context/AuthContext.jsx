@@ -12,6 +12,7 @@ import {
   takePostLoginRedirect,
 } from '../utils/authSession';
 import { normalizeCustomer } from '../utils/authApi';
+import { clearAllClientSessionData } from '../utils/clearClientSession';
 
 const AuthContext = createContext();
 
@@ -28,14 +29,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     setToken(null);
     setRefreshToken(null);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      clearSessionExpiresAt();
-    }
+    clearAllClientSessionData();
   }, []);
 
   // Initialize tokens from localStorage and fetch user from API
@@ -241,20 +235,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     setToken(null);
     setRefreshToken(null);
-    if (typeof window !== 'undefined') {
-      // Remove all user-related data
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      clearSessionExpiresAt();
-      localStorage.removeItem('cart');
-      localStorage.removeItem('wishlist');
-      localStorage.removeItem('addresses');
-      localStorage.removeItem('activityLog');
-      localStorage.removeItem('privacySettings');
-    }
+    clearAllClientSessionData();
   };
 
   /**

@@ -1,13 +1,26 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { useAuth } from './AuthContext';
 
 const WishlistContext = createContext();
 
 export function WishlistProvider({ children }) {
+  const { isAuthenticated } = useAuth();
+  const wasAuthenticatedRef = useRef(false);
   // Initialize wishlist state from localStorage if available (client-side only)
   const [wishlistItems, setWishlistItems] = useState([]);
   const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      wasAuthenticatedRef.current = true;
+      return;
+    }
+    if (!wasAuthenticatedRef.current) return;
+    wasAuthenticatedRef.current = false;
+    setWishlistItems([]);
+  }, [isAuthenticated]);
 
   // Ensure we're on the client before accessing localStorage
   useEffect(() => {
