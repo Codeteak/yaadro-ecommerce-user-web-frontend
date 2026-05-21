@@ -20,14 +20,6 @@ export {
 
 const RESOLVED_SHOP_ID_STORAGE_KEY = 'yaadro_resolved_shop_id';
 const RESOLVED_SHOP_HOST_STORAGE_KEY = 'yaadro_resolved_shop_host';
-const SHOP_ID_LOG_PREFIX = '[Yaadro shopId]';
-
-/** Production browser console only — how shopId was resolved. */
-function logShopIdResolve(source, details = {}) {
-  if (typeof window === 'undefined') return;
-  if (process.env.NODE_ENV !== 'production') return;
-  console.info(SHOP_ID_LOG_PREFIX, source, details);
-}
 
 function getDefaultTenantResolverUrl() {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
@@ -105,86 +97,34 @@ export async function resolveShopId() {
   if (process.env.NODE_ENV !== 'production') return envShopId;
 
   const domain = getCurrentShopDomain();
-  if (!domain) {
-    logShopIdResolve('env (no hostname)', {
-      shopId: envShopId || null,
-      hasEnvFallback: Boolean(envShopId),
-    });
-    return envShopId;
-  }
+  if (!domain) return envShopId;
 
   const cachedShopId = readCachedShopIdForDomain(domain);
-  if (cachedShopId) {
-    logShopIdResolve('localStorage cache', { domain, shopId: cachedShopId });
-    return cachedShopId;
-  }
+  if (cachedShopId) return cachedShopId;
 
   const resolverUrl = process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL
     ? String(process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL).trim()
     : getDefaultTenantResolverUrl();
-  if (!resolverUrl) {
-    logShopIdResolve('env (no tenant resolver URL configured)', {
-      domain,
-      shopId: envShopId || null,
-      hasEnvFallback: Boolean(envShopId),
-    });
-    return envShopId;
-  }
+  if (!resolverUrl) return envShopId;
 
   try {
     const url = new URL(resolverUrl);
     url.searchParams.set('domain', domain);
-    const requestUrl = url.toString();
 
-    logShopIdResolve('domain API — fetching', {
-      domain,
-      requestUrl,
-      resolverConfigured: Boolean(process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL),
-    });
-
-    const response = await fetch(requestUrl, {
+    const response = await fetch(url.toString(), {
       method: 'GET',
       headers: { Accept: 'application/json' },
     });
-    if (!response.ok) {
-      logShopIdResolve('env fallback (domain API error)', {
-        domain,
-        requestUrl,
-        status: response.status,
-        shopId: envShopId || null,
-        hasEnvFallback: Boolean(envShopId),
-      });
-      return envShopId;
-    }
+    if (!response.ok) return envShopId;
 
     const payload = await response.json();
     const resolvedShopId = normalizeResolverResponse(payload);
     if (resolvedShopId) {
       persistResolvedShopId(domain, resolvedShopId);
-      logShopIdResolve('domain API — resolved', {
-        domain,
-        requestUrl,
-        shopId: resolvedShopId,
-        cached: true,
-      });
       return resolvedShopId;
     }
-
-    logShopIdResolve('env fallback (domain API empty shopId)', {
-      domain,
-      requestUrl,
-      shopId: envShopId || null,
-      hasEnvFallback: Boolean(envShopId),
-      responseKeys: payload && typeof payload === 'object' ? Object.keys(payload) : [],
-    });
     return envShopId;
-  } catch (err) {
-    logShopIdResolve('env fallback (domain API request failed)', {
-      domain,
-      shopId: envShopId || null,
-      hasEnvFallback: Boolean(envShopId),
-      error: err?.message || String(err),
-    });
+  } catch {
     return envShopId;
   }
 }
