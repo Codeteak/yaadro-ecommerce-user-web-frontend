@@ -2,13 +2,14 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { refreshAccessToken, getCurrentUser } from '../utils/authApi';
-import { getMsUntilAccessTokenRefresh } from '../utils/jwtExp';
+import { getJwtExpiresAtMs, getMsUntilAccessTokenRefresh } from '../utils/jwtExp';
 import { getAuthToken } from '../utils/apiClient';
 import {
   clearSessionExpiresAt,
   ensureSessionExpiryForExistingLogin,
+  establishClientSession,
   isClientSessionExpired,
-  writeSessionExpiresAtFromLogin,
+  syncSessionExpiryFromRefreshToken,
   takePostLoginRedirect,
 } from '../utils/authSession';
 import { normalizeCustomer } from '../utils/authApi';
@@ -58,8 +59,45 @@ export function AuthProvider({ children }) {
 
     let cancelled = false;
 
+    async function applyRefreshedTokens(newTokens, previousRefreshToken) {
+      if (!newTokens?.token) return false;
+      localStorage.setItem('token', newTokens.token);
+      localStorage.setItem('authToken', newTokens.token);
+      setToken(newTokens.token);
+      if (newTokens.refreshToken) {
+        localStorage.setItem('refreshToken', newTokens.refreshToken);
+        setRefreshToken(newTokens.refreshToken);
+        syncSessionExpiryFromRefreshToken(newTokens.refreshToken);
+      } else if (previousRefreshToken) {
+        syncSessionExpiryFromRefreshToken(previousRefreshToken);
+      }
+      return true;
+    }
+
     async function hydrate() {
       if (!savedToken) {
+        if (savedRefreshToken) {
+          setIsLoadingUser(true);
+          try {
+            const newTokens = await refreshAccessToken(savedRefreshToken);
+            if (cancelled) return;
+            if (await applyRefreshedTokens(newTokens, savedRefreshToken)) {
+              const apiUser = await getCurrentUser();
+              if (cancelled) return;
+              setUser(apiUser);
+              if (apiUser) localStorage.setItem('user', JSON.stringify(apiUser));
+            }
+          } catch (refreshErr) {
+            console.error('Session refresh without access token failed:', refreshErr);
+            logout();
+          } finally {
+            if (!cancelled) {
+              setIsLoadingUser(false);
+              setAuthHydrated(true);
+            }
+          }
+          return;
+        }
         if (savedUser) {
           try {
             setUser(JSON.parse(savedUser));
@@ -73,13 +111,25 @@ export function AuthProvider({ children }) {
 
       setToken(savedToken);
       setIsLoadingUser(true);
+
+      const accessExpMs = getJwtExpiresAtMs(savedToken);
+      const accessNeedsRefresh =
+        accessExpMs != null && Date.now() >= accessExpMs - 60 * 1000;
+
       try {
+        if (accessNeedsRefresh && savedRefreshToken) {
+          const newTokens = await refreshAccessToken(savedRefreshToken);
+          if (cancelled) return;
+          if (!(await applyRefreshedTokens(newTokens, savedRefreshToken))) {
+            throw new Error('Refresh returned no access token');
+          }
+        }
+
         const apiUser = await getCurrentUser();
         if (cancelled) return;
         setUser(apiUser);
         if (apiUser) {
           localStorage.setItem('user', JSON.stringify(apiUser));
-          writeSessionExpiresAtFromLogin();
         }
       } catch (error) {
         if (cancelled) return;
@@ -90,21 +140,12 @@ export function AuthProvider({ children }) {
           try {
             const newTokens = await refreshAccessToken(savedRefreshToken);
             if (cancelled) return;
-            if (newTokens?.token) {
-              localStorage.setItem('token', newTokens.token);
-              localStorage.setItem('authToken', newTokens.token);
-              setToken(newTokens.token);
-              if (newTokens.refreshToken) {
-                localStorage.setItem('refreshToken', newTokens.refreshToken);
-                setRefreshToken(newTokens.refreshToken);
-              }
-              writeSessionExpiresAtFromLogin();
+            if (await applyRefreshedTokens(newTokens, savedRefreshToken)) {
               const apiUser2 = await getCurrentUser();
               if (cancelled) return;
               setUser(apiUser2);
               if (apiUser2) {
                 localStorage.setItem('user', JSON.stringify(apiUser2));
-                writeSessionExpiresAtFromLogin();
               }
               return;
             }
@@ -136,7 +177,21 @@ export function AuthProvider({ children }) {
     };
   }, [logout]);
 
-  // Proactive refresh before access JWT expires; extends client session window on success.
+  // Log out when the 50-day refresh session ends (e.g. user returns after expiry).
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const check = () => {
+      if (isClientSessionExpired()) logout();
+    };
+    window.addEventListener('focus', check);
+    window.addEventListener('visibilitychange', check);
+    return () => {
+      window.removeEventListener('focus', check);
+      window.removeEventListener('visibilitychange', check);
+    };
+  }, [logout]);
+
+  // Proactive refresh before 7-day access JWT expires (does not extend refresh session).
   useEffect(() => {
     if (!token || typeof window === 'undefined') return undefined;
 
@@ -163,8 +218,8 @@ export function AuthProvider({ children }) {
         if (newTokens.refreshToken) {
           setRefreshToken(newTokens.refreshToken);
           localStorage.setItem('refreshToken', newTokens.refreshToken);
+          syncSessionExpiryFromRefreshToken(newTokens.refreshToken);
         }
-        writeSessionExpiresAtFromLogin();
       } catch (error) {
         console.error('Token refresh failed:', error);
         if (!cancelled) logout();
@@ -219,7 +274,7 @@ export function AuthProvider({ children }) {
       setRefreshToken(tokens.refreshToken);
       localStorage.setItem('refreshToken', tokens.refreshToken);
     }
-    writeSessionExpiresAtFromLogin();
+    establishClientSession({ refreshToken: tokens?.refreshToken });
     if (typeof window !== 'undefined') {
       const next = takePostLoginRedirect();
       if (next) {
@@ -272,7 +327,6 @@ export function AuthProvider({ children }) {
         } catch {
           // ignore storage write failures
         }
-        writeSessionExpiresAtFromLogin();
         return merged;
       });
     } catch (error) {

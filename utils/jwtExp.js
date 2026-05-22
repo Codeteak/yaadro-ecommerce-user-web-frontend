@@ -26,12 +26,14 @@ export function getJwtExpiresAtMs(jwt) {
   }
 }
 
-/** Milliseconds until we should refresh (before `exp`, with bounds). */
+const ACCESS_TOKEN_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Milliseconds until proactive access-token refresh (before JWT `exp`, ~7-day tokens). */
 export function getMsUntilAccessTokenRefresh(accessToken, opts = {}) {
-  const skewMs = opts.skewMs ?? 90 * 1000;
-  const fallbackMs = opts.fallbackMs ?? 15 * 60 * 1000;
+  const skewMs = opts.skewMs ?? 5 * 60 * 1000;
+  const fallbackMs = opts.fallbackMs ?? ACCESS_TOKEN_LIFETIME_MS - skewMs;
   const minDelayMs = opts.minDelayMs ?? 5 * 1000;
-  const maxDelayMs = opts.maxDelayMs ?? 24 * 60 * 60 * 1000;
+  const maxDelayMs = opts.maxDelayMs ?? ACCESS_TOKEN_LIFETIME_MS;
   const expMs = getJwtExpiresAtMs(accessToken);
   if (expMs == null) return fallbackMs;
   const until = expMs - Date.now() - skewMs;
