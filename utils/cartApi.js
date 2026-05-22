@@ -19,6 +19,10 @@ import {
   normalizeCartPromotions,
   sumCartDisplayUnits,
 } from './cartPromotions';
+import {
+  formatWeightUnitLabel,
+  resolveProductWeightAndUnit,
+} from './productUtils';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -271,8 +275,22 @@ function transformCartItem(apiItem, product = null) {
   const primaryImage = imagesList[0] || PRODUCT_IMAGE_PLACEHOLDER;
 
   const productId = normalized.product_id || normalized.productId || nestedProduct?.id;
-  const unitLabel = String(normalized.unit_label ?? normalized.unit ?? normalized.unitLabel ?? '').trim();
-  const sizeKey = unitLabel || 'default';
+  const weightUnitSource = {
+    ...(nestedProduct && typeof nestedProduct === 'object' ? nestedProduct : {}),
+    weight: nestedProduct?.weight ?? normalized.weight,
+    unit: nestedProduct?.unit ?? normalized.unit ?? normalized.unit_label,
+    unit_label: normalized.unit_label ?? normalized.unitLabel,
+    name:
+      nestedProduct?.name ||
+      normalized.title_snapshot ||
+      normalized.title ||
+      normalized.titleSnapshot ||
+      '',
+  };
+  const { weight: lineWeight, unit: lineUnit } = resolveProductWeightAndUnit(weightUnitSource);
+  const unitLabel = lineUnit;
+  const packLabel = formatWeightUnitLabel(lineWeight, lineUnit);
+  const sizeKey = packLabel || unitLabel || 'default';
   const cartItemKey = isBundleReward
     ? String(normalized.id ?? '')
     : `${productId ?? 'item'}_${sizeKey}`;
@@ -336,10 +354,21 @@ function transformCartItem(apiItem, product = null) {
     thumbnailUrl: normalized.thumbnail_url ?? normalized.thumbnail ?? null,
     stock: nestedProduct?.stock || 0,
     inStock: nestedProduct?.inStock ?? true,
-    unit: nestedProduct?.unit || normalized.unit_label || normalized.unit || '',
-    weight: nestedProduct?.weight || null,
+    unit: lineUnit,
+    weight: lineWeight,
     sizeDisplay: (() => {
-      const label = normalized.unit_label ?? normalized.unit ?? normalized.unitLabel ?? '';
+      if (packLabel) {
+        if (isBundleReward) return `${packLabel} · Free`;
+        const showQty =
+          Number.isFinite(displayQty) && displayQty > quantity ? displayQty : quantity;
+        const freeExtra =
+          Number.isFinite(displayQty) && displayQty > quantity ? displayQty - quantity : 0;
+        if (freeExtra > 0) {
+          return `${packLabel} · ${showQty} in cart (${freeExtra} free)`;
+        }
+        return packLabel;
+      }
+      const label = unitLabel;
       if (!label) return nestedProduct?.sizeDisplay || '';
       if (isBundleReward) return `${quantity} ${label} · Free`;
       const showQty =

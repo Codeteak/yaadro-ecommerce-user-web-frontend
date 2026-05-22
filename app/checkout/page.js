@@ -15,9 +15,16 @@ import { placeStorefrontOrder } from '../../utils/storefrontCheckoutApi';
 import { getApiErrorCode, getCheckoutErrorMessage } from '../../utils/apiErrors';
 import { useCartQuery, cartKeys } from '../../hooks/useCart';
 import { couponKeys } from '../../hooks/useCoupons';
+import { addressKeys } from '../../hooks/useAddresses';
+import {
+  readCheckoutDraft,
+  writeCheckoutDraft,
+  clearCheckoutDraft,
+} from '../../utils/checkoutSession';
 import { useLoginNavigation } from '../../hooks/useLoginNavigation';
 import CheckoutCouponsSection from '../../components/CheckoutCouponsSection';
 import { getCartLinePreviewImageSrc } from '../../utils/productImages';
+import { getCartLineVariantLabel } from '../../utils/productUtils';
 import { getCartBottomBarPricing } from '../../utils/cartSavings';
 import { formatInrFromMinor, minorToMajor } from '../../utils/currencyMinor';
 import { formatCartCouponPreviewMessage } from '../../utils/cartPromotions';
@@ -304,7 +311,7 @@ function OrderSummary({
                   )}
                 </p>
                 <p className="text-[11px] text-gray-400">
-                  {item.sizeDisplay || (item.weight ? `${item.weight} ${item.unit}` : '')}
+                  {getCartLineVariantLabel(item)}
                 </p>
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <span className="text-[12px] text-gray-600">Qty: {qty}</span>
@@ -458,6 +465,7 @@ export default function CheckoutPage() {
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [showPriceVaryConfirm, setShowPriceVaryConfirm] = useState(false);
   const [selectedCouponCode, setSelectedCouponCode] = useState('');
+  const [checkoutDraftHydrated, setCheckoutDraftHydrated] = useState(false);
 
   const { data: cartApiData, isFetching: cartPreviewFetching } = useCartQuery({
     enabled: !!isAuthenticated,
@@ -568,26 +576,74 @@ export default function CheckoutPage() {
     [cartItems, displayCartTotal]
   );
 
-  /* ── Set default address on mount ── */
+  /* ── Restore checkout draft (coupon, notes, address) after /add/address, etc. ── */
   useEffect(() => {
+    if (checkoutDraftHydrated) return;
+    const draft = readCheckoutDraft();
+    if (draft?.notes != null) setNotes(String(draft.notes));
+    if (draft?.couponCode != null) setSelectedCouponCode(String(draft.couponCode));
+    if (draft?.selectedAddressId != null) {
+      setSelectedAddressId(draft.selectedAddressId);
+    }
+    setCheckoutDraftHydrated(true);
+  }, [checkoutDraftHydrated]);
+
+  /* ── Set default address when none selected (after draft restore). ── */
+  useEffect(() => {
+    if (!checkoutDraftHydrated) return;
+    if (selectedAddressId) return;
     const defaultAddress = getDefaultAddress();
     if (defaultAddress) setSelectedAddressId(defaultAddress.id);
-  }, [getDefaultAddress]);
+  }, [checkoutDraftHydrated, selectedAddressId, getDefaultAddress, addresses]);
 
-  /* ── If we just returned from /add/address?…&selectAddress=ID, pick that one. ── */
+  /* ── Persist checkout draft while user is in the funnel ── */
+  useEffect(() => {
+    if (!checkoutDraftHydrated) return;
+    writeCheckoutDraft({
+      notes,
+      couponCode: selectedCouponCode,
+      selectedAddressId,
+    });
+  }, [checkoutDraftHydrated, notes, selectedCouponCode, selectedAddressId]);
+
+  /* ── Returning from /add/address?selectAddress= — pick address once list is ready ── */
   useEffect(() => {
     const incomingId = searchParams.get('selectAddress');
     if (!incomingId) return;
-    if (!Array.isArray(addresses) || addresses.length === 0) return;
-    const exists = addresses.some((a) => String(a.id) === String(incomingId));
-    if (exists) setSelectedAddressId(incomingId);
+    if (isLoadingAddresses) return;
 
-    // Clean the query param so a subsequent default-address change can win.
+    const exists = addresses.some((a) => String(a.id) === String(incomingId));
+    if (exists) {
+      setSelectedAddressId(incomingId);
+      writeCheckoutDraft({ selectedAddressId: incomingId });
+    }
+
     const params = new URLSearchParams(searchParams.toString());
     params.delete('selectAddress');
     const qs = params.toString();
     router.replace(qs ? `/checkout?${qs}` : '/checkout');
-  }, [searchParams, addresses, router]);
+  }, [searchParams, addresses, isLoadingAddresses, router]);
+
+  /* ── Refresh cart + addresses when tabbing back (e.g. from address map). ── */
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+    const refresh = () => {
+      void queryClient.invalidateQueries({ queryKey: cartKeys.all });
+      void queryClient.invalidateQueries({ queryKey: addressKeys.all });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    const onPageShow = (event) => {
+      if (event.persisted) refresh();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pageshow', onPageShow);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pageshow', onPageShow);
+    };
+  }, [isAuthenticated, queryClient]);
 
   /* ── Guests with items: require login, then return here ── */
   useEffect(() => {
@@ -599,8 +655,13 @@ export default function CheckoutPage() {
   }, [authHydrated, isAuthenticated, cartItems.length, goToLogin]);
 
   const goToAddAddress = (addressId) => {
+    writeCheckoutDraft({
+      notes,
+      couponCode: selectedCouponCode,
+      selectedAddressId: selectedAddressId || undefined,
+    });
     const params = new URLSearchParams({ from: '/checkout' });
-    if (addressId) params.set('id', addressId);
+    if (addressId) params.set('id', String(addressId));
     router.push(`/add/address?${params.toString()}`);
   };
 
@@ -638,6 +699,7 @@ export default function CheckoutPage() {
       // Latch the "finishing" flag BEFORE clearing the cart so the empty-cart UI
       // never gets a chance to render between cartItems becoming [] and navigation.
       setIsFinishing(true);
+      clearCheckoutDraft();
       await clearCart();
       router.push(
         `/order-success?orderId=${encodeURIComponent(orderResponse.orderId)}&orderNumber=${encodeURIComponent(
@@ -749,16 +811,15 @@ export default function CheckoutPage() {
       {/* Top bar */}
       <div className="sticky top-0 z-30 bg-white border-b border-gray-100">
         <div className="flex items-center gap-3 px-4 py-3.5">
-          <button
-            type="button"
-            onClick={() => router.back()}
+          <Link
+            href="/cart"
             className="w-9 h-9 rounded-full border border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0"
-            aria-label="Back"
+            aria-label="Back to cart"
           >
             <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-          </button>
+          </Link>
           <span className="text-base font-medium text-gray-900">Checkout</span>
         </div>
         <StepBar current={2} />

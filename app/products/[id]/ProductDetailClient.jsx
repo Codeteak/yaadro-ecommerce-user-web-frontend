@@ -12,7 +12,9 @@ import {
   getEffectivePrice,
   formatRupeeINR,
   formatBundleRuleLabel,
+  formatWeightUnitLabel,
   getPrimaryBundleRule,
+  resolveProductWeightAndUnit,
 } from '../../../utils/productUtils';
 import Container from '../../../components/Container';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
@@ -170,11 +172,13 @@ export default function ProductDetailClient({ productId = null }) {
     : product
     ? parseFloat(product.price)
     : 0;
+  const resolvedPack = product ? resolveProductWeightAndUnit(product) : { weight: null, unit: '' };
   const displayWeight = selectedSize
-    ? `${selectedSize.weight} ${selectedSize.unit}`
-    : product?.weight && product?.unit
-    ? `${product.weight} ${product.unit}`
-    : '';
+    ? formatWeightUnitLabel(selectedSize.weight, selectedSize.unit)
+    : formatWeightUnitLabel(resolvedPack.weight, resolvedPack.unit);
+
+  const descriptionText =
+    typeof product?.description === 'string' ? product.description.trim() : '';
 
   const legacyOriginal =
     product?.originalPrice != null ? parseFloat(product.originalPrice) : null;
@@ -601,6 +605,16 @@ export default function ProductDetailClient({ productId = null }) {
               </div>
             </section>
 
+            {descriptionText ? (
+              <>
+                <DetailSectionTitle>Description</DetailSectionTitle>
+                <p className="mt-2 text-[13px] md:text-sm text-gray-600 leading-relaxed mb-5 whitespace-pre-wrap">
+                  {descriptionText}
+                </p>
+                <Divider />
+              </>
+            ) : null}
+
             {availableSizes.length > 1 && (
               <>
                 <DetailSectionTitle>Size / Variant</DetailSectionTitle>
@@ -655,16 +669,6 @@ export default function ProductDetailClient({ productId = null }) {
                   {product.warranty && <InfoCard label="Warranty" value={product.warranty} />}
                 </div>
 
-                <Divider />
-              </>
-            )}
-
-            {product.description && (
-              <>
-                <DetailSectionTitle>Description</DetailSectionTitle>
-                <p className="mt-2 text-[13px] md:text-sm text-gray-500 leading-relaxed mb-5 whitespace-pre-wrap">
-                  {product.description}
-                </p>
                 <Divider />
               </>
             )}

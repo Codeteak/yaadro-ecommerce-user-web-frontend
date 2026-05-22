@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
+import { cartKeys } from '../../../hooks/useCart';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { ArrowLeft, Check, Loader2, MapPin } from 'lucide-react';
@@ -109,6 +111,7 @@ function buildEditSnapshot(editingAddress) {
 
 export default function AddAddressPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const sp = useSearchParams();
   const fromParam = sp.get('from') || '';
   const editId = sp.get('id') || '';
@@ -489,29 +492,43 @@ export default function AddAddressPage() {
     [markDirty]
   );
 
-  const handleMapAddress = useCallback((resolved) => {
-    setResolvedAddress(resolved);
-    setResolvingStatus('idle');
-    markDirty();
+  const applyGeocodedAddressToForm = useCallback((resolved, { overwriteLine1 = false } = {}) => {
+    if (!resolved) return;
     setForm((prev) => {
       const next = { ...prev };
-      // Keep line1 for user-entered building/apartment; auto-fill line2 from map.
-      if ((!touched.line2 && !String(prev.line2 || '').trim()) || !String(prev.line2 || '').trim()) {
-        const fullMapAddress =
-          String(resolved.displayName || '').trim() ||
-          [
-            resolved.line1,
-            resolved.line2,
-            resolved.landmark,
-            resolved.city,
-            resolved.state,
-            resolved.postalCode,
-            resolved.country,
-          ]
-            .filter(Boolean)
-            .join(', ');
-        if (fullMapAddress) next.line2 = fullMapAddress;
+      const line1FromMap =
+        String(resolved.line1 || '').trim() ||
+        String(resolved.displayName || '').trim() ||
+        [resolved.landmark, resolved.line2].filter(Boolean).join(', ').trim();
+
+      if (overwriteLine1 && line1FromMap) {
+        next.line1 = line1FromMap;
+      } else if (!String(prev.line1 || '').trim() && line1FromMap) {
+        next.line1 = line1FromMap;
       }
+
+      const fullMapAddress =
+        String(resolved.displayName || '').trim() ||
+        [
+          resolved.line1,
+          resolved.line2,
+          resolved.landmark,
+          resolved.city,
+          resolved.state,
+          resolved.postalCode,
+          resolved.country,
+        ]
+          .filter(Boolean)
+          .join(', ');
+
+      const shouldFillLine2 =
+        (((!touched.line2 && !String(prev.line2 || '').trim()) || !String(prev.line2 || '').trim()) &&
+          fullMapAddress) ||
+        (overwriteLine1 && fullMapAddress);
+      if (shouldFillLine2) {
+        next.line2 = fullMapAddress;
+      }
+
       if (!String(prev.landmark || '').trim() && resolved.landmark) next.landmark = resolved.landmark;
       if (!String(prev.city || '').trim() && resolved.city) next.city = resolved.city;
       if (!String(prev.state || '').trim() && resolved.state) next.state = resolved.state;
@@ -521,7 +538,17 @@ export default function AddAddressPage() {
       if (!String(prev.country || '').trim() && resolved.country) next.country = resolved.country;
       return next;
     });
-  }, [markDirty]);
+  }, [touched.line2]);
+
+  const handleMapAddress = useCallback(
+    (resolved) => {
+      setResolvedAddress(resolved);
+      setResolvingStatus('idle');
+      markDirty();
+      applyGeocodedAddressToForm(resolved, { overwriteLine1: step === 1 });
+    },
+    [markDirty, step, applyGeocodedAddressToForm]
+  );
 
   // ── Submit ──
   const buildPayload = (nameResolved, phoneResolved) => {
@@ -646,6 +673,10 @@ export default function AddAddressPage() {
         } catch {
           /* noop */
         }
+      }
+
+      if (returnTo === '/checkout') {
+        void queryClient.invalidateQueries({ queryKey: cartKeys.all });
       }
     } catch (e) {
       setSubmitError(e?.message || 'Could not save. Try again.');
@@ -874,6 +905,9 @@ export default function AddAddressPage() {
                 }
                 setSubmitError('');
                 if (isEdit) markDirty();
+                if (resolvedAddress) {
+                  applyGeocodedAddressToForm(resolvedAddress, { overwriteLine1: true });
+                }
                 setStep(2);
               }}
               disabled={!coords}

@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useProducts } from '../../hooks/useProducts';
 import { useLoginNavigation } from '../../hooks/useLoginNavigation';
 import { getCartLinePreviewImageSrc } from '../../utils/productImages';
+import { getCartLineVariantLabel } from '../../utils/productUtils';
 import { computeCartSavings, getCartBottomBarPricing } from '../../utils/cartSavings';
 import {
   getBundleFreeExtraOnPaidLine,
@@ -132,8 +133,7 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
           )}
         </p>
         <p className="text-[11px] text-gray-400 mb-2">
-          {item.sizeDisplay || (item.weight && item.unit ? `${item.weight} ${item.unit}` : '')}
-          {item.brand ? ` · ${item.brand}` : ''}
+          {[getCartLineVariantLabel(item), item.brand].filter(Boolean).join(' · ')}
         </p>
         {!isBundleReward && bundleFreeExtra > 0 && (
           <p className="text-[11px] font-medium text-emerald-700 mb-1">

@@ -9,6 +9,7 @@ import {
   readLineFreeQuantity,
   stripPaidCartLinesOnly,
 } from './cartPromotions';
+import { formatWeightUnitLabel, resolveProductWeightAndUnit } from './productUtils';
 
 export function cartLineSizeKey(item) {
   if (item?.selectedSize && typeof item.selectedSize === 'object') {
@@ -140,6 +141,9 @@ export function buildPersistableCartLineFromProduct(product) {
     product.bundle_rules ??
     (Array.isArray(product.product?.bundleRules) ? product.product.bundleRules : null);
 
+  const { weight, unit } = resolveProductWeightAndUnit(product);
+  const packLabel = formatWeightUnitLabel(weight, unit);
+
   const leanProduct = {
     id: productId ?? id,
     name: product.name,
@@ -161,9 +165,9 @@ export function buildPersistableCartLineFromProduct(product) {
     ...(realUrls.length > 1 ? { imageUrls: realUrls } : {}),
     image_snapshot: primary !== PRODUCT_IMAGE_PLACEHOLDER ? primary : undefined,
     selectedSize,
-    sizeDisplay: product.sizeDisplay,
-    unit: product.unit,
-    weight: product.weight,
+    sizeDisplay: product.sizeDisplay || packLabel || undefined,
+    unit,
+    weight,
     brand: product.brand,
     category,
     product: leanProduct,

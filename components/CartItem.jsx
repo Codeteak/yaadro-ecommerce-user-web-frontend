@@ -8,7 +8,7 @@ import {
   getCartLinePaidQty,
 } from '../utils/cartPromotions';
 import { useWishlist } from '../context/WishlistContext';
-import { formatRupeeINR } from '../utils/productUtils';
+import { formatRupeeINR, getCartLineVariantLabel } from '../utils/productUtils';
 
 export default function CartItem({ item }) {
   const { updateQuantity, removeFromCart, updateCartItemNote } = useCart();
@@ -74,6 +74,7 @@ export default function CartItem({ item }) {
   const hasDiscount =
     originalPrice != null && Number.isFinite(originalPrice) && originalPrice > unitPrice + 1e-9;
   const discountValue = hasDiscount ? originalPrice - unitPrice : null;
+  const variantLabel = getCartLineVariantLabel(item);
 
   return (
     <div className="flex gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
@@ -100,9 +101,9 @@ export default function CartItem({ item }) {
                 Free
               </span>
             )}
-            {item.sizeDisplay && (
-              <p className="text-[11px] text-gray-500 mt-0.5">{item.sizeDisplay}</p>
-            )}
+            {variantLabel ? (
+              <p className="text-[11px] text-gray-500 mt-0.5">{variantLabel}</p>
+            ) : null}
             {!isBundleReward && bundleFreeExtra > 0 && (
               <p className="text-[11px] font-medium text-emerald-700 mt-0.5">
                 +{bundleFreeExtra} free (bundle)

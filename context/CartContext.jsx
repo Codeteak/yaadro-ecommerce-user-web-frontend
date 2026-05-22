@@ -156,12 +156,29 @@ export function CartProvider({ children }) {
   }, [useApiCart, apiCartItemsForMerge, localCartItems]);
 
   // Keep local cache aligned with server while preserving snapshot URLs from the client.
+  // Skip while refetching with an empty payload — avoids wiping optimistic lines after
+  // returning from /add/address or other brief navigations away from checkout.
   useEffect(() => {
     if (!useApiCart) return;
-    if (loading) return;
+    if (loading && cartData === undefined) return;
+    if (
+      cartQueryFetching &&
+      apiCartItems.length === 0 &&
+      localCartItems.length > 0
+    ) {
+      return;
+    }
     if (!apiCartItemsForMerge.length) return;
     setLocalCartItems((prev) => syncPaidCartCacheLines(apiCartItemsForMerge, prev));
-  }, [useApiCart, loading, apiCartItemsForMerge]);
+  }, [
+    useApiCart,
+    loading,
+    cartQueryFetching,
+    cartData,
+    apiCartItems.length,
+    apiCartItemsForMerge,
+    localCartItems.length,
+  ]);
 
   // TanStack Query mutations and client
   const queryClient = useQueryClient();

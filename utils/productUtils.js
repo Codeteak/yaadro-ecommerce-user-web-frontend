@@ -188,4 +188,178 @@ export function getBrands(products) {
   return Array.from(brandSet).sort();
 }
 
+/** Parse product description from storefront / legacy API shapes. */
+export function parseProductDescription(raw) {
+  if (!raw || typeof raw !== 'object') return '';
+  const text =
+    raw.description ??
+    raw.long_description ??
+    raw.longDescription ??
+    raw.product_description ??
+    raw.productDescription ??
+    raw.details ??
+    '';
+  return typeof text === 'string' ? text.trim() : '';
+}
+
+/** Name fields used when inferring pack size from title (e.g. "Bread 400GM"). */
+function productNameForWeightParse(raw) {
+  if (!raw || typeof raw !== 'object') return '';
+  return String(
+    raw.name ??
+      raw.title ??
+      raw.title_snapshot ??
+      raw.titleSnapshot ??
+      raw.product_name ??
+      raw.productName ??
+      ''
+  ).trim();
+}
+
+const WEIGHT_UNIT_IN_NAME_RE =
+  /(\d+(?:\.\d+)?)\s*(gm|g|kg|kilogram|mg|ml|l|ltr|litre|liter|pc|pcs|piece|pieces|pkt|pack)|(\d+(?:\.\d+)?)(gm|g|kg|mg|ml|l|pc|pcs|pkt)/gi;
+
+/** Normalize unit token from API or parsed name (e.g. g → gm, pcs → pc). */
+export function normalizeProductUnit(unit) {
+  if (unit == null || unit === '') return '';
+  const u = String(unit).trim().toLowerCase();
+  if (u === 'g' || u === 'gm') return 'gm';
+  if (u === 'kilogram') return 'kg';
+  if (u === 'ltr' || u === 'litre' || u === 'liter') return 'l';
+  if (u === 'pcs' || u === 'piece' || u === 'pieces' || u === 'pkt' || u === 'pack') return 'pc';
+  return u;
+}
+
+/** Display unit: GM, KG, ML, … */
+function formatUnitForDisplay(unit) {
+  const normalized = normalizeProductUnit(unit);
+  if (!normalized) return '';
+  if (normalized === 'gm') return 'GM';
+  if (normalized === 'kg') return 'KG';
+  if (normalized === 'mg') return 'MG';
+  if (normalized === 'ml') return 'ML';
+  if (normalized === 'l') return 'L';
+  if (normalized === 'pc') return 'PC';
+  return normalized.toUpperCase();
+}
+
+/**
+ * Parse pack size from product title — e.g. "Bread 400GM" → { weight: 400, unit: "gm" }.
+ * Uses the last match in the string (pack size is usually at the end).
+ */
+export function parseWeightUnitFromName(name) {
+  if (name == null || name === '') return { weight: null, unit: '' };
+  const s = String(name).trim();
+  if (!s) return { weight: null, unit: '' };
+
+  let last = null;
+  let match;
+  const re = new RegExp(WEIGHT_UNIT_IN_NAME_RE.source, 'gi');
+  while ((match = re.exec(s)) !== null) {
+    last = match;
+  }
+  if (!last) return { weight: null, unit: '' };
+
+  const numStr = last[1] || last[3];
+  const unitRaw = last[2] || last[4];
+  const weight = parseFloat(numStr);
+  return {
+    weight: Number.isFinite(weight) ? weight : null,
+    unit: unitRaw ? normalizeProductUnit(unitRaw) : '',
+  };
+}
+
+function parseProductWeightFromFields(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const candidate =
+    raw.weight ??
+    raw.net_weight ??
+    raw.netWeight ??
+    raw.gross_weight ??
+    raw.grossWeight ??
+    raw.weight_value ??
+    raw.weightValue ??
+    raw.pack_weight ??
+    raw.packWeight;
+  if (candidate == null || candidate === '') return null;
+  const n = parseFloat(candidate);
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseProductUnitFromFields(raw) {
+  if (!raw || typeof raw !== 'object') return '';
+  const u =
+    raw.unit ??
+    raw.unit_label ??
+    raw.unitLabel ??
+    raw.uom ??
+    raw.measurement_unit ??
+    raw.measurementUnit ??
+    '';
+  return u != null ? normalizeProductUnit(u) : '';
+}
+
+/**
+ * Weight + unit from API fields, then from product name (e.g. "Milk 500ml").
+ * @returns {{ weight: number|null, unit: string }}
+ */
+export function resolveProductWeightAndUnit(raw) {
+  if (!raw || typeof raw !== 'object') {
+    return { weight: null, unit: '' };
+  }
+  let weight = parseProductWeightFromFields(raw);
+  let unit = parseProductUnitFromFields(raw);
+  if (weight != null && unit) {
+    return { weight, unit };
+  }
+  const fromName = parseWeightUnitFromName(productNameForWeightParse(raw));
+  return {
+    weight: weight ?? fromName.weight,
+    unit: unit || fromName.unit,
+  };
+}
+
+/** Parse sellable weight (e.g. 500, 1) from API or product name. */
+export function parseProductWeight(raw) {
+  return resolveProductWeightAndUnit(raw).weight;
+}
+
+/** Parse unit label (kg, gm, pc, …) from API or product name. */
+export function parseProductUnit(raw) {
+  return resolveProductWeightAndUnit(raw).unit;
+}
+
+/** Human-readable pack size, e.g. `400 GM` or `1 KG`. */
+export function formatWeightUnitLabel(weight, unit) {
+  const displayUnit = formatUnitForDisplay(unit);
+  if (weight != null && weight !== '') {
+    const n = parseFloat(weight);
+    const w = Number.isFinite(n)
+      ? Number.isInteger(n)
+        ? String(Math.trunc(n))
+        : String(n)
+      : String(weight).trim();
+    if (w && displayUnit) return `${w} ${displayUnit}`;
+    if (w) return w;
+  }
+  return displayUnit;
+}
+
+/** Subtitle under cart line name: pack (weight + unit) or API size label. */
+export function getCartLineVariantLabel(item) {
+  if (!item || typeof item !== 'object') return '';
+  const { weight, unit } = resolveProductWeightAndUnit({
+    weight: item.weight,
+    unit: item.unit,
+    unit_label: item.unitLabel,
+    name: item.name,
+    title_snapshot: item.title_snapshot,
+  });
+  const pack = formatWeightUnitLabel(weight, unit);
+  if (pack) return pack;
+  const size = item.sizeDisplay != null ? String(item.sizeDisplay).trim() : '';
+  if (size) return size;
+  const unitOnly = item.unitLabel ?? item.unit;
+  return unitOnly != null ? String(unitOnly).trim() : '';
+}
 

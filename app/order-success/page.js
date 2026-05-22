@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useOrder } from '../../context/OrderContext';
+import { clearCheckoutDraft } from '../../utils/checkoutSession';
 
 /* ─────────────────────────────────────────────────────────────
    Tiny inline helpers – no extra deps
@@ -298,6 +299,10 @@ function OrderSuccessContent() {
   const searchParams  = useSearchParams();
   const router        = useRouter();
   const { getOrderById } = useOrder();
+
+  useEffect(() => {
+    clearCheckoutDraft();
+  }, []);
 
   const orderId       = searchParams?.get('orderId') || 'ORD-PENDING';
   const paymentStatus = searchParams?.get('payment');

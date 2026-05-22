@@ -7,7 +7,9 @@ import {
   getEffectivePrice,
   formatRupeeINR,
   formatBundleRuleLabel,
+  formatWeightUnitLabel,
   getPrimaryBundleRule,
+  resolveProductWeightAndUnit,
 } from '../utils/productUtils';
 import { getResolvedProductImageUrls } from '../utils/productImages';
 import { getCartLineDisplayQty } from '../utils/cartPromotions';
@@ -67,7 +69,10 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     if (fromBase > 0.004) return Math.round(fromBase * 100) / 100;
     return null;
   }, [strikeList, currentPrice, basePrice]);
-  const displayWeight = selectedSize ? `${selectedSize.weight} ${selectedSize.unit}` : (product.weight && product.unit ? `${product.weight} ${product.unit}` : '');
+  const productPack = useMemo(() => resolveProductWeightAndUnit(product), [product]);
+  const displayWeight = selectedSize
+    ? formatWeightUnitLabel(selectedSize.weight, selectedSize.unit)
+    : formatWeightUnitLabel(productPack.weight, productPack.unit);
 
   const bundleLabel = useMemo(() => {
     const rule = getPrimaryBundleRule(product);

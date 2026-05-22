@@ -8,6 +8,10 @@ import { resolveShopId } from './authApi';
 import { minorToMajor, parseMinorInt } from './currencyMinor';
 import { mediaObjectToUrl } from './mediaUrl';
 import { normalizeProductImages, PRODUCT_IMAGE_PLACEHOLDER } from './productImages';
+import {
+  parseProductDescription,
+  resolveProductWeightAndUnit,
+} from './productUtils';
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -151,6 +155,8 @@ function transformProduct(apiProduct) {
         ? apiProduct.bundleRules
         : [];
 
+    const { weight, unit } = resolveProductWeightAndUnit(apiProduct);
+
     return {
       id: apiProduct.id,
       name: apiProduct.name,
@@ -169,7 +175,7 @@ function transformProduct(apiProduct) {
       totalDiscountMinor,
       category: normalizeCategoryName(apiProduct.category) || apiProduct.category_slug || '',
       subcategory: '',
-      description: '',
+      description: parseProductDescription(apiProduct),
       image,
       images,
       imageUrls: finalUrls,
@@ -177,9 +183,11 @@ function transformProduct(apiProduct) {
       thumbnailUrl,
       inStock,
       stock: inStock ? 1 : 0,
-      weight: null,
-      unit: apiProduct.unit || '',
-      brand: '',
+      weight,
+      unit,
+      packSize: apiProduct.pack_size ?? apiProduct.packSize ?? '',
+      brand: apiProduct.brand || '',
+      ingredients: apiProduct.ingredients || '',
       sku: '',
       barcode: '',
       discountPercentage,
@@ -217,6 +225,7 @@ function transformProduct(apiProduct) {
 
   const slug = resolveProductSlug(apiProduct);
   rememberSlugMapping(apiProduct, slug);
+  const legacyWeightUnit = resolveProductWeightAndUnit(apiProduct);
   return {
     id: apiProduct.id,
     name: apiProduct.name,
@@ -239,9 +248,9 @@ function transformProduct(apiProduct) {
     inStock: apiProduct.inStock !== undefined ? apiProduct.inStock : (apiProduct.stock > 0),
     stock: apiProduct.stock ?? 0,
     minStockAlert: apiProduct.minStockAlert ?? null,
-    weight: apiProduct.weight != null ? parseFloat(apiProduct.weight) : null,
+    weight: legacyWeightUnit.weight,
     grossWeight: apiProduct.grossWeight != null ? parseFloat(apiProduct.grossWeight) : null,
-    unit: apiProduct.unit || '',
+    unit: legacyWeightUnit.unit,
     packSize: apiProduct.packSize || '',
     brand: apiProduct.brand || '',
     sku: apiProduct.sku || '',
@@ -522,7 +531,16 @@ export async function getProductById(productId) {
       omitTenantHeader: true,
     });
 
-    return transformProduct(response);
+    const payload =
+      response?.product && typeof response.product === 'object'
+        ? response.product
+        : response?.data?.product && typeof response.data.product === 'object'
+          ? response.data.product
+          : response?.data && typeof response.data === 'object' && (response.data.id || response.data.name)
+            ? response.data
+            : response;
+
+    return transformProduct(payload);
   } catch (error) {
     console.error('Error fetching product:', error);
     return null;
