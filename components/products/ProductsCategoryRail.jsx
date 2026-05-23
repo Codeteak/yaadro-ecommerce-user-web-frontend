@@ -25,7 +25,7 @@ function CategoryRailItem({ active, label, imageUrl, onClick }) {
           <img
             src={imageUrl}
             alt=""
-            className="absolute inset-0 block h-full w-full object-contain object-center"
+            className="absolute inset-0 block h-full w-full object-cover object-center"
             loading="lazy"
           />
         ) : (
