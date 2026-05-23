@@ -12,6 +12,9 @@ import {
   productStaticPathSegment,
 } from '../../../utils/productApi';
 
+/** Static HTML shell for Cloudflare `_redirects` — not a real product slug. */
+export const PDP_SHELL_SEGMENT = '_pdp';
+
 // In production we use `output: 'export'` (static export), so Next.js needs a fixed
 // list of params to pre-render. In local dev, keep this route fully dynamic.
 export const dynamicParams = process.env.NODE_ENV !== 'production';
@@ -54,7 +57,7 @@ export async function generateStaticParams() {
     .map((p) => productStaticPathSegment(p))
     .filter(Boolean);
 
-  const all = Array.from(new Set([...fetchedIds, ...seedSlugs]));
+  const all = Array.from(new Set([...fetchedIds, ...seedSlugs, PDP_SHELL_SEGMENT]));
   return all.map((id) => ({ id }));
 }
 

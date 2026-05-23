@@ -113,7 +113,12 @@ npm run pages:dev      # local Pages preview of out/
 
 ## 8) SPA routing
 
-`public/_redirects` is copied into `out/` and provides SPA fallback for routes not pre-rendered at build time (e.g. `/orders/<uuid>/`), replacing the old CloudFront 403/404 → `index.html` behavior.
+`public/_redirects` is copied into `out/` and provides SPA fallback for routes not pre-rendered at build time.
+
+- **Products:** `/products/*` → `/products/_pdp/index.html` when no static file exists (new slugs after deploy, or build missed a product). Pre-rendered product folders are served first.
+- **Everything else:** `/*` → `/index.html` (e.g. `/orders/<uuid>/`).
+
+Without the product rule, deep links like `/products/some-slug/` hit the root shell and show the global **404 Page Not Found** even when the API has the product.
 
 ### White screen / `SyntaxError: Unexpected identifier 'world'`
 

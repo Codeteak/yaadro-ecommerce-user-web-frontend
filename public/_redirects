@@ -1,4 +1,10 @@
 # SPA fallback when no static file exists (Cloudflare Pages serves real files first).
 # Do NOT add /_next/* rewrites — they can cause chunk URLs to return index.html →
 # "Uncaught SyntaxError: Unexpected identifier" in main-app-*.js
+
+# Product PDP: pre-rendered slugs use their own HTML; anything else loads the client shell
+# (see `PDP_SHELL_SEGMENT` in app/products/[id]/page.js). Without this, /products/new-slug/
+# falls through to /* → index.html and Next shows the global 404 page.
+/products/*  /products/_pdp/index.html  200
+
 /*  /index.html  200
