@@ -3,7 +3,7 @@
  * Uses the multi-tenant backend API
  */
 
-import { api, apiFetchRoot } from './apiClient';
+import { api, storefrontFetch } from './apiClient';
 import { resolveShopId } from './authApi';
 import { minorToMajor, parseMinorInt } from './currencyMinor';
 import { mediaObjectToUrl } from './mediaUrl';
@@ -68,6 +68,16 @@ function resolveProductSlug(apiProduct) {
   const fromName = slugify(apiProduct.name);
   if (fromName) return fromName;
   return apiProduct.id != null ? String(apiProduct.id).trim() : '';
+}
+
+/** Storefront detail path: slug → `/storefront/products/{slug}`, UUID → `/storefront/products/id/{id}`. */
+export function storefrontProductDetailPath(lookup) {
+  const raw = lookup != null ? String(lookup).trim() : '';
+  if (!raw) return '';
+  if (UUID_RE.test(raw)) {
+    return `/storefront/products/id/${encodeURIComponent(raw)}`;
+  }
+  return `/storefront/products/${encodeURIComponent(raw)}`;
 }
 
 function rememberSlugMapping(apiProduct, slug) {
@@ -485,7 +495,7 @@ export async function getProducts(params = {}) {
     }
     const headers = shopId ? { 'x-shop-id': shopId } : undefined;
 
-    const response = await apiFetchRoot('/storefront/products', {
+    const response = await storefrontFetch('/storefront/products', {
       method: 'GET',
       headers,
       query,
@@ -518,15 +528,10 @@ export async function getProductById(productId, options = {}) {
     const headers = shopId ? { 'x-shop-id': shopId } : undefined;
 
     const raw = productId != null ? String(productId).trim() : '';
-    let lookup = raw;
-    if (UUID_RE.test(raw)) {
-      // Try to translate UUID -> slug if we have seen this product in list APIs.
-      readSlugMapFromStorage();
-      const mapped = inMemorySlugById.get(raw);
-      if (mapped) lookup = mapped;
-    }
+    const detailPath = storefrontProductDetailPath(raw);
+    if (!detailPath) return null;
 
-    const response = await apiFetchRoot(`/storefront/products/${encodeURIComponent(lookup)}`, {
+    const response = await storefrontFetch(detailPath, {
       method: 'GET',
       headers,
       omitTenantHeader: true,
@@ -657,7 +662,7 @@ export async function getCategoriesTree() {
 
     // Storefront categories are fetched by parent_id; build a tree with a bounded recursion.
     async function fetchChildren(parentId) {
-      const res = await apiFetchRoot('/storefront/categories', {
+      const res = await storefrontFetch('/storefront/categories', {
         method: 'GET',
         headers,
         query: parentId ? { parent_id: parentId } : undefined,

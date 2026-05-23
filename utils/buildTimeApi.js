@@ -3,6 +3,8 @@
  * Uses a short timeout and avoids noisy logs when the API / tunnel is down.
  */
 
+import { getStorefrontApiBaseUrl, normalizeApiBaseUrl } from './apiBases';
+
 /** Slugs used when the storefront API is unreachable at build time. */
 export const BUILD_FALLBACK_CATEGORY_SLUGS = [
   'all',
@@ -13,20 +15,8 @@ export const BUILD_FALLBACK_CATEGORY_SLUGS = [
 
 export function getBuildApiBaseUrl() {
   const override = String(process.env.BUILD_API_BASE_URL || '').trim();
-  if (override) {
-    const trimmed = override.replace(/\/+$/, '');
-    return trimmed.toLowerCase().endsWith('/api') ? trimmed : `${trimmed}/api`;
-  }
-
-  const fallback = 'http://localhost:3001/api';
-  const base =
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    (process.env.NEXT_PUBLIC_API_URL
-      ? `${String(process.env.NEXT_PUBLIC_API_URL).trim().replace(/\/+$/, '')}/api`
-      : '') ||
-    fallback;
-  const trimmed = String(base).trim().replace(/\/+$/, '');
-  return trimmed.toLowerCase().endsWith('/api') ? trimmed : `${trimmed}/api`;
+  if (override) return normalizeApiBaseUrl(override);
+  return getStorefrontApiBaseUrl();
 }
 
 export function unwrapApiPayload(json) {
