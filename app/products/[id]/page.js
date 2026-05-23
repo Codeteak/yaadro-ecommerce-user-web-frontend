@@ -7,7 +7,10 @@ import {
   unwrapApiPayload,
   warnBuildApiUnavailable,
 } from '../../../utils/buildTimeApi';
-import { extractStorefrontProductsPayload } from '../../../utils/productApi';
+import {
+  extractStorefrontProductsPayload,
+  productStaticPathSegment,
+} from '../../../utils/productApi';
 
 // In production we use `output: 'export'` (static export), so Next.js needs a fixed
 // list of params to pre-render. In local dev, keep this route fully dynamic.
@@ -38,8 +41,8 @@ export async function generateStaticParams() {
       const { rawProducts: list } = extractStorefrontProductsPayload(json);
       if (!Array.isArray(list) || list.length === 0) break;
       for (const p of list) {
-        const id = String(p?.slug || p?.id || '').trim();
-        if (id) fetchedIds.push(id);
+        const segment = productStaticPathSegment(p);
+        if (segment) fetchedIds.push(segment);
       }
       if (list.length < limit) break;
     }
@@ -47,11 +50,11 @@ export async function generateStaticParams() {
     warnBuildApiUnavailable('Product list', err);
   }
 
-  const seedIds = (staticProducts || [])
-    .map((p) => String(p?.slug || p?.id || '').trim())
+  const seedSlugs = (staticProducts || [])
+    .map((p) => productStaticPathSegment(p))
     .filter(Boolean);
 
-  const all = Array.from(new Set([...fetchedIds, ...seedIds]));
+  const all = Array.from(new Set([...fetchedIds, ...seedSlugs]));
   return all.map((id) => ({ id }));
 }
 

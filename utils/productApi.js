@@ -511,7 +511,8 @@ export async function getProducts(params = {}) {
  * @param {string} productId - Product UUID
  * @returns {Promise<object|null>}
  */
-export async function getProductById(productId) {
+export async function getProductById(productId, options = {}) {
+  const { quiet = false } = options;
   try {
     const shopId = await resolveShopId();
     const headers = shopId ? { 'x-shop-id': shopId } : undefined;
@@ -542,9 +543,21 @@ export async function getProductById(productId) {
 
     return transformProduct(payload);
   } catch (error) {
-    console.error('Error fetching product:', error);
+    if (!quiet) {
+      console.error('Error fetching product:', error);
+    }
     return null;
   }
+}
+
+/** Slug segment safe for `/products/[id]` static paths (storefront detail uses slug, not UUID). */
+export function productStaticPathSegment(apiProduct) {
+  if (!apiProduct || typeof apiProduct !== 'object') return '';
+  const slug = apiProduct.slug != null ? String(apiProduct.slug).trim() : '';
+  if (slug) return slug;
+  const id = apiProduct.id != null ? String(apiProduct.id).trim() : '';
+  if (id && !UUID_RE.test(id)) return id;
+  return '';
 }
 
 /**

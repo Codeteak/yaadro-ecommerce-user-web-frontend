@@ -112,7 +112,7 @@ export async function generateProductMetadataForId(lookup, options = {}) {
   if (!id) {
     return buildProductMetadataObject(null, { shopName, ...options });
   }
-  const product = await getProductById(id);
+  const product = await getProductById(id, { quiet: true });
   return buildProductMetadataObject(product, {
     shopName,
     lookup: id,
