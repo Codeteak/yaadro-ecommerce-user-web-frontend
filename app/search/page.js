@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Search, ArrowLeft } from 'lucide-react';
@@ -99,29 +99,51 @@ function DiscoverSections({ sections }) {
 export default function SearchPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const searchInputRef = useRef(null);
+  const didInitialFocusRef = useRef(false);
+  /** Set before `router.replace` so URL→state sync does not fight active typing. */
+  const pendingUrlQRef = useRef(null);
 
-  const initialQ = (searchParams?.get('q') || '').toString();
-  const [value, setValue] = useState(initialQ);
-  const [q, setQ] = useState(initialQ);
+  const urlQ = (searchParams?.get('q') || '').toString();
+  const [value, setValue] = useState(urlQ);
+  const [q, setQ] = useState(urlQ);
 
+  // Back/forward or deep link: apply URL query when it was not just written by this page.
   useEffect(() => {
-    setValue(initialQ);
-    setQ(initialQ);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialQ]);
+    if (pendingUrlQRef.current === urlQ) {
+      pendingUrlQRef.current = null;
+      return;
+    }
+    setValue(urlQ);
+    setQ(urlQ);
+  }, [urlQ]);
 
   // Debounce typing -> query
   useEffect(() => {
-    const t = window.setTimeout(() => setQ(value.trim()), 220);
+    const t = window.setTimeout(() => {
+      const next = value.trim();
+      pendingUrlQRef.current = next;
+      setQ(next);
+    }, 220);
     return () => window.clearTimeout(t);
   }, [value]);
 
-  // Keep URL in sync (but don’t spam history)
+  // Keep URL in sync only when it differs — avoids replace → param change → re-render → focus loop on mobile.
   useEffect(() => {
+    if (urlQ === q) return;
     const next = q ? `/search?q=${encodeURIComponent(q)}` : '/search';
-    router.replace(next);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
+    router.replace(next, { scroll: false });
+  }, [q, urlQ, router]);
+
+  // Focus search field once when opening the page (not on every re-render from autoFocus).
+  useEffect(() => {
+    if (didInitialFocusRef.current) return;
+    didInitialFocusRef.current = true;
+    const id = window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, []);
 
   const { data, isLoading } = useSearchProducts({
     q,
@@ -194,12 +216,16 @@ export default function SearchPage() {
             <div className="flex-1 flex items-center gap-2 px-3 h-11 rounded-full border border-gray-200 bg-gray-50 focus-within:bg-white focus-within:border-emerald-500 transition">
               <Search className="h-5 w-5 text-gray-400 flex-shrink-0" />
               <input
+                ref={searchInputRef}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 placeholder="Search products…"
                 className="w-full bg-transparent outline-none text-[14px] text-gray-900 placeholder:text-gray-400"
-                autoFocus
                 inputMode="search"
+                enterKeyHint="search"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
                 aria-label="Search products"
               />
               {value.trim().length > 0 && (

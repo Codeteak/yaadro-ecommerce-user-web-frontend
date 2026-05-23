@@ -6,6 +6,12 @@ import { useProductWithRelated, useProducts } from '../../../hooks/useProducts';
 import { useCart } from '../../../context/CartContext';
 import { useRecentlyViewed } from '../../../context/RecentlyViewedContext';
 import { useAlert } from '../../../context/AlertContext';
+import { useShopBranding } from '../../../context/ShopBrandingContext';
+import {
+  applyProductSocialMetaToDocument,
+  buildProductShareUrl,
+  getProductSocialDescription,
+} from '../../../utils/productMetadata';
 import {
   getProductRating,
   getProductDiscount,
@@ -122,6 +128,7 @@ export default function ProductDetailClient({ productId = null }) {
   const { addToCart, cartItems, cartTotal, cartCount, updateQuantity, removeFromCart } = useCart();
   const { addToRecentlyViewed } = useRecentlyViewed();
   const { showAlert } = useAlert();
+  const { applyDocumentTitle, shopName, formatPageTitle } = useShopBranding();
 
   const [cartActionLoading, setCartActionLoading] = useState(false);
 
@@ -129,6 +136,20 @@ export default function ProductDetailClient({ productId = null }) {
   const { data: productData, isLoading: loading } = useProductWithRelated(resolvedId);
   const product = productData?.product || null;
   const relatedProducts = productData?.relatedProducts || [];
+
+  useEffect(() => {
+    if (!product?.name) return;
+    applyDocumentTitle(product.name);
+    const shareUrl = buildProductShareUrl(product, resolvedId);
+    const images = getResolvedProductImageUrls(product);
+    applyProductSocialMetaToDocument({
+      title: formatPageTitle(product.name),
+      description: getProductSocialDescription(product),
+      imageUrl: images[0],
+      url: shareUrl,
+      siteName: shopName,
+    });
+  }, [product, resolvedId, shopName, applyDocumentTitle, formatPageTitle]);
 
   useEffect(() => {
     if (product) addToRecentlyViewed(product);
@@ -324,7 +345,7 @@ export default function ProductDetailClient({ productId = null }) {
   }, [cartActionLoading, cartUpdateKey, cartQty, removeFromCart, updateQuantity]);
 
   const handleShare = async () => {
-    const url = window.location.href;
+    const url = buildProductShareUrl(product, resolvedId);
     try {
       if (navigator.share) {
         await navigator.share({ title: product?.name, url });

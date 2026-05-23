@@ -1,4 +1,5 @@
 import ProductDetailClient from './ProductDetailClient';
+import { generateProductMetadataForId } from '../../../utils/productMetadata';
 import { products as staticProducts } from '../../../data/products';
 import {
   fetchAtBuildTime,
@@ -11,6 +12,11 @@ import { extractStorefrontProductsPayload } from '../../../utils/productApi';
 // In production we use `output: 'export'` (static export), so Next.js needs a fixed
 // list of params to pre-render. In local dev, keep this route fully dynamic.
 export const dynamicParams = process.env.NODE_ENV !== 'production';
+
+export async function generateMetadata({ params }) {
+  const id = params?.id != null ? String(params.id).trim() : '';
+  return generateProductMetadataForId(id, { pathPrefix: '/products' });
+}
 
 export async function generateStaticParams() {
   if (process.env.NODE_ENV !== 'production') return [];

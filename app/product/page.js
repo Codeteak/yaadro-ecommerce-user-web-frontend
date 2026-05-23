@@ -1,14 +1,15 @@
-'use client';
-
-import { useSearchParams } from 'next/navigation';
 import ProductDetailClient from '../products/[id]/ProductDetailClient';
+import { generateProductMetadataForId } from '../../utils/productMetadata';
 
-export default function ProductPage() {
-  const searchParams = useSearchParams();
-  const id = searchParams?.get('id') || searchParams?.get('pid') || '';
-  const trimmed = String(id).trim();
+export async function generateMetadata({ searchParams }) {
+  const id = String(searchParams?.id || searchParams?.pid || '').trim();
+  return generateProductMetadataForId(id, { pathPrefix: '/products' });
+}
 
-  if (!trimmed) {
+export default function ProductPage({ searchParams }) {
+  const id = String(searchParams?.id || searchParams?.pid || '').trim();
+
+  if (!id) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center text-gray-600">
         Missing product id.
@@ -16,6 +17,5 @@ export default function ProductPage() {
     );
   }
 
-  return <ProductDetailClient productId={trimmed} />;
+  return <ProductDetailClient productId={id} />;
 }
-

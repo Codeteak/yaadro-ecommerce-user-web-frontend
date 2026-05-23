@@ -15,6 +15,7 @@ import {
   resolveShopBranding,
 } from '../utils/shopResolver';
 import ShopSplashScreen from '../components/ShopSplashScreen';
+import { upsertMeta, upsertLink } from '../utils/documentMeta';
 
 const SPLASH_SESSION_KEY = 'yaadro_shop_splash_seen';
 const MIN_SPLASH_MS = 700;
@@ -50,29 +51,6 @@ function routePageTitle(pathname) {
   if (path.startsWith('/products/')) return 'Product';
   if (path.startsWith('/categories/')) return 'Category';
   return null;
-}
-
-function upsertMeta(attrName, attrValue, content) {
-  if (typeof document === 'undefined' || !content) return;
-  let el = document.querySelector(`meta[${attrName}="${attrValue}"]`);
-  if (!el) {
-    el = document.createElement('meta');
-    el.setAttribute(attrName, attrValue);
-    document.head.appendChild(el);
-  }
-  el.setAttribute('content', content);
-}
-
-function upsertLink(rel, href) {
-  if (typeof document === 'undefined' || !href) return;
-  const selector = `link[rel="${rel}"]`;
-  let el = document.querySelector(selector);
-  if (!el) {
-    el = document.createElement('link');
-    el.setAttribute('rel', rel);
-    document.head.appendChild(el);
-  }
-  el.setAttribute('href', href);
 }
 
 const ShopBrandingContext = createContext(null);

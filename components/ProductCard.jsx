@@ -240,7 +240,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
 
   return (
     <Link
-      href={`/product?id=${encodeURIComponent(String(productSlugOrId ?? '').trim())}`}
+      href={`/products/${encodeURIComponent(String(productSlugOrId ?? '').trim())}/`}
       scroll
       onClick={(e) => {
         if (suppressNavClickRef.current) {
