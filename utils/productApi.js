@@ -92,8 +92,16 @@ export function resolveProductDetailSegment(product) {
 
 /** @param {object} product */
 export function getProductDetailPath(product) {
-  const segment = resolveProductDetailSegment(product);
+  const segment =
+    resolveProductDetailSegment(product) ||
+    (product?.id != null ? String(product.id).trim() : '');
   if (!segment) return '/products/';
+
+  // Static export: only pre-built `/products/[id]/` paths exist (`dynamicParams` is false).
+  // A single `/products/detail/` page + `?s=` works for every SKU in production.
+  if (process.env.NODE_ENV === 'production') {
+    return `/products/detail/?s=${encodeURIComponent(segment)}`;
+  }
   return `/products/${encodeURIComponent(segment)}/`;
 }
 

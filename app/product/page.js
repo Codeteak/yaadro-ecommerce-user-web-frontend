@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { normalizeProductRouteParam } from '../../utils/productApi';
+import { getProductDetailPath, normalizeProductRouteParam } from '../../utils/productApi';
 
 function ProductLegacyRedirect() {
   const router = useRouter();
@@ -13,7 +13,7 @@ function ProductLegacyRedirect() {
       searchParams.get('id') || searchParams.get('pid')
     );
     if (id) {
-      router.replace(`/products/${encodeURIComponent(id)}/`);
+      router.replace(getProductDetailPath({ id, slug: id }));
       return;
     }
     router.replace('/products/');
