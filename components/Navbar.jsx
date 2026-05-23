@@ -14,6 +14,7 @@ import { useSearchProducts } from '../hooks/useProducts';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { resolveShopId } from '../utils/authApi';
 import { getResolvedProductImageUrls } from '../utils/productImages';
+import { getProductDetailPath } from '../utils/productApi';
 import { User, MapPin } from 'lucide-react';
 // Category strip removed
 
@@ -266,8 +267,8 @@ export default function Navbar() {
   const handleProductClick = (product) => {
     setSearchQuery('');
     setShowResults(false);
-    const slugOrId = product?.slug || product?.id;
-    if (slugOrId) router.push(`/products/${encodeURIComponent(String(slugOrId).trim())}/`);
+    const path = getProductDetailPath(product);
+    if (path !== '/products/') router.push(path);
   };
 
   const handleSearchSubmit = (e) => {

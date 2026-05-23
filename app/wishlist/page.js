@@ -8,6 +8,7 @@ import Container from '../../components/Container';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import { getEffectivePrice, formatRupeeINR } from '../../utils/productUtils';
 import { getResolvedProductImageUrls } from '../../utils/productImages';
+import { getProductDetailPath } from '../../utils/productApi';
 
 export default function WishlistPage() {
   const { wishlistItems, removeFromWishlist, clearWishlist } = useWishlist();
@@ -78,7 +79,7 @@ export default function WishlistPage() {
               key={item.id}
               className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 group relative"
             >
-              <Link href={`/products/${encodeURIComponent(String(item.slug || item.id).trim())}/`}>
+              <Link href={getProductDetailPath(item)}>
                 <div className="relative h-64 overflow-hidden">
                   <Image
                     src={getResolvedProductImageUrls(item)[0]}
@@ -112,7 +113,7 @@ export default function WishlistPage() {
               </button>
 
               <div className="p-4 min-w-0">
-                <Link href={`/products/${encodeURIComponent(String(item.slug || item.id).trim())}/`}>
+                <Link href={getProductDetailPath(item)}>
                   <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-1 hover:text-gray-600 transition-colors line-clamp-2 break-words">
                     {item.name}
                   </h3>
@@ -130,7 +131,7 @@ export default function WishlistPage() {
                 </div>
                 <div className="flex gap-2">
                   <Link
-                    href={`/products/${encodeURIComponent(String(item.slug || item.id).trim())}/`}
+                    href={getProductDetailPath(item)}
                     className="flex-1 text-center px-3 sm:px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors whitespace-nowrap"
                   >
                     View Details

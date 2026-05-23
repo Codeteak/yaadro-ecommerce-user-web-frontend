@@ -1,4 +1,8 @@
-import { getProductById } from './productApi';
+import {
+  getProductById,
+  normalizeProductRouteParam,
+  resolveProductDetailSegment,
+} from './productApi';
 import { formatShopPageTitle } from './shopResolver';
 import {
   getResolvedProductImageUrls,
@@ -46,11 +50,13 @@ export function getProductSocialDescription(product) {
 }
 
 export function productCanonicalPath(product, lookup, pathPrefix = '/products') {
-  const segment = encodeURIComponent(
-    String(product?.slug || product?.id || lookup || '').trim()
-  );
+  const segment =
+    resolveProductDetailSegment(product) ||
+    (lookup && !/^[0-9a-f-]{36}$/i.test(String(lookup).trim())
+      ? String(lookup).trim()
+      : '');
   if (!segment) return `${pathPrefix}/`;
-  return `${pathPrefix}/${segment}/`;
+  return `${pathPrefix}/${encodeURIComponent(segment)}/`;
 }
 
 export function buildProductMetadataObject(product, options = {}) {

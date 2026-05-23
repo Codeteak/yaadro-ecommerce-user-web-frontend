@@ -15,6 +15,7 @@ import { getResolvedProductImageUrls } from '../utils/productImages';
 import { getCartLineDisplayQty } from '../utils/cartPromotions';
 import { findPaidCartLine } from '../utils/cartLinePersist';
 import ProductImageWithFallback from './ProductImageWithFallback';
+import { getProductDetailPath } from '../utils/productApi';
 
 export default function ProductCard({ product, isCarousel = false, variant = 'default' }) {
   const { addToCart, cartItems, updateQuantity, removeFromCart } = useCart();
@@ -168,7 +169,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     [cartActionLoading, cartLine, paidCartQty, cartUpdateKey, removeFromCart, updateQuantity]
   );
 
-  const productSlugOrId = product.slug || product.id;
+  const productDetailHref = getProductDetailPath(product);
 
   const chromeClass =
     variant === 'flat'
@@ -240,7 +241,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
 
   return (
     <Link
-      href={`/products/${encodeURIComponent(String(productSlugOrId ?? '').trim())}/`}
+      href={productDetailHref}
       scroll
       onClick={(e) => {
         if (suppressNavClickRef.current) {

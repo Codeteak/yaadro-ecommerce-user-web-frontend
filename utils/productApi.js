@@ -61,13 +61,83 @@ function slugify(input) {
     .slice(0, 80);
 }
 
-function resolveProductSlug(apiProduct) {
-  if (!apiProduct || typeof apiProduct !== 'object') return '';
-  const raw = apiProduct.slug != null ? String(apiProduct.slug).trim() : '';
-  if (raw) return raw;
-  const fromName = slugify(apiProduct.name);
+/**
+ * Slug segment for PDP URL + `GET /storefront/products/:slug` (never a bare UUID when avoidable).
+ */
+export function resolveProductDetailSegment(product) {
+  if (!product || typeof product !== 'object') return '';
+
+  const rawCandidates = [
+    product.slug,
+    product.product_slug,
+    product.productSlug,
+  ];
+  for (const candidate of rawCandidates) {
+    const raw = candidate != null ? String(candidate).trim() : '';
+    if (raw && !UUID_RE.test(raw)) return raw;
+  }
+
+  const fromName = slugify(product.name || product.shortName || product.title);
   if (fromName) return fromName;
-  return apiProduct.id != null ? String(apiProduct.id).trim() : '';
+
+  const id = product.id != null ? String(product.id).trim() : '';
+  if (UUID_RE.test(id)) {
+    readSlugMapFromStorage();
+    const mapped = inMemorySlugById.get(id);
+    if (mapped) return mapped;
+  }
+
+  return '';
+}
+
+/** @param {object} product */
+export function getProductDetailPath(product) {
+  const segment = resolveProductDetailSegment(product);
+  if (!segment) return '/products/';
+  return `/products/${encodeURIComponent(segment)}/`;
+}
+
+/** Normalize dynamic route param from `/products/[id]`. */
+export function normalizeProductRouteParam(param) {
+  if (param == null) return '';
+  const one = Array.isArray(param) ? param[0] : param;
+  try {
+    return decodeURIComponent(String(one).trim());
+  } catch {
+    return String(one).trim();
+  }
+}
+
+function resolveProductSlug(apiProduct) {
+  return resolveProductDetailSegment(apiProduct);
+}
+
+async function resolveStorefrontProductLookup(routeOrId) {
+  const raw = normalizeProductRouteParam(routeOrId);
+  if (!raw) return '';
+
+  if (!UUID_RE.test(raw)) return raw;
+
+  readSlugMapFromStorage();
+  const mapped = inMemorySlugById.get(raw);
+  if (mapped) return mapped;
+
+  try {
+    const { products } = await getProducts({ per_page: 100 });
+    for (const p of products || []) {
+      if (String(p?.id) === raw) {
+        const seg = resolveProductDetailSegment(p);
+        if (seg) {
+          rememberSlugMapping({ id: raw }, seg);
+          return seg;
+        }
+      }
+    }
+  } catch {
+    // fall through
+  }
+
+  return raw;
 }
 
 function rememberSlugMapping(apiProduct, slug) {
@@ -516,14 +586,8 @@ export async function getProductById(productId) {
     const shopId = await resolveShopId();
     const headers = shopId ? { 'x-shop-id': shopId } : undefined;
 
-    const raw = productId != null ? String(productId).trim() : '';
-    let lookup = raw;
-    if (UUID_RE.test(raw)) {
-      // Try to translate UUID -> slug if we have seen this product in list APIs.
-      readSlugMapFromStorage();
-      const mapped = inMemorySlugById.get(raw);
-      if (mapped) lookup = mapped;
-    }
+    const lookup = await resolveStorefrontProductLookup(productId);
+    if (!lookup) return null;
 
     const response = await apiFetchRoot(`/storefront/products/${encodeURIComponent(lookup)}`, {
       method: 'GET',

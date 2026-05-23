@@ -1,13 +1,14 @@
 import ProductDetailClient from '../products/[id]/ProductDetailClient';
 import { generateProductMetadataForId } from '../../utils/productMetadata';
+import { normalizeProductRouteParam } from '../../utils/productApi';
 
 export async function generateMetadata({ searchParams }) {
-  const id = String(searchParams?.id || searchParams?.pid || '').trim();
+  const id = normalizeProductRouteParam(searchParams?.id || searchParams?.pid);
   return generateProductMetadataForId(id, { pathPrefix: '/products' });
 }
 
 export default function ProductPage({ searchParams }) {
-  const id = String(searchParams?.id || searchParams?.pid || '').trim();
+  const id = normalizeProductRouteParam(searchParams?.id || searchParams?.pid);
 
   if (!id) {
     return (

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useCategoriesTree, useSearchProducts, useProducts } from '../../hooks/useProducts';
 import ProductCarousel from '../../components/ProductCarousel';
 import { getResolvedProductImageUrls } from '../../utils/productImages';
+import { getProductDetailPath } from '../../utils/productApi';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryImage';
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 
@@ -409,14 +410,14 @@ export default function CategoriesPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {productMatches.map((p) => {
                 const img = getResolvedProductImageUrls(p)[0];
-                const slugOrId = p?.slug || p?.id;
                 return (
                   <button
                     key={p.id}
                     type="button"
                     onClick={() => {
-                      if (!slugOrId) return;
-                      router.push(`/products/${encodeURIComponent(String(slugOrId).trim())}/`);
+                      const path = getProductDetailPath(p);
+                      if (path === '/products/') return;
+                      router.push(path);
                     }}
                     className="w-full flex items-center gap-3 rounded-2xl border border-gray-100 bg-white px-3.5 py-3 text-left hover:border-gray-200 active:scale-[0.99] transition"
                   >
