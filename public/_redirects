@@ -1,4 +1,11 @@
-# SPA fallback when no static file exists (Cloudflare Pages serves real files first).
-# Do NOT add /_next/* rewrites — they can cause chunk URLs to return index.html →
-# "Uncaught SyntaxError: Unexpected identifier" in main-app-*.js
+# Cloudflare Pages: static files win first; these rules handle legacy / missing paths.
+
+# Legacy query-style product links → slug path (production static HTML ignores ?id= at build time)
+/product?id=:id  /products/:id/  302
+
+# Bare legacy product route (avoid pre-rendered "Missing product id" page)
+/product  /products/  302
+/product/  /products/  302
+
+# SPA fallback when no static file exists (do not rewrite /_next/*)
 /*  /index.html  200

@@ -1,22 +1,42 @@
-import ProductDetailClient from '../products/[id]/ProductDetailClient';
-import { generateProductMetadataForId } from '../../utils/productMetadata';
+'use client';
+
+import { Suspense, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { normalizeProductRouteParam } from '../../utils/productApi';
 
-export async function generateMetadata({ searchParams }) {
-  const id = normalizeProductRouteParam(searchParams?.id || searchParams?.pid);
-  return generateProductMetadataForId(id, { pathPrefix: '/products' });
+function ProductLegacyRedirect() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const id = normalizeProductRouteParam(
+      searchParams.get('id') || searchParams.get('pid')
+    );
+    if (id) {
+      router.replace(`/products/${encodeURIComponent(id)}/`);
+      return;
+    }
+    router.replace('/products/');
+  }, [router, searchParams]);
+
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center bg-white text-gray-500">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-[#902bf5]" />
+    </div>
+  );
 }
 
-export default function ProductPage({ searchParams }) {
-  const id = normalizeProductRouteParam(searchParams?.id || searchParams?.pid);
-
-  if (!id) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center text-gray-600">
-        Missing product id.
-      </div>
-    );
-  }
-
-  return <ProductDetailClient productId={id} />;
+/** Legacy `/product?id=` — redirect to `/products/{slug}/` (static export cannot use query on build). */
+export default function ProductPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] items-center justify-center bg-white text-gray-500 text-sm">
+          Loading…
+        </div>
+      }
+    >
+      <ProductLegacyRedirect />
+    </Suspense>
+  );
 }

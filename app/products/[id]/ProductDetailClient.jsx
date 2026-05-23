@@ -136,7 +136,7 @@ export default function ProductDetailClient({ productId = null }) {
   const resolvedId =
     productId != null
       ? normalizeProductRouteParam(productId)
-      : normalizeProductRouteParam(params?.id);
+      : normalizeProductRouteParam(params?.id ?? params?.slug);
   const { data: productData, isLoading: loading } = useProductWithRelated(resolvedId);
   const product = productData?.product || null;
   const relatedProducts = productData?.relatedProducts || [];
