@@ -908,7 +908,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => {
-                    router.push('/search');
+                    router.push('/search/');
                   }}
                   className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/20 backdrop-blur hover:bg-black/25 transition"
                   aria-label="Search products"

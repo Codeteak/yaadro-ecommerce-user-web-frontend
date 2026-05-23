@@ -59,10 +59,13 @@ export function useProductWithRelated(productId) {
  * Search products
  */
 export function useSearchProducts(params = {}) {
+  const q = params.q != null ? String(params.q).trim() : '';
+  const page = params.page ?? 1;
+  const perPage = params.per_page ?? params.perPage ?? 24;
   return useQuery({
-    queryKey: productKeys.search(params),
-    queryFn: () => searchProducts(params),
-    enabled: !!(params.q && params.q.trim().length >= 2),
+    queryKey: productKeys.search({ q, page, per_page: perPage }),
+    queryFn: () => searchProducts({ ...params, q, page, per_page: perPage }),
+    enabled: q.length >= 2,
     staleTime: 1000 * 60 * 2, // 2 minutes
   });
 }

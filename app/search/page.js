@@ -11,6 +11,24 @@ import ProductCarousel from '../../components/ProductCarousel';
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 
 const DISCOVER_PER_SECTION = 12;
+const SEARCH_BASE_PATH = '/search/';
+
+function readQFromLocation() {
+  if (typeof window === 'undefined') return '';
+  return (new URLSearchParams(window.location.search).get('q') || '').trim();
+}
+
+function buildSearchHref(q) {
+  if (!q) return SEARCH_BASE_PATH;
+  return `${SEARCH_BASE_PATH}?q=${encodeURIComponent(q)}`;
+}
+
+function locationMatchesQ(q) {
+  if (typeof window === 'undefined') return true;
+  const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
+  if (pathname !== '/search') return false;
+  return readQFromLocation() === q;
+}
 
 /** Stable id for deduping carousel rows across API lists. */
 function discoverProductKey(p) {
@@ -101,41 +119,39 @@ export default function SearchPage() {
   const searchParams = useSearchParams();
   const searchInputRef = useRef(null);
   const didInitialFocusRef = useRef(false);
-  /** Set before `router.replace` so URL→state sync does not fight active typing. */
-  const pendingUrlQRef = useRef(null);
 
-  const urlQ = (searchParams?.get('q') || '').toString();
-  const [value, setValue] = useState(urlQ);
-  const [q, setQ] = useState(urlQ);
+  const initialQ = (searchParams?.get('q') || '').trim();
+  const [value, setValue] = useState(initialQ);
+  const [q, setQ] = useState(initialQ);
 
-  // Back/forward or deep link: apply URL query when it was not just written by this page.
-  useEffect(() => {
-    if (pendingUrlQRef.current === urlQ) {
-      pendingUrlQRef.current = null;
-      return;
-    }
-    setValue(urlQ);
-    setQ(urlQ);
-  }, [urlQ]);
-
-  // Debounce typing -> query
+  // Debounce typing -> API query (skip no-op updates).
   useEffect(() => {
     const t = window.setTimeout(() => {
       const next = value.trim();
-      pendingUrlQRef.current = next;
-      setQ(next);
+      setQ((prev) => (prev === next ? prev : next));
     }, 220);
     return () => window.clearTimeout(t);
   }, [value]);
 
-  // Keep URL in sync only when it differs — avoids replace → param change → re-render → focus loop on mobile.
+  // Mirror query in the address bar without Next.js router navigation (prevents /search replace loops).
   useEffect(() => {
-    if (urlQ === q) return;
-    const next = q ? `/search?q=${encodeURIComponent(q)}` : '/search';
-    router.replace(next, { scroll: false });
-  }, [q, urlQ, router]);
+    if (typeof window === 'undefined') return;
+    if (locationMatchesQ(q)) return;
+    window.history.replaceState(null, '', buildSearchHref(q));
+  }, [q]);
 
-  // Focus search field once when opening the page (not on every re-render from autoFocus).
+  // Back/forward: restore input from URL.
+  useEffect(() => {
+    const onPopState = () => {
+      const fromUrl = readQFromLocation();
+      setValue(fromUrl);
+      setQ(fromUrl);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  // Focus search field once when opening the page.
   useEffect(() => {
     if (didInitialFocusRef.current) return;
     didInitialFocusRef.current = true;
@@ -145,32 +161,43 @@ export default function SearchPage() {
     return () => window.cancelAnimationFrame(id);
   }, []);
 
-  const { data, isLoading } = useSearchProducts({
-    q,
-    page: 1,
-    per_page: 24,
-  });
+  const showDiscover = q.length < 2;
+
+  const searchApiParams = useMemo(
+    () => ({ q, page: 1, per_page: 24 }),
+    [q]
+  );
+
+  const { data, isLoading } = useSearchProducts(searchApiParams);
 
   const products = useMemo(() => data?.products || [], [data]);
 
-  // Fallback sections to avoid an "empty page" feel on search.
+  const discoverListParams = useMemo(
+    () => ({
+      limit: 48,
+      enabled: showDiscover,
+    }),
+    [showDiscover]
+  );
+
   const { data: newestData } = useProducts({
-    limit: 48,
+    ...discoverListParams,
     sort_by: 'created_at',
     sort_order: 'desc',
   });
   const { data: popularData } = useProducts({
-    limit: 48,
+    ...discoverListParams,
     sort_by: 'sold_count',
     sort_order: 'desc',
   });
   const { data: budgetData } = useProducts({
-    limit: 48,
+    ...discoverListParams,
     sort_by: 'price',
     sort_order: 'asc',
   });
 
   const discoverSections = useMemo(() => {
+    if (!showDiscover) return [];
     const { fresh, picks, deals } = partitionDiscoverCarouselProducts(
       newestData?.products,
       popularData?.products,
@@ -197,7 +224,7 @@ export default function SearchPage() {
         products: deals,
       },
     ];
-  }, [newestData?.products, popularData?.products, budgetData?.products]);
+  }, [showDiscover, newestData?.products, popularData?.products, budgetData?.products]);
 
   return (
     <div className="min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden pb-28">
@@ -245,7 +272,7 @@ export default function SearchPage() {
 
       <Container>
         <div className="px-4 pt-4 pb-6 md:px-0">
-          {q.trim().length < 2 ? (
+          {q.length < 2 ? (
             <>
               <div className="py-10 text-center text-gray-500">
                 Type at least <span className="font-semibold">2 letters</span> to search.
@@ -291,4 +318,3 @@ export default function SearchPage() {
     </div>
   );
 }
-

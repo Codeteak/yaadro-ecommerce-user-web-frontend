@@ -1,33 +1,50 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 /**
- * Chrome Android Web OTP API — fills OTP from SMS when the message includes a
- * domain binding line (see https://web.dev/web-otp/). Example last line of SMS:
- *
+ * Web OTP API (Chrome Android). SMS must include a domain binding line, e.g.:
+ *   Your code is 123456
  *   @yourshop.com #123456
  *
- * The origin must match the page (including port on localhost). iOS uses
- * `autocomplete="one-time-code"` on the input instead; this hook no-ops there.
+ * Call `begin()` in the same user gesture as "Send OTP" (before awaiting the network),
+ * otherwise the browser will not show the SMS picker.
  *
- * @param {boolean} enabled — e.g. OTP step is visible
- * @param {(code: string) => void} onCode — receives digits only, max length from options
+ * iOS uses `autocomplete="one-time-code"` on the input; this hook no-ops there.
+ *
+ * @param {(code: string) => void} onCode
  * @param {{ timeoutMs?: number, maxLength?: number }} [options]
  */
-export function useWebOtp(enabled, onCode, options = {}) {
-  const { timeoutMs = 120000, maxLength = 6 } = options;
+export function useWebOtp(onCode, options = {}) {
+  const { timeoutMs = 120000, maxLength = 8 } = options;
   const onCodeRef = useRef(onCode);
   onCodeRef.current = onCode;
 
-  useEffect(() => {
-    if (!enabled || typeof window === 'undefined') return undefined;
-    if (!('OTPCredential' in window)) return undefined;
+  const abortRef = useRef(null);
+  const timerRef = useRef(null);
+
+  const cancel = useCallback(() => {
+    if (timerRef.current != null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+  }, []);
+
+  const begin = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (!('OTPCredential' in window)) return;
+
+    cancel();
 
     const ac = new AbortController();
-    const timerId = window.setTimeout(() => ac.abort(), timeoutMs);
+    abortRef.current = ac;
+    timerRef.current = window.setTimeout(() => ac.abort(), timeoutMs);
 
-    (async () => {
+    void (async () => {
       try {
         const otp = await navigator.credentials.get({
           otp: { transport: ['sms'] },
@@ -39,13 +56,26 @@ export function useWebOtp(enabled, onCode, options = {}) {
           onCodeRef.current(digits);
         }
       } catch {
-        /* user dismissed, timeout, wrong origin in SMS, or not supported */
+        /* dismissed, timeout, or SMS missing @origin #code line */
+      } finally {
+        if (abortRef.current === ac) {
+          abortRef.current = null;
+        }
       }
     })();
+  }, [cancel, timeoutMs, maxLength]);
 
-    return () => {
-      window.clearTimeout(timerId);
-      ac.abort();
-    };
-  }, [enabled, timeoutMs, maxLength]);
+  useEffect(() => () => cancel(), [cancel]);
+
+  return { begin, cancel };
+}
+
+/** @deprecated Use `useWebOtp` and call `begin()` on Send OTP — enabled-only effect loses user activation. */
+export function useWebOtpOnMount(enabled, onCode, options) {
+  const { begin, cancel } = useWebOtp(onCode, options);
+  useEffect(() => {
+    if (enabled) begin();
+    else cancel();
+  }, [enabled, begin, cancel]);
+  return { begin, cancel };
 }

@@ -30,6 +30,8 @@ const IndianPhoneInput = forwardRef(function IndianPhoneInput(
     autoComplete = 'tel-national',
     showHint = true,
     showValidHint = true,
+    errorHintClassName = 'mt-1.5 text-[12px] text-red-600',
+    successHintClassName = 'mt-1.5 text-[12px] text-emerald-700',
     'aria-label': ariaLabel,
     onBlur,
     onFocus,
@@ -87,12 +89,12 @@ const IndianPhoneInput = forwardRef(function IndianPhoneInput(
         }
       />
       {showHint && displayError && (
-        <p className="mt-1.5 text-[12px] text-red-600" role="alert">
+        <p className={errorHintClassName} role="alert">
           {displayError}
         </p>
       )}
       {showHint && showValidHint && isComplete && !displayError && (
-        <p className="mt-1.5 text-[12px] text-emerald-700">Valid mobile number</p>
+        <p className={successHintClassName}>Valid mobile number</p>
       )}
     </div>
   );
