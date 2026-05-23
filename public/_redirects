@@ -1,10 +1,12 @@
-# SPA fallback when no static file exists (Cloudflare Pages serves real files first).
-# Do NOT add /_next/* rewrites — they can cause chunk URLs to return index.html →
-# "Uncaught SyntaxError: Unexpected identifier" in main-app-*.js
+# Cloudflare Pages routing for Next static export (trailingSlash: true).
+# Requires post-build removal of out/404.html (see scripts/prepare-cloudflare-out.mjs).
+# Do NOT add /_next/* rewrites — chunk URLs must not return index.html.
 
-# Product PDP: pre-rendered slugs use their own HTML; anything else loads the client shell
-# (see `PDP_SHELL_SEGMENT` in app/products/[id]/page.js). Without this, /products/new-slug/
-# falls through to /* → index.html and Next shows the global 404 page.
+# Shared links without trailing slash → canonical /products/<slug>/ (prebuilt index.html).
+/products/:slug  /products/:slug/  301
+
+# Slug not pre-rendered at build → client PDP shell (URL unchanged).
 /products/*  /products/_pdp/index.html  200
 
+# Other deep links (orders, etc.)
 /*  /index.html  200

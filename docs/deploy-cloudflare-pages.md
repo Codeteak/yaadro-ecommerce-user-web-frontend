@@ -115,10 +115,15 @@ npm run pages:dev      # local Pages preview of out/
 
 `public/_redirects` is copied into `out/` and provides SPA fallback for routes not pre-rendered at build time.
 
-- **Products:** `/products/*` → `/products/_pdp/index.html` when no static file exists (new slugs after deploy, or build missed a product). Pre-rendered product folders are served first.
-- **Everything else:** `/*` → `/index.html` (e.g. `/orders/<uuid>/`).
+**Important:** Next exports `out/404.html`, which makes Cloudflare Pages return **real HTTP 404** and **ignore** `_redirects` fallbacks. `npm run build` runs `scripts/prepare-cloudflare-out.mjs` to delete `out/404.html` after build.
 
-Without the product rule, deep links like `/products/some-slug/` hit the root shell and show the global **404 Page Not Found** even when the API has the product.
+Product rules:
+
+- `/products/:slug` → `/products/:slug/index.html` **200** — links without a trailing slash (common on mobile shares).
+- `/products/*` → `/products/_pdp/index.html` **200** — new slugs not pre-rendered at build time.
+- `/*` → `/index.html` **200** — other deep links (e.g. `/orders/<uuid>/`).
+
+Without removing `404.html` and the product rules, URLs like `/products/britannia-milk-slice-white-bread-400` return **404 Not Found** even when the product exists in the API.
 
 ### White screen / `SyntaxError: Unexpected identifier 'world'`
 
