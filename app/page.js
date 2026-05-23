@@ -37,7 +37,7 @@ function StickyHomeCategoryChip({ category }) {
           src={imgSrc}
           alt={isDummy ? '' : categoryName}
           fill
-          className={isDummy ? 'object-contain p-1.5' : 'object-contain object-center p-1'}
+          className={isDummy ? 'object-contain p-1.5' : 'object-cover object-center'}
           sizes="48px"
           onError={() => {
             if (!isDummy) setImgSrc(CATEGORY_DUMMY_IMAGE);
