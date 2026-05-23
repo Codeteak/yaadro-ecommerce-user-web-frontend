@@ -78,12 +78,30 @@ export function readSessionExpiresAtMs() {
 
 /**
  * Compute refresh-session expiry (ms since epoch).
+ * Uses the later of JWT `exp` and configured refresh lifetime so a short JWT `exp`
+ * (e.g. access token mistakenly stored as refresh) does not force logout after one day
+ * while the product policy is 50 days — backend refresh API remains authoritative.
+ *
  * @param {{ refreshToken?: string|null, loginAtMs?: number }} params
  */
 export function computeSessionExpiresAtMs({ refreshToken, loginAtMs = Date.now() } = {}) {
+  const wallClockExp = loginAtMs + REFRESH_SESSION_DURATION_MS;
   const jwtExp = refreshToken ? getJwtExpiresAtMs(refreshToken) : null;
-  if (jwtExp != null) return jwtExp;
-  return loginAtMs + REFRESH_SESSION_DURATION_MS;
+  if (jwtExp == null) return wallClockExp;
+  return Math.max(jwtExp, wallClockExp);
+}
+
+/**
+ * Stored credentials that may still represent a logged-in user.
+ */
+export function hasStoredAuthCredentials() {
+  if (typeof window === 'undefined') return false;
+  const refresh = window.localStorage.getItem('refreshToken');
+  const access =
+    window.localStorage.getItem('token') ||
+    window.localStorage.getItem('authToken') ||
+    window.localStorage.getItem('accessToken');
+  return !!(refresh || access);
 }
 
 /**
@@ -101,14 +119,10 @@ export function establishClientSession({ refreshToken, loginAtMs = Date.now() } 
  */
 export function syncSessionExpiryFromRefreshToken(refreshToken) {
   if (typeof window === 'undefined' || !refreshToken) return;
-  const jwtExp = getJwtExpiresAtMs(refreshToken);
-  if (jwtExp != null) {
-    window.localStorage.setItem(AUTH_SESSION_EXPIRES_KEY, String(jwtExp));
-    return;
-  }
-  if (readSessionExpiresAtMs() == null) {
-    establishClientSession({ refreshToken });
-  }
+  const computed = computeSessionExpiresAtMs({ refreshToken, loginAtMs: Date.now() });
+  const existing = readSessionExpiresAtMs();
+  const next = existing != null ? Math.max(existing, computed) : computed;
+  window.localStorage.setItem(AUTH_SESSION_EXPIRES_KEY, String(next));
 }
 
 /** @deprecated Prefer establishClientSession — kept for existing imports. */
@@ -131,16 +145,37 @@ export function isClientSessionExpired() {
 }
 
 /**
+ * Session clock expired but we may still recover via refresh token — try refresh before logout.
+ */
+export function shouldAttemptSessionRecovery() {
+  if (typeof window === 'undefined') return false;
+  if (!isClientSessionExpired()) return false;
+  return !!window.localStorage.getItem('refreshToken');
+}
+
+/**
  * Legacy sessions without expiry: derive deadline from refresh JWT or 50-day default.
  */
 export function ensureSessionExpiryForExistingLogin() {
   if (typeof window === 'undefined') return;
-  if (readSessionExpiresAtMs() != null) return;
   const refreshToken = window.localStorage.getItem('refreshToken');
   const access =
     window.localStorage.getItem('token') ||
     window.localStorage.getItem('authToken') ||
     window.localStorage.getItem('accessToken');
   if (!refreshToken && !access) return;
-  establishClientSession({ refreshToken: refreshToken || undefined });
+
+  const stored = readSessionExpiresAtMs();
+  if (stored == null) {
+    establishClientSession({ refreshToken: refreshToken || undefined });
+    return;
+  }
+
+  // Correct sessions saved with a short JWT `exp` before policy-aware expiry.
+  if (refreshToken) {
+    const corrected = computeSessionExpiresAtMs({ refreshToken });
+    if (corrected > stored) {
+      window.localStorage.setItem(AUTH_SESSION_EXPIRES_KEY, String(corrected));
+    }
+  }
 }

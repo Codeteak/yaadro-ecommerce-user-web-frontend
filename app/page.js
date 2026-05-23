@@ -56,18 +56,44 @@ function StickyHomeCategoryChip({ category }) {
 }
 import { User, MapPin, Search, ArrowRight } from 'lucide-react';
 
-// Bento spans (Tailwind safelist-friendly literals) that repeat to create a category mosaic.
-const BENTO_PATTERN = [
-  'col-span-6 sm:col-span-3 row-span-2',
-  'col-span-6 sm:col-span-3 row-span-1',
-  'col-span-3 sm:col-span-2 row-span-1',
-  'col-span-3 sm:col-span-2 row-span-2',
-  'col-span-3 sm:col-span-2 row-span-1',
-  'col-span-6 sm:col-span-3 row-span-1',
-  'col-span-3 sm:col-span-2 row-span-1',
-  'col-span-3 sm:col-span-2 row-span-1',
-];
-const getBentoSpan = (idx) => BENTO_PATTERN[idx % BENTO_PATTERN.length];
+/** Category card for home "Shop by Category" — uniform grid, image fills placeholder (centered). */
+function HomeShopCategoryCard({ category }) {
+  const categoryName = category?.name || 'Category';
+  const initialSrc = getCategoryImageUrl(category) || CATEGORY_DUMMY_IMAGE;
+  const [imgSrc, setImgSrc] = useState(initialSrc);
+  const isDummy = imgSrc === CATEGORY_DUMMY_IMAGE;
+
+  return (
+    <Link
+      href={`/products?category=${encodeURIComponent(categoryName)}`}
+      className="block overflow-hidden rounded-[18px] border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md active:scale-[0.98]"
+      aria-label={categoryName}
+    >
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-50">
+        <Image
+          src={imgSrc}
+          alt={isDummy ? '' : categoryName}
+          fill
+          className={
+            isDummy
+              ? 'object-contain object-center p-4'
+              : 'object-cover object-center'
+          }
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          onError={() => {
+            if (!isDummy) setImgSrc(CATEGORY_DUMMY_IMAGE);
+          }}
+          unoptimized
+        />
+      </div>
+      <div className="border-t border-gray-100 bg-white px-3 py-2.5">
+        <p className="truncate text-center text-[13px] font-bold leading-snug text-gray-900">
+          {categoryName}
+        </p>
+      </div>
+    </Link>
+  );
+}
 
 // Fresh Zone taxonomy derived from common supermarket "fresh" departments.
 const FRESH_CATEGORY_KEYWORDS = [
@@ -1236,7 +1262,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* Shop by Category — Bento grid of all categories */}
+      {/* Shop by Category — uniform card grid */}
       {allCategories.length > 0 && (
         <section className="py-6 sm:py-8 md:py-12 lg:py-16 bg-white [@media(max-height:720px)]:py-5 [@media(max-height:720px)]:sm:py-6">
           <Container>
@@ -1249,37 +1275,10 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="grid grid-cols-6 gap-2 sm:gap-3 auto-rows-[92px] sm:auto-rows-[130px] md:auto-rows-[150px] grid-flow-dense px-3 sm:px-4 md:px-0">
-              {allCategories.map((category, idx) => {
-                const span = getBentoSpan(idx);
-                const src = getCategoryImageUrl(category) || CATEGORY_DUMMY_IMAGE;
-                return (
-                  <Link
-                    key={category.id}
-                    href={`/products?category=${encodeURIComponent(category.name)}`}
-                    className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 shadow-sm ring-1 ring-gray-100 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${span}`}
-                    aria-label={category.name}
-                  >
-                    <img
-                      src={src}
-                      alt=""
-                      loading="lazy"
-                      className="absolute inset-0 h-full w-full object-cover object-center"
-                      style={{
-                        display: 'block',
-                      }}
-                      onError={(e) => {
-                        e.currentTarget.src = CATEGORY_DUMMY_IMAGE;
-                      }}
-                    />
-                    <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4">
-                      <h3 className="text-sm sm:text-base md:text-lg font-extrabold text-white leading-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.65)] line-clamp-2">
-                        {category.name}
-                      </h3>
-                    </div>
-                  </Link>
-                );
-              })}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:gap-4 px-3 sm:px-4 md:px-0">
+              {allCategories.map((category) => (
+                <HomeShopCategoryCard key={category.id ?? category.name} category={category} />
+              ))}
             </div>
           </Container>
         </section>
