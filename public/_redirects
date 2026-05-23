@@ -1,12 +1,10 @@
-# Cloudflare Pages routing for Next static export (trailingSlash: true).
-# Requires post-build removal of out/404.html (see scripts/prepare-cloudflare-out.mjs).
-# Do NOT add /_next/* rewrites — chunk URLs must not return index.html.
+# Cloudflare Pages — Next static export (trailingSlash: true).
+# Post-build: scripts/prepare-cloudflare-out.mjs removes out/404.html.
+# Do NOT add /_next/* rewrites.
 
-# Shared links without trailing slash → canonical /products/<slug>/ (prebuilt index.html).
-/products/:slug  /products/:slug/  301
+# All product PDP URLs → single client shell; slug is read from the browser path (not query).
+/products/:slug/  /product/index.html  200
+/products/:slug   /product/index.html  200
 
-# Slug not pre-rendered at build → client PDP shell (URL unchanged).
-/products/*  /products/_pdp/index.html  200
-
-# Other deep links (orders, etc.)
-/*  /index.html  200
+# Order detail (UUID) — placeholder route from generateStaticParams
+/orders/*  /orders/__placeholder__/index.html  200

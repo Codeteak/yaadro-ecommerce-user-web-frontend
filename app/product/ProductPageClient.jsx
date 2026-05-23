@@ -2,11 +2,15 @@
 
 import { useSearchParams } from 'next/navigation';
 import ProductDetailClient from '../products/[id]/ProductDetailClient';
+import { resolveProductRouteId } from '../../utils/productRouteId';
 
-/** Query-based PDP (`/product?id=slug`) — client-only so static export can emit `/product/index.html`. */
+/**
+ * Client PDP shell at `/product/index.html`.
+ * Cloudflare rewrites `/products/<slug>/` here (URL unchanged); slug comes from pathname.
+ */
 export default function ProductPageClient() {
   const searchParams = useSearchParams();
-  const id = String(searchParams?.get('id') || searchParams?.get('pid') || '').trim();
+  const id = resolveProductRouteId({ searchParams });
 
   if (!id) {
     return (

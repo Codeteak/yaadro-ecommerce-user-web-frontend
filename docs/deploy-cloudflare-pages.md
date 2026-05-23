@@ -117,13 +117,12 @@ npm run pages:dev      # local Pages preview of out/
 
 **Important:** Next exports `out/404.html`, which makes Cloudflare Pages return **real HTTP 404** and **ignore** `_redirects` fallbacks. `npm run build` runs `scripts/prepare-cloudflare-out.mjs` to delete `out/404.html` after build.
 
-Product rules:
+Product rules (do **not** use `/* → /index.html` — it serves the **home** page HTML for product URLs):
 
-- `/products/:slug` → `/products/:slug/index.html` **200** — links without a trailing slash (common on mobile shares).
-- `/products/*` → `/products/_pdp/index.html` **200** — new slugs not pre-rendered at build time.
-- `/*` → `/index.html` **200** — other deep links (e.g. `/orders/<uuid>/`).
+- `/products/:slug` and `/products/:slug/` → `/product/index.html` **200** (URL unchanged; client reads slug from `location.pathname`).
+- `/orders/*` → `/orders/__placeholder__/index.html` **200** for order detail UUIDs.
 
-Without removing `404.html` and the product rules, URLs like `/products/britannia-milk-slice-white-bread-400` return **404 Not Found** even when the product exists in the API.
+Without removing `404.html`, product URLs can return **404**. With `/* → /index.html`, product URLs show the **home** page instead of the PDP.
 
 ### White screen / `SyntaxError: Unexpected identifier 'world'`
 
