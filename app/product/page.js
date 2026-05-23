@@ -1,16 +1,21 @@
-import { Suspense } from 'react';
-import ProductPageClient from './ProductPageClient';
+import ProductDetailClient from '../products/[id]/ProductDetailClient';
+import { generateProductMetadataForId } from '../../utils/productMetadata';
 
-export default function ProductPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-[60vh] items-center justify-center bg-white text-gray-500">
-          <div className="h-9 w-9 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
-        </div>
-      }
-    >
-      <ProductPageClient />
-    </Suspense>
-  );
+export async function generateMetadata({ searchParams }) {
+  const id = String(searchParams?.id || searchParams?.pid || '').trim();
+  return generateProductMetadataForId(id, { pathPrefix: '/products' });
+}
+
+export default function ProductPage({ searchParams }) {
+  const id = String(searchParams?.id || searchParams?.pid || '').trim();
+
+  if (!id) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-gray-600">
+        Missing product id.
+      </div>
+    );
+  }
+
+  return <ProductDetailClient productId={id} />;
 }

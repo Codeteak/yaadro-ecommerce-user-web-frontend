@@ -32,7 +32,6 @@ import ProductImageWithFallback from '../../../components/ProductImageWithFallba
 import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
 import { getCartLineDisplayQty, getBundleFreeExtraOnPaidLine } from '../../../utils/cartPromotions';
 import { findPaidCartLine } from '../../../utils/cartLinePersist';
-import { resolveProductRouteId } from '../../../utils/productRouteId';
 
 /** Gap between cart pill bottom and the top edge of the PDP fixed bottom bar. */
 const CART_PILL_GAP_ABOVE_PDP_BAR_PX = 12;
@@ -133,10 +132,7 @@ export default function ProductDetailClient({ productId = null }) {
 
   const [cartActionLoading, setCartActionLoading] = useState(false);
 
-  const resolvedId = resolveProductRouteId({
-    productId,
-    paramsId: params?.id,
-  });
+  const resolvedId = productId != null ? String(productId) : params?.id;
   const { data: productData, isLoading: loading } = useProductWithRelated(resolvedId);
   const product = productData?.product || null;
   const relatedProducts = productData?.relatedProducts || [];

@@ -3,7 +3,7 @@
  * Uses the multi-tenant backend API
  */
 
-import { api, storefrontFetch } from './apiClient';
+import { api, apiFetchRoot } from './apiClient';
 import { resolveShopId } from './authApi';
 import { minorToMajor, parseMinorInt } from './currencyMinor';
 import { mediaObjectToUrl } from './mediaUrl';
@@ -68,16 +68,6 @@ function resolveProductSlug(apiProduct) {
   const fromName = slugify(apiProduct.name);
   if (fromName) return fromName;
   return apiProduct.id != null ? String(apiProduct.id).trim() : '';
-}
-
-/** Storefront detail path: slug → `/storefront/products/{slug}`, UUID → `/storefront/products/id/{id}`. */
-export function storefrontProductDetailPath(lookup) {
-  const raw = lookup != null ? String(lookup).trim() : '';
-  if (!raw) return '';
-  if (UUID_RE.test(raw)) {
-    return `/storefront/products/id/${encodeURIComponent(raw)}`;
-  }
-  return `/storefront/products/${encodeURIComponent(raw)}`;
 }
 
 function rememberSlugMapping(apiProduct, slug) {
@@ -495,7 +485,7 @@ export async function getProducts(params = {}) {
     }
     const headers = shopId ? { 'x-shop-id': shopId } : undefined;
 
-    const response = await storefrontFetch('/storefront/products', {
+    const response = await apiFetchRoot('/storefront/products', {
       method: 'GET',
       headers,
       query,
@@ -521,17 +511,21 @@ export async function getProducts(params = {}) {
  * @param {string} productId - Product UUID
  * @returns {Promise<object|null>}
  */
-export async function getProductById(productId, options = {}) {
-  const { quiet = false } = options;
+export async function getProductById(productId) {
   try {
     const shopId = await resolveShopId();
     const headers = shopId ? { 'x-shop-id': shopId } : undefined;
 
     const raw = productId != null ? String(productId).trim() : '';
-    const detailPath = storefrontProductDetailPath(raw);
-    if (!detailPath) return null;
+    let lookup = raw;
+    if (UUID_RE.test(raw)) {
+      // Try to translate UUID -> slug if we have seen this product in list APIs.
+      readSlugMapFromStorage();
+      const mapped = inMemorySlugById.get(raw);
+      if (mapped) lookup = mapped;
+    }
 
-    const response = await storefrontFetch(detailPath, {
+    const response = await apiFetchRoot(`/storefront/products/${encodeURIComponent(lookup)}`, {
       method: 'GET',
       headers,
       omitTenantHeader: true,
@@ -548,21 +542,9 @@ export async function getProductById(productId, options = {}) {
 
     return transformProduct(payload);
   } catch (error) {
-    if (!quiet) {
-      console.error('Error fetching product:', error);
-    }
+    console.error('Error fetching product:', error);
     return null;
   }
-}
-
-/** Slug segment safe for `/products/[id]` static paths (storefront detail uses slug, not UUID). */
-export function productStaticPathSegment(apiProduct) {
-  if (!apiProduct || typeof apiProduct !== 'object') return '';
-  const slug = apiProduct.slug != null ? String(apiProduct.slug).trim() : '';
-  if (slug) return slug;
-  const id = apiProduct.id != null ? String(apiProduct.id).trim() : '';
-  if (id && !UUID_RE.test(id)) return id;
-  return '';
 }
 
 /**
@@ -662,7 +644,7 @@ export async function getCategoriesTree() {
 
     // Storefront categories are fetched by parent_id; build a tree with a bounded recursion.
     async function fetchChildren(parentId) {
-      const res = await storefrontFetch('/storefront/categories', {
+      const res = await apiFetchRoot('/storefront/categories', {
         method: 'GET',
         headers,
         query: parentId ? { parent_id: parentId } : undefined,

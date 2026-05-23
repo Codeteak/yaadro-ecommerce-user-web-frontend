@@ -1,11 +1,9 @@
 'use client';
 
 import { useEffect } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
-import { useShopBranding } from '../../context/ShopBrandingContext';
 import LoginPanel from '../../components/LoginPanel';
 import {
   clearPostLoginRedirect,
@@ -18,9 +16,6 @@ export default function LoginPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, authHydrated } = useAuth();
-  const { shopName, shopImage, isResolving } = useShopBranding();
-
-  const displayName = shopName || 'Yaadro';
 
   useEffect(() => {
     const next = sanitizeInternalPath(searchParams.get('next'));
@@ -36,50 +31,30 @@ export default function LoginPageClient() {
 
   return (
     <div className="flex min-h-[100dvh] min-h-screen w-full max-w-full flex-col overflow-x-hidden bg-white pt-[env(safe-area-inset-top,0px)]">
-      <header className="flex shrink-0 flex-col items-center px-4 pb-2 pt-4 sm:pt-5">
+      <header className="flex shrink-0 items-center gap-3 border-b border-gray-100 bg-white px-4 py-3">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-700 transition hover:bg-gray-100"
+          aria-label="Go back"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[17px] font-semibold text-gray-900">Sign in</h1>
+          <p className="text-[12px] text-gray-500">Mobile OTP</p>
+        </div>
         <Link
           href="/"
-          className="flex flex-col items-center text-center transition-opacity hover:opacity-90 active:opacity-80"
-          aria-label={`${displayName} home`}
+          className="whitespace-nowrap text-[13px] font-semibold text-emerald-700 hover:text-emerald-800"
         >
-          {shopImage ? (
-            <div className="relative mb-2.5 h-16 w-16 sm:h-[72px] sm:w-[72px]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={shopImage}
-                alt=""
-                className="h-full w-full object-contain"
-                width={72}
-                height={72}
-              />
-            </div>
-          ) : (
-            <div className="mb-2.5 flex h-16 w-16 items-center justify-center sm:h-[72px] sm:w-[72px]">
-              {isResolving ? (
-                <div className="h-12 w-12 animate-pulse rounded-xl bg-gray-100" />
-              ) : (
-                <Image
-                  src="/trolley.png"
-                  alt=""
-                  width={56}
-                  height={56}
-                  className="h-14 w-14 object-contain opacity-90"
-                  priority
-                />
-              )}
-            </div>
-          )}
-          <h1 className="text-[18px] font-bold tracking-tight text-gray-900 sm:text-[20px]">
-            {isResolving && !shopName ? (
-              <span className="inline-block h-5 w-28 animate-pulse rounded bg-gray-100" />
-            ) : (
-              displayName
-            )}
-          </h1>
+          Home
         </Link>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto px-5 py-6 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6">
+      <main className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto px-5 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6">
         <div className="mx-auto w-full max-w-[420px]">
           <LoginPanel />
         </div>

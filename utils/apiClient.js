@@ -9,7 +9,7 @@
  * { status: "success"|"error", message?: string, data?: any }
  */
 
-import { getIamsApiBaseUrl, getStorefrontApiBaseUrl } from './apiBases';
+const FALLBACK_BASE_URL = 'http://localhost:3001/api';
 
 function isApiLoggingEnabled() {
   const v = process.env.NEXT_PUBLIC_LOG_API;
@@ -32,24 +32,36 @@ function sendClientApiLogToServer(payload) {
   // Static Cloudflare Pages deploy has no Next.js API routes, so browser-side API logs stay in console only.
 }
 
-/** @deprecated Use {@link getStorefrontApiBaseUrl} from `./apiBases`. */
 function getConfiguredBaseUrl() {
-  return getStorefrontApiBaseUrl();
+  const base =
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    (process.env.NEXT_PUBLIC_API_URL ? String(process.env.NEXT_PUBLIC_API_URL) : '') ||
+    FALLBACK_BASE_URL;
+
+  const trimmed = String(base).trim().replace(/\/+$/, '');
+
+  // Normalize so the API base always includes `/api` exactly once.
+  // - If env already ends with `/api`, keep it.
+  // - If env is an origin (e.g. https://example.com), append `/api`.
+  if (trimmed.toLowerCase().endsWith('/api')) return trimmed;
+  return `${trimmed}/api`;
 }
 
-/** Storefront API origin without `/api` (static assets, media URLs). */
+/** API origin (host) without `/api` (useful for non-API static assets). */
 export function getApiOrigin() {
-  return getStorefrontApiBaseUrl().replace(/\/?api\/?$/i, '');
+  return getConfiguredBaseUrl().replace(/\/?api\/?$/, '');
 }
 
-function warnIfIamsOnStorefront(fullUrl, label) {
-  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') return;
-  if (/\/iams\//i.test(fullUrl)) {
-    console.warn(
-      `[${label}] Request targets /iams/ on the storefront client. Set NEXT_PUBLIC_IAMS_API_BASE_URL and use iamsFetch.`,
-      fullUrl
-    );
+function toRootUrl(path, query) {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const url = new URL(`${getApiOrigin()}${normalizedPath}`);
+  if (query && typeof query === 'object') {
+    Object.entries(query).forEach(([k, v]) => {
+      if (v === undefined || v === null) return;
+      url.searchParams.set(k, String(v));
+    });
   }
+  return url.toString();
 }
 
 function resolveErrorMessage(json, response) {
@@ -115,8 +127,8 @@ export function setAuthToken(token) {
   window.localStorage.setItem('authToken', String(token));
 }
 
-function toUrl(path, query, apiBaseUrl = getStorefrontApiBaseUrl()) {
-  const base = apiBaseUrl || getStorefrontApiBaseUrl();
+function toUrl(path, query) {
+  const base = getConfiguredBaseUrl();
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const url = new URL(`${base}${normalizedPath}`);
 
@@ -155,7 +167,7 @@ async function parseJsonSafe(response) {
  * @param {boolean} [options.omitTenantHeader] - skip X-Tenant-ID (e.g. auth registration)
  * @param {boolean} [options.omitAuthHeader] - skip Authorization (e.g. OTP login while an expired token remains in localStorage)
  */
-async function apiFetchWithBase(path, options = {}, apiBaseUrl = getStorefrontApiBaseUrl()) {
+export async function apiFetch(path, options = {}) {
   const {
     method = 'GET',
     headers = {},
@@ -167,7 +179,6 @@ async function apiFetchWithBase(path, options = {}, apiBaseUrl = getStorefrontAp
     credentials,
     omitTenantHeader = false,
     omitAuthHeader = false,
-    logKind = 'apiFetch',
     ...rest
   } = options;
 
@@ -204,11 +215,99 @@ async function apiFetchWithBase(path, options = {}, apiBaseUrl = getStorefrontAp
     fetchOpts.credentials = credentials;
   }
 
-  const base = apiBaseUrl || getStorefrontApiBaseUrl();
-  const url = toUrl(path, query, base);
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  warnIfIamsOnStorefront(`${base}${normalizedPath}`, logKind);
+  const url = toUrl(path, query);
+  const response = await fetch(url, fetchOpts);
 
+  const json = await parseJsonSafe(response);
+  const apiStatus = json?.status;
+  const apiMessage = json?.message;
+
+  if (!response.ok || apiStatus === 'error') {
+    const message = apiMessage || resolveErrorMessage(json, response);
+    const err = new Error(typeof message === 'string' ? message : String(message));
+    err.status = response.status;
+    err.data = json;
+    if (json?.error?.code) err.code = json.error.code;
+    throw err;
+  }
+
+  if (isApiLoggingEnabled()) {
+    const endedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const ms = Math.round((endedAt - startedAt) * 10) / 10;
+    const line = `[API] ${method} ${url} -> ${response.status} (${ms}ms)`;
+    // Server logs go to terminal; browser logs go to console.
+    // For browser, also send to server so it appears in terminal.
+    // eslint-disable-next-line no-console
+    console.log(line);
+    sendClientApiLogToServer({
+      kind: 'apiFetch',
+      method,
+      url,
+      status: response.status,
+      ms,
+      at: new Date().toISOString(),
+    });
+  }
+
+  if (returnResponse) return json;
+
+  return apiStatus ? json?.data : json;
+}
+
+/**
+ * Fetch against API origin without `/api` prefix (e.g. `POST /auth/logout`).
+ */
+export async function apiFetchRoot(path, options = {}) {
+  const {
+    method = 'GET',
+    headers = {},
+    body = undefined,
+    query = undefined,
+    token = undefined,
+    tenantId = undefined,
+    returnResponse = false,
+    credentials,
+    omitTenantHeader = false,
+    omitAuthHeader = false,
+    ...rest
+  } = options;
+
+  const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const resolvedTenant = omitTenantHeader ? '' : tenantId ?? getTenantId();
+  const resolvedToken = omitAuthHeader ? '' : token ?? getAuthToken();
+
+  const finalHeaders = new Headers(headers);
+
+  if (resolvedTenant) {
+    finalHeaders.set('X-Tenant-ID', resolvedTenant);
+  }
+
+  if (resolvedToken) {
+    finalHeaders.set('Authorization', `Bearer ${resolvedToken}`);
+  }
+
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+  const hasBody = body !== undefined && body !== null;
+  if (hasBody && !isFormData && !finalHeaders.has('Content-Type')) {
+    finalHeaders.set('Content-Type', 'application/json');
+  }
+  if (!finalHeaders.has('Accept')) {
+    finalHeaders.set('Accept', 'application/json');
+  }
+
+  const fetchOpts = {
+    method,
+    headers: finalHeaders,
+    body: hasBody && !isFormData && typeof body !== 'string' ? JSON.stringify(body) : body,
+    ...rest,
+  };
+  if (credentials !== undefined) {
+    fetchOpts.credentials = credentials;
+  }
+
+  // We keep `apiFetchRoot` for backwards compatibility, but all backend calls are under `/api`.
+  // (So this behaves the same as `apiFetch`.)
+  const url = toUrl(path, query);
   const response = await fetch(url, fetchOpts);
 
   const json = await parseJsonSafe(response);
@@ -231,7 +330,7 @@ async function apiFetchWithBase(path, options = {}, apiBaseUrl = getStorefrontAp
     // eslint-disable-next-line no-console
     console.log(line);
     sendClientApiLogToServer({
-      kind: logKind,
+      kind: 'apiFetchRoot',
       method,
       url,
       status: response.status,
@@ -244,38 +343,6 @@ async function apiFetchWithBase(path, options = {}, apiBaseUrl = getStorefrontAp
 
   return apiStatus ? json?.data : json;
 }
-
-/** Storefront / customer API (auth, `/me/*`, `/storefront/*`). */
-export async function apiFetch(path, options = {}) {
-  return apiFetchWithBase(path, options, getStorefrontApiBaseUrl());
-}
-
-/**
- * Same host as `apiFetch` — use for `/storefront/*` catalog, cart, checkout, orders.
- * Never point IAMS paths (`/iams/api/...`) here; use {@link iamsFetch}.
- */
-export async function storefrontFetch(path, options = {}) {
-  return apiFetchWithBase(path, { ...options, logKind: 'storefrontFetch' }, getStorefrontApiBaseUrl());
-}
-
-/** @deprecated Alias for {@link storefrontFetch}. */
-export const apiFetchRoot = storefrontFetch;
-
-/**
- * IAMS / admin / affiliate API (`NEXT_PUBLIC_IAMS_API_BASE_URL`).
- * Example: `GET /iams/api/v1/high-commissions` — not on the storefront server.
- */
-export async function iamsFetch(path, options = {}) {
-  const base = getIamsApiBaseUrl();
-  if (!base) {
-    throw new Error(
-      'NEXT_PUBLIC_IAMS_API_BASE_URL is not set. IAMS routes cannot be called on the storefront host.'
-    );
-  }
-  return apiFetchWithBase(path, { ...options, logKind: 'iamsFetch' }, base);
-}
-
-export { getStorefrontApiBaseUrl, getIamsApiBaseUrl } from './apiBases';
 
 export const api = {
   get: (path, options) => apiFetch(path, { ...options, method: 'GET' }),

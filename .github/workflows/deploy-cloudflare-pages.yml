@@ -55,8 +55,6 @@ jobs:
         run: |
           test -f out/index.html
           test -f out/_redirects
-          test -f out/product/index.html
-          test ! -f out/404.html
           echo "Build output OK ($(find out -type f | wc -l) files)"
 
       - name: Validate Cloudflare credentials

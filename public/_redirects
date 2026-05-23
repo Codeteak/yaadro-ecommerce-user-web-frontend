@@ -1,10 +1,4 @@
-# Cloudflare Pages — Next static export (trailingSlash: true).
-# Post-build: scripts/prepare-cloudflare-out.mjs removes out/404.html.
-# Do NOT add /_next/* rewrites.
-
-# All product PDP URLs → single client shell; slug is read from the browser path (not query).
-/products/:slug/  /product/index.html  200
-/products/:slug   /product/index.html  200
-
-# Order detail (UUID) — placeholder route from generateStaticParams
-/orders/*  /orders/__placeholder__/index.html  200
+# SPA fallback when no static file exists (Cloudflare Pages serves real files first).
+# Do NOT add /_next/* rewrites — they can cause chunk URLs to return index.html →
+# "Uncaught SyntaxError: Unexpected identifier" in main-app-*.js
+/*  /index.html  200

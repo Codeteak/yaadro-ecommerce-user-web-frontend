@@ -3,8 +3,6 @@
  * Cached in localStorage per hostname. Used for branding, splash, and x-shop-id flows.
  */
 
-import { getStorefrontApiBaseUrl } from './apiBases';
-
 export const RESOLVED_SHOP_ID_STORAGE_KEY = 'yaadro_resolved_shop_id';
 export const RESOLVED_SHOP_HOST_STORAGE_KEY = 'yaadro_resolved_shop_host';
 export const RESOLVED_SHOP_NAME_STORAGE_KEY = 'yaadro_resolved_shop_name';
@@ -13,8 +11,13 @@ export const RESOLVED_SHOP_IMAGE_STORAGE_KEY = 'yaadro_resolved_shop_image';
 const DEFAULT_SHOP_NAME = 'Yaadro';
 
 function getDefaultTenantResolverUrl() {
-  const apiBase = getStorefrontApiBaseUrl();
-  if (!apiBase) return '';
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL
+    ? String(process.env.NEXT_PUBLIC_API_BASE_URL).trim()
+    : process.env.NEXT_PUBLIC_API_URL
+      ? `${String(process.env.NEXT_PUBLIC_API_URL).trim().replace(/\/+$/, '')}/api`
+      : '';
+  if (!base) return '';
+  const apiBase = base.replace(/\/+$/, '');
   return `${apiBase}/shops/resolve-by-domain`;
 }
 

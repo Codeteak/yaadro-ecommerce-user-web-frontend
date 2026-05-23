@@ -177,7 +177,7 @@ function OtpStep({
       </p>
 
       <div className="space-y-3">
-        <PrimaryButton type="submit" loading={isSubmitting} loadingText="Verifying…" variant="purple">
+        <PrimaryButton type="submit" loading={isSubmitting} loadingText="Verifying…">
           Verify &amp; continue
         </PrimaryButton>
         <SecondaryButton onClick={onResend} disabled={resendDisabled}>
