@@ -95,6 +95,20 @@ img, video, iframe {
   max-width: none;
 }
 
+/* Products sidebar category thumbs — override global `img { height: auto }` so cover fill works */
+.category-rail-thumb {
+  max-width: none !important;
+}
+
+.category-rail-thumb img {
+  max-width: none !important;
+  max-height: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center !important;
+}
+
 /* Hide scrollbar for horizontal scroll on mobile */
 .scrollbar-hide {
   -ms-overflow-style: none;  /* IE and Edge */

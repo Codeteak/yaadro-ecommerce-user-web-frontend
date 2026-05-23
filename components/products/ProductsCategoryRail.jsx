@@ -1,14 +1,15 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useState } from 'react';
+import Image from 'next/image';
+import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryImage';
 
-function categoryThumbUrl(cat) {
-  if (!cat || typeof cat.image !== 'string') return null;
-  const u = cat.image.trim();
-  return u.length > 0 ? u : null;
-}
+function CategoryRailItem({ active, label, category, onClick }) {
+  const imageUrl = getCategoryImageUrl(category);
+  const initialSrc = imageUrl || CATEGORY_DUMMY_IMAGE;
+  const [imgSrc, setImgSrc] = useState(initialSrc);
+  const isDummy = !imageUrl || imgSrc === CATEGORY_DUMMY_IMAGE;
 
-function CategoryRailItem({ active, label, imageUrl, onClick }) {
   return (
     <button
       type="button"
@@ -19,20 +20,22 @@ function CategoryRailItem({ active, label, imageUrl, onClick }) {
           : 'bg-transparent hover:bg-gray-50 active:bg-gray-100'
       }`}
     >
-      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-        {imageUrl ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={imageUrl}
-            alt=""
-            className="absolute inset-0 block h-full w-full object-cover object-center"
-            loading="lazy"
-          />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center text-[15px] font-bold text-gray-400">
-            {(label || '?').slice(0, 1).toUpperCase()}
-          </span>
-        )}
+      <div className="category-rail-thumb relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100 ring-1 ring-gray-200/60">
+        <Image
+          src={imgSrc}
+          alt=""
+          fill
+          sizes="48px"
+          className={
+            isDummy
+              ? 'object-contain object-center p-1.5'
+              : 'object-cover object-center'
+          }
+          onError={() => {
+            if (!isDummy) setImgSrc(CATEGORY_DUMMY_IMAGE);
+          }}
+          unoptimized
+        />
       </div>
       <span
         className={`max-w-[4.5rem] text-center text-[10px] leading-tight ${
@@ -55,12 +58,6 @@ function ProductsCategoryRailInner({ activeCategory, rootCategories, onCategoryS
       }}
     >
       <div className="flex max-h-[inherit] flex-col gap-0.5 overflow-y-auto overscroll-contain px-1.5 pb-4">
-        <CategoryRailItem
-          active={activeCategory === 'all'}
-          label="All"
-          imageUrl={null}
-          onClick={() => onCategorySelect('all')}
-        />
         {rootCategories.map((cat) => {
           const id = String(cat.id || '').trim();
           if (!id) return null;
@@ -69,7 +66,7 @@ function ProductsCategoryRailInner({ activeCategory, rootCategories, onCategoryS
               key={id}
               active={activeCategory === id}
               label={String(cat.name || '').trim() || 'Category'}
-              imageUrl={categoryThumbUrl(cat)}
+              category={cat}
               onClick={() => onCategorySelect(id)}
             />
           );
