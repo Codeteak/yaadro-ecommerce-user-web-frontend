@@ -16,8 +16,17 @@ export const cartKeys = {
   ],
 };
 
+/** Normalized empty cart for query cache after checkout / clear. */
+export const EMPTY_CART_QUERY = {
+  items: [],
+  subtotal: 0,
+  total: 0,
+  displayUnitsTotal: 0,
+  subtotalMinor: 0,
+};
+
 function syncCartFromMutation(queryClient, cartData) {
-  if (!cartData?.items) return;
+  if (!cartData || !Array.isArray(cartData.items)) return;
   queryClient.setQueryData(cartKeys.cart(), cartData);
   // Refresh coupon-preview cart queries only — avoid racing GET /cart over mutation payload.
   queryClient.invalidateQueries({
@@ -111,9 +120,13 @@ export function useClearCart() {
 
   return useMutation({
     mutationFn: () => apiClearCart(),
-    onSuccess: () => {
+    onSuccess: (cartData) => {
+      if (cartData && Array.isArray(cartData.items)) {
+        syncCartFromMutation(queryClient, cartData);
+      } else {
+        queryClient.setQueryData(cartKeys.cart(), EMPTY_CART_QUERY);
+      }
       queryClient.invalidateQueries({ queryKey: cartKeys.all });
-      queryClient.setQueryData(cartKeys.cart(), { items: [], subtotal: 0, total: 0 });
     },
   });
 }

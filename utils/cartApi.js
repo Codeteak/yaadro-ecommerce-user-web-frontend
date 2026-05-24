@@ -637,14 +637,17 @@ export async function removeFromCart(itemId, options = {}) {
 
 /**
  * Clear entire cart
- * @returns {Promise<void>}
+ * @returns {Promise<object>} Normalized empty cart
  */
 export async function clearCart() {
   try {
     // Backend exposes item delete; clear by fetching cart and deleting lines.
     const cart = await getCart();
     const paidLines = (cart.items || []).filter((it) => !it.isBundleReward);
-    await Promise.all(paidLines.map((it) => removeFromCart(it.cartItemId || it.id)));
+    if (paidLines.length > 0) {
+      await Promise.all(paidLines.map((it) => removeFromCart(it.cartItemId || it.id)));
+    }
+    return getCart();
   } catch (error) {
     console.error('Error clearing cart:', error);
     throw error;

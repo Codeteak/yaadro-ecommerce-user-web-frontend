@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, useLayoutEffect, useRef
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import { useAlert } from './AlertContext';
-import { useCartQuery, useAddToCart, useUpdateCartItem, useRemoveFromCart, useClearCart, cartKeys } from '../hooks/useCart';
+import { useCartQuery, useAddToCart, useUpdateCartItem, useRemoveFromCart, useClearCart, cartKeys, EMPTY_CART_QUERY } from '../hooks/useCart';
 import {
   applyGuestCartBundleQuantities,
   expandCartItemsWithBundleRewards,
@@ -87,6 +87,18 @@ export function CartProvider({ children }) {
     return apiCartItems.filter((it) => !drop.has(String(it.cartItemId ?? it.id)));
   }, [apiCartItems, pendingRemovedCartItemIds]);
 
+  const queryClient = useQueryClient();
+  const addToCartMutation = useAddToCart();
+  const updateCartItemMutation = useUpdateCartItem();
+  const removeFromCartMutation = useRemoveFromCart();
+  const clearCartMutation = useClearCart();
+
+  const cartMutating =
+    addToCartMutation.isPending ||
+    updateCartItemMutation.isPending ||
+    removeFromCartMutation.isPending ||
+    clearCartMutation.isPending;
+
   // Local cart state for unauthenticated users
   const [localCartItems, setLocalCartItems] = useState([]);
   const localCartItemsRef = useRef([]);
@@ -152,8 +164,30 @@ export function CartProvider({ children }) {
   // Merged view: API truth + optimistic pending lines + client-persisted image snapshots.
   const cartItems = useMemo(() => {
     if (!useApiCart) return buildGuestDisplayCartItems(localCartItems);
-    return buildDisplayCartItems(apiCartItemsForMerge, localCartItems);
-  }, [useApiCart, apiCartItemsForMerge, localCartItems]);
+
+    const server = apiCartItemsForMerge;
+    if (server.length > 0) {
+      return buildDisplayCartItems(server, localCartItems);
+    }
+
+    // Server cart is empty — do not show stale `cartApiCache` lines after checkout/clear.
+    if (cartMutating && localCartItems.length > 0) {
+      return buildGuestDisplayCartItems(localCartItems);
+    }
+    if (cartData !== undefined && !loading) {
+      return [];
+    }
+
+    // First paint before GET /cart resolves: show hydrated local snapshot.
+    return buildGuestDisplayCartItems(localCartItems);
+  }, [
+    useApiCart,
+    apiCartItemsForMerge,
+    localCartItems,
+    cartMutating,
+    cartData,
+    loading,
+  ]);
 
   // Keep local cache aligned with server while preserving snapshot URLs from the client.
   // Skip while refetching with an empty payload — avoids wiping optimistic lines after
@@ -168,7 +202,22 @@ export function CartProvider({ children }) {
     ) {
       return;
     }
-    if (!apiCartItemsForMerge.length) return;
+    if (!apiCartItemsForMerge.length) {
+      if (
+        localCartItems.length > 0 &&
+        !cartMutating &&
+        cartData !== undefined &&
+        !loading
+      ) {
+        setLocalCartItems([]);
+        localCartItemsRef.current = [];
+        if (isClient && typeof window !== 'undefined') {
+          localStorage.removeItem(API_CART_CACHE_STORAGE_KEY);
+          persistCartLinesImmediate([], API_CART_CACHE_STORAGE_KEY);
+        }
+      }
+      return;
+    }
     setLocalCartItems((prev) => syncPaidCartCacheLines(apiCartItemsForMerge, prev));
   }, [
     useApiCart,
@@ -178,10 +227,9 @@ export function CartProvider({ children }) {
     apiCartItems.length,
     apiCartItemsForMerge,
     localCartItems.length,
+    cartMutating,
+    isClient,
   ]);
-
-  // TanStack Query mutations and client
-  const queryClient = useQueryClient();
 
   /** After logout (auth → guest), drop in-memory cart — not on initial guest page load. */
   useEffect(() => {
@@ -199,11 +247,6 @@ export function CartProvider({ children }) {
     setCartTemplates([]);
     queryClient.removeQueries({ queryKey: cartKeys.all });
   }, [isAuthenticated, queryClient]);
-
-  const addToCartMutation = useAddToCart();
-  const updateCartItemMutation = useUpdateCartItem();
-  const removeFromCartMutation = useRemoveFromCart();
-  const clearCartMutation = useClearCart();
 
   // On login, best-effort sync guest cart (memory + localStorage) into API cart once.
   // After redirect login, memory is empty but `cart` may still be in localStorage — read both here
@@ -514,24 +557,21 @@ export function CartProvider({ children }) {
   // Clear entire cart
   const clearCart = async () => {
     try {
+      setPendingRemovedCartItemIds([]);
+      setLocalCartItems([]);
+      localCartItemsRef.current = [];
+      queryClient.setQueryData(cartKeys.cart(), EMPTY_CART_QUERY);
+
+      if (isClient && typeof window !== 'undefined') {
+        localStorage.removeItem(API_CART_CACHE_STORAGE_KEY);
+        localStorage.removeItem(GUEST_CART_STORAGE_KEY);
+        localStorage.removeItem('cartLastActivity');
+        persistCartLinesImmediate([], API_CART_CACHE_STORAGE_KEY);
+        persistCartLinesImmediate([], GUEST_CART_STORAGE_KEY);
+      }
+
       if (useApiCart && isAuthenticated && token) {
-        setPendingRemovedCartItemIds([]);
-        setLocalCartItems([]);
-        localCartItemsRef.current = [];
-        if (isClient && typeof window !== 'undefined') {
-          localStorage.removeItem(API_CART_CACHE_STORAGE_KEY);
-          localStorage.removeItem(GUEST_CART_STORAGE_KEY);
-        }
-        // Use API if authenticated
         await clearCartMutation.mutateAsync();
-        // Query will update automatically
-      } else {
-        // Use localStorage if not authenticated
-        setLocalCartItems([]);
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('cart');
-          localStorage.removeItem('cartLastActivity');
-        }
       }
     } catch (error) {
       console.error('Error clearing cart:', error);
@@ -666,19 +706,23 @@ export function CartProvider({ children }) {
   };
 
   const cartCount =
-    useApiCart && cartData?.displayUnitsTotal != null
-      ? cartData.displayUnitsTotal
-      : sumCartDisplayUnits(cartItems);
+    cartItems.length === 0
+      ? 0
+      : useApiCart && cartData?.displayUnitsTotal != null
+        ? cartData.displayUnitsTotal
+        : sumCartDisplayUnits(cartItems);
 
   const cartTotal =
-    useApiCart && cartData?.total != null && Number.isFinite(Number(cartData.total))
-      ? Number(cartData.total)
-      : cartItems.reduce((total, item) => {
-          if (item.isBundleReward) return total;
-          const line = Number(item.lineTotal);
-          if (Number.isFinite(line) && line >= 0) return total + line;
-          return total + (Number(item.price) || 0) * (Number(item.quantity) || 0);
-        }, 0);
+    cartItems.length === 0
+      ? 0
+      : useApiCart && cartData?.total != null && Number.isFinite(Number(cartData.total))
+        ? Number(cartData.total)
+        : cartItems.reduce((total, item) => {
+            if (item.isBundleReward) return total;
+            const line = Number(item.lineTotal);
+            if (Number.isFinite(line) && line >= 0) return total + line;
+            return total + (Number(item.price) || 0) * (Number(item.quantity) || 0);
+          }, 0);
 
   const value = {
     cartItems,
