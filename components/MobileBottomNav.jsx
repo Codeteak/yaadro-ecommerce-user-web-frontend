@@ -56,6 +56,10 @@ export default function MobileBottomNav() {
   const navRef = useRef(null);
 
   useEffect(() => {
+    if (hideForRoute) {
+      setBottomNavHeight(0);
+      return;
+    }
     const el = navRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() =>
@@ -64,7 +68,7 @@ export default function MobileBottomNav() {
     ro.observe(el);
     setBottomNavHeight(el.getBoundingClientRect().height);
     return () => ro.disconnect();
-  }, [setBottomNavHeight]);
+  }, [hideForRoute, setBottomNavHeight]);
 
   if (hideForRoute) return null;
 

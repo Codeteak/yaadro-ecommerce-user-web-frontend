@@ -1,88 +1,61 @@
 'use client';
 
-import { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
-import Navbar from './Navbar';
 import Footer from './Footer';
 import { useLayoutHeights } from '../context/LayoutHeightsContext';
 import { useBottomNavVisibility } from '../context/BottomNavVisibilityContext';
 
+function normalizePath(pathname) {
+  return pathname?.replace(/\/+$/, '') || '';
+}
+
 export default function ConditionalLayout({ children }) {
   const pathname = usePathname();
-  const { navbarHeight, bottomNavHeight } = useLayoutHeights();
+  const { bottomNavHeight } = useLayoutHeights();
   const { isVisible: bottomNavVisible } = useBottomNavVisibility();
 
-  const pathNoSlash = pathname?.replace(/\/+$/, '') || '';
+  const path = normalizePath(pathname);
 
-  const hideLayout =
-    pathname === '/order-success' ||
-    pathname === '/checkout' ||
-    pathname === '/login' ||
-    pathname === '/profile' ||
-    pathname === '/addresses' ||
-    pathname === '/add/address' ||
-    pathname === '/cart' ||
-    pathname === '/orders' ||
-    pathname?.startsWith('/orders/') ||
-    pathNoSlash === '/order' ||
-    pathNoSlash === '/product' ||
-    // Product detail should be full-bleed (no header/footer)
-    (pathname?.startsWith('/products/') && pathname !== '/products');
+  const hideFooter =
+    path === '/order-success' ||
+    path === '/checkout' ||
+    path === '/login' ||
+    path === '/profile' ||
+    path === '/addresses' ||
+    path === '/add/address' ||
+    path === '/cart' ||
+    path === '/orders' ||
+    path.startsWith('/orders/') ||
+    path === '/order' ||
+    path === '/product' ||
+    (pathname?.startsWith('/products/') && path !== '/products');
 
-  /** Categories list + category browse: no global Navbar, but keep bottom inset for mobile nav */
   const categoriesRoute = pathname?.startsWith('/categories');
+  const productsListingRoute = path === '/products';
+  const searchRoute = path === '/search' || pathname?.startsWith('/search/');
 
-  /** Products listing uses in-page browse chrome — hide global Navbar */
-  const productsListingRoute = pathNoSlash === '/products';
+  const reserveBottomNavInset =
+    !hideFooter ||
+    categoriesRoute ||
+    searchRoute ||
+    productsListingRoute;
 
-  /** Search has its own sticky bar — hide global Navbar only */
-  const searchRoute = pathname === '/search' || pathname?.startsWith('/search/');
-
-  const homeRoute = pathNoSlash === '';
-  const showNavbar =
-    !hideLayout &&
-    !categoriesRoute &&
-    !homeRoute &&
-    !searchRoute &&
-    !productsListingRoute;
-
-  const mainPaddingTop = showNavbar ? navbarHeight : 0;
-  const mainPaddingBottom = categoriesRoute || searchRoute || productsListingRoute
-    ? bottomNavVisible
-      ? bottomNavHeight
-      : 0
-    : hideLayout
-      ? 0
-      : bottomNavVisible
-        ? bottomNavHeight
-        : 0;
+  const mainPaddingBottom =
+    reserveBottomNavInset && bottomNavVisible ? bottomNavHeight : 0;
 
   return (
     <>
-      {showNavbar && (
-        <Suspense
-          fallback={
-            <header
-              className="sticky top-0 z-50 w-full h-14 md:h-16 bg-white/95 border-b border-gray-100 shadow-sm"
-              aria-hidden
-            />
-          }
-        >
-          <Navbar />
-        </Suspense>
-      )}
       <main
         className="flex-grow w-full max-w-full overflow-x-clip transition-[padding] duration-300 ease-out"
         style={{
           overflowX: 'clip',
           maxWidth: '100vw',
-          paddingTop: mainPaddingTop,
           paddingBottom: mainPaddingBottom,
         }}
       >
         {children}
       </main>
-      {!hideLayout && (
+      {!hideFooter && (
         <div className="hidden md:block">
           <Footer />
         </div>

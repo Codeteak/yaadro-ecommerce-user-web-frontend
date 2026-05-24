@@ -5,25 +5,28 @@ import { usePathname } from 'next/navigation';
 
 const BottomNavVisibilityContext = createContext({ isVisible: true });
 
+function normalizePath(pathname) {
+  return pathname?.replace(/\/+$/, '') || '';
+}
+
 export function BottomNavVisibilityProvider({ children }) {
   const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(true);
   const lastYRef = useRef(0);
   const rafRef = useRef(null);
 
-  const pathNoSlash = pathname?.replace(/\/+$/, '') || '';
+  const path = normalizePath(pathname);
 
   const hideForRoute =
-    pathname === '/login' ||
-    pathname === '/checkout' ||
-    pathname === '/order-success' ||
-    pathname === '/cart' ||
-    pathname === '/add/address' ||
-    pathNoSlash === '/order' ||
-    pathNoSlash.startsWith('/orders/') ||
-    pathNoSlash === '/product' ||
-    // Hide bottom nav on product detail pages
-    (pathname?.startsWith('/products/') && pathname !== '/products');
+    path === '/login' ||
+    path === '/checkout' ||
+    path === '/order-success' ||
+    path === '/cart' ||
+    path === '/add/address' ||
+    path === '/order' ||
+    path.startsWith('/orders/') ||
+    path === '/product' ||
+    (pathname?.startsWith('/products/') && path !== '/products');
 
   useEffect(() => {
     lastYRef.current = typeof window !== 'undefined' ? window.scrollY : 0;
