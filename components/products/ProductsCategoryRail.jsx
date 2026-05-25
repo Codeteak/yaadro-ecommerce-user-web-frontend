@@ -3,6 +3,8 @@
 import { memo, useState } from 'react';
 import Image from 'next/image';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryImage';
+import { useBottomNavVisibility } from '../../context/BottomNavVisibilityContext';
+import { useLayoutHeights } from '../../context/LayoutHeightsContext';
 
 function CategoryRailItem({ active, label, category, onClick }) {
   const imageUrl = getCategoryImageUrl(category);
@@ -49,15 +51,20 @@ function CategoryRailItem({ active, label, category, onClick }) {
 }
 
 function ProductsCategoryRailInner({ activeCategory, rootCategories, onCategorySelect }) {
+  const { isVisible: bottomNavVisible } = useBottomNavVisibility();
+  const { bottomNavHeight } = useLayoutHeights();
+
+  const bottomInset = bottomNavVisible ? bottomNavHeight : 0;
+
   return (
     <aside
-      className="sticky z-30 w-[76px] shrink-0 self-start border-r border-gray-200 bg-white py-2 sm:w-[80px] top-[calc(52px+env(safe-area-inset-top,0px))]"
+      className="sticky z-30 w-[76px] shrink-0 self-start border-r border-gray-200 bg-white py-2 sm:w-[80px] top-[calc(52px+env(safe-area-inset-top,0px))] transition-[max-height] duration-300 ease-out"
       style={{
         maxHeight:
-          'calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 52px)',
+          `calc(100dvh - env(safe-area-inset-top,0px) - 52px - ${bottomInset}px)`,
       }}
     >
-      <div className="flex max-h-[inherit] flex-col gap-0.5 overflow-y-auto overscroll-contain px-1.5 pb-4">
+      <div className="flex max-h-[inherit] flex-col gap-0.5 overflow-y-auto overscroll-contain scrollbar-hide px-1.5 pb-4">
         {rootCategories.map((cat) => {
           const id = String(cat.id || '').trim();
           if (!id) return null;
