@@ -8,9 +8,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCategories, useProducts } from '../hooks/useProducts';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useAlert } from '../context/AlertContext';
-import { useAddress } from '../context/AddressContext';
 import { useLocationService } from '../context/LocationServiceContext';
 import { useAuth } from '../context/AuthContext';
+import { useShopBranding } from '../context/ShopBrandingContext';
 import ProductCarousel from '../components/ProductCarousel';
 import ProductCard from '../components/ProductCard';
 import ProductGrid from '../components/ProductGrid';
@@ -160,16 +160,14 @@ export default function Home() {
   const [email, setEmail] = useState('');
   
   const { showAlert } = useAlert();
-  const { getDefaultAddress } = useAddress();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { goToLogin } = useLoginNavigation();
   const {
     isChecking: isLocationChecking,
     serviceable: isServiceable,
-    distanceM,
-    setShowServiceAreaSheet,
     recheckLocation,
   } = useLocationService();
+  const { shopName, shopImage } = useShopBranding();
 
   // Pull-to-refresh (mobile-like)
   const [ptrPull, setPtrPull] = useState(0); // px
@@ -194,61 +192,6 @@ export default function Home() {
       }, 450);
     }
   };
-
-  // Confetti popper when delivery area becomes serviceable.
-  const [showDeliveryConfetti, setShowDeliveryConfetti] = useState(false);
-  const didConfettiRef = useRef(false);
-  useEffect(() => {
-    if (didConfettiRef.current) return;
-    if (isLocationChecking) return;
-    if (isServiceable !== true) return;
-    didConfettiRef.current = true;
-    setShowDeliveryConfetti(true);
-    const t = window.setTimeout(() => setShowDeliveryConfetti(false), 900);
-    return () => window.clearTimeout(t);
-  }, [isLocationChecking, isServiceable]);
-
-  // ETA animation hooks must run on every render (before early returns).
-  const computeEtaMinutes = (distMeters) => {
-    const d = Number(distMeters);
-    if (!Number.isFinite(d) || d <= 0) return null;
-    const km = d / 1000;
-    const baseMinutes = 4;
-    const minutesPerKm = 3.2;
-    const eta = Math.round(baseMinutes + km * minutesPerKm);
-    return Math.max(5, Math.min(eta, 90));
-  };
-  const targetEtaMinutes = computeEtaMinutes(distanceM);
-  const [animatedEta, setAnimatedEta] = useState(null);
-  const etaAnimRef = useRef({ raf: 0 });
-
-  useEffect(() => {
-    if (!Number.isFinite(targetEtaMinutes)) {
-      setAnimatedEta(null);
-      return undefined;
-    }
-
-    const to = targetEtaMinutes;
-    const from = Number.isFinite(animatedEta) ? animatedEta : Math.max(0, Math.min(10, to - 6));
-    const durationMs = 650;
-    const start = performance.now();
-
-    if (etaAnimRef.current.raf) cancelAnimationFrame(etaAnimRef.current.raf);
-
-    const tick = (now) => {
-      const t = Math.min(1, (now - start) / durationMs);
-      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
-      const val = Math.round(from + (to - from) * eased);
-      setAnimatedEta(val);
-      if (t < 1) etaAnimRef.current.raf = requestAnimationFrame(tick);
-    };
-
-    etaAnimRef.current.raf = requestAnimationFrame(tick);
-    return () => {
-      if (etaAnimRef.current.raf) cancelAnimationFrame(etaAnimRef.current.raf);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetEtaMinutes]);
 
   const categoryScrollRef = useRef(null);
   const heroSectionRef = useRef(null);
@@ -607,35 +550,6 @@ export default function Home() {
     );
   }
 
-  const defaultAddress = getDefaultAddress();
-  const rawAddressLine = defaultAddress
-    ? [defaultAddress.city, defaultAddress.street || defaultAddress.address]
-        .filter(Boolean)
-        .slice(0, 2)
-        .join(', ') || 'Add address'
-    : 'Add address';
-  // Cap to 20 characters with an ellipsis so long addresses don't blow out
-  // the purple hero card layout.
-  const ADDRESS_MAX_LEN = 20;
-  const addressLine =
-    rawAddressLine.length > ADDRESS_MAX_LEN
-      ? `${rawAddressLine.slice(0, ADDRESS_MAX_LEN).trimEnd()}…`
-      : rawAddressLine;
-
-  /** Only when true do we show ETA + address in the hero (confirmed in-zone). */
-  const showHeroEtaAndAddress = isServiceable === true && !isLocationChecking;
-
-  const locationStatus = (() => {
-    if (isLocationChecking) {
-      return { label: 'Checking area…', tone: 'neutral' };
-    }
-    if (showHeroEtaAndAddress) {
-      return { label: 'Delivery available', tone: 'ok' };
-    }
-    // Not in-zone, can't verify, or location off — single red-style message in hero.
-    return { label: 'Delivery not available', tone: 'bad' };
-  })();
-
   return (
     <div
       className="w-full max-w-full"
@@ -762,186 +676,88 @@ export default function Home() {
           }}
           aria-hidden
         />
+        {/* Shop branding card — flush left:0, name top, delivery status below */}
+        <div className="absolute left-0 top-5 sm:top-6 md:top-8 z-30 flex items-start gap-3.5 rounded-r-3xl bg-white/95 backdrop-blur-md pl-4 pr-5 py-3 shadow-lg">
+          {shopImage ? (
+            <img
+              src={shopImage}
+              alt={shopName || ''}
+              className="h-11 w-11 shrink-0 rounded-xl object-contain"
+              width={44}
+              height={44}
+            />
+          ) : (
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-100">
+              <Image
+                src="/trolley.png"
+                alt=""
+                width={28}
+                height={28}
+                className="h-7 w-7 object-contain"
+              />
+            </div>
+          )}
+          <div className="flex flex-col gap-1 min-w-0">
+            <span className="text-[16px] font-extrabold text-gray-900 leading-tight">
+              {shopName || 'Yaadro'}
+            </span>
+            {isLocationChecking ? (
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-500">
+                <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-pulse" />
+                Checking area…
+              </span>
+            ) : isServiceable === true ? (
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                <MapPin className="h-3 w-3" strokeWidth={2.5} />
+                Delivery available
+              </span>
+            ) : (
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-semibold text-red-600">
+                <MapPin className="h-3 w-3" strokeWidth={2.5} />
+                Not available
+              </span>
+            )}
+          </div>
+        </div>
+
         <Container className="px-0 sm:px-0 lg:px-0 xl:px-0 2xl:px-0">
             <div className="relative text-white home-hero-minh flex flex-col pt-5 pb-16 max-[430px]:pb-14 sm:pt-6 md:pt-8 sm:pb-24 overflow-hidden">
-            {/* Confetti keyframes (scoped) */}
-            <style>{`
-              @keyframes homeConfettiBurst {
-                0%   { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
-                15%  { transform: translate(-50%, -50%) scale(1);   opacity: 1; }
-                100% { transform: translate(-50%, -110%) scale(1.05); opacity: 0; }
-              }
-              @keyframes homeConfettiPiece {
-                0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
-                100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0; }
-              }
-            `}</style>
+            {/* Top row: search/profile (right) */}
+            <div className="relative z-20 flex items-center justify-end gap-2 pr-3 sm:pr-4 min-h-[52px]">
+              <button
+                type="button"
+                onClick={() => router.push('/search/')}
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/20 backdrop-blur hover:bg-black/25 transition"
+                aria-label="Search products"
+              >
+                <Search className="w-6 h-6 text-white" strokeWidth={2} />
+              </button>
 
-            {/* Top row: availability + address (left), profile (right) */}
-            <div className="relative z-20 flex items-start justify-between gap-3">
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => setShowServiceAreaSheet(true)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setShowServiceAreaSheet(true);
+              <button
+                type="button"
+                onClick={() => {
+                  if (isAuthenticated) {
+                    window.location.href = '/profile';
+                  } else {
+                    goToLogin();
                   }
                 }}
-                className="relative inline-flex w-auto max-w-[78vw] sm:max-w-[520px] items-stretch text-left rounded-2xl border border-white/15 bg-black/20 backdrop-blur px-3 py-2.5 hover:bg-black/25 transition cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-                aria-label="Delivery area and address"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/20 backdrop-blur hover:bg-black/25 transition"
+                aria-label={isAuthenticated ? 'Profile' : 'Login'}
               >
-                {/* Confetti popper (inside card) */}
-                {showDeliveryConfetti && (
-                  <span
-                    className="pointer-events-none absolute left-12 top-3 z-30"
-                    style={{ animation: 'homeConfettiBurst 900ms ease-out both' }}
-                    aria-hidden
-                  >
-                    {[
-                      { c: '#a7f3d0', dx: -18, dy: -26, r: '-80deg' },
-                      { c: '#34d399', dx: -8, dy: -32, r: '40deg' },
-                      { c: '#fbbf24', dx: 10, dy: -30, r: '110deg' },
-                      { c: '#60a5fa', dx: 18, dy: -22, r: '-20deg' },
-                      { c: '#f472b6', dx: 6, dy: -18, r: '160deg' },
-                      { c: '#ffffff', dx: -14, dy: -18, r: '15deg' },
-                    ].map((p, i) => (
-                      <span
-                        key={i}
-                        style={{
-                          position: 'absolute',
-                          left: 0,
-                          top: 0,
-                          width: 6,
-                          height: 10,
-                          borderRadius: 2,
-                          background: p.c,
-                          opacity: 0.95,
-                          ['--dx']: `${p.dx}px`,
-                          ['--dy']: `${p.dy}px`,
-                          ['--rot']: p.r,
-                          animation: 'homeConfettiPiece 850ms cubic-bezier(0.2,0.9,0.2,1) both',
-                        }}
-                      />
-                    ))}
-                  </span>
-                )}
-
-                {showHeroEtaAndAddress ? (
-                  <>
-                    {/* ETA block (left) — only when delivery is confirmed for this location */}
-                    <div className="flex w-14 shrink-0 flex-col items-center justify-center text-white">
-                      <span className="text-[28px] sm:text-[32px] font-extrabold tabular-nums leading-none">
-                        {animatedEta == null ? '—' : animatedEta}
-                      </span>
-                      <span className="mt-0.5 text-[14px] tracking-[0.1em] sm:text-[16px] font-bold opacity-90 leading-none">
-                        {animatedEta == null ? '' : 'min'}
-                      </span>
-                    </div>
-
-                    {/* Status + address (right) */}
-                    <div className="min-w-0 flex-1 pl-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-2.5 py-1 text-[11px] font-semibold text-green-500">
-                          <MapPin className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2.5} />
-                          <span className="truncate max-w-[220px]">{locationStatus.label}</span>
-                        </span>
-                      </div>
-                      {defaultAddress ? (
-                        <p className="mt-1.5 text-[13px] font-medium text-white/90 truncate">{addressLine}</p>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            router.push('/addresses');
-                          }}
-                          className="mt-1 inline-flex items-center rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/90 hover:bg-white/15"
-                          aria-label="Add address"
-                        >
-                          Add address
-                        </button>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex min-w-0 flex-1 flex-col gap-1.5 py-0.5">
-                    <span
-                      className={`inline-flex w-fit max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold ${
-                        isLocationChecking
-                          ? 'bg-white/15 text-white'
-                          : 'bg-red-600 text-white shadow-sm ring-1 ring-red-500/80'
-                      }`}
-                    >
-                      <MapPin className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={2.5} />
-                      <span className="truncate">{locationStatus.label}</span>
-                    </span>
-                    <p className="text-[12px] font-medium text-white/85">
-                      {isLocationChecking
-                        ? 'Hang tight while we check your area…'
-                        : 'Pick a new spot on the map or update your saved address.'}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (defaultAddress?.id) {
-                          router.push(
-                            `/add/address?id=${encodeURIComponent(String(defaultAddress.id))}&from=/`
-                          );
-                        } else {
-                          router.push('/add/address?from=/');
-                        }
-                      }}
-                      className="mt-1 inline-flex w-fit items-center justify-center rounded-full bg-white px-3.5 py-2 text-[12px] font-bold text-[#902bf5] shadow-md ring-1 ring-white/30 transition hover:bg-white/95 active:scale-[0.98]"
-                    >
-                      Change address
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    router.push('/search/');
-                  }}
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/20 backdrop-blur hover:bg-black/25 transition"
-                  aria-label="Search products"
-                >
-                  <Search className="w-6 h-6 text-white" strokeWidth={2} />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isAuthenticated) {
-                      window.location.href = '/profile';
-                    } else {
-                      goToLogin();
-                    }
-                  }}
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/20 backdrop-blur hover:bg-black/25 transition"
-                  aria-label={isAuthenticated ? 'Profile' : 'Login'}
-                >
-                  <User className="w-6 h-6 text-white" strokeWidth={2} />
-                </button>
-              </div>
+                <User className="w-6 h-6 text-white" strokeWidth={2} />
+              </button>
             </div>
 
-            {/* Tagline below the availability card */}
-            <div className="relative z-[9] mt-4 max-w-[92vw]">
+            {/* Tagline — mt-8 clears the absolute shop-branding card (~92px tall) */}
+            <div className="relative z-[9] mt-8 sm:mt-6 pl-4 sm:pl-5 max-w-[min(92vw,540px)]">
               <p className="text-left text-home-hero-headline font-extrabold text-white drop-shadow-[0_14px_40px_rgba(0,0,0,0.55)]">
                 Groceries in Minutes ... 
               </p>
             </div>
 
             {/* CTA below tagline */}
-            <div className="relative z-20 mt-4">
+            <div className="relative z-20 mt-4 pl-4 sm:pl-5">
               <Link
                 href="/products"
                 className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-[13px] font-extrabold tracking-wide text-[#902bf5] shadow-[0_12px_30px_rgba(0,0,0,0.25)] hover:bg-white/90 active:scale-[0.98] transition"

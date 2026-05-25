@@ -14,11 +14,7 @@ import {
   formatShopPageTitle,
   resolveShopBranding,
 } from '../utils/shopResolver';
-import ShopSplashScreen from '../components/ShopSplashScreen';
 import { upsertMeta, upsertLink } from '../utils/documentMeta';
-
-const SPLASH_SESSION_KEY = 'yaadro_shop_splash_seen';
-const MIN_SPLASH_MS = 1200;
 
 /** Pathname (no trailing slash) → default document title segment before `| Shop Name`. */
 const ROUTE_PAGE_TITLES = {
@@ -61,8 +57,6 @@ export function ShopBrandingProvider({ children }) {
   const [shopName, setShopName] = useState('');
   const [shopImage, setShopImage] = useState(null);
   const [isResolving, setIsResolving] = useState(true);
-  const [showSplash, setShowSplash] = useState(false);
-  const [splashVisible, setSplashVisible] = useState(false);
   const pageTitleRef = useRef(null);
   const resolveStartedRef = useRef(false);
 
@@ -94,17 +88,6 @@ export function ShopBrandingProvider({ children }) {
     if (resolveStartedRef.current) return;
     resolveStartedRef.current = true;
 
-    const splashAlreadySeen =
-      typeof sessionStorage !== 'undefined' &&
-      sessionStorage.getItem(SPLASH_SESSION_KEY) === '1';
-
-    if (!splashAlreadySeen) {
-      setShowSplash(true);
-      setSplashVisible(true);
-    }
-
-    const startedAt = Date.now();
-
     (async () => {
       try {
         const result = await resolveShopBranding();
@@ -114,17 +97,6 @@ export function ShopBrandingProvider({ children }) {
         applyShopMeta(result.shopName, result.shopImage);
       } finally {
         setIsResolving(false);
-        const elapsed = Date.now() - startedAt;
-        const wait = Math.max(0, MIN_SPLASH_MS - elapsed);
-        window.setTimeout(() => {
-          setSplashVisible(false);
-          window.setTimeout(() => {
-            setShowSplash(false);
-            if (typeof sessionStorage !== 'undefined') {
-              sessionStorage.setItem(SPLASH_SESSION_KEY, '1');
-            }
-          }, 320);
-        }, wait);
       }
     })();
   }, [applyShopMeta]);
@@ -150,14 +122,6 @@ export function ShopBrandingProvider({ children }) {
 
   return (
     <ShopBrandingContext.Provider value={value}>
-      {showSplash && (
-        <ShopSplashScreen
-          visible={splashVisible}
-          shopName={shopName || 'Yaadro'}
-          shopImage={shopImage}
-          isLoading={isResolving && !shopName}
-        />
-      )}
       {children}
     </ShopBrandingContext.Provider>
   );
