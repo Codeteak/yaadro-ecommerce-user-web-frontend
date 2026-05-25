@@ -1,31 +1,62 @@
-import { clearSessionExpiresAt } from './authSession';
+import { clearSessionExpiresAt, AUTH_SESSION_EXPIRES_KEY, POST_LOGIN_REDIRECT_KEY } from './authSession';
 
 /**
- * Clear all client-side user session, cart, and preference data (logout / account delete).
+ * Every localStorage key this app writes — keep in sync when adding new keys.
+ * Shop-resolver keys are intentionally cleared so a fresh login re-resolves the tenant.
+ */
+const LOCAL_STORAGE_KEYS = [
+  // Auth
+  'user',
+  'token',
+  'authToken',
+  'accessToken',
+  'refreshToken',
+  AUTH_SESSION_EXPIRES_KEY,
+
+  // Cart
+  'cart',
+  'cartApiCache',
+  'cartLastActivity',
+  'savedCarts',
+  'cartTemplates',
+
+  // User data
+  'wishlist',
+  'addresses',
+  'orders',
+  'recentlyViewed',
+  'activityLog',
+  'privacySettings',
+
+  // Shop / tenant
+  'tenantId',
+  'tenant',
+  'yaadro_resolved_shop_id',
+  'yaadro_resolved_shop_host',
+  'yaadro_resolved_shop_name',
+  'yaadro_resolved_shop_image',
+
+  // Product slug cache
+  'yaadro_product_slug_by_id_v1',
+
+  // Delivery / service area
+  'yaadro-delivery-check-v1',
+  'yaadro-service-area-warned',
+];
+
+const SESSION_STORAGE_KEYS = [
+  'yaadro-service-area-warned',
+  'yaadro_checkout_draft_v1',
+  POST_LOGIN_REDIRECT_KEY,
+];
+
+/**
+ * Clear all client-side user session, cart, and preference data (logout / session expiry / account delete).
  */
 export function clearAllClientSessionData() {
   if (typeof window === 'undefined') return;
 
-  const keys = [
-    'user',
-    'token',
-    'authToken',
-    'accessToken',
-    'refreshToken',
-    'cart',
-    'cartApiCache',
-    'cartLastActivity',
-    'wishlist',
-    'addresses',
-    'activityLog',
-    'privacySettings',
-    'savedCarts',
-    'cartTemplates',
-    'yaadro-delivery-check-v1',
-    'yaadro-service-area-warned',
-  ];
-
-  for (const key of keys) {
+  for (const key of LOCAL_STORAGE_KEYS) {
     try {
       window.localStorage.removeItem(key);
     } catch {
@@ -33,10 +64,12 @@ export function clearAllClientSessionData() {
     }
   }
 
-  try {
-    window.sessionStorage.removeItem('yaadro-service-area-warned');
-  } catch {
-    /* ignore */
+  for (const key of SESSION_STORAGE_KEYS) {
+    try {
+      window.sessionStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
   }
 
   clearSessionExpiresAt();

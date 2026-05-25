@@ -18,7 +18,7 @@ import ShopSplashScreen from '../components/ShopSplashScreen';
 import { upsertMeta, upsertLink } from '../utils/documentMeta';
 
 const SPLASH_SESSION_KEY = 'yaadro_shop_splash_seen';
-const MIN_SPLASH_MS = 700;
+const MIN_SPLASH_MS = 1200;
 
 /** Pathname (no trailing slash) → default document title segment before `| Shop Name`. */
 const ROUTE_PAGE_TITLES = {

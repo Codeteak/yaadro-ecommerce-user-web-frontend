@@ -155,6 +155,35 @@ export async function resolveShopBranding() {
     process.env.NEXT_PUBLIC_RESOLVE_SHOP_BY_DOMAIN === 'true';
 
   if (process.env.NODE_ENV !== 'production' && !resolveByDomainInDev) {
+    const envId = envShopId();
+    if (envId) {
+      const cached = readCachedBranding(String(window.location.hostname || '').toLowerCase().trim());
+      if (cached && cached.shopId === envId && cached.shopImage) {
+        return { ...cached, fromCache: true, notFound: false };
+      }
+      try {
+        const domain = String(window.location.hostname || '').toLowerCase().trim();
+        const resolverUrl = getDefaultTenantResolverUrl();
+        if (resolverUrl && domain) {
+          const url = new URL(resolverUrl);
+          url.searchParams.set('domain', domain);
+          const res = await fetch(url.toString(), {
+            method: 'GET',
+            headers: { Accept: 'application/json' },
+          });
+          if (res.ok) {
+            const payload = await res.json();
+            const normalized = normalizeShopResolvePayload(payload);
+            if (normalized.shopId) {
+              persistResolvedShop(domain, normalized);
+              return { ...normalized, fromCache: false, notFound: false };
+            }
+          }
+        }
+      } catch {
+        // Fall through to env fallback
+      }
+    }
     return devBrandingFallback();
   }
 

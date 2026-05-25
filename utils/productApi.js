@@ -394,6 +394,9 @@ function transformCategory(apiCategory) {
     totalProductCount: apiCategory.totalProductCount ?? apiCategory.productCount ?? 0,
     isLeaf: apiCategory.isLeaf ?? !(apiCategory.children && apiCategory.children.length > 0),
     childCount: apiCategory.childCount ?? (apiCategory.children ? apiCategory.children.length : 0),
+    offers: apiCategory.offers || null,
+    bundleRules: apiCategory.bundle_rules || apiCategory.bundleRules || [],
+    categoryDiscountRules: apiCategory.category_discount_rules || apiCategory.categoryDiscountRules || [],
     createdAt: apiCategory.createdAt || '',
     updatedAt: apiCategory.updatedAt || '',
   };
