@@ -76,6 +76,60 @@ function isBrowser() {
   return typeof window !== 'undefined';
 }
 
+let _refreshPromise = null;
+const _refreshListeners = [];
+
+/** Register a callback invoked after the API client auto-refreshes tokens (used by AuthContext). */
+export function onTokenAutoRefreshed(cb) {
+  if (typeof cb === 'function') _refreshListeners.push(cb);
+  return () => {
+    const idx = _refreshListeners.indexOf(cb);
+    if (idx >= 0) _refreshListeners.splice(idx, 1);
+  };
+}
+
+/**
+ * Transparently refresh the access token when a 401 is received.
+ * Deduplicates concurrent refresh attempts so only one POST /auth/refresh-token flies at a time.
+ * Returns the new access token or null on failure.
+ */
+async function autoRefreshAccessToken() {
+  if (!isBrowser()) return null;
+  if (_refreshPromise) return _refreshPromise;
+
+  _refreshPromise = (async () => {
+    const rt = window.localStorage.getItem('refreshToken');
+    if (!rt) return null;
+    try {
+      const base = getConfiguredBaseUrl();
+      const res = await fetch(`${base}/auth/refresh-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ refreshToken: rt }),
+      });
+      if (!res.ok) return null;
+      const json = await res.json();
+      const layer = json?.data && typeof json.data === 'object' ? json.data : json;
+      const newToken = layer?.accessToken || layer?.token || json?.accessToken || json?.token || null;
+      const newRt = layer?.refreshToken || json?.refreshToken || null;
+      if (!newToken) return null;
+      window.localStorage.setItem('token', newToken);
+      window.localStorage.setItem('authToken', newToken);
+      if (newRt) window.localStorage.setItem('refreshToken', newRt);
+      for (const cb of _refreshListeners) {
+        try { cb({ token: newToken, refreshToken: newRt }); } catch { /* ignore */ }
+      }
+      return newToken;
+    } catch {
+      return null;
+    } finally {
+      _refreshPromise = null;
+    }
+  })();
+
+  return _refreshPromise;
+}
+
 export function getTenantId() {
   const envDefault = process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || '';
 
@@ -216,9 +270,26 @@ export async function apiFetch(path, options = {}) {
   }
 
   const url = toUrl(path, query);
-  const response = await fetch(url, fetchOpts);
+  let response = await fetch(url, fetchOpts);
+  let json = await parseJsonSafe(response);
 
-  const json = await parseJsonSafe(response);
+  // Auto-retry once on 401 by refreshing the access token (skip auth-related endpoints).
+  if (
+    response.status === 401 &&
+    !omitAuthHeader &&
+    isBrowser() &&
+    !path.includes('/auth/refresh') &&
+    !path.includes('/auth/otp')
+  ) {
+    const newToken = await autoRefreshAccessToken();
+    if (newToken) {
+      finalHeaders.set('Authorization', `Bearer ${newToken}`);
+      fetchOpts.headers = finalHeaders;
+      response = await fetch(url, fetchOpts);
+      json = await parseJsonSafe(response);
+    }
+  }
+
   const apiStatus = json?.status;
   const apiMessage = json?.message;
 
@@ -235,8 +306,6 @@ export async function apiFetch(path, options = {}) {
     const endedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const ms = Math.round((endedAt - startedAt) * 10) / 10;
     const line = `[API] ${method} ${url} -> ${response.status} (${ms}ms)`;
-    // Server logs go to terminal; browser logs go to console.
-    // For browser, also send to server so it appears in terminal.
     // eslint-disable-next-line no-console
     console.log(line);
     sendClientApiLogToServer({
@@ -305,12 +374,27 @@ export async function apiFetchRoot(path, options = {}) {
     fetchOpts.credentials = credentials;
   }
 
-  // We keep `apiFetchRoot` for backwards compatibility, but all backend calls are under `/api`.
-  // (So this behaves the same as `apiFetch`.)
   const url = toUrl(path, query);
-  const response = await fetch(url, fetchOpts);
+  let response = await fetch(url, fetchOpts);
+  let json = await parseJsonSafe(response);
 
-  const json = await parseJsonSafe(response);
+  // Auto-retry once on 401 by refreshing the access token (skip auth-related endpoints).
+  if (
+    response.status === 401 &&
+    !omitAuthHeader &&
+    isBrowser() &&
+    !path.includes('/auth/refresh') &&
+    !path.includes('/auth/otp')
+  ) {
+    const newToken = await autoRefreshAccessToken();
+    if (newToken) {
+      finalHeaders.set('Authorization', `Bearer ${newToken}`);
+      fetchOpts.headers = finalHeaders;
+      response = await fetch(url, fetchOpts);
+      json = await parseJsonSafe(response);
+    }
+  }
+
   const apiStatus = json?.status;
   const apiMessage = json?.message;
 

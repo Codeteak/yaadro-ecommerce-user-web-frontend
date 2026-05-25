@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { refreshAccessToken, getCurrentUser } from '../utils/authApi';
+import { onTokenAutoRefreshed } from '../utils/apiClient';
 import { getJwtExpiresAtMs, getMsUntilAccessTokenRefresh } from '../utils/jwtExp';
 import {
   ensureSessionExpiryForExistingLogin,
@@ -305,6 +306,17 @@ export function AuthProvider({ children }) {
       window.clearTimeout(id);
     };
   }, [token, refreshToken, logout]);
+
+  // Sync React state when the API client auto-refreshes the token on 401.
+  useEffect(() => {
+    return onTokenAutoRefreshed(({ token: newAccess, refreshToken: newRt }) => {
+      if (newAccess) setToken(newAccess);
+      if (newRt) {
+        setRefreshToken(newRt);
+        syncSessionExpiryFromRefreshToken(newRt);
+      }
+    });
+  }, []);
 
   // Save auth state to localStorage whenever it changes
   useEffect(() => {
