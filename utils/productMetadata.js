@@ -109,8 +109,21 @@ export function buildProductMetadataObject(product, options = {}) {
   };
 }
 
+function slugToDisplayName(slug) {
+  if (!slug) return '';
+  return decodeURIComponent(slug)
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
 /**
- * Next.js `generateMetadata` helper — fetch product and build OG tags with product image.
+ * Next.js `generateMetadata` helper — build OG tags for product pages.
+ *
+ * During static export (`next build`) we skip the per-product API call because
+ * hundreds of concurrent fetches overwhelm the backend (503). The client-side
+ * `applyProductSocialMetaToDocument` updates tags once the product loads, so
+ * crawlers that execute JS (Google, Twitter, etc.) still see full metadata.
  */
 export async function generateProductMetadataForId(lookup, options = {}) {
   const id = lookup != null ? String(lookup).trim() : '';
@@ -118,6 +131,34 @@ export async function generateProductMetadataForId(lookup, options = {}) {
   if (!id) {
     return buildProductMetadataObject(null, { shopName, ...options });
   }
+
+  const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
+  if (isBuild) {
+    const name = slugToDisplayName(id);
+    const pathPrefix = options.pathPrefix || '/products';
+    const siteOrigin = options.siteOrigin ?? getSiteOrigin();
+    const canonical = siteOrigin
+      ? `${siteOrigin}${pathPrefix}/${encodeURIComponent(id)}/`
+      : `${pathPrefix}/${encodeURIComponent(id)}/`;
+    return {
+      title: name || 'Product',
+      description: name ? `Shop ${name} on ${shopName}` : `Shop on ${shopName}`,
+      alternates: { canonical },
+      openGraph: {
+        title: formatShopPageTitle(name || 'Product', shopName),
+        description: name ? `Shop ${name} on ${shopName}` : `Shop on ${shopName}`,
+        url: canonical,
+        type: 'website',
+        siteName: shopName,
+      },
+      twitter: {
+        card: 'summary',
+        title: formatShopPageTitle(name || 'Product', shopName),
+        description: name ? `Shop ${name} on ${shopName}` : `Shop on ${shopName}`,
+      },
+    };
+  }
+
   const product = await getProductById(id);
   return buildProductMetadataObject(product, {
     shopName,
