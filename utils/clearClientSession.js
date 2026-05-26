@@ -35,6 +35,8 @@ const LOCAL_STORAGE_KEYS = [
   'yaadro_resolved_shop_host',
   'yaadro_resolved_shop_name',
   'yaadro_resolved_shop_image',
+  'yaadro_resolved_shop_banner_enabled',
+  'yaadro_resolved_shop_banner_images',
 
   // Product slug cache
   'yaadro_product_slug_by_id_v1',

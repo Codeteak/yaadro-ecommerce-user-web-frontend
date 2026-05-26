@@ -17,6 +17,7 @@ import ProductGrid from '../components/ProductGrid';
 import CategoryCard from '../components/CategoryCard';
 import Container from '../components/Container';
 import FloatingViewCartPill from '../components/FloatingViewCartPill';
+import BannerCarousel from '../components/BannerCarousel';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../utils/categoryImage';
 
 /** Compact category tile for the sticky home header (light theme). */
@@ -167,7 +168,17 @@ export default function Home() {
     serviceable: isServiceable,
     recheckLocation,
   } = useLocationService();
-  const { shopName, shopImage } = useShopBranding();
+  const { shopName, shopImage, bannerEnabled, bannerImages } = useShopBranding();
+
+  const shopBanners = useMemo(() => {
+    if (!bannerEnabled || !Array.isArray(bannerImages) || bannerImages.length === 0) {
+      return [];
+    }
+    return bannerImages.map((url, index) => ({
+      id: `shop-banner-${index}`,
+      image: url,
+    }));
+  }, [bannerEnabled, bannerImages]);
 
   // Pull-to-refresh (mobile-like)
   const [ptrPull, setPtrPull] = useState(0); // px
@@ -640,8 +651,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Home: categories carousel + banners hidden */}
-
       {/* Purple hero section (more than half page) */}
       <section
         ref={heroSectionRef}
@@ -799,6 +808,19 @@ export default function Home() {
           </div>
         </Container>
       </section>
+
+      {shopBanners.length > 0 && (
+        <section className="relative z-10 -mt-2 px-3 sm:px-6 md:px-8 pb-2" aria-label="Shop promotions">
+          <div className="overflow-hidden rounded-2xl shadow-[0_8px_28px_rgba(15,23,42,0.08)] ring-1 ring-gray-200/80">
+            <BannerCarousel
+              banners={shopBanners}
+              fallbackToDefaults={false}
+              imageClassName="object-cover object-center"
+              className="bg-white"
+            />
+          </div>
+        </section>
+      )}
 
       {/* Best Sellers Section */}
       {bestSellers.length > 0 && (

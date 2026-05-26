@@ -56,6 +56,8 @@ export function ShopBrandingProvider({ children }) {
   const [shopId, setShopId] = useState('');
   const [shopName, setShopName] = useState('');
   const [shopImage, setShopImage] = useState(null);
+  const [bannerEnabled, setBannerEnabled] = useState(false);
+  const [bannerImages, setBannerImages] = useState([]);
   const [isResolving, setIsResolving] = useState(true);
   const pageTitleRef = useRef(null);
   const resolveStartedRef = useRef(false);
@@ -94,6 +96,8 @@ export function ShopBrandingProvider({ children }) {
         setShopId(result.shopId || '');
         setShopName(result.shopName || 'Yaadro');
         setShopImage(result.shopImage || null);
+        setBannerEnabled(Boolean(result.bannerEnabled));
+        setBannerImages(Array.isArray(result.bannerImages) ? result.bannerImages : []);
         applyShopMeta(result.shopName, result.shopImage);
       } finally {
         setIsResolving(false);
@@ -113,11 +117,13 @@ export function ShopBrandingProvider({ children }) {
       shopId,
       shopName: shopName || 'Yaadro',
       shopImage,
+      bannerEnabled,
+      bannerImages,
       isResolving,
       applyDocumentTitle,
       formatPageTitle: (pageTitle) => formatShopPageTitle(pageTitle, shopName || 'Yaadro'),
     }),
-    [shopId, shopName, shopImage, isResolving, applyDocumentTitle]
+    [shopId, shopName, shopImage, bannerEnabled, bannerImages, isResolving, applyDocumentTitle]
   );
 
   return (

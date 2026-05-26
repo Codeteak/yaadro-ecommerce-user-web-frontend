@@ -7,8 +7,35 @@ export const RESOLVED_SHOP_ID_STORAGE_KEY = 'yaadro_resolved_shop_id';
 export const RESOLVED_SHOP_HOST_STORAGE_KEY = 'yaadro_resolved_shop_host';
 export const RESOLVED_SHOP_NAME_STORAGE_KEY = 'yaadro_resolved_shop_name';
 export const RESOLVED_SHOP_IMAGE_STORAGE_KEY = 'yaadro_resolved_shop_image';
+export const RESOLVED_SHOP_BANNER_ENABLED_KEY = 'yaadro_resolved_shop_banner_enabled';
+export const RESOLVED_SHOP_BANNER_IMAGES_KEY = 'yaadro_resolved_shop_banner_images';
 
 const DEFAULT_SHOP_NAME = 'Yaadro';
+
+/** @param {unknown} raw */
+function normalizeBannerImages(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => {
+      if (typeof item === 'string') return item.trim();
+      if (item && typeof item === 'object') {
+        const url = item.url ?? item.image ?? item.src;
+        if (url != null && String(url).trim()) return String(url).trim();
+      }
+      return '';
+    })
+    .filter(Boolean);
+}
+
+/** @param {unknown} raw */
+function normalizeBannerEnabled(raw) {
+  if (raw === true || raw === 1) return true;
+  if (typeof raw === 'string') {
+    const t = raw.trim().toLowerCase();
+    return t === 'true' || t === '1' || t === 'yes';
+  }
+  return false;
+}
 
 function getDefaultTenantResolverUrl() {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
@@ -38,10 +65,24 @@ function envShopImage() {
   return raw || null;
 }
 
-/** @returns {{ shopId: string, shopName: string, shopImage: string|null }} */
+/**
+ * @returns {{
+ *   shopId: string,
+ *   shopName: string,
+ *   shopImage: string|null,
+ *   bannerEnabled: boolean,
+ *   bannerImages: string[],
+ * }}
+ */
 export function normalizeShopResolvePayload(payload) {
   if (!payload || typeof payload !== 'object') {
-    return { shopId: '', shopName: '', shopImage: null };
+    return {
+      shopId: '',
+      shopName: '',
+      shopImage: null,
+      bannerEnabled: false,
+      bannerImages: [],
+    };
   }
   const root = payload.data && typeof payload.data === 'object' ? payload.data : payload;
   const shopId = String(
@@ -51,7 +92,10 @@ export function normalizeShopResolvePayload(payload) {
   const shopImageRaw = root.shopImage ?? root.shop_image ?? null;
   const shopImage =
     shopImageRaw != null && String(shopImageRaw).trim() ? String(shopImageRaw).trim() : null;
-  return { shopId, shopName, shopImage };
+  const bannerImages = normalizeBannerImages(root.banner_images ?? root.bannerImages);
+  const bannerEnabled =
+    normalizeBannerEnabled(root.banner_enabled ?? root.bannerEnabled) && bannerImages.length > 0;
+  return { shopId, shopName, shopImage, bannerEnabled, bannerImages };
 }
 
 function readCachedBranding(domain) {
@@ -60,16 +104,35 @@ function readCachedBranding(domain) {
   if (cachedHost !== domain) return null;
   const shopId = window.localStorage.getItem(RESOLVED_SHOP_ID_STORAGE_KEY) || '';
   if (!shopId) return null;
+  // Legacy cache from before banner fields — refetch resolve-by-domain once.
+  if (window.localStorage.getItem(RESOLVED_SHOP_BANNER_ENABLED_KEY) == null) {
+    return null;
+  }
   const shopName = window.localStorage.getItem(RESOLVED_SHOP_NAME_STORAGE_KEY) || '';
   const shopImage = window.localStorage.getItem(RESOLVED_SHOP_IMAGE_STORAGE_KEY) || '';
+  const bannerEnabledRaw = window.localStorage.getItem(RESOLVED_SHOP_BANNER_ENABLED_KEY);
+  let bannerImages = [];
+  try {
+    const raw = window.localStorage.getItem(RESOLVED_SHOP_BANNER_IMAGES_KEY);
+    if (raw) bannerImages = normalizeBannerImages(JSON.parse(raw));
+  } catch {
+    bannerImages = [];
+  }
+  const bannerEnabled =
+    bannerEnabledRaw === 'true' && Array.isArray(bannerImages) && bannerImages.length > 0;
   return {
     shopId,
     shopName: shopName || DEFAULT_SHOP_NAME,
     shopImage: shopImage || null,
+    bannerEnabled,
+    bannerImages,
   };
 }
 
-export function persistResolvedShop(domain, { shopId, shopName, shopImage }) {
+export function persistResolvedShop(
+  domain,
+  { shopId, shopName, shopImage, bannerEnabled = false, bannerImages = [] }
+) {
   if (typeof window === 'undefined' || !domain || !shopId) return;
   window.localStorage.setItem(RESOLVED_SHOP_HOST_STORAGE_KEY, domain);
   window.localStorage.setItem(RESOLVED_SHOP_ID_STORAGE_KEY, shopId);
@@ -79,6 +142,14 @@ export function persistResolvedShop(domain, { shopId, shopName, shopImage }) {
   } else {
     window.localStorage.removeItem(RESOLVED_SHOP_IMAGE_STORAGE_KEY);
   }
+  const images = normalizeBannerImages(bannerImages);
+  const enabled = Boolean(bannerEnabled) && images.length > 0;
+  window.localStorage.setItem(RESOLVED_SHOP_BANNER_ENABLED_KEY, enabled ? 'true' : 'false');
+  if (images.length > 0) {
+    window.localStorage.setItem(RESOLVED_SHOP_BANNER_IMAGES_KEY, JSON.stringify(images));
+  } else {
+    window.localStorage.removeItem(RESOLVED_SHOP_BANNER_IMAGES_KEY);
+  }
 }
 
 function devBrandingFallback() {
@@ -86,6 +157,8 @@ function devBrandingFallback() {
     shopId: envShopId(),
     shopName: envShopName() || DEFAULT_SHOP_NAME,
     shopImage: envShopImage(),
+    bannerEnabled: false,
+    bannerImages: [],
     fromCache: false,
     notFound: false,
   };
@@ -100,7 +173,14 @@ export async function fetchShopByDomain(domain) {
     ? String(process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL).trim()
     : getDefaultTenantResolverUrl();
   if (!resolverUrl || !domain) {
-    return { shopId: '', shopName: '', shopImage: null, notFound: true };
+    return {
+      shopId: '',
+      shopName: '',
+      shopImage: null,
+      bannerEnabled: false,
+      bannerImages: [],
+      notFound: true,
+    };
   }
 
   try {
@@ -113,25 +193,55 @@ export async function fetchShopByDomain(domain) {
     });
 
     if (response.status === 404) {
-      return { shopId: '', shopName: '', shopImage: null, notFound: true };
+      return {
+        shopId: '',
+        shopName: '',
+        shopImage: null,
+        bannerEnabled: false,
+        bannerImages: [],
+        notFound: true,
+      };
     }
     if (!response.ok) {
-      return { shopId: '', shopName: '', shopImage: null, notFound: false };
+      return {
+        shopId: '',
+        shopName: '',
+        shopImage: null,
+        bannerEnabled: false,
+        bannerImages: [],
+        notFound: false,
+      };
     }
 
     const payload = await response.json();
     const normalized = normalizeShopResolvePayload(payload);
     if (!normalized.shopId) {
-      return { shopId: '', shopName: '', shopImage: null, notFound: true };
+      return {
+        shopId: '',
+        shopName: '',
+        shopImage: null,
+        bannerEnabled: false,
+        bannerImages: [],
+        notFound: true,
+      };
     }
     return {
       shopId: normalized.shopId,
       shopName: normalized.shopName || DEFAULT_SHOP_NAME,
       shopImage: normalized.shopImage,
+      bannerEnabled: normalized.bannerEnabled,
+      bannerImages: normalized.bannerImages,
       notFound: false,
     };
   } catch {
-    return { shopId: '', shopName: '', shopImage: null, notFound: false };
+    return {
+      shopId: '',
+      shopName: '',
+      shopImage: null,
+      bannerEnabled: false,
+      bannerImages: [],
+      notFound: false,
+    };
   }
 }
 
@@ -146,6 +256,8 @@ export async function resolveShopBranding() {
       shopId: envShopId(),
       shopName: envShopName() || DEFAULT_SHOP_NAME,
       shopImage: envShopImage(),
+      bannerEnabled: false,
+      bannerImages: [],
       fromCache: false,
       notFound: false,
     };
@@ -193,6 +305,8 @@ export async function resolveShopBranding() {
       shopId: '',
       shopName: DEFAULT_SHOP_NAME,
       shopImage: null,
+      bannerEnabled: false,
+      bannerImages: [],
       fromCache: false,
       notFound: true,
     };
@@ -215,6 +329,8 @@ export async function resolveShopBranding() {
       shopId: fallbackId,
       shopName: envShopName() || DEFAULT_SHOP_NAME,
       shopImage: envShopImage(),
+      bannerEnabled: false,
+      bannerImages: [],
       fromCache: false,
       notFound: !!fetched.notFound,
     };
@@ -226,6 +342,8 @@ export async function resolveShopBranding() {
     shopId: '',
     shopName: DEFAULT_SHOP_NAME,
     shopImage: null,
+    bannerEnabled: false,
+    bannerImages: [],
     fromCache: false,
     notFound: !!fetched.notFound,
   };
