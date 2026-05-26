@@ -12,6 +12,20 @@ export const RESOLVED_SHOP_BANNER_IMAGES_KEY = 'yaadro_resolved_shop_banner_imag
 
 const DEFAULT_SHOP_NAME = 'Yaadro';
 
+/** Log resolve-by-domain API payload to the browser console (debug). */
+function logShopDomainResolverResponse({ domain, url, status, payload, normalized, error }) {
+  if (typeof console === 'undefined') return;
+  // eslint-disable-next-line no-console
+  console.log('[Shop domain resolver]', {
+    domain,
+    url,
+    status,
+    response: payload,
+    normalized,
+    ...(error ? { error: String(error) } : {}),
+  });
+}
+
 /** @param {unknown} raw */
 function normalizeBannerImages(raw) {
   if (!Array.isArray(raw)) return [];
@@ -187,12 +201,20 @@ export async function fetchShopByDomain(domain) {
     const url = new URL(resolverUrl);
     url.searchParams.set('domain', domain);
 
-    const response = await fetch(url.toString(), {
+    const requestUrl = url.toString();
+    const response = await fetch(requestUrl, {
       method: 'GET',
       headers: { Accept: 'application/json' },
     });
 
     if (response.status === 404) {
+      logShopDomainResolverResponse({
+        domain,
+        url: requestUrl,
+        status: response.status,
+        payload: null,
+        normalized: null,
+      });
       return {
         shopId: '',
         shopName: '',
@@ -203,6 +225,19 @@ export async function fetchShopByDomain(domain) {
       };
     }
     if (!response.ok) {
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+      logShopDomainResolverResponse({
+        domain,
+        url: requestUrl,
+        status: response.status,
+        payload,
+        normalized: null,
+      });
       return {
         shopId: '',
         shopName: '',
@@ -215,6 +250,13 @@ export async function fetchShopByDomain(domain) {
 
     const payload = await response.json();
     const normalized = normalizeShopResolvePayload(payload);
+    logShopDomainResolverResponse({
+      domain,
+      url: requestUrl,
+      status: response.status,
+      payload,
+      normalized,
+    });
     if (!normalized.shopId) {
       return {
         shopId: '',
@@ -233,7 +275,15 @@ export async function fetchShopByDomain(domain) {
       bannerImages: normalized.bannerImages,
       notFound: false,
     };
-  } catch {
+  } catch (err) {
+    logShopDomainResolverResponse({
+      domain,
+      url: resolverUrl ? `${resolverUrl}?domain=${encodeURIComponent(domain)}` : '',
+      status: null,
+      payload: null,
+      normalized: null,
+      error: err,
+    });
     return {
       shopId: '',
       shopName: '',
@@ -279,17 +329,32 @@ export async function resolveShopBranding() {
         if (resolverUrl && domain) {
           const url = new URL(resolverUrl);
           url.searchParams.set('domain', domain);
-          const res = await fetch(url.toString(), {
+          const requestUrl = url.toString();
+          const res = await fetch(requestUrl, {
             method: 'GET',
             headers: { Accept: 'application/json' },
           });
+          let payload = null;
           if (res.ok) {
-            const payload = await res.json();
-            const normalized = normalizeShopResolvePayload(payload);
-            if (normalized.shopId) {
-              persistResolvedShop(domain, normalized);
-              return { ...normalized, fromCache: false, notFound: false };
+            payload = await res.json();
+          } else {
+            try {
+              payload = await res.json();
+            } catch {
+              payload = null;
             }
+          }
+          const normalized = payload ? normalizeShopResolvePayload(payload) : null;
+          logShopDomainResolverResponse({
+            domain,
+            url: requestUrl,
+            status: res.status,
+            payload,
+            normalized,
+          });
+          if (res.ok && normalized?.shopId) {
+            persistResolvedShop(domain, normalized);
+            return { ...normalized, fromCache: false, notFound: false };
           }
         }
       } catch {
