@@ -194,8 +194,9 @@ export default function Home() {
       ];
     }
 
-    // Production: use banner images from domain resolver response.
-    if (!bannerEnabled || !Array.isArray(bannerImages) || bannerImages.length === 0) return [];
+    // Production: use all banner URLs from resolve-by-domain.
+    if (!Array.isArray(bannerImages) || bannerImages.length === 0) return [];
+    if (bannerEnabled === false) return [];
     return bannerImages.map((url, index) => ({
       id: `shop-banner-${index}`,
       image: url,

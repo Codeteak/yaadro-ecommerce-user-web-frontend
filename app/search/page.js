@@ -183,7 +183,8 @@ export default function SearchPage() {
       ];
     }
 
-    if (!bannerEnabled || !Array.isArray(bannerImages) || bannerImages.length === 0) return [];
+    if (!Array.isArray(bannerImages) || bannerImages.length === 0) return [];
+    if (bannerEnabled === false) return [];
     return bannerImages.map((url, index) => ({
       id: `shop-banner-${index}`,
       image: url,

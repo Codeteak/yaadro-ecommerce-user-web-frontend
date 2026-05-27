@@ -9,8 +9,26 @@ export const RESOLVED_SHOP_NAME_STORAGE_KEY = 'yaadro_resolved_shop_name';
 export const RESOLVED_SHOP_IMAGE_STORAGE_KEY = 'yaadro_resolved_shop_image';
 export const RESOLVED_SHOP_BANNER_ENABLED_KEY = 'yaadro_resolved_shop_banner_enabled';
 export const RESOLVED_SHOP_BANNER_IMAGES_KEY = 'yaadro_resolved_shop_banner_images';
+/** Bump when banner parsing changes — forces one refetch of resolve-by-domain. */
+export const RESOLVED_SHOP_BANNER_PARSE_VERSION_KEY = 'yaadro_resolved_shop_banner_parse_v';
+const CURRENT_BANNER_PARSE_VERSION = '2';
 
 const DEFAULT_SHOP_NAME = 'Yaadro';
+
+const BANNER_URL_KEYS = [
+  'url',
+  'image',
+  'src',
+  'imageUrl',
+  'image_url',
+  'bannerUrl',
+  'banner_url',
+  'fileUrl',
+  'file_url',
+  'mediaUrl',
+  'media_url',
+  'path',
+];
 
 /** Log resolve-by-domain API payload to the browser console (debug). */
 function logShopDomainResolverResponse({ domain, url, status, payload, normalized, error }) {
@@ -26,19 +44,114 @@ function logShopDomainResolverResponse({ domain, url, status, payload, normalize
   });
 }
 
+/** @param {unknown} item */
+function bannerItemToUrl(item) {
+  if (typeof item === 'string') {
+    const t = item.trim();
+    return t || '';
+  }
+  if (!item || typeof item !== 'object') return '';
+
+  const active = item.isActive ?? item.is_active ?? item.active;
+  if (active === false || active === 0) return '';
+  if (typeof active === 'string') {
+    const a = active.trim().toLowerCase();
+    if (a === 'false' || a === '0' || a === 'no') return '';
+  }
+
+  for (const key of BANNER_URL_KEYS) {
+    const val = item[key];
+    if (val != null && String(val).trim()) return String(val).trim();
+  }
+  return '';
+}
+
 /** @param {unknown} raw */
 function normalizeBannerImages(raw) {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((item) => {
-      if (typeof item === 'string') return item.trim();
-      if (item && typeof item === 'object') {
-        const url = item.url ?? item.image ?? item.src;
-        if (url != null && String(url).trim()) return String(url).trim();
+  if (raw == null) return [];
+
+  if (typeof raw === 'string') {
+    const text = raw.trim();
+    if (!text) return [];
+    if (text.startsWith('[') || text.startsWith('{')) {
+      try {
+        return normalizeBannerImages(JSON.parse(text));
+      } catch {
+        /* fall through */
       }
-      return '';
+    }
+    if (text.includes(',')) {
+      return text
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean);
+    }
+    return [text];
+  }
+
+  if (!Array.isArray(raw)) {
+    if (typeof raw === 'object') {
+      const values = Object.values(raw);
+      if (values.length > 0) return normalizeBannerImages(values);
+    }
+    return [];
+  }
+
+  const withOrder = raw
+    .map((item, index) => {
+      const url = bannerItemToUrl(item);
+      if (!url) return null;
+      let order = index;
+      if (item && typeof item === 'object') {
+        const o = item.sortOrder ?? item.sort_order ?? item.order ?? item.position ?? item.index;
+        if (typeof o === 'number' && Number.isFinite(o)) order = o;
+      }
+      return { url, order };
     })
     .filter(Boolean);
+
+  withOrder.sort((a, b) => a.order - b.order);
+
+  const seen = new Set();
+  const urls = [];
+  for (const { url } of withOrder) {
+    if (seen.has(url)) continue;
+    seen.add(url);
+    urls.push(url);
+  }
+  return urls;
+}
+
+/** Merge every known banner field from the resolve payload (deduped, ordered). */
+function collectBannerImagesFromRoot(root) {
+  if (!root || typeof root !== 'object') return [];
+
+  const shop = root.shop ?? root.Shop;
+  const sources = [
+    root.banner_images,
+    root.bannerImages,
+    root.banners,
+    root.shop_banners,
+    root.shopBanners,
+    root.banner_image,
+    root.bannerImage,
+    shop?.banner_images,
+    shop?.bannerImages,
+    shop?.banners,
+    shop?.shop_banners,
+    shop?.shopBanners,
+  ];
+
+  const seen = new Set();
+  const merged = [];
+  for (const source of sources) {
+    for (const url of normalizeBannerImages(source)) {
+      if (seen.has(url)) continue;
+      seen.add(url);
+      merged.push(url);
+    }
+  }
+  return merged;
 }
 
 /** @param {unknown} raw */
@@ -49,6 +162,30 @@ function normalizeBannerEnabled(raw) {
     return t === 'true' || t === '1' || t === 'yes';
   }
   return false;
+}
+
+/** @param {unknown} raw */
+function isBannerExplicitlyDisabled(raw) {
+  if (raw === false || raw === 0) return true;
+  if (typeof raw === 'string') {
+    const t = raw.trim().toLowerCase();
+    return t === 'false' || t === '0' || t === 'no';
+  }
+  return false;
+}
+
+/** Unwrap `{ data }`, `{ shop }`, and success envelopes from resolve-by-domain. */
+function unwrapResolvePayload(payload) {
+  if (!payload || typeof payload !== 'object') return {};
+  let root = payload;
+  if (root.data && typeof root.data === 'object' && !Array.isArray(root.data)) {
+    root = root.data;
+  }
+  const shop = root.shop ?? root.Shop;
+  if (shop && typeof shop === 'object') {
+    root = { ...root, ...shop };
+  }
+  return root;
 }
 
 function getDefaultTenantResolverUrl() {
@@ -98,17 +235,20 @@ export function normalizeShopResolvePayload(payload) {
       bannerImages: [],
     };
   }
-  const root = payload.data && typeof payload.data === 'object' ? payload.data : payload;
+  const root = unwrapResolvePayload(payload);
   const shopId = String(
-    root.shopId ?? root.shop_id ?? root.tenantId ?? root.tenant_id ?? ''
+    root.shopId ?? root.shop_id ?? root.id ?? root.tenantId ?? root.tenant_id ?? ''
   ).trim();
-  const shopName = String(root.shopName ?? root.shop_name ?? '').trim();
-  const shopImageRaw = root.shopImage ?? root.shop_image ?? null;
+  const shopName = String(root.shopName ?? root.shop_name ?? root.name ?? '').trim();
+  const shopImageRaw = root.shopImage ?? root.shop_image ?? root.logo ?? root.logo_url ?? null;
   const shopImage =
     shopImageRaw != null && String(shopImageRaw).trim() ? String(shopImageRaw).trim() : null;
-  const bannerImages = normalizeBannerImages(root.banner_images ?? root.bannerImages);
+  const bannerImages = collectBannerImagesFromRoot(root);
+  const bannerFlag = root.banner_enabled ?? root.bannerEnabled ?? root.banners_enabled;
   const bannerEnabled =
-    normalizeBannerEnabled(root.banner_enabled ?? root.bannerEnabled) && bannerImages.length > 0;
+    bannerImages.length > 0 &&
+    !isBannerExplicitlyDisabled(bannerFlag) &&
+    (bannerFlag == null || normalizeBannerEnabled(bannerFlag));
   return { shopId, shopName, shopImage, bannerEnabled, bannerImages };
 }
 
@@ -122,9 +262,14 @@ function readCachedBranding(domain) {
   if (window.localStorage.getItem(RESOLVED_SHOP_BANNER_ENABLED_KEY) == null) {
     return null;
   }
+  if (
+    window.localStorage.getItem(RESOLVED_SHOP_BANNER_PARSE_VERSION_KEY) !==
+    CURRENT_BANNER_PARSE_VERSION
+  ) {
+    return null;
+  }
   const shopName = window.localStorage.getItem(RESOLVED_SHOP_NAME_STORAGE_KEY) || '';
   const shopImage = window.localStorage.getItem(RESOLVED_SHOP_IMAGE_STORAGE_KEY) || '';
-  const bannerEnabledRaw = window.localStorage.getItem(RESOLVED_SHOP_BANNER_ENABLED_KEY);
   let bannerImages = [];
   try {
     const raw = window.localStorage.getItem(RESOLVED_SHOP_BANNER_IMAGES_KEY);
@@ -132,8 +277,11 @@ function readCachedBranding(domain) {
   } catch {
     bannerImages = [];
   }
+  const bannerEnabledRaw = window.localStorage.getItem(RESOLVED_SHOP_BANNER_ENABLED_KEY);
   const bannerEnabled =
-    bannerEnabledRaw === 'true' && Array.isArray(bannerImages) && bannerImages.length > 0;
+    bannerImages.length > 0 &&
+    bannerEnabledRaw !== 'false' &&
+    (bannerEnabledRaw === 'true' || bannerEnabledRaw == null);
   return {
     shopId,
     shopName: shopName || DEFAULT_SHOP_NAME,
@@ -157,13 +305,14 @@ export function persistResolvedShop(
     window.localStorage.removeItem(RESOLVED_SHOP_IMAGE_STORAGE_KEY);
   }
   const images = normalizeBannerImages(bannerImages);
-  const enabled = Boolean(bannerEnabled) && images.length > 0;
+  const enabled = images.length > 0 && bannerEnabled !== false;
   window.localStorage.setItem(RESOLVED_SHOP_BANNER_ENABLED_KEY, enabled ? 'true' : 'false');
   if (images.length > 0) {
     window.localStorage.setItem(RESOLVED_SHOP_BANNER_IMAGES_KEY, JSON.stringify(images));
   } else {
     window.localStorage.removeItem(RESOLVED_SHOP_BANNER_IMAGES_KEY);
   }
+  window.localStorage.setItem(RESOLVED_SHOP_BANNER_PARSE_VERSION_KEY, CURRENT_BANNER_PARSE_VERSION);
 }
 
 function devBrandingFallback() {
@@ -320,7 +469,12 @@ export async function resolveShopBranding() {
     const envId = envShopId();
     if (envId) {
       const cached = readCachedBranding(String(window.location.hostname || '').toLowerCase().trim());
-      if (cached && cached.shopId === envId && cached.shopImage) {
+      if (
+        cached &&
+        cached.shopId === envId &&
+        cached.shopImage &&
+        cached.bannerImages?.length > 0
+      ) {
         return { ...cached, fromCache: true, notFound: false };
       }
       try {
