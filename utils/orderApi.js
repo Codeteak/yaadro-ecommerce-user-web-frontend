@@ -10,6 +10,11 @@ import {
   parseMinorInt,
   parseOrderQuantity,
 } from './orderPromotions';
+import {
+  formatWeightUnitLabel,
+  parseProductUnitSize,
+  resolveProductWeightAndUnit,
+} from './productUtils';
 
 function firstImageUrl(value) {
   if (value == null || value === '') return null;
@@ -96,13 +101,27 @@ function transformOrderItem(item) {
 
   const hasOffer =
     !isDeleted && (appliedPromotionIds.length > 0 || lineDiscountMinor > 0);
+  const { weight, unit } = resolveProductWeightAndUnit({
+    unit_size: item.unit_size ?? item.unit_size_snapshot ?? item.unitSize,
+    unit_size_snapshot: item.unit_size_snapshot,
+    unit: item.unit_label_snapshot ?? item.unit ?? item.unitLabel,
+    unit_label_snapshot: item.unit_label_snapshot,
+    weight: item.weight,
+    name: productName,
+  });
+  const packLabel = formatWeightUnitLabel(weight, unit);
+  const unitSize = parseProductUnitSize(item);
   return {
     id: item.id,
     productId: item.product_id ?? item.productId,
     productSlug: item.product_slug ?? item.productSlug,
     productName,
     productSku: item.productSku ?? item.product_sku,
-    unitLabel: item.unit_label_snapshot ?? item.unitLabel ?? '',
+    unitLabel: item.unit_label_snapshot ?? item.unitLabel ?? unit ?? '',
+    unitSize,
+    weight,
+    unit,
+    packLabel,
     quantity,
     unitPrice,
     listPrice,

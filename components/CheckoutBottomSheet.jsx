@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { formatQuantityWithPack } from '../utils/productUtils';
 
 export default function CheckoutBottomSheet({ 
   isOpen, 
@@ -42,7 +43,7 @@ export default function CheckoutBottomSheet({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
                   <p className="text-xs text-gray-500">
-                    {item.sizeDisplay || (item.weight && item.unit ? `${item.weight}${item.unit}` : '')} × {item.quantity}
+                    {formatQuantityWithPack(item.quantity, item) || `Qty ${item.quantity}`}
                   </p>
                 </div>
                 <p className="text-sm font-semibold text-gray-900">₹{(item.price * item.quantity).toFixed(2)}</p>

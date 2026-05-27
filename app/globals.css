@@ -288,12 +288,13 @@ img, video, iframe {
 }
 
 .home-hero-minh {
-  min-height: min(78vh, 78dvh);
+  /* Avoid pushing the next section too far down on tall screens. */
+  min-height: min(60vh, 72dvh);
 }
 
 @media (max-width: 26.875rem) and (max-height: 45rem) {
   .home-hero-minh {
-    min-height: min(68svh, 620px);
+    min-height: min(50svh, 520px);
   }
 }
 

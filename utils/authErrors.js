@@ -3,7 +3,7 @@ export function isUnauthorizedError(error) {
   if (!error) return false;
   if (error.status === 401 || error.status === 403) return true;
   const msg = String(error.message || '').toLowerCase();
-  return /invalid|expired|unauthorized|forbidden/.test(msg);
+  return /invalid|expired|unauthorized|forbidden|token.*expir|jwt.*expir|session.*expir/.test(msg);
 }
 
 /** Network / offline failures — do not treat as "user must log in again". */

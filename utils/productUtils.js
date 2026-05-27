@@ -269,6 +269,37 @@ export function parseWeightUnitFromName(name) {
   };
 }
 
+/**
+ * Strip a trailing pack token from a display name.
+ * Examples:
+ * - "Small Onion 10kg" -> "Small Onion"
+ * - "Watermelon Kiran 3pcs" -> "Watermelon Kiran"
+ * - "Milk 500 ml" -> "Milk"
+ */
+export function stripPackFromProductName(name) {
+  if (name == null) return '';
+  const s = String(name).trim();
+  if (!s) return '';
+
+  // Only strip when the last token matches our pack regex.
+  // We remove the last match (not all matches) so names like "Mix 2kg Pack" don't get mangled.
+  const re = new RegExp(WEIGHT_UNIT_IN_NAME_RE.source, 'gi');
+  let lastMatch = null;
+  let match;
+  while ((match = re.exec(s)) !== null) lastMatch = match;
+  if (!lastMatch) return s;
+
+  // Match index is available as `match.index` in JS RegExp exec results.
+  const idx = lastMatch.index;
+  if (typeof idx !== 'number' || idx < 0) return s;
+
+  // Only strip if match is at the end (or very close: allow trailing punctuation/spaces).
+  const after = s.slice(idx + String(lastMatch[0] || '').length).trim();
+  if (after !== '' && after !== ')' && after !== ']' && after !== '-' && after !== '·') return s;
+
+  return s.slice(0, idx).trim().replace(/[-·(\\[]\\s*$/, '').trim();
+}
+
 function parseProductWeightFromFields(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const candidate =
@@ -291,12 +322,26 @@ function parseProductUnitFromFields(raw) {
   const u =
     raw.unit ??
     raw.unit_label ??
+    raw.unit_label_snapshot ??
     raw.unitLabel ??
     raw.uom ??
     raw.measurement_unit ??
     raw.measurementUnit ??
     '';
   return u != null ? normalizeProductUnit(u) : '';
+}
+
+/** Catalog/cart/order pack size (string decimal from API, default `"1"` when absent). */
+export function parseProductUnitSize(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const v =
+    raw.unit_size ??
+    raw.unit_size_snapshot ??
+    raw.unitSize ??
+    raw.unitSizeSnapshot;
+  if (v == null || v === '') return null;
+  const n = parseFloat(String(v).trim());
+  return Number.isFinite(n) ? n : null;
 }
 
 /**
@@ -307,8 +352,12 @@ export function resolveProductWeightAndUnit(raw) {
   if (!raw || typeof raw !== 'object') {
     return { weight: null, unit: '' };
   }
+  const unit = parseProductUnitFromFields(raw);
+  const unitSize = parseProductUnitSize(raw);
+  if (unitSize != null && unit) {
+    return { weight: unitSize, unit };
+  }
   let weight = parseProductWeightFromFields(raw);
-  let unit = parseProductUnitFromFields(raw);
   if (weight != null && unit) {
     return { weight, unit };
   }
@@ -345,13 +394,16 @@ export function formatWeightUnitLabel(weight, unit) {
   return displayUnit;
 }
 
-/** Subtitle under cart line name: pack (weight + unit) or API size label. */
+/** Subtitle under cart line name: pack (`unit_size` + `unit`) or API size label. */
 export function getCartLineVariantLabel(item) {
   if (!item || typeof item !== 'object') return '';
   const { weight, unit } = resolveProductWeightAndUnit({
     weight: item.weight,
     unit: item.unit,
+    unit_size: item.unit_size ?? item.unitSize,
+    unit_size_snapshot: item.unit_size_snapshot ?? item.unitSizeSnapshot,
     unit_label: item.unitLabel,
+    unit_label_snapshot: item.unit_label_snapshot,
     name: item.name,
     title_snapshot: item.title_snapshot,
   });
@@ -361,5 +413,25 @@ export function getCartLineVariantLabel(item) {
   if (size) return size;
   const unitOnly = item.unitLabel ?? item.unit;
   return unitOnly != null ? String(unitOnly).trim() : '';
+}
+
+function formatQuantityNumber(quantity) {
+  const n = Number(quantity);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  return Number.isInteger(n) ? String(Math.trunc(n)) : String(n);
+}
+
+/**
+ * Line quantity with pack size, e.g. `2 × 0.5 L` (display-only; does not affect totals).
+ */
+export function formatQuantityWithPack(quantity, source) {
+  if (!source || typeof source !== 'object') return '';
+  const qtyStr = formatQuantityNumber(quantity);
+  const { weight, unit } = resolveProductWeightAndUnit(source);
+  const pack = formatWeightUnitLabel(weight, unit);
+  if (!qtyStr && !pack) return '';
+  if (!qtyStr) return pack;
+  if (!pack) return `Qty ${qtyStr}`;
+  return `${qtyStr} × ${pack}`;
 }
 

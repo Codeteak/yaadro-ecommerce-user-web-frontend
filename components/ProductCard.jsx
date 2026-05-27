@@ -422,7 +422,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         </div>
 
         <p className="mt-auto text-[11px] text-gray-500 leading-none min-h-[12px]">
-          {displayWeight ? `1 pack · ${displayWeight}` : '\u00A0'}
+          {displayWeight || '\u00A0'}
         </p>
       </div>
     </Link>

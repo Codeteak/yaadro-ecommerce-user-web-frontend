@@ -17,7 +17,9 @@ export function cartLineSizeKey(item) {
     const u = item.selectedSize.unit;
     if (w != null && u != null && String(u)) return `${w}${u}`;
   }
-  return 'default';
+  const { weight, unit } = resolveProductWeightAndUnit(item);
+  const pack = formatWeightUnitLabel(weight, unit);
+  return pack || 'default';
 }
 
 export function cartLinesMatch(a, b) {
@@ -143,6 +145,7 @@ export function buildPersistableCartLineFromProduct(product) {
 
   const { weight, unit } = resolveProductWeightAndUnit(product);
   const packLabel = formatWeightUnitLabel(weight, unit);
+  const unitSize = product.unit_size ?? product.unitSize;
 
   const leanProduct = {
     id: productId ?? id,
@@ -168,6 +171,7 @@ export function buildPersistableCartLineFromProduct(product) {
     sizeDisplay: product.sizeDisplay || packLabel || undefined,
     unit,
     weight,
+    ...(unitSize != null ? { unit_size: unitSize } : {}),
     brand: product.brand,
     category,
     product: leanProduct,

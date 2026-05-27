@@ -170,15 +170,37 @@ export default function Home() {
   } = useLocationService();
   const { shopName, shopImage, bannerEnabled, bannerImages } = useShopBranding();
 
+  const isLocalDev = process.env.NODE_ENV !== 'production';
+
   const shopBanners = useMemo(() => {
-    if (!bannerEnabled || !Array.isArray(bannerImages) || bannerImages.length === 0) {
-      return [];
+    // In local/dev we show static banners (from `/public/banner/*`) regardless of resolver response.
+    if (isLocalDev) {
+      return [
+        {
+          id: 'local-1',
+          image:
+            '/banner/360_F_249501541_XmWdfAfUbWAvGxBwAM0ba2aYT36ntlpH.jpg',
+        },
+        {
+          id: 'local-2',
+          image:
+            '/banner/11871820-online-shopping-am-telefon-kaufen-verkaufen-geschaft-digitale-web-banner-anwendung-geldwerbung-zahlung-e-commerce-illustration-suche-vektor.jpg',
+        },
+        {
+          id: 'local-3',
+          image:
+            '/banner/360_F_465465254_1pN9MGrA831idD6zIBL7q8rnZZpUCQTy.jpg',
+        },
+      ];
     }
+
+    // Production: use banner images from domain resolver response.
+    if (!bannerEnabled || !Array.isArray(bannerImages) || bannerImages.length === 0) return [];
     return bannerImages.map((url, index) => ({
       id: `shop-banner-${index}`,
       image: url,
     }));
-  }, [bannerEnabled, bannerImages]);
+  }, [bannerEnabled, bannerImages, isLocalDev]);
 
   // Pull-to-refresh (mobile-like)
   const [ptrPull, setPtrPull] = useState(0); // px
@@ -458,36 +480,22 @@ export default function Home() {
   if (loading) {
     return (
       <div className="w-full max-w-full overflow-x-hidden min-h-screen" aria-busy="true" aria-live="polite">
-        {/* Purple hero skeleton (matches current home style) */}
+        {/* Hero skeleton (light theme) */}
         <section
           className="home-hero-minh w-full relative overflow-hidden"
           style={{
-            background: '#902bf5',
+            background: '#ffffff',
             borderBottomLeftRadius: 44,
             borderBottomRightRadius: 44,
             WebkitMaskImage: '-webkit-radial-gradient(white, black)',
           }}
         >
-          {/* Background video */}
-          <div className="pointer-events-none absolute inset-0 z-0">
-            <video
-              className="h-full w-full object-contain object-center"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              aria-hidden="true"
-            >
-              <source src="/create_a_animated_video_for_th.mp4" type="video/mp4" />
-            </video>
-          </div>
-
-          {/* Bottom shade */}
+          {/* Soft bottom fade (light) */}
           <div
             className="pointer-events-none absolute inset-x-0 bottom-0 z-[15] h-52 sm:h-64"
             style={{
-              background: 'linear-gradient(to top, rgba(0,0,0,0.98), rgba(0,0,0,0))',
+              background:
+                'linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,0))',
             }}
             aria-hidden
           />
@@ -496,32 +504,32 @@ export default function Home() {
           <div className="relative home-hero-minh flex flex-col pt-5 pb-16 max-[430px]:pb-14 sm:pt-6 md:pt-8 sm:pb-24 overflow-hidden">
               {/* Top row skeleton */}
               <div className="relative z-20 flex items-start justify-between gap-3">
-                <div className="inline-flex w-auto max-w-[78vw] sm:max-w-[520px] items-stretch rounded-2xl border border-white/15 bg-black/20 backdrop-blur px-3 py-2.5">
-                  <div className="flex w-14 shrink-0 flex-col items-center justify-center text-white/80">
-                    <div className="h-8 w-10 rounded-md bg-white/20 animate-pulse" />
-                    <div className="mt-2 h-3 w-8 rounded bg-white/15 animate-pulse" />
+                <div className="inline-flex w-auto max-w-[78vw] sm:max-w-[520px] items-stretch rounded-2xl border border-gray-200 bg-white/80 backdrop-blur px-3 py-2.5 shadow-sm">
+                  <div className="flex w-14 shrink-0 flex-col items-center justify-center text-gray-500">
+                    <div className="h-8 w-10 rounded-md bg-gray-200 animate-pulse" />
+                    <div className="mt-2 h-3 w-8 rounded bg-gray-200 animate-pulse" />
                   </div>
                   <div className="min-w-0 flex-1 pl-3">
-                    <div className="h-6 w-40 rounded-full bg-white/15 animate-pulse" />
-                    <div className="mt-2 h-4 w-52 rounded bg-white/10 animate-pulse" />
+                    <div className="h-6 w-40 rounded-full bg-gray-200 animate-pulse" />
+                    <div className="mt-2 h-4 w-52 rounded bg-gray-200 animate-pulse" />
                   </div>
                 </div>
 
                 <div className="flex flex-shrink-0 items-center gap-2">
-                  <div className="h-11 w-11 rounded-full border border-white/15 bg-black/20 backdrop-blur animate-pulse" />
-                  <div className="h-11 w-11 rounded-full border border-white/15 bg-black/20 backdrop-blur animate-pulse" />
+                  <div className="h-11 w-11 rounded-full border border-gray-200 bg-white/80 backdrop-blur animate-pulse" />
+                  <div className="h-11 w-11 rounded-full border border-gray-200 bg-white/80 backdrop-blur animate-pulse" />
                 </div>
               </div>
 
               {/* Tagline skeleton */}
               <div className="relative z-[9] mt-4 max-w-[92vw]">
-                <div className="h-14 w-[min(520px,92vw)] rounded-xl bg-white/10 animate-pulse" />
-                <div className="mt-3 h-14 w-[min(440px,84vw)] rounded-xl bg-white/10 animate-pulse" />
+                <div className="h-14 w-[min(520px,92vw)] rounded-xl bg-gray-200 animate-pulse" />
+                <div className="mt-3 h-14 w-[min(440px,84vw)] rounded-xl bg-gray-200 animate-pulse" />
               </div>
 
               {/* Image skeleton */}
               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center">
-                <div className="w-[320px] h-[440px] sm:w-[380px] sm:h-[520px] rounded-[28px] bg-white/10 animate-pulse" />
+                <div className="w-[320px] h-[440px] sm:w-[380px] sm:h-[520px] rounded-[28px] bg-gray-200 animate-pulse" />
               </div>
 
               {/* Category carousel skeleton */}
@@ -530,7 +538,7 @@ export default function Home() {
                   {Array.from({ length: 6 }).map((_, i) => (
                     <div
                       key={i}
-                      className="w-[110px] h-[96px] rounded-[18px] bg-white/15 border border-white/10 animate-pulse flex-shrink-0"
+                      className="w-[110px] h-[96px] rounded-[18px] bg-gray-200 border border-gray-200 animate-pulse flex-shrink-0"
                     />
                   ))}
                 </div>
@@ -651,42 +659,28 @@ export default function Home() {
         </div>
       )}
 
-      {/* Purple hero section (more than half page) */}
+      {/* Hero section (light theme) */}
       <section
         ref={heroSectionRef}
         className="home-hero-minh w-full relative overflow-hidden"
         style={{
-          background: '#902bf5',
+          background: '#ffffff',
           borderBottomLeftRadius: 44,
           borderBottomRightRadius: 44,
           WebkitMaskImage: '-webkit-radial-gradient(white, black)',
         }}
       >
-        {/* Background video */}
-        <div className="pointer-events-none absolute inset-0 z-0">
-          <video
-            className="h-full w-full object-contain object-center"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            aria-hidden="true"
-          >
-            <source src="/create_a_animated_video_for_th.mp4" type="video/mp4" />
-          </video>
-        </div>
-
-        {/* Bottom shade (black -> transparent) - full width */}
-          <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-[15] h-52 sm:h-64"
+        {/* Soft bottom fade (light) */}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-[15] h-52 sm:h-64"
           style={{
-              background: 'linear-gradient(to top, rgba(0,0,0,0.98), rgba(0,0,0,0))',
+            background:
+              'linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,0))',
           }}
           aria-hidden
         />
         {/* Shop branding card — flush left:0, name top, delivery status below */}
-        <div className="absolute left-0 top-5 sm:top-6 md:top-8 z-30 flex items-start gap-3.5 rounded-r-3xl bg-white/95 backdrop-blur-md pl-4 pr-5 py-3 shadow-lg">
+        <div className="absolute left-0 top-5 sm:top-6 md:top-8 z-30 flex items-start gap-3.5 rounded-r-3xl bg-white/95 backdrop-blur-md pl-4 pr-5 py-3">
           {shopImage ? (
             <img
               src={shopImage}
@@ -730,16 +724,16 @@ export default function Home() {
         </div>
 
         <Container className="px-0 sm:px-0 lg:px-0 xl:px-0 2xl:px-0">
-            <div className="relative text-white home-hero-minh flex flex-col pt-5 pb-16 max-[430px]:pb-14 sm:pt-6 md:pt-8 sm:pb-24 overflow-hidden">
+            <div className="relative text-gray-900 flex flex-col pt-5 pb-8 sm:pt-6 md:pt-8 sm:pb-10 overflow-hidden">
             {/* Top row: search/profile (right) */}
             <div className="relative z-20 flex items-center justify-end gap-2 pr-3 sm:pr-4 min-h-[52px]">
               <button
                 type="button"
                 onClick={() => router.push('/search/')}
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/20 backdrop-blur hover:bg-black/25 transition"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white/80 backdrop-blur hover:bg-white transition shadow-sm"
                 aria-label="Search products"
               >
-                <Search className="w-6 h-6 text-white" strokeWidth={2} />
+                <Search className="w-6 h-6 text-gray-800" strokeWidth={2} />
               </button>
 
               <button
@@ -751,33 +745,47 @@ export default function Home() {
                     goToLogin();
                   }
                 }}
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/20 backdrop-blur hover:bg-black/25 transition"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white/80 backdrop-blur hover:bg-white transition shadow-sm"
                 aria-label={isAuthenticated ? 'Profile' : 'Login'}
               >
-                <User className="w-6 h-6 text-white" strokeWidth={2} />
+                <User className="w-6 h-6 text-gray-800" strokeWidth={2} />
               </button>
             </div>
 
             {/* Tagline — mt-8 clears the absolute shop-branding card (~92px tall) */}
             <div className="relative z-[9] mt-8 sm:mt-6 pl-4 sm:pl-5 max-w-[min(92vw,540px)]">
-              <p className="text-left text-home-hero-headline font-extrabold text-white drop-shadow-[0_14px_40px_rgba(0,0,0,0.55)]">
+              <p className="text-left text-home-hero-headline font-extrabold text-gray-900">
                 Groceries in Minutes ... 
               </p>
             </div>
 
             {/* CTA below tagline */}
-            <div className="relative z-20 mt-4 pl-4 sm:pl-5">
+            <div className="relative z-20 mt-5 pl-4 sm:pl-5">
               <Link
                 href="/products"
-                className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-[13px] font-extrabold tracking-wide text-[#902bf5] shadow-[0_12px_30px_rgba(0,0,0,0.25)] hover:bg-white/90 active:scale-[0.98] transition"
+                className="inline-flex items-center justify-center rounded-full bg-[#902bf5] px-6 py-3 text-[13px] font-extrabold tracking-wide text-white shadow-[0_12px_30px_rgba(15,23,42,0.18)] hover:bg-[#7e20e3] active:scale-[0.98] transition"
               >
                 Shop Now
               </Link>
             </div>
 
+            {/* Banner carousel right below "Shop Now" */}
+            {shopBanners.length > 0 && (
+              <div className="relative z-20 mt-6 px-3 sm:px-6 md:px-8 pb-2">
+                <div className="overflow-hidden rounded-2xl shadow-[0_8px_28px_rgba(15,23,42,0.08)] ring-1 ring-gray-200/80">
+                  <BannerCarousel
+                    banners={shopBanners}
+                    fallbackToDefaults={false}
+                    imageClassName="object-cover object-center"
+                    className="bg-white"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Bottom: categories carousel */}
             {categories.length > 0 && (
-              <div className="absolute inset-x-0 bottom-0 z-20">
+              <div className="relative inset-x-0 z-20 mt-11 sm:mt-12 pt-2 pb-2">
                 <div
                   ref={categoryScrollRef}
                   role="region"
@@ -808,19 +816,6 @@ export default function Home() {
           </div>
         </Container>
       </section>
-
-      {shopBanners.length > 0 && (
-        <section className="relative z-10 -mt-2 px-3 sm:px-6 md:px-8 pb-2" aria-label="Shop promotions">
-          <div className="overflow-hidden rounded-2xl shadow-[0_8px_28px_rgba(15,23,42,0.08)] ring-1 ring-gray-200/80">
-            <BannerCarousel
-              banners={shopBanners}
-              fallbackToDefaults={false}
-              imageClassName="object-cover object-center"
-              className="bg-white"
-            />
-          </div>
-        </section>
-      )}
 
       {/* Best Sellers Section */}
       {bestSellers.length > 0 && (

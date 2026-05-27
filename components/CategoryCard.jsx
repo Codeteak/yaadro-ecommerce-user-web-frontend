@@ -21,7 +21,7 @@ export default function CategoryCard({ category }) {
       href={`/products?category=${encodeURIComponent(categoryName)}`}
       className="flex flex-col items-center gap-2 flex-shrink-0 group"
     >
-      <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/15 shadow-[0_8px_22px_rgba(0,0,0,0.22)] ring-1 ring-white/20 transition-all duration-200 group-hover:scale-[1.04] group-hover:shadow-[0_12px_28px_rgba(0,0,0,0.3)] sm:h-24 sm:w-24 md:h-28 md:w-28">
+      <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gray-50 shadow-[0_8px_22px_rgba(0,0,0,0.10)] ring-1 ring-gray-200 transition-all duration-200 group-hover:scale-[1.04] group-hover:shadow-[0_12px_28px_rgba(0,0,0,0.16)] sm:h-24 sm:w-24 md:h-28 md:w-28">
         <Image
           src={imgSrc}
           alt={isDummy ? '' : categoryName}
@@ -36,7 +36,7 @@ export default function CategoryCard({ category }) {
         />
       </div>
       <h3
-        className="text-[11px] sm:text-xs md:text-sm font-semibold text-white text-center leading-[1.15] max-w-[10ch]"
+        className="text-[11px] sm:text-xs md:text-sm font-semibold text-gray-900 text-center leading-[1.15] max-w-[10ch]"
         title={categoryName}
       >
         <span className="block">{firstLine}</span>

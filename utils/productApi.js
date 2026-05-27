@@ -263,6 +263,12 @@ function transformProduct(apiProduct) {
       stock: inStock ? 1 : 0,
       weight,
       unit,
+      unit_size:
+        apiProduct.unit_size != null
+          ? String(apiProduct.unit_size).trim()
+          : apiProduct.unitSize != null
+            ? String(apiProduct.unitSize).trim()
+            : '1',
       packSize: apiProduct.pack_size ?? apiProduct.packSize ?? '',
       brand: apiProduct.brand || '',
       ingredients: apiProduct.ingredients || '',
@@ -329,6 +335,12 @@ function transformProduct(apiProduct) {
     weight: legacyWeightUnit.weight,
     grossWeight: apiProduct.grossWeight != null ? parseFloat(apiProduct.grossWeight) : null,
     unit: legacyWeightUnit.unit,
+    unit_size:
+      apiProduct.unit_size != null
+        ? String(apiProduct.unit_size).trim()
+        : apiProduct.unitSize != null
+          ? String(apiProduct.unitSize).trim()
+          : undefined,
     packSize: apiProduct.packSize || '',
     brand: apiProduct.brand || '',
     sku: apiProduct.sku || '',

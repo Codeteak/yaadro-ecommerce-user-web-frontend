@@ -233,9 +233,10 @@ export default function OrdersPage() {
       price: Number.isFinite(unitPrice) ? unitPrice : 0,
       originalPrice: item?.originalPrice ?? item?.mrp ?? item?.listPrice ?? undefined,
       selectedSize: selectedSize || undefined,
-      sizeDisplay: item?.sizeDisplay || undefined,
-      weight: item?.weight || undefined,
+      sizeDisplay: item?.sizeDisplay || item?.packLabel || undefined,
+      weight: item?.weight ?? item?.unitSize ?? undefined,
       unit: item?.unit || undefined,
+      unit_size: item?.unitSize ?? item?.unit_size ?? undefined,
       brand: item?.brand || item?.product?.brand || undefined,
       category: item?.category || item?.product?.category || undefined,
     };

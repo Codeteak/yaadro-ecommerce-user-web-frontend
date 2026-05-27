@@ -6,47 +6,58 @@ import { usePathname } from 'next/navigation';
 import { useBottomNavVisibility } from '../context/BottomNavVisibilityContext';
 import { useLayoutHeights } from '../context/LayoutHeightsContext';
 
-const HomeIcon = ({ active }) => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth={active ? 2.2 : 2} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
-    <path d="M9 21V12h6v9" />
-  </svg>
-);
+const ACTIVE_ICON_CLASS = 'bg-emerald-700';
+const INACTIVE_ICON_CLASS = 'bg-gray-500';
 
-const CategoriesIcon = ({ active }) => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth={active ? 2.2 : 2} strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="7" height="7" rx="1.5" />
-    <rect x="14" y="3" width="7" height="7" rx="1.5" />
-    <rect x="3" y="14" width="7" height="7" rx="1.5" />
-    <rect x="14" y="14" width="7" height="7" rx="1.5" />
-  </svg>
-);
+function NavIcon({ lineSrc, fillSrc, active }) {
+  const src = active ? fillSrc : lineSrc;
+  const colorClass = active ? ACTIVE_ICON_CLASS : INACTIVE_ICON_CLASS;
 
-const ProductsIcon = ({ active }) => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth={active ? 2.2 : 2} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-    <line x1="12" y1="22.08" x2="12" y2="12" />
-  </svg>
-);
-
-const ReorderIcon = ({ active }) => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth={active ? 2.2 : 2} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 12a9 9 0 1 1-3.2-6.9" />
-    <polyline points="21 4 21 9 16 9" />
-    <path d="M12 7v5l3 2" />
-  </svg>
-);
+  return (
+    <span
+      className={`inline-block h-5 w-5 shrink-0 ${colorClass} transition-colors duration-200 ${
+        active ? 'scale-105' : ''
+      }`}
+      style={{
+        maskImage: `url(${src})`,
+        WebkitMaskImage: `url(${src})`,
+        maskSize: 'contain',
+        maskRepeat: 'no-repeat',
+        maskPosition: 'center',
+        WebkitMaskSize: 'contain',
+        WebkitMaskRepeat: 'no-repeat',
+        WebkitMaskPosition: 'center',
+      }}
+      aria-hidden
+    />
+  );
+}
 
 const navItems = [
-  { href: '/', label: 'Home', Icon: HomeIcon },
-  { href: '/categories', label: 'Categories', Icon: CategoriesIcon },
-  { href: '/products', label: 'Products', Icon: ProductsIcon },
-  { href: '/orders', label: 'Reorder', Icon: ReorderIcon },
+  {
+    href: '/',
+    label: 'Home',
+    lineSrc: '/icons/home-line.svg',
+    fillSrc: '/icons/home-fill.svg',
+  },
+  {
+    href: '/categories',
+    label: 'Categories',
+    lineSrc: '/icons/apple_line.svg',
+    fillSrc: '/icons/apple_fill.svg',
+  },
+  {
+    href: '/products',
+    label: 'Products',
+    lineSrc: '/icons/empty_box_line.svg',
+    fillSrc: '/icons/empty_box_fill.svg',
+  },
+  {
+    href: '/orders',
+    label: 'Reorder',
+    lineSrc: '/icons/reorder-line.svg',
+    fillSrc: '/icons/reorder-fill.svg',
+  },
 ];
 
 export default function MobileBottomNav() {
@@ -88,7 +99,7 @@ export default function MobileBottomNav() {
       aria-hidden={!isVisible}
     >
       <nav className="flex w-full items-center justify-around gap-1 px-2">
-        {navItems.map(({ href, label, Icon }) => {
+        {navItems.map(({ href, label, lineSrc, fillSrc }) => {
           const isActive =
             pathname === href || (href !== '/' && pathname?.startsWith(href));
 
@@ -102,13 +113,7 @@ export default function MobileBottomNav() {
               }`}
               aria-current={isActive ? 'page' : undefined}
             >
-              <span
-                className={`relative inline-flex transition-all duration-200 ${
-                  isActive ? 'text-emerald-800 -translate-y-px scale-105' : 'text-gray-500'
-                }`}
-              >
-                <Icon active={isActive} />
-              </span>
+              <NavIcon lineSrc={lineSrc} fillSrc={fillSrc} active={isActive} />
 
               <span
                 className={`text-[10px] font-semibold tracking-wide transition-colors duration-200 ${

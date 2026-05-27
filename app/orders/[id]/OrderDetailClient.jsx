@@ -284,24 +284,28 @@ function OrderItemRow({ item }) {
   const displayQty = meta.currentQty;
   const paidQty = inferOrderLinePaidQuantity(item);
   const offerLabel = getOrderLineOfferLabel(item);
-  const unitLabel = item.unitLabel ? String(item.unitLabel).trim() : '';
+  const packSuffix = (() => {
+    const pack = item.packLabel ? String(item.packLabel).trim() : '';
+    if (pack) return ` × ${pack}`;
+    const unitLabel = item.unitLabel ? String(item.unitLabel).trim() : '';
+    return unitLabel ? ` ${unitLabel}` : '';
+  })();
   const listPrice = item.listPrice;
   const showListStrike =
     listPrice != null && Number.isFinite(listPrice) && listPrice > (item.unitPrice || 0) + 0.009;
 
-  let qtyText = `Qty ${displayQty}`;
-  if (unitLabel) qtyText += ` ${unitLabel}`;
+  let qtyText = `Qty ${displayQty}${packSuffix}`;
 
   if (paidQty > 0 && displayQty > paidQty) {
-    qtyText = `${paidQty} paid + ${displayQty - paidQty} free${unitLabel ? ` · ${unitLabel}` : ''}`;
+    qtyText = `${paidQty} paid + ${displayQty - paidQty} free${packSuffix}`;
     if (meta.showShopQtyUpdate && meta.originalQty != null) {
       qtyText += ` · you ordered ${meta.originalQty}`;
     }
   } else if (meta.showShopQtyUpdate) {
     if (meta.originalQty != null && Math.abs(meta.originalQty - displayQty) > 1e-6) {
-      qtyText = `Fulfilling ${displayQty}${unitLabel ? ` ${unitLabel}` : ''} (you ordered ${meta.originalQty})`;
+      qtyText = `Fulfilling ${displayQty}${packSuffix} (you ordered ${meta.originalQty})`;
     } else {
-      qtyText = `Qty ${displayQty}${unitLabel ? ` ${unitLabel}` : ''} · updated by store`;
+      qtyText = `Qty ${displayQty}${packSuffix} · updated by store`;
     }
   }
 
@@ -724,9 +728,10 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
       price: Number.isFinite(unitPrice) ? unitPrice : 0,
       originalPrice: item?.originalPrice ?? item?.mrp ?? item?.listPrice ?? undefined,
       selectedSize: selectedSize || undefined,
-      sizeDisplay: item?.sizeDisplay || undefined,
-      weight: item?.weight || undefined,
+      sizeDisplay: item?.sizeDisplay || item?.packLabel || undefined,
+      weight: item?.weight ?? item?.unitSize ?? undefined,
       unit: item?.unit || undefined,
+      unit_size: item?.unitSize ?? item?.unit_size ?? undefined,
       brand: item?.brand || item?.product?.brand || undefined,
       category: item?.category || item?.product?.category || undefined,
     };

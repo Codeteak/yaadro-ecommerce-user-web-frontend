@@ -52,6 +52,25 @@ const SESSION_STORAGE_KEYS = [
   POST_LOGIN_REDIRECT_KEY,
 ];
 
+const LOCAL_STORAGE_PREFIXES = ['yaadro_address_edit_'];
+
+function clearLocalStorageByPrefixes(prefixes) {
+  if (typeof window === 'undefined') return;
+  const toRemove = [];
+  for (let i = 0; i < window.localStorage.length; i += 1) {
+    const key = window.localStorage.key(i);
+    if (!key) continue;
+    if (prefixes.some((prefix) => key.startsWith(prefix))) toRemove.push(key);
+  }
+  for (const key of toRemove) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 /**
  * Clear all client-side user session, cart, and preference data (logout / session expiry / account delete).
  */
@@ -65,6 +84,8 @@ export function clearAllClientSessionData() {
       /* ignore */
     }
   }
+
+  clearLocalStorageByPrefixes(LOCAL_STORAGE_PREFIXES);
 
   for (const key of SESSION_STORAGE_KEYS) {
     try {

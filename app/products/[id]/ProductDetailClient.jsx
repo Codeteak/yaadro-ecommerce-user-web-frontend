@@ -21,6 +21,7 @@ import {
   formatWeightUnitLabel,
   getPrimaryBundleRule,
   resolveProductWeightAndUnit,
+  stripPackFromProductName,
 } from '../../../utils/productUtils';
 import Container from '../../../components/Container';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
@@ -32,7 +33,7 @@ import ProductImageWithFallback from '../../../components/ProductImageWithFallba
 import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
 import { getCartLineDisplayQty, getBundleFreeExtraOnPaidLine } from '../../../utils/cartPromotions';
 import { findPaidCartLine } from '../../../utils/cartLinePersist';
-import { normalizeProductRouteParam } from '../../../utils/productApi';
+import { getProductDetailPath, normalizeProductRouteParam } from '../../../utils/productApi';
 
 /** Gap between cart pill bottom and the top edge of the PDP fixed bottom bar. */
 const CART_PILL_GAP_ABOVE_PDP_BAR_PX = 12;
@@ -204,6 +205,59 @@ export default function ProductDetailClient({ productId = null }) {
 
   const descriptionText =
     typeof product?.description === 'string' ? product.description.trim() : '';
+
+  // "Small Onion 10kg" -> "Small Onion" (used to find other pack variants).
+  const baseName = useMemo(() => stripPackFromProductName(product?.name || ''), [product?.name]);
+  const baseNameKey = useMemo(() => baseName.trim().toLowerCase(), [baseName]);
+  const { data: sameNameListData } = useProducts({
+    search: baseName,
+    limit: 50,
+    sort_by: 'name',
+    sort_order: 'asc',
+    enabled: Boolean(baseName && baseName.length >= 2),
+  });
+  const sameNameVariants = useMemo(() => {
+    const list = sameNameListData?.products || [];
+    if (!baseNameKey || list.length === 0) return [];
+
+    const keep = list.filter((p) => {
+      const n = stripPackFromProductName(p?.name || '').trim().toLowerCase();
+      return n === baseNameKey;
+    });
+
+    // Unique by pack label so multiple API rows don't duplicate.
+    const seen = new Set();
+    const out = [];
+    for (const p of keep) {
+      if (!p?.id) continue;
+      const resolved = resolveProductWeightAndUnit(p);
+      const pack = formatWeightUnitLabel(resolved.weight, resolved.unit);
+      const key = `${pack || ''}::${String(p.id)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        ...p,
+        _packLabel: pack,
+      });
+    }
+
+    // Sort small -> large by size within unit group (GM/KG/ML/L/PC...).
+    out.sort((a, b) => {
+      const ar = resolveProductWeightAndUnit(a);
+      const br = resolveProductWeightAndUnit(b);
+      const au = String(ar.unit || '');
+      const bu = String(br.unit || '');
+      if (au && bu && au !== bu) return au.localeCompare(bu);
+      const aw = ar.weight;
+      const bw = br.weight;
+      if (aw != null && bw != null && aw !== bw) return aw - bw;
+      if (aw != null && bw == null) return -1;
+      if (aw == null && bw != null) return 1;
+      return String(a._packLabel || '').localeCompare(String(b._packLabel || ''));
+    });
+
+    return out;
+  }, [sameNameListData?.products, baseNameKey]);
 
   const legacyOriginal =
     product?.originalPrice != null ? parseFloat(product.originalPrice) : null;
@@ -629,6 +683,61 @@ export default function ProductDetailClient({ productId = null }) {
                 </div>
               </div>
             </section>
+
+            {sameNameVariants.length > 1 ? (
+              <>
+                <DetailSectionTitle>{baseName || 'Available packs'}</DetailSectionTitle>
+                <div className="mt-3 -mx-4 px-4 overflow-x-auto scrollbar-hide">
+                  <div className="flex gap-3 w-max pb-2">
+                    {sameNameVariants.map((p) => {
+                      const packLabel =
+                        p._packLabel ||
+                        formatWeightUnitLabel(
+                          resolveProductWeightAndUnit(p).weight,
+                          resolveProductWeightAndUnit(p).unit
+                        );
+                      const img = getResolvedProductImageUrls(p)[0] || '/images/dummy.png';
+                      const active = product?.id && String(product.id) === String(p.id);
+                      const priceValue = getEffectivePrice(p, Number(p.price ?? 0) || 0);
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => router.push(getProductDetailPath(p))}
+                          className={`flex w-[128px] shrink-0 flex-col overflow-hidden rounded-2xl border text-left transition ${
+                            active
+                              ? 'border-emerald-500 ring-2 ring-emerald-200'
+                              : 'border-gray-200 hover:border-gray-300'
+                          } bg-white`}
+                          aria-label={`${p.name || baseName} ${packLabel}`}
+                        >
+                          <div className="relative h-[86px] w-full bg-gray-50">
+                            <ProductImageWithFallback
+                              src={img}
+                              alt={p.name || ''}
+                              fill
+                              className="object-cover object-center"
+                              sizes="128px"
+                            />
+                          </div>
+                          <div className="px-3 py-2.5">
+                            <p className="text-[14px] font-extrabold text-gray-900 leading-tight line-clamp-1">
+                              {packLabel || 'Pack'}
+                            </p>
+                            <div className="mt-1.5">
+                              <span className="inline-flex items-center rounded-full bg-green-600 px-2.5 py-1 text-[12px] font-extrabold text-white shadow-sm tabular-nums">
+                                ₹{formatRupeeINR(priceValue)}
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <Divider />
+              </>
+            ) : null}
 
             {descriptionText ? (
               <>

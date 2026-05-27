@@ -1,4 +1,7 @@
-import { clearAllClientSessionData } from './clearClientSession';
+import {
+  expireAuthSessionAndRedirect,
+  shouldSkipSessionExpiryForApiPath,
+} from './authSessionExpiry';
 
 /**
  * API client for multi-tenant backend.
@@ -116,7 +119,7 @@ async function autoRefreshAccessToken() {
       });
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
-          clearAllClientSessionData();
+          expireAuthSessionAndRedirect();
         } else if (res.status === 404) {
           // eslint-disable-next-line no-console
           console.error(
@@ -316,6 +319,13 @@ export async function apiFetch(path, options = {}) {
     err.status = response.status;
     err.data = json;
     if (json?.error?.code) err.code = json.error.code;
+    if (
+      !omitAuthHeader &&
+      (response.status === 401 || response.status === 403) &&
+      !shouldSkipSessionExpiryForApiPath(path)
+    ) {
+      expireAuthSessionAndRedirect();
+    }
     throw err;
   }
 
@@ -421,6 +431,13 @@ export async function apiFetchRoot(path, options = {}) {
     err.status = response.status;
     err.data = json;
     if (json?.error?.code) err.code = json.error.code;
+    if (
+      !omitAuthHeader &&
+      (response.status === 401 || response.status === 403) &&
+      !shouldSkipSessionExpiryForApiPath(path)
+    ) {
+      expireAuthSessionAndRedirect();
+    }
     throw err;
   }
 

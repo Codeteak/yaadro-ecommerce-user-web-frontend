@@ -15,6 +15,10 @@ import {
 import { isUnauthorizedError, isTransientAuthError } from '../utils/authErrors';
 import { normalizeCustomer } from '../utils/authApi';
 import { clearAllClientSessionData } from '../utils/clearClientSession';
+import {
+  AUTH_SESSION_EXPIRED_EVENT,
+  expireAuthSessionAndRedirect,
+} from '../utils/authSessionExpiry';
 
 const AuthContext = createContext();
 
@@ -51,6 +55,26 @@ export function AuthProvider({ children }) {
     clearAllClientSessionData();
   }, []);
 
+  /** Clear session and send user to `/login` (token expired / 401 / refresh failed). */
+  const expireSession = useCallback(() => {
+    const hadSession = !!(user || token || refreshToken);
+    setUser(null);
+    setToken(null);
+    setRefreshToken(null);
+    expireAuthSessionAndRedirect({ hadSession });
+  }, [user, token, refreshToken]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onExpired = () => {
+      setUser(null);
+      setToken(null);
+      setRefreshToken(null);
+    };
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, onExpired);
+  }, []);
+
   const recoverSessionWithRefresh = useCallback(async () => {
     if (typeof window === 'undefined') return false;
     const storedRt = window.localStorage.getItem('refreshToken');
@@ -69,10 +93,10 @@ export function AuthProvider({ children }) {
       return true;
     } catch (error) {
       console.error('Session recovery via refresh failed:', error);
-      if (isUnauthorizedError(error)) logout();
+      if (isUnauthorizedError(error)) expireSession();
       return false;
     }
-  }, [logout]);
+  }, [expireSession]);
 
   const recoveryInFlightRef = useRef(false);
 
@@ -130,13 +154,13 @@ export function AuthProvider({ children }) {
         }
         if (cancelled) return;
         if (isClientSessionExpired()) {
-          logout();
+          expireSession();
         }
         return;
       }
 
       if (isClientSessionExpired()) {
-        logout();
+        expireSession();
         setAuthHydrated(true);
         return;
       }
@@ -155,7 +179,7 @@ export function AuthProvider({ children }) {
             }
           } catch (refreshErr) {
             console.error('Session refresh without access token failed:', refreshErr);
-            if (isUnauthorizedError(refreshErr)) logout();
+            if (isUnauthorizedError(refreshErr)) expireSession();
           } finally {
             if (!cancelled) {
               setIsLoadingUser(false);
@@ -216,10 +240,10 @@ export function AuthProvider({ children }) {
             }
           } catch (refreshErr) {
             console.error('Session refresh on load failed:', refreshErr);
-            if (isUnauthorizedError(refreshErr)) logout();
+            if (isUnauthorizedError(refreshErr)) expireSession();
           }
         } else if (unauthorized) {
-          logout();
+          expireSession();
         } else if (!isTransientAuthError(error) && savedUser) {
           try {
             setUser(JSON.parse(savedUser));
@@ -245,7 +269,7 @@ export function AuthProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [logout, recoverSessionWithRefresh]);
+  }, [expireSession, recoverSessionWithRefresh]);
 
   // When refresh session clock ends, try refresh before clearing auth (e.g. tab refocus).
   useEffect(() => {
@@ -253,7 +277,7 @@ export function AuthProvider({ children }) {
     const check = async () => {
       if (!isClientSessionExpired()) return;
       const recovered = await tryRecoverExpiredSession();
-      if (!recovered && isClientSessionExpired()) logout();
+      if (!recovered && isClientSessionExpired()) expireSession();
     };
     const onVisibility = () => {
       if (document.visibilityState === 'visible') check();
@@ -264,7 +288,7 @@ export function AuthProvider({ children }) {
       window.removeEventListener('focus', check);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [logout, tryRecoverExpiredSession]);
+  }, [expireSession, tryRecoverExpiredSession]);
 
   // Proactive refresh before 7-day access JWT expires (does not extend refresh session).
   useEffect(() => {
@@ -284,7 +308,7 @@ export function AuthProvider({ children }) {
         const newTokens = await refreshAccessToken(storedRt);
         if (cancelled) return;
         if (!newTokens?.token) {
-          logout();
+          expireSession();
           return;
         }
         setToken(newTokens.token);
@@ -297,7 +321,7 @@ export function AuthProvider({ children }) {
         }
       } catch (error) {
         console.error('Token refresh failed:', error);
-        if (!cancelled && isUnauthorizedError(error)) logout();
+        if (!cancelled && isUnauthorizedError(error)) expireSession();
       }
     }, delayMs);
 
@@ -305,7 +329,7 @@ export function AuthProvider({ children }) {
       cancelled = true;
       window.clearTimeout(id);
     };
-  }, [token, refreshToken, logout]);
+  }, [token, refreshToken, expireSession]);
 
   // Sync React state when the API client auto-refreshes the token on 401.
   useEffect(() => {

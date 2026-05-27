@@ -109,6 +109,8 @@ function normalizeStorefrontCartItemRaw(apiItem) {
     product_slug: apiItem.slug ?? apiItem.product_slug ?? apiItem.productSlug,
     title_snapshot: apiItem.title ?? apiItem.title_snapshot ?? apiItem.titleSnapshot ?? '',
     unit_label: apiItem.unit ?? apiItem.unit_label ?? apiItem.unitLabel ?? '',
+    unit_size:
+      apiItem.unit_size ?? apiItem.unit_size_snapshot ?? apiItem.unitSize ?? apiItem.unitSizeSnapshot,
     image_url: apiItem.image_url ?? apiItem.imageUrl ?? null,
     global_image_url: apiItem.global_image_url ?? apiItem.globalImageUrl ?? null,
     quantity: lineQty,
@@ -279,6 +281,11 @@ function transformCartItem(apiItem, product = null) {
     ...(nestedProduct && typeof nestedProduct === 'object' ? nestedProduct : {}),
     weight: nestedProduct?.weight ?? normalized.weight,
     unit: nestedProduct?.unit ?? normalized.unit ?? normalized.unit_label,
+    unit_size:
+      normalized.unit_size ??
+      normalized.unit_size_snapshot ??
+      nestedProduct?.unit_size ??
+      nestedProduct?.unitSize,
     unit_label: normalized.unit_label ?? normalized.unitLabel,
     name:
       nestedProduct?.name ||
@@ -347,6 +354,7 @@ function transformCartItem(apiItem, product = null) {
     name: nestedProduct?.name || normalized.title_snapshot || normalized.title || '',
     productSlug: normalized.product_slug ?? normalized.slug ?? normalized.productSlug ?? null,
     unitLabel: normalized.unit_label ?? normalized.unit ?? normalized.unitLabel ?? '',
+    unit_size: normalized.unit_size ?? normalized.unit_size_snapshot ?? null,
     image: primaryImage,
     images: imagesList,
     globalImageUrl: normalized.global_image_url ?? normalized.globalImageUrl ?? null,
@@ -356,6 +364,8 @@ function transformCartItem(apiItem, product = null) {
     inStock: nestedProduct?.inStock ?? true,
     unit: lineUnit,
     weight: lineWeight,
+    unitSize: lineWeight,
+    packLabel,
     sizeDisplay: (() => {
       if (packLabel) {
         if (isBundleReward) return `${packLabel} · Free`;
