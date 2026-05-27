@@ -93,7 +93,23 @@ Cloudflare will create or suggest DNS records. For proxied orange-cloud records,
 2. Use Pages-provided targets (or proxied CNAME to the Pages project).
 3. Wait for TLS to show **Active** on each custom domain.
 
-## 6) CI/CD workflows
+## 6) Checkout / delivery cookies (custom domain + API on another host)
+
+If the shop is on **`marketfresh.in`** but `NEXT_PUBLIC_API_BASE_URL` points to **`customer.yaadro.online`**, the browser treats API calls as **cross-site**. The backend sets an httpOnly `storefront_serviceability` cookie on `location/check`; checkout needs that cookie or it returns **403 SERVICE_AREA**.
+
+**Fix in this repo:**
+
+1. **`functions/api/[[path]].js`** — Cloudflare Pages proxies `https://<shop>/api/*` → `https://customer.yaadro.online/api/*` and rewrites `Set-Cookie` for the shop domain.
+2. **`utils/apiClient.js`** — When the page host ≠ API host, requests use same-origin `https://<shop>/api/...` (with `credentials: 'include'`).
+
+After deploy, verify in DevTools → Network:
+
+- `POST …/api/storefront/location/check` → **200**, `serviceable: true`
+- `POST …/api/storefront/checkout` → **201** (not 403), request includes `Cookie`
+
+Optional Pages env var: **`API_ORIGIN`** = `https://customer.yaadro.online` (defaults to that if unset).
+
+## 7) CI/CD workflows
 
 | Workflow | Trigger | Action |
 |----------|---------|--------|

@@ -48,12 +48,15 @@ function getEnvApiBase() {
   return `${trimmed}/api`;
 }
 
-/** Dev-only: route API through the Next server (/api proxy) so cookies are same-origin. */
+/**
+ * Route API through the shop origin (/api/…) when the configured API host differs.
+ * - Local dev: Next.js rewrite (next.config.js)
+ * - Production: Cloudflare Pages Function (functions/api/[[path]].js)
+ */
 function shouldUseSameOriginApiBase() {
   if (typeof window === 'undefined') return false;
   if (process.env.NEXT_PUBLIC_USE_SAME_ORIGIN_API === 'false') return false;
   if (process.env.NEXT_PUBLIC_USE_SAME_ORIGIN_API === 'true') return true;
-  if (process.env.NODE_ENV === 'production') return false;
 
   const host = window.location.hostname;
   if (host === 'localhost' || host === '127.0.0.1') return true;
