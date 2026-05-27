@@ -18,6 +18,7 @@ import { useCartQuery, cartKeys } from '../../hooks/useCart';
 import { couponKeys } from '../../hooks/useCoupons';
 import { addressKeys } from '../../hooks/useAddresses';
 import { checkDeliveryLocation } from '../../utils/storefrontLocationApi';
+import { getStorefrontCookieSiteWarning } from '../../utils/storefrontApiSite';
 import {
   readCheckoutDraft,
   writeCheckoutDraft,
@@ -747,14 +748,19 @@ export default function CheckoutPage() {
         cartItemCount: cartItems.length,
       }, err);
 
+      const apiCode = getApiErrorCode(err) || err?.code;
       const locationNotVerified =
         /location not verified/i.test(String(err?.message || '')) ||
-        getApiErrorCode(err) === 'LOCATION_NOT_VERIFIED';
+        apiCode === 'LOCATION_NOT_VERIFIED' ||
+        apiCode === 'SERVICE_AREA';
 
       if (isAddressNotServiceableError(err) || locationNotVerified) {
+        const crossSite = getStorefrontCookieSiteWarning();
         showAlert(
           locationNotVerified
-            ? 'Your delivery location could not be verified for this shop. Update the map pin on your address and try again.'
+            ? crossSite
+              ? `${crossSite} Also confirm the map pin on your delivery address is inside the delivery zone.`
+              : 'Your delivery location could not be verified for this shop. Update the map pin on your address and try again.'
             : 'Delivery is not available for this address. Please choose another address or update the map pin.',
           'Delivery not available',
           'warning'

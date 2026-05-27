@@ -36,6 +36,10 @@ function attachApiErrorCode(err) {
  * Endpoint: POST /storefront/checkout
  * Apply coupon: pass `couponCode` (trimmed, uppercased server-side).
  * Delivery pin: pass `lat` / `lng` from the selected address (not device GPS).
+ *
+ * Production checkout also requires the httpOnly `storefront_serviceability` cookie
+ * set by POST /storefront/location/check (`serviceable: true`). apiFetchRoot sends
+ * `credentials: 'include'` for all /storefront/* calls so that cookie is stored and sent.
  */
 export async function placeStorefrontOrder({
   notes,
@@ -67,6 +71,9 @@ export async function placeStorefrontOrder({
     hasNotes: Boolean(notes && String(notes).trim()),
   };
 
+  // Cart first so nothing runs between location/check (cookie) and checkout.
+  await ensureCartExists(shopId);
+
   let delivery;
   try {
     delivery = await checkDeliveryLocation(latNum, lngNum);
@@ -91,8 +98,6 @@ export async function placeStorefrontOrder({
     logCheckoutFailure('location-not-serviceable', { ...checkoutContext, delivery }, err);
     throw err;
   }
-
-  await ensureCartExists(shopId);
 
   const body = { lat: latNum, lng: lngNum };
   if (notes) body.notes = notes;
@@ -124,6 +129,7 @@ export async function placeStorefrontOrder({
   try {
     res = await apiFetchRoot('/storefront/checkout', {
       method: 'POST',
+      credentials: 'include',
       headers,
       omitTenantHeader: true,
       body,

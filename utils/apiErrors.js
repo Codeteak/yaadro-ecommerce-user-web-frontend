@@ -22,6 +22,8 @@ const CHECKOUT_ERROR_MESSAGES = {
   ADDRESS_NOT_SERVICEABLE: 'Delivery is not available for this address.',
   LOCATION_NOT_VERIFIED:
     'Your delivery location could not be verified. Update the map pin on your address and try again.',
+  SERVICE_AREA:
+    'Delivery is not available for this address, or your location was not verified. Update the map pin and try again.',
 };
 
 /**

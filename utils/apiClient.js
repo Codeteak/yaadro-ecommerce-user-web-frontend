@@ -37,19 +37,41 @@ function sendClientApiLogToServer(payload) {
   // Static Cloudflare Pages deploy has no Next.js API routes, so browser-side API logs stay in console only.
 }
 
-function getConfiguredBaseUrl() {
+function getEnvApiBase() {
   const base =
     process.env.NEXT_PUBLIC_API_BASE_URL ||
     (process.env.NEXT_PUBLIC_API_URL ? String(process.env.NEXT_PUBLIC_API_URL) : '') ||
     FALLBACK_BASE_URL;
 
   const trimmed = String(base).trim().replace(/\/+$/, '');
-
-  // Normalize so the API base always includes `/api` exactly once.
-  // - If env already ends with `/api`, keep it.
-  // - If env is an origin (e.g. https://example.com), append `/api`.
   if (trimmed.toLowerCase().endsWith('/api')) return trimmed;
   return `${trimmed}/api`;
+}
+
+/** Dev-only: route API through the Next server (/api proxy) so cookies are same-origin. */
+function shouldUseSameOriginApiBase() {
+  if (typeof window === 'undefined') return false;
+  if (process.env.NEXT_PUBLIC_USE_SAME_ORIGIN_API === 'false') return false;
+  if (process.env.NEXT_PUBLIC_USE_SAME_ORIGIN_API === 'true') return true;
+  if (process.env.NODE_ENV === 'production') return false;
+
+  const host = window.location.hostname;
+  if (host === 'localhost' || host === '127.0.0.1') return true;
+
+  try {
+    const apiHost = new URL(getEnvApiBase()).hostname;
+    return host !== apiHost;
+  } catch {
+    return false;
+  }
+}
+
+function getConfiguredBaseUrl() {
+  if (shouldUseSameOriginApiBase()) {
+    return `${window.location.origin}/api`;
+  }
+
+  return getEnvApiBase();
 }
 
 /** API origin (host) without `/api` (useful for non-API static assets). */
@@ -75,6 +97,19 @@ function resolveErrorMessage(json, response) {
   if (json.error && typeof json.error === 'object' && json.error.message) return json.error.message;
   if (typeof json.error === 'string') return json.error;
   return `Request failed (${response.status} ${response.statusText})`;
+}
+
+/** Storefront routes set/read the httpOnly `storefront_serviceability` cookie (location check → checkout). */
+function storefrontPathNeedsCookies(path) {
+  const p = String(path || '').split('?')[0];
+  return p.includes('/storefront/');
+}
+
+function resolveFetchCredentials(path, explicitCredentials) {
+  if (explicitCredentials !== undefined) return explicitCredentials;
+  if (!isBrowser()) return undefined;
+  if (storefrontPathNeedsCookies(path)) return 'include';
+  return undefined;
 }
 
 function isBrowser() {
@@ -279,14 +314,16 @@ export async function apiFetch(path, options = {}) {
     finalHeaders.set('Accept', 'application/json');
   }
 
+  const resolvedCredentials = resolveFetchCredentials(path, credentials);
+
   const fetchOpts = {
     method,
     headers: finalHeaders,
     body: hasBody && !isFormData && typeof body !== 'string' ? JSON.stringify(body) : body,
     ...rest,
   };
-  if (credentials !== undefined) {
-    fetchOpts.credentials = credentials;
+  if (resolvedCredentials !== undefined) {
+    fetchOpts.credentials = resolvedCredentials;
   }
 
   const url = toUrl(path, query);
@@ -401,14 +438,16 @@ export async function apiFetchRoot(path, options = {}) {
     finalHeaders.set('Accept', 'application/json');
   }
 
+  const resolvedCredentials = resolveFetchCredentials(path, credentials);
+
   const fetchOpts = {
     method,
     headers: finalHeaders,
     body: hasBody && !isFormData && typeof body !== 'string' ? JSON.stringify(body) : body,
     ...rest,
   };
-  if (credentials !== undefined) {
-    fetchOpts.credentials = credentials;
+  if (resolvedCredentials !== undefined) {
+    fetchOpts.credentials = resolvedCredentials;
   }
 
   const url = toUrl(path, query);
@@ -446,6 +485,7 @@ export async function apiFetchRoot(path, options = {}) {
     err.status = response.status;
     err.data = json;
     if (json?.error?.code) err.code = json.error.code;
+
     if (
       !omitAuthHeader &&
       shouldInvalidateSessionOnApiError({

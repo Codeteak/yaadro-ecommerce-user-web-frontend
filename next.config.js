@@ -1,10 +1,25 @@
 /** @type {import('next').NextConfig} */
 const isProduction = process.env.NODE_ENV === 'production';
+const apiProxyTarget = (
+  process.env.API_PROXY_TARGET ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'https://customer.yaadro.online'
+).replace(/\/+$/, '');
 
 const nextConfig = {
   reactStrictMode: true,
   // Keep static export for production deployments, but allow dynamic routes in local dev.
   output: isProduction ? 'export' : undefined,
+  // Dev-only: proxy /api/* to the real backend so serviceability cookies are same-origin.
+  async rewrites() {
+    if (isProduction) return [];
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${apiProxyTarget}/api/:path*`,
+      },
+    ];
+  },
   // Clean URLs (`/cart`, `/product`, etc.) export as `/cart/index.html`, `/product/index.html`.
   // Cloudflare Pages serves directory indexes; `public/_redirects` handles SPA deep links.
   trailingSlash: true,

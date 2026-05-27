@@ -650,6 +650,9 @@ export default function AddAddressPage() {
       let createdId = null;
       if (isEdit && editingAddress?.id) {
         await updateAddress(editingAddress.id, payload);
+        if (payload.lat != null && payload.lng != null) {
+          await checkDeliveryLocation(payload.lat, payload.lng);
+        }
         createdId = editingAddress.id;
         setAddressSuccess({
           createdId,
@@ -658,6 +661,9 @@ export default function AddAddressPage() {
         });
       } else {
         const created = await addAddress(payload);
+        if (payload.lat != null && payload.lng != null) {
+          await checkDeliveryLocation(payload.lat, payload.lng);
+        }
         createdId = created?.id || null;
         setAddressSuccess({
           createdId,
