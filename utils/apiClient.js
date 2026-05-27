@@ -1,3 +1,5 @@
+import { clearAllClientSessionData } from './clearClientSession';
+
 /**
  * API client for multi-tenant backend.
  *
@@ -88,9 +90,14 @@ export function onTokenAutoRefreshed(cb) {
   };
 }
 
+function isAuthRefreshRequestPath(path) {
+  const normalized = String(path || '').replace(/^\//, '');
+  return normalized === 'auth/refresh' || normalized.startsWith('auth/refresh?');
+}
+
 /**
  * Transparently refresh the access token when a 401 is received.
- * Deduplicates concurrent refresh attempts so only one POST /auth/refresh-token flies at a time.
+ * Deduplicates concurrent refresh attempts so only one POST /api/auth/refresh flies at a time.
  * Returns the new access token or null on failure.
  */
 async function autoRefreshAccessToken() {
@@ -102,12 +109,22 @@ async function autoRefreshAccessToken() {
     if (!rt) return null;
     try {
       const base = getConfiguredBaseUrl();
-      const res = await fetch(`${base}/auth/refresh-token`, {
+      const res = await fetch(`${base}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ refreshToken: rt }),
       });
-      if (!res.ok) return null;
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          clearAllClientSessionData();
+        } else if (res.status === 404) {
+          // eslint-disable-next-line no-console
+          console.error(
+            '[auth] POST /api/auth/refresh returned 404 — wrong refresh path (use /auth/refresh, not /auth/refresh-token)'
+          );
+        }
+        return null;
+      }
       const json = await res.json();
       const layer = json?.data && typeof json.data === 'object' ? json.data : json;
       const newToken = layer?.accessToken || layer?.token || json?.accessToken || json?.token || null;
@@ -278,7 +295,7 @@ export async function apiFetch(path, options = {}) {
     response.status === 401 &&
     !omitAuthHeader &&
     isBrowser() &&
-    !path.includes('/auth/refresh') &&
+    !isAuthRefreshRequestPath(path) &&
     !path.includes('/auth/otp')
   ) {
     const newToken = await autoRefreshAccessToken();
@@ -383,7 +400,7 @@ export async function apiFetchRoot(path, options = {}) {
     response.status === 401 &&
     !omitAuthHeader &&
     isBrowser() &&
-    !path.includes('/auth/refresh') &&
+    !isAuthRefreshRequestPath(path) &&
     !path.includes('/auth/otp')
   ) {
     const newToken = await autoRefreshAccessToken();

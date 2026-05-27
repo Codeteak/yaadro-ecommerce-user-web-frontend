@@ -514,7 +514,7 @@ export async function changePassword(passwordData) {
  * @returns {Promise<{token: string, refreshToken: string}>}
  */
 /**
- * Normalize refresh-token endpoint payload (login-style `accessToken`, wrapped `data`, etc.).
+ * Normalize POST /api/auth/refresh payload (`accessToken`, `refreshToken`, optional `data` envelope).
  * @param {object} response — already unwrapped `data` when API uses `{ status, data }`
  */
 function normalizeRefreshResponse(response, previousRefreshToken) {
@@ -541,7 +541,10 @@ function normalizeRefreshResponse(response, previousRefreshToken) {
 
 export async function refreshAccessToken(refreshToken) {
   try {
-    const response = await api.post('/auth/refresh-token', { refreshToken });
+    const response = await api.post('/auth/refresh', { refreshToken }, {
+      omitAuthHeader: true,
+      omitTenantHeader: true,
+    });
     return normalizeRefreshResponse(response, refreshToken);
   } catch (error) {
     console.error('Error refreshing token:', error);
