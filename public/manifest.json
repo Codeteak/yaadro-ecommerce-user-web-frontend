@@ -1,23 +1,23 @@
 {
-  "name": "Yaadro Ecommerce",
-  "short_name": "Yaadro",
-  "description": "Professional supermarket ecommerce platform",
+  "name": "MARKET FRESH – Online Grocery",
+  "short_name": "Market Fresh",
+  "description": "Order groceries online from MARKET FRESH.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#FF8D21",
+  "theme_color": "#16a34a",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/images/dummy.png",
+      "src": "https://media.yaadro.online/shops/52299f14-e9db-4ffe-8cda-1b93fb9d081c/a21594a2b7cfd98a20b99881927e1a094c473bc6de4f1096126efe6873258cb4.jpg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     },
     {
-      "src": "/images/dummy.png",
+      "src": "https://media.yaadro.online/shops/52299f14-e9db-4ffe-8cda-1b93fb9d081c/a21594a2b7cfd98a20b99881927e1a094c473bc6de4f1096126efe6873258cb4.jpg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     }
   ]
