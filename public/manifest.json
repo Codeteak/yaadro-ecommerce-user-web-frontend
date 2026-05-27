@@ -1,7 +1,7 @@
 {
-  "name": "MARKET FRESH – Online Grocery",
-  "short_name": "Market Fresh",
-  "description": "Order groceries online from MARKET FRESH.",
+  "name": "Online Grocery",
+  "short_name": "Grocery",
+  "description": "Order groceries online from your local store.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -9,15 +9,15 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "https://media.yaadro.online/shops/52299f14-e9db-4ffe-8cda-1b93fb9d081c/a21594a2b7cfd98a20b99881927e1a094c473bc6de4f1096126efe6873258cb4.jpg",
+      "src": "/images/dummy.png",
       "sizes": "192x192",
-      "type": "image/jpeg",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "https://media.yaadro.online/shops/52299f14-e9db-4ffe-8cda-1b93fb9d081c/a21594a2b7cfd98a20b99881927e1a094c473bc6de4f1096126efe6873258cb4.jpg",
+      "src": "/images/dummy.png",
       "sizes": "512x512",
-      "type": "image/jpeg",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

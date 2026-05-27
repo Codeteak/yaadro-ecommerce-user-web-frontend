@@ -109,6 +109,23 @@ After deploy, verify in DevTools → Network:
 
 Optional Pages env var: **`API_ORIGIN`** = `https://customer.yaadro.online` (defaults to that if unset).
 
+## 6b) Per-tenant SEO (WhatsApp / link previews)
+
+Static export builds **one** `index.html` for all shops. Crawlers do **not** run React, so client-side `ShopBrandingContext` alone cannot fix WhatsApp previews.
+
+**Fix:** `functions/_middleware.js` runs on Cloudflare Pages for each HTML request:
+
+1. Reads `Host` (e.g. `marketfresh.in`, `testshop.yaadro.online`)
+2. `GET /api/shops/resolve-by-domain?domain=…` → shop `seo` (title, description, OG image)
+3. Product URLs (`/products/{slug}/`) also call `GET /api/seo/metadata?pageType=product&slug=…` with `x-shop-id`
+4. Rewrites `<title>`, `og:*`, `twitter:*`, and `canonical` in the HTML before sending the response
+
+`app/layout.js` only has **generic** build-time defaults; real branding comes from the API at the edge and in the browser after hydration.
+
+After deploy, refresh WhatsApp cache: [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/) → Scrape Again.
+
+Response header `x-tenant-seo: 1` means middleware applied tenant tags.
+
 ## 7) CI/CD workflows
 
 | Workflow | Trigger | Action |
