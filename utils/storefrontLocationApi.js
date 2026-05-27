@@ -28,7 +28,9 @@ export async function checkDeliveryLocation(lat, lng) {
   const data = raw && typeof raw === 'object' && 'serviceable' in raw ? raw : raw?.data || {};
   return {
     serviceable: !!data.serviceable,
-    distanceM: typeof data.distanceM === 'number' ? data.distanceM : null,
-    maxRadiusM: typeof data.maxRadiusM === 'number' ? data.maxRadiusM : null,
+    distanceM: typeof data.distanceM === 'number' ? data.distanceM : data.distance_m ?? null,
+    maxRadiusM: typeof data.maxRadiusM === 'number' ? data.maxRadiusM : data.max_radius_m ?? null,
+    /** Full API payload (for checkout debug logs). */
+    apiPayload: data && typeof data === 'object' ? data : {},
   };
 }

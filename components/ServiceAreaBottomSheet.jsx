@@ -20,7 +20,8 @@ export default function ServiceAreaBottomSheet() {
     geoDenied,
     errorMessage,
     showServiceAreaSheet,
-    setShowServiceAreaSheet,
+    closeServiceAreaSheet,
+    locationSourceLabel,
     recheckLocation,
   } = useLocationService();
 
@@ -33,7 +34,7 @@ export default function ServiceAreaBottomSheet() {
 
   if (!showServiceAreaSheet) return null;
 
-  const onClose = () => setShowServiceAreaSheet(false);
+  const onClose = () => closeServiceAreaSheet();
 
   return (
     <>
@@ -63,6 +64,7 @@ export default function ServiceAreaBottomSheet() {
           geoDenied={geoDenied}
           errorMessage={errorMessage}
           recheckLocation={recheckLocation}
+          locationSourceLabel={locationSourceLabel}
         />
       </div>
 
@@ -81,6 +83,7 @@ export default function ServiceAreaBottomSheet() {
             geoDenied={geoDenied}
             errorMessage={errorMessage}
             recheckLocation={recheckLocation}
+            locationSourceLabel={locationSourceLabel}
           />
         </div>
       </div>
@@ -108,9 +111,19 @@ function SheetBody({
   geoDenied,
   errorMessage,
   recheckLocation,
+  locationSourceLabel,
 }) {
   const distLabel = formatKm(distanceM);
   const radiusLabel = formatKm(maxRadiusM);
+  const usesDeviceLocation = (locationSourceLabel || '').includes('current location');
+  const inZoneTitle = usesDeviceLocation ? 'We deliver to your area' : 'We deliver to this address';
+  const inZoneDetail = usesDeviceLocation
+    ? distLabel
+      ? `About ${distLabel} from the store.`
+      : 'Your location is inside our service zone.'
+    : distLabel
+      ? `The map pin is about ${distLabel} from the store.`
+      : 'This map pin is inside our service zone.';
 
   return (
     <div className="px-5 pb-8 pt-2 max-h-[85vh] overflow-y-auto">
@@ -121,7 +134,9 @@ function SheetBody({
           </div>
           <div className="min-w-0">
             <h2 className="text-lg font-bold text-gray-900 leading-tight">Delivery area</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Based on your current location</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Based on {locationSourceLabel || 'your current location'}
+            </p>
           </div>
         </div>
         <button
@@ -168,10 +183,8 @@ function SheetBody({
           <div className="flex gap-3">
             <CheckCircle2 className="w-6 h-6 text-emerald-600 flex-shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-gray-900">We deliver to your area</p>
-              <p className="text-sm text-gray-600 mt-1">
-                {distLabel ? `About ${distLabel} from the store.` : 'Your location is inside our service zone.'}
-              </p>
+              <p className="text-sm font-semibold text-gray-900">{inZoneTitle}</p>
+              <p className="text-sm text-gray-600 mt-1">{inZoneDetail}</p>
             </div>
           </div>
         </div>
@@ -185,8 +198,8 @@ function SheetBody({
               <p className="text-sm font-semibold text-gray-900">Outside delivery zone</p>
               <p className="text-sm text-gray-600 mt-1">
                 {distLabel && radiusLabel
-                  ? `You are about ${distLabel} away; we currently deliver within about ${radiusLabel}.`
-                  : 'Your current location is outside our delivery area. You can still browse the store.'}
+                  ? `This map pin is about ${distLabel} away; we currently deliver within about ${radiusLabel}.`
+                  : 'This delivery address is outside our delivery area. Update the map pin or choose another address.'}
               </p>
             </div>
           </div>

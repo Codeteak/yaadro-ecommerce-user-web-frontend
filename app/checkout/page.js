@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
@@ -13,9 +13,11 @@ import ProductImageWithFallback from '../../components/ProductImageWithFallback'
 import { useProducts } from '../../hooks/useProducts';
 import { placeStorefrontOrder } from '../../utils/storefrontCheckoutApi';
 import { getApiErrorCode, getCheckoutErrorMessage } from '../../utils/apiErrors';
+import { logCheckoutFailure } from '../../utils/checkoutDebugLog';
 import { useCartQuery, cartKeys } from '../../hooks/useCart';
 import { couponKeys } from '../../hooks/useCoupons';
 import { addressKeys } from '../../hooks/useAddresses';
+import { checkDeliveryLocation } from '../../utils/storefrontLocationApi';
 import {
   readCheckoutDraft,
   writeCheckoutDraft,
@@ -34,6 +36,11 @@ import IndianPhoneInput from '../../components/IndianPhoneInput';
 import { useUpdateProfile } from '../../hooks/useAuth';
 import { useLocationService } from '../../context/LocationServiceContext';
 import ConfirmModal from '../../components/ConfirmModal';
+
+function isAddressNotServiceableError(err) {
+  const code = getApiErrorCode(err) || err?.code;
+  return code === 'ADDRESS_NOT_SERVICEABLE';
+}
 
 /* ─────────────────────────────────────────────
    Small helpers
@@ -64,32 +71,6 @@ function hasUserPhone(user) {
 
 function isValidPhoneInput(value) {
   return isValidIndianMobile(value);
-}
-
-function hasValidCoordinates(address) {
-  const lat = Number(address?.lat);
-  const lng = Number(address?.lng);
-  return Number.isFinite(lat) && Number.isFinite(lng);
-}
-
-function getLiveCoordinates() {
-  return new Promise((resolve, reject) => {
-    if (typeof window === 'undefined' || !navigator?.geolocation) {
-      reject(new Error('Location is not supported in this browser.'));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      (err) => {
-        if (err?.code === 1) {
-          reject(new Error('Please allow location access to place this order.'));
-          return;
-        }
-        reject(new Error(err?.message || 'Could not read your location.'));
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
-    );
-  });
 }
 
 /* ─────────────────────────────────────────────
@@ -449,11 +430,7 @@ export default function CheckoutPage() {
   const { goToLogin } = useLoginNavigation();
   const { showAlert } = useAlert();
   const updateProfileMutation = useUpdateProfile();
-  const {
-    isChecking: isDeliveryChecking,
-    serviceable: isDeliveryServiceable,
-    setShowServiceAreaSheet,
-  } = useLocationService();
+  const { openServiceAreaSheet } = useLocationService();
 
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [notes, setNotes] = useState('');
@@ -466,6 +443,41 @@ export default function CheckoutPage() {
   const [showPriceVaryConfirm, setShowPriceVaryConfirm] = useState(false);
   const [selectedCouponCode, setSelectedCouponCode] = useState('');
   const [checkoutDraftHydrated, setCheckoutDraftHydrated] = useState(false);
+
+  const selectedAddress = useMemo(() => {
+    if (!selectedAddressId) return null;
+    return addresses.find((a) => String(a.id) === String(selectedAddressId)) || null;
+  }, [addresses, selectedAddressId]);
+
+  const selectedAddressCoords = useMemo(() => {
+    const lat = Number(selectedAddress?.lat);
+    const lng = Number(selectedAddress?.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return { lat, lng };
+  }, [selectedAddress?.lat, selectedAddress?.lng]);
+
+  const verifySelectedAddressServiceability = useCallback(async () => {
+    if (!selectedAddressCoords) return false;
+    try {
+      const r = await checkDeliveryLocation(selectedAddressCoords.lat, selectedAddressCoords.lng);
+      return r?.serviceable === true;
+    } catch {
+      return false;
+    }
+  }, [selectedAddressCoords]);
+
+  const showDeliveryAreaForSelectedAddress = useCallback(() => {
+    if (selectedAddressCoords) {
+      openServiceAreaSheet({
+        lat: selectedAddressCoords.lat,
+        lng: selectedAddressCoords.lng,
+        addressId: selectedAddressId,
+        label: 'your delivery address pin',
+      });
+      return;
+    }
+    openServiceAreaSheet();
+  }, [openServiceAreaSheet, selectedAddressCoords, selectedAddressId]);
 
   const { data: cartApiData, isFetching: cartPreviewFetching } = useCartQuery({
     enabled: !!isAuthenticated,
@@ -689,9 +701,20 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
+      // Backend requires a serviceable verification for the delivery pin.
+      // `useLocationService()` checks the default address; checkout may use a different selected address.
+      if (!selectedAddressId || !selectedAddressCoords) {
+        showAlert('Please select a delivery address with a map pin.', 'Delivery address', 'warning');
+        showDeliveryAreaForSelectedAddress();
+        setIsSubmitting(false);
+        return;
+      }
       const orderResponse = await placeStorefrontOrder({
         notes: notes.trim() || undefined,
         couponCode: selectedCouponCode.trim() || undefined,
+        lat: selectedAddressCoords.lat,
+        lng: selectedAddressCoords.lng,
+        addressId: selectedAddressId,
       });
 
       if (!orderResponse?.orderId) throw new Error('Failed to create order');
@@ -707,10 +730,52 @@ export default function CheckoutPage() {
         )}&payment=cod`
       );
     } catch (err) {
-      console.error('Checkout error:', err);
+      logCheckoutFailure('executePlaceOrder', {
+        selectedAddressId,
+        selectedAddressCoords,
+        selectedAddress: selectedAddress
+          ? {
+              id: selectedAddress.id,
+              label: selectedAddress.label,
+              city: selectedAddress.city,
+              lat: selectedAddress.lat,
+              lng: selectedAddress.lng,
+              postalCode: selectedAddress.postalCode,
+            }
+          : null,
+        couponCode: selectedCouponCode || null,
+        cartItemCount: cartItems.length,
+      }, err);
+
+      const locationNotVerified =
+        /location not verified/i.test(String(err?.message || '')) ||
+        getApiErrorCode(err) === 'LOCATION_NOT_VERIFIED';
+
+      if (isAddressNotServiceableError(err) || locationNotVerified) {
+        showAlert(
+          locationNotVerified
+            ? 'Your delivery location could not be verified for this shop. Update the map pin on your address and try again.'
+            : 'Delivery is not available for this address. Please choose another address or update the map pin.',
+          'Delivery not available',
+          'warning'
+        );
+        showDeliveryAreaForSelectedAddress();
+        setIsSubmitting(false);
+        return;
+      }
       if (/phone number is required before checkout/i.test(String(err?.message || ''))) {
         setPhoneDraft(String(user?.phone || phoneOverride || '').trim());
         setShowPhoneSheet(true);
+        setIsSubmitting(false);
+        return;
+      }
+      if (err?.status === 401) {
+        showAlert(
+          'Your session expired. Please sign in again to place your order.',
+          'Sign in required',
+          'warning'
+        );
+        goToLogin('/checkout');
         setIsSubmitting(false);
         return;
       }
@@ -750,13 +815,20 @@ export default function CheckoutPage() {
       showAlert('Your cart is empty.', 'Empty Cart', 'warning');
       return;
     }
-    if (isDeliveryServiceable !== true) {
+    if (!selectedAddressId || !selectedAddressCoords) {
+      showAlert('Please select a delivery address with a map pin.', 'Delivery address', 'warning');
+      return;
+    }
+    // Use backend-consistent verification for the selected delivery address pin.
+    // This avoids a mismatch where cached/default-address checks pass but the selected address isn't serviceable.
+    const pinOk = await verifySelectedAddressServiceability();
+    if (!pinOk) {
       showAlert(
-        'We can only take orders when delivery is available for your location. Check your area or change address, then try again.',
+        'Delivery is not available for this address. Please choose another address or update the map pin.',
         'Delivery not available',
         'warning'
       );
-      setShowServiceAreaSheet(true);
+      showDeliveryAreaForSelectedAddress();
       return;
     }
     if (!hasUserPhone(user) && !phoneOverride) {
@@ -1023,24 +1095,21 @@ export default function CheckoutPage() {
               }
               return;
             }
-            if (isDeliveryChecking) {
+            if (!selectedAddressCoords) {
               e.preventDefault();
-              return;
-            }
-            if (isDeliveryServiceable !== true) {
-              e.preventDefault();
-              setShowServiceAreaSheet(true);
+              showAlert('Please set a map pin on your delivery address.', 'Delivery address', 'warning');
+              goToAddAddress(selectedAddressId);
               return;
             }
             handleSubmit(e);
           }}
-          disabled={isSubmitting || showPriceVaryConfirm || (!!selectedAddressId && isDeliveryChecking)}
+          disabled={isSubmitting || showPriceVaryConfirm}
           className={`w-full h-12 rounded-full text-sm font-medium flex items-center justify-center gap-2 transition active:scale-[0.98] ${
-            isSubmitting || showPriceVaryConfirm || (!!selectedAddressId && isDeliveryChecking)
+            isSubmitting || showPriceVaryConfirm
               ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
               : !selectedAddressId
                 ? 'bg-amber-500 text-white hover:bg-amber-600'
-                : isDeliveryServiceable !== true
+                : !selectedAddressCoords
                   ? 'bg-amber-500 text-white hover:bg-amber-600'
                   : 'bg-emerald-600 text-white hover:bg-emerald-700'
           }`}
@@ -1058,18 +1127,13 @@ export default function CheckoutPage() {
               </svg>
               Select address
             </>
-          ) : isDeliveryChecking ? (
-            <>
-              <div className="w-4 h-4 rounded-full border-2 border-gray-400/40 border-t-gray-600 animate-spin" />
-              Checking delivery…
-            </>
-          ) : isDeliveryServiceable !== true ? (
+          ) : !selectedAddressCoords ? (
             <>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              Check delivery area to continue
+              Set map pin on address
             </>
           ) : (
             <>

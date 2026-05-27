@@ -21,6 +21,45 @@ import { getIndianPhoneSubmitError } from '../utils/indianPhone';
 const fieldClass =
   'h-[52px] w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-[16px] text-gray-900 transition placeholder:text-gray-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20';
 
+const OTP_RATE_LIMIT_COOLDOWN_SEC = 5 * 60;
+
+function otpRateLimitStorageKey({ shopId, phone }) {
+  const s = String(shopId || '').trim() || 'unknown-shop';
+  const p = String(phone || '').trim() || 'unknown-phone';
+  return `yaadro_otp_rate_limit_until_v1:${s}:${p}`;
+}
+
+function readOtpRateLimitUntilMs({ shopId, phone }) {
+  if (typeof window === 'undefined') return 0;
+  try {
+    const raw = window.localStorage.getItem(otpRateLimitStorageKey({ shopId, phone }));
+    const ms = raw ? Number(raw) : 0;
+    return Number.isFinite(ms) ? ms : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeOtpRateLimitUntilMs({ shopId, phone, untilMs }) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (!untilMs) {
+      window.localStorage.removeItem(otpRateLimitStorageKey({ shopId, phone }));
+      return;
+    }
+    window.localStorage.setItem(otpRateLimitStorageKey({ shopId, phone }), String(untilMs));
+  } catch {
+    /* ignore */
+  }
+}
+
+function isTooManyOtpRequestsError(err) {
+  const status = err?.status;
+  if (status === 429) return true;
+  const msg = String(err?.message || '').toLowerCase();
+  return msg.includes('too many') || msg.includes('rate limit') || msg.includes('try again later');
+}
+
 function ErrorBox({ message }) {
   if (!message) return null;
   return (
@@ -81,7 +120,7 @@ function SecondaryButton({ children, disabled, onClick }) {
   );
 }
 
-function PhoneStep({ phone, setPhone, onSubmit, isSubmitting, inputRef }) {
+function PhoneStep({ phone, setPhone, onSubmit, isSubmitting, inputRef, otpCooldownSecondsLeft = 0 }) {
   const handlePhoneKeyDown = (e) => {
     if (e.key !== 'Enter' && e.key !== 'NumpadEnter') return;
     if (isSubmitting) return;
@@ -110,8 +149,14 @@ function PhoneStep({ phone, setPhone, onSubmit, isSubmitting, inputRef }) {
         className="mb-6"
         inputClassName={fieldClass}
       />
-      <PrimaryButton type="submit" loading={isSubmitting} loadingText="Sending…" variant="purple">
-        Send OTP
+      <PrimaryButton
+        type="submit"
+        loading={isSubmitting}
+        loadingText="Sending…"
+        disabled={otpCooldownSecondsLeft > 0}
+        variant="purple"
+      >
+        {otpCooldownSecondsLeft > 0 ? `Send OTP in ${otpCooldownSecondsLeft}s` : 'Send OTP'}
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
@@ -130,8 +175,9 @@ function OtpStep({
   isSubmitting,
   inputRef,
   resendSecondsLeft = 0,
+  otpCooldownSecondsLeft = 0,
 }) {
-  const resendDisabled = isSubmitting || resendSecondsLeft > 0;
+  const resendDisabled = isSubmitting || resendSecondsLeft > 0 || otpCooldownSecondsLeft > 0;
   return (
     <form onSubmit={onSubmit} className="space-y-0">
       <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-800">
@@ -181,7 +227,11 @@ function OtpStep({
           Verify &amp; continue
         </PrimaryButton>
         <SecondaryButton onClick={onResend} disabled={resendDisabled}>
-          {resendSecondsLeft > 0 ? `Resend OTP in ${resendSecondsLeft}s` : 'Resend OTP'}
+          {otpCooldownSecondsLeft > 0
+            ? `Resend OTP in ${otpCooldownSecondsLeft}s`
+            : resendSecondsLeft > 0
+              ? `Resend OTP in ${resendSecondsLeft}s`
+              : 'Resend OTP'}
         </SecondaryButton>
       </div>
     </form>
@@ -202,6 +252,7 @@ export default function LoginPanel({ className = '' }) {
 
   const [shopId, setShopId] = useState('');
   const [resendSecondsLeft, setResendSecondsLeft] = useState(0);
+  const [otpCooldownSecondsLeft, setOtpCooldownSecondsLeft] = useState(0);
 
   const OTP_RESEND_COOLDOWN_SEC = 30;
 
@@ -212,6 +263,23 @@ export default function LoginPanel({ className = '' }) {
     }, 1000);
     return () => clearInterval(t);
   }, [resendSecondsLeft]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const nextPhone = normalizePhoneForApi(phone);
+    const untilMs = readOtpRateLimitUntilMs({ shopId, phone: nextPhone });
+    const tick = () => {
+      const msLeft = untilMs - Date.now();
+      const secondsLeft = msLeft > 0 ? Math.ceil(msLeft / 1000) : 0;
+      setOtpCooldownSecondsLeft(secondsLeft);
+      if (secondsLeft <= 0) {
+        writeOtpRateLimitUntilMs({ shopId, phone: nextPhone, untilMs: 0 });
+      }
+    };
+    tick();
+    const t = window.setInterval(tick, 1000);
+    return () => window.clearInterval(t);
+  }, [shopId, phone]);
 
   useEffect(() => {
     let active = true;
@@ -277,12 +345,20 @@ export default function LoginPanel({ className = '' }) {
 
     setIsSubmitting(true);
     try {
+      if (otpCooldownSecondsLeft > 0) return;
       await requestOtp({ phone: nextPhone, shopId: resolvedShopId });
       setStep('otp');
       setResendSecondsLeft(OTP_RESEND_COOLDOWN_SEC);
+      writeOtpRateLimitUntilMs({ shopId: resolvedShopId, phone: nextPhone, untilMs: 0 });
     } catch (err) {
       cancelWebOtp();
-      setError(err?.message || 'Something went wrong. Please try again.');
+      if (isTooManyOtpRequestsError(err)) {
+        const untilMs = Date.now() + OTP_RATE_LIMIT_COOLDOWN_SEC * 1000;
+        writeOtpRateLimitUntilMs({ shopId: resolvedShopId, phone: nextPhone, untilMs });
+        setError('Too many OTP requests. Please wait 5 minutes and try again.');
+      } else {
+        setError(err?.message || 'Something went wrong. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -344,7 +420,7 @@ export default function LoginPanel({ className = '' }) {
   };
 
   const handleResend = async () => {
-    if (resendSecondsLeft > 0 || isSubmitting) return;
+    if (resendSecondsLeft > 0 || otpCooldownSecondsLeft > 0 || isSubmitting) return;
     clearError();
     const resolvedShopId = await ensureShopId();
     if (!resolvedShopId) return;
@@ -362,9 +438,16 @@ export default function LoginPanel({ className = '' }) {
     try {
       await requestOtp({ phone: nextPhone, shopId: resolvedShopId });
       setResendSecondsLeft(OTP_RESEND_COOLDOWN_SEC);
+      writeOtpRateLimitUntilMs({ shopId: resolvedShopId, phone: nextPhone, untilMs: 0 });
     } catch (err) {
       cancelWebOtp();
-      setError(err?.message || 'Could not resend OTP.');
+      if (isTooManyOtpRequestsError(err)) {
+        const untilMs = Date.now() + OTP_RATE_LIMIT_COOLDOWN_SEC * 1000;
+        writeOtpRateLimitUntilMs({ shopId: resolvedShopId, phone: nextPhone, untilMs });
+        setError('Too many OTP requests. Please wait 5 minutes and try again.');
+      } else {
+        setError(err?.message || 'Could not resend OTP.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -407,6 +490,7 @@ export default function LoginPanel({ className = '' }) {
           onSubmit={handleRequestOtp}
           isSubmitting={isSubmitting}
           inputRef={phoneInputRef}
+          otpCooldownSecondsLeft={otpCooldownSecondsLeft}
         />
       ) : (
         <OtpStep
@@ -428,6 +512,7 @@ export default function LoginPanel({ className = '' }) {
           isSubmitting={isSubmitting}
           inputRef={otpInputRef}
           resendSecondsLeft={resendSecondsLeft}
+          otpCooldownSecondsLeft={otpCooldownSecondsLeft}
         />
       )}
     </div>

@@ -1,6 +1,6 @@
 import {
-  expireAuthSessionAndRedirect,
-  shouldSkipSessionExpiryForApiPath,
+  notifyAuthSessionEnded,
+  shouldInvalidateSessionOnApiError,
 } from './authSessionExpiry';
 
 /**
@@ -119,7 +119,7 @@ async function autoRefreshAccessToken() {
       });
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
-          expireAuthSessionAndRedirect();
+          notifyAuthSessionEnded();
         } else if (res.status === 404) {
           // eslint-disable-next-line no-console
           console.error(
@@ -293,6 +293,9 @@ export async function apiFetch(path, options = {}) {
   let response = await fetch(url, fetchOpts);
   let json = await parseJsonSafe(response);
 
+  let refreshAttempted = false;
+  let refreshSucceeded = false;
+
   // Auto-retry once on 401 by refreshing the access token (skip auth-related endpoints).
   if (
     response.status === 401 &&
@@ -301,8 +304,10 @@ export async function apiFetch(path, options = {}) {
     !isAuthRefreshRequestPath(path) &&
     !path.includes('/auth/otp')
   ) {
+    refreshAttempted = true;
     const newToken = await autoRefreshAccessToken();
     if (newToken) {
+      refreshSucceeded = true;
       finalHeaders.set('Authorization', `Bearer ${newToken}`);
       fetchOpts.headers = finalHeaders;
       response = await fetch(url, fetchOpts);
@@ -321,10 +326,15 @@ export async function apiFetch(path, options = {}) {
     if (json?.error?.code) err.code = json.error.code;
     if (
       !omitAuthHeader &&
-      (response.status === 401 || response.status === 403) &&
-      !shouldSkipSessionExpiryForApiPath(path)
+      shouldInvalidateSessionOnApiError({
+        status: response.status,
+        path,
+        json,
+        refreshAttempted,
+        refreshSucceeded,
+      })
     ) {
-      expireAuthSessionAndRedirect();
+      notifyAuthSessionEnded();
     }
     throw err;
   }
@@ -405,6 +415,9 @@ export async function apiFetchRoot(path, options = {}) {
   let response = await fetch(url, fetchOpts);
   let json = await parseJsonSafe(response);
 
+  let refreshAttempted = false;
+  let refreshSucceeded = false;
+
   // Auto-retry once on 401 by refreshing the access token (skip auth-related endpoints).
   if (
     response.status === 401 &&
@@ -413,8 +426,10 @@ export async function apiFetchRoot(path, options = {}) {
     !isAuthRefreshRequestPath(path) &&
     !path.includes('/auth/otp')
   ) {
+    refreshAttempted = true;
     const newToken = await autoRefreshAccessToken();
     if (newToken) {
+      refreshSucceeded = true;
       finalHeaders.set('Authorization', `Bearer ${newToken}`);
       fetchOpts.headers = finalHeaders;
       response = await fetch(url, fetchOpts);
@@ -433,10 +448,15 @@ export async function apiFetchRoot(path, options = {}) {
     if (json?.error?.code) err.code = json.error.code;
     if (
       !omitAuthHeader &&
-      (response.status === 401 || response.status === 403) &&
-      !shouldSkipSessionExpiryForApiPath(path)
+      shouldInvalidateSessionOnApiError({
+        status: response.status,
+        path,
+        json,
+        refreshAttempted,
+        refreshSucceeded,
+      })
     ) {
-      expireAuthSessionAndRedirect();
+      notifyAuthSessionEnded();
     }
     throw err;
   }

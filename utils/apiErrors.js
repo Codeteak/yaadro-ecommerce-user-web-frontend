@@ -20,6 +20,8 @@ const CHECKOUT_ERROR_MESSAGES = {
   ADDRESS_REQUIRED: 'Please add a delivery address before checkout.',
   ADDRESS_COORDINATES_REQUIRED: 'Your delivery address needs a map pin. Please update the address.',
   ADDRESS_NOT_SERVICEABLE: 'Delivery is not available for this address.',
+  LOCATION_NOT_VERIFIED:
+    'Your delivery location could not be verified. Update the map pin on your address and try again.',
 };
 
 /**

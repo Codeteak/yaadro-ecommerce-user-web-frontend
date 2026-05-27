@@ -85,6 +85,14 @@ export function LocationServiceProvider({ children }) {
   const [errorMessage, setErrorMessage] = useState(null);
   const [showSheet, setShowSheet] = useState(false);
 
+  /** When set, the delivery-area sheet shows a one-off check for this pin (e.g. checkout address). */
+  const [sheetPin, setSheetPin] = useState(null);
+  const [sheetPhase, setSheetPhase] = useState('idle');
+  const [sheetServiceable, setSheetServiceable] = useState(null);
+  const [sheetDistanceM, setSheetDistanceM] = useState(null);
+  const [sheetMaxRadiusM, setSheetMaxRadiusM] = useState(null);
+  const [sheetErrorMessage, setSheetErrorMessage] = useState(null);
+
   const defaultAddress = useMemo(
     () => addresses.find((a) => a.isDefault) || addresses[0] || null,
     [addresses]
@@ -303,7 +311,69 @@ export function LocationServiceProvider({ children }) {
   }, [waitForAddresses, addressCheckCoords, runGpsCheck]);
 
   /** Force-refresh: clears cache and re-runs using saved pin if present, else GPS. */
+  const runSheetPinCheck = useCallback(async (pin) => {
+    const lat = Number(pin?.lat);
+    const lng = Number(pin?.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    setSheetPhase('fetching');
+    setSheetErrorMessage(null);
+    setSheetServiceable(null);
+    try {
+      const data = await checkDeliveryLocation(lat, lng);
+      setSheetServiceable(data.serviceable);
+      setSheetDistanceM(data.distanceM);
+      setSheetMaxRadiusM(data.maxRadiusM);
+      setSheetPhase('done');
+    } catch (e) {
+      setSheetPhase('done');
+      setSheetServiceable(null);
+      setSheetDistanceM(null);
+      setSheetMaxRadiusM(null);
+      setSheetErrorMessage(e?.message || 'Could not verify delivery area.');
+    }
+  }, []);
+
+  /**
+   * Open the delivery-area sheet. Pass `{ lat, lng, addressId?, label? }` to check a
+   * specific pin (checkout selected address) instead of GPS / default address.
+   */
+  const openServiceAreaSheet = useCallback(
+    (pinOptions) => {
+      const lat = Number(pinOptions?.lat);
+      const lng = Number(pinOptions?.lng);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        const pin = {
+          lat,
+          lng,
+          addressId: pinOptions?.addressId ?? null,
+          label: pinOptions?.label || 'your delivery address pin',
+        };
+        setSheetPin(pin);
+        setShowSheet(true);
+        void runSheetPinCheck(pin);
+        return;
+      }
+      setSheetPin(null);
+      setShowSheet(true);
+    },
+    [runSheetPinCheck]
+  );
+
+  const closeServiceAreaSheet = useCallback(() => {
+    setShowSheet(false);
+    setSheetPin(null);
+    setSheetPhase('idle');
+    setSheetServiceable(null);
+    setSheetDistanceM(null);
+    setSheetMaxRadiusM(null);
+    setSheetErrorMessage(null);
+  }, []);
+
   const recheckLocation = useCallback(() => {
+    if (sheetPin) {
+      return runSheetPinCheck(sheetPin);
+    }
     clearDeliveryCache();
     gpsLocationCheckInitStarted = false;
     if (addressCheckCoords) {
@@ -311,7 +381,14 @@ export function LocationServiceProvider({ children }) {
       return runCheckAtLatLng(addressCheckCoords.lat, addressCheckCoords.lng, defaultAddress?.id ?? null);
     }
     return runGpsCheck();
-  }, [addressCheckCoords, defaultAddress?.id, runCheckAtLatLng, runGpsCheck]);
+  }, [
+    sheetPin,
+    runSheetPinCheck,
+    addressCheckCoords,
+    defaultAddress?.id,
+    runCheckAtLatLng,
+    runGpsCheck,
+  ]);
 
   const clearCachedLocation = useCallback(() => {
     clearDeliveryCache();
@@ -323,30 +400,60 @@ export function LocationServiceProvider({ children }) {
     setPhase('idle');
   }, []);
 
+  const sheetActive = Boolean(sheetPin && showSheet);
+
+  const displayIsChecking = sheetActive
+    ? sheetPhase === 'fetching'
+    : phase === 'locating' || phase === 'fetching';
+
+  const displayServiceable = sheetActive ? sheetServiceable : serviceable;
+  const displayDistanceM = sheetActive ? sheetDistanceM : distanceM;
+  const displayMaxRadiusM = sheetActive ? sheetMaxRadiusM : maxRadiusM;
+  const displayGeoDenied = sheetActive ? false : geoDenied;
+  const displayErrorMessage = sheetActive ? sheetErrorMessage : errorMessage;
+
+  const locationSourceLabel = sheetActive
+    ? sheetPin.label
+    : addressCheckCoords
+      ? 'your saved delivery address'
+      : 'your current location';
+
   const value = useMemo(
     () => ({
       phase,
-      isChecking: phase === 'locating' || phase === 'fetching',
-      serviceable,
-      distanceM,
-      maxRadiusM,
+      isChecking: displayIsChecking,
+      serviceable: displayServiceable,
+      distanceM: displayDistanceM,
+      maxRadiusM: displayMaxRadiusM,
       coords,
-      geoDenied,
-      errorMessage,
+      geoDenied: displayGeoDenied,
+      errorMessage: displayErrorMessage,
+      locationSourceLabel,
+      sheetUsesDeliveryPin: sheetActive,
       showServiceAreaSheet: showSheet,
-      setShowServiceAreaSheet: setShowSheet,
+      openServiceAreaSheet,
+      closeServiceAreaSheet,
+      setShowServiceAreaSheet: (open) => {
+        if (open) openServiceAreaSheet();
+        else closeServiceAreaSheet();
+      },
       recheckLocation,
       clearCachedLocation,
     }),
     [
       phase,
-      serviceable,
-      distanceM,
-      maxRadiusM,
+      displayIsChecking,
+      displayServiceable,
+      displayDistanceM,
+      displayMaxRadiusM,
       coords,
-      geoDenied,
-      errorMessage,
+      displayGeoDenied,
+      displayErrorMessage,
+      locationSourceLabel,
+      sheetActive,
       showSheet,
+      openServiceAreaSheet,
+      closeServiceAreaSheet,
       recheckLocation,
       clearCachedLocation,
     ]
