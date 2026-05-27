@@ -15,7 +15,6 @@ import Image from 'next/image';
 import ConfirmModal from '../../components/ConfirmModal';
 import PromptModal from '../../components/PromptModal';
 import PageTopBar from '../../components/PageTopBar';
-import GuestAuthPrompt from '../../components/GuestAuthPrompt';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
 import ProductCarousel from '../../components/ProductCarousel';
 import { Check, MoreVertical, Package } from 'lucide-react';
@@ -367,7 +366,7 @@ Payment Status: ${order.paymentStatus}
     return `Placed at ${day}${suffix} ${d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}, ${d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
   };
 
-  if (!ready) {
+  if (!ready || !ok) {
     return (
       <div className="flex min-h-screen flex-col bg-gray-50">
         <div className="sticky top-0 z-20 shrink-0">
@@ -377,17 +376,6 @@ Payment Status: ${order.paymentStatus}
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
       </div>
-    );
-  }
-
-  if (!ok) {
-    return (
-      <GuestAuthPrompt
-        pageTitle="Your Orders"
-        backHref="/profile"
-        fallbackHref="/"
-        description="Sign in to view your orders and track deliveries."
-      />
     );
   }
 

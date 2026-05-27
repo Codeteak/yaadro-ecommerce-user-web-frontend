@@ -11,7 +11,6 @@ import { useOrdersList } from '../../hooks/useOrders';
 import { useUpdateProfile } from '../../hooks/useAuth';
 import ConfirmModal from '../../components/ConfirmModal';
 import PageTopBar from '../../components/PageTopBar';
-import GuestAuthPrompt from '../../components/GuestAuthPrompt';
 import ProfileOffersSection from '../../components/profile/ProfileOffersSection';
 import ProfileCouponsSection from '../../components/profile/ProfileCouponsSection';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
@@ -120,7 +119,7 @@ function ProfilePageContent() {
     { id: 'logout', label: 'Logout', Icon: LogOut, isDanger: true },
   ];
 
-  if (!ready) {
+  if (!ready || !ok) {
     return (
       <div className="flex min-h-screen flex-col bg-gray-50">
         <div className="sticky top-0 z-20 shrink-0 bg-white">
@@ -130,16 +129,6 @@ function ProfilePageContent() {
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
         </div>
       </div>
-    );
-  }
-
-  if (!ok) {
-    return (
-      <GuestAuthPrompt
-        pageTitle="My Profile"
-        fallbackHref="/"
-        description="Sign in to view your profile and account settings."
-      />
     );
   }
 

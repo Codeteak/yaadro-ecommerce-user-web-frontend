@@ -98,6 +98,11 @@ export function AuthProvider({ children }) {
     }
   }, [expireSession]);
 
+  const expireSessionRef = useRef(expireSession);
+  expireSessionRef.current = expireSession;
+  const recoverSessionRef = useRef(recoverSessionWithRefresh);
+  recoverSessionRef.current = recoverSessionWithRefresh;
+
   const recoveryInFlightRef = useRef(false);
 
   const tryRecoverExpiredSession = useCallback(async () => {
@@ -143,7 +148,7 @@ export function AuthProvider({ children }) {
       if (isClientSessionExpired() && savedRefreshToken) {
         setIsLoadingUser(true);
         try {
-          const recovered = await recoverSessionWithRefresh();
+          const recovered = await recoverSessionRef.current();
           if (cancelled) return;
           if (recovered) return;
         } finally {
@@ -154,13 +159,13 @@ export function AuthProvider({ children }) {
         }
         if (cancelled) return;
         if (isClientSessionExpired()) {
-          expireSession();
+          expireSessionRef.current();
         }
         return;
       }
 
       if (isClientSessionExpired()) {
-        expireSession();
+        expireSessionRef.current();
         setAuthHydrated(true);
         return;
       }
@@ -179,7 +184,7 @@ export function AuthProvider({ children }) {
             }
           } catch (refreshErr) {
             console.error('Session refresh without access token failed:', refreshErr);
-            if (isUnauthorizedError(refreshErr)) expireSession();
+            if (isUnauthorizedError(refreshErr)) expireSessionRef.current();
           } finally {
             if (!cancelled) {
               setIsLoadingUser(false);
@@ -240,10 +245,10 @@ export function AuthProvider({ children }) {
             }
           } catch (refreshErr) {
             console.error('Session refresh on load failed:', refreshErr);
-            if (isUnauthorizedError(refreshErr)) expireSession();
+            if (isUnauthorizedError(refreshErr)) expireSessionRef.current();
           }
         } else if (unauthorized) {
-          expireSession();
+          expireSessionRef.current();
         } else if (!isTransientAuthError(error) && savedUser) {
           try {
             setUser(JSON.parse(savedUser));
@@ -269,15 +274,21 @@ export function AuthProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [expireSession, recoverSessionWithRefresh]);
+    // Intentionally mount-only: re-running hydrate when auth state changes caused an infinite
+    // loading ↔ content loop on protected pages (profile, orders).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // When refresh session clock ends, try refresh before clearing auth (e.g. tab refocus).
+  const tryRecoverExpiredSessionRef = useRef(tryRecoverExpiredSession);
+  tryRecoverExpiredSessionRef.current = tryRecoverExpiredSession;
+
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const check = async () => {
       if (!isClientSessionExpired()) return;
-      const recovered = await tryRecoverExpiredSession();
-      if (!recovered && isClientSessionExpired()) expireSession();
+      const recovered = await tryRecoverExpiredSessionRef.current();
+      if (!recovered && isClientSessionExpired()) expireSessionRef.current();
     };
     const onVisibility = () => {
       if (document.visibilityState === 'visible') check();
@@ -288,7 +299,7 @@ export function AuthProvider({ children }) {
       window.removeEventListener('focus', check);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [expireSession, tryRecoverExpiredSession]);
+  }, []);
 
   // Proactive refresh before 7-day access JWT expires (does not extend refresh session).
   useEffect(() => {

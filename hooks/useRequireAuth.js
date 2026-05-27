@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { setPostLoginRedirect } from '../utils/authSession';
@@ -16,10 +16,18 @@ export function useRequireAuth() {
   const pathname = usePathname() || '/';
   const router = useRouter();
   const { isAuthenticated, authHydrated, isLoadingUser } = useAuth();
+  const redirectingRef = useRef(false);
 
   useEffect(() => {
     if (!authHydrated || isLoadingUser) return;
-    if (isAuthenticated) return;
+
+    if (isAuthenticated) {
+      redirectingRef.current = false;
+      return;
+    }
+
+    if (redirectingRef.current) return;
+    redirectingRef.current = true;
 
     const search = typeof window !== 'undefined' ? window.location.search : '';
     const returnPath = `${pathname}${search}`;
