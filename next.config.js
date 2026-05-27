@@ -6,20 +6,10 @@ const apiProxyTarget = (
   'https://customer.yaadro.online'
 ).replace(/\/+$/, '');
 
-const nextConfig = {
+const baseConfig = {
   reactStrictMode: true,
   // Keep static export for production deployments, but allow dynamic routes in local dev.
   output: isProduction ? 'export' : undefined,
-  // Dev-only: proxy /api/* to the real backend so serviceability cookies are same-origin.
-  async rewrites() {
-    if (isProduction) return [];
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${apiProxyTarget}/api/:path*`,
-      },
-    ];
-  },
   // Clean URLs (`/cart`, `/product`, etc.) export as `/cart/index.html`, `/product/index.html`.
   // Cloudflare Pages serves directory indexes; `public/_redirects` handles SPA deep links.
   trailingSlash: true,
@@ -40,5 +30,18 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+/** Dev-only: proxy /api/* to the real backend so serviceability cookies are same-origin. */
+const devOnlyConfig = {
+  ...baseConfig,
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${apiProxyTarget}/api/:path*`,
+      },
+    ];
+  },
+};
+
+module.exports = isProduction ? baseConfig : devOnlyConfig;
 
