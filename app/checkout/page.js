@@ -13,7 +13,6 @@ import ProductImageWithFallback from '../../components/ProductImageWithFallback'
 import { useProducts } from '../../hooks/useProducts';
 import { placeStorefrontOrder } from '../../utils/storefrontCheckoutApi';
 import { getApiErrorCode, getCheckoutErrorMessage } from '../../utils/apiErrors';
-import { logCheckoutFailure } from '../../utils/checkoutDebugLog';
 import { useCartQuery, cartKeys } from '../../hooks/useCart';
 import { couponKeys } from '../../hooks/useCoupons';
 import { addressKeys } from '../../hooks/useAddresses';
@@ -731,23 +730,6 @@ export default function CheckoutPage() {
         )}&payment=cod`
       );
     } catch (err) {
-      logCheckoutFailure('executePlaceOrder', {
-        selectedAddressId,
-        selectedAddressCoords,
-        selectedAddress: selectedAddress
-          ? {
-              id: selectedAddress.id,
-              label: selectedAddress.label,
-              city: selectedAddress.city,
-              lat: selectedAddress.lat,
-              lng: selectedAddress.lng,
-              postalCode: selectedAddress.postalCode,
-            }
-          : null,
-        couponCode: selectedCouponCode || null,
-        cartItemCount: cartItems.length,
-      }, err);
-
       const apiCode = getApiErrorCode(err) || err?.code;
       const locationNotVerified =
         /location not verified/i.test(String(err?.message || '')) ||

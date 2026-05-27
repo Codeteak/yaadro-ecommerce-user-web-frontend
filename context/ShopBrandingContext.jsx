@@ -14,7 +14,9 @@ import {
   formatShopPageTitle,
   resolveShopBranding,
 } from '../utils/shopResolver';
-import { upsertMeta, upsertLink } from '../utils/documentMeta';
+import { fetchShopSeoMetadata } from '../utils/seoApi';
+import { applySeoBlockToDocument } from '../utils/seoBlock';
+import { upsertLink } from '../utils/documentMeta';
 
 /** Pathname (no trailing slash) → default document title segment before `| Shop Name`. */
 const ROUTE_PAGE_TITLES = {
@@ -49,6 +51,11 @@ function routePageTitle(pathname) {
   return null;
 }
 
+function isProductDetailPath(pathname) {
+  const path = normalizePath(pathname);
+  return path.startsWith('/products/') && path !== '/products';
+}
+
 const ShopBrandingContext = createContext(null);
 
 export function ShopBrandingProvider({ children }) {
@@ -56,6 +63,7 @@ export function ShopBrandingProvider({ children }) {
   const [shopId, setShopId] = useState('');
   const [shopName, setShopName] = useState('');
   const [shopImage, setShopImage] = useState(null);
+  const [shopSeo, setShopSeo] = useState(null);
   const [bannerEnabled, setBannerEnabled] = useState(false);
   const [bannerImages, setBannerImages] = useState([]);
   const [isResolving, setIsResolving] = useState(true);
@@ -68,19 +76,13 @@ export function ShopBrandingProvider({ children }) {
       const title = formatShopPageTitle(pageTitle, shopName);
       if (typeof document !== 'undefined') {
         document.title = title;
-        upsertMeta('property', 'og:title', title);
       }
     },
     [shopName]
   );
 
-  const applyShopMeta = useCallback((name, imageUrl) => {
-    const displayName = name || 'Yaadro';
-    upsertMeta('property', 'og:site_name', displayName);
-    upsertMeta('property', 'og:type', 'website');
+  const applyShopBrandingAssets = useCallback((name, imageUrl) => {
     if (imageUrl) {
-      upsertMeta('property', 'og:image', imageUrl);
-      upsertMeta('name', 'twitter:image', imageUrl);
       upsertLink('icon', imageUrl);
       upsertLink('apple-touch-icon', imageUrl);
     }
@@ -98,32 +100,59 @@ export function ShopBrandingProvider({ children }) {
         setShopImage(result.shopImage || null);
         setBannerEnabled(Boolean(result.bannerEnabled));
         setBannerImages(Array.isArray(result.bannerImages) ? result.bannerImages : []);
-        applyShopMeta(result.shopName, result.shopImage);
+
+        let seo = result.seo || null;
+        if (!seo && result.shopId) {
+          const fetched = await fetchShopSeoMetadata(result.shopId);
+          seo = fetched?.seo || null;
+        }
+        setShopSeo(seo);
+        applyShopBrandingAssets(result.shopName, result.shopImage);
       } finally {
         setIsResolving(false);
       }
     })();
-  }, [applyShopMeta]);
+  }, [applyShopBrandingAssets]);
 
   useEffect(() => {
     if (!shopName || isResolving) return;
+    if (isProductDetailPath(pathname)) return;
+
+    const path = normalizePath(pathname);
+    const isHome = path === '';
+
+    if (isHome && shopSeo) {
+      applySeoBlockToDocument(shopSeo, { siteName: shopName });
+      return;
+    }
+
     const routeTitle = routePageTitle(pathname);
     const explicit = pageTitleRef.current;
     applyDocumentTitle(explicit != null ? explicit : routeTitle);
-  }, [pathname, shopName, isResolving, applyDocumentTitle]);
+  }, [pathname, shopName, shopSeo, isResolving, applyDocumentTitle]);
 
   const value = useMemo(
     () => ({
       shopId,
       shopName: shopName || 'Yaadro',
       shopImage,
+      shopSeo,
       bannerEnabled,
       bannerImages,
       isResolving,
       applyDocumentTitle,
       formatPageTitle: (pageTitle) => formatShopPageTitle(pageTitle, shopName || 'Yaadro'),
     }),
-    [shopId, shopName, shopImage, bannerEnabled, bannerImages, isResolving, applyDocumentTitle]
+    [
+      shopId,
+      shopName,
+      shopImage,
+      shopSeo,
+      bannerEnabled,
+      bannerImages,
+      isResolving,
+      applyDocumentTitle,
+    ]
   );
 
   return (

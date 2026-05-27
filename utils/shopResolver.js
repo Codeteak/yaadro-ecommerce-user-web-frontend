@@ -1,7 +1,9 @@
 /**
  * Resolve shop tenant (id, name, logo) for the current domain via GET /shops/resolve-by-domain.
- * Cached in localStorage per hostname. Used for branding, splash, and x-shop-id flows.
+ * Cached in localStorage per hostname. Used for branding, splash, x-shop-id flows, and shop SEO.
  */
+
+import { extractSeoFromPayload, normalizeSeoBlock } from './seoBlock';
 
 export const RESOLVED_SHOP_ID_STORAGE_KEY = 'yaadro_resolved_shop_id';
 export const RESOLVED_SHOP_HOST_STORAGE_KEY = 'yaadro_resolved_shop_host';
@@ -9,6 +11,7 @@ export const RESOLVED_SHOP_NAME_STORAGE_KEY = 'yaadro_resolved_shop_name';
 export const RESOLVED_SHOP_IMAGE_STORAGE_KEY = 'yaadro_resolved_shop_image';
 export const RESOLVED_SHOP_BANNER_ENABLED_KEY = 'yaadro_resolved_shop_banner_enabled';
 export const RESOLVED_SHOP_BANNER_IMAGES_KEY = 'yaadro_resolved_shop_banner_images';
+export const RESOLVED_SHOP_SEO_STORAGE_KEY = 'yaadro_resolved_shop_seo';
 /** Bump when banner parsing changes — forces one refetch of resolve-by-domain. */
 export const RESOLVED_SHOP_BANNER_PARSE_VERSION_KEY = 'yaadro_resolved_shop_banner_parse_v';
 const CURRENT_BANNER_PARSE_VERSION = '2';
@@ -223,6 +226,7 @@ function envShopImage() {
  *   shopImage: string|null,
  *   bannerEnabled: boolean,
  *   bannerImages: string[],
+ *   seo: import('./seoBlock').SeoBlock|null,
  * }}
  */
 export function normalizeShopResolvePayload(payload) {
@@ -233,6 +237,7 @@ export function normalizeShopResolvePayload(payload) {
       shopImage: null,
       bannerEnabled: false,
       bannerImages: [],
+      seo: null,
     };
   }
   const root = unwrapResolvePayload(payload);
@@ -249,7 +254,8 @@ export function normalizeShopResolvePayload(payload) {
     bannerImages.length > 0 &&
     !isBannerExplicitlyDisabled(bannerFlag) &&
     (bannerFlag == null || normalizeBannerEnabled(bannerFlag));
-  return { shopId, shopName, shopImage, bannerEnabled, bannerImages };
+  const seo = extractSeoFromPayload(payload);
+  return { shopId, shopName, shopImage, bannerEnabled, bannerImages, seo };
 }
 
 function readCachedBranding(domain) {
@@ -282,18 +288,26 @@ function readCachedBranding(domain) {
     bannerImages.length > 0 &&
     bannerEnabledRaw !== 'false' &&
     (bannerEnabledRaw === 'true' || bannerEnabledRaw == null);
+  let seo = null;
+  try {
+    const rawSeo = window.localStorage.getItem(RESOLVED_SHOP_SEO_STORAGE_KEY);
+    if (rawSeo) seo = normalizeSeoBlock(JSON.parse(rawSeo));
+  } catch {
+    seo = null;
+  }
   return {
     shopId,
     shopName: shopName || DEFAULT_SHOP_NAME,
     shopImage: shopImage || null,
     bannerEnabled,
     bannerImages,
+    seo,
   };
 }
 
 export function persistResolvedShop(
   domain,
-  { shopId, shopName, shopImage, bannerEnabled = false, bannerImages = [] }
+  { shopId, shopName, shopImage, bannerEnabled = false, bannerImages = [], seo = null }
 ) {
   if (typeof window === 'undefined' || !domain || !shopId) return;
   window.localStorage.setItem(RESOLVED_SHOP_HOST_STORAGE_KEY, domain);
@@ -313,6 +327,15 @@ export function persistResolvedShop(
     window.localStorage.removeItem(RESOLVED_SHOP_BANNER_IMAGES_KEY);
   }
   window.localStorage.setItem(RESOLVED_SHOP_BANNER_PARSE_VERSION_KEY, CURRENT_BANNER_PARSE_VERSION);
+  if (seo && typeof seo === 'object') {
+    try {
+      window.localStorage.setItem(RESOLVED_SHOP_SEO_STORAGE_KEY, JSON.stringify(seo));
+    } catch {
+      window.localStorage.removeItem(RESOLVED_SHOP_SEO_STORAGE_KEY);
+    }
+  } else {
+    window.localStorage.removeItem(RESOLVED_SHOP_SEO_STORAGE_KEY);
+  }
 }
 
 function devBrandingFallback() {
@@ -322,6 +345,7 @@ function devBrandingFallback() {
     shopImage: envShopImage(),
     bannerEnabled: false,
     bannerImages: [],
+    seo: null,
     fromCache: false,
     notFound: false,
   };
@@ -342,6 +366,7 @@ export async function fetchShopByDomain(domain) {
       shopImage: null,
       bannerEnabled: false,
       bannerImages: [],
+      seo: null,
       notFound: true,
     };
   }
@@ -370,6 +395,7 @@ export async function fetchShopByDomain(domain) {
         shopImage: null,
         bannerEnabled: false,
         bannerImages: [],
+        seo: null,
         notFound: true,
       };
     }
@@ -393,6 +419,7 @@ export async function fetchShopByDomain(domain) {
         shopImage: null,
         bannerEnabled: false,
         bannerImages: [],
+        seo: null,
         notFound: false,
       };
     }
@@ -413,6 +440,7 @@ export async function fetchShopByDomain(domain) {
         shopImage: null,
         bannerEnabled: false,
         bannerImages: [],
+        seo: null,
         notFound: true,
       };
     }
@@ -422,6 +450,7 @@ export async function fetchShopByDomain(domain) {
       shopImage: normalized.shopImage,
       bannerEnabled: normalized.bannerEnabled,
       bannerImages: normalized.bannerImages,
+      seo: normalized.seo,
       notFound: false,
     };
   } catch (err) {
@@ -439,6 +468,7 @@ export async function fetchShopByDomain(domain) {
       shopImage: null,
       bannerEnabled: false,
       bannerImages: [],
+      seo: null,
       notFound: false,
     };
   }
@@ -457,6 +487,7 @@ export async function resolveShopBranding() {
       shopImage: envShopImage(),
       bannerEnabled: false,
       bannerImages: [],
+      seo: null,
       fromCache: false,
       notFound: false,
     };
@@ -526,6 +557,7 @@ export async function resolveShopBranding() {
       shopImage: null,
       bannerEnabled: false,
       bannerImages: [],
+      seo: null,
       fromCache: false,
       notFound: true,
     };

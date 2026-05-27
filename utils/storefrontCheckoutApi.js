@@ -3,7 +3,6 @@ import { resolveShopId } from './authApi';
 import { getApiErrorCode } from './apiErrors';
 import { minorToMajor } from './currencyMinor';
 import { checkDeliveryLocation } from './storefrontLocationApi';
-import { logCheckoutDebug, logCheckoutFailure } from './checkoutDebugLog';
 
 async function ensureCartExists(shopId) {
   try {
@@ -62,40 +61,12 @@ export async function placeStorefrontOrder({
     throw err;
   }
 
-  const checkoutContext = {
-    shopId,
-    lat: latNum,
-    lng: lngNum,
-    addressId: addressId != null ? String(addressId).trim() : null,
-    couponCode: String(couponCode || '').trim() || null,
-    hasNotes: Boolean(notes && String(notes).trim()),
-  };
-
-  // Cart first so nothing runs between location/check (cookie) and checkout.
   await ensureCartExists(shopId);
 
-  let delivery;
-  try {
-    delivery = await checkDeliveryLocation(latNum, lngNum);
-  } catch (locationErr) {
-    logCheckoutFailure('location-check', checkoutContext, locationErr);
-    throw attachApiErrorCode(locationErr);
-  }
-
-  logCheckoutDebug('location-check-ok', {
-    ...checkoutContext,
-    delivery: {
-      serviceable: delivery.serviceable,
-      distanceM: delivery.distanceM,
-      maxRadiusM: delivery.maxRadiusM,
-      apiPayload: delivery.apiPayload,
-    },
-  });
-
+  const delivery = await checkDeliveryLocation(latNum, lngNum);
   if (!delivery.serviceable) {
     const err = new Error('Delivery is not available for this address.');
     err.code = 'ADDRESS_NOT_SERVICEABLE';
-    logCheckoutFailure('location-not-serviceable', { ...checkoutContext, delivery }, err);
     throw err;
   }
 
@@ -112,19 +83,6 @@ export async function placeStorefrontOrder({
     'Idempotency-Key': idempotencyKey || createIdempotencyKey(),
   };
 
-  logCheckoutDebug('checkout-request', {
-    ...checkoutContext,
-    endpoint: 'POST /storefront/checkout',
-    requestBody: body,
-    requestHeaders: { 'x-shop-id': shopId, 'Idempotency-Key': '(set)' },
-    deliveryCheckBeforeCheckout: {
-      serviceable: delivery.serviceable,
-      distanceM: delivery.distanceM,
-      maxRadiusM: delivery.maxRadiusM,
-      apiPayload: delivery.apiPayload,
-    },
-  });
-
   let res;
   try {
     res = await apiFetchRoot('/storefront/checkout', {
@@ -135,15 +93,8 @@ export async function placeStorefrontOrder({
       body,
     });
   } catch (err) {
-    logCheckoutFailure('checkout-api', { ...checkoutContext, requestBody: body, delivery }, err);
     throw attachApiErrorCode(err);
   }
-
-  logCheckoutDebug('checkout-success', {
-    ...checkoutContext,
-    orderId: res?.orderId,
-    orderNumber: res?.orderNumber,
-  });
 
   return {
     orderId: res?.orderId,

@@ -10,6 +10,8 @@ import {
   PRODUCT_IMAGE_PLACEHOLDER,
 } from './productImages';
 import { upsertMeta, upsertLink } from './documentMeta';
+import { fetchProductSeoMetadata } from './seoApi';
+import { applySeoBlockToDocument, seoBlockToNextMetadata } from './seoBlock';
 
 function envShopName() {
   return (
@@ -117,46 +119,56 @@ function slugToDisplayName(slug) {
     .trim();
 }
 
+function buildFallbackProductMetadata(lookup, options = {}) {
+  const shopName = options.shopName || envShopName();
+  const name = slugToDisplayName(lookup);
+  const pathPrefix = options.pathPrefix || '/products';
+  const siteOrigin = options.siteOrigin ?? getSiteOrigin();
+  const canonical = siteOrigin
+    ? `${siteOrigin}${pathPrefix}/${encodeURIComponent(lookup)}/`
+    : `${pathPrefix}/${encodeURIComponent(lookup)}/`;
+  return {
+    title: name || 'Product',
+    description: name ? `Shop ${name} on ${shopName}` : `Shop on ${shopName}`,
+    alternates: { canonical },
+    openGraph: {
+      title: formatShopPageTitle(name || 'Product', shopName),
+      description: name ? `Shop ${name} on ${shopName}` : `Shop on ${shopName}`,
+      url: canonical,
+      type: 'website',
+      siteName: shopName,
+    },
+    twitter: {
+      card: 'summary',
+      title: formatShopPageTitle(name || 'Product', shopName),
+      description: name ? `Shop ${name} on ${shopName}` : `Shop on ${shopName}`,
+    },
+  };
+}
+
 /**
- * Next.js `generateMetadata` helper — build OG tags for product pages.
- *
- * During static export (`next build`) we skip the per-product API call because
- * hundreds of concurrent fetches overwhelm the backend (503). The client-side
- * `applyProductSocialMetaToDocument` updates tags once the product loads, so
- * crawlers that execute JS (Google, Twitter, etc.) still see full metadata.
+ * Next.js `generateMetadata` helper — prefers backend `/seo/metadata`, then product API fallbacks.
  */
 export async function generateProductMetadataForId(lookup, options = {}) {
   const id = lookup != null ? String(lookup).trim() : '';
   const shopName = options.shopName || envShopName();
+  const siteOrigin = options.siteOrigin ?? getSiteOrigin();
+
   if (!id) {
     return buildProductMetadataObject(null, { shopName, ...options });
   }
 
+  const seoResult = await fetchProductSeoMetadata(id);
+  if (seoResult?.seo) {
+    return seoBlockToNextMetadata(seoResult.seo, {
+      siteName: shopName,
+      siteOrigin,
+    });
+  }
+
   const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
   if (isBuild) {
-    const name = slugToDisplayName(id);
-    const pathPrefix = options.pathPrefix || '/products';
-    const siteOrigin = options.siteOrigin ?? getSiteOrigin();
-    const canonical = siteOrigin
-      ? `${siteOrigin}${pathPrefix}/${encodeURIComponent(id)}/`
-      : `${pathPrefix}/${encodeURIComponent(id)}/`;
-    return {
-      title: name || 'Product',
-      description: name ? `Shop ${name} on ${shopName}` : `Shop on ${shopName}`,
-      alternates: { canonical },
-      openGraph: {
-        title: formatShopPageTitle(name || 'Product', shopName),
-        description: name ? `Shop ${name} on ${shopName}` : `Shop on ${shopName}`,
-        url: canonical,
-        type: 'website',
-        siteName: shopName,
-      },
-      twitter: {
-        card: 'summary',
-        title: formatShopPageTitle(name || 'Product', shopName),
-        description: name ? `Shop ${name} on ${shopName}` : `Shop on ${shopName}`,
-      },
-    };
+    return buildFallbackProductMetadata(id, { shopName, ...options });
   }
 
   const product = await getProductById(id);
@@ -174,8 +186,15 @@ export function applyProductSocialMetaToDocument({
   imageUrl,
   url,
   siteName,
+  seo,
 }) {
   if (typeof document === 'undefined') return;
+
+  if (seo) {
+    applySeoBlockToDocument(seo, { siteName, canonicalUrl: url });
+    return;
+  }
+
   if (title) {
     document.title = title;
     upsertMeta('property', 'og:title', title);
@@ -211,3 +230,5 @@ export function buildProductShareUrl(product, lookup, siteOrigin) {
   const path = productCanonicalPath(product, lookup, '/products');
   return origin ? `${origin.replace(/\/+$/, '')}${path}` : path;
 }
+
+export { fetchProductSeoMetadata };

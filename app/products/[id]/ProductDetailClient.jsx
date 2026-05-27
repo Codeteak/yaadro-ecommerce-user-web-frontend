@@ -10,6 +10,7 @@ import { useShopBranding } from '../../../context/ShopBrandingContext';
 import {
   applyProductSocialMetaToDocument,
   buildProductShareUrl,
+  fetchProductSeoMetadata,
   getProductSocialDescription,
 } from '../../../utils/productMetadata';
 import {
@@ -33,7 +34,7 @@ import ProductImageWithFallback from '../../../components/ProductImageWithFallba
 import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
 import { getCartLineDisplayQty, getBundleFreeExtraOnPaidLine } from '../../../utils/cartPromotions';
 import { findPaidCartLine } from '../../../utils/cartLinePersist';
-import { getProductDetailPath, normalizeProductRouteParam } from '../../../utils/productApi';
+import { getProductDetailPath, normalizeProductRouteParam, resolveProductDetailSegment } from '../../../utils/productApi';
 
 /** Gap between cart pill bottom and the top edge of the PDP fixed bottom bar. */
 const CART_PILL_GAP_ABOVE_PDP_BAR_PX = 12;
@@ -130,7 +131,7 @@ export default function ProductDetailClient({ productId = null }) {
   const { addToCart, cartItems, cartTotal, cartCount, updateQuantity, removeFromCart } = useCart();
   const { addToRecentlyViewed } = useRecentlyViewed();
   const { showAlert } = useAlert();
-  const { applyDocumentTitle, shopName, formatPageTitle } = useShopBranding();
+  const { shopName } = useShopBranding();
 
   const [cartActionLoading, setCartActionLoading] = useState(false);
 
@@ -143,18 +144,44 @@ export default function ProductDetailClient({ productId = null }) {
   const relatedProducts = productData?.relatedProducts || [];
 
   useEffect(() => {
-    if (!product?.name) return;
-    applyDocumentTitle(product.name);
-    const shareUrl = buildProductShareUrl(product, resolvedId);
-    const images = getResolvedProductImageUrls(product);
-    applyProductSocialMetaToDocument({
-      title: formatPageTitle(product.name),
-      description: getProductSocialDescription(product),
-      imageUrl: images[0],
-      url: shareUrl,
-      siteName: shopName,
-    });
-  }, [product, resolvedId, shopName, applyDocumentTitle, formatPageTitle]);
+    if (!resolvedId) return undefined;
+
+    let cancelled = false;
+
+    (async () => {
+      const segment =
+        resolveProductDetailSegment(product) || resolvedId;
+      const seoResult = await fetchProductSeoMetadata(segment);
+      if (cancelled) return;
+
+      const shareUrl =
+        seoResult?.seo?.canonicalUrl ||
+        buildProductShareUrl(product, resolvedId);
+
+      if (seoResult?.seo) {
+        applyProductSocialMetaToDocument({
+          seo: seoResult.seo,
+          siteName: shopName,
+          url: shareUrl,
+        });
+        return;
+      }
+
+      if (!product?.name) return;
+      const images = getResolvedProductImageUrls(product);
+      applyProductSocialMetaToDocument({
+        title: product.name,
+        description: getProductSocialDescription(product),
+        imageUrl: images[0],
+        url: shareUrl,
+        siteName: shopName,
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [product, resolvedId, shopName]);
 
   useEffect(() => {
     if (product) addToRecentlyViewed(product);

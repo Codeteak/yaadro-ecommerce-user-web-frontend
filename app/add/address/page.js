@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { cartKeys } from '../../../hooks/useCart';
+import { addressKeys } from '../../../hooks/useAddresses';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { ArrowLeft, Check, Loader2, MapPin } from 'lucide-react';
@@ -11,7 +12,6 @@ import { useAddress } from '../../../context/AddressContext';
 import { useAuth } from '../../../context/AuthContext';
 import GuestAuthPrompt from '../../../components/GuestAuthPrompt';
 import ConfirmModal from '../../../components/ConfirmModal';
-import SuccessCelebrationModal from '../../../components/SuccessCelebrationModal';
 import { useRequireAuth } from '../../../hooks/useRequireAuth';
 import { reverseGeocode } from '../../../utils/geocoding';
 import { updateStorefrontProfile, resolveShopId } from '../../../utils/authApi';
@@ -165,9 +165,11 @@ export default function AddAddressPage() {
   const lastPinRef = useRef('');
 
   const [showLeaveModal, setShowLeaveModal] = useState(false);
-  const [addressSuccess, setAddressSuccess] = useState(null);
   const [isDraftDirty, setIsDraftDirty] = useState(false);
   const editInitForIdRef = useRef(null);
+  /** After a successful save, skip leave guards and navigate away on back. */
+  const saveCompletedRef = useRef(false);
+  const lastSavedAddressIdRef = useRef(null);
 
   const markDirty = useCallback(() => {
     if (isEdit) setIsDraftDirty(true);
@@ -218,7 +220,20 @@ export default function AddAddressPage() {
       }
 
       setForm({ ...EMPTY_FORM });
-      setCoords(null);
+      const savedLat =
+        editingAddress.lat != null ? Number(editingAddress.lat) : null;
+      const savedLng =
+        editingAddress.lng != null ? Number(editingAddress.lng) : null;
+      if (
+        savedLat != null &&
+        savedLng != null &&
+        Number.isFinite(savedLat) &&
+        Number.isFinite(savedLng)
+      ) {
+        setCoords({ lat: savedLat, lng: savedLng });
+      } else {
+        setCoords(null);
+      }
       setResolvedAddress(null);
       setResolvingStatus('idle');
       setStep(1);
@@ -226,6 +241,7 @@ export default function AddAddressPage() {
       if (!nameFromProfile) setNameDraft('');
       if (!phoneFromProfile) setPhoneDraft('');
       setIsDraftDirty(false);
+      saveCompletedRef.current = false;
       lastPinRef.current = '';
       editInitForIdRef.current = editId;
     } catch (e) {
@@ -235,7 +251,7 @@ export default function AddAddressPage() {
   }, [isEdit, editingAddress, editId, nameFromProfile, phoneFromProfile]);
 
   useEffect(() => {
-    if (!isEdit || !isDraftDirty) return;
+    if (!isEdit || !isDraftDirty || saveCompletedRef.current) return undefined;
     const onBeforeUnload = (e) => {
       e.preventDefault();
       e.returnValue = '';
@@ -340,12 +356,17 @@ export default function AddAddressPage() {
         }
         setUserLocation({ lat, lng });
         setUserGeoStatus('idle');
-        setCoords((prev) => (prev?.lat != null && prev?.lng != null ? prev : { lat, lng }));
+        setCoords((prev) => {
+          if (prev?.lat != null && prev?.lng != null) return prev;
+          // Edit flow seeds the pin from the saved address; do not override with GPS.
+          if (editId) return prev;
+          return { lat, lng };
+        });
       },
       () => setUserGeoStatus('denied'),
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 120_000 }
     );
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editId]);
 
   const deliveryMetrics = useMemo(() => {
     if (!coords?.lat || !coords?.lng) return null;
@@ -588,6 +609,10 @@ export default function AddAddressPage() {
   );
 
   const requestLeave = useCallback(() => {
+    if (saveCompletedRef.current) {
+      navigateBackWith(lastSavedAddressIdRef.current);
+      return;
+    }
     if (!isEdit) {
       router.replace(returnTo);
       return;
@@ -597,10 +622,10 @@ export default function AddAddressPage() {
       return;
     }
     setShowLeaveModal(true);
-  }, [isEdit, isDraftDirty, step, router, returnTo]);
+  }, [isEdit, isDraftDirty, step, router, returnTo, navigateBackWith]);
 
   const confirmLeaveIncompleteEdit = useCallback(() => {
-    if (editId && typeof sessionStorage !== 'undefined') {
+    if (!saveCompletedRef.current && editId && typeof sessionStorage !== 'undefined') {
       sessionStorage.setItem(abandonedSessionKey(editId), '1');
     }
     setShowLeaveModal(false);
@@ -650,26 +675,14 @@ export default function AddAddressPage() {
       let createdId = null;
       if (isEdit && editingAddress?.id) {
         await updateAddress(editingAddress.id, payload);
-        if (payload.lat != null && payload.lng != null) {
-          await checkDeliveryLocation(payload.lat, payload.lng);
-        }
         createdId = editingAddress.id;
-        setAddressSuccess({
-          createdId,
-          title: 'Address updated',
-          message: 'Your delivery address has been saved successfully.',
-        });
       } else {
         const created = await addAddress(payload);
-        if (payload.lat != null && payload.lng != null) {
-          await checkDeliveryLocation(payload.lat, payload.lng);
-        }
         createdId = created?.id || null;
-        setAddressSuccess({
-          createdId,
-          title: 'Address saved',
-          message: 'Your new delivery address is ready to use.',
-        });
+      }
+
+      if (payload.lat != null && payload.lng != null) {
+        await checkDeliveryLocation(payload.lat, payload.lng);
       }
 
       if (typeof window !== 'undefined' && editId) {
@@ -681,9 +694,16 @@ export default function AddAddressPage() {
         }
       }
 
+      void queryClient.invalidateQueries({ queryKey: addressKeys.all });
       if (returnTo === '/checkout') {
         void queryClient.invalidateQueries({ queryKey: cartKeys.all });
       }
+
+      setIsDraftDirty(false);
+      setShowLeaveModal(false);
+      saveCompletedRef.current = true;
+      lastSavedAddressIdRef.current = createdId;
+      navigateBackWith(createdId);
     } catch (e) {
       setSubmitError(e?.message || 'Could not save. Try again.');
     }
@@ -913,6 +933,28 @@ export default function AddAddressPage() {
                 if (isEdit) markDirty();
                 if (resolvedAddress) {
                   applyGeocodedAddressToForm(resolvedAddress, { overwriteLine1: true });
+                }
+                if (isEdit && editingAddress) {
+                  const existing = buildAddressFromExisting(editingAddress);
+                  if (existing) {
+                    setForm((prev) => ({
+                      ...existing,
+                      ...prev,
+                      label: prev.label || existing.label,
+                      line1: String(prev.line1 || '').trim() ? prev.line1 : existing.line1,
+                      line2: String(prev.line2 || '').trim() ? prev.line2 : existing.line2,
+                      landmark: String(prev.landmark || '').trim()
+                        ? prev.landmark
+                        : existing.landmark,
+                      city: String(prev.city || '').trim() ? prev.city : existing.city,
+                      state: String(prev.state || '').trim() ? prev.state : existing.state,
+                      postalCode: /^\d{6}$/.test(String(prev.postalCode || '').replace(/\s/g, ''))
+                        ? prev.postalCode
+                        : existing.postalCode,
+                      country: prev.country || existing.country,
+                      raw: String(prev.raw || '').trim() ? prev.raw : existing.raw,
+                    }));
+                  }
                 }
                 setStep(2);
               }}
@@ -1158,24 +1200,13 @@ export default function AddAddressPage() {
 
       <ConfirmModal
         isOpen={showLeaveModal}
+        overlayClassName="z-[250]"
         onClose={() => setShowLeaveModal(false)}
         onConfirm={confirmLeaveIncompleteEdit}
         title="Leave without finishing?"
         message="You have not saved this address update. Your previous address is stored on this device — if you leave, you can open edit again to restore it, or enter a new address from scratch. Your account still has the last saved address until you complete Save."
         confirmText="Leave"
         cancelText="Keep editing"
-      />
-
-      <SuccessCelebrationModal
-        open={!!addressSuccess}
-        title={addressSuccess?.title}
-        message={addressSuccess?.message}
-        actionLabel="Continue"
-        onContinue={() => {
-          const id = addressSuccess?.createdId;
-          setAddressSuccess(null);
-          navigateBackWith(id);
-        }}
       />
     </div>
   );

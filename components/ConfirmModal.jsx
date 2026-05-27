@@ -11,7 +11,9 @@ export default function ConfirmModal({
   message, 
   confirmText = 'Confirm',
   cancelText = 'Cancel',
-  type = 'warning'
+  type = 'warning',
+  /** Use a high z-index on fullscreen overlays (e.g. add address map at z-[60]). */
+  overlayClassName = 'z-50',
 }) {
   useEffect(() => {
     if (isOpen) {
@@ -35,7 +37,7 @@ export default function ConfirmModal({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+        className={`fixed inset-0 flex items-center justify-center bg-black/50 p-4 ${overlayClassName}`}
         onClick={onClose}
       >
         {/* Modal */}
