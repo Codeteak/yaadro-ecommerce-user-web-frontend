@@ -2,6 +2,21 @@ import { upsertMeta, upsertLink } from './documentMeta';
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
+const NEXT_OPEN_GRAPH_TYPES = new Set([
+  'website',
+  'article',
+  'book',
+  'profile',
+  'music.song',
+  'music.album',
+  'music.playlist',
+  'music.radio_station',
+  'video.movie',
+  'video.episode',
+  'video.tv_show',
+  'video.other',
+]);
+
 function resolveAbsoluteUrl(url, siteOrigin = '') {
   const src = url != null ? String(url).trim() : '';
   if (!src) return '';
@@ -11,6 +26,15 @@ function resolveAbsoluteUrl(url, siteOrigin = '') {
     (typeof window !== 'undefined' ? window.location.origin.replace(/\/+$/, '') : '');
   if (src.startsWith('/') && origin) return `${origin}${src}`;
   return src;
+}
+
+function normalizeNextOpenGraphType(raw) {
+  const t = String(raw || '').trim();
+  if (!t) return 'website';
+  // Backend may return non-Next values like "product"; map to closest supported type.
+  if (t === 'product') return 'website';
+  if (NEXT_OPEN_GRAPH_TYPES.has(t)) return t;
+  return 'website';
 }
 
 /** @typedef {{
@@ -87,7 +111,7 @@ export function seoBlockToNextMetadata(seo, options = {}) {
     title: ogTitle,
     description: ogDescription,
     url: canonical || undefined,
-    type: seo.og?.type || 'website',
+    type: normalizeNextOpenGraphType(seo.og?.type),
     locale: seo.locale,
     siteName: options.siteName,
   };
