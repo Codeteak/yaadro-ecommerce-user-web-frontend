@@ -19,6 +19,7 @@ import Container from '../components/Container';
 import FloatingViewCartPill from '../components/FloatingViewCartPill';
 import BannerCarousel from '../components/BannerCarousel';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../utils/categoryImage';
+import { dedupeProductsByVariantGroup } from '../utils/productUtils';
 
 /** Compact category tile for the sticky home header (light theme). */
 function StickyHomeCategoryChip({ category }) {
@@ -266,12 +267,26 @@ export default function Home() {
   // Home categories strip: show only parent categories (parentId == null).
   const allCategories = categoriesData?.filter(cat => cat.isActive && cat.parentId == null) || [];
   const categories = allCategories.slice(0, 12);
-  const featuredProducts = featuredData?.products?.slice(0, 8) || [];
-  const bestSellers = bestSellersData?.products?.slice(0, 16) || [];
-  const newArrivals = newArrivalsData?.products?.slice(0, 24) || [];
-  const specialOffers = offersData?.products
-    ?.filter(p => p.discountPercentage > 0 || (p.originalPrice && parseFloat(p.originalPrice) > parseFloat(p.price)))
-    .slice(0, 8) || [];
+  const featuredProducts = useMemo(
+    () => dedupeProductsByVariantGroup(featuredData?.products || []).slice(0, 8),
+    [featuredData?.products]
+  );
+  const bestSellers = useMemo(
+    () => dedupeProductsByVariantGroup(bestSellersData?.products || []).slice(0, 16),
+    [bestSellersData?.products]
+  );
+  const newArrivals = useMemo(
+    () => dedupeProductsByVariantGroup(newArrivalsData?.products || []).slice(0, 24),
+    [newArrivalsData?.products]
+  );
+  const specialOffers = useMemo(() => {
+    const discounted = (offersData?.products || []).filter(
+      (p) =>
+        p.discountPercentage > 0 ||
+        (p.originalPrice && parseFloat(p.originalPrice) > parseFloat(p.price))
+    );
+    return dedupeProductsByVariantGroup(discounted).slice(0, 8);
+  }, [offersData?.products]);
 
   // Fresh Zone category tabs
   const [freshZoneCategoryId, setFreshZoneCategoryId] = useState(null);
@@ -394,10 +409,7 @@ export default function Home() {
     const freshCategoryProducts = allFreshZoneProducts.filter((p) =>
       freshZoneCategories.some((c) => productMatchesCategory(p, c))
     );
-    return freshCategoryProducts.filter((product, index, arr) => {
-      const productId = product?.id ?? product?._id ?? `${product?.name || ''}-${index}`;
-      return arr.findIndex((p) => String(p?.id ?? p?._id ?? '') === String(productId)) === index;
-    });
+    return dedupeProductsByVariantGroup(freshCategoryProducts);
   }, [allFreshZoneProducts, freshZoneCategories]);
 
   const freshZoneProducts = freshZoneSelectedCategory

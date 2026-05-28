@@ -300,6 +300,81 @@ export function stripPackFromProductName(name) {
   return s.slice(0, idx).trim().replace(/[-·(\\[]\\s*$/, '').trim();
 }
 
+/**
+ * Group key for pack variants (e.g. "Small Onion 250g" and "Small Onion 10kg" → "small onion").
+ * Falls back to product id when the name cannot be normalized.
+ */
+export function getProductVariantGroupKey(product) {
+  if (!product || typeof product !== 'object') return '';
+  const name = product?.name ?? product?.title ?? '';
+  let base = stripPackFromProductName(name).trim().toLowerCase();
+  if (!base && product?.slug) {
+    const fromSlug = stripPackFromProductName(String(product.slug).replace(/-/g, ' '))
+      .trim()
+      .toLowerCase();
+    if (fromSlug) base = fromSlug;
+  }
+  if (base) return base;
+  const id = product?.id ?? product?.productId;
+  return id != null && String(id).trim() ? `__id__:${id}` : '';
+}
+
+/** Sortable pack size (grams) for picking one variant per group; larger = unknown last. */
+function variantPackSortGrams(product) {
+  const { weight, unit } = resolveProductWeightAndUnit(product);
+  if (weight == null || !Number.isFinite(weight)) return Number.POSITIVE_INFINITY;
+  const u = String(unit || '')
+    .trim()
+    .toLowerCase();
+  if (u === 'kg') return weight * 1000;
+  if (u === 'g' || u === 'gm') return weight;
+  if (u === 'l') return weight * 1000;
+  if (u === 'ml') return weight;
+  if (u === 'each' || u === 'pc') return weight;
+  return weight;
+}
+
+/**
+ * One row per product family in carousels/grids (same base name, different unit_size).
+ * Default keeps the smallest pack; preserves first-seen order in the source list.
+ *
+ * @param {object[]} products
+ * @param {{ pick?: 'smallest'|'first' }} [options]
+ */
+export function dedupeProductsByVariantGroup(products, options = {}) {
+  const list = Array.isArray(products) ? products : [];
+  const pick = options.pick === 'first' ? 'first' : 'smallest';
+  if (!list.length) return [];
+
+  const chosenByKey = new Map();
+
+  for (const p of list) {
+    const key = getProductVariantGroupKey(p);
+    if (!key) continue;
+    const existing = chosenByKey.get(key);
+    if (!existing) {
+      chosenByKey.set(key, p);
+      continue;
+    }
+    if (pick === 'first') continue;
+    if (variantPackSortGrams(p) < variantPackSortGrams(existing)) {
+      chosenByKey.set(key, p);
+    }
+  }
+
+  const seen = new Set();
+  const out = [];
+  for (const p of list) {
+    const key = getProductVariantGroupKey(p);
+    if (!key || seen.has(key)) continue;
+    const chosen = chosenByKey.get(key);
+    if (!chosen) continue;
+    seen.add(key);
+    out.push(chosen);
+  }
+  return out;
+}
+
 function parseProductWeightFromFields(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const candidate =
