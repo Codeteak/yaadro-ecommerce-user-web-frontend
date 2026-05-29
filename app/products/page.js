@@ -7,25 +7,7 @@ import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import ProductsCategoryRail from '../../components/products/ProductsCategoryRail';
 import ProductsListingPanel from '../../components/products/ProductsListingPanel';
 import { CATEGORY_ID_UUID } from '../../components/products/productsBrowseConstants';
-
-function ProductGridSkeleton() {
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div
-          key={i}
-          className="overflow-hidden rounded-2xl border border-gray-100 bg-white animate-pulse"
-        >
-          <div className="aspect-square bg-gray-100" />
-          <div className="space-y-2 p-2.5">
-            <div className="h-3 w-4/5 rounded-full bg-gray-100" />
-            <div className="h-3 w-3/5 rounded-full bg-gray-100" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+import ProductsPageSkeleton from '../../components/skeletons/ProductsPageSkeleton';
 
 function findCategoryNameInTree(nodes, idOrSlug) {
   if (!idOrSlug || idOrSlug === 'all' || !nodes?.length) return '';
@@ -154,29 +136,10 @@ function ProductsContent() {
 
   if (showRailSkeleton) {
     return (
-      <div className="min-h-screen w-full max-w-full overflow-x-clip bg-gray-50 pb-28 pt-[env(safe-area-inset-top,0px)]">
-        <div className="sticky top-0 z-40 border-b border-gray-100 bg-white px-3 py-2.5 sm:px-4">
-          <div className="flex items-center gap-2">
-            <div className="h-9 w-9 animate-pulse rounded-full bg-gray-200" />
-            <div className="h-5 flex-1 animate-pulse rounded bg-gray-200" />
-            <div className="h-9 w-9 animate-pulse rounded-full bg-gray-200" />
-            <div className="h-9 w-9 animate-pulse rounded-full bg-gray-200" />
-          </div>
-        </div>
-        <div className="flex w-full max-w-screen-2xl flex-row">
-          <aside className="w-[76px] shrink-0 border-r border-gray-200 bg-white py-2 sm:w-[80px]">
-            <div className="space-y-2 px-1.5">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="mx-auto h-12 w-12 animate-pulse rounded-lg bg-gray-100" />
-              ))}
-            </div>
-          </aside>
-          <main className="min-w-0 flex-1 px-2.5 py-3 sm:px-3">
-            <ProductGridSkeleton />
-          </main>
-        </div>
+      <>
+        <ProductsPageSkeleton />
         <FloatingViewCartPill />
-      </div>
+      </>
     );
   }
 
@@ -269,23 +232,7 @@ function ProductsContent() {
 
 export default function ProductsPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-gray-50">
-          <div className="grid grid-cols-2 gap-3 px-4 pt-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
-                <div className="w-full aspect-square bg-gray-100" />
-                <div className="p-2.5 space-y-2">
-                  <div className="h-3 bg-gray-100 rounded-full w-4/5" />
-                  <div className="h-3 bg-gray-100 rounded-full w-3/5" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<ProductsPageSkeleton />}>
       <ProductsContent />
     </Suspense>
   );

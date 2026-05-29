@@ -6,6 +6,8 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import ProductCard from '../../../components/ProductCard';
 import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
 import { useCategoriesTree, useProducts } from '../../../hooks/useProducts';
+import CategoryBrowseSkeleton from '../../../components/skeletons/CategoryBrowseSkeleton';
+import { ProductGridSkeleton } from '../../../components/skeletons/primitives';
 
 function categoryThumbUrl(cat) {
   if (!cat || typeof cat.image !== 'string') return null;
@@ -58,25 +60,6 @@ function findCategoryInTree(nodes, id) {
     if (found) return found;
   }
   return null;
-}
-
-function ProductGridSkeleton() {
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div
-          key={i}
-          className="overflow-hidden rounded-2xl border border-gray-100 bg-white animate-pulse"
-        >
-          <div className="aspect-square bg-gray-100" />
-          <div className="space-y-2 p-2.5">
-            <div className="h-3 w-4/5 rounded-full bg-gray-100" />
-            <div className="h-3 w-3/5 rounded-full bg-gray-100" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 function CategoryBrowseInner() {
@@ -172,16 +155,7 @@ function CategoryBrowseInner() {
   };
 
   if (treeLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 pb-28 pt-[env(safe-area-inset-top,0px)]">
-        <div className="sticky top-0 z-30 border-b border-gray-100 bg-white px-4 py-3">
-          <div className="h-9 w-9 animate-pulse rounded-full bg-gray-200" />
-        </div>
-        <div className="px-4 py-4">
-          <ProductGridSkeleton />
-        </div>
-      </div>
-    );
+    return <CategoryBrowseSkeleton />;
   }
 
   if (!category) {
@@ -482,7 +456,7 @@ function CategoryBrowseInner() {
           )}
 
           {productsLoading ? (
-            <ProductGridSkeleton />
+            <ProductGridSkeleton count={8} variant="browse" />
           ) : displayProducts.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white py-14 text-center">
               <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
@@ -526,7 +500,7 @@ function CategoryBrowseFallback() {
       </div>
       <div className="h-36 animate-pulse bg-gray-200 sm:h-40" />
       <div className="px-4 py-4">
-        <ProductGridSkeleton />
+        <ProductGridSkeleton count={8} variant="browse" />
       </div>
     </div>
   );

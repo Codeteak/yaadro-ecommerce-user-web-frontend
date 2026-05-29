@@ -36,6 +36,8 @@ import IndianPhoneInput from '../../components/IndianPhoneInput';
 import { useUpdateProfile } from '../../hooks/useAuth';
 import { useLocationService } from '../../context/LocationServiceContext';
 import ConfirmModal from '../../components/ConfirmModal';
+import CheckoutPageSkeleton from '../../components/skeletons/CheckoutPageSkeleton';
+import { AddressCardSkeleton } from '../../components/skeletons/primitives';
 
 function isAddressNotServiceableError(err) {
   const code = getApiErrorCode(err) || err?.code;
@@ -830,17 +832,7 @@ export default function CheckoutPage() {
 
   /* ── Auth: show shell immediately (no full-screen spinner); redirect runs in effect when needed. ── */
   if (!authHydrated) {
-    return (
-      <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-gray-50">
-        <div className="sticky top-0 z-30 border-b border-gray-100 bg-white">
-          <div className="flex items-center gap-3 px-4 py-3.5">
-            <div className="h-9 w-9 rounded-full border border-gray-100 bg-gray-50" aria-hidden />
-            <span className="text-base font-medium text-gray-900">Checkout</span>
-          </div>
-          <StepBar current={2} />
-        </div>
-      </div>
-    );
+    return <CheckoutPageSkeleton />;
   }
 
   if (!isAuthenticated) {
@@ -895,6 +887,9 @@ export default function CheckoutPage() {
           <SectionLabel>Delivery address</SectionLabel>
 
           <div className={`space-y-2 ${isLoadingAddresses && addresses.length === 0 ? 'min-h-[52px]' : ''}`}>
+            {isLoadingAddresses && addresses.length === 0 ? (
+              <AddressCardSkeleton />
+            ) : null}
             {addresses.map((addr) => (
               <AddressCard
                 key={addr.id}

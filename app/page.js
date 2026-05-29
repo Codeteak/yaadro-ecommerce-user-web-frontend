@@ -20,6 +20,7 @@ import FloatingViewCartPill from '../components/FloatingViewCartPill';
 import BannerCarousel from '../components/BannerCarousel';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../utils/categoryImage';
 import { dedupeProductsByVariantGroup } from '../utils/productUtils';
+import HomePageSkeleton from '../components/skeletons/HomePageSkeleton';
 
 /** Compact category tile for the sticky home header (light theme). */
 function StickyHomeCategoryChip({ category }) {
@@ -491,95 +492,7 @@ export default function Home() {
   };
 
   if (loading) {
-    return (
-      <div className="w-full max-w-full overflow-x-hidden min-h-screen" aria-busy="true" aria-live="polite">
-        {/* Hero skeleton (light theme) */}
-        <section
-          className="home-hero-minh w-full relative overflow-hidden"
-          style={{
-            background: '#ffffff',
-            borderBottomLeftRadius: 44,
-            borderBottomRightRadius: 44,
-            WebkitMaskImage: '-webkit-radial-gradient(white, black)',
-          }}
-        >
-          {/* Soft bottom fade (light) */}
-          <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-[15] h-52 sm:h-64"
-            style={{
-              background:
-                'linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,0))',
-            }}
-            aria-hidden
-          />
-
-          <Container className="px-0 sm:px-0 lg:px-0 xl:px-0 2xl:px-0">
-          <div className="relative home-hero-minh flex flex-col pt-5 pb-16 max-[430px]:pb-14 sm:pt-6 md:pt-8 sm:pb-24 overflow-hidden">
-              {/* Top row skeleton */}
-              <div className="relative z-20 flex items-start justify-between gap-3">
-                <div className="inline-flex w-auto max-w-[78vw] sm:max-w-[520px] items-stretch rounded-2xl border border-gray-200 bg-white/80 backdrop-blur px-3 py-2.5 shadow-sm">
-                  <div className="flex w-14 shrink-0 flex-col items-center justify-center text-gray-500">
-                    <div className="h-8 w-10 rounded-md bg-gray-200 animate-pulse" />
-                    <div className="mt-2 h-3 w-8 rounded bg-gray-200 animate-pulse" />
-                  </div>
-                  <div className="min-w-0 flex-1 pl-3">
-                    <div className="h-6 w-40 rounded-full bg-gray-200 animate-pulse" />
-                    <div className="mt-2 h-4 w-52 rounded bg-gray-200 animate-pulse" />
-                  </div>
-                </div>
-
-                <div className="flex flex-shrink-0 items-center gap-2">
-                  <div className="h-11 w-11 rounded-full border border-gray-200 bg-white/80 backdrop-blur animate-pulse" />
-                  <div className="h-11 w-11 rounded-full border border-gray-200 bg-white/80 backdrop-blur animate-pulse" />
-                </div>
-              </div>
-
-              {/* Tagline skeleton */}
-              <div className="relative z-[9] mt-4 max-w-[92vw]">
-                <div className="h-14 w-[min(520px,92vw)] rounded-xl bg-gray-200 animate-pulse" />
-                <div className="mt-3 h-14 w-[min(440px,84vw)] rounded-xl bg-gray-200 animate-pulse" />
-              </div>
-
-              {/* Image skeleton */}
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center">
-                <div className="w-[320px] h-[440px] sm:w-[380px] sm:h-[520px] rounded-[28px] bg-gray-200 animate-pulse" />
-              </div>
-
-              {/* Category carousel skeleton */}
-              <div className="relative z-20 mt-auto px-1">
-                <div className="flex items-stretch gap-4 overflow-x-auto scrollbar-hide pb-1">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="w-[110px] h-[96px] rounded-[18px] bg-gray-200 border border-gray-200 animate-pulse flex-shrink-0"
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Container>
-        </section>
-
-        {/* Product sections skeleton */}
-        <section className="bg-white py-6">
-          <Container>
-            <div className="flex items-center justify-between mb-4 px-4 md:px-0">
-              <div className="h-7 w-40 rounded bg-gray-200 animate-pulse" />
-              <div className="h-5 w-14 rounded bg-gray-200 animate-pulse" />
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 xl:grid-cols-8 gap-1 sm:gap-3 lg:gap-4 w-full max-w-full overflow-x-hidden">
-              {Array.from({ length: 16 }).map((_, i) => (
-                <div key={i} className="flex flex-col gap-2">
-                  <div className="w-full aspect-[4/5] rounded-2xl bg-gray-200 animate-pulse" />
-                  <div className="h-3 w-full rounded bg-gray-200 animate-pulse" />
-                  <div className="h-3 w-2/3 rounded bg-gray-200 animate-pulse" />
-                </div>
-              ))}
-            </div>
-          </Container>
-        </section>
-      </div>
-    );
+    return <HomePageSkeleton />;
   }
 
   return (

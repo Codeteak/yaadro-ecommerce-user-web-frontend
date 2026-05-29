@@ -9,6 +9,8 @@ import { useAlert } from '../../context/AlertContext';
 import PageTopBar from '../../components/PageTopBar';
 import GuestAuthPrompt from '../../components/GuestAuthPrompt';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
+import AddressesPageSkeleton from '../../components/skeletons/AddressesPageSkeleton';
+import { AddressCardSkeleton } from '../../components/skeletons/primitives';
 import {
   Home,
   MapPin,
@@ -86,16 +88,7 @@ export default function AddressesPage() {
   };
 
   if (!ready) {
-    return (
-      <div className="flex min-h-screen flex-col bg-gray-50">
-        <div className="sticky top-0 z-20 shrink-0">
-          <PageTopBar title="Addresses" backHref="/profile" fallbackHref="/" />
-        </div>
-        <div className="flex flex-1 items-center justify-center px-4 pb-24 pt-8">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        </div>
-      </div>
-    );
+    return <AddressesPageSkeleton />;
   }
 
   if (!ok) {
@@ -135,8 +128,9 @@ export default function AddressesPage() {
           <h2 className="mb-3 px-1 text-base font-bold text-gray-900">Saved addresses</h2>
 
           {isLoading ? (
-            <div className="flex justify-center py-12">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <div className="space-y-4">
+              <AddressCardSkeleton />
+              <AddressCardSkeleton />
             </div>
           ) : addresses.length === 0 ? (
             <div className="rounded-2xl bg-white p-8 text-center shadow-sm">

@@ -1,9 +1,11 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import OrderDetailClient from '../orders/[id]/OrderDetailClient';
+import OrderDetailPageSkeleton from '../../components/skeletons/OrderDetailPageSkeleton';
 
-export default function OrderPage() {
+function OrderPageContent() {
   const searchParams = useSearchParams();
   const id = searchParams?.get('id') || '';
   const trimmed = String(id).trim();
@@ -17,5 +19,13 @@ export default function OrderPage() {
   }
 
   return <OrderDetailClient orderId={trimmed} />;
+}
+
+export default function OrderPage() {
+  return (
+    <Suspense fallback={<OrderDetailPageSkeleton />}>
+      <OrderPageContent />
+    </Suspense>
+  );
 }
 

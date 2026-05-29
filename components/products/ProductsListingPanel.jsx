@@ -6,25 +6,7 @@ import { getProductRating, getProductDiscount } from '../../utils/productUtils';
 import { getProducts } from '../../utils/productApi';
 import ProductCard from '../ProductCard';
 import { CATEGORY_ID_UUID, SORT_OPTIONS } from './productsBrowseConstants';
-
-function ProductGridSkeleton() {
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div
-          key={i}
-          className="overflow-hidden rounded-2xl border border-gray-100 bg-white animate-pulse"
-        >
-          <div className="aspect-square bg-gray-100" />
-          <div className="space-y-2 p-2.5">
-            <div className="h-3 w-4/5 rounded-full bg-gray-100" />
-            <div className="h-3 w-3/5 rounded-full bg-gray-100" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+import { ProductGridSkeleton } from '../skeletons/primitives';
 
 function FilterBar({ filters, onFilterToggle, sortKey, onSortChange }) {
   const sortLabel = SORT_OPTIONS.find((s) => s.key === sortKey)?.label || 'Sort';
@@ -276,7 +258,7 @@ function ProductsListingPanelInner({
       )}
 
       {isLoading ? (
-        <ProductGridSkeleton />
+        <ProductGridSkeleton count={8} variant="products" />
       ) : displayProducts.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white py-14 text-center">
           <EmptyState onReset={handleReset} />

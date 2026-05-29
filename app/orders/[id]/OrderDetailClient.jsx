@@ -18,6 +18,7 @@ import ProductCarousel from '../../../components/ProductCarousel';
 import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
 import PageTopBar from '../../../components/PageTopBar';
 import GuestAuthPrompt from '../../../components/GuestAuthPrompt';
+import OrderDetailPageSkeleton from '../../../components/skeletons/OrderDetailPageSkeleton';
 import ConfirmModal from '../../../components/ConfirmModal';
 import PromptModal from '../../../components/PromptModal';
 import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../../utils/productImages';
@@ -503,18 +504,6 @@ function downloadInvoice(order) {
   document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
-function LoadingState() {
-  return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 bg-gray-50 px-4">
-      <div
-        className="h-10 w-10 animate-spin rounded-full border-2 border-emerald-100 border-t-emerald-600"
-        aria-hidden
-      />
-      <p className="text-sm text-gray-500">Loading order…</p>
-    </div>
-  );
-}
-
 function ErrorState({ message, ordersHref = '/orders' }) {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 bg-gray-50 px-6 text-center">
@@ -662,16 +651,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   }, []);
 
   if (!ready) {
-    return (
-      <div className="flex min-h-screen flex-col bg-gray-50">
-        <div className="sticky top-0 z-20 shrink-0">
-          <PageTopBar title="Order details" backHref="/orders" fallbackHref="/" />
-        </div>
-        <div className="flex flex-1 items-center justify-center px-4 pb-24 pt-8">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
-        </div>
-      </div>
-    );
+    return <OrderDetailPageSkeleton />;
   }
 
   if (!ok) {
@@ -685,7 +665,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
     );
   }
 
-  if (isLoading) return <LoadingState />;
+  if (isLoading) return <OrderDetailPageSkeleton />;
   if (error || !order) return <ErrorState message={error?.message} />;
 
   const canRetryPayment = ['pending', 'failed'].includes(order.paymentStatus?.toLowerCase()) && order.paymentMethod !== 'cod';

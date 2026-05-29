@@ -25,6 +25,8 @@ import {
 import { normalizePhoneForApi } from '../../utils/otpVerifyPayload';
 import IndianPhoneInput from '../../components/IndianPhoneInput';
 import { getIndianPhoneSubmitError } from '../../utils/indianPhone';
+import ProfilePageSkeleton from '../../components/skeletons/ProfilePageSkeleton';
+import GuestAuthPrompt from '../../components/GuestAuthPrompt';
 
 function ProfilePageContent() {
   const router = useRouter();
@@ -119,16 +121,17 @@ function ProfilePageContent() {
     { id: 'logout', label: 'Logout', Icon: LogOut, isDanger: true },
   ];
 
-  if (!ready || !ok) {
+  if (!ready) {
+    return <ProfilePageSkeleton />;
+  }
+
+  if (!ok) {
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50">
-        <div className="sticky top-0 z-20 shrink-0 bg-white">
-          <PageTopBar title="My Profile" fallbackHref="/" />
-        </div>
-        <div className="flex flex-1 items-center justify-center px-4 pb-24 pt-8">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
-        </div>
-      </div>
+      <GuestAuthPrompt
+        pageTitle="My Profile"
+        fallbackHref="/"
+        description="Sign in to view and edit your profile."
+      />
     );
   }
 
@@ -402,20 +405,7 @@ function ProfilePageContent() {
 
 export default function ProfilePage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-2xl mx-auto">
-          <div className="h-16 bg-white animate-pulse"></div>
-          <div className="bg-white mx-4 mt-4 rounded-lg p-4 animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-1/3 mb-4"></div>
-            <div className="space-y-3">
-              <div className="h-4 bg-gray-200 rounded"></div>
-              <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<ProfilePageSkeleton />}>
       <ProfilePageContent />
     </Suspense>
   );

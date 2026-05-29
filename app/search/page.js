@@ -11,6 +11,7 @@ import ProductCarousel from '../../components/ProductCarousel';
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import BannerCarousel from '../../components/BannerCarousel';
 import { useShopBranding } from '../../context/ShopBrandingContext';
+import { SearchResultsGridSkeleton } from '../../components/skeletons/SearchPageSkeleton';
 
 const DISCOVER_PER_SECTION = 12;
 const SEARCH_BASE_PATH = '/search/';
@@ -83,17 +84,6 @@ function partitionDiscoverCarouselProducts(newestList, popularList, budgetList, 
   return { fresh, picks, deals };
 }
 
-function SkeletonCard() {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
-      <div className="w-full aspect-square bg-gray-100" />
-      <div className="p-2.5 space-y-2">
-        <div className="h-3 bg-gray-100 rounded-full w-4/5" />
-        <div className="h-3 bg-gray-100 rounded-full w-3/5" />
-      </div>
-    </div>
-  );
-}
 
 function DiscoverSections({ sections, freshBanner }) {
   const available = (sections || []).filter((s) => (s.products || []).length > 0);
@@ -324,11 +314,7 @@ export default function SearchPage() {
               <DiscoverSections sections={discoverSections} freshBanner={freshBanner} />
             </>
           ) : isLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <SkeletonCard key={i} />
-              ))}
-            </div>
+            <SearchResultsGridSkeleton />
           ) : products.length === 0 ? (
             <>
               <div className="py-12 text-center">

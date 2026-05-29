@@ -23,32 +23,11 @@ import {
 import ConfirmModal from '../../components/ConfirmModal';
 import ProductCarousel from '../../components/ProductCarousel';
 import ProductImageWithFallback from '../../components/ProductImageWithFallback';
+import CartPageSkeleton from '../../components/skeletons/CartPageSkeleton';
 
 /* ─────────────────────────────────────────────
    Sub-components
 ───────────────────────────────────────────── */
-
-/** Shown while localStorage / API cart is still resolving — avoids the empty-state flash. */
-function CartPageLoadingSkeleton() {
-  return (
-    <div className="px-4 pt-4 space-y-2.5 mb-4" aria-busy="true" aria-label="Loading cart">
-      <SectionLabel>Items</SectionLabel>
-      {[0, 1, 2].map((i) => (
-        <div
-          key={i}
-          className="flex gap-3 rounded-2xl border border-gray-100 bg-white p-3 animate-pulse"
-        >
-          <div className="h-[72px] w-[72px] shrink-0 rounded-xl bg-gray-100" />
-          <div className="min-w-0 flex-1 space-y-2 py-1">
-            <div className="h-4 w-4/5 rounded bg-gray-100" />
-            <div className="h-3 w-1/2 rounded bg-gray-100" />
-            <div className="mt-2 h-8 w-28 rounded-full bg-gray-100" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function TopBar({ itemCount }) {
   const countLabel =
@@ -506,15 +485,17 @@ function CartPageContent() {
     </svg>
   );
 
+  if (showCartLoading) {
+    return <CartPageSkeleton />;
+  }
+
   return (
     <div
       className={`min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden ${cartItems.length > 0 ? 'pb-32' : 'pb-28'}`}
     >
-      <TopBar itemCount={showCartLoading ? null : totalQty} />
+      <TopBar itemCount={totalQty} />
 
-      {showCartLoading ? (
-        <CartPageLoadingSkeleton />
-      ) : cartItems.length === 0 ? (
+      {cartItems.length === 0 ? (
         <EmptyCart carouselSections={emptyCartCarouselSections} />
       ) : (
         <>

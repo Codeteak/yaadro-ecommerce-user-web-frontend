@@ -10,6 +10,7 @@ import { getResolvedProductImageUrls } from '../../utils/productImages';
 import { getProductDetailPath } from '../../utils/productApi';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryImage';
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
+import { CategoryCardSkeleton } from '../../components/skeletons/primitives';
 
 /** Rotating hint (same UX as header search). */
 const FALLBACK_HINT_WORDS = [
@@ -208,19 +209,6 @@ function CategoryCard({ category }) {
 }
 
 /* ─────────────────────────────────────────────
-   Skeleton card
-───────────────────────────────────────────── */
-function SkeletonCard() {
-  return (
-    <div className="overflow-hidden rounded-[18px] border border-gray-100 bg-white animate-pulse">
-      <div className="relative min-h-[168px] bg-gray-200">
-        <div className="absolute left-3.5 top-3.5 h-4 w-[70%] rounded-md bg-gray-300/80" />
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────
    Main page
 ───────────────────────────────────────────── */
 export default function CategoriesPage() {
@@ -320,7 +308,7 @@ export default function CategoriesPage() {
       {/* Category grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 px-4">
         {isLoading
-          ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
+          ? Array.from({ length: 6 }).map((_, i) => <CategoryCardSkeleton key={i} />)
           : filtered.length === 0
           ? (
             <div className="col-span-2 sm:col-span-3 lg:col-span-4 flex flex-col items-center justify-center py-16 text-center">

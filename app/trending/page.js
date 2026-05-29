@@ -3,6 +3,7 @@
 import { useProducts } from '../../hooks/useProducts';
 import Container from '../../components/Container';
 import ProductGrid from '../../components/ProductGrid';
+import ProductListingPageSkeleton from '../../components/skeletons/ProductListingPageSkeleton';
 
 export default function TrendingPage() {
   const { data, isLoading } = useProducts({
@@ -13,16 +14,7 @@ export default function TrendingPage() {
   const products = data?.products || [];
 
   if (isLoading) {
-    return (
-      <div className="w-full max-w-full overflow-x-hidden py-16">
-        <Container>
-          <div className="text-center py-12">
-            <div className="w-10 h-10 rounded-full border-4 border-gray-200 border-t-primary animate-spin mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">Loading trending products...</p>
-          </div>
-        </Container>
-      </div>
-    );
+    return <ProductListingPageSkeleton titleWidth={140} />;
   }
 
   return (

@@ -16,9 +16,12 @@ import ConfirmModal from '../../components/ConfirmModal';
 import PromptModal from '../../components/PromptModal';
 import PageTopBar from '../../components/PageTopBar';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
+import GuestAuthPrompt from '../../components/GuestAuthPrompt';
 import ProductCarousel from '../../components/ProductCarousel';
 import { Check, MoreVertical, Package } from 'lucide-react';
 import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../utils/productImages';
+import OrdersPageSkeleton from '../../components/skeletons/OrdersPageSkeleton';
+import { OrderListCardSkeleton } from '../../components/skeletons/primitives';
 
 function getOrderStatusTone(status = '') {
   const s = String(status || '').toLowerCase();
@@ -366,16 +369,18 @@ Payment Status: ${order.paymentStatus}
     return `Placed at ${day}${suffix} ${d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}, ${d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
   };
 
-  if (!ready || !ok) {
+  if (!ready) {
+    return <OrdersPageSkeleton />;
+  }
+
+  if (!ok) {
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50">
-        <div className="sticky top-0 z-20 shrink-0">
-          <PageTopBar title="Your Orders" backHref="/profile" fallbackHref="/" />
-        </div>
-        <div className="flex flex-1 items-center justify-center px-4 pb-24 pt-8">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        </div>
-      </div>
+      <GuestAuthPrompt
+        pageTitle="Your Orders"
+        backHref="/profile"
+        fallbackHref="/"
+        description="Sign in to view your order history."
+      />
     );
   }
 
@@ -387,10 +392,11 @@ Payment Status: ${order.paymentStatus}
 
       <div className="mx-auto w-full max-w-lg flex-1 space-y-4 px-4 pb-24 pt-4">
         {isLoading ? (
-          <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
-            <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent mx-auto" />
-            <p className="text-gray-500 mt-4 text-sm">Loading orders...</p>
-          </div>
+          <>
+            {[0, 1, 2].map((i) => (
+              <OrderListCardSkeleton key={i} />
+            ))}
+          </>
         ) : error ? (
           <div className="text-center py-16 bg-white rounded-2xl shadow-sm">
             <p className="text-red-500 font-medium mb-2">Error loading orders</p>
