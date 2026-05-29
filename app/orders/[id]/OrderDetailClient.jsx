@@ -1123,7 +1123,7 @@ export default function OrderDetailClient({ orderId = null }) {
   // If used from a query-param page, `orderId` is passed by parent.
   // In normal /orders/[id] route, it is null and we read `useParams()`.
   return (
-    <Suspense fallback={<LoadingState />}>
+    <Suspense fallback={<OrderDetailPageSkeleton />}>
       <OrderDetailContent orderId={orderId} />
     </Suspense>
   );
