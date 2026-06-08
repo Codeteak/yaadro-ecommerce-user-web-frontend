@@ -368,7 +368,10 @@ export function CartProvider({ children }) {
             delta: addQty,
           });
           if (cartData?.items != null) {
-            const paidCache = syncPaidCartCacheLines(cartData.items, []);
+            const paidCache = syncPaidCartCacheLines(
+              cartData.items,
+              localCartItemsRef.current
+            );
             setLocalCartItems(paidCache);
             localCartItemsRef.current = paidCache;
             if (isClient && typeof window !== 'undefined') {
@@ -429,7 +432,10 @@ export function CartProvider({ children }) {
         onSuccess: (cartData) => {
           setPendingRemovedCartItemIds((prev) => prev.filter((id) => id !== removedId));
           if (cartData?.items != null) {
-            const paidCache = syncPaidCartCacheLines(cartData.items, []);
+            const paidCache = syncPaidCartCacheLines(
+              cartData.items,
+              localCartItemsRef.current
+            );
             setLocalCartItems(paidCache);
             localCartItemsRef.current = paidCache;
             if (isClient && typeof window !== 'undefined') {
@@ -503,7 +509,10 @@ export function CartProvider({ children }) {
         {
           onSuccess: (cartData) => {
             if (cartData?.items != null) {
-              const paidCache = syncPaidCartCacheLines(cartData.items, []);
+              const paidCache = syncPaidCartCacheLines(
+                cartData.items,
+                localCartItemsRef.current
+              );
               setLocalCartItems(paidCache);
               localCartItemsRef.current = paidCache;
               if (isClient && typeof window !== 'undefined') {

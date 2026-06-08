@@ -9,17 +9,38 @@ import {
   readLineFreeQuantity,
   stripPaidCartLinesOnly,
 } from './cartPromotions';
-import { formatWeightUnitLabel, resolveProductWeightAndUnit } from './productUtils';
+import {
+  formatWeightUnitLabel,
+  normalizeProductUnit,
+  resolveProductWeightAndUnit,
+} from './productUtils';
 
-export function cartLineSizeKey(item) {
-  if (item?.selectedSize && typeof item.selectedSize === 'object') {
-    const w = item.selectedSize.weight;
-    const u = item.selectedSize.unit;
-    if (w != null && u != null && String(u)) return `${w}${u}`;
+function formatSizeKeyWeight(weight) {
+  if (weight == null || weight === '') return '';
+  const n = parseFloat(weight);
+  if (Number.isFinite(n)) {
+    return Number.isInteger(n) ? String(Math.trunc(n)) : String(n);
   }
-  const { weight, unit } = resolveProductWeightAndUnit(item);
-  const pack = formatWeightUnitLabel(weight, unit);
-  return pack || 'default';
+  return String(weight).trim();
+}
+
+/** Stable variant key — same rules for card probe and persisted cart lines (g/gm/GM → gm). */
+export function cartLineSizeKey(item) {
+  let weight = null;
+  let unit = '';
+  if (item?.selectedSize && typeof item.selectedSize === 'object') {
+    weight = item.selectedSize.weight;
+    unit = item.selectedSize.unit;
+  }
+  if (weight == null || !unit) {
+    const resolved = resolveProductWeightAndUnit(item);
+    weight = resolved.weight;
+    unit = resolved.unit;
+  }
+  const w = formatSizeKeyWeight(weight);
+  const u = normalizeProductUnit(unit);
+  if (w && u) return `${w}${u}`;
+  return 'default';
 }
 
 export function cartLinesMatch(a, b) {
@@ -48,18 +69,29 @@ export function cartLinesMatch(a, b) {
   return cartLineSizeKey(a) === cartLineSizeKey(b);
 }
 
-/** Paid cart row for a product (ignores `:bundle-reward` free lines). */
-export function findPaidCartLine(cartItems, productId, selectedSize = null) {
+/**
+ * Paid cart row for a product (ignores `:bundle-reward` free lines).
+ * @param {object|null} productHint — product fields for pack matching when API rows lack selectedSize.
+ */
+export function findPaidCartLine(cartItems, productId, selectedSize = null, productHint = null) {
   if (!Array.isArray(cartItems) || productId == null) return null;
-  const sizeKey = selectedSize
-    ? `${selectedSize.weight}${selectedSize.unit}`
-    : 'default';
+  const probe = {
+    id: productId,
+    productId,
+    ...(selectedSize ? { selectedSize } : {}),
+    ...(productHint && typeof productHint === 'object'
+      ? {
+          weight: productHint.weight,
+          unit: productHint.unit,
+          unit_size: productHint.unit_size ?? productHint.unitSize,
+          name: productHint.name,
+        }
+      : {}),
+  };
   return (
     cartItems.find((item) => {
       if (isBundleRewardCartLine(item)) return false;
-      const pid = item.productId ?? item.product?.id ?? item.id;
-      if (String(pid) !== String(productId)) return false;
-      return cartLineSizeKey(item) === sizeKey;
+      return cartLinesMatch(item, probe);
     }) ?? null
   );
 }

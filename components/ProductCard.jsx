@@ -45,6 +45,8 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   const [selectedSize, setSelectedSize] = useState(availableSizes[0] || null);
   const [showSizeSelector, setShowSizeSelector] = useState(false);
   const [cartActionLoading, setCartActionLoading] = useState(false);
+  /** Holds stepper visible until cart context catches up (API / size-key races on mobile). */
+  const [pendingCartQty, setPendingCartQty] = useState(0);
 
   // List (MRP) per unit for selected size; effective = offer/sale when present (keeps paise).
   const basePrice = parseFloat(selectedSize ? selectedSize.price : product.price) || 0;
@@ -93,12 +95,17 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
 
   /** Cart line for this card’s product + selected size (matches CartContext keys). */
   const cartLine = useMemo(
-    () => findPaidCartLine(cartItems, product.id, selectedSize),
-    [cartItems, product.id, selectedSize]
+    () => findPaidCartLine(cartItems, product.id, selectedSize, product),
+    [cartItems, product.id, selectedSize, product]
   );
 
   const paidCartQty = cartLine?.quantity ?? 0;
   const cartBadgeQty = cartLine ? getCartLineDisplayQty(cartLine) : 0;
+  const displayCartQty = cartBadgeQty > 0 ? cartBadgeQty : pendingCartQty;
+
+  useEffect(() => {
+    if (cartBadgeQty > 0) setPendingCartQty(0);
+  }, [cartBadgeQty]);
   const cartUpdateKey = cartLine
     ? cartLine.cartItemKey ?? cartLine.cartItemId ?? cartLine.id
     : null;
@@ -109,9 +116,11 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       return;
     }
     setCartActionLoading(true);
+    setPendingCartQty(1);
     try {
       await addToCart(productToAddPayload, 1);
     } catch {
+      setPendingCartQty(0);
       /* CartContext already alerts */
     } finally {
       setCartActionLoading(false);
@@ -127,11 +136,13 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         setShowSizeSelector(true);
         return;
       }
-      if (paidCartQty === 0) {
+      if (paidCartQty === 0 && pendingCartQty === 0) {
         setCartActionLoading(true);
+        setPendingCartQty(1);
         try {
           await addToCart(productToAddPayload, 1);
         } catch {
+          setPendingCartQty(0);
           /* CartContext already alerts */
         } finally {
           setCartActionLoading(false);
@@ -147,12 +158,18 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       availableSizes.length,
       selectedSize,
       paidCartQty,
+      pendingCartQty,
       cartUpdateKey,
       addToCart,
       productToAddPayload,
       updateQuantity,
     ]
   );
+
+  const stopCartPointerBubble = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
 
   const handleDecrement = useCallback(
     (e) => {
@@ -239,21 +256,80 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     setTouchEnd(null);
   };
 
-  return (
-    <Link
-      href={productDetailHref}
-      scroll
-      onClick={(e) => {
-        if (suppressNavClickRef.current) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      }}
-      className={`flex flex-col h-full rounded-2xl overflow-hidden touch-manipulation transition-all duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/45 ${chromeClass} ${
-        isCarousel ? 'w-[140px]' : 'w-full'
-      }`}
+  const cardShellClass = `flex flex-col h-full rounded-2xl overflow-hidden touch-manipulation transition-all duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/45 ${chromeClass} ${
+    isCarousel ? 'w-[140px]' : 'w-full'
+  }`;
+
+  const navLinkProps = {
+    href: productDetailHref,
+    scroll: true,
+    onClick: (e) => {
+      if (suppressNavClickRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    },
+  };
+
+  const cartControls = cartActionLoading ? (
+    <div
+      className="flex h-[30px] min-w-[72px] items-center justify-center rounded-lg border-2 border-pink-500 bg-white/95 shadow-sm backdrop-blur-sm"
+      aria-busy="true"
+      aria-label="Updating cart"
     >
+      <div
+        className="h-4 w-4 animate-spin rounded-full border-2 border-pink-500 border-t-transparent"
+        role="status"
+      />
+    </div>
+  ) : displayCartQty > 0 ? (
+    <div
+      className="flex items-stretch overflow-hidden rounded-lg border-2 border-pink-500 bg-white text-pink-600 shadow-sm"
+      onClick={stopCartPointerBubble}
+      onPointerDown={stopCartPointerBubble}
+      onTouchStart={stopCartPointerBubble}
+      onTouchEnd={stopCartPointerBubble}
+    >
+      <button
+        type="button"
+        onClick={handleDecrement}
+        className="flex min-w-[28px] items-center justify-center px-1.5 py-1 text-sm font-bold hover:bg-pink-50 active:bg-pink-100"
+        aria-label="Decrease quantity"
+      >
+        −
+      </button>
+      <span className="flex min-w-[22px] items-center justify-center border-x border-pink-200 px-1 text-[11px] font-bold tabular-nums">
+        {displayCartQty}
+      </span>
+      <button
+        type="button"
+        onClick={handleIncrement}
+        className="flex min-w-[28px] items-center justify-center px-1.5 py-1 text-sm font-bold hover:bg-pink-50 active:bg-pink-100"
+        aria-label="Increase quantity"
+      >
+        +
+      </button>
+    </div>
+  ) : (
+    <button
+      type="button"
+      onClick={(e) => {
+        stopCartPointerBubble(e);
+        void handleAddToCart();
+      }}
+      onPointerDown={stopCartPointerBubble}
+      onTouchStart={stopCartPointerBubble}
+      className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-pink-500 bg-white text-pink-600 shadow-sm transition hover:bg-pink-50"
+      aria-label="Add to cart"
+    >
+      <span className="text-[22px] font-extrabold leading-none">+</span>
+    </button>
+  );
+
+  return (
+    <div className={cardShellClass}>
       <div className="relative">
+        <Link {...navLinkProps} className="block">
           <div
             ref={carouselRef}
             className="relative w-full aspect-[4/5] overflow-hidden rounded-2xl max-h-[120px] cursor-grab active:cursor-grabbing pointer-events-auto"
@@ -327,65 +403,13 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
                 ))}
               </div>
             )}
-            
-            {/* Add / quantity stepper overlay at bottom right */}
-            {cartActionLoading ? (
-              <div
-                className="absolute bottom-2 right-2 z-10 flex h-[30px] min-w-[72px] items-center justify-center rounded-lg border-2 border-pink-500 bg-white/95 shadow-sm backdrop-blur-sm"
-                aria-busy="true"
-                aria-label="Updating cart"
-              >
-                <div
-                  className="h-4 w-4 animate-spin rounded-full border-2 border-pink-500 border-t-transparent"
-                  role="status"
-                />
-              </div>
-            ) : cartBadgeQty > 0 ? (
-              <div
-                className="absolute bottom-2 right-2 z-10 flex items-stretch overflow-hidden rounded-lg border-2 border-pink-500 bg-white text-pink-600 shadow-sm"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={handleDecrement}
-                  className="flex min-w-[28px] items-center justify-center px-1.5 py-1 text-sm font-bold hover:bg-pink-50 active:bg-pink-100"
-                  aria-label="Decrease quantity"
-                >
-                  −
-                </button>
-                <span className="flex min-w-[22px] items-center justify-center border-x border-pink-200 px-1 text-[11px] font-bold tabular-nums">
-                  {cartBadgeQty}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleIncrement}
-                  className="flex min-w-[28px] items-center justify-center px-1.5 py-1 text-sm font-bold hover:bg-pink-50 active:bg-pink-100"
-                  aria-label="Increase quantity"
-                >
-                  +
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  void handleAddToCart();
-                }}
-                className="absolute bottom-2 right-2 z-10 flex h-9 w-9 items-center justify-center rounded-xl border-2 border-pink-500 bg-white text-pink-600 shadow-sm transition hover:bg-pink-50"
-                aria-label="Add to cart"
-              >
-                <span className="text-[22px] font-extrabold leading-none">+</span>
-              </button>
-            )}
           </div>
+        </Link>
+        {/* Outside Link + carousel touch handlers — reliable taps on iOS Safari */}
+        <div className="pointer-events-auto absolute bottom-2 right-2 z-20">{cartControls}</div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 px-3 pb-3 pt-2 min-h-0">
+      <Link {...navLinkProps} className="flex flex-1 flex-col gap-2 px-3 pb-3 pt-2 min-h-0">
         <div className="flex min-h-[34px] flex-col gap-1">
           {bundleLabel && (
             <span
@@ -424,8 +448,8 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         <p className="mt-auto text-[11px] text-gray-500 leading-none min-h-[12px]">
           {displayWeight || '\u00A0'}
         </p>
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 }
 

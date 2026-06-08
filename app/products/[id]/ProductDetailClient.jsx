@@ -360,7 +360,7 @@ export default function ProductDetailClient({ productId = null }) {
   );
 
   const cartLine = useMemo(
-    () => (product ? findPaidCartLine(cartItems, product.id, selectedSize) : null),
+    () => (product ? findPaidCartLine(cartItems, product.id, selectedSize, product) : null),
     [cartItems, product, selectedSize]
   );
 
