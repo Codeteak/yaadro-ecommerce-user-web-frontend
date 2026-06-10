@@ -94,8 +94,25 @@ function persistShopResolveDebugLog(entry) {
   }
 }
 
-/** Log resolve-by-domain API payload to the browser console (debug). */
+/** Log resolve-by-domain API URL + response to console and persistent debug log. */
 function logShopDomainResolverResponse({ domain, url, status, payload, normalized, error, phase }) {
+  if (typeof console !== 'undefined') {
+    // eslint-disable-next-line no-console
+    console.log('[Yaadro resolve-by-domain] request URL:', url || '(none)');
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.log('[Yaadro resolve-by-domain] fetch error:', error);
+    } else {
+      // eslint-disable-next-line no-console
+      console.log('[Yaadro resolve-by-domain] response:', {
+        httpStatus: status,
+        body: payload,
+        normalized,
+        phase: phase || 'api_response',
+      });
+    }
+  }
+
   persistShopResolveDebugLog({
     phase: phase || 'api_response',
     domain,
@@ -110,6 +127,20 @@ function logShopDomainResolverResponse({ domain, url, status, payload, normalize
     envShopId: envShopId() || undefined,
     nodeEnv: process.env.NODE_ENV,
   });
+}
+
+/** @param {Response} response */
+async function readResolveByDomainResponseBody(response) {
+  try {
+    return await response.json();
+  } catch {
+    try {
+      const text = await response.text();
+      return text || null;
+    } catch {
+      return null;
+    }
+  }
 }
 
 /** @param {unknown} item */
@@ -455,18 +486,23 @@ export async function fetchShopByDomain(domain) {
     url.searchParams.set('domain', domain);
 
     const requestUrl = url.toString();
+    if (typeof console !== 'undefined') {
+      // eslint-disable-next-line no-console
+      console.log('[Yaadro resolve-by-domain] fetching:', requestUrl);
+    }
     const response = await fetch(requestUrl, {
       method: 'GET',
       headers: { Accept: 'application/json' },
     });
 
     if (response.status === 404) {
+      const payload = await readResolveByDomainResponseBody(response);
       logShopDomainResolverResponse({
         phase: 'api_404',
         domain,
         url: requestUrl,
         status: response.status,
-        payload: null,
+        payload,
         normalized: null,
       });
       return {
@@ -480,12 +516,7 @@ export async function fetchShopByDomain(domain) {
       };
     }
     if (!response.ok) {
-      let payload = null;
-      try {
-        payload = await response.json();
-      } catch {
-        payload = null;
-      }
+      const payload = await readResolveByDomainResponseBody(response);
       logShopDomainResolverResponse({
         phase: 'api_error',
         domain,
@@ -626,20 +657,15 @@ export async function resolveShopBranding() {
           const url = new URL(resolverUrl);
           url.searchParams.set('domain', domain);
           const requestUrl = url.toString();
+          if (typeof console !== 'undefined') {
+            // eslint-disable-next-line no-console
+            console.log('[Yaadro resolve-by-domain] fetching:', requestUrl);
+          }
           const res = await fetch(requestUrl, {
             method: 'GET',
             headers: { Accept: 'application/json' },
           });
-          let payload = null;
-          if (res.ok) {
-            payload = await res.json();
-          } else {
-            try {
-              payload = await res.json();
-            } catch {
-              payload = null;
-            }
-          }
+          const payload = await readResolveByDomainResponseBody(res);
           const normalized = payload ? normalizeShopResolvePayload(payload) : null;
           logShopDomainResolverResponse({
             domain,
