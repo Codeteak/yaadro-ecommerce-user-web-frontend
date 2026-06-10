@@ -33,17 +33,82 @@ const BANNER_URL_KEYS = [
   'path',
 ];
 
+const SHOP_RESOLVE_DEBUG_STORAGE_KEY = 'yaadro_shop_resolve_debug_log';
+const SHOP_RESOLVE_DEBUG_MAX_ENTRIES = 40;
+
+/**
+ * Persistent resolve debug log — survives client-side route changes in the same tab.
+ * Inspect anytime: `window.__yaadroShopResolveLogs` or `sessionStorage.getItem('yaadro_shop_resolve_debug_log')`
+ */
+function hydrateShopResolveDebugLogFromSession() {
+  if (typeof window === 'undefined') return;
+  if (Array.isArray(window.__yaadroShopResolveLogs) && window.__yaadroShopResolveLogs.length > 0) {
+    return;
+  }
+  try {
+    const raw = sessionStorage.getItem(SHOP_RESOLVE_DEBUG_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      window.__yaadroShopResolveLogs = parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function persistShopResolveDebugLog(entry) {
+  if (typeof window === 'undefined') return;
+  hydrateShopResolveDebugLogFromSession();
+
+  const record = {
+    at: new Date().toISOString(),
+    hostname: window.location.hostname,
+    pathname: window.location.pathname,
+    href: window.location.href,
+    ...entry,
+  };
+
+  if (!Array.isArray(window.__yaadroShopResolveLogs)) {
+    window.__yaadroShopResolveLogs = [];
+  }
+  window.__yaadroShopResolveLogs.push(record);
+  if (window.__yaadroShopResolveLogs.length > SHOP_RESOLVE_DEBUG_MAX_ENTRIES) {
+    window.__yaadroShopResolveLogs = window.__yaadroShopResolveLogs.slice(
+      -SHOP_RESOLVE_DEBUG_MAX_ENTRIES
+    );
+  }
+
+  try {
+    sessionStorage.setItem(
+      SHOP_RESOLVE_DEBUG_STORAGE_KEY,
+      JSON.stringify(window.__yaadroShopResolveLogs)
+    );
+  } catch {
+    /* quota — in-memory log still available */
+  }
+
+  if (typeof console !== 'undefined') {
+    // eslint-disable-next-line no-console
+    console.log('[Yaadro shop resolve · DEBUG]', record);
+  }
+}
+
 /** Log resolve-by-domain API payload to the browser console (debug). */
-function logShopDomainResolverResponse({ domain, url, status, payload, normalized, error }) {
-  if (typeof console === 'undefined') return;
-  // eslint-disable-next-line no-console
-  console.log('[Shop domain resolver]', {
+function logShopDomainResolverResponse({ domain, url, status, payload, normalized, error, phase }) {
+  persistShopResolveDebugLog({
+    phase: phase || 'api_response',
     domain,
-    url,
-    status,
-    response: payload,
+    requestUrl: url,
+    httpStatus: status,
+    rawResponse: payload,
     normalized,
-    ...(error ? { error: String(error) } : {}),
+    error: error ? String(error) : undefined,
+    resolverBaseUrl: process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL
+      ? String(process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL).trim()
+      : getDefaultTenantResolverUrl(),
+    envShopId: envShopId() || undefined,
+    nodeEnv: process.env.NODE_ENV,
   });
 }
 
@@ -359,7 +424,21 @@ export async function fetchShopByDomain(domain) {
   const resolverUrl = process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL
     ? String(process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL).trim()
     : getDefaultTenantResolverUrl();
+  persistShopResolveDebugLog({
+    phase: 'fetch_shop_by_domain_start',
+    domain,
+    resolverUrl: resolverUrl || null,
+    defaultResolverUrl: getDefaultTenantResolverUrl() || null,
+    tenantResolverEnv: process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL || null,
+    apiBaseEnv: process.env.NEXT_PUBLIC_API_BASE_URL || null,
+    apiUrlEnv: process.env.NEXT_PUBLIC_API_URL || null,
+  });
   if (!resolverUrl || !domain) {
+    persistShopResolveDebugLog({
+      phase: 'fetch_shop_by_domain_skipped',
+      domain,
+      reason: !resolverUrl ? 'missing_resolver_url' : 'missing_domain',
+    });
     return {
       shopId: '',
       shopName: '',
@@ -383,6 +462,7 @@ export async function fetchShopByDomain(domain) {
 
     if (response.status === 404) {
       logShopDomainResolverResponse({
+        phase: 'api_404',
         domain,
         url: requestUrl,
         status: response.status,
@@ -407,6 +487,7 @@ export async function fetchShopByDomain(domain) {
         payload = null;
       }
       logShopDomainResolverResponse({
+        phase: 'api_error',
         domain,
         url: requestUrl,
         status: response.status,
@@ -427,6 +508,7 @@ export async function fetchShopByDomain(domain) {
     const payload = await response.json();
     const normalized = normalizeShopResolvePayload(payload);
     logShopDomainResolverResponse({
+      phase: 'api_ok',
       domain,
       url: requestUrl,
       status: response.status,
@@ -434,6 +516,14 @@ export async function fetchShopByDomain(domain) {
       normalized,
     });
     if (!normalized.shopId) {
+      persistShopResolveDebugLog({
+        phase: 'api_ok_but_no_shop_id',
+        domain,
+        requestUrl,
+        httpStatus: response.status,
+        rawResponse: payload,
+        normalized,
+      });
       return {
         shopId: '',
         shopName: '',
@@ -455,6 +545,7 @@ export async function fetchShopByDomain(domain) {
     };
   } catch (err) {
     logShopDomainResolverResponse({
+      phase: 'api_fetch_exception',
       domain,
       url: resolverUrl ? `${resolverUrl}?domain=${encodeURIComponent(domain)}` : '',
       status: null,
@@ -480,6 +571,21 @@ export async function fetchShopByDomain(domain) {
  * Production: domain resolver API with localStorage cache.
  */
 export async function resolveShopBranding() {
+  const resolveByDomainInDev =
+    process.env.NEXT_PUBLIC_RESOLVE_SHOP_BY_DOMAIN === 'true';
+
+  if (typeof window !== 'undefined') {
+    persistShopResolveDebugLog({
+      phase: 'resolve_shop_branding_start',
+      domain: String(window.location.hostname || '').toLowerCase().trim(),
+      nodeEnv: process.env.NODE_ENV,
+      resolveByDomainInDev,
+      envShopId: envShopId() || null,
+      cachedHost: window.localStorage.getItem(RESOLVED_SHOP_HOST_STORAGE_KEY),
+      cachedShopId: window.localStorage.getItem(RESOLVED_SHOP_ID_STORAGE_KEY),
+    });
+  }
+
   if (typeof window === 'undefined') {
     return {
       shopId: envShopId(),
@@ -493,10 +599,8 @@ export async function resolveShopBranding() {
     };
   }
 
-  const resolveByDomainInDev =
-    process.env.NEXT_PUBLIC_RESOLVE_SHOP_BY_DOMAIN === 'true';
-
   if (process.env.NODE_ENV !== 'production' && !resolveByDomainInDev) {
+    persistShopResolveDebugLog({ phase: 'resolve_path', path: 'development_env' });
     const envId = envShopId();
     if (envId) {
       const cached = readCachedBranding(String(window.location.hostname || '').toLowerCase().trim());
@@ -506,6 +610,13 @@ export async function resolveShopBranding() {
         cached.shopImage &&
         cached.bannerImages?.length > 0
       ) {
+        persistShopResolveDebugLog({
+          phase: 'resolve_outcome',
+          path: 'development_env',
+          source: 'localStorage_cache',
+          shopId: cached.shopId,
+          shopName: cached.shopName,
+        });
         return { ...cached, fromCache: true, notFound: false };
       }
       try {
@@ -539,18 +650,44 @@ export async function resolveShopBranding() {
           });
           if (res.ok && normalized?.shopId) {
             persistResolvedShop(domain, normalized);
+            persistShopResolveDebugLog({
+              phase: 'resolve_outcome',
+              path: 'development_env',
+              source: 'api',
+              shopId: normalized.shopId,
+              shopName: normalized.shopName,
+            });
             return { ...normalized, fromCache: false, notFound: false };
           }
         }
-      } catch {
+      } catch (devFetchErr) {
+        persistShopResolveDebugLog({
+          phase: 'development_api_fetch_failed',
+          error: String(devFetchErr),
+        });
         // Fall through to env fallback
       }
     }
-    return devBrandingFallback();
+    const devFallback = devBrandingFallback();
+    persistShopResolveDebugLog({
+      phase: 'resolve_outcome',
+      path: 'development_env',
+      source: 'env_fallback',
+      shopId: devFallback.shopId,
+      shopName: devFallback.shopName,
+    });
+    return devFallback;
   }
+
+  persistShopResolveDebugLog({ phase: 'resolve_path', path: 'production_domain' });
 
   const domain = String(window.location.hostname || '').toLowerCase().trim();
   if (!domain) {
+    persistShopResolveDebugLog({
+      phase: 'resolve_outcome',
+      path: 'production_domain',
+      source: 'empty_hostname',
+    });
     return {
       shopId: '',
       shopName: DEFAULT_SHOP_NAME,
@@ -565,14 +702,40 @@ export async function resolveShopBranding() {
 
   const cached = readCachedBranding(domain);
   if (cached) {
+    persistShopResolveDebugLog({
+      phase: 'resolve_outcome',
+      path: 'production_domain',
+      source: 'localStorage_cache',
+      domain,
+      shopId: cached.shopId,
+      shopName: cached.shopName,
+      bannerCount: cached.bannerImages?.length ?? 0,
+    });
     return { ...cached, fromCache: true, notFound: false };
   }
 
   const fetched = await fetchShopByDomain(domain);
   if (fetched.shopId) {
     persistResolvedShop(domain, fetched);
+    persistShopResolveDebugLog({
+      phase: 'resolve_outcome',
+      path: 'production_domain',
+      source: 'api',
+      domain,
+      shopId: fetched.shopId,
+      shopName: fetched.shopName,
+      notFound: fetched.notFound,
+    });
     return { ...fetched, fromCache: false, notFound: false };
   }
+
+  persistShopResolveDebugLog({
+    phase: 'api_resolve_failed_using_fallback',
+    domain,
+    fetchedNotFound: fetched.notFound,
+    fetchedShopId: fetched.shopId || null,
+    envShopId: envShopId() || null,
+  });
 
   const fallbackId = envShopId();
   if (fallbackId) {
@@ -586,8 +749,27 @@ export async function resolveShopBranding() {
       notFound: !!fetched.notFound,
     };
     persistResolvedShop(domain, fallback);
+    persistShopResolveDebugLog({
+      phase: 'resolve_outcome',
+      path: 'production_domain',
+      source: 'env_fallback',
+      domain,
+      shopId: fallback.shopId,
+      shopName: fallback.shopName,
+      notFound: fallback.notFound,
+      warning:
+        'NEXT_PUBLIC_SHOP_ID used because resolve-by-domain returned no shopId — check requestUrl/httpStatus in earlier log entries',
+    });
     return fallback;
   }
+
+  persistShopResolveDebugLog({
+    phase: 'resolve_outcome',
+    path: 'production_domain',
+    source: 'empty_no_env_fallback',
+    domain,
+    notFound: !!fetched.notFound,
+  });
 
   return {
     shopId: '',
