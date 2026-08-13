@@ -5,13 +5,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCategories, useProducts } from '../hooks/useProducts';
+import { productKeys, useRootCategories, useProducts } from '../hooks/useProducts';
+import { useInView } from '../hooks/useInView';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useAlert } from '../context/AlertContext';
 import { useLocationService } from '../context/LocationServiceContext';
 import { useAuth } from '../context/AuthContext';
 import { useShopBranding } from '../context/ShopBrandingContext';
-import ProductCarousel from '../components/ProductCarousel';
 import ProductCard from '../components/ProductCard';
 import ProductGrid from '../components/ProductGrid';
 import CategoryCard from '../components/CategoryCard';
@@ -21,6 +21,7 @@ import BannerCarousel from '../components/BannerCarousel';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../utils/categoryImage';
 import { dedupeProductsByVariantGroup } from '../utils/productUtils';
 import HomePageSkeleton from '../components/skeletons/HomePageSkeleton';
+import { ProductCarouselRowSkeleton } from '../components/skeletons/primitives';
 
 /** Compact category tile for the sticky home header (light theme). */
 function StickyHomeCategoryChip({ category }) {
@@ -219,7 +220,10 @@ export default function Home() {
     setPtrPull(ptrThreshold);
     try {
       recheckLocation?.();
-      await queryClient.invalidateQueries();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: productKeys.lists() }),
+        queryClient.invalidateQueries({ queryKey: productKeys.categoryRoots() }),
+      ]);
     } finally {
       // Small delay to make animation visible/stable
       window.setTimeout(() => {
@@ -236,58 +240,35 @@ export default function Home() {
   const startXRef = useRef(0);
   const scrollLeftRef = useRef(0);
 
-  // Load categories and products using TanStack Query
-  const { data: categoriesData, isLoading: categoriesLoading } = useCategories();
-  const { data: featuredData, isLoading: featuredLoading } = useProducts({
-    limit: 8,
-    sort_by: 'created_at',
-    sort_order: 'desc',
-  });
-  const { data: bestSellersData, isLoading: bestSellersLoading } = useProducts({
-    limit: 16,
-    sort_by: 'created_at',
-    sort_order: 'desc',
-  });
-  const { data: newArrivalsData, isLoading: newArrivalsLoading } = useProducts({
-    limit: 24,
-    sort_by: 'created_at',
-    sort_order: 'desc',
-  });
-  const { data: offersData, isLoading: offersLoading } = useProducts({
-    limit: 50,
-    sort_by: 'created_at',
-    sort_order: 'desc',
-  });
-  const { data: freshZoneData, isLoading: freshZoneLoading } = useProducts({
-    limit: 200,
+  // Load root categories + one shared catalog (home sections slice client-side).
+  const { data: categoriesData, isLoading: categoriesLoading } = useRootCategories();
+  const { data: catalogData, isLoading: catalogLoading } = useProducts({
+    limit: 48,
     sort_by: 'created_at',
     sort_order: 'desc',
   });
 
+  const [freshZoneRef, freshZoneInView] = useInView({ rootMargin: '240px 0px', once: true });
+  const { data: freshZoneData, isLoading: freshZoneLoading } = useProducts({
+    limit: 40,
+    sort_by: 'created_at',
+    sort_order: 'desc',
+    enabled: freshZoneInView,
+  });
+
   // Process data
-  // Home categories strip: show only parent categories (parentId == null).
-  const allCategories = categoriesData?.filter(cat => cat.isActive && cat.parentId == null) || [];
+  // Home categories strip: roots only (already parentId == null from API helper).
+  const allCategories = categoriesData?.filter((cat) => cat.isActive !== false) || [];
   const categories = allCategories.slice(0, 12);
-  const featuredProducts = useMemo(
-    () => dedupeProductsByVariantGroup(featuredData?.products || []).slice(0, 8),
-    [featuredData?.products]
+
+  const catalogProducts = useMemo(
+    () => dedupeProductsByVariantGroup(catalogData?.products || []),
+    [catalogData?.products]
   );
-  const bestSellers = useMemo(
-    () => dedupeProductsByVariantGroup(bestSellersData?.products || []).slice(0, 16),
-    [bestSellersData?.products]
-  );
-  const newArrivals = useMemo(
-    () => dedupeProductsByVariantGroup(newArrivalsData?.products || []).slice(0, 24),
-    [newArrivalsData?.products]
-  );
-  const specialOffers = useMemo(() => {
-    const discounted = (offersData?.products || []).filter(
-      (p) =>
-        p.discountPercentage > 0 ||
-        (p.originalPrice && parseFloat(p.originalPrice) > parseFloat(p.price))
-    );
-    return dedupeProductsByVariantGroup(discounted).slice(0, 8);
-  }, [offersData?.products]);
+
+  const featuredProducts = useMemo(() => catalogProducts.slice(0, 8), [catalogProducts]);
+  const bestSellers = useMemo(() => catalogProducts.slice(0, 16), [catalogProducts]);
+  const newArrivals = useMemo(() => catalogProducts.slice(0, 24), [catalogProducts]);
 
   // Fresh Zone category tabs
   const [freshZoneCategoryId, setFreshZoneCategoryId] = useState(null);
@@ -426,13 +407,7 @@ export default function Home() {
     ? newArrivals.filter((p) => productMatchesCategory(p, orderAgainSelectedCategory))
     : newArrivals;
 
-  const loading =
-    categoriesLoading ||
-    featuredLoading ||
-    bestSellersLoading ||
-    newArrivalsLoading ||
-    offersLoading ||
-    freshZoneLoading;
+  const loading = categoriesLoading || catalogLoading;
 
   useEffect(() => {
     if (loading) return undefined;
@@ -771,9 +746,23 @@ export default function Home() {
         </section>
       )}
 
-      {/* Special Offers Section */}
-      {freshZoneProducts.length > 0 && (
-        <section className="fresh-zone-minh relative overflow-hidden bg-white rounded-[32px] mx-3 sm:mx-6 md:mx-8 my-4 sm:my-6">
+      {/* Fresh Zone — lazy-loaded when near viewport */}
+      <section
+        ref={freshZoneRef}
+        className="fresh-zone-minh relative overflow-hidden bg-white rounded-[32px] mx-3 sm:mx-6 md:mx-8 my-4 sm:my-6 min-h-[12rem]"
+      >
+        {freshZoneInView && freshZoneLoading && (
+          <Container className="relative z-[2] py-10 sm:py-14">
+            <div className="mb-6 px-3 sm:px-4 md:px-0 text-center">
+              <h2 className="text-3xl font-extrabold text-gray-900 font-headingnow">FRESH ZONE</h2>
+              <p className="text-gray-500 mt-1">Loading daily essentials…</p>
+            </div>
+            <ProductCarouselRowSkeleton count={6} />
+          </Container>
+        )}
+
+        {!freshZoneLoading && freshZoneProducts.length > 0 && (
+          <>
           {/* Background video */}
           <div className="pointer-events-none absolute inset-0 z-0">
             <video
@@ -880,8 +869,9 @@ export default function Home() {
               </Link>
             </div>
           </Container>
-        </section>
-      )}
+          </>
+        )}
+      </section>
 
       {/* Featured Products Grid (8 items) */}
       {featuredProducts.length > 0 && (

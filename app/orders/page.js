@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { useOrdersList, useCancelOrder } from '../../hooks/useOrders';
+import { useInfiniteOrdersList, useCancelOrder } from '../../hooks/useOrders';
 import { useProducts } from '../../hooks/useProducts';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -18,6 +18,7 @@ import PageTopBar from '../../components/PageTopBar';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
 import GuestAuthPrompt from '../../components/GuestAuthPrompt';
 import ProductCarousel from '../../components/ProductCarousel';
+import InfiniteScrollSentinel from '../../components/InfiniteScrollSentinel';
 import { Check, MoreVertical, Package } from 'lucide-react';
 import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../utils/productImages';
 import OrdersPageSkeleton from '../../components/skeletons/OrdersPageSkeleton';
@@ -48,10 +49,14 @@ export default function OrdersPage() {
   const queryClient = useQueryClient();
   const { isAuthenticated } = useAuth();
   const { ok, ready } = useRequireAuth();
-  const { data: ordersData, isLoading, error } = useOrdersList(
-    { page: 1, per_page: 100 },
-    { enabled: ok }
-  );
+  const {
+    data: ordersInfinite,
+    isLoading,
+    error,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteOrdersList({ per_page: 20 }, { enabled: ok });
   const cancelOrderMutation = useCancelOrder();
   const { addToCart } = useCart();
   const [menuOpenId, setMenuOpenId] = useState(null);
@@ -68,7 +73,10 @@ export default function OrdersPage() {
   const [cancelOrderId, setCancelOrderId] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
 
-  const orders = ordersData?.orders || [];
+  const orders = useMemo(
+    () => (ordersInfinite?.pages || []).flatMap((p) => p?.orders || []),
+    [ordersInfinite?.pages]
+  );
   const allOrderedItems = useMemo(
     () => orders.flatMap((o) => (Array.isArray(o.items) ? o.items : [])),
     [orders]
@@ -411,7 +419,8 @@ Payment Status: ${order.paymentStatus}
             </Link>
           </div>
         ) : (
-          orders.map((order) => (
+          <>
+          {orders.map((order) => (
             <div
               key={order.id}
               role="link"
@@ -612,7 +621,22 @@ Payment Status: ${order.paymentStatus}
                 </div>
               </div>
             </div>
-          ))
+          ))}
+          <InfiniteScrollSentinel
+            hasNextPage={!!hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+            fetchNextPage={fetchNextPage}
+            showSkeleton={false}
+            endLabel="No more orders"
+            showEndLabel={orders.length > 0 && !hasNextPage}
+          />
+          {isFetchingNextPage && (
+            <div className="space-y-4">
+              <OrderListCardSkeleton />
+              <OrderListCardSkeleton />
+            </div>
+          )}
+          </>
         )}
 
         {orders.length > 0 && similarProducts.length > 0 && (

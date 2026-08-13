@@ -75,7 +75,10 @@ export async function fetchSeoMetadata(params) {
         slug: json?.slug,
       };
     } catch (err) {
-      warnBuildApiUnavailable(`fetchSeoMetadata(${pageType})`, err);
+      // Soft-fail: local SSR / wrong shop often 400; build gets a one-line warn only.
+      if (process.env.NEXT_PHASE === 'phase-production-build') {
+        warnBuildApiUnavailable(`fetchSeoMetadata(${pageType})`, err);
+      }
       return null;
     }
   }

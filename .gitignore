@@ -25,6 +25,8 @@ yarn-error.log*
 # Local env files
 .env*.local
 .env
+# Parked during `npm run build:static` if a crash interrupts restore
+app/_api_parked_for_static_export
 
 # Cloudflare Tunnel — never commit real tunnel credentials
 cloudflared/credentials.json

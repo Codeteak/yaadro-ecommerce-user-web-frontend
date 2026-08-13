@@ -148,6 +148,7 @@ function buildFallbackProductMetadata(lookup, options = {}) {
 
 /**
  * Next.js `generateMetadata` helper — prefers backend `/seo/metadata`, then product API fallbacks.
+ * SEO / shop-resolve failures are soft: fallback metadata, no thrown errors (local SSR often lacks a valid shop).
  */
 export async function generateProductMetadataForId(lookup, options = {}) {
   const id = lookup != null ? String(lookup).trim() : '';
@@ -158,25 +159,46 @@ export async function generateProductMetadataForId(lookup, options = {}) {
     return buildProductMetadataObject(null, { shopName, ...options });
   }
 
-  const seoResult = await fetchProductSeoMetadata(id);
-  if (seoResult?.seo) {
-    return seoBlockToNextMetadata(seoResult.seo, {
-      siteName: shopName,
-      siteOrigin,
-    });
+  const shopId =
+    (options.shopId != null && String(options.shopId).trim()) ||
+    (process.env.NEXT_PUBLIC_SHOP_ID ? String(process.env.NEXT_PUBLIC_SHOP_ID).trim() : '');
+
+  try {
+    const seoResult = await fetchProductSeoMetadata(id, shopId || undefined);
+    if (seoResult?.seo) {
+      return seoBlockToNextMetadata(seoResult.seo, {
+        siteName: shopName,
+        siteOrigin,
+      });
+    }
+  } catch {
+    // Soft-fail SEO (missing shop / 400 in local SSR).
   }
 
   const isBuild = process.env.NEXT_PHASE === 'phase-production-build';
-  if (isBuild) {
+  // Local `next dev`: skip upstream getProductById — shop resolve often 404s while the
+  // client PDP still loads via same-origin /api. Client applyProductSocialMeta fills tags.
+  if (isBuild || process.env.NODE_ENV !== 'production') {
     return buildFallbackProductMetadata(id, { shopName, ...options });
   }
 
-  const product = await getProductById(id);
-  return buildProductMetadataObject(product, {
-    shopName,
-    lookup: id,
-    ...options,
-  });
+  if (!shopId) {
+    return buildFallbackProductMetadata(id, { shopName, ...options });
+  }
+
+  try {
+    const product = await getProductById(id, { silent: true });
+    if (!product) {
+      return buildFallbackProductMetadata(id, { shopName, ...options });
+    }
+    return buildProductMetadataObject(product, {
+      shopName,
+      lookup: id,
+      ...options,
+    });
+  } catch {
+    return buildFallbackProductMetadata(id, { shopName, ...options });
+  }
 }
 
 /** Client: update OG/Twitter tags after product loads (in-app + JS-aware crawlers). */
