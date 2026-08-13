@@ -70,41 +70,11 @@ function ProductsContent() {
 
   const urlSearch = searchParams?.get('search') || '';
 
-  const descendantCategoryIds = useMemo(() => {
-    if (!CATEGORY_ID_UUID.test(activeCategory)) return [];
-    const list = categoriesData || [];
-    const childrenByParent = new Map();
-    for (const c of list) {
-      const pid = c?.parentId;
-      const cid = c?.id;
-      if (!cid) continue;
-      if (pid == null) continue;
-      const key = String(pid);
-      const arr = childrenByParent.get(key) || [];
-      arr.push(String(cid));
-      childrenByParent.set(key, arr);
-    }
-    const out = [];
-    const seen = new Set();
-    const queue = [String(activeCategory)];
-    while (queue.length) {
-      const cur = queue.shift();
-      const kids = childrenByParent.get(String(cur)) || [];
-      for (const k of kids) {
-        if (seen.has(k)) continue;
-        seen.add(k);
-        out.push(k);
-        queue.push(k);
-      }
-    }
-    return out;
-  }, [activeCategory, categoriesData]);
-
-  const activeCategoryIdsForFetch = useMemo(() => {
-    if (activeCategory === 'all') return [];
-    if (!CATEGORY_ID_UUID.test(activeCategory)) return [];
-    return [String(activeCategory), ...descendantCategoryIds];
-  }, [activeCategory, descendantCategoryIds]);
+  const activeCategoryId = useMemo(() => {
+    if (activeCategory === 'all') return '';
+    if (!CATEGORY_ID_UUID.test(activeCategory)) return '';
+    return String(activeCategory);
+  }, [activeCategory]);
 
   useEffect(() => {
     setLocalSearch('');
@@ -217,7 +187,7 @@ function ProductsContent() {
         <ProductsListingPanel
           activeCategory={activeCategory}
           activeCategoryLabel={activeCategoryLabel}
-          activeCategoryIdsForFetch={activeCategoryIdsForFetch}
+          categoryId={activeCategoryId}
           urlSearch={urlSearch}
           localInResultsSearch={localSearch}
           onResetBrowse={onResetBrowse}

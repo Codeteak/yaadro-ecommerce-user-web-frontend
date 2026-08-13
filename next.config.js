@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const isProduction = process.env.NODE_ENV === 'production';
+/** Set by `npm run build:static` / pages deploy. Plain `next build` keeps Route Handlers. */
+const useStaticExport = process.env.NEXT_STATIC_EXPORT === 'true';
 const apiProxyTarget = (
   process.env.API_PROXY_TARGET ||
   process.env.NEXT_PUBLIC_API_URL ||
@@ -8,8 +10,8 @@ const apiProxyTarget = (
 
 const baseConfig = {
   reactStrictMode: true,
-  // Keep static export for production deployments, but allow dynamic routes in local dev.
-  output: isProduction ? 'export' : undefined,
+  // Static export is opt-in (Cloudflare Pages). Default prod build allows GET DB API routes.
+  output: useStaticExport ? 'export' : undefined,
   // Clean URLs (`/cart`, `/product`, etc.) export as `/cart/index.html`, `/product/index.html`.
   // Cloudflare Pages serves directory indexes; `public/_redirects` handles SPA deep links.
   trailingSlash: true,
@@ -33,15 +35,30 @@ const baseConfig = {
 /** Dev-only: proxy /api/* to the real backend so serviceability cookies are same-origin. */
 const devOnlyConfig = {
   ...baseConfig,
+  // Keep `pg` external for Route Handlers that read DATABASE_URL.
+  experimental: {
+    ...(baseConfig.experimental || {}),
+    serverComponentsExternalPackages: ['pg'],
+  },
   async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${apiProxyTarget}/api/:path*`,
-      },
-    ];
+    // `fallback`: only proxy when no App Router handler matched.
+    // Lets GET app/api/storefront/products|categories use DATABASE_URL locally,
+    // while cart/auth/checkout still proxy to the upstream API.
+    return {
+      fallback: [
+        {
+          source: '/api/:path*',
+          destination: `${apiProxyTarget}/api/:path*`,
+        },
+      ],
+    };
   },
 };
 
-module.exports = isProduction ? baseConfig : devOnlyConfig;
+module.exports = isProduction && useStaticExport ? baseConfig : isProduction ? {
+  ...baseConfig,
+  experimental: {
+    serverComponentsExternalPackages: ['pg'],
+  },
+} : devOnlyConfig;
 

@@ -1,24 +1,31 @@
 'use client';
 
-import { useState, useMemo, memo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useMemo, memo, useEffect, useRef } from 'react';
+import { useInfiniteProducts } from '../../hooks/useProducts';
 import { getProductRating, getProductDiscount } from '../../utils/productUtils';
-import { getProducts } from '../../utils/productApi';
 import ProductCard from '../ProductCard';
+import InfiniteScrollSentinel from '../InfiniteScrollSentinel';
 import { CATEGORY_ID_UUID, SORT_OPTIONS } from './productsBrowseConstants';
 import { ProductGridSkeleton } from '../skeletons/primitives';
 
-function FilterBar({ filters, onFilterToggle, sortKey, onSortChange }) {
+const PRODUCTS_SCROLL_KEY = 'yaadro_products_scroll_v1';
+
+function FilterBar({ filters, onFilterToggle, sortKey, onSortChange, disabled }) {
   const sortLabel = SORT_OPTIONS.find((s) => s.key === sortKey)?.label || 'Sort';
   const sortIdx = SORT_OPTIONS.findIndex((s) => s.key === sortKey);
 
   const handleSortClick = () => {
+    if (disabled) return;
     const next = SORT_OPTIONS[(sortIdx + 1) % SORT_OPTIONS.length];
     onSortChange(next.key);
   };
 
   return (
-    <div className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white px-3 py-2 shadow-sm">
+    <div
+      className={`flex items-center justify-between rounded-2xl border border-gray-100 bg-white px-3 py-2 shadow-sm ${
+        disabled ? 'pointer-events-none opacity-60' : ''
+      }`}
+    >
       <div className="flex gap-2 overflow-x-auto scrollbar-hide">
         {[
           {
@@ -67,6 +74,7 @@ function FilterBar({ filters, onFilterToggle, sortKey, onSortChange }) {
           <button
             key={key}
             type="button"
+            disabled={disabled}
             onClick={() => onFilterToggle(key)}
             className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition whitespace-nowrap ${
               filters[key]
@@ -82,6 +90,7 @@ function FilterBar({ filters, onFilterToggle, sortKey, onSortChange }) {
 
       <button
         type="button"
+        disabled={disabled}
         onClick={handleSortClick}
         className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition ml-2 whitespace-nowrap ${
           sortKey !== 'default'
@@ -127,7 +136,7 @@ function EmptyState({ onReset }) {
 function ProductsListingPanelInner({
   activeCategory,
   activeCategoryLabel,
-  activeCategoryIdsForFetch,
+  categoryId,
   urlSearch,
   localInResultsSearch,
   onResetBrowse,
@@ -139,11 +148,13 @@ function ProductsListingPanelInner({
     onSale: false,
   });
   const [sortKey, setSortKey] = useState('default');
+  const restoredScrollRef = useRef(false);
 
-  const sortParams = useMemo(() => {
+  const infiniteParams = useMemo(() => {
     const combined = urlSearch.trim();
     const q = {
-      limit: 50,
+      limit: 24,
+      category_id: categoryId || undefined,
       search: combined || undefined,
       availability: filters.inStock ? 'in_stock' : undefined,
     };
@@ -153,59 +164,47 @@ function ProductsListingPanelInner({
     } else if (sortKey === 'price-desc') {
       q.sort_by = 'price';
       q.sort_order = 'desc';
-    } else if (sortKey === 'newest') {
+    } else if (sortKey === 'newest' || sortKey === 'default') {
       q.sort_by = 'created_at';
       q.sort_order = 'desc';
     }
     return q;
-  }, [urlSearch, filters.inStock, sortKey]);
+  }, [urlSearch, filters.inStock, sortKey, categoryId]);
 
-  const { data: mergedData, isLoading } = useQuery({
-    queryKey: [
-      'products',
-      'by-category-tree',
-      activeCategoryIdsForFetch,
-      sortParams,
-      filters.organic,
-      filters.onSale,
-    ],
-    queryFn: async () => {
-      if (!activeCategoryIdsForFetch.length) {
-        return await getProducts(sortParams);
-      }
-      const results = await Promise.all(
-        activeCategoryIdsForFetch.map((cid) => getProducts({ ...sortParams, category_id: cid }))
-      );
-      const map = new Map();
-      for (const r of results) {
-        for (const p of r?.products || []) {
-          if (!p?.id) continue;
-          if (!map.has(p.id)) map.set(p.id, p);
-        }
-      }
-      return { products: Array.from(map.values()), pagination: { nextCursor: null } };
-    },
-    staleTime: 1000 * 60 * 2,
-  });
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteProducts(infiniteParams);
 
-  const products = mergedData?.products || [];
+  const products = useMemo(
+    () => (data?.pages || []).flatMap((p) => p?.products || []),
+    [data?.pages]
+  );
 
-  const sorted = [...products].sort((a, b) => {
-    if (sortKey === 'rating') return getProductRating(b) - getProductRating(a);
-    return 0;
-  });
-
-  const filtered = sorted.filter((p) => {
-    if (filters.organic && !p.organicTag) return false;
-    if (filters.onSale) {
-      const disc = getProductDiscount(p);
-      if (!disc || disc <= 0) return false;
+  const sorted = useMemo(() => {
+    const list = [...products];
+    if (sortKey === 'rating') {
+      list.sort((a, b) => getProductRating(b) - getProductRating(a));
     }
-    if (activeCategory !== 'all' && !CATEGORY_ID_UUID.test(activeCategory)) {
-      if (String(p.category || '') !== activeCategory) return false;
-    }
-    return true;
-  });
+    return list;
+  }, [products, sortKey]);
+
+  const filtered = useMemo(() => {
+    return sorted.filter((p) => {
+      if (filters.organic && !p.organicTag) return false;
+      if (filters.onSale) {
+        const disc = getProductDiscount(p);
+        if (!disc || disc <= 0) return false;
+      }
+      if (activeCategory !== 'all' && !CATEGORY_ID_UUID.test(activeCategory)) {
+        if (String(p.category || '') !== activeCategory) return false;
+      }
+      return true;
+    });
+  }, [sorted, filters.organic, filters.onSale, activeCategory]);
 
   const displayProducts = useMemo(() => {
     const q = localInResultsSearch.trim().toLowerCase();
@@ -219,6 +218,47 @@ function ProductsListingPanelInner({
           .includes(q)
     );
   }, [filtered, localInResultsSearch]);
+
+  // Restore scroll after returning from PDP
+  useEffect(() => {
+    if (isLoading || restoredScrollRef.current) return;
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = sessionStorage.getItem(PRODUCTS_SCROLL_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      const browseKey = `${categoryId || 'all'}|${urlSearch || ''}`;
+      if (!saved || saved.browseKey !== browseKey) return;
+      restoredScrollRef.current = true;
+      sessionStorage.removeItem(PRODUCTS_SCROLL_KEY);
+      requestAnimationFrame(() => {
+        window.scrollTo(0, Number(saved.y) || 0);
+      });
+    } catch {
+      // ignore
+    }
+  }, [isLoading, categoryId, urlSearch, displayProducts.length]);
+
+  // Persist scroll before leaving for PDP (capture phase on product links)
+  useEffect(() => {
+    const onClick = (e) => {
+      const a = e.target?.closest?.('a[href*="/products/"]');
+      if (!a || typeof window === 'undefined') return;
+      try {
+        sessionStorage.setItem(
+          PRODUCTS_SCROLL_KEY,
+          JSON.stringify({
+            browseKey: `${categoryId || 'all'}|${urlSearch || ''}`,
+            y: window.scrollY || 0,
+          })
+        );
+      } catch {
+        // ignore
+      }
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [categoryId, urlSearch]);
 
   const handleFilterToggle = (key) => {
     setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -243,6 +283,7 @@ function ProductsListingPanelInner({
           onFilterToggle={handleFilterToggle}
           sortKey={sortKey}
           onSortChange={setSortKey}
+          disabled={isLoading}
         />
       </div>
 
@@ -264,11 +305,21 @@ function ProductsListingPanelInner({
           <EmptyState onReset={handleReset} />
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
-          {displayProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
+            {displayProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+          {!localInResultsSearch.trim() && (
+            <InfiniteScrollSentinel
+              hasNextPage={!!hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              fetchNextPage={fetchNextPage}
+              showEndLabel={displayProducts.length > 0 && !hasNextPage}
+            />
+          )}
+        </>
       )}
     </main>
   );

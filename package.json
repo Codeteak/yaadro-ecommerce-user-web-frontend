@@ -8,13 +8,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:static": "node scripts/static-export-build.mjs",
     "start": "next start",
     "lint": "next lint",
     "test:otp-payload": "node --test utils/otpVerifyPayload.test.mjs",
     "tunnel:login": "cloudflared tunnel login",
     "tunnel:run": "cloudflared tunnel --config cloudflared/config.yaml run",
     "pages:dev": "wrangler pages dev out",
-    "pages:deploy": "npm run build && wrangler pages deploy out --project-name=yaadro-ecommerce-user-web-frontend"
+    "pages:deploy": "npm run build:static && wrangler pages deploy out --project-name=yaadro-ecommerce-user-web-frontend"
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.8",
@@ -23,6 +24,7 @@
     "leaflet": "^1.9.4",
     "lucide-react": "1.8.0",
     "next": "14.2.33",
+    "pg": "^8.23.0",
     "razorpay": "^2.9.6",
     "react": "18.3.1",
     "react-dom": "18.3.1",
@@ -31,6 +33,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "4.2.2",
     "@tanstack/react-query-devtools": "5.96.2",
+    "@types/pg": "^8.21.0",
     "autoprefixer": "10.4.27",
     "postcss": "8.5.9",
     "tailwindcss": "4.2.2",
