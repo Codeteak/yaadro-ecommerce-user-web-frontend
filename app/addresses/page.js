@@ -95,7 +95,6 @@ export default function AddressesPage() {
     return (
       <GuestAuthPrompt
         pageTitle="Addresses"
-        backHref="/profile"
         fallbackHref="/"
         description="Sign in to manage your delivery addresses."
       />
@@ -105,7 +104,7 @@ export default function AddressesPage() {
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       <div className="sticky top-0 z-20 shrink-0">
-        <PageTopBar title="Addresses" backHref="/profile" fallbackHref="/" />
+        <PageTopBar title="Addresses" fallbackHref="/profile" />
       </div>
 
       <div className="flex-1 px-4 pb-24 pt-6 md:pb-24">

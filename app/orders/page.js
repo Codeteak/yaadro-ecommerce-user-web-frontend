@@ -271,7 +271,6 @@ export default function OrdersPage() {
     return (
       <GuestAuthPrompt
         pageTitle="Your Orders"
-        backHref="/profile"
         fallbackHref="/"
         description="Sign in to view your order history."
       />
@@ -281,7 +280,7 @@ export default function OrdersPage() {
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       <div className="sticky top-0 z-20 shrink-0">
-        <PageTopBar title="Your Orders" backHref="/profile" fallbackHref="/" />
+        <PageTopBar title="Your Orders" fallbackHref="/profile" />
       </div>
 
       <div className="mx-auto w-full max-w-lg flex-1 space-y-4 px-4 pb-24 pt-4">
