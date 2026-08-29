@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Link from 'next/link';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCart } from '../context/CartContext';
 import {
   getEffectivePrice,
@@ -16,8 +17,10 @@ import { getCartLineDisplayQty } from '../utils/cartPromotions';
 import { findPaidCartLine } from '../utils/cartLinePersist';
 import ProductImageWithFallback from './ProductImageWithFallback';
 import { getProductDetailPath } from '../utils/productApi';
+import { prefetchProductDetail } from '../hooks/useProducts';
 
 export default function ProductCard({ product, isCarousel = false, variant = 'default' }) {
+  const queryClient = useQueryClient();
   const { addToCart, cartItems, updateQuantity, removeFromCart } = useCart();
   const legacyOriginal =
     product.originalPrice != null ? parseFloat(product.originalPrice) : null;
@@ -188,6 +191,10 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
 
   const productDetailHref = getProductDetailPath(product);
 
+  const warmProductDetail = useCallback(() => {
+    void prefetchProductDetail(queryClient, product);
+  }, [queryClient, product]);
+
   const chromeClass =
     variant === 'flat'
       ? 'border-0 bg-transparent shadow-none hover:shadow-none hover:border-transparent active:shadow-none'
@@ -263,10 +270,15 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   const navLinkProps = {
     href: productDetailHref,
     scroll: true,
+    onMouseEnter: warmProductDetail,
+    onFocus: warmProductDetail,
+    onTouchStart: warmProductDetail,
     onClick: (e) => {
       if (suppressNavClickRef.current) {
         e.preventDefault();
         e.stopPropagation();
+      } else {
+        warmProductDetail();
       }
     },
   };

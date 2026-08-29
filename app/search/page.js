@@ -4,14 +4,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Search, ArrowLeft } from 'lucide-react';
-import { useSearchProducts, useProducts } from '../../hooks/useProducts';
+import { useInfiniteSearchProducts, useProducts } from '../../hooks/useProducts';
 import ProductCard from '../../components/ProductCard';
 import Container from '../../components/Container';
 import ProductCarousel from '../../components/ProductCarousel';
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import BannerCarousel from '../../components/BannerCarousel';
+import InfiniteScrollSentinel from '../../components/InfiniteScrollSentinel';
 import { useShopBranding } from '../../context/ShopBrandingContext';
 import { SearchResultsGridSkeleton } from '../../components/skeletons/SearchPageSkeleton';
+import { dedupeProductsByVariantGroup } from '../../utils/productUtils';
 
 const DISCOVER_PER_SECTION = 12;
 const SEARCH_BASE_PATH = '/search/';
@@ -41,18 +43,31 @@ function discoverProductKey(p) {
 }
 
 /**
- * Build three mutually exclusive product lists: prefer each section’s own sort list first,
- * then backfill any short section from a merged walk (newest → popular → budget) without reuse.
+ * Split one newest catalog list into three discover carousels (no extra API sorts).
  */
-function partitionDiscoverCarouselProducts(newestList, popularList, budgetList, maxEach = DISCOVER_PER_SECTION) {
-  const newest = Array.isArray(newestList) ? newestList : [];
-  const popular = Array.isArray(popularList) ? popularList : [];
-  const budget = Array.isArray(budgetList) ? budgetList : [];
+function partitionDiscoverFromCatalog(catalogList, maxEach = DISCOVER_PER_SECTION) {
+  const catalog = dedupeProductsByVariantGroup(Array.isArray(catalogList) ? catalogList : []);
   const used = new Set();
 
-  const takeFrom = (list) => {
+  const takeSlice = (start, preferDiscount) => {
     const out = [];
-    for (const p of list) {
+    for (let i = start; i < catalog.length && out.length < maxEach; i += 1) {
+      const p = catalog[i];
+      const k = discoverProductKey(p);
+      if (!k || used.has(k)) continue;
+      if (preferDiscount) {
+        const hasDeal =
+          (p.discountPercentage > 0) ||
+          (p.originalPrice && parseFloat(p.originalPrice) > parseFloat(p.price));
+        if (!hasDeal && out.length < maxEach / 2) {
+          // soft prefer deals but still fill
+        }
+      }
+      used.add(k);
+      out.push(p);
+    }
+    // backfill
+    for (const p of catalog) {
       if (out.length >= maxEach) break;
       const k = discoverProductKey(p);
       if (!k || used.has(k)) continue;
@@ -62,24 +77,26 @@ function partitionDiscoverCarouselProducts(newestList, popularList, budgetList, 
     return out;
   };
 
-  const fresh = takeFrom(newest);
-  const picks = takeFrom(popular);
-  const deals = takeFrom(budget);
-
-  const merged = [...newest, ...popular, ...budget];
-  const fill = (bucket) => {
-    for (const p of merged) {
-      if (bucket.length >= maxEach) return;
-      const k = discoverProductKey(p);
-      if (!k || used.has(k)) continue;
-      used.add(k);
-      bucket.push(p);
-    }
-  };
-
-  fill(fresh);
-  fill(picks);
-  fill(deals);
+  const fresh = takeSlice(0, false);
+  const picks = takeSlice(Math.min(8, catalog.length), false);
+  const byPrice = [...catalog].sort(
+    (a, b) => (parseFloat(a.price) || 0) - (parseFloat(b.price) || 0)
+  );
+  const deals = [];
+  for (const p of byPrice) {
+    if (deals.length >= maxEach) break;
+    const k = discoverProductKey(p);
+    if (!k || used.has(k)) continue;
+    used.add(k);
+    deals.push(p);
+  }
+  for (const p of catalog) {
+    if (deals.length >= maxEach) break;
+    const k = discoverProductKey(p);
+    if (!k || used.has(k)) continue;
+    used.add(k);
+    deals.push(p);
+  }
 
   return { fresh, picks, deals };
 }
@@ -197,45 +214,30 @@ export default function SearchPage() {
     );
   }, [shopBanners]);
 
-  const searchApiParams = useMemo(
-    () => ({ q, page: 1, per_page: 24 }),
-    [q]
+  const {
+    data: searchInfinite,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteSearchProducts({ q, per_page: 24 });
+
+  const products = useMemo(
+    () => (searchInfinite?.pages || []).flatMap((p) => p?.products || []),
+    [searchInfinite?.pages]
   );
 
-  const { data, isLoading } = useSearchProducts(searchApiParams);
-
-  const products = useMemo(() => data?.products || [], [data]);
-
-  const discoverListParams = useMemo(
-    () => ({
-      limit: 48,
-      enabled: showDiscover,
-    }),
-    [showDiscover]
-  );
-
-  const { data: newestData } = useProducts({
-    ...discoverListParams,
+  const { data: discoverCatalog } = useProducts({
+    limit: 48,
     sort_by: 'created_at',
     sort_order: 'desc',
-  });
-  const { data: popularData } = useProducts({
-    ...discoverListParams,
-    sort_by: 'sold_count',
-    sort_order: 'desc',
-  });
-  const { data: budgetData } = useProducts({
-    ...discoverListParams,
-    sort_by: 'price',
-    sort_order: 'asc',
+    enabled: showDiscover,
   });
 
   const discoverSections = useMemo(() => {
     if (!showDiscover) return [];
-    const { fresh, picks, deals } = partitionDiscoverCarouselProducts(
-      newestData?.products,
-      popularData?.products,
-      budgetData?.products,
+    const { fresh, picks, deals } = partitionDiscoverFromCatalog(
+      discoverCatalog?.products,
       DISCOVER_PER_SECTION
     );
     return [
@@ -258,7 +260,7 @@ export default function SearchPage() {
         products: deals,
       },
     ];
-  }, [showDiscover, newestData?.products, popularData?.products, budgetData?.products]);
+  }, [showDiscover, discoverCatalog?.products]);
 
   return (
     <div className="min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden pb-28">
@@ -339,6 +341,12 @@ export default function SearchPage() {
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
+              <InfiniteScrollSentinel
+                hasNextPage={!!hasNextPage}
+                isFetchingNextPage={isFetchingNextPage}
+                fetchNextPage={fetchNextPage}
+                showEndLabel={products.length > 0 && !hasNextPage}
+              />
             </>
           )}
         </div>

@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import ProductCard from '../../../components/ProductCard';
 import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
-import { useCategoriesTree, useProducts } from '../../../hooks/useProducts';
+import { useCategoriesTree, useInfiniteProducts } from '../../../hooks/useProducts';
+import InfiniteScrollSentinel from '../../../components/InfiniteScrollSentinel';
 import CategoryBrowseSkeleton from '../../../components/skeletons/CategoryBrowseSkeleton';
 import { ProductGridSkeleton } from '../../../components/skeletons/primitives';
 
@@ -95,13 +96,39 @@ function CategoryBrowseInner() {
   const resolvedCategoryId = category?.id ? String(category.id) : '';
   const filterCategoryId = validSub || resolvedCategoryId;
 
-  const { data: productsData, isLoading: productsLoading } = useProducts({
-    category_id: filterCategoryId,
-    limit: 50,
+  const infiniteParams = useMemo(() => {
+    const q = {
+      category_id: filterCategoryId,
+      limit: 24,
+    };
+    if (sortKey === 'price-asc') {
+      q.sort_by = 'price';
+      q.sort_order = 'asc';
+    } else if (sortKey === 'price-desc') {
+      q.sort_by = 'price';
+      q.sort_order = 'desc';
+    } else {
+      q.sort_by = 'created_at';
+      q.sort_order = 'desc';
+    }
+    return q;
+  }, [filterCategoryId, sortKey]);
+
+  const {
+    data: productsInfinite,
+    isLoading: productsLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteProducts({
+    ...infiniteParams,
     enabled: !!category && !!filterCategoryId,
   });
 
-  const products = productsData?.products || [];
+  const products = useMemo(
+    () => (productsInfinite?.pages || []).flatMap((p) => p?.products || []),
+    [productsInfinite?.pages]
+  );
 
   const searchFiltered = useMemo(() => {
     if (!search.trim()) return products;
@@ -127,12 +154,7 @@ function CategoryBrowseInner() {
     return searchFiltered.filter((p) => String(p.brand || '') === brandFilter);
   }, [searchFiltered, brandFilter]);
 
-  const displayProducts = useMemo(() => {
-    const list = [...brandFiltered];
-    if (sortKey === 'price-asc') list.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
-    if (sortKey === 'price-desc') list.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
-    return list;
-  }, [brandFiltered, sortKey]);
+  const displayProducts = brandFiltered;
 
   useEffect(() => {
     setBrandFilter('');
@@ -475,11 +497,21 @@ function CategoryBrowseInner() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
-              {displayProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
+                {displayProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+              {!search.trim() && !brandFilter && (
+                <InfiniteScrollSentinel
+                  hasNextPage={!!hasNextPage}
+                  isFetchingNextPage={isFetchingNextPage}
+                  fetchNextPage={fetchNextPage}
+                  showEndLabel={displayProducts.length > 0 && !hasNextPage}
+                />
+              )}
+            </>
           )}
         </main>
       </div>

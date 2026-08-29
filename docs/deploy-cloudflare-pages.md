@@ -6,7 +6,7 @@ Static Next.js export (`out/`) is deployed by GitHub Actions to **Cloudflare Pag
 |------|--------|
 | Pages project | `yaadro-ecommerce-user-web-frontend` |
 | Production branch | `main` |
-| Build command | `npm run build` |
+| Build command | `npm run build:static` |
 | Node.js (CI) | **22** (required by Wrangler 4.x) |
 | Output directory | `out` |
 | Custom domains | `testshop.yaadro.online`, `marketfresh.in` (+ `www.marketfresh.in` recommended) |
@@ -139,8 +139,9 @@ No cache invalidation step — each deploy replaces assets on Pages.
 
 ```bash
 npm ci
-npm run build          # produces out/
-npm run pages:deploy   # requires CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID
+npm run build:static   # parks app/api, produces out/ (static export)
+npm run pages:deploy   # build:static + wrangler; needs CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID
+# Local DB catalog (GET via Route Handlers): use `npm run dev` + DATABASE_URL — not static export.
 npm run pages:dev      # local Pages preview of out/
 ```
 

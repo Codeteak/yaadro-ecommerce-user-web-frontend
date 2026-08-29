@@ -604,7 +604,8 @@ export async function getProducts(params = {}) {
  * @param {string} productId - Product UUID
  * @returns {Promise<object|null>}
  */
-export async function getProductById(productId) {
+export async function getProductById(productId, options = {}) {
+  const silent = options?.silent === true;
   try {
     const shopId = await resolveShopId();
     const headers = shopId ? { 'x-shop-id': shopId } : undefined;
@@ -629,7 +630,9 @@ export async function getProductById(productId) {
 
     return transformProduct(payload);
   } catch (error) {
-    console.error('Error fetching product:', error);
+    if (!silent) {
+      console.error('Error fetching product:', error);
+    }
     return null;
   }
 }
@@ -667,7 +670,16 @@ export async function getProductWithRelated(productId) {
  */
 export async function searchProducts(params = {}) {
   try {
-    const { q, per_page = 20, category_id, brand_id, cursor, sort_by, sort_order } = params;
+    const {
+      q,
+      per_page = 20,
+      category_id,
+      brand_id,
+      cursor,
+      offset,
+      sort_by,
+      sort_order,
+    } = params;
 
     if (!q || String(q).trim().length < 2) {
       return { products: [], pagination: { nextCursor: null }, query: q || '' };
@@ -680,6 +692,7 @@ export async function searchProducts(params = {}) {
       category_id,
       brand_id,
       cursor,
+      offset,
       sort_by,
       sort_order,
       search,
@@ -702,6 +715,31 @@ export async function getCategories() {
     return flattenCategoryTree(tree);
   } catch (error) {
     console.error('Error fetching categories:', error);
+    return [];
+  }
+}
+
+/**
+ * Root categories only — single GET /storefront/categories (no parent_id, no recursion).
+ * Prefer this on home chips; use getCategoriesTree() for full browse trees.
+ * @returns {Promise<Array>}
+ */
+export async function getRootCategories() {
+  try {
+    const shopId = await resolveShopId();
+    const headers = shopId ? { 'x-shop-id': shopId } : undefined;
+    const res = await apiFetchRoot('/storefront/categories', {
+      method: 'GET',
+      headers,
+      omitTenantHeader: true,
+    });
+    const list = res?.categories || [];
+    return list
+      .map(transformCategory)
+      .filter(Boolean)
+      .filter((c) => c.parentId == null);
+  } catch (error) {
+    console.error('Error fetching root categories:', error);
     return [];
   }
 }
