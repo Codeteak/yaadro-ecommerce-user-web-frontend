@@ -123,6 +123,7 @@ function ProfilePageContent() {
 
   if (isEditing) {
     return (
+      <>
       <div className="flex min-h-screen flex-col bg-white">
         <div className="sticky top-0 z-20 shrink-0 bg-white">
           <PageTopBar title="Edit Profile" fallbackHref="/profile" />
@@ -233,6 +234,7 @@ function ProfilePageContent() {
           showAlert('Phone number updated.', 'Success', 'success');
         }}
       />
+      </>
     );
   }
 
