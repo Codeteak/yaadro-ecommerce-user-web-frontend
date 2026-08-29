@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { markInstallPromptSeen } from '../lib/pwa/installPromptSeen';
 
 const defaultAlert = {
   isOpen: false,
@@ -39,7 +40,10 @@ export const useUiStore = create((set) => ({
   closeCartSidebar: () => set({ cartSidebarOpen: false }),
 
   installPromptDismissed: false,
-  dismissInstallPrompt: () => set({ installPromptDismissed: true }),
+  dismissInstallPrompt: () => {
+    markInstallPromptSeen();
+    set({ installPromptDismissed: true });
+  },
 
   deferredInstallPrompt: null,
   setDeferredInstallPrompt: (deferredInstallPrompt) => set({ deferredInstallPrompt }),

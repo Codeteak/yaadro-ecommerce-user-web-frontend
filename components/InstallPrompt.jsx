@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { Button } from '@heroui/react';
+import { hasSeenInstallPrompt, markInstallPromptSeen } from '../lib/pwa/installPromptSeen';
 import { useUiStore } from '../stores/uiStore';
 import { BRAND_PRIMARY_BTN } from './ui/brandButton';
 
@@ -13,13 +14,20 @@ export default function InstallPrompt() {
   const clearDeferredInstallPrompt = useUiStore((s) => s.clearDeferredInstallPrompt);
 
   useEffect(() => {
+    if (hasSeenInstallPrompt()) {
+      dismissInstallPrompt();
+    }
+
     const onBeforeInstall = (e) => {
       e.preventDefault();
+      if (hasSeenInstallPrompt()) return;
+      // Persist immediately so full page navigations do not show the sheet again.
+      markInstallPromptSeen();
       setDeferredInstallPrompt(e);
     };
     window.addEventListener('beforeinstallprompt', onBeforeInstall);
     return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall);
-  }, [setDeferredInstallPrompt]);
+  }, [setDeferredInstallPrompt, dismissInstallPrompt]);
 
   if (installPromptDismissed || !deferredInstallPrompt) return null;
 
