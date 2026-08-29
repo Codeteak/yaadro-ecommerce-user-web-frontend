@@ -15,7 +15,6 @@ import { getCart } from '../../../utils/cartApi';
 import { useAlert } from '../../../context/AlertContext';
 import ProductCarousel from '../../../components/ProductCarousel';
 import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
-import PageTopBar from '../../../components/PageTopBar';
 import GuestAuthPrompt from '../../../components/GuestAuthPrompt';
 import OrderDetailPageSkeleton from '../../../components/skeletons/OrderDetailPageSkeleton';
 import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../../utils/productImages';
@@ -634,8 +633,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
     return (
       <GuestAuthPrompt
         pageTitle="Order details"
-        backHref="/orders"
-        fallbackHref="/"
+        fallbackHref="/orders"
         description="Sign in to view this order."
       />
     );
@@ -741,7 +739,13 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
           <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-100 bg-white px-4 py-3.5">
             <button
               type="button"
-              onClick={() => router.push('/orders')}
+              onClick={() => {
+                if (typeof window !== 'undefined' && window.history.length > 1) {
+                  router.back();
+                  return;
+                }
+                router.replace('/orders');
+              }}
               className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700"
             >
               <IconBack />

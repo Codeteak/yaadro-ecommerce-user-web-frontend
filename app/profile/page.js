@@ -115,6 +115,7 @@ function ProfilePageContent() {
     return (
       <GuestAuthPrompt
         pageTitle="My Profile"
+        backHref="/"
         fallbackHref="/"
         description="Sign in to view and edit your profile."
       />
@@ -126,7 +127,7 @@ function ProfilePageContent() {
       <>
       <div className="flex min-h-screen flex-col bg-white">
         <div className="sticky top-0 z-20 shrink-0 bg-white">
-          <PageTopBar title="Edit Profile" fallbackHref="/profile" />
+          <PageTopBar title="Edit Profile" backHref="/profile" fallbackHref="/profile" />
         </div>
 
         <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 pb-24">
@@ -241,7 +242,7 @@ function ProfilePageContent() {
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       <div className="sticky top-0 z-20 shrink-0">
-        <PageTopBar title="My Profile" fallbackHref="/" />
+        <PageTopBar title="My Profile" backHref="/" fallbackHref="/" />
       </div>
 
       <div className="mx-auto w-full max-w-2xl flex-1 pb-24">
