@@ -32,9 +32,7 @@ import { getCartBottomBarPricing } from '../../utils/cartSavings';
 import { formatInrFromMinor, minorToMajor } from '../../utils/currencyMinor';
 import { formatCartCouponPreviewMessage } from '../../utils/cartPromotions';
 import { normalizePhoneForApi } from '../../utils/otpVerifyPayload';
-import { getIndianPhoneSubmitError, isValidIndianMobile } from '../../utils/indianPhone';
-import IndianPhoneInput from '../../components/IndianPhoneInput';
-import { useUpdateProfile } from '../../hooks/useAuth';
+import PhoneChangeOtpSheet from '../../components/PhoneChangeOtpSheet';
 import { useLocationService } from '../../context/LocationServiceContext';
 import ConfirmModal from '../../components/ConfirmModal';
 import CheckoutPageSkeleton from '../../components/skeletons/CheckoutPageSkeleton';
@@ -71,10 +69,6 @@ function hasUserPhone(user) {
   if (!user || typeof user !== 'object') return false;
   const raw = user.phone ?? user.mobile ?? user.phoneNumber ?? '';
   return normalizePhoneForApi(raw).length === 10;
-}
-
-function isValidPhoneInput(value) {
-  return isValidIndianMobile(value);
 }
 
 /* ─────────────────────────────────────────────
@@ -430,10 +424,9 @@ export default function CheckoutPage() {
     getDefaultAddress,
     isLoading: isLoadingAddresses,
   } = useAddress();
-  const { isAuthenticated, user, authHydrated, refreshUser } = useAuth();
+  const { isAuthenticated, user, authHydrated } = useAuth();
   const { goToLogin } = useLoginNavigation();
   const { showAlert } = useAlert();
-  const updateProfileMutation = useUpdateProfile();
   const { openServiceAreaSheet } = useLocationService();
 
   const [selectedAddressId, setSelectedAddressId] = useState(null);
@@ -441,7 +434,6 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
   const [showPhoneSheet, setShowPhoneSheet] = useState(false);
-  const [phoneDraft, setPhoneDraft] = useState('');
   const [phoneOverride, setPhoneOverride] = useState('');
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [showPriceVaryConfirm, setShowPriceVaryConfirm] = useState(false);
@@ -681,34 +673,14 @@ export default function CheckoutPage() {
     router.push(`/add/address?${params.toString()}`);
   };
 
-  const handlePhoneSave = async () => {
-    const normalized = normalizePhoneForApi(phoneDraft);
-    const phoneErr = getIndianPhoneSubmitError(phoneDraft);
-    if (!isValidPhoneInput(normalized) || phoneErr) {
-      showAlert(phoneErr || 'Please enter a valid 10-digit mobile number.', 'Invalid phone', 'warning');
-      return;
-    }
-
-    try {
-      await updateProfileMutation.mutateAsync({ phone: normalized });
-      await refreshUser({ silent: true });
-      setPhoneOverride(normalized);
-      setShowPhoneSheet(false);
-      showAlert('Phone number saved.', 'Success', 'success');
-    } catch (err) {
-      showAlert(err?.message || 'Failed to save phone number.', 'Error', 'error');
-    }
-  };
-
   /* ── Place order (runs after “price may vary” confirmation) ── */
   const executePlaceOrder = async () => {
     setIsSubmitting(true);
 
     try {
-      // Backend requires a serviceable verification for the delivery pin.
-      // `useLocationService()` checks the default address; checkout may use a different selected address.
-      if (!selectedAddressId || !selectedAddressCoords) {
-        showAlert('Please select a delivery address with a map pin.', 'Delivery address', 'warning');
+      const line1 = String(selectedAddress?.line1 || selectedAddress?.street || '').trim();
+      if (!selectedAddressId || !selectedAddressCoords || !line1) {
+        showAlert('Please save a delivery address with a street and map pin.', 'Delivery address', 'warning');
         showDeliveryAreaForSelectedAddress();
         setIsSubmitting(false);
         return;
@@ -718,7 +690,6 @@ export default function CheckoutPage() {
         couponCode: selectedCouponCode.trim() || undefined,
         lat: selectedAddressCoords.lat,
         lng: selectedAddressCoords.lng,
-        addressId: selectedAddressId,
       });
 
       if (!orderResponse?.orderId) throw new Error('Failed to create order');
@@ -756,7 +727,6 @@ export default function CheckoutPage() {
         return;
       }
       if (/phone number is required before checkout/i.test(String(err?.message || ''))) {
-        setPhoneDraft(String(user?.phone || phoneOverride || '').trim());
         setShowPhoneSheet(true);
         setIsSubmitting(false);
         return;
@@ -807,8 +777,8 @@ export default function CheckoutPage() {
       showAlert('Your cart is empty.', 'Empty Cart', 'warning');
       return;
     }
-    if (!selectedAddressId || !selectedAddressCoords) {
-      showAlert('Please select a delivery address with a map pin.', 'Delivery address', 'warning');
+    if (!selectedAddressId || !selectedAddressCoords || !String(selectedAddress?.line1 || selectedAddress?.street || '').trim()) {
+      showAlert('Please save a delivery address with a street and map pin.', 'Delivery address', 'warning');
       return;
     }
     // Use backend-consistent verification for the selected delivery address pin.
@@ -824,7 +794,6 @@ export default function CheckoutPage() {
       return;
     }
     if (!hasUserPhone(user) && !phoneOverride) {
-      setPhoneDraft('');
       setShowPhoneSheet(true);
       return;
     }
@@ -1195,47 +1164,18 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      {showPhoneSheet && (
-        <div className="fixed inset-0 z-[70]">
-          <button
-            type="button"
-            aria-label="Close phone sheet"
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setShowPhoneSheet(false)}
-          />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4 shadow-2xl">
-            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-gray-200" />
-            <h3 className="text-base font-semibold text-gray-900">Add phone number</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Phone number is required before placing your order.
-            </p>
-            <IndianPhoneInput
-              value={phoneDraft}
-              onChange={setPhoneDraft}
-              className="mt-4"
-              inputClassName="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
-              showValidHint={false}
-            />
-            <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setShowPhoneSheet(false)}
-                className="h-11 flex-1 rounded-xl border border-gray-200 text-sm font-medium text-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handlePhoneSave}
-                disabled={updateProfileMutation.isPending}
-                className="h-11 flex-1 rounded-xl bg-violet-600 text-sm font-medium text-white disabled:opacity-60"
-              >
-                {updateProfileMutation.isPending ? 'Saving…' : 'Save phone'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PhoneChangeOtpSheet
+        isOpen={showPhoneSheet}
+        onClose={() => setShowPhoneSheet(false)}
+        currentPhone={user?.phone || phoneOverride}
+        title="Add phone number"
+        description="Phone number is required before placing your order. We will send an OTP to verify it."
+        onSuccess={(nextPhone) => {
+          setPhoneOverride(nextPhone);
+          setShowPhoneSheet(false);
+          showAlert('Phone number saved.', 'Success', 'success');
+        }}
+      />
     </div>
   );
 }

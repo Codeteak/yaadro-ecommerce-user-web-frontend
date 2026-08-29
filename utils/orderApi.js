@@ -300,8 +300,8 @@ export async function verifyPayment(orderId, paymentData) {
 }
 
 /**
- * Get all orders for current user
- * @param {object} params - Query parameters (page, per_page)
+ * Get orders for current user. API supports `limit` only (1–100), newest first.
+ * @param {object} params
  * @returns {Promise<{orders: array, pagination: object}>}
  */
 export async function listOrders(params = {}) {
@@ -309,65 +309,24 @@ export async function listOrders(params = {}) {
     const shopId = await resolveShopId();
     if (!shopId) throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/orders).');
 
-    const page = Math.max(1, Math.floor(Number(params.page) || 1));
-    const perPage = Math.min(100, Math.max(1, Math.floor(Number(params.per_page) || 20)));
+    const limit = Math.min(100, Math.max(1, Math.floor(Number(params.limit ?? params.per_page) || 50)));
 
     const response = await apiFetchRoot('/storefront/orders', {
       method: 'GET',
       headers: { 'x-shop-id': shopId },
       omitTenantHeader: true,
-      query: { page, per_page: perPage },
+      query: { limit },
     });
 
-    const allOrders = (response?.orders || []).map((o) => transformOrder(o)).filter(Boolean);
-
-    const pag =
-      response?.pagination && typeof response.pagination === 'object'
-        ? response.pagination
-        : response?.meta && typeof response.meta === 'object'
-          ? response.meta
-          : null;
-
-    const apiPage = Number(pag?.page ?? pag?.current_page ?? page) || page;
-    const apiPerPage = Number(pag?.per_page ?? pag?.perPage ?? perPage) || perPage;
-    const apiTotal = pag?.total != null ? Number(pag.total) : null;
-    const apiTotalPages =
-      pag?.total_pages != null
-        ? Number(pag.total_pages)
-        : pag?.totalPages != null
-          ? Number(pag.totalPages)
-          : null;
-
-    // If API ignored page params and returned a full dump, slice client-side.
-    const looksLikeFullDump =
-      apiTotalPages == null &&
-      allOrders.length > perPage &&
-      (apiTotal == null || apiTotal === allOrders.length);
-
-    let orders = allOrders;
-    let total = apiTotal != null && Number.isFinite(apiTotal) ? apiTotal : allOrders.length;
-    let totalPages =
-      apiTotalPages != null && Number.isFinite(apiTotalPages)
-        ? apiTotalPages
-        : Math.max(1, Math.ceil(total / perPage));
-
-    if (looksLikeFullDump) {
-      const start = (page - 1) * perPage;
-      orders = allOrders.slice(start, start + perPage);
-      total = allOrders.length;
-      totalPages = Math.max(1, Math.ceil(total / perPage));
-    }
+    const orders = (response?.orders || []).map((o) => transformOrder(o)).filter(Boolean);
 
     return {
       orders,
       pagination: {
-        page: apiPage,
-        per_page: apiPerPage,
-        total,
-        total_pages: totalPages,
-        /** When true, further pages should be sliced from this same full list in the query cache. */
-        clientSlice: looksLikeFullDump,
-        _allOrders: looksLikeFullDump ? allOrders : undefined,
+        page: 1,
+        per_page: limit,
+        total: orders.length,
+        total_pages: 1,
       },
     };
   } catch (error) {

@@ -44,7 +44,6 @@ async function resolveShopIdForRequest(explicitShopId) {
  * @param {object} params
  * @param {'shop'|'product'} params.pageType
  * @param {string} [params.slug]
- * @param {string} [params.productId]
  * @param {string} [params.shopId]
  */
 export async function fetchSeoMetadata(params) {
@@ -54,7 +53,6 @@ export async function fetchSeoMetadata(params) {
   const shopId = await resolveShopIdForRequest(params.shopId);
   const query = { pageType };
   if (params.slug) query.slug = String(params.slug).trim();
-  if (params.productId) query.productId = String(params.productId).trim();
 
   const isServer = typeof window === 'undefined';
 
@@ -103,19 +101,12 @@ export async function fetchSeoMetadata(params) {
   }
 }
 
-/** Product PDP — lookup by slug or UUID. */
+/** Product PDP — slug only (`productId` query is not supported). */
 export async function fetchProductSeoMetadata(lookup, shopId) {
   const segment = lookup != null ? String(lookup).trim() : '';
-  if (!segment) return null;
+  if (!segment || isUuidSegment(segment)) return null;
 
-  const params = { pageType: 'product', shopId };
-  if (isUuidSegment(segment)) {
-    params.productId = segment;
-  } else {
-    params.slug = segment;
-  }
-
-  return fetchSeoMetadata(params);
+  return fetchSeoMetadata({ pageType: 'product', shopId, slug: segment });
 }
 
 /** Shop home — prefers `seo` on resolve-by-domain payload; optional `/seo/metadata` fallback. */

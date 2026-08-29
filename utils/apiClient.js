@@ -4,11 +4,11 @@ import {
 } from './authSessionExpiry';
 
 /**
- * API client for multi-tenant backend.
+ * API client for the Customer API.
  *
- * - Base URL: http://localhost:3001/api (configurable)
- * - Auth: Authorization: Bearer <token> (optional)
- * - Tenant: X-Tenant-ID: <shop_id_or_shop_code> (required for customer endpoints)
+ * - Base URL: same-origin `/api` or NEXT_PUBLIC_API_BASE_URL (ends with `/api`)
+ * - Auth: Authorization: Bearer <accessToken> (optional)
+ * - Shop: callers send `x-shop-id` on storefront routes (never X-Tenant-ID)
  *
  * Response format:
  * { status: "success"|"error", message?: string, data?: any }
@@ -80,18 +80,6 @@ function getConfiguredBaseUrl() {
 /** API origin (host) without `/api` (useful for non-API static assets). */
 export function getApiOrigin() {
   return getConfiguredBaseUrl().replace(/\/?api\/?$/, '');
-}
-
-function toRootUrl(path, query) {
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const url = new URL(`${getApiOrigin()}${normalizedPath}`);
-  if (query && typeof query === 'object') {
-    Object.entries(query).forEach(([k, v]) => {
-      if (v === undefined || v === null) return;
-      url.searchParams.set(k, String(v));
-    });
-  }
-  return url.toString();
 }
 
 function resolveErrorMessage(json, response) {
@@ -171,8 +159,7 @@ async function autoRefreshAccessToken() {
       const newToken = layer?.accessToken || layer?.token || json?.accessToken || json?.token || null;
       const newRt = layer?.refreshToken || json?.refreshToken || null;
       if (!newToken) return null;
-      window.localStorage.setItem('token', newToken);
-      window.localStorage.setItem('authToken', newToken);
+      persistAccessToken(newToken);
       if (newRt) window.localStorage.setItem('refreshToken', newRt);
       for (const cb of _refreshListeners) {
         try { cb({ token: newToken, refreshToken: newRt }); } catch { /* ignore */ }
@@ -230,13 +217,23 @@ export function getAuthToken() {
   );
 }
 
-export function setAuthToken(token) {
+/** Write access JWT to all keys the app reads (`token`, `authToken`, `accessToken`). */
+export function persistAccessToken(token) {
   if (!isBrowser()) return;
   if (!token) {
+    window.localStorage.removeItem('token');
     window.localStorage.removeItem('authToken');
+    window.localStorage.removeItem('accessToken');
     return;
   }
-  window.localStorage.setItem('authToken', String(token));
+  const value = String(token);
+  window.localStorage.setItem('token', value);
+  window.localStorage.setItem('authToken', value);
+  window.localStorage.setItem('accessToken', value);
+}
+
+export function setAuthToken(token) {
+  persistAccessToken(token);
 }
 
 function toUrl(path, query) {
@@ -274,9 +271,9 @@ async function parseJsonSafe(response) {
  * @param {object|FormData|string|null} [options.body]
  * @param {object} [options.query]
  * @param {string} [options.token] - Bearer token override (otherwise localStorage)
- * @param {string} [options.tenantId] - Tenant override (otherwise resolved)
- * @param {RequestCredentials} [options.credentials] - use `include` for OAuth cookie exchange (cross-origin API)
- * @param {boolean} [options.omitTenantHeader] - skip X-Tenant-ID (e.g. auth registration)
+ * @param {string} [options.tenantId] - unused (tenant is `x-shop-id` on storefront callers)
+ * @param {RequestCredentials} [options.credentials] - use `include` for storefront cookies
+ * @param {boolean} [options.omitTenantHeader] - unused; X-Tenant-ID is never sent
  * @param {boolean} [options.omitAuthHeader] - skip Authorization (e.g. OTP login while an expired token remains in localStorage)
  */
 export async function apiFetch(path, options = {}) {
@@ -286,23 +283,18 @@ export async function apiFetch(path, options = {}) {
     body = undefined,
     query = undefined,
     token = undefined,
-    tenantId = undefined,
+    tenantId: _tenantId = undefined,
     returnResponse = false,
     credentials,
-    omitTenantHeader = false,
+    omitTenantHeader: _omitTenantHeader = false,
     omitAuthHeader = false,
     ...rest
   } = options;
 
   const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
-  const resolvedTenant = omitTenantHeader ? '' : tenantId ?? getTenantId();
   const resolvedToken = omitAuthHeader ? '' : token ?? getAuthToken();
 
   const finalHeaders = new Headers(headers);
-
-  if (resolvedTenant) {
-    finalHeaders.set('X-Tenant-ID', resolvedTenant);
-  }
 
   if (resolvedToken) {
     finalHeaders.set('Authorization', `Bearer ${resolvedToken}`);
@@ -401,7 +393,7 @@ export async function apiFetch(path, options = {}) {
 }
 
 /**
- * Fetch against API origin without `/api` prefix (e.g. `POST /auth/logout`).
+ * Fetch against the `/api` base (same as `apiFetch`). Storefront paths are `/api/storefront/...`.
  */
 export async function apiFetchRoot(path, options = {}) {
   const {
@@ -410,23 +402,18 @@ export async function apiFetchRoot(path, options = {}) {
     body = undefined,
     query = undefined,
     token = undefined,
-    tenantId = undefined,
+    tenantId: _tenantId = undefined,
     returnResponse = false,
     credentials,
-    omitTenantHeader = false,
+    omitTenantHeader: _omitTenantHeader = false,
     omitAuthHeader = false,
     ...rest
   } = options;
 
   const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
-  const resolvedTenant = omitTenantHeader ? '' : tenantId ?? getTenantId();
   const resolvedToken = omitAuthHeader ? '' : token ?? getAuthToken();
 
   const finalHeaders = new Headers(headers);
-
-  if (resolvedTenant) {
-    finalHeaders.set('X-Tenant-ID', resolvedTenant);
-  }
 
   if (resolvedToken) {
     finalHeaders.set('Authorization', `Bearer ${resolvedToken}`);

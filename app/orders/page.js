@@ -4,15 +4,13 @@ import { useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { useInfiniteOrdersList, useCancelOrder } from '../../hooks/useOrders';
+import { useInfiniteOrdersList } from '../../hooks/useOrders';
 import { useProducts } from '../../hooks/useProducts';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { cartKeys } from '../../hooks/useCart';
 import { getCart } from '../../utils/cartApi';
 import { useAlert } from '../../context/AlertContext';
-import ConfirmModal from '../../components/ConfirmModal';
-import PromptModal from '../../components/PromptModal';
 import PageTopBar from '../../components/PageTopBar';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
 import GuestAuthPrompt from '../../components/GuestAuthPrompt';
@@ -36,17 +34,12 @@ export default function OrdersPage() {
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
-  } = useInfiniteOrdersList({ per_page: 20 }, { enabled: ok });
-  const cancelOrderMutation = useCancelOrder();
+  } = useInfiniteOrdersList({ limit: 100 }, { enabled: ok });
   const { addToCart } = useCart();
   const { showAlert } = useAlert();
   const [reorderLoadingId, setReorderLoadingId] = useState(null);
   const reorderLoadingIdRef = useRef(null);
   reorderLoadingIdRef.current = reorderLoadingId;
-  const [showCancelPrompt, setShowCancelPrompt] = useState(false);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [cancelOrderId, setCancelOrderId] = useState(null);
-  const [cancelReason, setCancelReason] = useState('');
 
   const orders = useMemo(
     () => (ordersInfinite?.pages || []).flatMap((p) => p?.orders || []),
@@ -266,35 +259,9 @@ export default function OrdersPage() {
     [router]
   );
 
-  const handleCancel = useCallback((orderId) => {
-    setCancelOrderId(orderId);
-    setShowCancelPrompt(true);
-  }, []);
-
   const handleShareCopied = useCallback(() => {
     showAlert('Order link copied to clipboard!', 'Success', 'success');
   }, [showAlert]);
-
-  const handleCancelReasonSubmit = (reason) => {
-    setCancelReason(reason);
-    setShowCancelPrompt(false);
-    setShowCancelConfirm(true);
-  };
-
-  const handleCancelConfirm = async () => {
-    try {
-      await cancelOrderMutation.mutateAsync({ orderId: cancelOrderId, reason: cancelReason });
-      showAlert('Order cancelled successfully!', 'Success', 'success');
-      setCancelOrderId(null);
-      setCancelReason('');
-      setShowCancelConfirm(false);
-    } catch (error) {
-      showAlert(error.message || 'Failed to cancel order. Please try again.', 'Error', 'error');
-      setCancelOrderId(null);
-      setCancelReason('');
-      setShowCancelConfirm(false);
-    }
-  };
 
   if (!ready) {
     return <OrdersPageSkeleton />;
@@ -354,7 +321,6 @@ export default function OrdersPage() {
                   reorderLoading={reorderLoadingId === order.id}
                   onOpenDetails={handleOpenDetails}
                   onReorder={handleReorder}
-                  onCancel={handleCancel}
                   onShareCopied={handleShareCopied}
                 />
               </div>
@@ -419,34 +385,6 @@ export default function OrdersPage() {
           </section>
         )}
       </div>
-
-      <PromptModal
-        isOpen={showCancelPrompt}
-        onClose={() => {
-          setShowCancelPrompt(false);
-          setCancelOrderId(null);
-        }}
-        onSubmit={handleCancelReasonSubmit}
-        title="Cancel Order"
-        message="Please provide a reason for cancellation:"
-        placeholder="Enter cancellation reason"
-        submitText="Continue"
-        cancelText="Cancel"
-      />
-
-      <ConfirmModal
-        isOpen={showCancelConfirm}
-        onClose={() => {
-          setShowCancelConfirm(false);
-          setCancelOrderId(null);
-          setCancelReason('');
-        }}
-        onConfirm={handleCancelConfirm}
-        title="Confirm Cancellation"
-        message="Are you sure you want to cancel this order? This action cannot be undone."
-        confirmText="Yes, Cancel Order"
-        cancelText="No, Keep Order"
-      />
     </div>
   );
 }

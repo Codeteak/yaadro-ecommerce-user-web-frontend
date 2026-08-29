@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { CloseRegular as X } from './icons';
 import { useAuth } from '../context/AuthContext';
-import { updateStorefrontProfile, resolveShopId } from '../utils/authApi';
+import { updateProfile, resolveShopId } from '../utils/authApi';
 import { normalizePhoneForApi } from '../utils/otpVerifyPayload';
 import IndianPhoneInput from './IndianPhoneInput';
 import { validateAddressCheckoutForm } from '../lib/validations/address.schema';
@@ -356,13 +356,9 @@ export default function CheckoutAddAddressSheet({
     try {
       const coords = await ensureCoordinates();
 
-      const patch = {};
-      if (needsNameField && finalName) patch.displayName = finalName;
-      if (needsPhoneField && finalPhone) patch.phone = finalPhone;
-
-      if (Object.keys(patch).length > 0) {
-        await updateStorefrontProfile(patch);
-        await refreshUser();
+      if (needsNameField && finalName) {
+        await updateProfile({ displayName: finalName });
+        await refreshUser({ silent: true });
       }
 
       const payload = {

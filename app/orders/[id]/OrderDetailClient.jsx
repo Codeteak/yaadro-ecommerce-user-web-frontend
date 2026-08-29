@@ -5,8 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
-import Script from 'next/script';
-import { useOrderDetail, useCancelOrder, useRetryPayment, useVerifyPayment } from '../../../hooks/useOrders';
+import { useOrderDetail } from '../../../hooks/useOrders';
 import { useRequireAuth } from '../../../hooks/useRequireAuth';
 import { useProductWithRelated } from '../../../hooks/useProducts';
 import { useCart } from '../../../context/CartContext';
@@ -19,8 +18,6 @@ import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
 import PageTopBar from '../../../components/PageTopBar';
 import GuestAuthPrompt from '../../../components/GuestAuthPrompt';
 import OrderDetailPageSkeleton from '../../../components/skeletons/OrderDetailPageSkeleton';
-import ConfirmModal from '../../../components/ConfirmModal';
-import PromptModal from '../../../components/PromptModal';
 import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../../utils/productImages';
 import {
   formatInrMajor,
@@ -45,24 +42,10 @@ function IconCheck({ color = '#902bf5' }) {
     </svg>
   );
 }
-function IconRetry({ color = 'currentColor' }) {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-      <path d="M2 8a6 6 0 016-6 6 6 0 015.74 4.26M14 4v4h-4" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 function IconDownload() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
       <path d="M8 2v8M5 7l3 3 3-3M3 13h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-function IconCancel() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-      <path d="M4 4l8 8M12 4l-8 8" stroke="#791F1F" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
 }
@@ -599,19 +582,12 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   const { data: order, isLoading, error } = useOrderDetail(resolvedOrderId, {
     enabled: ok && Boolean(resolvedOrderId),
   });
-  const cancelMutation  = useCancelOrder();
-  const retryMutation   = useRetryPayment();
-  const verifyMutation  = useVerifyPayment();
   const { addToCart }   = useCart();
   const { user }        = useAuth();
   const { showAlert }   = useAlert();
 
-  const [isRetrying, setIsRetrying]     = useState(false);
   const [isReordering, setIsReordering] = useState(false);
   const [showReturn, setShowReturn]     = useState(false);
-  const [showCancelPrompt, setShowCancelPrompt] = useState(false);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
 
   const visibleOrderItems = order ? getVisibleOrderItems(order) : [];
   const firstVisibleItem = visibleOrderItems[0];
@@ -668,7 +644,6 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   if (isLoading) return <OrderDetailPageSkeleton />;
   if (error || !order) return <ErrorState message={error?.message} />;
 
-  const canRetryPayment = ['pending', 'failed'].includes(order.paymentStatus?.toLowerCase()) && order.paymentMethod !== 'cod';
   const addr = order.deliveryAddress || {};
   const orderPromo = getOrderPromotionSummary(order);
 
@@ -750,22 +725,6 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
     }
   };
 
-  const handleCancelReasonSubmit = (reason) => {
-    setCancelReason(reason);
-    setShowCancelPrompt(false);
-    setShowCancelConfirm(true);
-  };
-
-  const handleCancelConfirm = async () => {
-    try {
-      await cancelMutation.mutateAsync({ orderId: order.id, reason: cancelReason });
-      showAlert('Order cancelled successfully.', 'Success', 'success');
-      setCancelReason('');
-    } catch (e) {
-      showAlert(e.message || 'Failed to cancel order.', 'Error', 'error');
-    }
-  };
-
   const handleReturnSubmit = (items, reason) => {
     if (!items.length) { showAlert('Select at least one item.', 'Required', 'warning'); return; }
     if (!reason.trim()) { showAlert('Please provide a reason.', 'Required', 'warning'); return; }
@@ -773,62 +732,9 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
     showAlert('Return request feature coming soon!', 'Coming soon', 'info');
   };
 
-  const handleRazorpay = async (orderResp) => {
-    if (!window.Razorpay) { showAlert('Payment gateway not loaded. Refresh and try again.', 'Error', 'error'); setIsRetrying(false); return; }
-    const { order: ord, payment } = orderResp;
-    const rzp = payment?.razorpay;
-    if (!rzp?.keyId || !rzp?.razorpayOrderId || !rzp?.amount) { showAlert('Invalid payment config. Contact support.', 'Error', 'error'); setIsRetrying(false); return; }
-
-    const options = {
-      key: rzp.keyId,
-      amount: rzp.amount,
-      currency: rzp.currency || 'INR',
-      order_id: rzp.razorpayOrderId,
-      name: 'Yaadro',
-      description: `Order ${ord.orderNumber || order.orderNumber}`,
-      handler: async (resp) => {
-        try {
-          await verifyMutation.mutateAsync({
-            orderId: ord.id || order.id,
-            paymentData: {
-              razorpay_order_id:   resp.razorpay_order_id,
-              razorpay_payment_id: resp.razorpay_payment_id,
-              razorpay_signature:  resp.razorpay_signature,
-            },
-          });
-          router.push(`/order-success?orderId=${ord.id || order.id}&payment=success`);
-        } catch (e) {
-          showAlert('Payment verification failed. Contact support with order ID: ' + (ord.orderNumber || order.orderNumber), 'Payment failed', 'error');
-          router.push(`/order-success?orderId=${ord.id || order.id}&payment=failed`);
-        } finally { setIsRetrying(false); }
-      },
-      prefill: { name: user?.name || '', email: user?.email || '', contact: user?.phone || '' },
-      theme: { color: '#902bf5' },
-      modal: { ondismiss: () => setIsRetrying(false) },
-      notes: { order_id: ord.id || order.id, retry: 'true' },
-    };
-
-    try {
-      const rz = new window.Razorpay(options);
-      rz.on('payment.failed', (r) => { setIsRetrying(false); showAlert('Payment failed: ' + (r.error.description || 'Try again'), 'Payment failed', 'error'); });
-      rz.open();
-    } catch (e) { showAlert('Could not open payment gateway.', 'Error', 'error'); setIsRetrying(false); }
-  };
-
-  const handleRetryPayment = async () => {
-    setIsRetrying(true);
-    try {
-      const resp = await retryMutation.mutateAsync({ orderId: order.id, paymentMethod: null });
-      if (!resp?.payment?.razorpay) { showAlert('Payment init failed. Try again.', 'Error', 'error'); setIsRetrying(false); return; }
-      await handleRazorpay(resp);
-    } catch (e) { showAlert(e.message || 'Failed to retry payment.', 'Error', 'error'); setIsRetrying(false); }
-  };
-
   return (
     <>
       <style>{`@keyframes odSpin{to{transform:rotate(360deg)}}`}</style>
-
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
 
       <div className="min-h-svh bg-gray-50 pb-28">
         <div className="mx-auto max-w-[480px]">
@@ -848,69 +754,6 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
           </div>
 
           <div className="px-3">
-            {canRetryPayment && (
-              <div
-                className={`mt-3 flex gap-2.5 rounded-2xl border p-3.5 ${
-                  order.paymentStatus === 'failed'
-                    ? 'border-red-100 bg-red-50'
-                    : 'border-amber-100 bg-amber-50'
-                }`}
-              >
-                <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                    order.paymentStatus === 'failed' ? 'bg-red-100' : 'bg-amber-100'
-                  }`}
-                >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path
-                      d="M8 5v4M8 11h.01M14 8A6 6 0 112 8a6 6 0 0112 0z"
-                      stroke={order.paymentStatus === 'failed' ? '#b91c1c' : '#92400e'}
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <p
-                    className={`m-0 text-[13px] font-medium ${
-                      order.paymentStatus === 'failed' ? 'text-red-900' : 'text-amber-900'
-                    }`}
-                  >
-                    Payment {order.paymentStatus === 'failed' ? 'failed' : 'pending'}
-                  </p>
-                  <p
-                    className={`mt-0.5 text-xs leading-relaxed ${
-                      order.paymentStatus === 'failed' ? 'text-red-800' : 'text-amber-900/90'
-                    }`}
-                  >
-                    {order.paymentStatus === 'failed'
-                      ? 'Your payment could not be processed.'
-                      : 'Complete payment to confirm your order.'}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleRetryPayment}
-                    disabled={isRetrying || retryMutation.isPending}
-                    className={`mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border-0 px-3.5 py-2 text-xs font-medium disabled:opacity-60 ${
-                      order.paymentStatus === 'failed'
-                        ? 'bg-red-600 text-white hover:bg-red-700'
-                        : 'bg-amber-600 text-white hover:bg-amber-700'
-                    }`}
-                  >
-                    {isRetrying || retryMutation.isPending ? (
-                      <>
-                        <IconSpinner /> Processing…
-                      </>
-                    ) : (
-                      <>
-                        <IconRetry color="currentColor" /> Retry payment
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-
             <Section>
               <SectionHeader
                 title="Order status"
@@ -1035,24 +878,6 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
 
             <Section>
               <div className="flex gap-2 p-3">
-                {order.canCancel && (
-                  <button
-                    type="button"
-                    onClick={() => setShowCancelPrompt(true)}
-                    disabled={cancelMutation.isPending}
-                    className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-red-100 bg-red-50 py-3.5 text-[13px] font-medium text-red-900 disabled:opacity-60"
-                  >
-                    {cancelMutation.isPending ? (
-                      <>
-                        <IconSpinner /> Cancelling…
-                      </>
-                    ) : (
-                      <>
-                        <IconCancel /> Cancel order
-                      </>
-                    )}
-                  </button>
-                )}
                 {order.status === 'delivered' && (
                   <button
                     type="button"
@@ -1092,27 +917,6 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
       </div>
 
       {showReturn && <ReturnModal order={order} onClose={() => setShowReturn(false)} onSubmit={handleReturnSubmit} />}
-
-      <PromptModal
-        isOpen={showCancelPrompt}
-        onClose={() => setShowCancelPrompt(false)}
-        onSubmit={handleCancelReasonSubmit}
-        title="Cancel order"
-        message="Why are you cancelling this order?"
-        placeholder="Enter reason…"
-        submitText="Continue"
-        cancelText="Go back"
-      />
-
-      <ConfirmModal
-        isOpen={showCancelConfirm}
-        onClose={() => { setShowCancelConfirm(false); setCancelReason(''); }}
-        onConfirm={handleCancelConfirm}
-        title="Confirm cancellation"
-        message="This action cannot be undone. Your order will be cancelled."
-        confirmText="Yes, cancel order"
-        cancelText="No, keep order"
-      />
 
       <FloatingViewCartPill />
     </>

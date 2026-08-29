@@ -14,8 +14,8 @@ import {
   verifyOtp,
   normalizePhoneForApi,
   formatPhoneForDisplay,
-  updateProfile,
 } from '../utils/authApi';
+import { persistAccessToken } from '../utils/apiClient';
 import { normalizeOtpCodeInput } from '../utils/otpVerifyPayload';
 import { sanitizeIndianPhoneInput } from '../utils/indianPhone';
 import { otpSchema, validateLoginPhone, firstZodIssueMessage } from '../lib/validations/auth.schema';
@@ -384,24 +384,11 @@ export default function LoginPanel({ className = '' }) {
           : { phone: nextPhone };
 
       if (typeof window !== 'undefined') {
-        localStorage.setItem('token', token);
-        localStorage.setItem('authToken', token);
+        persistAccessToken(token);
         if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
       }
 
-      let syncedUser = null;
-      try {
-        syncedUser = await updateProfile({ phone: nextPhone });
-      } catch (syncErr) {
-        console.warn('Could not sync phone to profile:', syncErr?.message || syncErr);
-      }
-
-      const userForLogin =
-        syncedUser && typeof syncedUser === 'object'
-          ? { ...mergedUser, ...syncedUser, phone: syncedUser.phone || nextPhone }
-          : mergedUser;
-
-      login(userForLogin, { token, refreshToken });
+      login(mergedUser, { token, refreshToken });
     } catch (err) {
       setError(err?.message || 'Invalid OTP. Please try again.');
     } finally {

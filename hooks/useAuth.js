@@ -6,14 +6,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getCurrentUser,
   updateProfile,
-  changePassword,
   refreshAccessToken,
   logoutUser,
-  forgotPassword,
-  resetPassword,
 } from '../utils/authApi';
 import { addressKeys } from './useAddresses';
 import { useToast } from '../context/ToastContext';
+import { persistAccessToken } from '../utils/apiClient';
 
 // Query keys
 export const authKeys = {
@@ -58,23 +56,6 @@ export function useUpdateProfile() {
 }
 
 /**
- * Change password mutation
- */
-export function useChangePassword() {
-  const { showToast } = useToast();
-
-  return useMutation({
-    mutationFn: (passwordData) => changePassword(passwordData),
-    onSuccess: () => {
-      showToast('Password changed successfully.', 'success');
-    },
-    onError: (error) => {
-      showToast(error?.message || 'Could not change password. Please try again.', 'error');
-    },
-  });
-}
-
-/**
  * Refresh token mutation
  */
 export function useRefreshToken() {
@@ -82,7 +63,7 @@ export function useRefreshToken() {
     mutationFn: (refreshToken) => refreshAccessToken(refreshToken),
     onSuccess: (data) => {
       if (typeof window !== 'undefined' && data) {
-        if (data.token) localStorage.setItem('token', data.token);
+        if (data.token) persistAccessToken(data.token);
         if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
       }
     },
@@ -93,6 +74,8 @@ function clearLocalAuth() {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
   }
 }
@@ -114,40 +97,6 @@ export function useLogout() {
       // Even if the API call fails, clear local state so the user is logged out.
       queryClient.clear();
       clearLocalAuth();
-    },
-  });
-}
-
-/**
- * Forgot password mutation
- */
-export function useForgotPassword() {
-  const { showToast } = useToast();
-
-  return useMutation({
-    mutationFn: (email) => forgotPassword(email),
-    onSuccess: () => {
-      showToast('Password reset link sent. Check your email.', 'success');
-    },
-    onError: (error) => {
-      showToast(error?.message || 'Could not send reset link. Please try again.', 'error');
-    },
-  });
-}
-
-/**
- * Reset password mutation
- */
-export function useResetPassword() {
-  const { showToast } = useToast();
-
-  return useMutation({
-    mutationFn: (resetData) => resetPassword(resetData),
-    onSuccess: () => {
-      showToast('Password reset successfully. You can now log in.', 'success');
-    },
-    onError: (error) => {
-      showToast(error?.message || 'Could not reset password. Please try again.', 'error');
     },
   });
 }

@@ -120,34 +120,6 @@ function resolveProductSlug(apiProduct) {
   return resolveProductDetailSegment(apiProduct);
 }
 
-async function resolveStorefrontProductLookup(routeOrId) {
-  const raw = normalizeProductRouteParam(routeOrId);
-  if (!raw) return '';
-
-  if (!UUID_RE.test(raw)) return raw;
-
-  readSlugMapFromStorage();
-  const mapped = inMemorySlugById.get(raw);
-  if (mapped) return mapped;
-
-  try {
-    const { products } = await getProducts({ per_page: 100 });
-    for (const p of products || []) {
-      if (String(p?.id) === raw) {
-        const seg = resolveProductDetailSegment(p);
-        if (seg) {
-          rememberSlugMapping({ id: raw }, seg);
-          return seg;
-        }
-      }
-    }
-  } catch {
-    // fall through
-  }
-
-  return raw;
-}
-
 function rememberSlugMapping(apiProduct, slug) {
   if (!apiProduct || typeof apiProduct !== 'object') return;
   const id = apiProduct.id != null ? String(apiProduct.id).trim() : '';
@@ -610,10 +582,14 @@ export async function getProductById(productId, options = {}) {
     const shopId = await resolveShopId();
     const headers = shopId ? { 'x-shop-id': shopId } : undefined;
 
-    const lookup = await resolveStorefrontProductLookup(productId);
+    const lookup = normalizeProductRouteParam(productId);
     if (!lookup) return null;
 
-    const response = await apiFetchRoot(`/storefront/products/${encodeURIComponent(lookup)}`, {
+    const path = UUID_RE.test(lookup)
+      ? `/storefront/products/id/${encodeURIComponent(lookup)}`
+      : `/storefront/products/${encodeURIComponent(lookup)}`;
+
+    const response = await apiFetchRoot(path, {
       method: 'GET',
       headers,
       omitTenantHeader: true,
@@ -628,7 +604,9 @@ export async function getProductById(productId, options = {}) {
             ? response.data
             : response;
 
-    return transformProduct(payload);
+    const product = transformProduct(payload);
+    if (product) rememberSlugMapping(product, resolveProductDetailSegment(product));
+    return product;
   } catch (error) {
     if (!silent) {
       console.error('Error fetching product:', error);
@@ -767,7 +745,25 @@ export async function getCategoriesTree() {
     const shopId = await resolveShopId();
     const headers = shopId ? { 'x-shop-id': shopId } : undefined;
 
-    // Storefront categories are fetched by parent_id; build a tree with a bounded recursion.
+    try {
+      const res = await apiFetchRoot('/storefront/categories', {
+        method: 'GET',
+        headers,
+        query: { all: 'true' },
+        omitTenantHeader: true,
+      });
+      const list = res?.categories || [];
+      const transformed = list.map(transformCategory).filter(Boolean);
+      if (transformed.length) {
+        const hasNested = transformed.some((c) => Array.isArray(c.children) && c.children.length > 0);
+        return hasNested
+          ? transformed.filter((c) => c.parentId == null)
+          : buildTreeFromFlat(transformed);
+      }
+    } catch {
+      // Fall through to parent_id recursion.
+    }
+
     async function fetchChildren(parentId) {
       const res = await apiFetchRoot('/storefront/categories', {
         method: 'GET',

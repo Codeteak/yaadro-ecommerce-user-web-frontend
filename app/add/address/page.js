@@ -19,7 +19,7 @@ import GuestAuthPrompt from '../../../components/GuestAuthPrompt';
 import ConfirmModal from '../../../components/ConfirmModal';
 import { useRequireAuth } from '../../../hooks/useRequireAuth';
 import { reverseGeocode } from '../../../utils/geocoding';
-import { updateStorefrontProfile, resolveShopId } from '../../../utils/authApi';
+import { updateProfile, resolveShopId } from '../../../utils/authApi';
 import { normalizePhoneForApi } from '../../../utils/otpVerifyPayload';
 import { getIndianPhoneSubmitError } from '../../../utils/indianPhone';
 import IndianPhoneInput from '../../../components/IndianPhoneInput';
@@ -667,12 +667,9 @@ export default function AddAddressPage() {
         return;
       }
 
-      const profilePatch = {};
-      if (needsName && finalName) profilePatch.displayName = finalName;
-      if (needsPhone && finalPhone) profilePatch.phone = finalPhone;
-      if (Object.keys(profilePatch).length > 0) {
-        await updateStorefrontProfile(profilePatch);
-        await refreshUser();
+      if (needsName && finalName) {
+        await updateProfile({ displayName: finalName });
+        await refreshUser({ silent: true });
       }
 
       const payload = buildPayload(finalName, finalPhone);
