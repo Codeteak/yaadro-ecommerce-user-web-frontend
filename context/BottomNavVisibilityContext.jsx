@@ -1,7 +1,8 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
+import { useUiStore } from '../stores/uiStore';
 
 const BottomNavVisibilityContext = createContext({ isVisible: true });
 
@@ -11,7 +12,8 @@ function normalizePath(pathname) {
 
 export function BottomNavVisibilityProvider({ children }) {
   const pathname = usePathname();
-  const [isVisible, setIsVisible] = useState(true);
+  const scrollNavVisible = useUiStore((s) => s.scrollNavVisible);
+  const setScrollNavVisible = useUiStore((s) => s.setScrollNavVisible);
   const lastYRef = useRef(0);
   const rafRef = useRef(null);
 
@@ -30,8 +32,8 @@ export function BottomNavVisibilityProvider({ children }) {
 
   useEffect(() => {
     lastYRef.current = typeof window !== 'undefined' ? window.scrollY : 0;
-    setIsVisible(true);
-  }, [pathname]);
+    setScrollNavVisible(true);
+  }, [pathname, setScrollNavVisible]);
 
   useEffect(() => {
     if (hideForRoute) return;
@@ -44,12 +46,12 @@ export function BottomNavVisibilityProvider({ children }) {
       const delta = currentY - lastY;
       lastYRef.current = currentY;
       if (currentY <= 8) {
-        setIsVisible(true);
+        setScrollNavVisible(true);
         return;
       }
       if (Math.abs(delta) < threshold) return;
-      if (delta > 0) setIsVisible(false);
-      else setIsVisible(true);
+      if (delta > 0) setScrollNavVisible(false);
+      else setScrollNavVisible(true);
     };
 
     const onScrollRaf = () => {
@@ -66,10 +68,10 @@ export function BottomNavVisibilityProvider({ children }) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
-  }, [hideForRoute]);
+  }, [hideForRoute, setScrollNavVisible]);
 
   const value = {
-    isVisible: hideForRoute ? false : isVisible,
+    isVisible: hideForRoute ? false : scrollNavVisible,
     hideForRoute,
   };
 

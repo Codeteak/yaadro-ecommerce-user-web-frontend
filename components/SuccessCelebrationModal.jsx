@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Check } from 'lucide-react';
+import { CheckRegular as Check } from './icons';
 
 /**
  * Full-screen success overlay — used after address save/update instead of a generic alert.
@@ -31,10 +31,10 @@ export default function SuccessCelebrationModal({
       aria-modal="true"
       aria-labelledby="success-celebration-title"
     >
-      <div className="w-full max-w-[320px] animate-[fadeIn_0.25s_ease-out] rounded-3xl bg-white p-6 shadow-2xl shadow-emerald-900/10">
-        <div className="mx-auto mb-4 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30">
+      <div className="w-full max-w-[320px] animate-[fadeIn_0.25s_ease-out] rounded-3xl bg-white p-6 shadow-2xl shadow-violet-900/10">
+        <div className="mx-auto mb-4 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-violet-600 shadow-lg shadow-violet-500/30">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
-            <Check className="h-8 w-8 text-white" strokeWidth={2.5} aria-hidden />
+            <Check size={32} className="h-8 w-8 text-white" aria-hidden />
           </div>
         </div>
         <h2
@@ -49,7 +49,7 @@ export default function SuccessCelebrationModal({
         <button
           type="button"
           onClick={onContinue}
-          className="mt-6 w-full rounded-full bg-emerald-600 py-3 text-[14px] font-medium text-white transition hover:bg-emerald-700 active:scale-[0.98]"
+          className="mt-6 w-full rounded-full bg-violet-600 py-3 text-[14px] font-medium text-white transition hover:bg-violet-700 active:scale-[0.98]"
         >
           {actionLabel}
         </button>

@@ -26,7 +26,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - name: Build static export
-        run: npm run build
+        run: npm run build:static
         env:
           NODE_ENV: production
+          NEXT_STATIC_EXPORT: 'true'
       - run: test -f out/index.html

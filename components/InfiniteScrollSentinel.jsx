@@ -15,9 +15,10 @@ export default function InfiniteScrollSentinel({
   skeletonCount = 4,
   endLabel = 'No more products',
   showEndLabel = false,
+  rootMargin = '200px 0px',
 }) {
   const [ref, inView] = useInView({
-    rootMargin: '200px 0px',
+    rootMargin,
     once: false,
     threshold: 0,
   });

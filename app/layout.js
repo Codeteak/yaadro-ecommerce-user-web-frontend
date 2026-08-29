@@ -17,6 +17,9 @@ import CartSidebar from '../components/CartSidebar';
 import ServiceAreaBottomSheet from '../components/ServiceAreaBottomSheet';
 import ClientOnly from '../components/ClientOnly';
 import { ShopBrandingProvider } from '../context/ShopBrandingContext';
+import { ToastProvider, ToastHost } from '../context/ToastContext';
+import PWARegistrar from '../components/PWARegistrar';
+import InstallPrompt from '../components/InstallPrompt';
 
 /**
  * Build-time defaults only (same HTML for every tenant in `out/`).
@@ -37,7 +40,7 @@ export const metadata = {
 };
 
 export const viewport = {
-  themeColor: '#16a34a',
+  themeColor: '#902bf5',
 };
 
 export default function RootLayout({ children }) {
@@ -49,6 +52,7 @@ export default function RootLayout({ children }) {
       >
         <ClientOnly fallback={<div className="min-h-screen w-full bg-white" />}>
           <ShopBrandingProvider>
+            <ToastProvider>
             <QueryProvider>
               <AuthProvider>
                 <AlertProvider>
@@ -63,8 +67,11 @@ export default function RootLayout({ children }) {
                                   <LocationServiceProvider>
                                     <ConditionalLayout>{children}</ConditionalLayout>
                                     <MobileBottomNav />
+                                    <ToastHost />
                                     <CartSidebar />
                                     <ServiceAreaBottomSheet />
+                                    <PWARegistrar />
+                                    <InstallPrompt />
                                   </LocationServiceProvider>
                                 </LayoutHeightsProvider>
                               </BottomNavVisibilityProvider>
@@ -77,6 +84,7 @@ export default function RootLayout({ children }) {
                 </AlertProvider>
               </AuthProvider>
             </QueryProvider>
+            </ToastProvider>
           </ShopBrandingProvider>
         </ClientOnly>
       </body>

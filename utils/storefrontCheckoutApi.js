@@ -4,18 +4,6 @@ import { getApiErrorCode } from './apiErrors';
 import { minorToMajor } from './currencyMinor';
 import { checkDeliveryLocation } from './storefrontLocationApi';
 
-async function ensureCartExists(shopId) {
-  try {
-    await apiFetchRoot('/storefront/cart', {
-      method: 'POST',
-      headers: { 'x-shop-id': shopId },
-      omitTenantHeader: true,
-    });
-  } catch {
-    // ignore (checkout will surface real errors)
-  }
-}
-
 function createIdempotencyKey() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `checkout-${crypto.randomUUID()}`;
@@ -30,15 +18,11 @@ function attachApiErrorCode(err) {
 }
 
 /**
- * Place order for current authenticated customer.
+ * Place order for the authenticated customer (COD).
  *
- * Endpoint: POST /storefront/checkout
- * Apply coupon: pass `couponCode` (trimmed, uppercased server-side).
- * Delivery pin: pass `lat` / `lng` from the selected address (not device GPS).
- *
- * Production checkout also requires the httpOnly `storefront_serviceability` cookie
- * set by POST /storefront/location/check (`serviceable: true`). apiFetchRoot sends
- * `credentials: 'include'` for all /storefront/* calls so that cookie is stored and sent.
+ * Checkout JSON ignores lat/lng/addressId. Delivery is the saved profile address.
+ * Call location/check with that pin first so the httpOnly `storefront_serviceability`
+ * cookie is set (`credentials: include` on /storefront/*).
  */
 export async function placeStorefrontOrder({
   notes,
@@ -46,7 +30,6 @@ export async function placeStorefrontOrder({
   idempotencyKey,
   lat,
   lng,
-  addressId,
 } = {}) {
   const shopId = await resolveShopId();
   if (!shopId) {
@@ -61,8 +44,6 @@ export async function placeStorefrontOrder({
     throw err;
   }
 
-  await ensureCartExists(shopId);
-
   const delivery = await checkDeliveryLocation(latNum, lngNum);
   if (!delivery.serviceable) {
     const err = new Error('Delivery is not available for this address.');
@@ -70,13 +51,10 @@ export async function placeStorefrontOrder({
     throw err;
   }
 
-  const body = { lat: latNum, lng: lngNum };
+  const body = {};
   if (notes) body.notes = notes;
   const trimmedCode = String(couponCode || '').trim();
   if (trimmedCode) body.couponCode = trimmedCode;
-  if (addressId != null && String(addressId).trim()) {
-    body.addressId = String(addressId).trim();
-  }
 
   const headers = {
     'x-shop-id': shopId,

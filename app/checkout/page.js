@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
+import { Button } from '@heroui/react';
 import { useCart } from '../../context/CartContext';
 import { useAddress } from '../../context/AddressContext';
 import { useAuth } from '../../context/AuthContext';
@@ -31,12 +32,11 @@ import { getCartBottomBarPricing } from '../../utils/cartSavings';
 import { formatInrFromMinor, minorToMajor } from '../../utils/currencyMinor';
 import { formatCartCouponPreviewMessage } from '../../utils/cartPromotions';
 import { normalizePhoneForApi } from '../../utils/otpVerifyPayload';
-import { getIndianPhoneSubmitError, isValidIndianMobile } from '../../utils/indianPhone';
-import IndianPhoneInput from '../../components/IndianPhoneInput';
-import { useUpdateProfile } from '../../hooks/useAuth';
+import PhoneChangeOtpSheet from '../../components/PhoneChangeOtpSheet';
 import { useLocationService } from '../../context/LocationServiceContext';
 import ConfirmModal from '../../components/ConfirmModal';
 import CheckoutPageSkeleton from '../../components/skeletons/CheckoutPageSkeleton';
+import { BRAND_PRIMARY_BTN } from '../../components/ui/brandButton';
 import { AddressCardSkeleton } from '../../components/skeletons/primitives';
 
 function isAddressNotServiceableError(err) {
@@ -71,10 +71,6 @@ function hasUserPhone(user) {
   return normalizePhoneForApi(raw).length === 10;
 }
 
-function isValidPhoneInput(value) {
-  return isValidIndianMobile(value);
-}
-
 /* ─────────────────────────────────────────────
    Step progress bar
 ───────────────────────────────────────────── */
@@ -92,7 +88,7 @@ function StepBar({ current }) {
               <div
                 className={`w-[22px] h-[22px] rounded-full flex items-center justify-center text-[11px] font-medium flex-shrink-0 ${
                   done || active
-                    ? 'bg-emerald-600 text-white'
+                    ? 'bg-violet-600 text-white'
                     : 'bg-gray-100 text-gray-400 border border-gray-200'
                 }`}
               >
@@ -106,7 +102,7 @@ function StepBar({ current }) {
               </div>
               <span
                 className={`text-[11px] font-medium ${
-                  active ? 'text-gray-900' : done ? 'text-emerald-700' : 'text-gray-400'
+                  active ? 'text-gray-900' : done ? 'text-violet-700' : 'text-gray-400'
                 }`}
               >
                 {label}
@@ -114,7 +110,7 @@ function StepBar({ current }) {
             </div>
             {i < steps.length - 1 && (
               <div
-                className={`flex-1 h-px mx-2 ${done ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                className={`flex-1 h-px mx-2 ${done ? 'bg-violet-500' : 'bg-gray-200'}`}
               />
             )}
           </div>
@@ -130,7 +126,7 @@ function StepBar({ current }) {
 function AddressCard({ address, selected, onSelect, onEdit }) {
   const { user } = useAuth();
   const labelColors = {
-    Home: 'bg-emerald-100 text-emerald-800',
+    Home: 'bg-violet-100 text-violet-800',
     Work: 'bg-blue-100 text-blue-800',
   };
   const pill = labelColors[address.label] || 'bg-gray-100 text-gray-600';
@@ -142,7 +138,7 @@ function AddressCard({ address, selected, onSelect, onEdit }) {
   return (
     <div
       className={`w-full rounded-2xl border p-3.5 flex items-start gap-3 transition-all ${
-        selected ? 'border-2 border-emerald-500' : 'border border-gray-100 hover:border-gray-200'
+        selected ? 'border-2 border-violet-500' : 'border border-gray-100 hover:border-gray-200'
       } bg-white`}
     >
       <button
@@ -154,7 +150,7 @@ function AddressCard({ address, selected, onSelect, onEdit }) {
         {/* Radio */}
         <div
           className={`w-[18px] h-[18px] rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors ${
-            selected ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300'
+            selected ? 'border-violet-500 bg-violet-500' : 'border-gray-300'
           }`}
         >
           {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
@@ -205,9 +201,9 @@ function AddressCard({ address, selected, onSelect, onEdit }) {
 ───────────────────────────────────────────── */
 function CodBadge() {
   return (
-    <div className="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-3.5 flex items-center gap-3">
+    <div className="bg-violet-50 border-2 border-violet-500 rounded-2xl p-3.5 flex items-center gap-3">
       <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0">
-        <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -217,10 +213,10 @@ function CodBadge() {
         </svg>
       </div>
       <div className="flex-1">
-        <p className="text-[14px] font-medium text-emerald-900">Cash on delivery</p>
-        <p className="text-[12px] text-emerald-700 mt-0.5">Pay when your order arrives</p>
+        <p className="text-[14px] font-medium text-violet-900">Cash on delivery</p>
+        <p className="text-[12px] text-violet-700 mt-0.5">Pay when your order arrives</p>
       </div>
-      <div className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center flex-shrink-0">
+      <div className="w-5 h-5 rounded-full bg-violet-600 flex items-center justify-center flex-shrink-0">
         <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
         </svg>
@@ -288,7 +284,7 @@ function OrderSummary({
                 <p className="text-[12px] font-medium text-gray-900 truncate">
                   {item.name}
                   {isBundleReward && (
-                    <span className="ml-1.5 rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-semibold uppercase text-emerald-800">
+                    <span className="ml-1.5 rounded bg-violet-100 px-1 py-0.5 text-[9px] font-semibold uppercase text-violet-800">
                       Free
                     </span>
                   )}
@@ -344,14 +340,14 @@ function OrderSummary({
         </div>
         <div className="flex justify-between text-gray-500">
           <span>Shipping</span>
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-800">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-violet-100 text-violet-800">
             Free
           </span>
         </div>
         {promoDiscount > 0.009 && (
           <div className="flex justify-between text-gray-500">
             <span>Promo savings</span>
-            <span className="font-medium text-emerald-700 tabular-nums">
+            <span className="font-medium text-violet-700 tabular-nums">
               −₹{promoDiscount.toLocaleString('en-IN')}
             </span>
           </div>
@@ -359,7 +355,7 @@ function OrderSummary({
         {couponDiscount > 0.009 && (
           <div className="flex justify-between text-gray-500">
             <span>Coupon</span>
-            <span className="font-medium text-emerald-700 tabular-nums">
+            <span className="font-medium text-violet-700 tabular-nums">
               −₹{couponDiscount.toLocaleString('en-IN')}
             </span>
           </div>
@@ -388,7 +384,7 @@ function OrderSummary({
 function CheckoutPageState({ title, subtitle }) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-2 px-6">
-      <div className="w-9 h-9 rounded-full border-2 border-emerald-200 border-t-emerald-600 animate-spin" />
+      <div className="w-9 h-9 rounded-full border-2 border-violet-200 border-t-violet-600 animate-spin" />
       {title ? <p className="text-sm font-medium text-gray-900 text-center">{title}</p> : null}
       {subtitle ? <p className="text-xs text-gray-500 text-center max-w-xs">{subtitle}</p> : null}
     </div>
@@ -407,7 +403,7 @@ function EmptyCheckout() {
       <p className="text-sm text-gray-400 mb-6">Add some items before checkout.</p>
       <Link
         href="/products"
-        className="inline-flex items-center gap-2 bg-emerald-600 text-white text-sm font-medium px-5 py-2.5 rounded-full hover:bg-emerald-700 transition"
+        className="inline-flex items-center gap-2 bg-violet-600 text-white text-sm font-medium px-5 py-2.5 rounded-full hover:bg-violet-700 transition"
       >
         Shop now
       </Link>
@@ -428,10 +424,9 @@ export default function CheckoutPage() {
     getDefaultAddress,
     isLoading: isLoadingAddresses,
   } = useAddress();
-  const { isAuthenticated, user, authHydrated, refreshUser } = useAuth();
+  const { isAuthenticated, user, authHydrated } = useAuth();
   const { goToLogin } = useLoginNavigation();
   const { showAlert } = useAlert();
-  const updateProfileMutation = useUpdateProfile();
   const { openServiceAreaSheet } = useLocationService();
 
   const [selectedAddressId, setSelectedAddressId] = useState(null);
@@ -439,7 +434,6 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
   const [showPhoneSheet, setShowPhoneSheet] = useState(false);
-  const [phoneDraft, setPhoneDraft] = useState('');
   const [phoneOverride, setPhoneOverride] = useState('');
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [showPriceVaryConfirm, setShowPriceVaryConfirm] = useState(false);
@@ -679,34 +673,14 @@ export default function CheckoutPage() {
     router.push(`/add/address?${params.toString()}`);
   };
 
-  const handlePhoneSave = async () => {
-    const normalized = normalizePhoneForApi(phoneDraft);
-    const phoneErr = getIndianPhoneSubmitError(phoneDraft);
-    if (!isValidPhoneInput(normalized) || phoneErr) {
-      showAlert(phoneErr || 'Please enter a valid 10-digit mobile number.', 'Invalid phone', 'warning');
-      return;
-    }
-
-    try {
-      await updateProfileMutation.mutateAsync({ phone: normalized });
-      await refreshUser({ silent: true });
-      setPhoneOverride(normalized);
-      setShowPhoneSheet(false);
-      showAlert('Phone number saved.', 'Success', 'success');
-    } catch (err) {
-      showAlert(err?.message || 'Failed to save phone number.', 'Error', 'error');
-    }
-  };
-
   /* ── Place order (runs after “price may vary” confirmation) ── */
   const executePlaceOrder = async () => {
     setIsSubmitting(true);
 
     try {
-      // Backend requires a serviceable verification for the delivery pin.
-      // `useLocationService()` checks the default address; checkout may use a different selected address.
-      if (!selectedAddressId || !selectedAddressCoords) {
-        showAlert('Please select a delivery address with a map pin.', 'Delivery address', 'warning');
+      const line1 = String(selectedAddress?.line1 || selectedAddress?.street || '').trim();
+      if (!selectedAddressId || !selectedAddressCoords || !line1) {
+        showAlert('Please save a delivery address with a street and map pin.', 'Delivery address', 'warning');
         showDeliveryAreaForSelectedAddress();
         setIsSubmitting(false);
         return;
@@ -716,7 +690,6 @@ export default function CheckoutPage() {
         couponCode: selectedCouponCode.trim() || undefined,
         lat: selectedAddressCoords.lat,
         lng: selectedAddressCoords.lng,
-        addressId: selectedAddressId,
       });
 
       if (!orderResponse?.orderId) throw new Error('Failed to create order');
@@ -754,7 +727,6 @@ export default function CheckoutPage() {
         return;
       }
       if (/phone number is required before checkout/i.test(String(err?.message || ''))) {
-        setPhoneDraft(String(user?.phone || phoneOverride || '').trim());
         setShowPhoneSheet(true);
         setIsSubmitting(false);
         return;
@@ -805,8 +777,8 @@ export default function CheckoutPage() {
       showAlert('Your cart is empty.', 'Empty Cart', 'warning');
       return;
     }
-    if (!selectedAddressId || !selectedAddressCoords) {
-      showAlert('Please select a delivery address with a map pin.', 'Delivery address', 'warning');
+    if (!selectedAddressId || !selectedAddressCoords || !String(selectedAddress?.line1 || selectedAddress?.street || '').trim()) {
+      showAlert('Please save a delivery address with a street and map pin.', 'Delivery address', 'warning');
       return;
     }
     // Use backend-consistent verification for the selected delivery address pin.
@@ -822,7 +794,6 @@ export default function CheckoutPage() {
       return;
     }
     if (!hasUserPhone(user) && !phoneOverride) {
-      setPhoneDraft('');
       setShowPhoneSheet(true);
       return;
     }
@@ -906,7 +877,7 @@ export default function CheckoutPage() {
             <button
               type="button"
               onClick={() => goToAddAddress()}
-              className="w-full mt-3 border-2 border-dashed border-gray-200 rounded-2xl py-3 flex items-center justify-center gap-2 text-[13px] font-medium text-gray-500 hover:border-emerald-400 hover:text-emerald-700 transition"
+              className="w-full mt-3 border-2 border-dashed border-gray-200 rounded-2xl py-3 flex items-center justify-center gap-2 text-[13px] font-medium text-gray-500 hover:border-violet-400 hover:text-violet-700 transition"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -953,7 +924,7 @@ export default function CheckoutPage() {
               </div>
               <Link
                 href="/products"
-                className="whitespace-nowrap text-[12px] font-medium text-emerald-700 transition hover:text-emerald-800"
+                className="whitespace-nowrap text-[12px] font-medium text-violet-700 transition hover:text-violet-800"
               >
                 See all
               </Link>
@@ -976,7 +947,7 @@ export default function CheckoutPage() {
           {/* Add more items — full-width CTA */}
           <Link
             href="/products"
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/40 px-4 py-3 text-[13px] font-semibold text-emerald-800 transition hover:border-emerald-500 hover:bg-emerald-50 active:scale-[0.99]"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-violet-300 bg-violet-50/40 px-4 py-3 text-[13px] font-semibold text-violet-800 transition hover:border-violet-500 hover:bg-violet-50 active:scale-[0.99]"
           >
             <svg
               className="h-4 w-4"
@@ -1004,7 +975,7 @@ export default function CheckoutPage() {
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
             placeholder="E.g. leave at door, ring bell twice…"
-            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-[13px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white resize-none leading-relaxed transition"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-[13px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:bg-white resize-none leading-relaxed transition"
           />
         </div>
 
@@ -1020,7 +991,7 @@ export default function CheckoutPage() {
               </div>
               <Link
                 href="/products"
-                className="whitespace-nowrap text-[12px] font-medium text-emerald-700 transition hover:text-emerald-800"
+                className="whitespace-nowrap text-[12px] font-medium text-violet-700 transition hover:text-violet-800"
               >
                 See all
               </Link>
@@ -1052,25 +1023,24 @@ export default function CheckoutPage() {
                   <p className="text-sm text-gray-400 line-through tabular-nums">
                     ₹{bottomBarPricing.mrpTotal.toLocaleString('en-IN')}
                   </p>
-                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                  <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-800">
                     Save ₹{Math.round(bottomBarPricing.savings).toLocaleString('en-IN')}
                   </span>
                 </>
               )}
             </div>
           </div>
-          <span className="flex-shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-[12px] font-medium text-emerald-700">
+          <span className="flex-shrink-0 rounded-full bg-violet-50 px-3 py-1 text-[12px] font-medium text-violet-700">
             Cash on delivery
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={(e) => {
-            // Address-first guard: send to /add/address (no addresses yet) or
-            // open the existing-address selector sheet — never disable the button.
+        <Button
+          variant="primary"
+          isDisabled={isSubmitting || showPriceVaryConfirm}
+          isLoading={isSubmitting}
+          onPress={() => {
             if (!selectedAddressId) {
-              e.preventDefault();
               if (addresses.length === 0) {
                 goToAddAddress();
               } else {
@@ -1079,30 +1049,21 @@ export default function CheckoutPage() {
               return;
             }
             if (!selectedAddressCoords) {
-              e.preventDefault();
               showAlert('Please set a map pin on your delivery address.', 'Delivery address', 'warning');
               goToAddAddress(selectedAddressId);
               return;
             }
-            handleSubmit(e);
+            handleSubmit({ preventDefault: () => {} });
           }}
-          disabled={isSubmitting || showPriceVaryConfirm}
           className={`w-full h-12 rounded-full text-sm font-medium flex items-center justify-center gap-2 transition active:scale-[0.98] ${
             isSubmitting || showPriceVaryConfirm
-              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              : !selectedAddressId
+              ? 'bg-gray-200 text-gray-400'
+              : !selectedAddressId || !selectedAddressCoords
                 ? 'bg-amber-500 text-white hover:bg-amber-600'
-                : !selectedAddressCoords
-                  ? 'bg-amber-500 text-white hover:bg-amber-600'
-                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                : BRAND_PRIMARY_BTN
           }`}
         >
-          {isSubmitting ? (
-            <>
-              <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-              Placing order…
-            </>
-          ) : !selectedAddressId ? (
+          {!isSubmitting && !selectedAddressId ? (
             <>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -1110,7 +1071,7 @@ export default function CheckoutPage() {
               </svg>
               Select address
             </>
-          ) : !selectedAddressCoords ? (
+          ) : !isSubmitting && !selectedAddressCoords ? (
             <>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -1118,6 +1079,8 @@ export default function CheckoutPage() {
               </svg>
               Set map pin on address
             </>
+          ) : isSubmitting ? (
+            'Placing order…'
           ) : (
             <>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -1126,7 +1089,7 @@ export default function CheckoutPage() {
               Place order
             </>
           )}
-        </button>
+        </Button>
         </div>
       </div>
 
@@ -1182,7 +1145,7 @@ export default function CheckoutPage() {
                 setShowAddressSelector(false);
                 goToAddAddress();
               }}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/40 px-4 py-3 text-[13px] font-semibold text-emerald-800 transition hover:border-emerald-500 hover:bg-emerald-50"
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-violet-300 bg-violet-50/40 px-4 py-3 text-[13px] font-semibold text-violet-800 transition hover:border-violet-500 hover:bg-violet-50"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1201,47 +1164,18 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      {showPhoneSheet && (
-        <div className="fixed inset-0 z-[70]">
-          <button
-            type="button"
-            aria-label="Close phone sheet"
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setShowPhoneSheet(false)}
-          />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4 shadow-2xl">
-            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-gray-200" />
-            <h3 className="text-base font-semibold text-gray-900">Add phone number</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Phone number is required before placing your order.
-            </p>
-            <IndianPhoneInput
-              value={phoneDraft}
-              onChange={setPhoneDraft}
-              className="mt-4"
-              inputClassName="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              showValidHint={false}
-            />
-            <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setShowPhoneSheet(false)}
-                className="h-11 flex-1 rounded-xl border border-gray-200 text-sm font-medium text-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handlePhoneSave}
-                disabled={updateProfileMutation.isPending}
-                className="h-11 flex-1 rounded-xl bg-emerald-600 text-sm font-medium text-white disabled:opacity-60"
-              >
-                {updateProfileMutation.isPending ? 'Saving…' : 'Save phone'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PhoneChangeOtpSheet
+        isOpen={showPhoneSheet}
+        onClose={() => setShowPhoneSheet(false)}
+        currentPhone={user?.phone || phoneOverride}
+        title="Add phone number"
+        description="Phone number is required before placing your order. We will send an OTP to verify it."
+        onSuccess={(nextPhone) => {
+          setPhoneOverride(nextPhone);
+          setShowPhoneSheet(false);
+          showAlert('Phone number saved.', 'Success', 'success');
+        }}
+      />
     </div>
   );
 }

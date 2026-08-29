@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { X } from 'lucide-react';
+import { CloseRegular as X } from './icons';
 import { useAuth } from '../context/AuthContext';
-import { updateStorefrontProfile, resolveShopId } from '../utils/authApi';
+import { updateProfile, resolveShopId } from '../utils/authApi';
 import { normalizePhoneForApi } from '../utils/otpVerifyPayload';
-import { getIndianPhoneSubmitError } from '../utils/indianPhone';
 import IndianPhoneInput from './IndianPhoneInput';
+import { validateAddressCheckoutForm } from '../lib/validations/address.schema';
 
 // Leaflet uses `window` at import time, so we load the picker only on the
 // client to keep this sheet SSR-safe.
@@ -214,36 +214,20 @@ export default function CheckoutAddAddressSheet({
     };
   }, [isOpen, form.postalCode, form.country, form.city, form.state, touched.city, touched.state]);
 
-  const validation = useMemo(() => {
-    const errors = {};
-    const line1 = form.line1.trim();
-    const city = form.city.trim();
-    const state = form.state.trim();
-    const postal = form.postalCode.replace(/\s/g, '').trim();
-
-    if (!line1) errors.line1 = 'Address line 1 is required';
-    if (!city) errors.city = 'City is required';
-    if (!state) errors.state = 'State is required';
-    if (!postal) errors.postalCode = 'PIN code is required';
-    else if (!/^\d{6}$/.test(postal)) errors.postalCode = 'Enter a valid 6-digit PIN';
-
-    if (needsNameField) {
-      const n = nameDraft.trim() || nameFromAddress;
-      if (!n || n.length < 2) errors.name = 'Enter your full name';
-    }
-
-    if (needsPhoneField) {
-      const phoneErr = getIndianPhoneSubmitError(
-        phoneDraft || phoneFromAddress
-      );
-      if (phoneErr) errors.phone = phoneErr;
-    } else {
-      const phoneErr = getIndianPhoneSubmitError(phoneFromProfile);
-      if (phoneErr) errors.phone = 'Update your phone in profile';
-    }
-
-    return { errors, ok: Object.keys(errors).length === 0 };
-  }, [form, needsNameField, needsPhoneField, nameDraft, phoneDraft, nameFromAddress, phoneFromAddress, phoneFromProfile]);
+  const validation = useMemo(
+    () =>
+      validateAddressCheckoutForm({
+        form,
+        needsNameField,
+        needsPhoneField,
+        nameDraft,
+        phoneDraft,
+        nameFromAddress,
+        phoneFromAddress,
+        phoneFromProfile,
+      }),
+    [form, needsNameField, needsPhoneField, nameDraft, phoneDraft, nameFromAddress, phoneFromAddress, phoneFromProfile]
+  );
 
   const canSubmit = validation.ok && !isSubmitting && !pending;
 
@@ -251,7 +235,7 @@ export default function CheckoutAddAddressSheet({
 
   const inputCls = (key) =>
     `mt-1 w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-2 ${
-      err(key) ? 'border-red-300 focus:ring-red-100' : 'border-gray-200 focus:ring-emerald-200'
+      err(key) ? 'border-red-300 focus:ring-red-100' : 'border-gray-200 focus:ring-violet-200'
     }`;
 
   const buildPayload = (nameResolved, phoneResolved) => ({
@@ -372,13 +356,9 @@ export default function CheckoutAddAddressSheet({
     try {
       const coords = await ensureCoordinates();
 
-      const patch = {};
-      if (needsNameField && finalName) patch.displayName = finalName;
-      if (needsPhoneField && finalPhone) patch.phone = finalPhone;
-
-      if (Object.keys(patch).length > 0) {
-        await updateStorefrontProfile(patch);
-        await refreshUser();
+      if (needsNameField && finalName) {
+        await updateProfile({ displayName: finalName });
+        await refreshUser({ silent: true });
       }
 
       const payload = {
@@ -438,7 +418,7 @@ export default function CheckoutAddAddressSheet({
               className="shrink-0 rounded-xl p-2 hover:bg-gray-100"
               aria-label="Close"
             >
-              <X className="h-5 w-5 text-gray-600" />
+              <X size={20} className="h-5 w-5 text-gray-600" />
             </button>
           </div>
 
@@ -550,7 +530,7 @@ export default function CheckoutAddAddressSheet({
                 {geoStatus === 'requesting' ? 'Getting location…' : 'Use my location'}
               </button>
               {geoStatus === 'ready' && form.lat != null && (
-                <span className="text-[11px] text-emerald-700">Location captured</span>
+                <span className="text-[11px] text-violet-700">Location captured</span>
               )}
             </div>
 
@@ -560,7 +540,7 @@ export default function CheckoutAddAddressSheet({
                 <select
                   value={form.label}
                   onChange={setField('label')}
-                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-200"
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-violet-200"
                 >
                   <option value="Home">Home</option>
                   <option value="Office">Office</option>
@@ -645,7 +625,7 @@ export default function CheckoutAddAddressSheet({
                         pinLookupStatus === 'error'
                           ? 'text-amber-700'
                           : pinLookupStatus === 'success'
-                            ? 'text-emerald-700'
+                            ? 'text-violet-700'
                             : 'text-gray-500'
                       }`}
                     >
@@ -691,7 +671,7 @@ export default function CheckoutAddAddressSheet({
                 type="button"
                 onClick={handleSubmit}
                 disabled={!canSubmit}
-                className="min-h-[3rem] flex-[1.2] rounded-2xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-45"
+                className="min-h-[3rem] flex-[1.2] rounded-2xl bg-violet-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 {busy ? 'Saving…' : isEdit ? 'Save changes' : 'Save address'}
               </button>

@@ -5,6 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCart, addToCart as apiAddToCart, updateCartItem, removeFromCart as apiRemoveFromCart, clearCart as apiClearCart } from '../utils/cartApi';
 import { couponKeys } from './useCoupons';
+import { useToast } from '../context/ToastContext';
 
 // Query keys
 export const cartKeys = {
@@ -58,10 +59,11 @@ export function useCartQuery(options = {}) {
 }
 
 /**
- * Add item to cart mutation
+ * Add item to cart mutation — with optimistic count update and toast feedback.
  */
 export function useAddToCart() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   return useMutation({
     mutationFn: ({ productId, quantity, delta, couponCode }) => {
@@ -69,9 +71,36 @@ export function useAddToCart() {
       const options = couponCode ? { couponCode } : {};
       return apiAddToCart(productId, amount, options);
     },
-    onSuccess: (cartData) => syncCartFromMutation(queryClient, cartData),
-    onError: (error) => {
-      console.error('Error adding to cart:', error);
+    onMutate: async ({ productId, quantity, delta }) => {
+      await queryClient.cancelQueries({ queryKey: cartKeys.cart() });
+      const previous = queryClient.getQueryData(cartKeys.cart());
+      const amount = delta ?? quantity ?? 1;
+      queryClient.setQueryData(cartKeys.cart(), (old) => {
+        if (!old || !Array.isArray(old.items)) return old;
+        const existingIdx = old.items.findIndex(
+          (item) => String(item?.productId ?? item?.product_id ?? '') === String(productId)
+        );
+        if (existingIdx >= 0) {
+          const updatedItems = old.items.map((item, idx) =>
+            idx === existingIdx
+              ? { ...item, quantity: (item.quantity ?? 0) + amount }
+              : item
+          );
+          return { ...old, items: updatedItems };
+        }
+        return old;
+      });
+      return { previous };
+    },
+    onSuccess: (cartData) => {
+      syncCartFromMutation(queryClient, cartData);
+      showToast('Added to cart', 'success');
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(cartKeys.cart(), context.previous);
+      }
+      showToast(error?.message || 'Could not add item. Please try again.', 'error');
     },
   });
 }
@@ -81,6 +110,7 @@ export function useAddToCart() {
  */
 export function useUpdateCartItem() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   return useMutation({
     mutationFn: ({ itemId, quantity, delta, couponCode }) => {
@@ -92,6 +122,9 @@ export function useUpdateCartItem() {
       return updateCartItem(itemId, quantity, opts);
     },
     onSuccess: (cartData) => syncCartFromMutation(queryClient, cartData),
+    onError: (error) => {
+      showToast(error?.message || 'Could not update cart. Please try again.', 'error');
+    },
   });
 }
 
@@ -100,6 +133,7 @@ export function useUpdateCartItem() {
  */
 export function useRemoveFromCart() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   return useMutation({
     mutationFn: (itemId, options) => {
@@ -109,6 +143,9 @@ export function useRemoveFromCart() {
       return apiRemoveFromCart(itemId, options);
     },
     onSuccess: (cartData) => syncCartFromMutation(queryClient, cartData),
+    onError: (error) => {
+      showToast(error?.message || 'Could not remove item. Please try again.', 'error');
+    },
   });
 }
 
@@ -117,6 +154,7 @@ export function useRemoveFromCart() {
  */
 export function useClearCart() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   return useMutation({
     mutationFn: () => apiClearCart(),
@@ -127,6 +165,9 @@ export function useClearCart() {
         queryClient.setQueryData(cartKeys.cart(), EMPTY_CART_QUERY);
       }
       queryClient.invalidateQueries({ queryKey: cartKeys.all });
+    },
+    onError: (error) => {
+      showToast(error?.message || 'Could not clear cart. Please try again.', 'error');
     },
   });
 }

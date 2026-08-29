@@ -1,8 +1,13 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback } from 'react';
+import { useLayoutHeights } from './LayoutHeightsContext';
+import { useBottomNavVisibility } from './BottomNavVisibilityContext';
 
-const ToastContext = createContext();
+const ToastContext = createContext(null);
+
+const MOBILE_BOTTOM_NAV_FALLBACK_PX = 72;
+const GAP_ABOVE_BOTTOM_NAV_PX = 12;
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
@@ -10,10 +15,9 @@ export function ToastProvider({ children }) {
   const showToast = useCallback((message, type = 'success') => {
     const id = Date.now() + Math.random();
     const toast = { id, message, type };
-    
+
     setToasts((prev) => [...prev, toast]);
 
-    // Auto remove after 3 seconds
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3000);
@@ -24,16 +28,38 @@ export function ToastProvider({ children }) {
   }, []);
 
   return (
-    <ToastContext.Provider value={{ showToast, removeToast }}>
+    <ToastContext.Provider value={{ showToast, removeToast, toasts }}>
       {children}
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </ToastContext.Provider>
   );
 }
 
-function ToastContainer({ toasts, removeToast }) {
+/** Renders toast stack; mount inside LayoutHeightsProvider. */
+export function ToastHost() {
+  const ctx = useContext(ToastContext);
+  const { bottomNavHeight } = useLayoutHeights();
+  const { hideForRoute } = useBottomNavVisibility();
+
+  if (!ctx) return null;
+
+  const { toasts, removeToast } = ctx;
+  const liftPx =
+    !hideForRoute
+      ? Math.max(Number(bottomNavHeight) || 0, MOBILE_BOTTOM_NAV_FALLBACK_PX) +
+        GAP_ABOVE_BOTTOM_NAV_PX
+      : null;
+
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none max-w-xs">
+    <div
+      className="pointer-events-none fixed inset-x-0 z-[70] flex flex-col items-center gap-2 px-4 md:bottom-6 md:top-auto md:items-end md:px-6"
+      style={{
+        bottom:
+          liftPx != null
+            ? `${liftPx}px`
+            : 'calc(1rem + env(safe-area-inset-bottom, 0px))',
+        transition: 'bottom 300ms cubic-bezier(0.22, 1, 0.36, 1)',
+      }}
+    >
       {toasts.map((toast) => (
         <Toast key={toast.id} toast={toast} removeToast={removeToast} />
       ))}
@@ -42,54 +68,52 @@ function ToastContainer({ toasts, removeToast }) {
 }
 
 function Toast({ toast, removeToast }) {
-  const bgColor = {
-    success: 'bg-green-500',
-    error: 'bg-red-500',
-    info: 'bg-blue-500',
-    warning: 'bg-orange-500',
-  }[toast.type] || 'bg-gray-500';
+  const styles = {
+    success: 'bg-violet-600 shadow-[0_8px_24px_rgba(144,43,245,0.35)]',
+    error: 'bg-red-500 shadow-[0_8px_24px_rgba(239,68,68,0.3)]',
+    info: 'bg-slate-700 shadow-[0_8px_24px_rgba(51,65,85,0.25)]',
+    warning: 'bg-amber-500 shadow-[0_8px_24px_rgba(245,158,11,0.3)]',
+  };
+  const bgColor = styles[toast.type] ?? 'bg-gray-700';
 
   const icon = {
     success: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
       </svg>
     ),
     error: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
       </svg>
     ),
     info: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
     warning: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
     ),
-  }[toast.type] || null;
+  }[toast.type] ?? null;
 
   return (
     <div
-      className={`
-        ${bgColor} text-white px-4 py-2.5 rounded-full shadow-lg
-        flex items-center gap-2 w-full
-        animate-slide-down pointer-events-auto
-        border-2 border-white/20 backdrop-blur-sm
-      `}
-      role="alert"
+      className={`${bgColor} pointer-events-auto flex w-full max-w-xs items-center gap-2 rounded-2xl border border-white/15 px-4 py-2.5 text-white backdrop-blur-sm animate-slide-up md:max-w-sm`}
+      role="status"
+      aria-live="polite"
     >
-      <div className="flex-shrink-0">{icon}</div>
-      <p className="flex-1 font-medium text-xs truncate">{toast.message}</p>
+      {icon}
+      <p className="flex-1 truncate text-xs font-medium">{toast.message}</p>
       <button
+        type="button"
         onClick={() => removeToast(toast.id)}
-        className="flex-shrink-0 hover:bg-white/20 rounded-full p-0.5 transition-colors"
-        aria-label="Close"
+        className="shrink-0 rounded-full p-0.5 transition-colors hover:bg-white/20"
+        aria-label="Dismiss notification"
       >
-        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
@@ -104,4 +128,3 @@ export function useToast() {
   }
   return context;
 }
-

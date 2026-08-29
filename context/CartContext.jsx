@@ -2,8 +2,10 @@
 
 import { createContext, useContext, useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useUiStore } from '../stores/uiStore';
 import { useAuth } from './AuthContext';
 import { useAlert } from './AlertContext';
+import { useToast } from './ToastContext';
 import { useCartQuery, useAddToCart, useUpdateCartItem, useRemoveFromCart, useClearCart, cartKeys, EMPTY_CART_QUERY } from '../hooks/useCart';
 import {
   applyGuestCartBundleQuantities,
@@ -48,7 +50,8 @@ export function CartProvider({ children }) {
   const [isClient, setIsClient] = useState(false);
   /** False until useLayoutEffect has read `cart` / `cartApiCache` — avoids empty-cart flash on first paint. */
   const [hasHydratedLocalCart, setHasHydratedLocalCart] = useState(false);
-  const [showSidebarCart, setShowSidebarCart] = useState(false);
+  const showSidebarCart = useUiStore((s) => s.cartSidebarOpen);
+  const setShowSidebarCart = useUiStore((s) => s.setCartSidebarOpen);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [savedCarts, setSavedCarts] = useState([]);
   const [cartTemplates, setCartTemplates] = useState([]);
@@ -56,6 +59,7 @@ export function CartProvider({ children }) {
   // Get auth context (now CartProvider is inside AuthProvider in layout)
   const { isAuthenticated, token } = useAuth();
   const { showAlert } = useAlert();
+  const { showToast } = useToast();
 
   // Use API cart when authenticated; otherwise use local cart.
   const useApiCart = !!(isAuthenticated && token);
@@ -688,11 +692,11 @@ export function CartProvider({ children }) {
       }).catch(() => {
         // Fallback to copy to clipboard
         navigator.clipboard.writeText(shareUrl);
-        showAlert('Cart link copied to clipboard!', 'Success', 'success');
+        showToast('Cart link copied to clipboard');
       });
     } else if (typeof window !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(shareUrl);
-      showAlert('Cart link copied to clipboard!', 'Success', 'success');
+      showToast('Cart link copied to clipboard');
     }
     
     return shareUrl;

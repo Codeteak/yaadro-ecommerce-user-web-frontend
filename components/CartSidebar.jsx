@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useDrag } from '@use-gesture/react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { formatRupeeINR } from '../utils/productUtils';
@@ -16,6 +17,16 @@ export default function CartSidebar() {
 
   const handleClose = () => setShowSidebarCart(false);
 
+  const bindDrag = useDrag(
+    ({ movement: [mx], velocity: [vx], last }) => {
+      if (!showSidebarCart) return;
+      if (last && (mx > 80 || vx > 0.6)) {
+        handleClose();
+      }
+    },
+    { axis: 'x', filterTaps: true }
+  );
+
   const handleProceedToCheckout = () => {
     if (!authHydrated) return;
     handleClose();
@@ -28,7 +39,6 @@ export default function CartSidebar() {
 
   return (
     <>
-      {/* Backdrop */}
       <div
         className={`fixed inset-0 bg-black/25 z-[90] transition-opacity duration-300 ${
           showSidebarCart ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -36,13 +46,12 @@ export default function CartSidebar() {
         onClick={handleClose}
       />
 
-      {/* Sidebar */}
       <aside
-        className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-white z-[95] shadow-lg transition-transform duration-300 flex flex-col ${
+        {...bindDrag()}
+        className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-white z-[95] shadow-lg transition-transform duration-300 flex flex-col touch-pan-y ${
           showSidebarCart ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        {/* Header */}
         <div className="px-6 py-5 flex items-center justify-between border-b border-gray-100">
           <h2 className="text-base font-medium text-gray-900">Shopping Cart</h2>
           <button
@@ -56,7 +65,6 @@ export default function CartSidebar() {
           </button>
         </div>
 
-        {/* Items Container */}
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5">
           {cartItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-12 text-center">
@@ -76,7 +84,6 @@ export default function CartSidebar() {
           )}
         </div>
 
-        {/* Footer */}
         {cartItems.length > 0 && (
           <div className="border-t border-gray-100 px-6 py-5 space-y-4">
             <div className="space-y-2">
@@ -92,7 +99,8 @@ export default function CartSidebar() {
             <button
               type="button"
               onClick={handleProceedToCheckout}
-              className="block w-full py-3 px-4 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors text-center"
+              disabled={!authHydrated}
+              className="block w-full py-3 px-4 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors text-center disabled:opacity-60"
             >
               Checkout
             </button>

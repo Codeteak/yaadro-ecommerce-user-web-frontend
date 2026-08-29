@@ -30,7 +30,7 @@ export default function CheckoutPageSkeleton() {
 
       <div className="px-4 pt-5">
         <Bone className="mb-3 h-3 w-28 rounded" />
-        <div className="flex items-center gap-3 rounded-2xl border-2 border-emerald-500/30 bg-emerald-50/50 p-3.5">
+        <div className="flex items-center gap-3 rounded-2xl border-2 border-violet-500/30 bg-violet-50/50 p-3.5">
           <Bone className="h-10 w-10 shrink-0 rounded-xl" />
           <div className="flex-1 space-y-2">
             <Bone className="h-4 w-32 rounded" />

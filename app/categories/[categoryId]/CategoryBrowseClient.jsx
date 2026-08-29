@@ -187,7 +187,7 @@ function CategoryBrowseInner() {
         <p className="mt-1 text-[13px] text-gray-500">It may have been removed or the link is invalid.</p>
         <Link
           href="/categories"
-          className="mt-6 rounded-full bg-emerald-600 px-5 py-2.5 text-[13px] font-semibold text-white"
+          className="mt-6 rounded-full bg-violet-600 px-5 py-2.5 text-[13px] font-semibold text-white"
         >
           Back to categories
         </Link>

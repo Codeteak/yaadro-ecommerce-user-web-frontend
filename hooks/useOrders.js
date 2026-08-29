@@ -2,8 +2,11 @@
  * TanStack Query hooks for Orders
  */
 
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { createOrder, verifyPayment, listOrders, getOrder, cancelOrder, retryPayment } from '../utils/orderApi';
+import { useQuery, useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
+import { listOrders, getOrder } from '../utils/orderApi';
+
+const ORDERS_STALE_MS = 1000 * 90;
+const ORDER_DETAIL_STALE_MS = 1000 * 60;
 
 // Query keys
 export const orderKeys = {
@@ -16,46 +19,6 @@ export const orderKeys = {
 };
 
 /**
- * Create order mutation
- */
-export function useCreateOrder() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (orderData) => createOrder(orderData),
-    onSuccess: () => {
-      // Invalidate cart after order creation
-      queryClient.invalidateQueries({ queryKey: ['cart'] });
-      // Invalidate orders list
-      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-    },
-    onError: (error) => {
-      console.error('Error creating order:', error);
-    },
-  });
-}
-
-/**
- * Verify payment mutation
- */
-export function useVerifyPayment() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ orderId, paymentData }) => verifyPayment(orderId, paymentData),
-    onSuccess: (data, variables) => {
-      // Invalidate order details
-      queryClient.invalidateQueries({ queryKey: orderKeys.detail(variables.orderId) });
-      // Invalidate orders list
-      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-    },
-    onError: (error) => {
-      console.error('Error verifying payment:', error);
-    },
-  });
-}
-
-/**
  * List orders query
  */
 export function useOrdersList(params = {}, queryOptions = {}) {
@@ -63,59 +26,30 @@ export function useOrdersList(params = {}, queryOptions = {}) {
   return useQuery({
     queryKey: orderKeys.list(params),
     queryFn: () => listOrders(params),
-    staleTime: 30000, // 30 seconds
-    refetchOnWindowFocus: true,
+    staleTime: ORDERS_STALE_MS,
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
     enabled,
     ...rest,
   });
 }
 
 /**
- * Infinite orders list (page/per_page). Handles APIs that return a full dump by
- * client-slicing subsequent pages from the first response.
+ * Orders list. API has no cursor; fetches newest `limit` orders (max 100).
  */
 export function useInfiniteOrdersList(params = {}, queryOptions = {}) {
-  const queryClient = useQueryClient();
   const { enabled = true, ...rest } = queryOptions;
-  const perPage = Math.min(100, Math.max(1, Number(params.per_page) || 20));
-  const filters = { per_page: perPage };
-  const key = orderKeys.infinite(filters);
+  const limit = Math.min(100, Math.max(1, Number(params.limit ?? params.per_page) || 50));
+  const filters = { limit };
 
   return useInfiniteQuery({
-    queryKey: key,
+    queryKey: orderKeys.infinite(filters),
     initialPageParam: 1,
-    queryFn: async ({ pageParam }) => {
-      const page = pageParam || 1;
-      if (page > 1) {
-        const existing = queryClient.getQueryData(key);
-        const first = existing?.pages?.[0];
-        const all = first?.pagination?._allOrders;
-        if (first?.pagination?.clientSlice && Array.isArray(all)) {
-          const start = (page - 1) * perPage;
-          return {
-            orders: all.slice(start, start + perPage),
-            pagination: {
-              page,
-              per_page: perPage,
-              total: all.length,
-              total_pages: Math.max(1, Math.ceil(all.length / perPage)),
-              clientSlice: true,
-            },
-          };
-        }
-      }
-      return listOrders({ page, per_page: perPage });
-    },
-    getNextPageParam: (lastPage) => {
-      const pag = lastPage?.pagination;
-      if (!pag) return undefined;
-      const page = Number(pag.page) || 1;
-      const totalPages = Number(pag.total_pages) || 1;
-      if (page >= totalPages) return undefined;
-      return page + 1;
-    },
-    staleTime: 30000,
-    refetchOnWindowFocus: true,
+    queryFn: () => listOrders({ limit }),
+    getNextPageParam: () => undefined,
+    staleTime: ORDERS_STALE_MS,
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
     enabled,
     ...rest,
   });
@@ -130,48 +64,9 @@ export function useOrderDetail(orderId, queryOptions = {}) {
     queryKey: orderKeys.detail(orderId),
     queryFn: () => getOrder(orderId),
     enabled: !!orderId && enabledOpt,
-    staleTime: 30000, // 30 seconds
-    refetchOnWindowFocus: true,
+    staleTime: ORDER_DETAIL_STALE_MS,
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
     ...rest,
-  });
-}
-
-/**
- * Cancel order mutation
- */
-export function useCancelOrder() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ orderId, reason }) => cancelOrder(orderId, reason),
-    onSuccess: (data, variables) => {
-      // Invalidate order details
-      queryClient.invalidateQueries({ queryKey: orderKeys.detail(variables.orderId) });
-      // Invalidate orders list
-      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-    },
-    onError: (error) => {
-      console.error('Error cancelling order:', error);
-    },
-  });
-}
-
-/**
- * Retry payment mutation
- */
-export function useRetryPayment() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ orderId, paymentMethod }) => retryPayment(orderId, paymentMethod),
-    onSuccess: (data, variables) => {
-      // Invalidate order details to get updated payment info
-      queryClient.invalidateQueries({ queryKey: orderKeys.detail(variables.orderId) });
-      // Invalidate orders list
-      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-    },
-    onError: (error) => {
-      console.error('Error retrying payment:', error);
-    },
   });
 }

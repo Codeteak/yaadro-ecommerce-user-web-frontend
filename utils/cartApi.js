@@ -138,19 +138,6 @@ function normalizeStorefrontCartItemRaw(apiItem) {
   };
 }
 
-async function ensureCartExists(shopId) {
-  // Best-effort. If cart already exists server still returns 200.
-  try {
-    await apiFetchRoot('/storefront/cart', {
-      method: 'POST',
-      headers: { 'x-shop-id': shopId },
-      omitTenantHeader: true,
-    });
-  } catch {
-    // ignore (GET/add will surface real errors)
-  }
-}
-
 function resolveCartLinePricing(apiItem, quantity, isBundleReward) {
   const pricing = apiItem.pricing && typeof apiItem.pricing === 'object' ? apiItem.pricing : null;
   const listPerUnitMinor = parseMinorInt(
@@ -501,7 +488,6 @@ export async function getCart(options = {}) {
       .toUpperCase();
     const query = couponCode ? { couponCode } : undefined;
 
-    await ensureCartExists(shopId);
     const response = await apiFetchRoot('/storefront/cart', {
       method: 'GET',
       headers: { 'x-shop-id': shopId },
@@ -536,8 +522,6 @@ export async function addToCart(productInput, delta = 1, options = {}) {
     if (!shopId) {
       throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/* requests on localhost).');
     }
-
-    await ensureCartExists(shopId);
 
     const body = { productId, delta: safeDelta };
     const couponCode = String(options.couponCode || '')

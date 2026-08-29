@@ -40,4 +40,21 @@ const result = spawnSync('npx', ['next', 'build'], {
 
 if (parked) restoreApiRoutes();
 
-process.exit(result.status ?? 1);
+if ((result.status ?? 1) !== 0) {
+  process.exit(result.status ?? 1);
+}
+
+const outDir = path.join(root, 'out');
+if (!fs.existsSync(outDir)) {
+  console.error('Static export did not produce out/ directory.');
+  process.exit(1);
+}
+
+console.log('Generating service worker with Workbox…');
+const workbox = spawnSync('npx', ['workbox', 'generateSW', 'workbox-config.cjs'], {
+  cwd: root,
+  stdio: 'inherit',
+  shell: process.platform === 'win32',
+});
+
+process.exit(workbox.status ?? 1);

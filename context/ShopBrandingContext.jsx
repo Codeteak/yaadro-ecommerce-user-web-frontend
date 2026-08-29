@@ -13,6 +13,7 @@ import { usePathname } from 'next/navigation';
 import {
   formatShopPageTitle,
   resolveShopBranding,
+  shouldSkipLocalDevTenantFetch,
 } from '../utils/shopResolver';
 import { fetchShopSeoMetadata } from '../utils/seoApi';
 import { applySeoBlockToDocument } from '../utils/seoBlock';
@@ -102,7 +103,10 @@ export function ShopBrandingProvider({ children }) {
         setBannerImages(Array.isArray(result.bannerImages) ? result.bannerImages : []);
 
         let seo = result.seo || null;
-        if (!seo && result.shopId) {
+        const skipSeoFetch =
+          typeof window !== 'undefined' &&
+          shouldSkipLocalDevTenantFetch(window.location.hostname);
+        if (!seo && result.shopId && !skipSeoFetch) {
           const fetched = await fetchShopSeoMetadata(result.shopId);
           seo = fetched?.seo || null;
         }

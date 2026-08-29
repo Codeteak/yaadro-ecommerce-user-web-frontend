@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -22,6 +22,25 @@ import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../utils/categoryImag
 import { dedupeProductsByVariantGroup } from '../utils/productUtils';
 import HomePageSkeleton from '../components/skeletons/HomePageSkeleton';
 import { ProductCarouselRowSkeleton } from '../components/skeletons/primitives';
+import SearchSuggestInput from '../components/search/SearchSuggestInput';
+
+const PREVIEW_FIRST_CARD = process.env.NODE_ENV === 'development';
+
+function withHomeCardPreview(product, index) {
+  if (!PREVIEW_FIRST_CARD || index !== 0) return product;
+  const listPrice = 155;
+  const offerPrice = 105;
+  return {
+    ...product,
+    name: 'Fresh Organic Tomatoes',
+    price: listPrice,
+    offerPrice,
+    weight: 500,
+    unit: 'g',
+    unit_size: '500',
+    bundle_rules: [{ buy_qty: 2, get_qty: 1, reward_type: 'free' }],
+  };
+}
 
 /** Compact category tile for the sticky home header (light theme). */
 function StickyHomeCategoryChip({ category }) {
@@ -58,7 +77,11 @@ function StickyHomeCategoryChip({ category }) {
     </Link>
   );
 }
-import { User, MapPin, Search, ArrowRight } from 'lucide-react';
+import {
+  ArrowRightRegular as ArrowRight,
+  MapPinRegular as MapPin,
+  User1Regular as User,
+} from '../components/icons';
 
 /** Category card for home "Shop by Category" — uniform grid, image fills placeholder (centered). */
 function HomeShopCategoryCard({ category }) {
@@ -162,6 +185,7 @@ export default function Home() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
+  const [homeSearch, setHomeSearch] = useState('');
   
   const { showAlert } = useAlert();
   const { isAuthenticated } = useAuth();
@@ -243,14 +267,14 @@ export default function Home() {
   // Load root categories + one shared catalog (home sections slice client-side).
   const { data: categoriesData, isLoading: categoriesLoading } = useRootCategories();
   const { data: catalogData, isLoading: catalogLoading } = useProducts({
-    limit: 48,
+    limit: 24,
     sort_by: 'created_at',
     sort_order: 'desc',
   });
 
   const [freshZoneRef, freshZoneInView] = useInView({ rootMargin: '240px 0px', once: true });
   const { data: freshZoneData, isLoading: freshZoneLoading } = useProducts({
-    limit: 40,
+    limit: 16,
     sort_by: 'created_at',
     sort_order: 'desc',
     enabled: freshZoneInView,
@@ -375,17 +399,6 @@ export default function Home() {
     return scored;
   }, [allCategories, allFreshZoneProducts]);
 
-  const freshZoneSelectedCategory =
-    freshZoneCategoryId == null
-      ? null
-      : freshZoneCategories.find((c) => String(c.id) === String(freshZoneCategoryId)) || null;
-
-  useEffect(() => {
-    if (freshZoneCategoryId == null) return;
-    const stillExists = freshZoneCategories.some((c) => String(c.id) === String(freshZoneCategoryId));
-    if (!stillExists) setFreshZoneCategoryId(null);
-  }, [freshZoneCategoryId, freshZoneCategories]);
-
   const freshZoneBaseProducts = useMemo(() => {
     if (!allFreshZoneProducts.length) return [];
     const freshCategoryProducts = allFreshZoneProducts.filter((p) =>
@@ -394,9 +407,51 @@ export default function Home() {
     return dedupeProductsByVariantGroup(freshCategoryProducts);
   }, [allFreshZoneProducts, freshZoneCategories]);
 
-  const freshZoneProducts = freshZoneSelectedCategory
-    ? freshZoneBaseProducts.filter((p) => productMatchesCategory(p, freshZoneSelectedCategory))
-    : freshZoneBaseProducts;
+  const freshZoneProductPool = useMemo(() => {
+    const merged = allFreshZoneProducts.length ? allFreshZoneProducts : catalogProducts;
+    return dedupeProductsByVariantGroup(merged);
+  }, [allFreshZoneProducts, catalogProducts]);
+
+  const isFreshKeywordProduct = useCallback((product) => {
+    const pText = getProductFreshText(product);
+    if (hasAnyKeyword(pText, NON_FRESH_KEYWORDS)) return false;
+    return hasAnyKeyword(pText, FRESH_PRODUCT_KEYWORDS);
+  }, []);
+
+  const freshZoneDisplayProductsBase = useMemo(() => {
+    if (freshZoneBaseProducts.length) return freshZoneBaseProducts;
+
+    const keywordProducts = freshZoneProductPool.filter(isFreshKeywordProduct);
+    if (keywordProducts.length) return dedupeProductsByVariantGroup(keywordProducts);
+
+    return catalogProducts.slice(0, 12);
+  }, [freshZoneBaseProducts, freshZoneProductPool, catalogProducts, isFreshKeywordProduct]);
+
+  const freshZoneDisplayCategories = useMemo(() => {
+    if (freshZoneCategories.length) return freshZoneCategories;
+    if (!allCategories.length || !freshZoneDisplayProductsBase.length) return [];
+
+    return allCategories
+      .filter((cat) => freshZoneDisplayProductsBase.some((p) => productMatchesCategory(p, cat)))
+      .slice(0, 8);
+  }, [freshZoneCategories, allCategories, freshZoneDisplayProductsBase]);
+
+  const freshZoneSelectedCategory =
+    freshZoneCategoryId == null
+      ? null
+      : freshZoneDisplayCategories.find((c) => String(c.id) === String(freshZoneCategoryId)) || null;
+
+  useEffect(() => {
+    if (freshZoneCategoryId == null) return;
+    const stillExists = freshZoneDisplayCategories.some(
+      (c) => String(c.id) === String(freshZoneCategoryId)
+    );
+    if (!stillExists) setFreshZoneCategoryId(null);
+  }, [freshZoneCategoryId, freshZoneDisplayCategories]);
+
+  const freshZoneDisplayProducts = freshZoneSelectedCategory
+    ? freshZoneDisplayProductsBase.filter((p) => productMatchesCategory(p, freshZoneSelectedCategory))
+    : freshZoneDisplayProductsBase;
 
   const orderAgainSelectedCategory =
     orderAgainCategoryId == null
@@ -522,7 +577,7 @@ export default function Home() {
       >
         <div className="mt-2 rounded-full bg-white/90 px-3 py-2 shadow-md border border-gray-100 flex items-center gap-2">
           <span
-            className={`h-4 w-4 rounded-full border-2 border-emerald-600 border-t-transparent ${
+            className={`h-4 w-4 rounded-full border-2 border-violet-600 border-t-transparent ${
               ptrRefreshing ? 'animate-spin' : ''
             }`}
           />
@@ -580,62 +635,63 @@ export default function Home() {
           }}
           aria-hidden
         />
-        {/* Shop branding card — flush left:0, name top, delivery status below */}
-        <div className="absolute left-0 top-5 sm:top-6 md:top-8 z-30 flex items-start gap-3.5 rounded-r-3xl bg-white/95 backdrop-blur-md pl-4 pr-5 py-3">
-          {shopImage ? (
-            <img
-              src={shopImage}
-              alt={shopName || ''}
-              className="h-11 w-11 shrink-0 rounded-xl object-contain"
-              width={44}
-              height={44}
-            />
-          ) : (
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-100">
-              <Image
-                src="/trolley.png"
-                alt=""
-                width={28}
-                height={28}
-                className="h-7 w-7 object-contain"
-              />
-            </div>
-          )}
-          <div className="flex flex-col gap-1 min-w-0">
-            <span className="text-[16px] font-extrabold text-gray-900 leading-tight">
-              {shopName || 'Yaadro'}
-            </span>
-            {isLocationChecking ? (
-              <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-500">
-                <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-pulse" />
-                Checking area…
-              </span>
-            ) : isServiceable === true ? (
-              <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                <MapPin className="h-3 w-3" strokeWidth={2.5} />
-                Delivery available
-              </span>
-            ) : (
-              <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-semibold text-red-600">
-                <MapPin className="h-3 w-3" strokeWidth={2.5} />
-                Not available
-              </span>
-            )}
-          </div>
-        </div>
-
         <Container className="px-0 sm:px-0 lg:px-0 xl:px-0 2xl:px-0">
-            <div className="relative text-gray-900 flex flex-col pt-5 pb-8 sm:pt-6 md:pt-8 sm:pb-10 overflow-hidden">
-            {/* Top row: search/profile (right) */}
-            <div className="relative z-20 flex items-center justify-end gap-2 pr-3 sm:pr-4 min-h-[52px]">
-              <button
-                type="button"
-                onClick={() => router.push('/search/')}
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white/80 backdrop-blur hover:bg-white transition shadow-sm"
-                aria-label="Search products"
-              >
-                <Search className="w-6 h-6 text-gray-800" strokeWidth={2} />
-              </button>
+            <div className="relative text-gray-900 flex flex-col pb-8 sm:pb-10 overflow-hidden">
+            {/* Header: shop branding + search + profile in one row */}
+            <div className="relative z-30 flex items-center gap-2 px-3 sm:px-4 min-h-[52px] pt-5 sm:pt-6 md:pt-8">
+              <div className="flex min-w-0 max-w-[38%] sm:max-w-[42%] shrink-0 items-center gap-2">
+                {shopImage ? (
+                  <img
+                    src={shopImage}
+                    alt={shopName || ''}
+                    className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-xl object-contain"
+                    width={44}
+                    height={44}
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl bg-gray-100">
+                    <Image
+                      src="/trolley.png"
+                      alt=""
+                      width={28}
+                      height={28}
+                      className="h-7 w-7 object-contain"
+                    />
+                  </div>
+                )}
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className="truncate text-[14px] sm:text-[16px] font-extrabold text-gray-900 leading-tight">
+                    {shopName || 'Yaadro'}
+                  </span>
+                  {isLocationChecking ? (
+                    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-gray-500">
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400 animate-pulse" />
+                      <span className="truncate">Checking…</span>
+                    </span>
+                  ) : isServiceable === true ? (
+                    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-violet-700">
+                      <MapPin size={12} className="h-3 w-3 shrink-0" />
+                      <span className="truncate">Available</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-red-600">
+                      <MapPin size={12} className="h-3 w-3 shrink-0" />
+                      <span className="truncate">Not available</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <SearchSuggestInput
+                value={homeSearch}
+                onValueChange={setHomeSearch}
+                onSubmitQuery={(next) => {
+                  const q = String(next || '').trim();
+                  router.push(q ? `/search/?q=${encodeURIComponent(q)}` : '/search/');
+                }}
+                placeholder="Search products"
+                className="min-w-0 flex-1 max-w-none"
+              />
 
               <button
                 type="button"
@@ -646,15 +702,15 @@ export default function Home() {
                     goToLogin();
                   }
                 }}
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white/80 backdrop-blur hover:bg-white transition shadow-sm"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white/80 backdrop-blur hover:bg-white transition shadow-sm"
                 aria-label={isAuthenticated ? 'Profile' : 'Login'}
               >
-                <User className="w-6 h-6 text-gray-800" strokeWidth={2} />
+                <User size={24} className="w-6 h-6 text-gray-800" />
               </button>
             </div>
 
-            {/* Tagline — mt-8 clears the absolute shop-branding card (~92px tall) */}
-            <div className="relative z-[9] mt-8 sm:mt-6 pl-4 sm:pl-5 max-w-[min(92vw,540px)]">
+            {/* Tagline */}
+            <div className="relative z-[9] mt-4 sm:mt-5 pl-4 sm:pl-5 max-w-[min(92vw,540px)]">
               <p className="text-left text-home-hero-headline font-extrabold text-gray-900">
                 Groceries in Minutes ... 
               </p>
@@ -736,10 +792,10 @@ export default function Home() {
             <div className="mt-8 flex justify-center px-4 md:px-0">
               <Link
                 href="/products"
-                className="inline-flex items-center gap-2 text-[13px] font-semibold text-emerald-700 hover:text-emerald-800 transition"
+                className="inline-flex items-center gap-2 text-[13px] font-semibold text-violet-700 hover:text-violet-800 transition"
               >
                 <span>See all</span>
-                <ArrowRight className="h-4 w-4" aria-hidden />
+                <ArrowRight size={16} className="h-4 w-4" aria-hidden />
               </Link>
             </div>
           </Container>
@@ -751,7 +807,7 @@ export default function Home() {
         ref={freshZoneRef}
         className="fresh-zone-minh relative overflow-hidden bg-white rounded-[32px] mx-3 sm:mx-6 md:mx-8 my-4 sm:my-6 min-h-[12rem]"
       >
-        {freshZoneInView && freshZoneLoading && (
+        {freshZoneInView && freshZoneLoading && freshZoneDisplayProducts.length === 0 && (
           <Container className="relative z-[2] py-10 sm:py-14">
             <div className="mb-6 px-3 sm:px-4 md:px-0 text-center">
               <h2 className="text-3xl font-extrabold text-gray-900 font-headingnow">FRESH ZONE</h2>
@@ -761,7 +817,7 @@ export default function Home() {
           </Container>
         )}
 
-        {!freshZoneLoading && freshZoneProducts.length > 0 && (
+        {freshZoneDisplayProducts.length > 0 && (
           <>
           {/* Background video */}
           <div className="pointer-events-none absolute inset-0 z-0">
@@ -791,7 +847,7 @@ export default function Home() {
               </div>
             </div>
             {/* Category tabs (carousel) */}
-            {freshZoneCategories.length > 0 && (
+            {freshZoneDisplayCategories.length > 0 && (
               <div className="w-screen relative left-1/2 -translate-x-1/2 mb-10">
                 <div className="overflow-x-auto scrollbar-hide pb-1 snap-x snap-mandatory">
                   <div className="flex w-max gap-2 px-4 mx-auto">
@@ -800,14 +856,14 @@ export default function Home() {
                       onClick={() => setFreshZoneCategoryId(null)}
                       className={`snap-start flex-shrink-0 inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition whitespace-nowrap ${
                         freshZoneCategoryId == null
-                          ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
+                          ? 'border-violet-600 bg-violet-50 text-violet-800'
                           : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                       }`}
                     >
                       <span>All</span>
                     </button>
 
-                    {freshZoneCategories.map((cat) => {
+                    {freshZoneDisplayCategories.map((cat) => {
                       const active = freshZoneCategoryId != null && String(freshZoneCategoryId) === String(cat.id);
                       const src = getCategoryImageSrc(cat);
                       return (
@@ -817,7 +873,7 @@ export default function Home() {
                           onClick={() => setFreshZoneCategoryId(cat.id)}
                           className={`snap-start flex-shrink-0 inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition whitespace-nowrap ${
                             active
-                              ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
+                              ? 'border-violet-600 bg-violet-50 text-violet-800'
                               : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                           }`}
                         >
@@ -844,14 +900,14 @@ export default function Home() {
             <div className="w-screen relative left-1/2 -translate-x-1/2">
               <div className="overflow-x-auto scrollbar-hide pb-3 snap-x snap-mandatory">
                 <div className="flex w-max gap-3 px-4 mx-auto">
-                  {freshZoneProducts.slice(0, 12).map((product) => (
+                  {freshZoneDisplayProducts.slice(0, 12).map((product, index) => (
                     <div key={product.id} className="snap-start flex-shrink-0">
-                      <ProductCard product={product} isCarousel />
+                      <ProductCard product={withHomeCardPreview(product, index)} isCarousel />
                     </div>
                   ))}
                 </div>
               </div>
-              {freshZoneSelectedCategory && freshZoneProducts.length === 0 && (
+              {freshZoneSelectedCategory && freshZoneDisplayProducts.length === 0 && (
                 <div className="px-4 pb-2 text-sm text-gray-500">
                   No products found for <span className="font-semibold text-gray-800">{freshZoneSelectedCategory.name}</span>.
                 </div>
@@ -865,11 +921,18 @@ export default function Home() {
                 className="inline-flex items-center gap-2 text-[13px] font-semibold text-white/90 hover:text-white transition"
               >
                 <span>See all</span>
-                <ArrowRight className="h-4 w-4" aria-hidden />
+                <ArrowRight size={16} className="h-4 w-4" aria-hidden />
               </Link>
             </div>
           </Container>
           </>
+        )}
+
+        {!freshZoneLoading && catalogProducts.length === 0 && freshZoneDisplayProducts.length === 0 && (
+          <Container className="relative z-[2] py-10 sm:py-14 text-center">
+            <h2 className="text-3xl font-extrabold text-gray-900 font-headingnow">FRESH ZONE</h2>
+            <p className="mt-2 text-gray-500">Fresh picks coming soon.</p>
+          </Container>
         )}
       </section>
 
@@ -1004,7 +1067,7 @@ export default function Home() {
                 className="inline-flex items-center gap-2 text-[13px] font-semibold text-gray-800 hover:text-gray-900 transition"
               >
                 <span>See all</span>
-                <ArrowRight className="h-4 w-4" aria-hidden />
+                <ArrowRight size={16} className="h-4 w-4" aria-hidden />
               </Link>
             </div>
           </Container>
@@ -1045,7 +1108,7 @@ export default function Home() {
               >
                 Yaadro
               </h2>
-              <p className="mt-2 text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-[0.35em] sm:tracking-[0.4em] text-emerald-400">
+              <p className="mt-2 text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-[0.35em] sm:tracking-[0.4em] text-violet-400">
                 SHOP
               </p>
             </div>
@@ -1055,11 +1118,11 @@ export default function Home() {
               className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] font-medium text-gray-600"
               aria-label="Legal"
             >
-              <Link href="/privacy-policy" className="hover:text-emerald-700 transition-colors">
+              <Link href="/privacy-policy" className="hover:text-violet-700 transition-colors">
                 Privacy Policy
               </Link>
               <span aria-hidden className="h-1 w-1 rounded-full bg-gray-300" />
-              <Link href="/terms-and-conditions" className="hover:text-emerald-700 transition-colors">
+              <Link href="/terms-and-conditions" className="hover:text-violet-700 transition-colors">
                 Terms &amp; Conditions
               </Link>
             </nav>

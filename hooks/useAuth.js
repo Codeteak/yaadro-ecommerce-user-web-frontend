@@ -6,13 +6,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getCurrentUser,
   updateProfile,
-  changePassword,
   refreshAccessToken,
   logoutUser,
-  forgotPassword,
-  resetPassword,
 } from '../utils/authApi';
 import { addressKeys } from './useAddresses';
+import { useToast } from '../context/ToastContext';
+import { persistAccessToken } from '../utils/apiClient';
 
 // Query keys
 export const authKeys = {
@@ -38,6 +37,7 @@ export function useCurrentUser() {
  */
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   return useMutation({
     mutationFn: (profileData) => updateProfile(profileData),
@@ -47,21 +47,10 @@ export function useUpdateProfile() {
       if (typeof window !== 'undefined' && data) {
         localStorage.setItem('user', JSON.stringify(data));
       }
+      showToast('Profile updated!', 'success');
     },
     onError: (error) => {
-      console.error('Error updating profile:', error);
-    },
-  });
-}
-
-/**
- * Change password mutation
- */
-export function useChangePassword() {
-  return useMutation({
-    mutationFn: (passwordData) => changePassword(passwordData),
-    onError: (error) => {
-      console.error('Error changing password:', error);
+      showToast(error?.message || 'Could not update profile. Please try again.', 'error');
     },
   });
 }
@@ -70,29 +59,30 @@ export function useChangePassword() {
  * Refresh token mutation
  */
 export function useRefreshToken() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (refreshToken) => refreshAccessToken(refreshToken),
     onSuccess: (data) => {
-      // Update tokens in localStorage
       if (typeof window !== 'undefined' && data) {
-        if (data.token) {
-          localStorage.setItem('token', data.token);
-        }
-        if (data.refreshToken) {
-          localStorage.setItem('refreshToken', data.refreshToken);
-        }
+        if (data.token) persistAccessToken(data.token);
+        if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
       }
-    },
-    onError: (error) => {
-      console.error('Error refreshing token:', error);
     },
   });
 }
 
+function clearLocalAuth() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+  }
+}
+
 /**
- * Logout mutation
+ * Logout mutation — clears the entire query cache so no stale cart/order/address
+ * data leaks to the next user session on this device.
  */
 export function useLogout() {
   const queryClient = useQueryClient();
@@ -100,48 +90,13 @@ export function useLogout() {
   return useMutation({
     mutationFn: logoutUser,
     onSuccess: () => {
-      // Clear auth cache
-      queryClient.setQueryData(authKeys.user(), null);
-      // Clear localStorage
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-      }
+      queryClient.clear();
+      clearLocalAuth();
     },
-    onError: (error) => {
-      console.error('Error logging out:', error);
-      // Even if logout fails, clear local state
-      queryClient.setQueryData(authKeys.user(), null);
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-      }
-    },
-  });
-}
-
-/**
- * Forgot password mutation
- */
-export function useForgotPassword() {
-  return useMutation({
-    mutationFn: (email) => forgotPassword(email),
-    onError: (error) => {
-      console.error('Error requesting password reset:', error);
-    },
-  });
-}
-
-/**
- * Reset password mutation
- */
-export function useResetPassword() {
-  return useMutation({
-    mutationFn: (resetData) => resetPassword(resetData),
-    onError: (error) => {
-      console.error('Error resetting password:', error);
+    onError: () => {
+      // Even if the API call fails, clear local state so the user is logged out.
+      queryClient.clear();
+      clearLocalAuth();
     },
   });
 }

@@ -10,21 +10,24 @@ import { useActivityLog } from '../../context/ActivityLogContext';
 import { useOrdersList } from '../../hooks/useOrders';
 import { useUpdateProfile } from '../../hooks/useAuth';
 import ConfirmModal from '../../components/ConfirmModal';
+import PhoneChangeOtpSheet from '../../components/PhoneChangeOtpSheet';
 import PageTopBar from '../../components/PageTopBar';
 import ProfileOffersSection from '../../components/profile/ProfileOffersSection';
 import ProfileCouponsSection from '../../components/profile/ProfileCouponsSection';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
 import {
-  Package,
-  MapPin,
-  LogOut,
-  ChevronRight,
-  Pencil,
-} from 'lucide-react';
+  ExitRegular as LogOut,
+  MapPinRegular as MapPin,
+  PackageRegular as Package,
+  PencilRegular as Pencil,
+  RightRegular as ChevronRight,
+} from '../../components/icons';
 
 import { normalizePhoneForApi } from '../../utils/otpVerifyPayload';
-import IndianPhoneInput from '../../components/IndianPhoneInput';
-import { getIndianPhoneSubmitError } from '../../utils/indianPhone';
+import {
+  firstZodIssueMessage,
+  profileUpdateSchema,
+} from '../../lib/validations/auth.schema';
 import ProfilePageSkeleton from '../../components/skeletons/ProfilePageSkeleton';
 import GuestAuthPrompt from '../../components/GuestAuthPrompt';
 
@@ -32,11 +35,11 @@ function ProfilePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { ok, ready } = useRequireAuth();
-  const { user, logout, deleteAccount, refreshUser } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const { showAlert } = useAlert();
   const { cartItems } = useCart();
   const { logActivity } = useActivityLog();
-  const { data: ordersData } = useOrdersList({ page: 1, per_page: 5 }, { enabled: ok });
+  const { data: ordersData } = useOrdersList({ limit: 5 }, { enabled: ok });
   const updateProfileMutation = useUpdateProfile();
   const recentOrders = ordersData?.orders || [];
 
@@ -50,8 +53,7 @@ function ProfilePageContent() {
   });
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [showPhoneChange, setShowPhoneChange] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -67,20 +69,19 @@ function ProfilePageContent() {
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
-    const phoneErr = getIndianPhoneSubmitError(profileData.phone);
-    if (phoneErr) {
-      showAlert(phoneErr, 'Invalid phone', 'warning');
+    const result = profileUpdateSchema.safeParse({
+      name: profileData.name,
+      dateOfBirth: profileData.dateOfBirth || undefined,
+      gender: profileData.gender || undefined,
+    });
+    if (!result.success) {
+      showAlert(firstZodIssueMessage(result), 'Invalid profile', 'warning');
       return;
     }
     try {
-      const updateData = {
-        name: profileData.name,
-        phone: profileData.phone,
-        dateOfBirth: profileData.dateOfBirth || undefined,
-        gender: profileData.gender || undefined,
-      };
-      
-      await updateProfileMutation.mutateAsync(updateData);
+      await updateProfileMutation.mutateAsync({
+        name: result.data.name,
+      });
       await refreshUser();
       setIsEditing(false);
       showAlert('Profile updated successfully!', 'Success', 'success');
@@ -94,24 +95,9 @@ function ProfilePageContent() {
     setShowLogoutConfirm(true);
   };
 
-  const confirmLogout = () => {
+  const confirmLogout = async () => {
     logActivity('logout', { userId: user?.phone });
-    logout();
-    router.push('/');
-  };
-
-  const handleDeleteAccount = () => {
-    if (deleteConfirmText.toLowerCase() !== 'delete') {
-      showAlert('Please type "DELETE" to confirm', 'Confirmation Required', 'warning');
-      return;
-    }
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDeleteAccount = () => {
-    logActivity('account_deleted', { userId: user?.phone });
-    deleteAccount();
-    showAlert('Your account has been deleted.', 'Account Deleted', 'success');
+    await logout();
     router.push('/');
   };
 
@@ -137,6 +123,7 @@ function ProfilePageContent() {
 
   if (isEditing) {
     return (
+      <>
       <div className="flex min-h-screen flex-col bg-white">
         <div className="sticky top-0 z-20 shrink-0 bg-white">
           <PageTopBar title="Edit Profile" fallbackHref="/profile" />
@@ -193,24 +180,17 @@ function ProfilePageContent() {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">Phone number</label>
-                <div className="flex gap-2">
-                  <select
-                    className="w-20 shrink-0 rounded-lg border border-gray-300 px-3 py-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-red-500"
-                    aria-label="Country code"
-                    disabled
-                  >
-                    <option>+91</option>
-                  </select>
-                  <IndianPhoneInput
-                    value={profileData.phone}
-                    onChange={(v) => setProfileData({ ...profileData, phone: v })}
-                    className="min-w-0 flex-1"
-                    inputClassName="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-red-500"
-                    placeholder="10-digit mobile number"
-                    required
-                    showValidHint={false}
-                  />
-                </div>
+                <p className="text-sm text-gray-800">
+                  {profileData.phone ? `+91 ${profileData.phone}` : 'Not set'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowPhoneChange(true)}
+                  className="mt-2 text-sm font-semibold text-violet-700"
+                >
+                  Change phone
+                </button>
+                <p className="mt-1 text-xs text-gray-500">Changing phone requires an OTP and refreshes your session.</p>
               </div>
 
               {profileData.dateOfBirth && (
@@ -246,6 +226,15 @@ function ProfilePageContent() {
           </form>
         </div>
       </div>
+      <PhoneChangeOtpSheet
+        isOpen={showPhoneChange}
+        onClose={() => setShowPhoneChange(false)}
+        currentPhone={profileData.phone}
+        onSuccess={() => {
+          showAlert('Phone number updated.', 'Success', 'success');
+        }}
+      />
+      </>
     );
   }
 
@@ -278,7 +267,7 @@ function ProfilePageContent() {
                 onClick={() => setIsEditing(true)}
                 className="mt-2 inline-flex items-center gap-1 rounded-full bg-red-600 px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
               >
-                <Pencil className="h-4 w-4" strokeWidth={2} />
+                <Pencil size={16} className="h-4 w-4" />
                 Edit Profile
               </button>
             </div>
@@ -322,10 +311,10 @@ function ProfilePageContent() {
                   className="flex w-full items-center justify-between px-4 py-4 text-left text-red-600 transition-colors hover:bg-red-50"
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className="h-5 w-5 flex-shrink-0" strokeWidth={2} />
+                    <Icon size={20} className="h-5 w-5 flex-shrink-0" />
                     <span className="font-medium">{item.label}</span>
                   </div>
-                  <ChevronRight className="h-5 w-5 flex-shrink-0 text-gray-400" strokeWidth={2} />
+                  <ChevronRight size={20} className="h-5 w-5 flex-shrink-0 text-gray-400" />
                 </button>
               );
             }
@@ -336,10 +325,10 @@ function ProfilePageContent() {
                 className="flex items-center justify-between px-4 py-4 text-gray-700 transition-colors hover:bg-gray-50"
               >
                 <div className="flex items-center gap-3">
-                  <Icon className="h-5 w-5 flex-shrink-0 text-gray-600" strokeWidth={2} />
+                  <Icon size={20} className="h-5 w-5 flex-shrink-0 text-gray-600" />
                   <span className="font-medium">{item.label}</span>
                 </div>
-                <ChevronRight className="h-5 w-5 flex-shrink-0 text-gray-400" strokeWidth={2} />
+                <ChevronRight size={20} className="h-5 w-5 flex-shrink-0 text-gray-400" />
               </Link>
             );
           })}
@@ -362,17 +351,6 @@ function ProfilePageContent() {
             )}
           </div>
         </div>
-
-        {/* Danger Zone */}
-        <div className="bg-white mx-4 mt-4 rounded-lg border border-red-200 p-4 mb-6">
-          <h3 className="text-sm font-semibold text-red-900 mb-3">Danger Zone</h3>
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="w-full px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg font-semibold hover:bg-red-100 transition-colors text-sm"
-          >
-            Delete Account
-          </button>
-        </div>
       </div>
 
       {/* Confirmation Modals */}
@@ -386,18 +364,13 @@ function ProfilePageContent() {
         cancelText="Cancel"
       />
 
-      <ConfirmModal
-        isOpen={showDeleteConfirm}
-        onClose={() => {
-          setShowDeleteConfirm(false);
-          setDeleteConfirmText('');
+      <PhoneChangeOtpSheet
+        isOpen={showPhoneChange}
+        onClose={() => setShowPhoneChange(false)}
+        currentPhone={profileData.phone}
+        onSuccess={() => {
+          showAlert('Phone number updated.', 'Success', 'success');
         }}
-        onConfirm={confirmDeleteAccount}
-        title="Delete Account"
-        message="This action cannot be undone. All your data will be permanently deleted."
-        confirmText="Yes, Delete"
-        cancelText="Cancel"
-        isDanger={true}
       />
     </div>
   );

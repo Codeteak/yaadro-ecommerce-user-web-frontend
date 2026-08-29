@@ -1,7 +1,20 @@
 'use client';
 
 import { useEffect } from 'react';
-import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
+import { Button } from '@heroui/react';
+import {
+  AlertRegular as AlertCircle,
+  AlertRegular as AlertTriangle,
+  CheckCircleRegular as CheckCircle,
+  InformationRegular as Info,
+} from './icons';
+import {
+  ModalDialogRoot,
+  ModalDialogContent,
+  ModalDialogTitle,
+  ModalDialogDescription,
+} from './ui/ModalDialog';
+import { BRAND_PRIMARY_BTN } from './ui/brandButton';
 
 export default function AlertModal({ isOpen, onClose, title, message, type = 'info' }) {
   useEffect(() => {
@@ -15,18 +28,16 @@ export default function AlertModal({ isOpen, onClose, title, message, type = 'in
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <CheckCircle className="w-6 h-6 text-primary" />;
+        return <CheckCircle size={24} className="w-6 h-6 text-primary" />;
       case 'error':
-        return <AlertCircle className="w-6 h-6 text-red-600" />;
+        return <AlertCircle size={24} className="w-6 h-6 text-red-600" />;
       case 'warning':
-        return <AlertTriangle className="w-6 h-6 text-orange-600" />;
+        return <AlertTriangle size={24} className="w-6 h-6 text-orange-600" />;
       default:
-        return <Info className="w-6 h-6 text-blue-600" />;
+        return <Info size={24} className="w-6 h-6 text-blue-600" />;
     }
   };
 
@@ -46,59 +57,40 @@ export default function AlertModal({ isOpen, onClose, title, message, type = 'in
   const getButtonColor = () => {
     switch (type) {
       case 'success':
-        return 'bg-primary hover:bg-primary-dark';
+        return BRAND_PRIMARY_BTN;
       case 'error':
-        return 'bg-red-600 hover:bg-red-700';
+        return 'bg-red-600 hover:bg-red-700 text-white';
       case 'warning':
-        return 'bg-orange-600 hover:bg-orange-700';
+        return 'bg-orange-600 hover:bg-orange-700 text-white';
       default:
-        return 'bg-blue-600 hover:bg-blue-700';
+        return 'bg-blue-600 hover:bg-blue-700 text-white';
     }
   };
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-        onClick={onClose}
+    <ModalDialogRoot open={isOpen} onOpenChange={(open) => !open && onClose?.()}>
+      <ModalDialogContent
+        className={`border-2 p-0 ${getBgColor()}`}
+        onClose={onClose}
+        showClose
       >
-        {/* Modal */}
-        <div
-          className={`bg-white rounded-2xl shadow-2xl max-w-md w-full ${getBgColor()} border-2`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 pb-4">
-            <div className="flex items-center gap-3">
-              {getIcon()}
-              <h3 className="text-lg font-bold text-gray-900">{title || 'Notification'}</h3>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="px-6 pb-6">
-            <p className="text-gray-700 leading-relaxed">{message}</p>
-          </div>
-
-          {/* Footer */}
-          <div className="px-6 pb-6">
-            <button
-              onClick={onClose}
-              className={`w-full ${getButtonColor()} text-white py-3 rounded-lg font-semibold transition-colors`}
-            >
-              OK
-            </button>
-          </div>
+        <div className="flex items-center gap-3 p-6 pb-4 pr-12">
+          {getIcon()}
+          <ModalDialogTitle>{title || 'Notification'}</ModalDialogTitle>
         </div>
-      </div>
-    </>
+        <div className="px-6 pb-6">
+          <ModalDialogDescription>{message}</ModalDialogDescription>
+        </div>
+        <div className="px-6 pb-6">
+          <Button
+            variant="primary"
+            onPress={onClose}
+            className={`w-full py-3 rounded-lg font-semibold ${getButtonColor()}`}
+          >
+            OK
+          </Button>
+        </div>
+      </ModalDialogContent>
+    </ModalDialogRoot>
   );
 }

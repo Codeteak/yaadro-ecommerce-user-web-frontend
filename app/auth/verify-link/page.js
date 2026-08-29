@@ -1,23 +1,19 @@
-import { Suspense } from 'react';
-import VerifyLinkClient from './VerifyLinkClient';
+'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+/** Email magic-link login is not available. Send users to phone OTP login. */
 export default function VerifyLinkPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace('/login');
+  }, [router]);
+
   return (
-    <Suspense
-      fallback={
-        <div className="py-10">
-          <div className="max-w-lg mx-auto bg-white border border-gray-200 rounded-2xl shadow-sm p-6 text-center">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-10 h-10 rounded-full border-4 border-gray-200 border-t-primary animate-spin" />
-              <h1 className="text-xl font-bold text-gray-900">Loading</h1>
-              <p className="text-sm text-gray-600">Preparing verification…</p>
-            </div>
-          </div>
-        </div>
-      }
-    >
-      <VerifyLinkClient />
-    </Suspense>
+    <div className="flex min-h-[50vh] items-center justify-center px-4">
+      <p className="text-sm text-gray-600">Email sign-in is not available. Redirecting to phone login…</p>
+    </div>
   );
 }
-

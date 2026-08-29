@@ -41,9 +41,9 @@ const CART_PILL_GAP_ABOVE_PDP_BAR_PX = 12;
 
 function PillTag({ children, color = 'green' }) {
   const colorMap = {
-    green: 'bg-emerald-100 text-emerald-800',
+    green: 'bg-violet-100 text-violet-800',
     orange: 'bg-amber-100 text-amber-800',
-    discountGreen: 'bg-green-600 text-white shadow-sm font-bold',
+    discountGreen: 'bg-violet-600 text-white shadow-sm font-bold',
     blue: 'bg-blue-100 text-blue-700',
     red: 'bg-red-100 text-red-700',
     gray: 'bg-gray-100 text-gray-600',
@@ -486,7 +486,7 @@ export default function ProductDetailClient({ productId = null }) {
         <p className="text-gray-500 text-sm mb-8">The product you&apos;re looking for doesn&apos;t exist.</p>
         <Link
           href="/products"
-          className="bg-emerald-600 text-white px-6 py-2.5 rounded-full text-sm font-medium hover:bg-emerald-700 transition"
+          className="bg-violet-600 text-white px-6 py-2.5 rounded-full text-sm font-medium hover:bg-violet-700 transition"
         >
           Back to Products
         </Link>
@@ -564,7 +564,7 @@ export default function ProductDetailClient({ productId = null }) {
                   aria-label={`Show image ${idx + 1}`}
                   onClick={() => setCurrentImageIndex(idx)}
                   className={`relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${
-                    idx === currentImageIndex ? 'border-emerald-600 ring-2 ring-emerald-500/30' : 'border-gray-200 opacity-80 hover:opacity-100'
+                    idx === currentImageIndex ? 'border-violet-600 ring-2 ring-violet-500/30' : 'border-gray-200 opacity-80 hover:opacity-100'
                   }`}
                 >
                   <ProductImageWithFallback
@@ -629,13 +629,13 @@ export default function ProductDetailClient({ productId = null }) {
                     </span>
                   )}
                   {rating > 0 && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-900 ring-1 ring-emerald-100/80">
-                      <svg className="h-3 w-3 fill-emerald-600" viewBox="0 0 24 24" aria-hidden>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-900 ring-1 ring-violet-100/80">
+                      <svg className="h-3 w-3 fill-violet-600" viewBox="0 0 24 24" aria-hidden>
                         <path d="M12 .587l3.668 7.431L24 9.75l-6 5.847 1.417 8.26L12 19.771l-7.417 4.086L6 15.597 0 9.75l8.332-1.732z" />
                       </svg>
                       {rating.toFixed(1)}
                       {product.ratingsCount > 0 && (
-                        <span className="font-normal text-emerald-700/80">
+                        <span className="font-normal text-violet-700/80">
                           ({product.ratingsCount})
                         </span>
                       )}
@@ -645,7 +645,7 @@ export default function ProductDetailClient({ productId = null }) {
 
                 <div className="space-y-3 pt-0.5">
                   <div className="flex flex-wrap items-end gap-3 sm:gap-4">
-                    <span className="inline-flex min-h-[2.75rem] items-center rounded-xl bg-green-600 px-3 py-2 text-2xl font-bold text-white shadow-sm tabular-nums sm:min-h-0 sm:px-3.5 sm:py-2 sm:text-3xl md:text-[2rem]">
+                    <span className="text-2xl font-bold tabular-nums text-gray-900 sm:text-3xl md:text-[2rem]">
                       ₹{formatRupeeINR(effectivePrice)}
                     </span>
                     {mrpDisplay != null && (
@@ -682,7 +682,7 @@ export default function ProductDetailClient({ productId = null }) {
                       disabled={!product.inStock || cartActionLoading}
                       className={`inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border px-3.5 text-[13px] font-semibold shadow-sm transition sm:flex-initial sm:min-w-[9.5rem] ${
                         product.inStock
-                          ? 'border-green-600 bg-green-600 text-white hover:bg-green-700 disabled:opacity-70'
+                          ? 'border-violet-600 bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-70'
                           : 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
                       }`}
                     >
@@ -733,7 +733,7 @@ export default function ProductDetailClient({ productId = null }) {
                           onClick={() => router.push(getProductDetailPath(p))}
                           className={`flex w-[128px] shrink-0 flex-col overflow-hidden rounded-2xl border text-left transition ${
                             active
-                              ? 'border-emerald-500 ring-2 ring-emerald-200'
+                              ? 'border-violet-500 ring-2 ring-violet-200'
                               : 'border-gray-200 hover:border-gray-300'
                           } bg-white`}
                           aria-label={`${p.name || baseName} ${packLabel}`}
@@ -752,7 +752,7 @@ export default function ProductDetailClient({ productId = null }) {
                               {packLabel || 'Pack'}
                             </p>
                             <div className="mt-1.5">
-                              <span className="inline-flex items-center rounded-full bg-green-600 px-2.5 py-1 text-[12px] font-extrabold text-white shadow-sm tabular-nums">
+                              <span className="inline-flex items-center rounded-full bg-violet-600 px-2.5 py-1 text-[12px] font-extrabold text-white shadow-sm tabular-nums">
                                 ₹{formatRupeeINR(priceValue)}
                               </span>
                             </div>
@@ -789,8 +789,8 @@ export default function ProductDetailClient({ productId = null }) {
                         onClick={() => setSelectedSize(size)}
                         className={`px-4 py-1.5 rounded-full border text-sm font-medium transition-all ${
                           isActive
-                            ? 'bg-emerald-600 text-white border-emerald-600'
-                            : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-400'
+                            ? 'bg-violet-600 text-white border-violet-600'
+                            : 'bg-white text-gray-700 border-gray-200 hover:border-violet-400'
                         }`}
                       >
                         {size.weight} {size.unit} — ₹
@@ -893,7 +893,7 @@ export default function ProductDetailClient({ productId = null }) {
               <>
                 <DetailSectionTitle>Coupons & Offers</DetailSectionTitle>
                 <div className="bg-gray-50 rounded-2xl p-3.5 space-y-3 mb-5 mt-3">
-                  <OfferRow iconBg="bg-emerald-100" iconColor="text-emerald-700">
+                  <OfferRow iconBg="bg-violet-100" iconColor="text-violet-700">
                     <strong>10% cashback</strong> on Amazon Pay Balance. Min order ₹299.
                   </OfferRow>
                   <OfferRow iconBg="bg-blue-100" iconColor="text-blue-700">
@@ -964,7 +964,7 @@ export default function ProductDetailClient({ productId = null }) {
                       ? `/products?category=${encodeURIComponent(product.category)}`
                       : '/products'
                   }
-                  className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800 transition whitespace-nowrap"
+                  className="text-[12px] font-medium text-violet-700 hover:text-violet-800 transition whitespace-nowrap"
                 >
                   View All
                 </Link>
@@ -1039,7 +1039,7 @@ export default function ProductDetailClient({ productId = null }) {
             disabled={!product.inStock || cartActionLoading}
             className={`flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-sm font-medium transition whitespace-nowrap active:scale-[0.98] ${
               product.inStock
-                ? 'bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-70'
+                ? 'bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-70'
                 : 'cursor-not-allowed bg-gray-200 text-gray-400'
             }`}
           >
@@ -1060,7 +1060,7 @@ export default function ProductDetailClient({ productId = null }) {
         ) : (
           <Link
             href="/cart"
-            className="flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-sm font-medium transition bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98] whitespace-nowrap"
+            className="flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-sm font-medium transition bg-violet-600 text-white hover:bg-violet-700 active:scale-[0.98] whitespace-nowrap"
           >
             Go to cart
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>

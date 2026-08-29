@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { refreshAccessToken, getCurrentUser } from '../utils/authApi';
-import { onTokenAutoRefreshed } from '../utils/apiClient';
+import { refreshAccessToken, getCurrentUser, logoutUser } from '../utils/authApi';
+import { onTokenAutoRefreshed, persistAccessToken } from '../utils/apiClient';
 import { getJwtExpiresAtMs, getMsUntilAccessTokenRefresh } from '../utils/jwtExp';
 import {
   ensureSessionExpiryForExistingLogin,
@@ -24,10 +24,7 @@ const AuthContext = createContext();
 
 function applyRefreshedTokensToStorage(newTokens, previousRefreshToken) {
   if (!newTokens?.token) return false;
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem('token', newTokens.token);
-    window.localStorage.setItem('authToken', newTokens.token);
-  }
+  persistAccessToken(newTokens.token);
   if (newTokens.refreshToken) {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('refreshToken', newTokens.refreshToken);
@@ -48,7 +45,12 @@ export function AuthProvider({ children }) {
   /** False until first client auth hydration from localStorage runs (avoids redirect flash before token/user are restored). */
   const [authHydrated, setAuthHydrated] = useState(false);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await logoutUser();
+    } catch {
+      // Still clear local session if the API call fails.
+    }
     setUser(null);
     setToken(null);
     setRefreshToken(null);
@@ -323,8 +325,7 @@ export function AuthProvider({ children }) {
           return;
         }
         setToken(newTokens.token);
-        window.localStorage.setItem('token', newTokens.token);
-        window.localStorage.setItem('authToken', newTokens.token);
+        persistAccessToken(newTokens.token);
         if (newTokens.refreshToken) {
           setRefreshToken(newTokens.refreshToken);
           window.localStorage.setItem('refreshToken', newTokens.refreshToken);
@@ -363,12 +364,9 @@ export function AuthProvider({ children }) {
       }
 
       if (token) {
-        window.localStorage.setItem('token', token);
-        window.localStorage.setItem('authToken', token);
+        persistAccessToken(token);
       } else {
-        window.localStorage.removeItem('token');
-        window.localStorage.removeItem('authToken');
-        window.localStorage.removeItem('accessToken');
+        persistAccessToken(null);
       }
 
       if (refreshToken) {
@@ -383,20 +381,19 @@ export function AuthProvider({ children }) {
    * Login function - stores user + tokens and starts/resets the client session window.
    * @returns {boolean} true if a full-page redirect was triggered (caller should skip client routing).
    */
-  const login = (userData, tokens = {}) => {
+  const login = (userData, tokens = {}, options = {}) => {
     setUser(normalizeCustomer(userData) || userData);
     const access = tokens?.token || tokens?.accessToken;
     if (access) {
       setToken(access);
-      window.localStorage.setItem('token', access);
-      window.localStorage.setItem('authToken', access);
+      persistAccessToken(access);
     }
     if (tokens?.refreshToken) {
       setRefreshToken(tokens.refreshToken);
       window.localStorage.setItem('refreshToken', tokens.refreshToken);
     }
     establishClientSession({ refreshToken: tokens?.refreshToken });
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && !options.skipPostLoginRedirect) {
       const next = takePostLoginRedirect();
       if (next) {
         window.location.assign(next);

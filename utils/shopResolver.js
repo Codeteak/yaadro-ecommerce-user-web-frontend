@@ -338,6 +338,18 @@ export function persistResolvedShop(
   }
 }
 
+function isLocalDevHostname(hostname) {
+  const h = String(hostname || '').toLowerCase().trim();
+  return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
+}
+
+/** True when local dev should skip upstream resolve-by-domain (localhost). */
+export function shouldSkipLocalDevTenantFetch(hostname) {
+  if (process.env.NODE_ENV === 'production') return false;
+  if (process.env.NEXT_PUBLIC_RESOLVE_SHOP_BY_DOMAIN === 'true') return false;
+  return isLocalDevHostname(hostname);
+}
+
 function devBrandingFallback() {
   return {
     shopId: envShopId(),
@@ -497,9 +509,13 @@ export async function resolveShopBranding() {
     process.env.NEXT_PUBLIC_RESOLVE_SHOP_BY_DOMAIN === 'true';
 
   if (process.env.NODE_ENV !== 'production' && !resolveByDomainInDev) {
+    const domain = String(window.location.hostname || '').toLowerCase().trim();
+    if (isLocalDevHostname(domain)) {
+      return devBrandingFallback();
+    }
     const envId = envShopId();
     if (envId) {
-      const cached = readCachedBranding(String(window.location.hostname || '').toLowerCase().trim());
+      const cached = readCachedBranding(domain);
       if (
         cached &&
         cached.shopId === envId &&
@@ -509,7 +525,6 @@ export async function resolveShopBranding() {
         return { ...cached, fromCache: true, notFound: false };
       }
       try {
-        const domain = String(window.location.hostname || '').toLowerCase().trim();
         const resolverUrl = getDefaultTenantResolverUrl();
         if (resolverUrl && domain) {
           const url = new URL(resolverUrl);

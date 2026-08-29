@@ -1,30 +1,15 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext } from 'react';
 import AlertModal from '../components/AlertModal';
+import { useUiStore } from '../stores/uiStore';
 
 const AlertContext = createContext(null);
 
 export function AlertProvider({ children }) {
-  const [alert, setAlert] = useState({
-    isOpen: false,
-    title: '',
-    message: '',
-    type: 'info',
-  });
-
-  const showAlert = useCallback((message, title = null, type = 'info') => {
-    setAlert({
-      isOpen: true,
-      title: title || (type === 'success' ? 'Success' : type === 'error' ? 'Error' : type === 'warning' ? 'Warning' : 'Info'),
-      message,
-      type,
-    });
-  }, []);
-
-  const hideAlert = useCallback(() => {
-    setAlert((prev) => ({ ...prev, isOpen: false }));
-  }, []);
+  const alert = useUiStore((s) => s.alert);
+  const showAlert = useUiStore((s) => s.showAlert);
+  const hideAlert = useUiStore((s) => s.hideAlert);
 
   const value = {
     showAlert,

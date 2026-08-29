@@ -97,7 +97,7 @@ export default function CartItem({ item }) {
               {item.name}
             </h3>
             {isBundleReward && (
-              <span className="mt-1 inline-block rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800">
+              <span className="mt-1 inline-block rounded-md bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">
                 Free
               </span>
             )}
@@ -105,7 +105,7 @@ export default function CartItem({ item }) {
               <p className="text-[11px] text-gray-500 mt-0.5">{variantLabel}</p>
             ) : null}
             {!isBundleReward && bundleFreeExtra > 0 && (
-              <p className="text-[11px] font-medium text-emerald-700 mt-0.5">
+              <p className="text-[11px] font-medium text-violet-700 mt-0.5">
                 +{bundleFreeExtra} free (bundle)
               </p>
             )}
@@ -125,11 +125,11 @@ export default function CartItem({ item }) {
 
         <div className="mt-1 flex items-center gap-2">
           {isBundleReward ? (
-            <span className="rounded-md bg-emerald-600 px-2 py-1 text-xs font-semibold text-white">
+            <span className="rounded-md bg-violet-600 px-2 py-1 text-xs font-semibold text-white">
               FREE
             </span>
           ) : (
-            <span className="rounded-md bg-green-600 px-2 py-1 text-xs font-semibold text-white">
+            <span className="rounded-md bg-violet-600 px-2 py-1 text-xs font-semibold text-white">
               ₹{formatRupeeINR(unitPrice)}
             </span>
           )}
@@ -138,7 +138,7 @@ export default function CartItem({ item }) {
               <span className="text-[11px] text-gray-500 line-through">
                 ₹{formatRupeeINR(originalPrice)}
               </span>
-              <span className="text-[11px] text-green-700 font-semibold">
+              <span className="text-[11px] text-violet-700 font-semibold">
                 ₹{formatRupeeINR(discountValue)} OFF
               </span>
             </>

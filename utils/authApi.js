@@ -3,7 +3,7 @@
  * Uses the multi-tenant backend API
  */
 
-import { api, apiFetch, apiFetchRoot } from './apiClient';
+import { api, apiFetchRoot } from './apiClient';
 import {
   normalizeOtpPhone,
   normalizePhoneForApi,
@@ -77,7 +77,7 @@ async function resolveShopIdForOtp(explicitShopId) {
 }
 
 /**
- * Map SessionResponse (register / login / OAuth JWT) for AuthContext.
+ * Map session response (OTP verify / phone-change verify) for AuthContext.
  * Supports camelCase and snake_case tokens and common `{ data, session }` envelopes.
  */
 export function normalizeSession(session) {
@@ -257,42 +257,6 @@ export function normalizeCustomer(raw) {
 }
 
 /**
- * Map app / form address fields to PATCH /api/me/profile `address` shape.
- * Server rule: `lat` and `lng` must both be set or both null — never send only one.
- */
-export function mapAppAddressToMeProfileAddress(addr) {
-  if (!addr || typeof addr !== 'object') return null;
-  const out = {};
-  if (addr.line1 !== undefined) out.line1 = addr.line1;
-  else if (addr.street !== undefined || addr.address !== undefined) {
-    out.line1 = addr.street ?? addr.address ?? '';
-  }
-  if (addr.line2 !== undefined) out.line2 = addr.line2;
-  if (addr.landmark !== undefined) out.landmark = addr.landmark;
-  if (addr.city !== undefined) out.city = addr.city;
-  if (addr.state !== undefined) out.state = addr.state;
-  if (addr.postalCode !== undefined || addr.zipCode !== undefined) {
-    out.postalCode = addr.postalCode ?? addr.zipCode ?? '';
-  }
-  if (addr.country !== undefined) out.country = addr.country;
-  if (addr.raw !== undefined) out.raw = addr.raw;
-
-  const hasLat = 'lat' in addr;
-  const hasLng = 'lng' in addr;
-  if (hasLat && hasLng) {
-    if (addr.lat == null && addr.lng == null) {
-      out.lat = null;
-      out.lng = null;
-    } else if (addr.lat != null && addr.lng != null) {
-      out.lat = addr.lat;
-      out.lng = addr.lng;
-    }
-  }
-
-  return Object.keys(out).length ? out : null;
-}
-
-/**
  * Request mobile OTP (POST /api/auth/otp/request)
  * Always sends `phone` and `shopId` in the JSON body and `x-shop-id` when shop is known.
  */
@@ -337,42 +301,6 @@ export async function verifyOtp({ phone, shopId, code }) {
 }
 
 /**
- * Start Google OAuth: returns Google authorize URL (POST /api/oauth/sign-in/social, disableRedirect: true).
- */
-export async function startGoogleOAuth(callbackFullUrl, shopId) {
-  const json = await apiFetch('/oauth/sign-in/social', {
-    method: 'POST',
-    body: {
-      provider: 'google',
-      disableRedirect: true,
-      callbackURL: callbackFullUrl,
-      additionalData: shopId ? { shopId } : {},
-    },
-    credentials: 'include',
-    omitTenantHeader: true,
-    returnResponse: true,
-  });
-  const url = json?.url;
-  if (!url || typeof url !== 'string') {
-    throw new Error('Google sign-in did not return an authorize URL.');
-  }
-  return url;
-}
-
-/**
- * Exchange OAuth cookie for JWT (POST /api/auth/oauth/jwt). Call from OAuth return page with credentials.
- */
-export async function exchangeOAuthJwt(shopId) {
-  return apiFetch('/auth/oauth/jwt', {
-    method: 'POST',
-    body: shopId ? { shopId } : {},
-    credentials: 'include',
-    omitTenantHeader: true,
-    returnResponse: true,
-  });
-}
-
-/**
  * GET /api/me/profile — returns `{ user, customer, address }` (see backend profile routes).
  */
 export async function getMeProfile() {
@@ -395,53 +323,10 @@ export async function getCurrentUser() {
 }
 
 /**
- * POST /storefront/profile — update display name and/or phone (204). Requires `NEXT_PUBLIC_SHOP_ID` + `x-shop-id`.
- */
-export async function updateStorefrontProfile({ displayName, phone } = {}) {
-  const shopId = await resolveShopId();
-  if (!shopId) return;
-
-  const body = {};
-  if (displayName !== undefined) {
-    const d = String(displayName).trim();
-    if (d) body.displayName = d;
-  }
-  if (phone !== undefined) {
-    const p = normalizeOtpPhone(phone);
-    if (p) body.phone = p;
-  }
-  if (Object.keys(body).length === 0) return;
-
-  await apiFetchRoot('/storefront/profile', {
-    method: 'POST',
-    headers: { 'x-shop-id': shopId },
-    omitTenantHeader: true,
-    body,
-  });
-
-  // Storefront profile may not reflect in GET /api/me/profile; keep UI consistent client-side.
-  if (typeof window !== 'undefined') {
-    try {
-      const currentTxt = window.localStorage.getItem('user');
-      const current = currentTxt ? JSON.parse(currentTxt) : {};
-      const next = {
-        ...(current && typeof current === 'object' ? current : {}),
-        ...(body.displayName ? { name: body.displayName, displayName: body.displayName } : {}),
-        ...(body.phone ? { phone: body.phone } : {}),
-      };
-      window.localStorage.setItem('user', JSON.stringify(next));
-    } catch {
-      // ignore storage write failures
-    }
-  }
-}
-
-/**
- * PATCH /api/me/profile (never POST) + optional POST /storefront/profile for shop context.
- * PATCH body: only `name`, `displayName`, `email`, `phone`, `address` (strict). We send `displayName` for display name (not both name + displayName).
- * 200 response = same shape as GET — used as source of truth when returned.
+ * PATCH /api/me/profile — name and email only.
+ * Phone changes use the phone-change OTP flow. Address uses /api/storefront/address.
  *
- * @param {object} profileData - `name` or `displayName`, `phone`, `email`, optional `address`
+ * @param {object} profileData - `name` or `displayName`, optional `email`
  * @returns {Promise<object|null>}
  */
 export async function updateProfile(profileData) {
@@ -461,32 +346,11 @@ export async function updateProfile(profileData) {
           ? null
           : String(profileData.email).trim();
     }
-    if (profileData.phone !== undefined) {
-      if (profileData.phone === null || profileData.phone === '') {
-        patchBody.phone = null;
-      } else {
-        const p = normalizeOtpPhone(profileData.phone) || String(profileData.phone).replace(/\s/g, '');
-        patchBody.phone = p || null;
-      }
-    }
-    if (profileData.address && typeof profileData.address === 'object') {
-      const mapped = mapAppAddressToMeProfileAddress(profileData.address);
-      if (mapped && Object.keys(mapped).length > 0) patchBody.address = mapped;
-    }
 
-    let normalizedFromPatch = null;
-    if (Object.keys(patchBody).length > 0) {
-      const raw = await api.patch('/me/profile', patchBody);
-      normalizedFromPatch = normalizeCustomerFromMeProfile(raw);
-    }
+    if (Object.keys(patchBody).length === 0) return getCurrentUser();
 
-    await updateStorefrontProfile({
-      displayName: displayName !== undefined ? String(displayName).trim() : undefined,
-      phone: profileData.phone !== undefined ? profileData.phone : undefined,
-    });
-
-    if (normalizedFromPatch) return normalizedFromPatch;
-    return getCurrentUser();
+    const raw = await api.patch('/me/profile', patchBody);
+    return normalizeCustomerFromMeProfile(raw) || getCurrentUser();
   } catch (error) {
     console.error('Error updating profile:', error);
     throw error;
@@ -494,27 +358,45 @@ export async function updateProfile(profileData) {
 }
 
 /**
- * Change or set password
- * @param {object} passwordData - Password data
- * @param {string} [passwordData.currentPassword] - Current password (optional for first-time setup)
- * @param {string} passwordData.newPassword - New password
- * @returns {Promise<object>}
+ * Request OTP to change the login phone (POST /api/storefront/phone/change/request-otp).
  */
-export async function changePassword(passwordData) {
-  try {
-    const response = await api.patch('/auth/change-password', passwordData);
-    return response;
-  } catch (error) {
-    console.error('Error changing password:', error);
-    throw error;
-  }
+export async function requestPhoneChangeOtp(newPhone) {
+  const shopId = await resolveShopId();
+  if (!shopId) throw new Error('Missing shop ID.');
+  const phone = normalizeOtpPhone(newPhone);
+  if (!phone) throw new Error('Enter a valid 10-digit mobile number.');
+  return apiFetchRoot('/storefront/phone/change/request-otp', {
+    method: 'POST',
+    headers: { 'x-shop-id': shopId },
+    body: { newPhone: phone },
+  });
 }
 
 /**
- * Refresh access token
- * @param {string} refreshToken - Refresh token
- * @returns {Promise<{token: string, refreshToken: string}>}
+ * Verify phone-change OTP. On success the API issues a new session.
+ * @returns {Promise<{ token: string|null, refreshToken: string|null, raw: object }>}
  */
+export async function verifyPhoneChangeOtp({ newPhone, code }) {
+  const shopId = await resolveShopId();
+  if (!shopId) throw new Error('Missing shop ID.');
+  const phone = normalizeOtpPhone(newPhone);
+  const otp = String(code || '').trim();
+  if (!phone) throw new Error('Enter a valid 10-digit mobile number.');
+  if (!otp) throw new Error('Enter the OTP code.');
+  const raw = await apiFetchRoot('/storefront/phone/change/verify-otp', {
+    method: 'POST',
+    headers: { 'x-shop-id': shopId },
+    body: { newPhone: phone, code: otp },
+  });
+  const layer =
+    raw?.data != null && typeof raw.data === 'object' ? { ...raw, ...raw.data } : raw || {};
+  return {
+    token: layer.accessToken || layer.token || null,
+    refreshToken: layer.refreshToken || null,
+    raw: layer,
+  };
+}
+
 /**
  * Normalize POST /api/auth/refresh payload (`accessToken`, `refreshToken`, optional `data` envelope).
  * @param {object} response — already unwrapped `data` when API uses `{ status, data }`
@@ -560,46 +442,12 @@ export async function refreshAccessToken(refreshToken) {
  */
 export async function logoutUser() {
   try {
-    const response = await apiFetchRoot('/auth/logout', {
-      method: 'POST',
-      credentials: 'include',
-    });
-    return response;
+    const refreshToken =
+      typeof window !== 'undefined' ? window.localStorage.getItem('refreshToken') || '' : '';
+    const body = refreshToken ? { refreshToken } : undefined;
+    return await api.post('/auth/logout', body);
   } catch (error) {
     console.error('Error logging out:', error);
-    // Even if logout fails, we should still clear local state
-    throw error;
-  }
-}
-
-/**
- * Request password reset email
- * @param {string} email - User email
- * @returns {Promise<object>}
- */
-export async function forgotPassword(email) {
-  try {
-    const response = await api.post('/auth/forgot-password', { email });
-    return response;
-  } catch (error) {
-    console.error('Error requesting password reset:', error);
-    throw error;
-  }
-}
-
-/**
- * Reset password using token
- * @param {object} resetData - Reset data
- * @param {string} resetData.token - Reset token from email
- * @param {string} resetData.password - New password
- * @returns {Promise<object>}
- */
-export async function resetPassword(resetData) {
-  try {
-    const response = await api.post('/auth/reset-password', resetData);
-    return response;
-  } catch (error) {
-    console.error('Error resetting password:', error);
     throw error;
   }
 }

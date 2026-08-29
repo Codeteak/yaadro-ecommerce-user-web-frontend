@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { X, Download } from 'lucide-react';
+import { CloseRegular as X, DownloadRegular as Download } from './icons';
 
 function formatMoney(v) {
   const n = typeof v === 'string' ? parseFloat(v) : typeof v === 'number' ? v : NaN;
@@ -71,7 +71,7 @@ export default function BillPreviewSheet({
               className="p-2 rounded-xl hover:bg-gray-100"
               aria-label="Close"
             >
-              <X className="w-5 h-5 text-gray-600" />
+              <X size={20} className="w-5 h-5 text-gray-600" />
             </button>
           </div>
 
@@ -228,7 +228,7 @@ export default function BillPreviewSheet({
                 onClick={onDownloadPdf}
                 className="w-full bg-primary text-white py-3.5 rounded-2xl font-extrabold hover:bg-primary-dark transition-colors inline-flex items-center justify-center gap-2"
               >
-                <Download className="w-5 h-5" />
+                <Download size={20} className="w-5 h-5" />
                 Download PDF
               </button>
               <button

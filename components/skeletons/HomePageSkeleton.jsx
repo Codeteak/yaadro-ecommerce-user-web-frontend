@@ -118,25 +118,23 @@ function HeroSkeleton() {
         aria-hidden
       />
 
-      {/* Shop branding card — top left */}
-      <div className="absolute left-0 top-5 sm:top-6 md:top-8 z-30 flex items-start gap-3.5 rounded-r-3xl bg-white/95 pl-4 pr-5 py-3 ring-1 ring-gray-100">
-        <Bone className="h-11 w-11 shrink-0 rounded-xl" />
-        <div className="flex flex-col gap-2 min-w-[120px]">
-          <Bone className="h-4 w-28 rounded" />
-          <Bone className="h-6 w-32 rounded-full" />
-        </div>
-      </div>
-
       <Container className="px-0 sm:px-0 lg:px-0 xl:px-0 2xl:px-0">
-        <div className="relative flex flex-col pt-5 pb-8 sm:pt-6 md:pt-8 sm:pb-10 overflow-hidden">
-          {/* Search + profile */}
-          <div className="relative z-20 flex items-center justify-end gap-2 pr-3 sm:pr-4 min-h-[52px]">
-            <Bone className="h-11 w-11 rounded-full" />
-            <Bone className="h-11 w-11 rounded-full" />
+        <div className="relative flex flex-col pb-8 sm:pb-10 overflow-hidden">
+          {/* Header: branding + search + profile */}
+          <div className="relative z-30 flex items-center gap-2 px-3 sm:px-4 min-h-[52px] pt-5 sm:pt-6 md:pt-8">
+            <div className="flex min-w-0 max-w-[38%] sm:max-w-[42%] shrink-0 items-center gap-2">
+              <Bone className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-xl" />
+              <div className="flex min-w-0 flex-col gap-1">
+                <Bone className="h-4 w-20 sm:w-28 rounded" />
+                <Bone className="h-5 w-24 sm:w-32 rounded-full" />
+              </div>
+            </div>
+            <Bone className="h-11 min-w-0 flex-1 rounded-full" />
+            <Bone className="h-11 w-11 shrink-0 rounded-full" />
           </div>
 
           {/* Tagline */}
-          <div className="relative z-[9] mt-8 sm:mt-6 pl-4 sm:pl-5 max-w-[min(92vw,540px)]">
+          <div className="relative z-[9] mt-4 sm:mt-5 pl-4 sm:pl-5 max-w-[min(92vw,540px)]">
             <Bone className="h-10 sm:h-12 w-[min(320px,88vw)] rounded-lg" />
           </div>
 

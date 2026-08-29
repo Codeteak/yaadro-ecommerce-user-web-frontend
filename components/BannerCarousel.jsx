@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import gsap from 'gsap';
 
 const DEFAULT_BANNERS = [
   {
@@ -43,6 +44,7 @@ export default function BannerCarousel({
   const [isDragging, setIsDragging] = useState(false);
 
   const viewportRef = useRef(null);
+  const trackRef = useRef(null);
   const dragStartXRef = useRef(0);
   const dragStartTimeRef = useRef(0);
   const activePointerIdRef = useRef(null);
@@ -92,6 +94,19 @@ export default function BannerCarousel({
       if (autoTimerRef.current) clearInterval(autoTimerRef.current);
     };
   }, [resetAutoAdvance, slideCount]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+    const track = trackRef.current;
+    if (!track) return undefined;
+    gsap.fromTo(
+      track,
+      { opacity: 0.88, scale: 0.985 },
+      { opacity: 1, scale: 1, duration: 0.45, ease: 'power2.out' }
+    );
+    return undefined;
+  }, [currentIndex]);
 
   const finishDrag = useCallback(
     (clientX) => {
@@ -238,7 +253,7 @@ export default function BannerCarousel({
         aria-roledescription={canSwipe ? 'carousel' : undefined}
         aria-label={canSwipe ? 'Promotional banners' : undefined}
       >
-        <div className="flex h-full w-full" style={trackStyle}>
+        <div ref={trackRef} className="flex h-full w-full" style={trackStyle}>
           {bannerList.map((banner, index) => {
             const key = banner.id ?? banner.image ?? index;
             const slideClass =

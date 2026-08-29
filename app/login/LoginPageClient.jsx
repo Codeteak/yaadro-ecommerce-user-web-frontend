@@ -48,7 +48,7 @@ export default function LoginPageClient() {
         </div>
         <Link
           href="/"
-          className="whitespace-nowrap text-[13px] font-semibold text-emerald-700 hover:text-emerald-800"
+          className="whitespace-nowrap text-[13px] font-semibold text-violet-700 hover:text-violet-800"
         >
           Home
         </Link>
