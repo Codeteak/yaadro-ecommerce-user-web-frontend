@@ -1,12 +1,19 @@
 'use client';
 
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Button } from '@heroui/react';
-import { hasSeenInstallPrompt, markInstallPromptSeen } from '../lib/pwa/installPromptSeen';
+import {
+  hasSeenInstallPrompt,
+  isInstallPromptHomePath,
+  markInstallPromptSeen,
+} from '../lib/pwa/installPromptSeen';
 import { useUiStore } from '../stores/uiStore';
 import { BRAND_PRIMARY_BTN } from './ui/brandButton';
 
 export default function InstallPrompt() {
+  const pathname = usePathname();
+  const isHome = isInstallPromptHomePath(pathname);
   const installPromptDismissed = useUiStore((s) => s.installPromptDismissed);
   const deferredInstallPrompt = useUiStore((s) => s.deferredInstallPrompt);
   const setDeferredInstallPrompt = useUiStore((s) => s.setDeferredInstallPrompt);
@@ -21,7 +28,7 @@ export default function InstallPrompt() {
     const onBeforeInstall = (e) => {
       e.preventDefault();
       if (hasSeenInstallPrompt()) return;
-      // Persist immediately so full page navigations do not show the sheet again.
+      if (!isInstallPromptHomePath(window.location.pathname)) return;
       markInstallPromptSeen();
       setDeferredInstallPrompt(e);
     };
@@ -29,7 +36,7 @@ export default function InstallPrompt() {
     return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall);
   }, [setDeferredInstallPrompt, dismissInstallPrompt]);
 
-  if (installPromptDismissed || !deferredInstallPrompt) return null;
+  if (!isHome || installPromptDismissed || !deferredInstallPrompt) return null;
 
   const handleInstall = async () => {
     try {
