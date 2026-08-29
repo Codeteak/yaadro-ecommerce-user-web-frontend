@@ -1,11 +1,8 @@
 'use client';
 
 import { forwardRef, useState } from 'react';
-import {
-  getIndianPhoneLiveError,
-  isValidIndianMobile,
-  sanitizeIndianPhoneInput,
-} from '../utils/indianPhone';
+import { getIndianPhoneLiveError, isValidIndianMobile, sanitizeIndianPhoneInput } from '../utils/indianPhone';
+import { indianMobileSchema } from '../lib/validations/auth.schema';
 
 function nationalDigitsAttempt(raw) {
   let digits = String(raw ?? '').replace(/\D/g, '');
@@ -31,7 +28,7 @@ const IndianPhoneInput = forwardRef(function IndianPhoneInput(
     showHint = true,
     showValidHint = true,
     errorHintClassName = 'mt-1.5 text-[12px] text-red-600',
-    successHintClassName = 'mt-1.5 text-[12px] text-emerald-700',
+    successHintClassName = 'mt-1.5 text-[12px] text-violet-700',
     'aria-label': ariaLabel,
     onBlur,
     onFocus,
@@ -40,7 +37,9 @@ const IndianPhoneInput = forwardRef(function IndianPhoneInput(
   ref
 ) {
   const digits = sanitizeIndianPhoneInput(value);
-  const liveError = getIndianPhoneLiveError(digits);
+  const parsed = digits ? indianMobileSchema.safeParse(digits) : null;
+  const schemaError = parsed && !parsed.success ? parsed.error.issues[0]?.message : null;
+  const liveError = getIndianPhoneLiveError(digits) || (digits.length === 10 ? schemaError : null);
   const isComplete = isValidIndianMobile(digits);
   const [rejectHint, setRejectHint] = useState(null);
 
@@ -83,8 +82,8 @@ const IndianPhoneInput = forwardRef(function IndianPhoneInput(
             displayError
               ? 'border-red-300 focus:border-red-500 focus:ring-1 focus:ring-red-500/30'
               : isComplete
-                ? 'border-emerald-400 focus:border-emerald-500'
-                : 'border-gray-200 focus:border-emerald-500'
+                ? 'border-violet-400 focus:border-violet-500'
+                : 'border-gray-200 focus:border-violet-500'
           }`
         }
       />

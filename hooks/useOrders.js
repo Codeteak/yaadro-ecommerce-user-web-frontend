@@ -2,8 +2,12 @@
  * TanStack Query hooks for Orders
  */
 
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { createOrder, verifyPayment, listOrders, getOrder, cancelOrder, retryPayment } from '../utils/orderApi';
+import { useToast } from '../context/ToastContext';
+
+const ORDERS_STALE_MS = 1000 * 90;
+const ORDER_DETAIL_STALE_MS = 1000 * 60;
 
 // Query keys
 export const orderKeys = {
@@ -15,22 +19,30 @@ export const orderKeys = {
   detail: (id) => [...orderKeys.details(), id],
 };
 
+function invalidateOrderCaches(queryClient, orderId) {
+  queryClient.invalidateQueries({ queryKey: [...orderKeys.all, 'infinite'] });
+  queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+  if (orderId) {
+    queryClient.invalidateQueries({ queryKey: orderKeys.detail(orderId) });
+  }
+}
+
 /**
  * Create order mutation
  */
 export function useCreateOrder() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   return useMutation({
     mutationFn: (orderData) => createOrder(orderData),
     onSuccess: () => {
-      // Invalidate cart after order creation
       queryClient.invalidateQueries({ queryKey: ['cart'] });
-      // Invalidate orders list
-      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+      invalidateOrderCaches(queryClient);
+      showToast('Order placed successfully!', 'success');
     },
     onError: (error) => {
-      console.error('Error creating order:', error);
+      showToast(error?.message || 'Could not place order. Please try again.', 'error');
     },
   });
 }
@@ -40,17 +52,16 @@ export function useCreateOrder() {
  */
 export function useVerifyPayment() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   return useMutation({
     mutationFn: ({ orderId, paymentData }) => verifyPayment(orderId, paymentData),
-    onSuccess: (data, variables) => {
-      // Invalidate order details
-      queryClient.invalidateQueries({ queryKey: orderKeys.detail(variables.orderId) });
-      // Invalidate orders list
-      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    onSuccess: (_data, variables) => {
+      invalidateOrderCaches(queryClient, variables.orderId);
+      showToast('Payment verified!', 'success');
     },
     onError: (error) => {
-      console.error('Error verifying payment:', error);
+      showToast(error?.message || 'Payment verification failed. Please contact support.', 'error');
     },
   });
 }
@@ -63,8 +74,9 @@ export function useOrdersList(params = {}, queryOptions = {}) {
   return useQuery({
     queryKey: orderKeys.list(params),
     queryFn: () => listOrders(params),
-    staleTime: 30000, // 30 seconds
-    refetchOnWindowFocus: true,
+    staleTime: ORDERS_STALE_MS,
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
     enabled,
     ...rest,
   });
@@ -114,8 +126,9 @@ export function useInfiniteOrdersList(params = {}, queryOptions = {}) {
       if (page >= totalPages) return undefined;
       return page + 1;
     },
-    staleTime: 30000,
-    refetchOnWindowFocus: true,
+    staleTime: ORDERS_STALE_MS,
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
     enabled,
     ...rest,
   });
@@ -130,8 +143,9 @@ export function useOrderDetail(orderId, queryOptions = {}) {
     queryKey: orderKeys.detail(orderId),
     queryFn: () => getOrder(orderId),
     enabled: !!orderId && enabledOpt,
-    staleTime: 30000, // 30 seconds
-    refetchOnWindowFocus: true,
+    staleTime: ORDER_DETAIL_STALE_MS,
+    refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
     ...rest,
   });
 }
@@ -141,17 +155,16 @@ export function useOrderDetail(orderId, queryOptions = {}) {
  */
 export function useCancelOrder() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   return useMutation({
     mutationFn: ({ orderId, reason }) => cancelOrder(orderId, reason),
-    onSuccess: (data, variables) => {
-      // Invalidate order details
-      queryClient.invalidateQueries({ queryKey: orderKeys.detail(variables.orderId) });
-      // Invalidate orders list
-      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    onSuccess: (_data, variables) => {
+      invalidateOrderCaches(queryClient, variables.orderId);
+      showToast('Order cancelled.', 'info');
     },
     onError: (error) => {
-      console.error('Error cancelling order:', error);
+      showToast(error?.message || 'Could not cancel order. Please try again.', 'error');
     },
   });
 }
@@ -161,17 +174,15 @@ export function useCancelOrder() {
  */
 export function useRetryPayment() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   return useMutation({
     mutationFn: ({ orderId, paymentMethod }) => retryPayment(orderId, paymentMethod),
-    onSuccess: (data, variables) => {
-      // Invalidate order details to get updated payment info
-      queryClient.invalidateQueries({ queryKey: orderKeys.detail(variables.orderId) });
-      // Invalidate orders list
-      queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+    onSuccess: (_data, variables) => {
+      invalidateOrderCaches(queryClient, variables.orderId);
     },
     onError: (error) => {
-      console.error('Error retrying payment:', error);
+      showToast(error?.message || 'Could not retry payment. Please try again.', 'error');
     },
   });
 }

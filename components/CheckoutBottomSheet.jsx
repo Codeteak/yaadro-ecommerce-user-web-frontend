@@ -2,8 +2,9 @@
 
 import Image from 'next/image';
 import { formatQuantityWithPack } from '../utils/productUtils';
+import AnimatedSheet from './motion/AnimatedSheet';
 
-export default function CheckoutBottomSheet({ 
+export default function CheckoutBottomSheet({
   isOpen, 
   cartItems, 
   cartTotal, 
@@ -17,7 +18,10 @@ export default function CheckoutBottomSheet({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-40 border-t border-gray-200 flex flex-col" style={{ maxHeight: '50vh' }}>
+    <AnimatedSheet
+      className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-40 border-t border-gray-200 flex flex-col"
+      style={{ maxHeight: '50vh' }}
+    >
         {/* Drag Handle - Visual Only (Non-functional) */}
         <div className="flex justify-center pt-3 pb-2">
           <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
@@ -84,6 +88,6 @@ export default function CheckoutBottomSheet({
             {isSubmitting ? 'Processing...' : 'Checkout'}
           </button>
         </div>
-    </div>
+    </AnimatedSheet>
   );
 }

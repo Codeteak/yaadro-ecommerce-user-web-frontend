@@ -278,7 +278,7 @@ export default function CategoriesPage() {
 
       {/* Search bar */}
       <div className="px-4 pb-3 relative">
-        <div className="flex items-center gap-2 px-3 h-10 rounded-full border border-gray-200 bg-gray-50 focus-within:bg-white focus-within:border-emerald-500 transition">
+        <div className="flex items-center gap-2 px-3 h-10 rounded-full border border-gray-200 bg-gray-50 focus-within:bg-white focus-within:border-violet-500 transition">
           <svg
             className="h-4 w-4 text-gray-400 flex-shrink-0"
             fill="none"
@@ -320,7 +320,7 @@ export default function CategoriesPage() {
               <p className="text-[13px] font-medium text-gray-700 mb-1">No categories found</p>
               <button
                 onClick={() => setSearch('')}
-                className="text-[12px] text-emerald-600 font-medium hover:text-emerald-800 transition"
+                className="text-[12px] text-violet-600 font-medium hover:text-violet-800 transition"
               >
                 Clear search
               </button>
@@ -371,7 +371,7 @@ export default function CategoriesPage() {
             {productMatches.length > 0 && (
               <Link
                 href={`/products?search=${encodeURIComponent(q)}`}
-                className="text-[12px] font-medium text-emerald-700 hover:text-emerald-800"
+                className="text-[12px] font-medium text-violet-700 hover:text-violet-800"
               >
                 View all
               </Link>
@@ -442,7 +442,7 @@ export default function CategoriesPage() {
         <div className="px-4 mt-4">
           <Link
             href="/products"
-            className="flex items-center justify-center gap-2 py-3 rounded-2xl border border-gray-200 bg-white text-[13px] font-medium text-emerald-700 hover:bg-emerald-50 hover:border-emerald-200 transition"
+            className="flex items-center justify-center gap-2 py-3 rounded-2xl border border-gray-200 bg-white text-[13px] font-medium text-violet-700 hover:bg-violet-50 hover:border-violet-200 transition"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />

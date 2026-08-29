@@ -1,4 +1,21 @@
 @import "tailwindcss";
+@import "@heroui/styles";
+
+/* Untitled UI–style design tokens */
+:root {
+  --ui-radius-sm: 0.5rem;
+  --ui-radius-md: 0.75rem;
+  --ui-radius-lg: 1rem;
+  --ui-radius-xl: 1.25rem;
+  --ui-shadow-sm: 0 1px 2px rgb(16 24 40 / 0.06);
+  --ui-shadow-md: 0 4px 12px rgb(16 24 40 / 0.08);
+  --ui-shadow-lg: 0 12px 32px rgb(16 24 40 / 0.12);
+  --ui-focus-ring: 0 0 0 3px rgb(144 43 245 / 0.25);
+  --color-brand: #902bf5;
+  --color-brand-dark: #7d24d6;
+  --space-page-x: 1rem;
+  --space-section-y: 1.5rem;
+}
 
 @font-face {
   font-family: "HeadingNow";
@@ -73,6 +90,21 @@ img, video, iframe {
 
 .animate-slide-down {
   animation: slide-down 0.3s ease-out;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.28s ease-out;
 }
 
 @keyframes fade-in {

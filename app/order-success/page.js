@@ -29,7 +29,7 @@ function ConfettiDots() {
     { color: '#a7f3d0', size: 6, left: '66%', delay: '0.2s', dur: '3.5s' },
     { color: '#10b981', size: 8, left: '78%', delay: '0.5s', dur: '2.9s' },
     { color: '#ecfdf5', size: 5, left: '88%', delay: '0.9s', dur: '3.1s' },
-    { color: '#059669', size: 7, left: '95%', delay: '0.3s', dur: '4.0s' },
+    { color: '#902bf5', size: 7, left: '95%', delay: '0.3s', dur: '4.0s' },
   ];
 
   return (
@@ -97,7 +97,7 @@ function OrderCard({ order, orderId, paymentStatus }) {
             style={{
               ...styles.statusDot,
               background:
-                paymentStatus === 'cancelled' || paymentStatus === 'failed' ? '#f59e0b' : '#059669',
+                paymentStatus === 'cancelled' || paymentStatus === 'failed' ? '#f59e0b' : '#902bf5',
             }}
           />
           {paymentStatus === 'cancelled' || paymentStatus === 'failed' ? 'Attention' : 'Confirmed'}
@@ -161,7 +161,7 @@ function OrderCard({ order, orderId, paymentStatus }) {
           </div>
         )}
         {order?.discount != null && Number(order.discount) > 0 && (
-          <div style={{ ...styles.totalLine, color: '#047857' }}>
+          <div style={{ ...styles.totalLine, color: '#7d24d6' }}>
             <span>Discount</span>
             <span>−{money(order.discount)}</span>
           </div>
@@ -224,7 +224,7 @@ function buildBillHtml({ order, orderId, paymentStatus }) {
       body{margin:0;font-family:ui-sans-serif,system-ui,sans-serif;color:#111;background:#f5f7f7}
       .page{max-width:820px;margin:24px auto;padding:16px}
       .card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.06)}
-      .top{background:linear-gradient(90deg,#059669,#047857);color:#fff;padding:18px}
+      .top{background:linear-gradient(90deg,#902bf5,#7d24d6);color:#fff;padding:18px}
       .brand{display:flex;justify-content:space-between;align-items:flex-start}
       .brand h1{margin:0;font-size:22px}
       .meta{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:16px}
@@ -282,7 +282,7 @@ function buildBillHtml({ order, orderId, paymentStatus }) {
           ${order?.subtotal != null ? `<div class="row"><span>Subtotal</span><b>${money(order.subtotal)}</b></div>` : ''}
           ${order?.shipping != null ? `<div class="row"><span>Delivery</span><b>${money(order.shipping)}</b></div>` : ''}
           ${order?.tax != null ? `<div class="row"><span>Tax</span><b>${money(order.tax)}</b></div>` : ''}
-          ${order?.discount != null && Number(order.discount) > 0 ? `<div class="row"><span>Discount</span><b style="color:#047857">−${money(order.discount)}</b></div>` : ''}
+          ${order?.discount != null && Number(order.discount) > 0 ? `<div class="row"><span>Discount</span><b style="color:#7d24d6">−${money(order.discount)}</b></div>` : ''}
           <div class="row grand"><span><b>Total</b></span><b>${order?.total != null ? money(order.total) : '—'}</b></div>
         </div>
       </div>
@@ -400,12 +400,12 @@ function OrderSuccessContent() {
                 position: 'absolute',
                 inset: 0,
                 borderRadius: '50%',
-                border: `2px solid ${isRejected ? '#f59e0b' : '#059669'}`,
+                border: `2px solid ${isRejected ? '#f59e0b' : '#902bf5'}`,
                 animation: 'osPulse 2s ease-out infinite',
                 opacity: 0,
               }}
             />
-            <div style={{ ...styles.iconInner, background: isRejected ? '#f59e0b' : '#059669' }}>
+            <div style={{ ...styles.iconInner, background: isRejected ? '#f59e0b' : '#902bf5' }}>
               <CheckIcon rejected={isRejected} />
             </div>
           </div>
@@ -472,7 +472,7 @@ function DownloadIcon() {
    Inline styles object (keeps JSX clean)
 ───────────────────────────────────────────────────────────── */
 const styles = {
-  /* Layout — white + emerald, aligned with checkout */
+  /* Layout — white + violet brand, aligned with checkout */
   page: {
     minHeight: '100svh',
     width: '100%',
@@ -616,7 +616,7 @@ const styles = {
   btnPrimary: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
     width: '100%', padding: '14px 16px',
-    borderRadius: 14, background: '#059669',
+    borderRadius: 14, background: '#902bf5',
     color: '#ffffff', fontSize: 14, fontWeight: 600,
     border: 'none', cursor: 'pointer', textDecoration: 'none',
     textAlign: 'center',
@@ -667,7 +667,7 @@ function SuspenseFallback() {
             height: 48,
             borderRadius: '50%',
             background: '#d1fae5',
-            border: '2px solid #059669',
+            border: '2px solid #902bf5',
             margin: '0 auto 12px',
             display: 'flex',
             alignItems: 'center',
@@ -675,7 +675,7 @@ function SuspenseFallback() {
           }}
         >
           <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
-            <path d="M7 14.5L11.5 19L21 9.5" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M7 14.5L11.5 19L21 9.5" stroke="#902bf5" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
         <p style={{ fontSize: 13, color: '#6b7280' }}>Preparing your order details…</p>

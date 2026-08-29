@@ -6,7 +6,7 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-white">
-          <div className="h-9 w-9 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
+          <div className="h-9 w-9 animate-spin rounded-full border-2 border-violet-200 border-t-violet-600" />
         </div>
       }
     >

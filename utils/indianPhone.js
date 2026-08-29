@@ -2,6 +2,7 @@
  * Indian mobile input helpers (10 digits, national number starts with 6–9).
  */
 
+import { indianMobileSchema } from '../lib/validations/auth.schema';
 import { normalizePhoneForApi } from './otpVerifyPayload';
 
 export const INDIAN_MOBILE_REGEX = /^[6-9]\d{9}$/;
@@ -55,10 +56,7 @@ export function getIndianPhoneLiveError(digits) {
 
 export function getIndianPhoneSubmitError(digits) {
   const d = sanitizeIndianPhoneInput(digits);
-  if (!d) return 'Enter your 10-digit mobile number';
-  if (d.length < 10) return 'Enter a complete 10-digit mobile number';
-  const live = getIndianPhoneLiveError(d);
-  if (live) return live;
-  if (!isValidIndianMobile(d)) return 'Enter a valid Indian mobile number';
-  return null;
+  const result = indianMobileSchema.safeParse(d);
+  if (result.success) return null;
+  return result.error.issues[0]?.message || 'Enter a valid Indian mobile number';
 }

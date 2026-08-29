@@ -1,6 +1,6 @@
 'use client';
 
-import { Tag, Loader2 } from 'lucide-react';
+import { Loading2Regular as Loader2, TagRegular as Tag } from '../icons';
 import { useStorefrontCoupons } from '../../hooks/useCoupons';
 import {
   formatCouponBenefitLabel,
@@ -29,10 +29,10 @@ function CouponCard({ coupon }) {
       <div className="flex items-start gap-3">
         <div
           className={`mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${
-            applicable ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
+            applicable ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-500'
           }`}
         >
-          <Tag className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+          <Tag size={16} className="h-4 w-4" aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
           <span className="inline-block rounded-md bg-gray-900 px-2 py-0.5 font-mono text-[11px] font-bold tracking-wide text-white">
@@ -58,7 +58,7 @@ export default function ProfileCouponsSection() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-6 text-gray-400">
-        <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+        <Loader2 size={20} className="h-5 w-5 animate-spin" aria-hidden />
       </div>
     );
   }

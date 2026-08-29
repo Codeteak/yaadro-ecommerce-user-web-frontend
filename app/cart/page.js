@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { Button } from '@heroui/react';
 import { useCart } from '../../context/CartContext';
 import { usePageTitle } from '../../context/ShopBrandingContext';
 import { useAlert } from '../../context/AlertContext';
@@ -24,6 +25,7 @@ import ConfirmModal from '../../components/ConfirmModal';
 import ProductCarousel from '../../components/ProductCarousel';
 import ProductImageWithFallback from '../../components/ProductImageWithFallback';
 import CartPageSkeleton from '../../components/skeletons/CartPageSkeleton';
+import { BRAND_CHECKOUT_BTN } from '../../components/ui/brandButton';
 
 /* ─────────────────────────────────────────────
    Sub-components
@@ -79,13 +81,13 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
   return (
     <div
       className={`bg-white rounded-2xl border border-gray-100 p-3 flex gap-3 ${
-        isBundleReward ? 'ml-3 border-emerald-100 bg-emerald-50/40' : ''
+        isBundleReward ? 'ml-3 border-violet-100 bg-violet-50/40' : ''
       }`}
     >
       {/* Image */}
       <div className="relative w-[72px] h-[72px] flex-shrink-0">
         {bundleLabel && (
-          <span className="absolute left-0 top-0 z-10 max-w-[68px] rounded-br-lg rounded-tl-xl bg-gradient-to-r from-emerald-600 to-emerald-700 px-1 py-0.5 text-[8px] font-bold leading-tight text-white shadow-sm">
+          <span className="absolute left-0 top-0 z-10 max-w-[68px] rounded-br-lg rounded-tl-xl bg-gradient-to-r from-violet-600 to-violet-700 px-1 py-0.5 text-[8px] font-bold leading-tight text-white shadow-sm">
             {bundleLabel}
           </span>
         )}
@@ -106,7 +108,7 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
         <p className="text-[13px] font-medium text-gray-900 leading-snug truncate mb-0.5">
           {item.name}
           {isBundleReward && (
-            <span className="ml-2 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-emerald-800">
+            <span className="ml-2 rounded-md bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-violet-800">
               Free
             </span>
           )}
@@ -115,7 +117,7 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
           {[getCartLineVariantLabel(item), item.brand].filter(Boolean).join(' · ')}
         </p>
         {!isBundleReward && bundleFreeExtra > 0 && (
-          <p className="text-[11px] font-medium text-emerald-700 mb-1">
+          <p className="text-[11px] font-medium text-violet-700 mb-1">
             {bundleFreeExtra} free with bundle offer
             {displayQty > paidQty ? ` · ${displayQty} in cart total` : ''}
           </p>
@@ -135,7 +137,7 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
               </span>
             )}
             {discountPct > 0 && (
-              <span className="text-[11px] font-medium text-emerald-700">{discountPct}% off</span>
+              <span className="text-[11px] font-medium text-violet-700">{discountPct}% off</span>
             )}
           </div>
 
@@ -194,7 +196,7 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
 function ActionButton({ onClick, variant = 'default', icon, children }) {
   const variants = {
     default: 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100',
-    green: 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100',
+    green: 'border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100',
     danger: 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100',
   };
   return (
@@ -223,14 +225,14 @@ function SummaryCard({ cartItems, cartTotal, totalQty: totalQtyProp }) {
         </div>
         <div className="flex justify-between py-2.5 text-gray-500">
           <span>Shipping</span>
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-800">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-violet-100 text-violet-800">
             Free
           </span>
         </div>
         {discount > 0 && (
           <div className="flex justify-between py-2.5 text-gray-500">
             <span>Discount</span>
-            <span className="font-medium text-emerald-700">−₹{discount.toLocaleString('en-IN')}</span>
+            <span className="font-medium text-violet-700">−₹{discount.toLocaleString('en-IN')}</span>
           </div>
         )}
         <div className="flex justify-between pt-3 pb-1 text-[15px] font-medium text-gray-900">
@@ -267,7 +269,7 @@ function SavedCartsSection({ savedCarts, onLoad, onDelete }) {
           <div className="flex gap-2">
             <button
               onClick={() => onLoad(sc.id)}
-              className="text-[11px] font-medium px-3 py-1 rounded-full bg-emerald-600 text-white"
+              className="text-[11px] font-medium px-3 py-1 rounded-full bg-violet-600 text-white"
             >
               Load
             </button>
@@ -310,7 +312,7 @@ function EmptyCart({ carouselSections = [] }) {
         <p className="text-sm text-gray-400 mb-6">Add products to start your order</p>
         <Link
           href="/products"
-          className="inline-flex items-center justify-center bg-emerald-600 text-white text-sm font-medium px-5 py-2.5 rounded-full hover:bg-emerald-700 transition"
+          className="inline-flex items-center justify-center bg-violet-600 text-white text-sm font-medium px-5 py-2.5 rounded-full hover:bg-violet-700 transition"
         >
           Shop now
         </Link>
@@ -329,7 +331,7 @@ function EmptyCart({ carouselSections = [] }) {
             <div className="mt-4 flex justify-center">
               <Link
                 href="/products"
-                className="inline-flex items-center gap-2 text-[12px] font-medium text-emerald-700 hover:text-emerald-800 transition"
+                className="inline-flex items-center gap-2 text-[12px] font-medium text-violet-700 hover:text-violet-800 transition"
               >
                 <span>See all</span>
                 <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -517,7 +519,7 @@ function CartPageContent() {
             {/* Add more items — full-width CTA */}
             <Link
               href="/products"
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/40 px-4 py-3 text-[13px] font-semibold text-emerald-800 transition hover:border-emerald-500 hover:bg-emerald-50 active:scale-[0.99]"
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-violet-300 bg-violet-50/40 px-4 py-3 text-[13px] font-semibold text-violet-800 transition hover:border-violet-500 hover:bg-violet-50 active:scale-[0.99]"
             >
               <svg
                 className="h-4 w-4"
@@ -560,7 +562,7 @@ function CartPageContent() {
                 <div className="mt-4 flex justify-center">
                   <Link
                     href="/products"
-                    className="inline-flex items-center gap-2 text-[12px] font-medium text-emerald-700 hover:text-emerald-800 transition"
+                    className="inline-flex items-center gap-2 text-[12px] font-medium text-violet-700 hover:text-violet-800 transition"
                   >
                     <span>See all</span>
                     <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -590,7 +592,7 @@ function CartPageContent() {
           {orderSavings > 0 && (
             <div
               className="flex items-center justify-center gap-1.5 border-b border-white/15 px-3 py-2 text-center"
-              style={{ backgroundColor: '#00a63d' }}
+              style={{ backgroundColor: '#902bf5' }}
             >
               <svg
                 className="h-3.5 w-3.5 flex-shrink-0 text-white"
@@ -626,23 +628,23 @@ function CartPageContent() {
                     <p className="text-sm text-gray-400 line-through tabular-nums">
                       ₹{bottomBarPricing.mrpTotal.toLocaleString('en-IN')}
                     </p>
-                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                    <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-800">
                       Save ₹{Math.round(bottomBarPricing.savings).toLocaleString('en-IN')}
                     </span>
                   </>
                 )}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleProceedToCheckout}
-              className="flex h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-emerald-600 text-sm font-medium text-white transition hover:bg-emerald-700 active:scale-[0.98]"
+            <Button
+              variant="primary"
+              onPress={handleProceedToCheckout}
+              className={`flex h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap ${BRAND_CHECKOUT_BTN} active:scale-[0.98]`}
             >
               Checkout
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
-            </button>
+            </Button>
           </div>
         </div>
       )}

@@ -7,6 +7,7 @@ import ProductCard from '../ProductCard';
 import InfiniteScrollSentinel from '../InfiniteScrollSentinel';
 import { CATEGORY_ID_UUID, SORT_OPTIONS } from './productsBrowseConstants';
 import { ProductGridSkeleton } from '../skeletons/primitives';
+import EmptyState from '../ui/EmptyState';
 
 const PRODUCTS_SCROLL_KEY = 'yaadro_products_scroll_v1';
 
@@ -78,7 +79,7 @@ function FilterBar({ filters, onFilterToggle, sortKey, onSortChange, disabled })
             onClick={() => onFilterToggle(key)}
             className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition whitespace-nowrap ${
               filters[key]
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                ? 'bg-violet-50 border-violet-200 text-violet-800'
                 : 'border-gray-200 text-gray-500 bg-gray-50 hover:border-gray-300'
             }`}
           >
@@ -94,7 +95,7 @@ function FilterBar({ filters, onFilterToggle, sortKey, onSortChange, disabled })
         onClick={handleSortClick}
         className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium border transition ml-2 whitespace-nowrap ${
           sortKey !== 'default'
-            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            ? 'bg-violet-50 border-violet-200 text-violet-800'
             : 'border-gray-200 text-gray-500 bg-gray-50 hover:border-gray-300'
         }`}
       >
@@ -102,32 +103,6 @@ function FilterBar({ filters, onFilterToggle, sortKey, onSortChange, disabled })
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
         </svg>
         {sortLabel}
-      </button>
-    </div>
-  );
-}
-
-function EmptyState({ onReset }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100">
-        <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.5}
-            d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4m8-5v8"
-          />
-        </svg>
-      </div>
-      <p className="mb-1 text-[14px] font-medium text-gray-700">No products found</p>
-      <p className="mb-5 text-[12px] text-gray-400">Try adjusting your filters or search query</p>
-      <button
-        type="button"
-        onClick={onReset}
-        className="text-[12px] font-medium text-emerald-600 transition hover:text-emerald-800"
-      >
-        Clear all filters
       </button>
     </div>
   );
@@ -302,7 +277,12 @@ function ProductsListingPanelInner({
         <ProductGridSkeleton count={8} variant="products" />
       ) : displayProducts.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white py-14 text-center">
-          <EmptyState onReset={handleReset} />
+          <EmptyState
+            title="No products found"
+            description="Try adjusting your filters or search query"
+            actionLabel="Clear all filters"
+            onAction={handleReset}
+          />
         </div>
       ) : (
         <>

@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Search, ArrowLeft } from 'lucide-react';
+import { ArrowLeftRegular as ArrowLeft } from '../../components/icons';
 import { useInfiniteSearchProducts, useProducts } from '../../hooks/useProducts';
 import ProductCard from '../../components/ProductCard';
+import FadeInWhenVisible from '../../components/motion/FadeInWhenVisible';
 import Container from '../../components/Container';
 import ProductCarousel from '../../components/ProductCarousel';
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
@@ -14,6 +15,7 @@ import InfiniteScrollSentinel from '../../components/InfiniteScrollSentinel';
 import { useShopBranding } from '../../context/ShopBrandingContext';
 import { SearchResultsGridSkeleton } from '../../components/skeletons/SearchPageSkeleton';
 import { dedupeProductsByVariantGroup } from '../../utils/productUtils';
+import SearchSuggestInput from '../../components/search/SearchSuggestInput';
 
 const DISCOVER_PER_SECTION = 12;
 const SEARCH_BASE_PATH = '/search/';
@@ -133,6 +135,12 @@ export default function SearchPage() {
   const initialQ = (searchParams?.get('q') || '').trim();
   const [value, setValue] = useState(initialQ);
   const [q, setQ] = useState(initialQ);
+
+  const handleSubmitQuery = (nextQuery) => {
+    const next = String(nextQuery || '').trim();
+    setValue(next);
+    setQ(next);
+  };
 
   // Debounce typing -> API query (skip no-op updates).
   useEffect(() => {
@@ -273,35 +281,17 @@ export default function SearchPage() {
               className="h-10 w-10 inline-flex items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition"
               aria-label="Back"
             >
-              <ArrowLeft className="h-5 w-5 text-gray-700" />
+              <ArrowLeft size={20} className="h-5 w-5 text-gray-700" />
             </button>
 
-            <div className="flex-1 flex items-center gap-2 px-3 h-11 rounded-full border border-gray-200 bg-gray-50 focus-within:bg-white focus-within:border-emerald-500 transition">
-              <Search className="h-5 w-5 text-gray-400 flex-shrink-0" />
-              <input
-                ref={searchInputRef}
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder="Search products…"
-                className="w-full bg-transparent outline-none text-[14px] text-gray-900 placeholder:text-gray-400"
-                inputMode="search"
-                enterKeyHint="search"
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck={false}
-                aria-label="Search products"
-              />
-              {value.trim().length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setValue('')}
-                  className="text-[12px] font-semibold text-gray-500 hover:text-gray-700 px-2"
-                  aria-label="Clear search"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
+            <SearchSuggestInput
+              value={value}
+              onValueChange={setValue}
+              onSubmitQuery={handleSubmitQuery}
+              inputRef={searchInputRef}
+              className="flex-1"
+              placeholder="Search products…"
+            />
           </div>
         </Container>
       </div>
@@ -324,7 +314,7 @@ export default function SearchPage() {
                 <p className="text-[12px] text-gray-500 mt-1">Try searching with different keywords.</p>
                 <Link
                   href="/categories"
-                  className="inline-flex mt-6 text-[12px] font-semibold text-emerald-700 hover:text-emerald-800"
+                  className="inline-flex mt-6 text-[12px] font-semibold text-violet-700 hover:text-violet-800"
                 >
                   Browse categories
                 </Link>
@@ -337,8 +327,10 @@ export default function SearchPage() {
                 Showing {products.length} result{products.length !== 1 ? 's' : ''} for “{q}”
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {products.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+                {products.map((product, index) => (
+                  <FadeInWhenVisible key={product.id} delay={Math.min(index * 0.03, 0.24)}>
+                    <ProductCard product={product} />
+                  </FadeInWhenVisible>
                 ))}
               </div>
               <InfiniteScrollSentinel

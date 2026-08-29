@@ -7,7 +7,12 @@ import { cartKeys } from '../../../hooks/useCart';
 import { addressKeys } from '../../../hooks/useAddresses';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
-import { ArrowLeft, Check, Loader2, MapPin } from 'lucide-react';
+import {
+  ArrowLeftRegular as ArrowLeft,
+  CheckRegular as Check,
+  Loading2Regular as Loader2,
+  MapPinRegular as MapPin,
+} from '../../../components/icons';
 import { useAddress } from '../../../context/AddressContext';
 import { useAuth } from '../../../context/AuthContext';
 import GuestAuthPrompt from '../../../components/GuestAuthPrompt';
@@ -485,7 +490,7 @@ export default function AddAddressPage() {
     `mt-1 w-full rounded-xl border px-3 py-2.5 text-sm outline-none focus:ring-2 ${
       err(key)
         ? 'border-red-300 focus:ring-red-100'
-        : 'border-gray-200 focus:ring-emerald-200'
+        : 'border-gray-200 focus:ring-violet-200'
     }`;
 
   const setField = (key) => (e) => {
@@ -715,7 +720,7 @@ export default function AddAddressPage() {
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+        <Loader2 size={32} className="h-8 w-8 animate-spin text-violet-600" />
       </div>
     );
   }
@@ -753,10 +758,10 @@ export default function AddAddressPage() {
             className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
             aria-label="Back"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft size={16} className="h-4 w-4" />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-700">
               Step 2 of 2
             </p>
             <h1 className="truncate text-base font-semibold text-gray-900">
@@ -792,7 +797,7 @@ export default function AddAddressPage() {
               className="absolute left-3 top-3 z-[1100] inline-flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-800 shadow-md hover:bg-gray-50"
               style={{ marginTop: 'env(safe-area-inset-top)' }}
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft size={16} className="h-4 w-4" />
             </button>
           </div>
 
@@ -809,7 +814,7 @@ export default function AddAddressPage() {
                   : pinDeliveryCheck.error
                     ? 'border-amber-200 bg-amber-50 text-amber-950'
                     : pinDeliveryCheck.serviceable === true
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-950'
+                      ? 'border-violet-200 bg-violet-50 text-violet-950'
                       : pinDeliveryCheck.serviceable === false
                         ? 'border-red-200 bg-red-50 text-red-950'
                         : 'border-gray-200 bg-gray-50 text-gray-800'
@@ -825,7 +830,7 @@ export default function AddAddressPage() {
                 <p className="mt-1 text-[13px] font-medium">{pinDeliveryCheck.error}</p>
               )}
               {!pinDeliveryCheck.loading && !pinDeliveryCheck.error && pinDeliveryCheck.serviceable === true && (
-                <p className="mt-1 text-[14px] font-bold text-emerald-900">Delivery available at this spot</p>
+                <p className="mt-1 text-[14px] font-bold text-violet-900">Delivery available at this spot</p>
               )}
               {!pinDeliveryCheck.loading && !pinDeliveryCheck.error && pinDeliveryCheck.serviceable === false && (
                 <p className="mt-1 text-[13px] font-semibold">
@@ -881,7 +886,7 @@ export default function AddAddressPage() {
                       userGeoStatus !== 'denied' &&
                       deliveryMetrics.userVsPinKm != null &&
                       deliveryMetrics.userVsPinKm < 0.08 && (
-                      <p className="mt-0.5 text-[12px] font-medium text-emerald-800">
+                      <p className="mt-0.5 text-[12px] font-medium text-violet-800">
                         Pinned spot matches your current area
                       </p>
                     )}
@@ -908,8 +913,8 @@ export default function AddAddressPage() {
             )}
 
             <div className="flex items-start gap-3">
-              <span className="mt-1 inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
-                <MapPin className="h-4 w-4" />
+              <span className="mt-1 inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-violet-50 text-violet-700">
+                <MapPin size={16} className="h-4 w-4" />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
@@ -961,11 +966,11 @@ export default function AddAddressPage() {
               disabled={!coords}
               className={`mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold shadow-sm transition active:scale-[0.99] ${
                 coords
-                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  ? 'bg-violet-600 text-white hover:bg-violet-700'
                   : 'cursor-not-allowed bg-gray-200 text-gray-500'
               }`}
             >
-              <Check className="h-4 w-4" />
+              <Check size={16} className="h-4 w-4" />
               Confirm location
             </button>
 
@@ -980,14 +985,14 @@ export default function AddAddressPage() {
       {step === 2 && (
         <div className="flex min-h-0 flex-1 flex-col">
           {/* Resolved location summary (compact) */}
-          <div className="shrink-0 border-b border-gray-100 bg-emerald-50/40 px-4 py-3">
-            <div className="flex items-center gap-2 text-[12px] text-emerald-900">
-              <MapPin className="h-4 w-4 flex-shrink-0" />
+          <div className="shrink-0 border-b border-gray-100 bg-violet-50/40 px-4 py-3">
+            <div className="flex items-center gap-2 text-[12px] text-violet-900">
+              <MapPin size={16} className="h-4 w-4 flex-shrink-0" />
               <span className="line-clamp-1 font-medium">{previewLine1}</span>
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="ml-auto flex-shrink-0 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50"
+                className="ml-auto flex-shrink-0 rounded-full border border-violet-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-violet-700 hover:bg-violet-50"
               >
                 Change
               </button>
@@ -1052,7 +1057,7 @@ export default function AddAddressPage() {
                 <select
                   value={form.label}
                   onChange={setField('label')}
-                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-200"
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-violet-200"
                 >
                   <option value="Home">Home</option>
                   <option value="Office">Office</option>
@@ -1140,7 +1145,7 @@ export default function AddAddressPage() {
                       pinLookupStatus === 'error'
                         ? 'text-amber-700'
                         : pinLookupStatus === 'success'
-                          ? 'text-emerald-700'
+                          ? 'text-violet-700'
                           : 'text-gray-500'
                     }`}
                   >
@@ -1180,16 +1185,16 @@ export default function AddAddressPage() {
               type="button"
               onClick={handleSave}
               disabled={submitting}
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 size={16} className="h-4 w-4 animate-spin" />
                   Saving…
                 </>
               ) : (
                 <>
-                  <Check className="h-4 w-4" />
+                  <Check size={16} className="h-4 w-4" />
                   {isEdit ? 'Save changes' : 'Save address'}
                 </>
               )}

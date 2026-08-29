@@ -6,20 +6,21 @@ export default function NotFound() {
     <div className="py-6 sm:py-8 md:py-12 lg:py-16 w-full max-w-full overflow-x-hidden [@media(max-height:720px)]:py-5">
       <Container>
         <div className="text-center px-3 sm:px-4">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-gray-800 mb-4">404</h1>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-semibold text-gray-700 mb-4">Page Not Found</h2>
-          <p className="text-base md:text-lg text-gray-600 mb-6 md:mb-8">
+          <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-violet-600">404</p>
+          <h1 className="mb-3 text-3xl font-bold text-gray-900 sm:text-4xl md:text-5xl">
+            Page not found
+          </h1>
+          <p className="mx-auto mb-8 max-w-md text-base text-gray-600 md:text-lg">
             The page you&apos;re looking for doesn&apos;t exist or has been moved.
           </p>
           <Link
             href="/"
-            className="inline-block bg-blue-600 text-white px-6 md:px-8 py-2.5 md:py-3 rounded-lg text-sm md:text-base font-semibold hover:bg-blue-700 transition-colors"
+            className="inline-block rounded-xl bg-[#902bf5] px-6 py-2.5 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(144,43,245,0.35)] transition hover:bg-[#7d24d6] md:px-8 md:py-3 md:text-base"
           >
-            Back to Home
+            Back to home
           </Link>
         </div>
       </Container>
     </div>
   );
 }
-

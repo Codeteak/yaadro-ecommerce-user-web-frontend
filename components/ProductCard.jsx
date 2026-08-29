@@ -6,12 +6,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCart } from '../context/CartContext';
 import {
   getEffectivePrice,
-  formatRupeeINR,
   formatBundleRuleLabel,
   formatWeightUnitLabel,
   getPrimaryBundleRule,
   resolveProductWeightAndUnit,
 } from '../utils/productUtils';
+import { tapFeedback } from '../utils/haptics';
+import PriceDisplay from './ui/PriceDisplay';
+import WeightLabel from './ui/WeightLabel';
+import OfferRibbon from './ui/OfferRibbon';
 import { getResolvedProductImageUrls } from '../utils/productImages';
 import { getCartLineDisplayQty } from '../utils/cartPromotions';
 import { findPaidCartLine } from '../utils/cartLinePersist';
@@ -109,9 +112,8 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   useEffect(() => {
     if (cartBadgeQty > 0) setPendingCartQty(0);
   }, [cartBadgeQty]);
-  const cartUpdateKey = cartLine
-    ? cartLine.cartItemKey ?? cartLine.cartItemId ?? cartLine.id
-    : null;
+  const cartUpdateKey =
+    cartLine?.cartItemKey ?? cartLine?.cartItemId ?? cartLine?.id ?? null;
 
   const handleAddToCart = useCallback(async () => {
     if (availableSizes.length > 1 && !selectedSize) {
@@ -122,6 +124,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     setPendingCartQty(1);
     try {
       await addToCart(productToAddPayload, 1);
+      tapFeedback();
     } catch {
       setPendingCartQty(0);
       /* CartContext already alerts */
@@ -144,6 +147,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         setPendingCartQty(1);
         try {
           await addToCart(productToAddPayload, 1);
+          tapFeedback();
         } catch {
           setPendingCartQty(0);
           /* CartContext already alerts */
@@ -152,8 +156,22 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         }
         return;
       }
-      if (cartUpdateKey != null) {
+      if (cartUpdateKey != null && paidCartQty > 0) {
         updateQuantity(cartUpdateKey, paidCartQty + 1);
+        tapFeedback();
+        return;
+      }
+      if (pendingCartQty > 0) {
+        setPendingCartQty((q) => q + 1);
+        setCartActionLoading(true);
+        try {
+          await addToCart(productToAddPayload, 1);
+          tapFeedback();
+        } catch {
+          setPendingCartQty((q) => Math.max(0, q - 1));
+        } finally {
+          setCartActionLoading(false);
+        }
       }
     },
     [
@@ -169,8 +187,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     ]
   );
 
-  const stopCartPointerBubble = useCallback((e) => {
-    e.preventDefault();
+  const stopCartBubble = useCallback((e) => {
     e.stopPropagation();
   }, []);
 
@@ -179,14 +196,30 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       e.preventDefault();
       e.stopPropagation();
       if (cartActionLoading) return;
-      if (!cartLine || paidCartQty <= 0 || cartUpdateKey == null) return;
-      if (paidCartQty <= 1) {
-        removeFromCart(cartUpdateKey);
-      } else {
-        updateQuantity(cartUpdateKey, paidCartQty - 1);
+
+      if (cartUpdateKey != null) {
+        if (paidCartQty <= 1) {
+          removeFromCart(cartUpdateKey);
+        } else {
+          updateQuantity(cartUpdateKey, paidCartQty - 1);
+        }
+        tapFeedback();
+        setPendingCartQty(0);
+        return;
+      }
+
+      if (pendingCartQty > 0) {
+        setPendingCartQty(0);
       }
     },
-    [cartActionLoading, cartLine, paidCartQty, cartUpdateKey, removeFromCart, updateQuantity]
+    [
+      cartActionLoading,
+      paidCartQty,
+      pendingCartQty,
+      cartUpdateKey,
+      removeFromCart,
+      updateQuantity,
+    ]
   );
 
   const productDetailHref = getProductDetailPath(product);
@@ -263,7 +296,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     setTouchEnd(null);
   };
 
-  const cardShellClass = `flex flex-col h-full rounded-2xl overflow-hidden touch-manipulation transition-all duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/45 ${chromeClass} ${
+  const cardShellClass = `flex flex-col h-full rounded-2xl overflow-hidden touch-manipulation transition-all duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/45 ${chromeClass} ${
     isCarousel ? 'w-[140px]' : 'w-full'
   }`;
 
@@ -283,40 +316,48 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     },
   };
 
+  const showSaveRibbon = saveRupees != null && saveRupees >= 0.005;
+
+  const addRibbonSizeClass = isCarousel
+    ? 'h-8 min-w-[52px] px-2.5 text-[10px]'
+    : 'h-9 min-w-[56px] px-3 text-[11px]';
+
+  const cartControlShellClass = isCarousel
+    ? 'min-w-[72px] rounded-tl-xl rounded-br-2xl'
+    : 'min-w-[76px] rounded-tl-xl rounded-br-2xl';
+
   const cartControls = cartActionLoading ? (
     <div
-      className="flex h-[30px] min-w-[72px] items-center justify-center rounded-lg border-2 border-pink-500 bg-white/95 shadow-sm backdrop-blur-sm"
+      className={`flex items-center justify-center border-2 border-violet-600 bg-white/95 shadow-sm backdrop-blur-sm ${isCarousel ? 'h-8' : 'h-9'} ${cartControlShellClass}`}
       aria-busy="true"
       aria-label="Updating cart"
     >
       <div
-        className="h-4 w-4 animate-spin rounded-full border-2 border-pink-500 border-t-transparent"
+        className="h-4 w-4 animate-spin rounded-full border-2 border-violet-600 border-t-transparent"
         role="status"
       />
     </div>
   ) : displayCartQty > 0 ? (
     <div
-      className="flex items-stretch overflow-hidden rounded-lg border-2 border-pink-500 bg-white text-pink-600 shadow-sm"
-      onClick={stopCartPointerBubble}
-      onPointerDown={stopCartPointerBubble}
-      onTouchStart={stopCartPointerBubble}
-      onTouchEnd={stopCartPointerBubble}
+      className={`flex items-stretch overflow-hidden border-2 border-violet-600 bg-white text-violet-700 shadow-[0_4px_12px_rgba(144,43,245,0.2)] ${cartControlShellClass}`}
     >
       <button
         type="button"
         onClick={handleDecrement}
-        className="flex min-w-[28px] items-center justify-center px-1.5 py-1 text-sm font-bold hover:bg-pink-50 active:bg-pink-100"
+        onPointerDown={stopCartBubble}
+        className="flex min-w-[26px] flex-1 items-center justify-center py-1 text-sm font-bold hover:bg-violet-50 active:bg-violet-100"
         aria-label="Decrease quantity"
       >
         −
       </button>
-      <span className="flex min-w-[22px] items-center justify-center border-x border-pink-200 px-1 text-[11px] font-bold tabular-nums">
+      <span className="flex min-w-[22px] items-center justify-center border-x border-violet-200 px-1 text-[11px] font-bold tabular-nums">
         {displayCartQty}
       </span>
       <button
         type="button"
         onClick={handleIncrement}
-        className="flex min-w-[28px] items-center justify-center px-1.5 py-1 text-sm font-bold hover:bg-pink-50 active:bg-pink-100"
+        onPointerDown={stopCartBubble}
+        className="flex min-w-[26px] flex-1 items-center justify-center py-1 text-sm font-bold hover:bg-violet-50 active:bg-violet-100"
         aria-label="Increase quantity"
       >
         +
@@ -325,16 +366,14 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   ) : (
     <button
       type="button"
-      onClick={(e) => {
-        stopCartPointerBubble(e);
+      onClick={() => {
         void handleAddToCart();
       }}
-      onPointerDown={stopCartPointerBubble}
-      onTouchStart={stopCartPointerBubble}
-      className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-pink-500 bg-white text-pink-600 shadow-sm transition hover:bg-pink-50"
+      onPointerDown={stopCartBubble}
       aria-label="Add to cart"
+      className={`flex items-center justify-center bg-[#902bf5] font-semibold uppercase leading-none tracking-wide text-white shadow-[0_4px_12px_rgba(144,43,245,0.35)] transition hover:bg-[#7d24d6] active:scale-[0.97] ${addRibbonSizeClass} ${cartControlShellClass}`}
     >
-      <span className="text-[22px] font-extrabold leading-none">+</span>
+      ADD
     </button>
   );
 
@@ -370,18 +409,8 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
               ))}
             </div>
 
-            {saveRupees != null && saveRupees >= 0.005 && (
-              <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden rounded-2xl" aria-hidden>
-                <div
-                  className={`absolute flex items-center justify-center whitespace-nowrap bg-gradient-to-br from-red-600 via-red-700 to-red-900 text-center font-extrabold uppercase leading-none tracking-wide text-white shadow-[0_3px_10px_rgba(153,27,27,0.55),inset_0_1px_0_rgba(255,255,255,0.28)] ${
-                    isCarousel
-                      ? 'left-[-50px] top-[8px] min-h-[22px] w-[134px] -rotate-45 px-1 py-2 text-[8px]'
-                      : 'left-[-46px] top-[11px] min-h-[28px] w-[158px] -rotate-45 px-1.5 py-2.5 text-[9px] sm:left-[-42px] sm:top-[14px] sm:min-h-[30px] sm:w-[170px] sm:py-3 sm:text-[10px]'
-                  }`}
-                >
-                  <span className="tabular-nums">Save ₹{formatRupeeINR(saveRupees)}</span>
-                </div>
-              </div>
+            {showSaveRibbon && (
+              <OfferRibbon saveRupees={saveRupees} compact={isCarousel} />
             )}
 
             {productImages.length > 1 && (
@@ -417,50 +446,41 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
             )}
           </div>
         </Link>
-        {/* Outside Link + carousel touch handlers — reliable taps on iOS Safari */}
-        <div className="pointer-events-auto absolute bottom-2 right-2 z-20">{cartControls}</div>
       </div>
 
-      <Link {...navLinkProps} className="flex flex-1 flex-col gap-2 px-3 pb-3 pt-2 min-h-0">
-        <div className="flex min-h-[34px] flex-col gap-1">
-          {bundleLabel && (
-            <span
-              className={`self-start rounded-md bg-gradient-to-r from-emerald-600 to-emerald-700 font-bold text-white shadow-sm ${
-                isCarousel
-                  ? 'max-w-full px-1.5 py-0.5 text-[8px] leading-tight'
-                  : 'px-2 py-0.5 text-[10px] leading-snug sm:text-[11px]'
-              }`}
-            >
-              {bundleLabel}
-            </span>
-          )}
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="inline-flex items-center rounded-md bg-green-600 px-2 py-1 text-base font-bold tabular-nums text-white shadow-sm">
-              ₹{formatRupeeINR(currentPrice)}
-            </span>
-            {displayListPrice != null && (
-              <span className="text-xs text-gray-400 line-through tabular-nums">
-                ₹{formatRupeeINR(displayListPrice)}
-              </span>
-            )}
-            {saveRupees != null && (
-              <span className="text-[11px] font-semibold text-emerald-700 tabular-nums">
-                Save ₹{formatRupeeINR(saveRupees)}
-              </span>
-            )}
-          </div>
-        </div>
+      <div className="flex flex-1 flex-col gap-2 px-3 pb-3 pt-2 min-h-0">
+        {bundleLabel && (
+          <span
+            className={`self-start rounded-md bg-gradient-to-r from-violet-600 to-violet-700 font-bold text-white shadow-sm ${
+              isCarousel
+                ? 'max-w-full px-1.5 py-0.5 text-[8px] leading-tight'
+                : 'px-2 py-0.5 text-[10px] leading-snug sm:text-[11px]'
+            }`}
+          >
+            {bundleLabel}
+          </span>
+        )}
 
-        <div className="block min-w-0 min-h-[2.5rem]">
+        <Link {...navLinkProps} className="block min-w-0 min-h-[2.5rem]">
           <h3 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 tracking-tight sm:text-[15px]">
             {product.name}
           </h3>
-        </div>
+        </Link>
 
-        <p className="mt-auto text-[11px] text-gray-500 leading-none min-h-[12px]">
-          {displayWeight || '\u00A0'}
-        </p>
-      </Link>
+        <Link {...navLinkProps} className="block min-w-0">
+          <WeightLabel label={displayWeight} placeholder />
+        </Link>
+
+        <Link {...navLinkProps} className="block">
+          <PriceDisplay
+            amount={currentPrice}
+            listPrice={displayListPrice}
+            size={isCarousel ? 'sm' : 'md'}
+          />
+        </Link>
+
+        <div className="flex justify-end pointer-events-auto">{cartControls}</div>
+      </div>
     </div>
   );
 }

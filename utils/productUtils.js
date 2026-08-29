@@ -230,17 +230,17 @@ export function normalizeProductUnit(unit) {
   return u;
 }
 
-/** Display unit: GM, KG, ML, … */
+/** Display unit: g, kg, ml, l, … */
 function formatUnitForDisplay(unit) {
   const normalized = normalizeProductUnit(unit);
   if (!normalized) return '';
-  if (normalized === 'gm') return 'GM';
-  if (normalized === 'kg') return 'KG';
-  if (normalized === 'mg') return 'MG';
-  if (normalized === 'ml') return 'ML';
-  if (normalized === 'l') return 'L';
-  if (normalized === 'pc') return 'PC';
-  return normalized.toUpperCase();
+  if (normalized === 'gm') return 'g';
+  if (normalized === 'kg') return 'kg';
+  if (normalized === 'mg') return 'mg';
+  if (normalized === 'ml') return 'ml';
+  if (normalized === 'l') return 'l';
+  if (normalized === 'pc') return 'pc';
+  return normalized.toLowerCase();
 }
 
 /**
@@ -453,7 +453,7 @@ export function parseProductUnit(raw) {
   return resolveProductWeightAndUnit(raw).unit;
 }
 
-/** Human-readable pack size, e.g. `400 GM` or `1 KG`. */
+/** Human-readable pack size, e.g. `400 g` or `1 kg`. */
 export function formatWeightUnitLabel(weight, unit) {
   const displayUnit = formatUnitForDisplay(unit);
   if (weight != null && weight !== '') {

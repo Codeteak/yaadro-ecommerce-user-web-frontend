@@ -38,7 +38,7 @@ function IconBack() {
     </svg>
   );
 }
-function IconCheck({ color = '#059669' }) {
+function IconCheck({ color = '#902bf5' }) {
   return (
     <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
       <path d="M2 5l2 2 4-4" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -130,20 +130,20 @@ function getVisibleOrderItems(order) {
   return order.items.filter((it) => it && !it.isDeleted);
 }
 
-/** Tailwind rings — aligned with checkout / home (white + emerald) */
+/** Tailwind rings — aligned with checkout / home (white + violet brand) */
 const STATUS_PILL_CLASS = {
   pending:    'bg-amber-50 text-amber-900 ring-1 ring-amber-200/90',
-  confirmed:  'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200/90',
-  processing: 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200/90',
+  confirmed:  'bg-violet-50 text-violet-900 ring-1 ring-violet-200/90',
+  processing: 'bg-violet-50 text-violet-900 ring-1 ring-violet-200/90',
   shipped:    'bg-sky-50 text-sky-900 ring-1 ring-sky-200/90',
-  delivered:  'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200/90',
+  delivered:  'bg-violet-50 text-violet-900 ring-1 ring-violet-200/90',
   cancelled:  'bg-red-50 text-red-900 ring-1 ring-red-200/90',
 };
 
 const PAYMENT_PILL_CLASS = {
-  paid:     'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200/90',
-  success:  'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200/90',
-  cod:      'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200/90',
+  paid:     'bg-violet-50 text-violet-900 ring-1 ring-violet-200/90',
+  success:  'bg-violet-50 text-violet-900 ring-1 ring-violet-200/90',
+  cod:      'bg-violet-50 text-violet-900 ring-1 ring-violet-200/90',
   pending:  'bg-amber-50 text-amber-900 ring-1 ring-amber-200/90',
   failed:   'bg-red-50 text-red-900 ring-1 ring-red-200/90',
   refunded: 'bg-gray-100 text-gray-700 ring-1 ring-gray-200/90',
@@ -182,7 +182,7 @@ function SectionHeader({ title, right }) {
 
 function OfferBadge({ children }) {
   return (
-    <span className="inline-flex items-center rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-200/80">
+    <span className="inline-flex items-center rounded-md bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800 ring-1 ring-violet-200/80">
       {children}
     </span>
   );
@@ -207,15 +207,15 @@ function OrderPromotionsSection({ order }) {
       <SectionHeader title="Offers & coupons" />
       <div className="space-y-3 px-4 py-3">
         {promo.couponCode && (
-          <div className="flex items-start justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/80 px-3 py-2.5">
+          <div className="flex items-start justify-between gap-3 rounded-xl border border-violet-100 bg-violet-50/80 px-3 py-2.5">
             <div>
-              <p className="m-0 text-[10px] font-medium uppercase tracking-wider text-emerald-800/80">
+              <p className="m-0 text-[10px] font-medium uppercase tracking-wider text-violet-800/80">
                 Coupon applied
               </p>
-              <p className="mb-0 mt-1 font-mono text-sm font-semibold text-emerald-900">{promo.couponCode}</p>
+              <p className="mb-0 mt-1 font-mono text-sm font-semibold text-violet-900">{promo.couponCode}</p>
             </div>
             {promo.promotionDiscountMajor > 0 && (
-              <p className="m-0 shrink-0 text-sm font-semibold text-emerald-700">
+              <p className="m-0 shrink-0 text-sm font-semibold text-violet-700">
                 −{formatInrMajor(promo.promotionDiscountMajor)}
               </p>
             )}
@@ -225,14 +225,14 @@ function OrderPromotionsSection({ order }) {
         {promo.promotionDiscountMajor > 0 && !promo.couponCode && (
           <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 text-[13px]">
             <span className="text-gray-600">Promotion savings</span>
-            <span className="font-medium text-emerald-700">−{formatInrMajor(promo.promotionDiscountMajor)}</span>
+            <span className="font-medium text-violet-700">−{formatInrMajor(promo.promotionDiscountMajor)}</span>
           </div>
         )}
 
         {promo.promotionDiscountMajor > 0 && promo.couponCode && (
           <div className="flex items-center justify-between text-[12px] text-gray-500">
             <span>Total promotion savings on this order</span>
-            <span className="font-medium text-emerald-700">−{formatInrMajor(promo.promotionDiscountMajor)}</span>
+            <span className="font-medium text-violet-700">−{formatInrMajor(promo.promotionDiscountMajor)}</span>
           </div>
         )}
 
@@ -265,7 +265,7 @@ function OrderPromotionsSection({ order }) {
                       )}
                     </div>
                     {item.lineDiscount > 0 && (
-                      <span className="shrink-0 text-[12px] font-medium text-emerald-700">
+                      <span className="shrink-0 text-[12px] font-medium text-violet-700">
                         −{formatInrMajor(item.lineDiscount)}
                       </span>
                     )}
@@ -324,7 +324,7 @@ function OrderItemRow({ item }) {
             <OfferBadge>{offerLabel}</OfferBadge>
           )}
           {item.lineDiscount > 0 && (
-            <span className="text-[11px] font-medium text-emerald-700">
+            <span className="text-[11px] font-medium text-violet-700">
               Saved {formatInrMajor(item.lineDiscount)}
             </span>
           )}
@@ -400,9 +400,9 @@ function Timeline({ order }) {
               <div
                 className={`z-[1] flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-[1.5px] ${
                   isDone
-                    ? 'border-emerald-500 bg-emerald-50'
+                    ? 'border-violet-500 bg-violet-50'
                     : isActive
-                      ? 'border-emerald-600 bg-emerald-600'
+                      ? 'border-violet-600 bg-violet-600'
                       : 'border-gray-200 bg-gray-50'
                 }`}
               >
@@ -411,7 +411,7 @@ function Timeline({ order }) {
               </div>
               {!isLast && (
                 <div
-                  className={`my-0.5 w-[2px] flex-1 min-h-[20px] ${isDone ? 'bg-emerald-400' : 'bg-gray-200'}`}
+                  className={`my-0.5 w-[2px] flex-1 min-h-[20px] ${isDone ? 'bg-violet-400' : 'bg-gray-200'}`}
                 />
               )}
             </div>
@@ -518,7 +518,7 @@ function ErrorState({ message, ordersHref = '/orders' }) {
       </div>
       <Link
         href={ordersHref}
-        className="rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white no-underline hover:bg-emerald-700"
+        className="rounded-full bg-violet-600 px-5 py-2.5 text-sm font-medium text-white no-underline hover:bg-violet-700"
       >
         View all orders
       </Link>
@@ -550,11 +550,11 @@ function ReturnModal({ order, onClose, onSubmit }) {
               key={item.id}
               className={`flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2 ${
                 selected.includes(item.id)
-                  ? 'border-emerald-300 bg-emerald-50'
+                  ? 'border-violet-300 bg-violet-50'
                   : 'border-gray-100 bg-gray-50'
               }`}
             >
-              <input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggle(item.id)} className="accent-emerald-600" />
+              <input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggle(item.id)} className="accent-violet-600" />
               <span className="text-[13px] text-gray-900">{item.productName || item.name}</span>
             </label>
           ))}
@@ -580,7 +580,7 @@ function ReturnModal({ order, onClose, onSubmit }) {
           <button
             type="button"
             onClick={() => onSubmit(selected, reason)}
-            className="flex-1 cursor-pointer rounded-xl border-0 bg-emerald-600 py-3 text-[13px] font-medium text-white hover:bg-emerald-700"
+            className="flex-1 cursor-pointer rounded-xl border-0 bg-violet-600 py-3 text-[13px] font-medium text-white hover:bg-violet-700"
           >
             Submit request
           </button>
@@ -803,7 +803,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
         } finally { setIsRetrying(false); }
       },
       prefill: { name: user?.name || '', email: user?.email || '', contact: user?.phone || '' },
-      theme: { color: '#059669' },
+      theme: { color: '#902bf5' },
       modal: { ondismiss: () => setIsRetrying(false) },
       notes: { order_id: ord.id || order.id, retry: 'true' },
     };
@@ -981,7 +981,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                   <span className="text-gray-500">
                     {orderPromo.couponCode ? `Coupon (${orderPromo.couponCode})` : 'Offers & promotions'}
                   </span>
-                  <span className="font-medium text-emerald-700">−{fmt(order.discount)}</span>
+                  <span className="font-medium text-violet-700">−{fmt(order.discount)}</span>
                 </div>
               )}
               <div className="flex justify-between border-t border-gray-100 px-4 py-3 text-sm font-medium text-gray-900">

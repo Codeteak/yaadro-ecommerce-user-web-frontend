@@ -15,16 +15,19 @@ import ProfileOffersSection from '../../components/profile/ProfileOffersSection'
 import ProfileCouponsSection from '../../components/profile/ProfileCouponsSection';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
 import {
-  Package,
-  MapPin,
-  LogOut,
-  ChevronRight,
-  Pencil,
-} from 'lucide-react';
+  ExitRegular as LogOut,
+  MapPinRegular as MapPin,
+  PackageRegular as Package,
+  PencilRegular as Pencil,
+  RightRegular as ChevronRight,
+} from '../../components/icons';
 
 import { normalizePhoneForApi } from '../../utils/otpVerifyPayload';
 import IndianPhoneInput from '../../components/IndianPhoneInput';
-import { getIndianPhoneSubmitError } from '../../utils/indianPhone';
+import {
+  firstZodIssueMessage,
+  profileUpdateSchema,
+} from '../../lib/validations/auth.schema';
 import ProfilePageSkeleton from '../../components/skeletons/ProfilePageSkeleton';
 import GuestAuthPrompt from '../../components/GuestAuthPrompt';
 
@@ -67,17 +70,22 @@ function ProfilePageContent() {
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
-    const phoneErr = getIndianPhoneSubmitError(profileData.phone);
-    if (phoneErr) {
-      showAlert(phoneErr, 'Invalid phone', 'warning');
+    const result = profileUpdateSchema.safeParse({
+      name: profileData.name,
+      phone: profileData.phone,
+      dateOfBirth: profileData.dateOfBirth || undefined,
+      gender: profileData.gender || undefined,
+    });
+    if (!result.success) {
+      showAlert(firstZodIssueMessage(result), 'Invalid profile', 'warning');
       return;
     }
     try {
       const updateData = {
-        name: profileData.name,
-        phone: profileData.phone,
-        dateOfBirth: profileData.dateOfBirth || undefined,
-        gender: profileData.gender || undefined,
+        name: result.data.name,
+        phone: result.data.phone,
+        dateOfBirth: result.data.dateOfBirth || undefined,
+        gender: result.data.gender || undefined,
       };
       
       await updateProfileMutation.mutateAsync(updateData);
@@ -278,7 +286,7 @@ function ProfilePageContent() {
                 onClick={() => setIsEditing(true)}
                 className="mt-2 inline-flex items-center gap-1 rounded-full bg-red-600 px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
               >
-                <Pencil className="h-4 w-4" strokeWidth={2} />
+                <Pencil size={16} className="h-4 w-4" />
                 Edit Profile
               </button>
             </div>
@@ -322,10 +330,10 @@ function ProfilePageContent() {
                   className="flex w-full items-center justify-between px-4 py-4 text-left text-red-600 transition-colors hover:bg-red-50"
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className="h-5 w-5 flex-shrink-0" strokeWidth={2} />
+                    <Icon size={20} className="h-5 w-5 flex-shrink-0" />
                     <span className="font-medium">{item.label}</span>
                   </div>
-                  <ChevronRight className="h-5 w-5 flex-shrink-0 text-gray-400" strokeWidth={2} />
+                  <ChevronRight size={20} className="h-5 w-5 flex-shrink-0 text-gray-400" />
                 </button>
               );
             }
@@ -336,10 +344,10 @@ function ProfilePageContent() {
                 className="flex items-center justify-between px-4 py-4 text-gray-700 transition-colors hover:bg-gray-50"
               >
                 <div className="flex items-center gap-3">
-                  <Icon className="h-5 w-5 flex-shrink-0 text-gray-600" strokeWidth={2} />
+                  <Icon size={20} className="h-5 w-5 flex-shrink-0 text-gray-600" />
                   <span className="font-medium">{item.label}</span>
                 </div>
-                <ChevronRight className="h-5 w-5 flex-shrink-0 text-gray-400" strokeWidth={2} />
+                <ChevronRight size={20} className="h-5 w-5 flex-shrink-0 text-gray-400" />
               </Link>
             );
           })}

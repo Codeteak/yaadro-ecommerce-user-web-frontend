@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, AlertTriangle } from 'lucide-react';
+import { Button } from '@heroui/react';
+import { AlertRegular as AlertTriangle, CloseRegular as X } from './icons';
 
 export default function DeleteAccountConfirmModal({ 
   isOpen, 
@@ -46,7 +47,7 @@ export default function DeleteAccountConfirmModal({
           {/* Header */}
           <div className="flex items-center justify-between p-6 pb-4">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="w-6 h-6 text-red-600" />
+              <AlertTriangle size={24} className="w-6 h-6 text-red-600" />
               <h3 className="text-lg font-bold text-gray-900">Delete Account</h3>
             </div>
             <button
@@ -54,7 +55,7 @@ export default function DeleteAccountConfirmModal({
               className="p-1 hover:bg-gray-100 rounded-full transition-colors"
               aria-label="Close"
             >
-              <X className="w-5 h-5 text-gray-500" />
+              <X size={20} className="w-5 h-5 text-gray-500" />
             </button>
           </div>
 
@@ -78,19 +79,21 @@ export default function DeleteAccountConfirmModal({
 
           {/* Footer */}
           <div className="px-6 pb-6 flex gap-3">
-            <button
-              onClick={onClose}
-              className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+            <Button
+              variant="ghost"
+              onPress={onClose}
+              className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-300"
             >
               Cancel
-            </button>
-            <button
-              onClick={handleConfirm}
-              disabled={confirmText.toLowerCase() !== 'delete'}
-              className="flex-1 bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            </Button>
+            <Button
+              variant="primary"
+              onPress={handleConfirm}
+              isDisabled={confirmText.toLowerCase() !== 'delete'}
+              className="flex-1 bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700"
             >
               Delete Account
-            </button>
+            </Button>
           </div>
         </div>
       </div>

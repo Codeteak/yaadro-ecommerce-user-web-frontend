@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import CategoryIcon from './CategoryIcon';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { DownRegular as ChevronDown, RightRegular as ChevronRight } from './icons';
 import Link from 'next/link';
 
 export default function CategoryTreeItem({ category, depth = 0 }) {
@@ -26,9 +26,9 @@ export default function CategoryTreeItem({ category, depth = 0 }) {
             aria-label={expanded ? 'Collapse' : 'Expand'}
           >
             {expanded ? (
-              <ChevronDown className="w-5 h-5" strokeWidth={2} />
+              <ChevronDown size={20} className="w-5 h-5" />
             ) : (
-              <ChevronRight className="w-5 h-5" strokeWidth={2} />
+              <ChevronRight size={20} className="w-5 h-5" />
             )}
           </button>
         ) : (

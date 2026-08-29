@@ -13,6 +13,7 @@ import {
   resetPassword,
 } from '../utils/authApi';
 import { addressKeys } from './useAddresses';
+import { useToast } from '../context/ToastContext';
 
 // Query keys
 export const authKeys = {
@@ -38,6 +39,7 @@ export function useCurrentUser() {
  */
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   return useMutation({
     mutationFn: (profileData) => updateProfile(profileData),
@@ -47,9 +49,10 @@ export function useUpdateProfile() {
       if (typeof window !== 'undefined' && data) {
         localStorage.setItem('user', JSON.stringify(data));
       }
+      showToast('Profile updated!', 'success');
     },
     onError: (error) => {
-      console.error('Error updating profile:', error);
+      showToast(error?.message || 'Could not update profile. Please try again.', 'error');
     },
   });
 }
@@ -58,10 +61,15 @@ export function useUpdateProfile() {
  * Change password mutation
  */
 export function useChangePassword() {
+  const { showToast } = useToast();
+
   return useMutation({
     mutationFn: (passwordData) => changePassword(passwordData),
+    onSuccess: () => {
+      showToast('Password changed successfully.', 'success');
+    },
     onError: (error) => {
-      console.error('Error changing password:', error);
+      showToast(error?.message || 'Could not change password. Please try again.', 'error');
     },
   });
 }
@@ -70,29 +78,28 @@ export function useChangePassword() {
  * Refresh token mutation
  */
 export function useRefreshToken() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (refreshToken) => refreshAccessToken(refreshToken),
     onSuccess: (data) => {
-      // Update tokens in localStorage
       if (typeof window !== 'undefined' && data) {
-        if (data.token) {
-          localStorage.setItem('token', data.token);
-        }
-        if (data.refreshToken) {
-          localStorage.setItem('refreshToken', data.refreshToken);
-        }
+        if (data.token) localStorage.setItem('token', data.token);
+        if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
       }
-    },
-    onError: (error) => {
-      console.error('Error refreshing token:', error);
     },
   });
 }
 
+function clearLocalAuth() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+  }
+}
+
 /**
- * Logout mutation
+ * Logout mutation — clears the entire query cache so no stale cart/order/address
+ * data leaks to the next user session on this device.
  */
 export function useLogout() {
   const queryClient = useQueryClient();
@@ -100,24 +107,13 @@ export function useLogout() {
   return useMutation({
     mutationFn: logoutUser,
     onSuccess: () => {
-      // Clear auth cache
-      queryClient.setQueryData(authKeys.user(), null);
-      // Clear localStorage
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-      }
+      queryClient.clear();
+      clearLocalAuth();
     },
-    onError: (error) => {
-      console.error('Error logging out:', error);
-      // Even if logout fails, clear local state
-      queryClient.setQueryData(authKeys.user(), null);
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-      }
+    onError: () => {
+      // Even if the API call fails, clear local state so the user is logged out.
+      queryClient.clear();
+      clearLocalAuth();
     },
   });
 }
@@ -126,10 +122,15 @@ export function useLogout() {
  * Forgot password mutation
  */
 export function useForgotPassword() {
+  const { showToast } = useToast();
+
   return useMutation({
     mutationFn: (email) => forgotPassword(email),
+    onSuccess: () => {
+      showToast('Password reset link sent. Check your email.', 'success');
+    },
     onError: (error) => {
-      console.error('Error requesting password reset:', error);
+      showToast(error?.message || 'Could not send reset link. Please try again.', 'error');
     },
   });
 }
@@ -138,10 +139,15 @@ export function useForgotPassword() {
  * Reset password mutation
  */
 export function useResetPassword() {
+  const { showToast } = useToast();
+
   return useMutation({
     mutationFn: (resetData) => resetPassword(resetData),
+    onSuccess: () => {
+      showToast('Password reset successfully. You can now log in.', 'success');
+    },
     onError: (error) => {
-      console.error('Error resetting password:', error);
+      showToast(error?.message || 'Could not reset password. Please try again.', 'error');
     },
   });
 }

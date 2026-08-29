@@ -3,7 +3,12 @@
 import { useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Tag, Loader2, Percent, Gift } from 'lucide-react';
+import {
+  GiftRegular as Gift,
+  Loading2Regular as Loader2,
+  PercentageRegular as Percent,
+  TagRegular as Tag,
+} from '../icons';
 import { useCategories } from '../../hooks/useProducts';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryImage';
 
@@ -104,11 +109,11 @@ function OfferCategoryCard({ category }) {
               }`}
             >
               {label.type === 'discount' ? (
-                <Percent className="h-2.5 w-2.5" strokeWidth={2.5} />
+                <Percent size={10} className="h-2.5 w-2.5" />
               ) : label.type === 'bundle' ? (
-                <Gift className="h-2.5 w-2.5" strokeWidth={2.5} />
+                <Gift size={10} className="h-2.5 w-2.5" />
               ) : (
-                <Tag className="h-2.5 w-2.5" strokeWidth={2.5} />
+                <Tag size={10} className="h-2.5 w-2.5" />
               )}
               {label.text}
             </span>
@@ -130,7 +135,7 @@ export default function ProfileOffersSection() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-6 text-gray-400">
-        <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+        <Loader2 size={20} className="h-5 w-5 animate-spin" aria-hidden />
       </div>
     );
   }

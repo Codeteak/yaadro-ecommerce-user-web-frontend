@@ -11,6 +11,7 @@ import {
   deleteAddress,
   setDefaultAddress,
 } from '../utils/addressApi';
+import { useToast } from '../context/ToastContext';
 
 // Query keys
 export const addressKeys = {
@@ -54,11 +55,11 @@ export function useAddressDetail(addressId) {
  */
 export function useCreateAddress() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   return useMutation({
     mutationFn: (addressData) => createAddress(addressData),
     onSuccess: (created) => {
-      // Immediately add to cache so it appears in the list right away
       queryClient.setQueryData(addressKeys.list(), (old) => {
         const prev = Array.isArray(old) ? old : [];
         if (!created?.id) return prev;
@@ -70,11 +71,11 @@ export function useCreateAddress() {
         }
         return [created, ...prev];
       });
-      // Then revalidate from server
       queryClient.invalidateQueries({ queryKey: addressKeys.lists() });
+      showToast('Address saved!', 'success');
     },
     onError: (error) => {
-      console.error('Error creating address:', error);
+      showToast(error?.message || 'Could not save address. Please try again.', 'error');
     },
   });
 }
@@ -84,11 +85,11 @@ export function useCreateAddress() {
  */
 export function useUpdateAddress() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   return useMutation({
     mutationFn: ({ addressId, addressData }) => updateAddress(addressId, addressData),
     onSuccess: (data, variables) => {
-      // Storefront linked address PATCH returns refreshed row — upsert immediately (invalidate refetch still runs async).
       if (data?.id) {
         queryClient.setQueryData(addressKeys.list(), (old) => {
           const prev = Array.isArray(old) ? old : [];
@@ -103,9 +104,10 @@ export function useUpdateAddress() {
       }
       queryClient.invalidateQueries({ queryKey: addressKeys.lists() });
       queryClient.invalidateQueries({ queryKey: addressKeys.detail(variables.addressId) });
+      showToast('Address updated!', 'success');
     },
     onError: (error) => {
-      console.error('Error updating address:', error);
+      showToast(error?.message || 'Could not update address. Please try again.', 'error');
     },
   });
 }
@@ -115,15 +117,16 @@ export function useUpdateAddress() {
  */
 export function useDeleteAddress() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   return useMutation({
     mutationFn: (addressId) => deleteAddress(addressId),
     onSuccess: () => {
-      // Invalidate addresses list
       queryClient.invalidateQueries({ queryKey: addressKeys.lists() });
+      showToast('Address removed.', 'info');
     },
     onError: (error) => {
-      console.error('Error deleting address:', error);
+      showToast(error?.message || 'Could not remove address. Please try again.', 'error');
     },
   });
 }
@@ -133,15 +136,16 @@ export function useDeleteAddress() {
  */
 export function useSetDefaultAddress() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   return useMutation({
     mutationFn: (addressId) => setDefaultAddress(addressId),
     onSuccess: () => {
-      // Invalidate addresses list to refresh default status
       queryClient.invalidateQueries({ queryKey: addressKeys.lists() });
+      showToast('Default address updated.', 'success');
     },
     onError: (error) => {
-      console.error('Error setting default address:', error);
+      showToast(error?.message || 'Could not set default address. Please try again.', 'error');
     },
   });
 }

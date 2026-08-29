@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
+import { Button } from '@heroui/react';
 import { useWebOtp } from '../hooks/useWebOtp';
 import { useAuth } from '../context/AuthContext';
 import IndianPhoneInput from './IndianPhoneInput';
@@ -16,10 +17,12 @@ import {
   updateProfile,
 } from '../utils/authApi';
 import { normalizeOtpCodeInput } from '../utils/otpVerifyPayload';
-import { getIndianPhoneSubmitError } from '../utils/indianPhone';
+import { sanitizeIndianPhoneInput } from '../utils/indianPhone';
+import { otpSchema, validateLoginPhone, firstZodIssueMessage } from '../lib/validations/auth.schema';
+import { BRAND_PRIMARY_BTN_FULL } from './ui/brandButton';
 
 const fieldClass =
-  'h-[52px] w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-[16px] text-gray-900 transition placeholder:text-gray-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20';
+  'h-[52px] w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-[16px] text-gray-900 transition placeholder:text-gray-400 focus:border-violet-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20';
 
 const OTP_RATE_LIMIT_COOLDOWN_SEC = 5 * 60;
 
@@ -79,44 +82,31 @@ function PrimaryButton({
   loadingText,
   onClick,
   type = 'button',
-  variant = 'emerald',
 }) {
-  const activeStyles =
-    variant === 'purple'
-      ? 'bg-[#902bf5] text-white hover:bg-[#7d24d6] active:scale-[0.98] shadow-[0_8px_24px_rgba(144,43,245,0.35)]'
-      : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98]';
-
   return (
-    <button
+    <Button
       type={type}
-      onClick={onClick}
-      disabled={disabled || loading}
-      className={`flex h-[52px] w-full items-center justify-center gap-2 rounded-full text-[15px] font-semibold transition ${
-        disabled || loading ? 'cursor-not-allowed bg-gray-200 text-gray-400' : activeStyles
-      }`}
+      variant="primary"
+      isDisabled={disabled || loading}
+      isLoading={loading}
+      onPress={onClick}
+      className={BRAND_PRIMARY_BTN_FULL}
     >
-      {loading ? (
-        <>
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-          {loadingText}
-        </>
-      ) : (
-        children
-      )}
-    </button>
+      {loading ? loadingText : children}
+    </Button>
   );
 }
 
 function SecondaryButton({ children, disabled, onClick }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="h-[48px] w-full rounded-full border border-gray-200 text-[13px] font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-40"
+    <Button
+      variant="ghost"
+      isDisabled={disabled}
+      onPress={onClick}
+      className="h-[48px] w-full rounded-full border border-gray-200 text-[13px] font-medium text-gray-600 hover:bg-gray-50"
     >
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -154,7 +144,6 @@ function PhoneStep({ phone, setPhone, onSubmit, isSubmitting, inputRef, otpCoold
         loading={isSubmitting}
         loadingText="Sending…"
         disabled={otpCooldownSecondsLeft > 0}
-        variant="purple"
       >
         {otpCooldownSecondsLeft > 0 ? `Send OTP in ${otpCooldownSecondsLeft}s` : 'Send OTP'}
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -180,7 +169,7 @@ function OtpStep({
   const resendDisabled = isSubmitting || resendSecondsLeft > 0 || otpCooldownSecondsLeft > 0;
   return (
     <form onSubmit={onSubmit} className="space-y-0">
-      <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-800">
+      <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1 text-[11px] font-semibold text-violet-800">
         <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
         </svg>
@@ -194,7 +183,7 @@ function OtpStep({
         <button
           type="button"
           onClick={onChangePhone}
-          className="shrink-0 text-[12px] font-semibold text-emerald-600 hover:text-emerald-800"
+          className="shrink-0 text-[12px] font-semibold text-violet-600 hover:text-violet-800"
         >
           Change
         </button>
@@ -335,7 +324,7 @@ export default function LoginPanel({ className = '' }) {
     const resolvedShopId = await ensureShopId();
     if (!resolvedShopId) return;
     const nextPhone = apiPhone();
-    const phoneErr = getIndianPhoneSubmitError(nextPhone);
+    const phoneErr = validateLoginPhone(sanitizeIndianPhoneInput(phone));
     if (phoneErr) {
       setError(phoneErr);
       return;
@@ -370,15 +359,16 @@ export default function LoginPanel({ className = '' }) {
     const resolvedShopId = await ensureShopId();
     if (!resolvedShopId) return;
     const nextPhone = apiPhone();
-    const phoneErr = getIndianPhoneSubmitError(nextPhone);
+    const phoneErr = validateLoginPhone(sanitizeIndianPhoneInput(phone));
     if (phoneErr) {
       setError(phoneErr);
       setStep('phone');
       return;
     }
     const nextCode = normalizeOtpCodeInput(code);
-    if (!/^\d{4,8}$/.test(nextCode)) {
-      setError('Enter the OTP from your SMS (4–8 digits).');
+    const otpErr = firstZodIssueMessage(otpSchema.safeParse(nextCode));
+    if (otpErr) {
+      setError(otpErr);
       return;
     }
     cancelWebOtp();
@@ -425,7 +415,7 @@ export default function LoginPanel({ className = '' }) {
     const resolvedShopId = await ensureShopId();
     if (!resolvedShopId) return;
     const nextPhone = apiPhone();
-    const phoneErr = getIndianPhoneSubmitError(nextPhone);
+    const phoneErr = validateLoginPhone(sanitizeIndianPhoneInput(phone));
     if (phoneErr) {
       setError(phoneErr);
       setStep('phone');

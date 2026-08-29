@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
-import { Crosshair, Loader2, MapPin, Search, X } from 'lucide-react';
+import {
+  Aiming2Regular as Crosshair,
+  CloseRegular as X,
+  Loading2Regular as Loader2,
+  MapPinRegular as MapPin,
+  SearchRegular as Search,
+} from './icons';
 import { getDefaultMapCenter } from '../utils/geocoding';
 
 const GOOGLE_MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
@@ -304,7 +310,7 @@ export default function AddressMapPicker({
       map: mapInstance,
       center: { lat, lng },
       radius: r,
-      strokeColor: '#047857',
+      strokeColor: '#7d24d6',
       strokeOpacity: 0.95,
       strokeWeight: 2,
       fillColor: '#34d399',
@@ -454,7 +460,7 @@ export default function AddressMapPicker({
                 : 'flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2'
             }
           >
-            <Search className="h-4 w-4 flex-shrink-0 text-gray-500" aria-hidden />
+            <Search size={16} className="h-4 w-4 flex-shrink-0 text-gray-500" aria-hidden />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -464,7 +470,7 @@ export default function AddressMapPicker({
               autoComplete="off"
             />
             {searching ? (
-              <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-gray-500" aria-hidden />
+              <Loader2 size={16} className="h-4 w-4 flex-shrink-0 animate-spin text-gray-500" aria-hidden />
             ) : searchQuery ? (
               <button
                 type="button"
@@ -476,7 +482,7 @@ export default function AddressMapPicker({
                 }}
                 className="rounded-full p-1 text-gray-500 hover:bg-gray-200"
               >
-                <X className="h-3.5 w-3.5" />
+                <X size={14} className="h-3.5 w-3.5" />
               </button>
             ) : null}
           </div>
@@ -497,7 +503,7 @@ export default function AddressMapPicker({
                   onClick={() => handleSelectSearchResult(r)}
                   className="flex w-full items-start gap-2 border-b border-gray-100 px-3 py-2 text-left last:border-b-0 hover:bg-gray-50"
                 >
-                  <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600" aria-hidden />
+                  <MapPin size={16} className="mt-0.5 h-4 w-4 flex-shrink-0 text-violet-600" aria-hidden />
                   <span className="text-[12px] leading-snug text-gray-800 line-clamp-2">
                     {r.displayName}
                   </span>
@@ -516,7 +522,7 @@ export default function AddressMapPicker({
           <div className="absolute inset-0 z-[1] flex items-center justify-center bg-gray-50 text-[12px] text-gray-500">
             {loadError ? 'Could not load Google Maps.' : (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                <Loader2 size={16} className="mr-2 h-4 w-4 animate-spin" aria-hidden />
                 Loading map…
               </>
             )}
@@ -582,9 +588,9 @@ export default function AddressMapPicker({
           }
         >
           {locating ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            <Loader2 size={16} className="h-4 w-4 animate-spin" aria-hidden />
           ) : (
-            <Crosshair className="h-4 w-4" aria-hidden />
+            <Crosshair size={16} className="h-4 w-4" aria-hidden />
           )}
           {!isFullscreen && (
             <span>{locating ? 'Locating…' : 'My location'}</span>
@@ -599,7 +605,7 @@ export default function AddressMapPicker({
                 : 'absolute left-3 top-3 z-[1000] inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white/95 px-2.5 py-1 text-[11px] font-medium text-gray-700 shadow'
             }
           >
-            <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+            <Loader2 size={12} className="h-3 w-3 animate-spin" aria-hidden />
             Resolving address…
           </div>
         )}

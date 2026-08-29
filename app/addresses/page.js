@@ -12,15 +12,15 @@ import { useRequireAuth } from '../../hooks/useRequireAuth';
 import AddressesPageSkeleton from '../../components/skeletons/AddressesPageSkeleton';
 import { AddressCardSkeleton } from '../../components/skeletons/primitives';
 import {
-  Home,
-  MapPin,
-  ChevronRight,
-  Share2,
-  MoreVertical,
-  Plus,
-  Pencil,
-  BadgeCheck,
-} from 'lucide-react';
+  BadgeRegular as BadgeCheck,
+  Home1Regular as Home,
+  MapPinRegular as MapPin,
+  More2Regular as MoreVertical,
+  PencilRegular as Pencil,
+  PlusRegular as Plus,
+  RightRegular as ChevronRight,
+  Share2Regular as Share2,
+} from '../../components/icons';
 
 export default function AddressesPage() {
   const router = useRouter();
@@ -118,10 +118,10 @@ export default function AddressesPage() {
               className="mb-6 flex w-full items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-colors hover:bg-gray-50"
             >
               <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Plus className="h-5 w-5" strokeWidth={2} />
+                <Plus size={20} className="h-5 w-5" />
               </span>
               <span className="flex-1 font-semibold text-gray-900">Add delivery address</span>
-              <ChevronRight className="h-5 w-5 flex-shrink-0 text-gray-400" />
+              <ChevronRight size={20} className="h-5 w-5 flex-shrink-0 text-gray-400" />
             </button>
           )}
 
@@ -134,14 +134,14 @@ export default function AddressesPage() {
             </div>
           ) : addresses.length === 0 ? (
             <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
-              <MapPin className="mx-auto mb-3 h-12 w-12 text-gray-300" strokeWidth={1.5} />
+              <MapPin size={48} className="mx-auto mb-3 h-12 w-12 text-gray-300" />
               <p className="text-sm text-gray-500">No saved addresses yet</p>
               <button
                 type="button"
                 onClick={openCreate}
                 className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white"
               >
-                <Plus className="h-4 w-4" />
+                <Plus size={16} className="h-4 w-4" />
                 Add address
               </button>
             </div>
@@ -155,17 +155,17 @@ export default function AddressesPage() {
                   <div className="flex gap-3">
                     <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100">
                       {isHome(address) ? (
-                        <Home className="h-5 w-5 text-gray-600" strokeWidth={2} />
+                        <Home size={20} className="h-5 w-5 text-gray-600" />
                       ) : (
-                        <MapPin className="h-5 w-5 text-gray-600" strokeWidth={2} />
+                        <MapPin size={20} className="h-5 w-5 text-gray-600" />
                       )}
                     </div>
                     <div className="min-w-0 flex-1 pr-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-gray-900">{addressLabel(address)}</span>
                         {address.isDefault && (
-                          <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800">
-                            <BadgeCheck className="h-3 w-3" strokeWidth={2} />
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">
+                            <BadgeCheck size={12} className="h-3 w-3" />
                             Default
                           </span>
                         )}
@@ -187,7 +187,7 @@ export default function AddressesPage() {
                         className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
                         aria-label="Copy address"
                       >
-                        <Share2 className="h-5 w-5" strokeWidth={2} />
+                        <Share2 size={20} className="h-5 w-5" />
                       </button>
                       <div className="relative">
                         <button
@@ -197,7 +197,7 @@ export default function AddressesPage() {
                           aria-label="More options"
                           aria-expanded={menuOpenId === address.id}
                         >
-                          <MoreVertical className="h-5 w-5" strokeWidth={2} />
+                          <MoreVertical size={20} className="h-5 w-5" />
                         </button>
                         {menuOpenId === address.id && (
                           <>
@@ -208,7 +208,7 @@ export default function AddressesPage() {
                                 className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
                                 onClick={() => openEdit(address)}
                               >
-                                <Pencil className="h-4 w-4" />
+                                <Pencil size={16} className="h-4 w-4" />
                                 Edit
                               </button>
                             </div>

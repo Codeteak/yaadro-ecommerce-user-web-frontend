@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ArrowLeftRegular as ChevronLeft } from './icons';
 import { usePageTitle } from '../context/ShopBrandingContext';
 
 export default function PageTopBar({ title, subtitle, backHref, fallbackHref = '/', right = null }) {
@@ -33,7 +33,7 @@ export default function PageTopBar({ title, subtitle, backHref, fallbackHref = '
               className="w-10 h-10 rounded-xl hover:bg-gray-100 flex items-center justify-center"
               aria-label="Back"
             >
-              <ChevronLeft className="w-6 h-6 text-gray-800" />
+              <ChevronLeft size={24} className="w-6 h-6 text-gray-800" />
             </Link>
           ) : (
             <button
@@ -42,7 +42,7 @@ export default function PageTopBar({ title, subtitle, backHref, fallbackHref = '
               className="w-10 h-10 rounded-xl hover:bg-gray-100 flex items-center justify-center"
               aria-label="Back"
             >
-              <ChevronLeft className="w-6 h-6 text-gray-800" />
+              <ChevronLeft size={24} className="w-6 h-6 text-gray-800" />
             </button>
           )}
 

@@ -1,8 +1,14 @@
 'use client';
 
 import { useEffect } from 'react';
-import { MapPin, CheckCircle2, AlertTriangle, Navigation } from 'lucide-react';
+import {
+  AlertRegular as AlertTriangle,
+  CheckCircleRegular as CheckCircle2,
+  MapPinRegular as MapPin,
+  NavigationRegular as Navigation,
+} from './icons';
 import { useLocationService } from '../context/LocationServiceContext';
+import AnimatedSheet from './motion/AnimatedSheet';
 
 function formatKm(meters) {
   if (meters == null || Number.isNaN(meters)) return null;
@@ -45,12 +51,9 @@ export default function ServiceAreaBottomSheet() {
         aria-hidden="true"
       />
 
-      <div
+      <AnimatedSheet
         className="md:hidden fixed bottom-0 left-0 right-0 z-[69] bg-white rounded-t-3xl overflow-hidden shadow-2xl"
-        style={{
-          maxHeight: '92vh',
-          animation: 'serviceAreaSlideUp 0.32s cubic-bezier(0.32, 0.72, 0, 1) both',
-        }}
+        style={{ maxHeight: '92vh' }}
       >
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 bg-gray-200 rounded-full" />
@@ -66,7 +69,7 @@ export default function ServiceAreaBottomSheet() {
           recheckLocation={recheckLocation}
           locationSourceLabel={locationSourceLabel}
         />
-      </div>
+      </AnimatedSheet>
 
       <div className="hidden md:flex fixed inset-0 z-[69] items-center justify-center px-4 pointer-events-none">
         <div
@@ -130,7 +133,7 @@ function SheetBody({
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-2 min-w-0">
           <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center">
-            <MapPin className="w-5 h-5 text-primary" strokeWidth={2} />
+            <MapPin size={20} className="w-5 h-5 text-primary" />
           </div>
           <div className="min-w-0">
             <h2 className="text-lg font-bold text-gray-900 leading-tight">Delivery area</h2>
@@ -161,7 +164,7 @@ function SheetBody({
       {!isChecking && geoDenied && (
         <div className="rounded-xl bg-amber-50 border border-amber-100 p-4 mb-4">
           <div className="flex gap-3">
-            <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0" />
+            <AlertTriangle size={24} className="w-6 h-6 text-amber-600 flex-shrink-0" />
             <div>
               <p className="text-sm font-semibold text-gray-900">Location access needed</p>
               <p className="text-sm text-gray-600 mt-1">
@@ -179,9 +182,9 @@ function SheetBody({
       )}
 
       {!isChecking && !geoDenied && serviceable === true && (
-        <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 mb-4">
+        <div className="rounded-xl bg-violet-50 border border-violet-100 p-4 mb-4">
           <div className="flex gap-3">
-            <CheckCircle2 className="w-6 h-6 text-emerald-600 flex-shrink-0" />
+            <CheckCircle2 size={24} className="w-6 h-6 text-violet-600 flex-shrink-0" />
             <div>
               <p className="text-sm font-semibold text-gray-900">{inZoneTitle}</p>
               <p className="text-sm text-gray-600 mt-1">{inZoneDetail}</p>
@@ -193,7 +196,7 @@ function SheetBody({
       {!isChecking && !geoDenied && serviceable === false && (
         <div className="rounded-xl bg-amber-50 border border-amber-100 p-4 mb-4">
           <div className="flex gap-3">
-            <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0" />
+            <AlertTriangle size={24} className="w-6 h-6 text-amber-600 flex-shrink-0" />
             <div>
               <p className="text-sm font-semibold text-gray-900">Outside delivery zone</p>
               <p className="text-sm text-gray-600 mt-1">
@@ -214,7 +217,7 @@ function SheetBody({
           }}
           className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-800 hover:bg-gray-50"
         >
-          <Navigation className="w-4 h-4" />
+          <Navigation size={16} className="w-4 h-4" />
           Check again
         </button>
         <button
