@@ -18,6 +18,7 @@ import ServiceAreaBottomSheet from '../components/ServiceAreaBottomSheet';
 import ClientOnly from '../components/ClientOnly';
 import { ShopBrandingProvider } from '../context/ShopBrandingContext';
 import { ToastProvider, ToastHost } from '../context/ToastContext';
+import { CatalogRealtimeProvider } from '../context/CatalogRealtimeContext';
 import PWARegistrar from '../components/PWARegistrar';
 import InstallPrompt from '../components/InstallPrompt';
 
@@ -54,6 +55,7 @@ export default function RootLayout({ children }) {
           <ShopBrandingProvider>
             <ToastProvider>
             <QueryProvider>
+              <CatalogRealtimeProvider>
               <AuthProvider>
                 <AlertProvider>
                   <CartProvider>
@@ -83,6 +85,7 @@ export default function RootLayout({ children }) {
                   </CartProvider>
                 </AlertProvider>
               </AuthProvider>
+              </CatalogRealtimeProvider>
             </QueryProvider>
             </ToastProvider>
           </ShopBrandingProvider>

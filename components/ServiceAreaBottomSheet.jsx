@@ -36,6 +36,26 @@ function formatKm(meters) {
   return `${km.toFixed(km < 10 ? 1 : 0)} km`;
 }
 
+function formatCoords(point) {
+  if (!point) return null;
+  const lat = Number(point.lat);
+  const lng = Number(point.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+}
+
+function SavedCoordinatesCard({ coords, label = 'Saved coordinates' }) {
+  const formatted = formatCoords(coords);
+  if (!formatted) return null;
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white px-3 py-3 mb-4">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+      <p className="mt-1 font-mono text-sm font-semibold text-gray-900">{formatted}</p>
+    </div>
+  );
+}
+
 export default function ServiceAreaBottomSheet() {
   const {
     isChecking,
@@ -43,11 +63,13 @@ export default function ServiceAreaBottomSheet() {
     distanceM,
     maxRadiusM,
     coords,
+    shopLocation: contextShopLocation,
     geoDenied,
     errorMessage,
     showServiceAreaSheet,
     closeServiceAreaSheet,
     locationSourceLabel,
+    locationSourceKind,
     useMyLocation,
     confirmLocationAtPin,
   } = useLocationService();
@@ -59,6 +81,7 @@ export default function ServiceAreaBottomSheet() {
     serviceable: null,
     distanceM: null,
     maxRadiusM: null,
+    shopLocation: null,
     error: null,
   });
 
@@ -78,6 +101,7 @@ export default function ServiceAreaBottomSheet() {
         serviceable: null,
         distanceM: null,
         maxRadiusM: null,
+        shopLocation: null,
         error: null,
       });
     }
@@ -90,6 +114,7 @@ export default function ServiceAreaBottomSheet() {
         serviceable: null,
         distanceM: null,
         maxRadiusM: null,
+        shopLocation: null,
         error: null,
       });
       return undefined;
@@ -106,6 +131,7 @@ export default function ServiceAreaBottomSheet() {
           serviceable: !!data.serviceable,
           distanceM: data.distanceM,
           maxRadiusM: data.maxRadiusM,
+          shopLocation: data.shopLocation ?? null,
           error: null,
         });
       } catch (e) {
@@ -115,6 +141,7 @@ export default function ServiceAreaBottomSheet() {
           serviceable: null,
           distanceM: null,
           maxRadiusM: null,
+          shopLocation: null,
           error: e?.message || 'Could not verify delivery area.',
         });
       }
@@ -138,7 +165,15 @@ export default function ServiceAreaBottomSheet() {
     (typeof maxRadiusM === 'number' && maxRadiusM > 0 ? maxRadiusM : null) ??
     DELIVERY_RADIUS_FALLBACK_M;
 
-  const storeCoords = useMemo(() => getStoreCoordinates(), []);
+  const effectiveStoreLocation = useMemo(() => {
+    if (pinPreview.shopLocation?.lat != null && pinPreview.shopLocation?.lng != null) {
+      return pinPreview.shopLocation;
+    }
+    if (contextShopLocation?.lat != null && contextShopLocation?.lng != null) {
+      return contextShopLocation;
+    }
+    return getStoreCoordinates();
+  }, [pinPreview.shopLocation, contextShopLocation]);
 
   const openMapMode = useCallback(() => {
     setDraftPin(initialMapPin);
@@ -164,6 +199,8 @@ export default function ServiceAreaBottomSheet() {
     geoDenied,
     errorMessage,
     locationSourceLabel,
+    locationSourceKind,
+    coords,
     useMyLocation,
     mapMode,
     onOpenMapMode: openMapMode,
@@ -171,7 +208,7 @@ export default function ServiceAreaBottomSheet() {
     draftPin,
     onDraftPinChange: setDraftPin,
     initialMapPin,
-    storeCoords,
+    effectiveStoreLocation,
     mapDeliveryRadiusM,
     pinPreview,
     onConfirmPin: handleConfirmPin,
@@ -229,6 +266,8 @@ function SheetBody({
   geoDenied,
   errorMessage,
   locationSourceLabel,
+  locationSourceKind,
+  coords,
   useMyLocation,
   mapMode,
   onOpenMapMode,
@@ -236,7 +275,7 @@ function SheetBody({
   draftPin,
   onDraftPinChange,
   initialMapPin,
-  storeCoords,
+  effectiveStoreLocation,
   mapDeliveryRadiusM,
   pinPreview,
   onConfirmPin,
@@ -244,7 +283,8 @@ function SheetBody({
   const distLabel = formatKm(distanceM);
   const radiusLabel = formatKm(maxRadiusM);
   const usesDeviceLocation = (locationSourceLabel || '').includes('current location');
-  const usesPinnedLocation = (locationSourceLabel || '').includes('pinned location');
+  const usesPinnedLocation =
+    locationSourceKind === 'pin' || (locationSourceLabel || '').includes('pinned location');
   const inZoneTitle = usesDeviceLocation
     ? 'We deliver to your area'
     : usesPinnedLocation
@@ -286,9 +326,10 @@ function SheetBody({
           height={280}
           showSearch
           centerPinMode
-          storeLocation={storeCoords}
-          showStoreMarker={false}
+          storeLocation={effectiveStoreLocation}
+          showStoreMarker
           deliveryRadiusM={mapDeliveryRadiusM}
+          fitDeliveryZone
         />
 
         <div
@@ -327,6 +368,11 @@ function SheetBody({
           {!pinPreview.loading && !pinPreview.error && pinPreview.serviceable == null && (
             <p className="mt-1 text-[13px] font-medium text-gray-600">
               Pan the map; we’ll check this spot automatically.
+            </p>
+          )}
+          {formatCoords(draftPin ?? initialMapPin) && (
+            <p className="mt-2 font-mono text-[11px] text-gray-500">
+              Pin: {formatCoords(draftPin ?? initialMapPin)}
             </p>
           )}
         </div>
@@ -382,6 +428,17 @@ function SheetBody({
           </svg>
         </button>
       </div>
+
+      {coords && (
+        <SavedCoordinatesCard
+          coords={coords}
+          label={
+            locationSourceKind === 'pin' || usesPinnedLocation
+              ? 'Pinned location'
+              : 'Checked location'
+          }
+        />
+      )}
 
       {isChecking && (
         <div className="mb-4">

@@ -70,6 +70,23 @@ function clearDeliveryCache() {
   }
 }
 
+/** @typedef {'gps' | 'pin' | 'address'} LocationSourceKind */
+
+function inferSourceKindFromCache(cached) {
+  if (!cached || typeof cached !== 'object') return 'gps';
+  if (cached.sourceKind === 'pin' || cached.sourceKind === 'address' || cached.sourceKind === 'gps') {
+    return cached.sourceKind;
+  }
+  if (cached.addressId != null && cached.addressId !== '') return 'address';
+  return 'gps';
+}
+
+function sourceKindToLabel(kind) {
+  if (kind === 'pin') return 'your pinned location';
+  if (kind === 'address') return 'your saved delivery address';
+  return 'your current location';
+}
+
 const LocationServiceContext = createContext(null);
 
 export function LocationServiceProvider({ children }) {
@@ -81,6 +98,9 @@ export function LocationServiceProvider({ children }) {
   const [distanceM, setDistanceM] = useState(null);
   const [maxRadiusM, setMaxRadiusM] = useState(null);
   const [coords, setCoords] = useState(null);
+  const [shopLocation, setShopLocation] = useState(null);
+  /** How the active delivery check coords were chosen. */
+  const [locationSourceKind, setLocationSourceKind] = useState('gps');
   const [geoDenied, setGeoDenied] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [showSheet, setShowSheet] = useState(false);
@@ -117,11 +137,15 @@ export function LocationServiceProvider({ children }) {
   }, []);
 
   const applyDeliveryResult = useCallback(
-    (data, point, shopId, linkedAddressId = null) => {
+    (data, point, shopId, linkedAddressId = null, sourceKind = 'gps') => {
       setCoords(point);
       setServiceable(data.serviceable);
       setDistanceM(data.distanceM);
       setMaxRadiusM(data.maxRadiusM);
+      setLocationSourceKind(sourceKind);
+      if (data.shopLocation?.lat != null && data.shopLocation?.lng != null) {
+        setShopLocation(data.shopLocation);
+      }
       setPhase('done');
       saveDeliveryCache({
         serviceable: data.serviceable,
@@ -129,7 +153,11 @@ export function LocationServiceProvider({ children }) {
         maxRadiusM: data.maxRadiusM,
         coords: { lat: point.lat, lng: point.lng },
         shopId,
+        sourceKind,
         savedAt: Date.now(),
+        ...(data.shopLocation?.lat != null && data.shopLocation?.lng != null
+          ? { shopLocation: data.shopLocation }
+          : {}),
         ...(linkedAddressId != null && linkedAddressId !== ''
           ? { addressId: String(linkedAddressId) }
           : {}),
@@ -153,7 +181,13 @@ export function LocationServiceProvider({ children }) {
       setGeoDenied(false);
       try {
         const data = await checkDeliveryLocation(lat, lng);
-        applyDeliveryResult(data, { lat, lng }, shopId, linkedAddressId);
+        applyDeliveryResult(
+          data,
+          { lat, lng },
+          shopId,
+          linkedAddressId,
+          linkedAddressId != null && linkedAddressId !== '' ? 'address' : 'gps'
+        );
       } catch (e) {
         const msg = e?.message || 'Could not verify delivery area.';
         setPhase('done');
@@ -255,6 +289,10 @@ export function LocationServiceProvider({ children }) {
         setDistanceM(cached.distanceM ?? null);
         setMaxRadiusM(cached.maxRadiusM ?? null);
         setCoords(addressCheckCoords);
+        if (cached.shopLocation?.lat != null && cached.shopLocation?.lng != null) {
+          setShopLocation(cached.shopLocation);
+        }
+        setLocationSourceKind('address');
         setPhase('done');
         setErrorMessage(null);
         setGeoDenied(false);
@@ -303,6 +341,10 @@ export function LocationServiceProvider({ children }) {
       setDistanceM(cached.distanceM ?? null);
       setMaxRadiusM(cached.maxRadiusM ?? null);
       setCoords(cached.coords ?? null);
+      if (cached.shopLocation?.lat != null && cached.shopLocation?.lng != null) {
+        setShopLocation(cached.shopLocation);
+      }
+      setLocationSourceKind(inferSourceKindFromCache(cached));
       setPhase('done');
       return;
     }
@@ -324,6 +366,9 @@ export function LocationServiceProvider({ children }) {
       setSheetServiceable(data.serviceable);
       setSheetDistanceM(data.distanceM);
       setSheetMaxRadiusM(data.maxRadiusM);
+      if (data.shopLocation?.lat != null && data.shopLocation?.lng != null) {
+        setShopLocation(data.shopLocation);
+      }
       setSheetPhase('done');
     } catch (e) {
       setSheetPhase('done');
@@ -432,10 +477,13 @@ export function LocationServiceProvider({ children }) {
 
       try {
         const data = await checkDeliveryLocation(la, ln);
-        applyDeliveryResult(data, { lat: la, lng: ln }, shopId);
+        applyDeliveryResult(data, { lat: la, lng: ln }, shopId, null, 'pin');
         setSheetServiceable(data.serviceable);
         setSheetDistanceM(data.distanceM);
         setSheetMaxRadiusM(data.maxRadiusM);
+        if (data.shopLocation?.lat != null && data.shopLocation?.lng != null) {
+          setShopLocation(data.shopLocation);
+        }
         setSheetPhase('done');
       } catch (e) {
         const msg = e?.message || 'Could not verify delivery area.';
@@ -464,6 +512,8 @@ export function LocationServiceProvider({ children }) {
     setDistanceM(null);
     setMaxRadiusM(null);
     setCoords(null);
+    setShopLocation(null);
+    setLocationSourceKind('gps');
     setPhase('idle');
   }, []);
 
@@ -480,10 +530,22 @@ export function LocationServiceProvider({ children }) {
   const displayErrorMessage = sheetActive ? sheetErrorMessage : errorMessage;
 
   const locationSourceLabel = sheetActive
-    ? sheetPin.label
-    : addressCheckCoords
-      ? 'your saved delivery address'
-      : 'your current location';
+    ? sheetPin?.label || sourceKindToLabel(locationSourceKind)
+    : sourceKindToLabel(
+        addressCheckCoords && locationSourceKind !== 'pin'
+          ? 'address'
+          : locationSourceKind
+      );
+
+  const displayCoords = useMemo(() => {
+    if (sheetActive && sheetPin?.lat != null && sheetPin?.lng != null) {
+      return { lat: sheetPin.lat, lng: sheetPin.lng };
+    }
+    if (coords?.lat != null && coords?.lng != null) {
+      return { lat: coords.lat, lng: coords.lng };
+    }
+    return null;
+  }, [sheetActive, sheetPin, coords]);
 
   const value = useMemo(
     () => ({
@@ -492,7 +554,9 @@ export function LocationServiceProvider({ children }) {
       serviceable: displayServiceable,
       distanceM: displayDistanceM,
       maxRadiusM: displayMaxRadiusM,
-      coords,
+      coords: displayCoords,
+      locationSourceKind,
+      shopLocation,
       geoDenied: displayGeoDenied,
       errorMessage: displayErrorMessage,
       locationSourceLabel,
@@ -515,7 +579,9 @@ export function LocationServiceProvider({ children }) {
       displayServiceable,
       displayDistanceM,
       displayMaxRadiusM,
-      coords,
+      displayCoords,
+      locationSourceKind,
+      shopLocation,
       displayGeoDenied,
       displayErrorMessage,
       locationSourceLabel,

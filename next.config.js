@@ -12,14 +12,15 @@ const baseConfig = {
   reactStrictMode: true,
   // Static export is opt-in (Cloudflare Pages). Default prod build allows GET DB API routes.
   output: useStaticExport ? 'export' : undefined,
-  // Clean URLs (`/cart`, `/product`, etc.) export as `/cart/index.html`, `/product/index.html`.
-  // Cloudflare Pages serves directory indexes; `public/_redirects` handles SPA deep links.
-  trailingSlash: true,
+  // Trailing slashes are for Cloudflare Pages static export (`/cart/index.html`).
+  // In `next dev` they make `/_next/static/chunks/*.js` (and layout.css) miss the
+  // webpack asset handler and 404 as App Router pages (compiles `/_not-found`).
+  trailingSlash: useStaticExport,
   skipTrailingSlashRedirect: true,
   // Dev: allow loading `/_next/static/*` when the site is opened via a tunnel hostname
   // (e.g. Cloudflare). Without this, chunks/CSS can 404/500 and the browser may throw
   // SyntaxError while parsing HTML or error bodies as JavaScript (often reported as layout.js).
-  allowedDevOrigins: ['cu.yaadro.online'],
+  allowedDevOrigins: ['cu.yaadro.online', 'cus.yaadro.online'],
   images: {
     // Allow images from any domain by bypassing Next.js image optimization
     // This allows all domains but images won't be optimized by Next.js

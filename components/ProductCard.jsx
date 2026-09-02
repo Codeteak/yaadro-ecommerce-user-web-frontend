@@ -11,6 +11,7 @@ import {
   getPrimaryBundleRule,
   resolveProductWeightAndUnit,
 } from '../utils/productUtils';
+import { buildAvailableSizes, resolveSelectedSize } from '../utils/productSizeSelection';
 import { tapFeedback } from '../utils/haptics';
 import PriceDisplay from './ui/PriceDisplay';
 import WeightLabel from './ui/WeightLabel';
@@ -47,15 +48,25 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   const imageSrc = productImages[currentImageIndex];
   
   // Get available sizes or use default weight/unit
-  const availableSizes = product.sizes || (product.weight && product.unit ? [{ weight: product.weight, unit: product.unit, price: product.price }] : []);
-  const [selectedSize, setSelectedSize] = useState(availableSizes[0] || null);
+  const availableSizes = useMemo(() => buildAvailableSizes(product), [product]);
+  const [selectedSize, setSelectedSize] = useState(() => availableSizes[0] || null);
+  /** Always read price from latest catalog row (selectedSize state can hold stale price). */
+  const activeSize = useMemo(
+    () => resolveSelectedSize(availableSizes, selectedSize),
+    [availableSizes, selectedSize]
+  );
+
+  useEffect(() => {
+    setSelectedSize((prev) => resolveSelectedSize(availableSizes, prev));
+  }, [availableSizes, product?.id, product?.price, product?.actualPriceMinor]);
+
   const [showSizeSelector, setShowSizeSelector] = useState(false);
   const [cartActionLoading, setCartActionLoading] = useState(false);
   /** Holds stepper visible until cart context catches up (API / size-key races on mobile). */
   const [pendingCartQty, setPendingCartQty] = useState(0);
 
   // List (MRP) per unit for selected size; effective = offer/sale when present (keeps paise).
-  const basePrice = parseFloat(selectedSize ? selectedSize.price : product.price) || 0;
+  const basePrice = parseFloat(activeSize ? activeSize.price : product.price) || 0;
   const currentPrice = getEffectivePrice(product, basePrice);
   const strikeList =
     currentPrice < basePrice - 1e-9
@@ -79,8 +90,8 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     return null;
   }, [strikeList, currentPrice, basePrice]);
   const productPack = useMemo(() => resolveProductWeightAndUnit(product), [product]);
-  const displayWeight = selectedSize
-    ? formatWeightUnitLabel(selectedSize.weight, selectedSize.unit)
+  const displayWeight = activeSize
+    ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
     : formatWeightUnitLabel(productPack.weight, productPack.unit);
 
   const bundleLabel = useMemo(() => {
@@ -93,16 +104,16 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       ...product,
       price: currentPrice,
       ...(displayListPrice != null ? { originalPrice: displayListPrice } : {}),
-      selectedSize,
+      selectedSize: activeSize,
       sizeDisplay: displayWeight,
     }),
-    [product, currentPrice, displayListPrice, selectedSize, displayWeight]
+    [product, currentPrice, displayListPrice, activeSize, displayWeight]
   );
 
   /** Cart line for this card’s product + selected size (matches CartContext keys). */
   const cartLine = useMemo(
-    () => findPaidCartLine(cartItems, product.id, selectedSize, product),
-    [cartItems, product.id, selectedSize, product]
+    () => findPaidCartLine(cartItems, product.id, activeSize, product),
+    [cartItems, product.id, activeSize, product]
   );
 
   const paidCartQty = cartLine?.quantity ?? 0;

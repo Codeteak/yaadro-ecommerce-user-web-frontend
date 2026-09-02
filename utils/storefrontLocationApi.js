@@ -25,6 +25,16 @@ export function parseLocationServiceable(data) {
   return false;
 }
 
+function parseShopLocation(data) {
+  if (!data || typeof data !== 'object') return null;
+  const loc = data.shopLocation ?? data.shop_location;
+  if (!loc || typeof loc !== 'object') return null;
+  const lat = Number(loc.lat);
+  const lng = Number(loc.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
 /**
  * @param {number} lat
  * @param {number} lng
