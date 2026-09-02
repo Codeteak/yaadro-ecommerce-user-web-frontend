@@ -32,6 +32,7 @@ export function parseLocationServiceable(data) {
  *   serviceable: boolean,
  *   distanceM: number | null,
  *   maxRadiusM: number | null,
+ *   shopLocation: { lat: number, lng: number } | null,
  *   apiPayload: object
  * }>}
  */
@@ -71,6 +72,7 @@ export async function checkDeliveryLocation(lat, lng) {
         : typeof data.max_radius_m === 'number'
           ? data.max_radius_m
           : null,
+    shopLocation: parseShopLocation(data),
     apiPayload: data && typeof data === 'object' ? data : {},
   };
 }

@@ -194,6 +194,7 @@ export default function Home() {
     isChecking: isLocationChecking,
     serviceable: isServiceable,
     recheckLocation,
+    openServiceAreaSheet,
   } = useLocationService();
   const { shopName, shopImage, bannerEnabled, bannerImages } = useShopBranding();
 
@@ -664,20 +665,32 @@ export default function Home() {
                     {shopName || 'Yaadro'}
                   </span>
                   {isLocationChecking ? (
-                    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-gray-500">
+                    <button
+                      type="button"
+                      onClick={() => openServiceAreaSheet()}
+                      className="inline-flex max-w-full items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-gray-500 hover:bg-gray-200 transition-colors"
+                    >
                       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400 animate-pulse" />
                       <span className="truncate">Checking…</span>
-                    </span>
+                    </button>
                   ) : isServiceable === true ? (
-                    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-violet-700">
+                    <button
+                      type="button"
+                      onClick={() => openServiceAreaSheet()}
+                      className="inline-flex max-w-full items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-violet-700 hover:bg-violet-200 transition-colors"
+                    >
                       <MapPin size={12} className="h-3 w-3 shrink-0" />
                       <span className="truncate">Available</span>
-                    </span>
+                    </button>
                   ) : (
-                    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-red-600">
+                    <button
+                      type="button"
+                      onClick={() => openServiceAreaSheet()}
+                      className="inline-flex max-w-full items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-red-600 hover:bg-red-200 transition-colors"
+                    >
                       <MapPin size={12} className="h-3 w-3 shrink-0" />
                       <span className="truncate">Not available</span>
-                    </span>
+                    </button>
                   )}
                 </div>
               </div>

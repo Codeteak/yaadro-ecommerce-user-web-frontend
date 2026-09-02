@@ -390,6 +390,73 @@ export function LocationServiceProvider({ children }) {
     runGpsCheck,
   ]);
 
+  /** Re-run delivery check using device GPS (clears manual pin / saved-address sheet mode). */
+  const useMyLocation = useCallback(() => {
+    setSheetPin(null);
+    setSheetPhase('idle');
+    setSheetServiceable(null);
+    setSheetDistanceM(null);
+    setSheetMaxRadiusM(null);
+    setSheetErrorMessage(null);
+    clearDeliveryCache();
+    gpsLocationCheckInitStarted = false;
+    if (addressCheckCoords) {
+      setPhase('fetching');
+      return runCheckAtLatLng(addressCheckCoords.lat, addressCheckCoords.lng, defaultAddress?.id ?? null);
+    }
+    return runGpsCheck();
+  }, [addressCheckCoords, defaultAddress?.id, runCheckAtLatLng, runGpsCheck]);
+
+  /** Check delivery at a user-pinned map location and persist the result. */
+  const confirmLocationAtPin = useCallback(
+    async (lat, lng) => {
+      const la = Number(lat);
+      const ln = Number(lng);
+      if (!Number.isFinite(la) || !Number.isFinite(ln)) return;
+
+      const shopId = await resolveShopId();
+      if (!shopId) {
+        setPhase('done');
+        setServiceable(null);
+        return;
+      }
+
+      const pin = { lat: la, lng: ln, label: 'your pinned location' };
+      setSheetPin(pin);
+      setSheetPhase('fetching');
+      setSheetErrorMessage(null);
+      setSheetServiceable(null);
+      setPhase('fetching');
+      setErrorMessage(null);
+      setGeoDenied(false);
+
+      try {
+        const data = await checkDeliveryLocation(la, ln);
+        applyDeliveryResult(data, { lat: la, lng: ln }, shopId);
+        setSheetServiceable(data.serviceable);
+        setSheetDistanceM(data.distanceM);
+        setSheetMaxRadiusM(data.maxRadiusM);
+        setSheetPhase('done');
+      } catch (e) {
+        const msg = e?.message || 'Could not verify delivery area.';
+        setPhase('done');
+        setServiceable(null);
+        setSheetPhase('done');
+        setSheetServiceable(null);
+        setSheetDistanceM(null);
+        setSheetMaxRadiusM(null);
+        if (e?.code === 'MISSING_SHOP_ID') {
+          setErrorMessage(null);
+          setSheetErrorMessage(null);
+        } else {
+          setErrorMessage(msg);
+          setSheetErrorMessage(msg);
+        }
+      }
+    },
+    [applyDeliveryResult]
+  );
+
   const clearCachedLocation = useCallback(() => {
     clearDeliveryCache();
     gpsLocationCheckInitStarted = false;
@@ -438,6 +505,8 @@ export function LocationServiceProvider({ children }) {
         else closeServiceAreaSheet();
       },
       recheckLocation,
+      useMyLocation,
+      confirmLocationAtPin,
       clearCachedLocation,
     }),
     [
@@ -455,6 +524,8 @@ export function LocationServiceProvider({ children }) {
       openServiceAreaSheet,
       closeServiceAreaSheet,
       recheckLocation,
+      useMyLocation,
+      confirmLocationAtPin,
       clearCachedLocation,
     ]
   );

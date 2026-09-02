@@ -14,7 +14,6 @@ import ProductImageWithFallback from '../../components/ProductImageWithFallback'
 import { useProducts } from '../../hooks/useProducts';
 import { placeStorefrontOrder } from '../../utils/storefrontCheckoutApi';
 import { getApiErrorCode, getCheckoutErrorMessage } from '../../utils/apiErrors';
-import { useCartQuery, cartKeys } from '../../hooks/useCart';
 import { couponKeys } from '../../hooks/useCoupons';
 import { addressKeys } from '../../hooks/useAddresses';
 import { checkDeliveryLocation } from '../../utils/storefrontLocationApi';
@@ -29,8 +28,7 @@ import CheckoutCouponsSection from '../../components/CheckoutCouponsSection';
 import { getCartLinePreviewImageSrc } from '../../utils/productImages';
 import { getCartLineVariantLabel } from '../../utils/productUtils';
 import { getCartBottomBarPricing } from '../../utils/cartSavings';
-import { formatInrFromMinor, minorToMajor } from '../../utils/currencyMinor';
-import { formatCartCouponPreviewMessage } from '../../utils/cartPromotions';
+import { isBundleRewardCartLine } from '../../utils/cartPromotions';
 import { normalizePhoneForApi } from '../../utils/otpVerifyPayload';
 import PhoneChangeOtpSheet from '../../components/PhoneChangeOtpSheet';
 import { useLocationService } from '../../context/LocationServiceContext';
@@ -475,61 +473,14 @@ export default function CheckoutPage() {
     openServiceAreaSheet();
   }, [openServiceAreaSheet, selectedAddressCoords, selectedAddressId]);
 
-  const { data: cartApiData, isFetching: cartPreviewFetching } = useCartQuery({
-    enabled: !!isAuthenticated,
-    couponCode: selectedCouponCode || undefined,
-  });
+  const cartSubtotalMinor = useMemo(
+    () => Math.round((Number(cartTotal) || 0) * 100),
+    [cartTotal]
+  );
 
-  const cartSubtotalMinor = useMemo(() => {
-    if (cartApiData?.subtotalBeforeCouponMinor != null) {
-      return cartApiData.subtotalBeforeCouponMinor;
-    }
-    return Math.round((Number(cartTotal) || 0) * 100);
-  }, [cartApiData?.subtotalBeforeCouponMinor, cartTotal]);
-
-  const displayCartTotal = useMemo(() => {
-    if (cartApiData?.total != null && Number.isFinite(Number(cartApiData.total))) {
-      return Number(cartApiData.total);
-    }
-    return Number(cartTotal) || 0;
-  }, [cartApiData?.total, cartTotal]);
-
-  const couponDiscountMajor = useMemo(() => {
-    if (cartApiData?.couponDiscountMinor > 0) {
-      return minorToMajor(cartApiData.couponDiscountMinor);
-    }
-    const preview = cartApiData?.promotions?.coupon;
-    if (preview?.status === 'applied' && preview.discountMinor > 0) {
-      return minorToMajor(preview.discountMinor);
-    }
-    return 0;
-  }, [cartApiData?.couponDiscountMinor, cartApiData?.promotions?.coupon]);
-
-  const promotionDiscountMajor = useMemo(() => {
-    if (cartApiData?.promotionDiscountMinor > 0) {
-      return minorToMajor(cartApiData.promotionDiscountMinor);
-    }
-    return null;
-  }, [cartApiData?.promotionDiscountMinor]);
-
-  useEffect(() => {
-    const preview = cartApiData?.promotions?.coupon;
-    if (!selectedCouponCode || !preview || cartPreviewFetching) return;
-    if (preview.status === 'not_applicable') {
-      setSelectedCouponCode('');
-      showAlert(
-        formatCartCouponPreviewMessage(preview) ||
-          'This coupon cannot be applied to your cart.',
-        'Coupon',
-        'warning'
-      );
-    }
-  }, [
-    cartApiData?.promotions?.coupon,
-    selectedCouponCode,
-    cartPreviewFetching,
-    showAlert,
-  ]);
+  const displayCartTotal = Number(cartTotal) || 0;
+  const couponDiscountMajor = 0;
+  const promotionDiscountMajor = null;
 
   // Pool of products for the "Similar products" carousel — same query as home → cached.
   const { data: similarPoolData } = useProducts({
@@ -636,7 +587,6 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!isAuthenticated) return undefined;
     const refresh = () => {
-      void queryClient.invalidateQueries({ queryKey: cartKeys.all });
       void queryClient.invalidateQueries({ queryKey: addressKeys.all });
     };
     const onVisibility = () => {
@@ -690,6 +640,12 @@ export default function CheckoutPage() {
         couponCode: selectedCouponCode.trim() || undefined,
         lat: selectedAddressCoords.lat,
         lng: selectedAddressCoords.lng,
+        items: cartItems
+          .filter((it) => !isBundleRewardCartLine(it))
+          .map((it) => ({
+            productId: String(it.productId ?? it.product?.id ?? it.id),
+            quantity: Number(it.quantity) || 1,
+          })),
       });
 
       if (!orderResponse?.orderId) throw new Error('Failed to create order');
@@ -743,7 +699,6 @@ export default function CheckoutPage() {
       }
       const code = getApiErrorCode(err) || err?.code;
       if (code === 'PRICE_CHANGED') {
-        await queryClient.invalidateQueries({ queryKey: cartKeys.all });
         await queryClient.invalidateQueries({ queryKey: couponKeys.all });
       }
       const couponCodes = new Set([
@@ -899,10 +854,10 @@ export default function CheckoutPage() {
             cartSubtotalMinor={cartSubtotalMinor}
             selectedCouponCode={selectedCouponCode}
             onSelectCouponCode={setSelectedCouponCode}
-            couponPreview={cartApiData?.promotions?.coupon}
-            suggestedCoupons={cartApiData?.promotions?.suggestedCoupons}
-            isPreviewLoading={cartPreviewFetching}
-            promotionsPaused={cartApiData?.promotions?.paused}
+            couponPreview={null}
+            suggestedCoupons={[]}
+            isPreviewLoading={false}
+            promotionsPaused={false}
           />
         </div>
 
