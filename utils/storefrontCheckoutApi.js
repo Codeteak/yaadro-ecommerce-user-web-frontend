@@ -27,6 +27,7 @@ function attachApiErrorCode(err) {
 export async function placeStorefrontOrder({
   notes,
   couponCode,
+  items,
   idempotencyKey,
   lat,
   lng,
@@ -55,6 +56,15 @@ export async function placeStorefrontOrder({
   if (notes) body.notes = notes;
   const trimmedCode = String(couponCode || '').trim();
   if (trimmedCode) body.couponCode = trimmedCode;
+  const checkoutItems = Array.isArray(items)
+    ? items
+        .map((it) => ({
+          productId: String(it?.productId ?? it?.product_id ?? ''),
+          quantity: Number(it?.quantity) || 1,
+        }))
+        .filter((it) => it.productId && it.quantity > 0)
+    : [];
+  if (checkoutItems.length) body.items = checkoutItems;
 
   const headers = {
     'x-shop-id': shopId,

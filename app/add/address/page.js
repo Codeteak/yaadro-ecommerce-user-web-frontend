@@ -125,7 +125,7 @@ export default function AddAddressPage() {
   const { user, refreshUser } = useAuth();
   const { ok, ready } = useRequireAuth();
   const { addresses = [], addAddress, updateAddress, isCreating, isUpdating } = useAddress();
-  const { maxRadiusM: locationMaxRadiusM } = useLocationService();
+  const { maxRadiusM: locationMaxRadiusM, shopLocation: contextShopLocation } = useLocationService();
 
   const editingAddress = useMemo(
     () => (editId ? addresses.find((a) => String(a.id) === String(editId)) : null),
@@ -388,6 +388,7 @@ export default function AddAddressPage() {
     serviceable: null,
     distanceM: null,
     maxRadiusM: null,
+    shopLocation: null,
     error: null,
   });
 
@@ -398,6 +399,7 @@ export default function AddAddressPage() {
         serviceable: null,
         distanceM: null,
         maxRadiusM: null,
+        shopLocation: null,
         error: null,
       });
       return;
@@ -413,6 +415,7 @@ export default function AddAddressPage() {
           serviceable: !!data.serviceable,
           distanceM: data.distanceM,
           maxRadiusM: data.maxRadiusM,
+          shopLocation: data.shopLocation ?? null,
           error: null,
         });
       } catch (e) {
@@ -422,6 +425,7 @@ export default function AddAddressPage() {
           serviceable: null,
           distanceM: null,
           maxRadiusM: null,
+          shopLocation: null,
           error: e?.message || 'Could not verify delivery',
         });
       }
@@ -438,6 +442,16 @@ export default function AddAddressPage() {
       ? locationMaxRadiusM
       : null) ??
     DELIVERY_RADIUS_FALLBACK_M;
+
+  const effectiveStoreLocation = useMemo(() => {
+    if (pinDeliveryCheck.shopLocation?.lat != null && pinDeliveryCheck.shopLocation?.lng != null) {
+      return pinDeliveryCheck.shopLocation;
+    }
+    if (contextShopLocation?.lat != null && contextShopLocation?.lng != null) {
+      return contextShopLocation;
+    }
+    return storeCoords;
+  }, [pinDeliveryCheck.shopLocation, contextShopLocation, storeCoords]);
 
   // ── On editing (with existing coords) → reverse geocode once for preview text ──
   useEffect(() => {
@@ -780,9 +794,10 @@ export default function AddAddressPage() {
               onChange={handleMapChange}
               onAddress={handleMapAddress}
               userLocation={userLocation}
-              storeLocation={storeCoords}
-              showStoreMarker={false}
+              storeLocation={effectiveStoreLocation}
+              showStoreMarker
               deliveryRadiusM={mapDeliveryRadiusM}
+              fitDeliveryZone
               focusRequest={mapFocusRequest}
             />
 
