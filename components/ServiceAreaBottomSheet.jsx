@@ -70,7 +70,7 @@ export default function ServiceAreaBottomSheet() {
     closeServiceAreaSheet,
     locationSourceLabel,
     locationSourceKind,
-    useMyLocation,
+    requestMyLocation,
     confirmLocationAtPin,
   } = useLocationService();
 
@@ -201,7 +201,7 @@ export default function ServiceAreaBottomSheet() {
     locationSourceLabel,
     locationSourceKind,
     coords,
-    useMyLocation,
+    requestMyLocation,
     mapMode,
     onOpenMapMode: openMapMode,
     onCloseMapMode: () => setMapMode(false),
@@ -268,7 +268,7 @@ function SheetBody({
   locationSourceLabel,
   locationSourceKind,
   coords,
-  useMyLocation,
+  requestMyLocation,
   mapMode,
   onOpenMapMode,
   onCloseMapMode,
@@ -391,7 +391,7 @@ function SheetBody({
             type="button"
             onClick={() => {
               onCloseMapMode();
-              useMyLocation();
+              requestMyLocation();
             }}
             className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-800 hover:bg-gray-50"
           >
@@ -507,7 +507,7 @@ function SheetBody({
         <div className="flex flex-col gap-2">
           <button
             type="button"
-            onClick={() => useMyLocation()}
+            onClick={() => requestMyLocation()}
             disabled={isChecking}
             className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-60"
           >

@@ -436,7 +436,7 @@ export function LocationServiceProvider({ children }) {
   ]);
 
   /** Re-run delivery check using device GPS (clears manual pin / saved-address sheet mode). */
-  const useMyLocation = useCallback(() => {
+  const requestMyLocation = useCallback(() => {
     setSheetPin(null);
     setSheetPhase('idle');
     setSheetServiceable(null);
@@ -569,7 +569,7 @@ export function LocationServiceProvider({ children }) {
         else closeServiceAreaSheet();
       },
       recheckLocation,
-      useMyLocation,
+      requestMyLocation,
       confirmLocationAtPin,
       clearCachedLocation,
     }),
@@ -590,7 +590,7 @@ export function LocationServiceProvider({ children }) {
       openServiceAreaSheet,
       closeServiceAreaSheet,
       recheckLocation,
-      useMyLocation,
+      requestMyLocation,
       confirmLocationAtPin,
       clearCachedLocation,
     ]
