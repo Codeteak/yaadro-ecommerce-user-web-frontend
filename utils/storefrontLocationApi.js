@@ -25,6 +25,16 @@ export function parseLocationServiceable(data) {
   return false;
 }
 
+function parseShopLocation(data) {
+  if (!data || typeof data !== 'object') return null;
+  const loc = data.shopLocation ?? data.shop_location;
+  if (!loc || typeof loc !== 'object') return null;
+  const lat = Number(loc.lat);
+  const lng = Number(loc.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
 /**
  * @param {number} lat
  * @param {number} lng
@@ -32,6 +42,7 @@ export function parseLocationServiceable(data) {
  *   serviceable: boolean,
  *   distanceM: number | null,
  *   maxRadiusM: number | null,
+ *   shopLocation: { lat: number, lng: number } | null,
  *   apiPayload: object
  * }>}
  */
@@ -71,6 +82,7 @@ export async function checkDeliveryLocation(lat, lng) {
         : typeof data.max_radius_m === 'number'
           ? data.max_radius_m
           : null,
+    shopLocation: parseShopLocation(data),
     apiPayload: data && typeof data === 'object' ? data : {},
   };
 }

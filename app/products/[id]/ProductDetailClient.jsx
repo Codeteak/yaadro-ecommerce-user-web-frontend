@@ -24,6 +24,7 @@ import {
   resolveProductWeightAndUnit,
   stripPackFromProductName,
 } from '../../../utils/productUtils';
+import { buildAvailableSizes, resolveSelectedSize } from '../../../utils/productSizeSelection';
 import Container from '../../../components/Container';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
 import Link from 'next/link';
@@ -213,21 +214,25 @@ export default function ProductDetailClient({ productId = null }) {
   /** CSS `bottom` (px) so the cart pill sits above the PDP bar, from the bar's top edge + gap. */
   const [cartPillStackBottomPx, setCartPillStackBottomPx] = useState(120);
 
-  const availableSizes =
-    product?.sizes ||
-    (product?.weight && product?.unit
-      ? [{ weight: product.weight, unit: product.unit, price: parseFloat(product.price) }]
-      : []);
-  const [selectedSize, setSelectedSize] = useState(availableSizes[0] || null);
+  const availableSizes = useMemo(() => buildAvailableSizes(product), [product]);
+  const [selectedSize, setSelectedSize] = useState(() => availableSizes[0] || null);
+  const activeSize = useMemo(
+    () => resolveSelectedSize(availableSizes, selectedSize),
+    [availableSizes, selectedSize]
+  );
 
-  const listUnit = selectedSize
-    ? parseFloat(selectedSize.price)
+  useEffect(() => {
+    setSelectedSize((prev) => resolveSelectedSize(availableSizes, prev));
+  }, [availableSizes, product?.id, product?.price, product?.actualPriceMinor]);
+
+  const listUnit = activeSize
+    ? parseFloat(activeSize.price)
     : product
     ? parseFloat(product.price)
     : 0;
   const resolvedPack = product ? resolveProductWeightAndUnit(product) : { weight: null, unit: '' };
-  const displayWeight = selectedSize
-    ? formatWeightUnitLabel(selectedSize.weight, selectedSize.unit)
+  const displayWeight = activeSize
+    ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
     : formatWeightUnitLabel(resolvedPack.weight, resolvedPack.unit);
 
   const descriptionText =
@@ -352,16 +357,16 @@ export default function ProductDetailClient({ productId = null }) {
             ...product,
             price: effectivePrice,
             ...(mrpDisplay != null ? { originalPrice: mrpDisplay } : {}),
-            selectedSize,
+            selectedSize: activeSize,
             sizeDisplay: displayWeight,
           }
         : null,
-    [product, effectivePrice, mrpDisplay, selectedSize, displayWeight]
+    [product, effectivePrice, mrpDisplay, activeSize, displayWeight]
   );
 
   const cartLine = useMemo(
-    () => (product ? findPaidCartLine(cartItems, product.id, selectedSize, product) : null),
-    [cartItems, product, selectedSize]
+    () => (product ? findPaidCartLine(cartItems, product.id, activeSize, product) : null),
+    [cartItems, product, activeSize]
   );
 
   const paidCartQty = cartLine?.quantity ?? 0;

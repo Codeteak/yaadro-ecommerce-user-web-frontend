@@ -77,6 +77,8 @@ export default function AddressMapPicker({
   showStoreMarker = true,
   /** Delivery radius in metres, centred on `storeLocation` (e.g. API `maxRadiusM`). */
   deliveryRadiusM = null,
+  /** When true with `centerPinMode`, fit the map to the delivery circle once on load. */
+  fitDeliveryZone = false,
   focusRequest = null,
 }) {
   const { isLoaded, loadError } = useJsApiLoader({
@@ -117,6 +119,7 @@ export default function AddressMapPicker({
   const lastCenterEmitKeyRef = useRef('');
   const lastReverseResolvedKeyRef = useRef('');
   const reverseReqIdRef = useRef(0);
+  const deliveryZoneFittedRef = useRef('');
 
   const iconScale = useMemo(() => scaleForZoom(liveZoom), [liveZoom]);
   const pinW = Math.round(PIN_BASE_W * iconScale);
@@ -325,6 +328,48 @@ export default function AddressMapPicker({
       }
     };
   }, [mapInstance, isLoaded, storeLocation?.lat, storeLocation?.lng, deliveryRadiusM]);
+
+  // Fit map to the delivery circle so the shop hub + radius are visible (e.g. bottom sheet).
+  useEffect(() => {
+    if (
+      !fitDeliveryZone ||
+      !centerPinMode ||
+      !mapInstance ||
+      !isLoaded ||
+      typeof window === 'undefined' ||
+      !window.google?.maps
+    ) {
+      return undefined;
+    }
+    const lat = Number(storeLocation?.lat);
+    const lng = Number(storeLocation?.lng);
+    const r = Number(deliveryRadiusM);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(r) || r <= 0) {
+      return undefined;
+    }
+
+    const fitKey = `${lat.toFixed(5)},${lng.toFixed(5)},${Math.round(r)}`;
+    if (deliveryZoneFittedRef.current === fitKey) return undefined;
+
+    const latDelta = r / 111_320;
+    const lngDelta = r / (111_320 * Math.cos((lat * Math.PI) / 180));
+    const bounds = new window.google.maps.LatLngBounds(
+      { lat: lat - latDelta, lng: lng - lngDelta },
+      { lat: lat + latDelta, lng: lng + lngDelta }
+    );
+    mapInstance.fitBounds(bounds, { top: 56, bottom: 56, left: 32, right: 32 });
+    deliveryZoneFittedRef.current = fitKey;
+
+    return undefined;
+  }, [
+    fitDeliveryZone,
+    centerPinMode,
+    mapInstance,
+    isLoaded,
+    storeLocation?.lat,
+    storeLocation?.lng,
+    deliveryRadiusM,
+  ]);
 
   const handleIdle = useCallback(() => {
     const map = mapRef.current;

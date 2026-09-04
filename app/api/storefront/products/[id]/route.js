@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { isDatabaseConfigured } from '../../../../../lib/db';
 import { getProductFromDb } from '../../../../../lib/storefrontDbCatalog';
 import { proxyUpstreamGet } from '../../../../../lib/proxyUpstreamApi';
+import { shouldUseUpstreamStorefrontCatalog } from '../../../../../lib/storefrontCatalogRouteSource';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -19,7 +19,7 @@ export async function GET(request, { params }) {
     );
   }
 
-  if (!isDatabaseConfigured()) {
+  if (shouldUseUpstreamStorefrontCatalog()) {
     return proxyUpstreamGet(
       request,
       `/api/storefront/products/${encodeURIComponent(id)}`
