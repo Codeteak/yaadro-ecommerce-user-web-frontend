@@ -40,3 +40,15 @@ export function clearCheckoutDraft() {
     /* ignore */
   }
 }
+
+export function normalizeCouponCode(code) {
+  return String(code || '').trim().toUpperCase();
+}
+
+export function readSelectedCouponCode() {
+  return normalizeCouponCode(readCheckoutDraft()?.couponCode);
+}
+
+export function writeSelectedCouponCode(code) {
+  writeCheckoutDraft({ couponCode: normalizeCouponCode(code) });
+}

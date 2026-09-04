@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { useInfiniteOrdersList } from '../../hooks/useOrders';
+import { useInfiniteOrdersList, orderKeys } from '../../hooks/useOrders';
 import { useProducts } from '../../hooks/useProducts';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -40,6 +40,25 @@ export default function OrdersPage() {
   const [reorderLoadingId, setReorderLoadingId] = useState(null);
   const reorderLoadingIdRef = useRef(null);
   reorderLoadingIdRef.current = reorderLoadingId;
+
+  useEffect(() => {
+    if (!ok) return undefined;
+    const refresh = () => {
+      void queryClient.invalidateQueries({ queryKey: orderKeys.all });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    const onPageShow = (event) => {
+      if (event.persisted) refresh();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pageshow', onPageShow);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pageshow', onPageShow);
+    };
+  }, [ok, queryClient]);
 
   const orders = useMemo(
     () => (ordersInfinite?.pages || []).flatMap((p) => p?.orders || []),

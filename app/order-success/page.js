@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useOrder } from '../../context/OrderContext';
+import { useOrderDetail } from '../../hooks/useOrders';
 import { clearCheckoutDraft } from '../../utils/checkoutSession';
 
 /* ─────────────────────────────────────────────────────────────
@@ -70,12 +71,36 @@ function CheckIcon({ rejected }) {
   );
 }
 
-function OrderCard({ order, orderId, paymentStatus }) {
+function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
   const items   = order?.items || [];
   const addr    = order?.deliveryAddress || order?.address || {};
-  const method  = order?.paymentMethod || 'UPI';
-  const slot    = order?.deliverySlot || 'Today, 6–8 PM';
-  const area    = addr.area || addr.city || 'Your address';
+  const rawMethod = order?.paymentMethod || paymentStatus;
+  const method =
+    rawMethod === 'cod' || paymentStatus === 'cod'
+      ? 'Cash on delivery'
+      : rawMethod && rawMethod !== 'success'
+        ? rawMethod
+        : '—';
+  const slot    = order?.deliverySlot || '—';
+  const area    = addr.area || addr.city || addr.line1 || 'Your address';
+
+  if (isLoading && !order) {
+    return (
+      <div style={styles.orderCard}>
+        <div style={{ padding: '16px 14px', fontSize: 13, color: '#6b7280' }}>Loading order details…</div>
+      </div>
+    );
+  }
+
+  if (isError && !order) {
+    return (
+      <div style={styles.orderCard}>
+        <div style={{ padding: '16px 14px', fontSize: 13, color: '#6b7280' }}>
+          Could not load this order. Open order details to try again.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.orderCard}>
@@ -162,7 +187,7 @@ function OrderCard({ order, orderId, paymentStatus }) {
         )}
         {order?.discount != null && Number(order.discount) > 0 && (
           <div style={{ ...styles.totalLine, color: '#7d24d6' }}>
-            <span>Discount</span>
+            <span>{order.couponCode ? `Coupon (${order.couponCode})` : 'Discount'}</span>
             <span>−{money(order.discount)}</span>
           </div>
         )}
@@ -304,9 +329,11 @@ function OrderSuccessContent() {
     clearCheckoutDraft();
   }, []);
 
-  const orderId       = searchParams?.get('orderId') || 'ORD-PENDING';
+  const rawOrderId    = searchParams?.get('orderId') || '';
+  const orderId       = rawOrderId && rawOrderId !== 'ORD-PENDING' ? rawOrderId : '';
   const paymentStatus = searchParams?.get('payment');
-  const order         = getOrderById(orderId);
+  const { data: apiOrder, isLoading: orderLoading, isError: orderError } = useOrderDetail(orderId);
+  const order         = apiOrder || getOrderById(orderId);
 
   const [countdown, setCountdown] = useState(10);
 
@@ -417,11 +444,17 @@ function OrderSuccessContent() {
           </div>
 
           {/* Order card */}
-          <OrderCard order={order} orderId={orderId} paymentStatus={paymentStatus} />
+          <OrderCard
+            order={order}
+            orderId={orderId || rawOrderId}
+            paymentStatus={paymentStatus}
+            isLoading={orderLoading}
+            isError={orderError}
+          />
 
           {/* Actions */}
           <div style={styles.actions}>
-            <Link href={`/order?id=${encodeURIComponent(orderId)}`} style={styles.btnPrimary}>
+            <Link href={orderId ? `/order?id=${encodeURIComponent(orderId)}` : '/orders'} style={styles.btnPrimary}>
               <ArrowIcon />
               {isRejected ? 'View order & retry payment' : 'Track my order'}
             </Link>
@@ -437,7 +470,7 @@ function OrderSuccessContent() {
           </div>
 
           {/* Countdown */}
-          {isSuccess && countdown > 0 && (
+          {isSuccess && countdown > 0 && orderId && (
             <p style={styles.countdown}>
               Opening order details in&nbsp;
               <span style={styles.countdownBadge}>{countdown}</span>s

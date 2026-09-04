@@ -26,15 +26,15 @@ export const EMPTY_CART_QUERY = {
   subtotalMinor: 0,
 };
 
-function syncCartFromMutation(queryClient, cartData) {
+function syncCartFromMutation(queryClient, cartData, couponCode) {
   if (!cartData || !Array.isArray(cartData.items)) return;
-  queryClient.setQueryData(cartKeys.cart(), cartData);
-  // Refresh coupon-preview cart queries only — avoid racing GET /cart over mutation payload.
+  const normalized = couponCode ? String(couponCode).trim().toUpperCase() : '';
+  queryClient.setQueryData(cartKeys.cart(normalized || undefined), cartData);
   queryClient.invalidateQueries({
     queryKey: cartKeys.all,
     predicate: (query) => {
       const code = query.queryKey?.[1];
-      return typeof code === 'string' && code.length > 0;
+      return typeof code === 'string' && code !== normalized;
     },
   });
   queryClient.invalidateQueries({ queryKey: couponKeys.all });
@@ -71,11 +71,12 @@ export function useAddToCart() {
       const options = couponCode ? { couponCode } : {};
       return apiAddToCart(productId, amount, options);
     },
-    onMutate: async ({ productId, quantity, delta }) => {
-      await queryClient.cancelQueries({ queryKey: cartKeys.cart() });
-      const previous = queryClient.getQueryData(cartKeys.cart());
+    onMutate: async ({ productId, quantity, delta, couponCode }) => {
+      const key = cartKeys.cart(couponCode || undefined);
+      await queryClient.cancelQueries({ queryKey: cartKeys.all });
+      const previous = queryClient.getQueryData(key);
       const amount = delta ?? quantity ?? 1;
-      queryClient.setQueryData(cartKeys.cart(), (old) => {
+      queryClient.setQueryData(key, (old) => {
         if (!old || !Array.isArray(old.items)) return old;
         const existingIdx = old.items.findIndex(
           (item) => String(item?.productId ?? item?.product_id ?? '') === String(productId)
@@ -92,13 +93,13 @@ export function useAddToCart() {
       });
       return { previous };
     },
-    onSuccess: (cartData) => {
-      syncCartFromMutation(queryClient, cartData);
+    onSuccess: (cartData, variables) => {
+      syncCartFromMutation(queryClient, cartData, variables?.couponCode);
       showToast('Added to cart', 'success');
     },
-    onError: (error, _variables, context) => {
+    onError: (error, variables, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(cartKeys.cart(), context.previous);
+        queryClient.setQueryData(cartKeys.cart(variables?.couponCode || undefined), context.previous);
       }
       showToast(error?.message || 'Could not add item. Please try again.', 'error');
     },
@@ -121,7 +122,8 @@ export function useUpdateCartItem() {
       }
       return updateCartItem(itemId, quantity, opts);
     },
-    onSuccess: (cartData) => syncCartFromMutation(queryClient, cartData),
+    onSuccess: (cartData, variables) =>
+      syncCartFromMutation(queryClient, cartData, variables?.couponCode),
     onError: (error) => {
       showToast(error?.message || 'Could not update cart. Please try again.', 'error');
     },
@@ -142,7 +144,11 @@ export function useRemoveFromCart() {
       }
       return apiRemoveFromCart(itemId, options);
     },
-    onSuccess: (cartData) => syncCartFromMutation(queryClient, cartData),
+    onSuccess: (cartData, variables) => {
+      const code =
+        typeof variables === 'object' && variables != null ? variables.couponCode : undefined;
+      syncCartFromMutation(queryClient, cartData, code);
+    },
     onError: (error) => {
       showToast(error?.message || 'Could not remove item. Please try again.', 'error');
     },

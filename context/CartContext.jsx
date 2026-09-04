@@ -17,6 +17,10 @@ import {
   persistCartLinesImmediate,
   sortCartItemsForDisplay,
 } from '../utils/cartLinePersist';
+import {
+  readSelectedCouponCode,
+  writeSelectedCouponCode,
+} from '../utils/checkoutSession';
 
 function buildGuestDisplayCartItems(localLines) {
   const withBundle = applyGuestCartBundleQuantities(stripPaidCartLinesOnly(localLines));
@@ -61,6 +65,8 @@ export function CartProvider({ children }) {
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [savedCarts, setSavedCarts] = useState([]);
   const [cartTemplates, setCartTemplates] = useState([]);
+  const [selectedCouponCode, setSelectedCouponCodeState] = useState('');
+  const selectedCouponCodeRef = useRef('');
 
   const { showAlert } = useAlert();
   const { showToast } = useToast();
@@ -70,6 +76,17 @@ export function CartProvider({ children }) {
   useEffect(() => {
     localCartItemsRef.current = localCartItems;
   }, [localCartItems]);
+
+  useEffect(() => {
+    selectedCouponCodeRef.current = selectedCouponCode;
+  }, [selectedCouponCode]);
+
+  const setSelectedCouponCode = (code) => {
+    const next = String(code || '').trim().toUpperCase();
+    selectedCouponCodeRef.current = next;
+    setSelectedCouponCodeState(next);
+    writeSelectedCouponCode(next);
+  };
 
   useLayoutEffect(() => {
     setIsClient(true);
@@ -106,6 +123,11 @@ export function CartProvider({ children }) {
     }
 
     setHasHydratedLocalCart(true);
+    const savedCoupon = readSelectedCouponCode();
+    if (savedCoupon) {
+      selectedCouponCodeRef.current = savedCoupon;
+      setSelectedCouponCodeState(savedCoupon);
+    }
   }, []);
 
   const cartItems = useMemo(
@@ -213,6 +235,9 @@ export function CartProvider({ children }) {
   const clearCart = async () => {
     setLocalCartItems([]);
     localCartItemsRef.current = [];
+    selectedCouponCodeRef.current = '';
+    setSelectedCouponCodeState('');
+    writeSelectedCouponCode('');
     if (isClient && typeof window !== 'undefined') {
       localStorage.removeItem(shopCartStorageKey());
       localStorage.removeItem(API_CART_CACHE_STORAGE_KEY);
@@ -376,6 +401,9 @@ export function CartProvider({ children }) {
     loading: false,
     cartQueryFetching: false,
     hasHydratedLocalCart,
+    selectedCouponCode,
+    setSelectedCouponCode,
+    cartData: undefined,
     /** Always true — cart UI reads from localStorage (layout) + query merge; no full-page cart gate. */
     isCartReady: true,
   };

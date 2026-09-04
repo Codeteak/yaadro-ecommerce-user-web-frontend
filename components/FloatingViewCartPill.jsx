@@ -69,6 +69,11 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
       baselineCapturedRef.current = false;
       prevSavingsRef.current = 0;
       prevCartCountRef.current = 0;
+      if (celebrationClearRef.current) {
+        clearTimeout(celebrationClearRef.current);
+        celebrationClearRef.current = null;
+      }
+      setCelebrationBurst(0);
       return;
     }
 

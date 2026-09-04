@@ -416,7 +416,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const { cartItems, cartTotal, clearCart, removeFromCart } = useCart();
+  const { cartItems, cartTotal, clearCart, removeFromCart, selectedCouponCode, setSelectedCouponCode, hasHydratedLocalCart, loading: cartQueryLoading } = useCart();
   const {
     addresses,
     getDefaultAddress,
@@ -435,7 +435,6 @@ export default function CheckoutPage() {
   const [phoneOverride, setPhoneOverride] = useState('');
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [showPriceVaryConfirm, setShowPriceVaryConfirm] = useState(false);
-  const [selectedCouponCode, setSelectedCouponCode] = useState('');
   const [checkoutDraftHydrated, setCheckoutDraftHydrated] = useState(false);
 
   const selectedAddress = useMemo(() => {
@@ -540,7 +539,6 @@ export default function CheckoutPage() {
     if (checkoutDraftHydrated) return;
     const draft = readCheckoutDraft();
     if (draft?.notes != null) setNotes(String(draft.notes));
-    if (draft?.couponCode != null) setSelectedCouponCode(String(draft.couponCode));
     if (draft?.selectedAddressId != null) {
       setSelectedAddressId(draft.selectedAddressId);
     }
@@ -637,7 +635,7 @@ export default function CheckoutPage() {
       }
       const orderResponse = await placeStorefrontOrder({
         notes: notes.trim() || undefined,
-        couponCode: selectedCouponCode.trim() || undefined,
+        couponCode: (selectedCouponCode || '').trim() || undefined,
         lat: selectedAddressCoords.lat,
         lng: selectedAddressCoords.lng,
         items: cartItems
@@ -776,6 +774,10 @@ export default function CheckoutPage() {
     return <CheckoutPageState title="Placing your order…" subtitle="Please wait, do not close this page." />;
   }
 
+  if (!hasHydratedLocalCart || (cartItems.length === 0 && cartQueryLoading)) {
+    return <CheckoutPageSkeleton />;
+  }
+
   if (cartItems.length === 0) {
     return <EmptyCheckout />;
   }
@@ -858,6 +860,7 @@ export default function CheckoutPage() {
             suggestedCoupons={[]}
             isPreviewLoading={false}
             promotionsPaused={false}
+            enabled={!!isAuthenticated && cartItems.length > 0}
           />
         </div>
 
