@@ -93,13 +93,14 @@ export default function CheckoutCouponsSection({
   suggestedCoupons = [],
   isPreviewLoading = false,
   promotionsPaused: promotionsPausedFromCart = false,
+  enabled = true,
 }) {
   const [codeInput, setCodeInput] = useState(selectedCouponCode || '');
   const [lookupCode, setLookupCode] = useState(null);
   const [codeLookupError, setCodeLookupError] = useState('');
 
   const { data, isLoading, isFetching, error } = useStorefrontCoupons(cartSubtotalMinor, {
-    enabled: cartSubtotalMinor != null,
+    enabled: enabled && cartSubtotalMinor != null,
     code: lookupCode || undefined,
   });
 

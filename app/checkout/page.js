@@ -14,7 +14,7 @@ import ProductImageWithFallback from '../../components/ProductImageWithFallback'
 import { useProducts } from '../../hooks/useProducts';
 import { placeStorefrontOrder } from '../../utils/storefrontCheckoutApi';
 import { getApiErrorCode, getCheckoutErrorMessage } from '../../utils/apiErrors';
-import { useCartQuery, cartKeys } from '../../hooks/useCart';
+import { cartKeys } from '../../hooks/useCart';
 import { couponKeys } from '../../hooks/useCoupons';
 import { addressKeys } from '../../hooks/useAddresses';
 import { checkDeliveryLocation } from '../../utils/storefrontLocationApi';
@@ -30,7 +30,6 @@ import { getCartLinePreviewImageSrc } from '../../utils/productImages';
 import { getCartLineVariantLabel } from '../../utils/productUtils';
 import { getCartBottomBarPricing } from '../../utils/cartSavings';
 import { formatInrFromMinor, minorToMajor } from '../../utils/currencyMinor';
-import { formatCartCouponPreviewMessage } from '../../utils/cartPromotions';
 import { normalizePhoneForApi } from '../../utils/otpVerifyPayload';
 import PhoneChangeOtpSheet from '../../components/PhoneChangeOtpSheet';
 import { useLocationService } from '../../context/LocationServiceContext';
@@ -418,7 +417,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const { cartItems, cartTotal, clearCart, removeFromCart } = useCart();
+  const { cartItems, cartTotal, clearCart, removeFromCart, selectedCouponCode, setSelectedCouponCode, cartData: cartApiData, cartQueryFetching: cartPreviewFetching, hasHydratedLocalCart, loading: cartQueryLoading } = useCart();
   const {
     addresses,
     getDefaultAddress,
@@ -437,7 +436,6 @@ export default function CheckoutPage() {
   const [phoneOverride, setPhoneOverride] = useState('');
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [showPriceVaryConfirm, setShowPriceVaryConfirm] = useState(false);
-  const [selectedCouponCode, setSelectedCouponCode] = useState('');
   const [checkoutDraftHydrated, setCheckoutDraftHydrated] = useState(false);
 
   const selectedAddress = useMemo(() => {
@@ -475,11 +473,6 @@ export default function CheckoutPage() {
     openServiceAreaSheet();
   }, [openServiceAreaSheet, selectedAddressCoords, selectedAddressId]);
 
-  const { data: cartApiData, isFetching: cartPreviewFetching } = useCartQuery({
-    enabled: !!isAuthenticated,
-    couponCode: selectedCouponCode || undefined,
-  });
-
   const cartSubtotalMinor = useMemo(() => {
     if (cartApiData?.subtotalBeforeCouponMinor != null) {
       return cartApiData.subtotalBeforeCouponMinor;
@@ -511,25 +504,6 @@ export default function CheckoutPage() {
     }
     return null;
   }, [cartApiData?.promotionDiscountMinor]);
-
-  useEffect(() => {
-    const preview = cartApiData?.promotions?.coupon;
-    if (!selectedCouponCode || !preview || cartPreviewFetching) return;
-    if (preview.status === 'not_applicable') {
-      setSelectedCouponCode('');
-      showAlert(
-        formatCartCouponPreviewMessage(preview) ||
-          'This coupon cannot be applied to your cart.',
-        'Coupon',
-        'warning'
-      );
-    }
-  }, [
-    cartApiData?.promotions?.coupon,
-    selectedCouponCode,
-    cartPreviewFetching,
-    showAlert,
-  ]);
 
   // Pool of products for the "Similar products" carousel — same query as home → cached.
   const { data: similarPoolData } = useProducts({
@@ -589,7 +563,6 @@ export default function CheckoutPage() {
     if (checkoutDraftHydrated) return;
     const draft = readCheckoutDraft();
     if (draft?.notes != null) setNotes(String(draft.notes));
-    if (draft?.couponCode != null) setSelectedCouponCode(String(draft.couponCode));
     if (draft?.selectedAddressId != null) {
       setSelectedAddressId(draft.selectedAddressId);
     }
@@ -821,6 +794,10 @@ export default function CheckoutPage() {
     return <CheckoutPageState title="Placing your order…" subtitle="Please wait, do not close this page." />;
   }
 
+  if (!hasHydratedLocalCart || (cartItems.length === 0 && cartQueryLoading)) {
+    return <CheckoutPageSkeleton />;
+  }
+
   if (cartItems.length === 0) {
     return <EmptyCheckout />;
   }
@@ -903,6 +880,7 @@ export default function CheckoutPage() {
             suggestedCoupons={cartApiData?.promotions?.suggestedCoupons}
             isPreviewLoading={cartPreviewFetching}
             promotionsPaused={cartApiData?.promotions?.paused}
+            enabled={!!isAuthenticated && cartItems.length > 0}
           />
         </div>
 

@@ -15,6 +15,7 @@ import {
   bundleRewardMatchesParent,
   stripPaidCartLinesOnly,
   sumCartDisplayUnits,
+  formatCartCouponPreviewMessage,
 } from '../utils/cartPromotions';
 import {
   addOrMergeCartLine,
@@ -27,6 +28,10 @@ import {
   sortCartItemsForDisplay,
   syncPaidCartCacheLines,
 } from '../utils/cartLinePersist';
+import {
+  readSelectedCouponCode,
+  writeSelectedCouponCode,
+} from '../utils/checkoutSession';
 
 function buildDisplayCartItems(serverLines, localLines) {
   const merged =
@@ -55,6 +60,8 @@ export function CartProvider({ children }) {
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [savedCarts, setSavedCarts] = useState([]);
   const [cartTemplates, setCartTemplates] = useState([]);
+  const [selectedCouponCode, setSelectedCouponCodeState] = useState('');
+  const selectedCouponCodeRef = useRef('');
   
   // Get auth context (now CartProvider is inside AuthProvider in layout)
   const { isAuthenticated, token } = useAuth();
@@ -66,12 +73,14 @@ export function CartProvider({ children }) {
   const syncedLocalToApiRef = useRef(false);
   const wasAuthenticatedRef = useRef(false);
 
+  const apiCouponCode = useApiCart ? selectedCouponCode || undefined : undefined;
+
   // Load cart using TanStack Query (disabled for now)
   const {
     data: cartData,
     isLoading: loading,
     isFetching: cartQueryFetching,
-  } = useCartQuery({ enabled: useApiCart });
+  } = useCartQuery({ enabled: useApiCart, couponCode: apiCouponCode });
   const apiCartItems = useApiCart ? (cartData?.items || []) : [];
 
   /**
@@ -109,6 +118,41 @@ export function CartProvider({ children }) {
   useEffect(() => {
     localCartItemsRef.current = localCartItems;
   }, [localCartItems]);
+
+  useEffect(() => {
+    selectedCouponCodeRef.current = selectedCouponCode;
+  }, [selectedCouponCode]);
+
+  const setSelectedCouponCode = (code) => {
+    const next = String(code || '').trim().toUpperCase();
+    selectedCouponCodeRef.current = next;
+    setSelectedCouponCodeState(next);
+    writeSelectedCouponCode(next);
+  };
+
+  const mutationCoupon = () =>
+    useApiCart ? selectedCouponCodeRef.current || undefined : undefined;
+
+  useEffect(() => {
+    if (!useApiCart || !selectedCouponCode || cartQueryFetching) return;
+    const preview = cartData?.promotions?.coupon;
+    if (preview?.status !== 'not_applicable') return;
+    const previewCode = String(preview.code || '').toUpperCase();
+    if (previewCode && previewCode !== selectedCouponCode) return;
+    setSelectedCouponCode('');
+    showAlert(
+      formatCartCouponPreviewMessage(preview) ||
+        'This coupon cannot be applied to your cart.',
+      'Coupon',
+      'warning'
+    );
+  }, [
+    useApiCart,
+    selectedCouponCode,
+    cartQueryFetching,
+    cartData?.promotions?.coupon,
+    showAlert,
+  ]);
 
   // Hydrate cart + saved carts from localStorage before paint (avoids full-page cart loaders).
   // For signed-in users, never apply an *empty* `cartApiCache` — token refresh / auth re-hydration
@@ -163,6 +207,11 @@ export function CartProvider({ children }) {
     }
 
     setHasHydratedLocalCart(true);
+    const savedCoupon = readSelectedCouponCode();
+    if (savedCoupon) {
+      selectedCouponCodeRef.current = savedCoupon;
+      setSelectedCouponCodeState(savedCoupon);
+    }
   }, [isAuthenticated, token]);
 
   // Merged view: API truth + optimistic pending lines + client-persisted image snapshots.
@@ -249,6 +298,8 @@ export function CartProvider({ children }) {
     syncedLocalToApiRef.current = false;
     setSavedCarts([]);
     setCartTemplates([]);
+    selectedCouponCodeRef.current = '';
+    setSelectedCouponCodeState('');
     queryClient.removeQueries({ queryKey: cartKeys.all });
   }, [isAuthenticated, queryClient]);
 
@@ -370,6 +421,7 @@ export function CartProvider({ children }) {
           const cartData = await addToCartMutation.mutateAsync({
             productId: product,
             delta: addQty,
+            couponCode: mutationCoupon(),
           });
           if (cartData?.items != null) {
             const paidCache = syncPaidCartCacheLines(
@@ -432,7 +484,9 @@ export function CartProvider({ children }) {
       if (isClient && typeof window !== 'undefined') {
         persistCartLinesImmediate(nextItems, storageKey);
       }
-      removeFromCartMutation.mutate(item.cartItemId, {
+      removeFromCartMutation.mutate(
+        { itemId: item.cartItemId, couponCode: mutationCoupon() },
+        {
         onSuccess: (cartData) => {
           setPendingRemovedCartItemIds((prev) => prev.filter((id) => id !== removedId));
           if (cartData?.items != null) {
@@ -509,7 +563,7 @@ export function CartProvider({ children }) {
         persistCartLinesImmediate(optimisticCache, storageKey);
       }
       updateCartItemMutation.mutate(
-        { itemId: item.cartItemId, delta },
+        { itemId: item.cartItemId, delta, couponCode: mutationCoupon() },
         {
           onSuccess: (cartData) => {
             if (cartData?.items != null) {
@@ -573,7 +627,7 @@ export function CartProvider({ children }) {
       setPendingRemovedCartItemIds([]);
       setLocalCartItems([]);
       localCartItemsRef.current = [];
-      queryClient.setQueryData(cartKeys.cart(), EMPTY_CART_QUERY);
+    queryClient.setQueryData(cartKeys.cart(mutationCoupon()), EMPTY_CART_QUERY);
 
       if (isClient && typeof window !== 'undefined') {
         localStorage.removeItem(API_CART_CACHE_STORAGE_KEY);
@@ -762,6 +816,9 @@ export function CartProvider({ children }) {
     loading,
     cartQueryFetching,
     hasHydratedLocalCart,
+    selectedCouponCode,
+    setSelectedCouponCode,
+    cartData,
     /** Always true — cart UI reads from localStorage (layout) + query merge; no full-page cart gate. */
     isCartReady: true,
   };

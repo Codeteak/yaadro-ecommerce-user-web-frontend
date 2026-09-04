@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { productKeys, useRootCategories, useProducts } from '../hooks/useProducts';
-import { useInView } from '../hooks/useInView';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useAlert } from '../context/AlertContext';
 import { useLocationService } from '../context/LocationServiceContext';
@@ -272,14 +271,6 @@ export default function Home() {
     sort_order: 'desc',
   });
 
-  const [freshZoneRef, freshZoneInView] = useInView({ rootMargin: '240px 0px', once: true });
-  const { data: freshZoneData, isLoading: freshZoneLoading } = useProducts({
-    limit: 16,
-    sort_by: 'created_at',
-    sort_order: 'desc',
-    enabled: freshZoneInView,
-  });
-
   // Process data
   // Home categories strip: roots only (already parentId == null from API helper).
   const allCategories = categoriesData?.filter((cat) => cat.isActive !== false) || [];
@@ -363,7 +354,8 @@ export default function Home() {
         .join(' ')
     );
 
-  const allFreshZoneProducts = freshZoneData?.products ?? [];
+  const allFreshZoneProducts = catalogProducts;
+  const freshZoneLoading = catalogLoading;
 
   const freshZoneCategories = useMemo(() => {
     if (!allCategories.length || !allFreshZoneProducts.length) return [];
@@ -802,12 +794,11 @@ export default function Home() {
         </section>
       )}
 
-      {/* Fresh Zone — lazy-loaded when near viewport */}
+      {/* Fresh Zone */}
       <section
-        ref={freshZoneRef}
         className="fresh-zone-minh relative overflow-hidden bg-white rounded-[32px] mx-3 sm:mx-6 md:mx-8 my-4 sm:my-6 min-h-[12rem]"
       >
-        {freshZoneInView && freshZoneLoading && freshZoneDisplayProducts.length === 0 && (
+        {freshZoneLoading && freshZoneDisplayProducts.length === 0 && (
           <Container className="relative z-[2] py-10 sm:py-14">
             <div className="mb-6 px-3 sm:px-4 md:px-0 text-center">
               <h2 className="text-3xl font-extrabold text-gray-900 font-headingnow">FRESH ZONE</h2>

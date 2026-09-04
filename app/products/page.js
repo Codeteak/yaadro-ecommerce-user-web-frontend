@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useTransition, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useCategories, useCategoriesTree } from '../../hooks/useProducts';
+import { useCategoriesTree } from '../../hooks/useProducts';
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import ProductsCategoryRail from '../../components/products/ProductsCategoryRail';
 import ProductsListingPanel from '../../components/products/ProductsListingPanel';
@@ -21,6 +21,16 @@ function findCategoryNameInTree(nodes, idOrSlug) {
   return '';
 }
 
+function flattenCategoryTree(nodes) {
+  if (!nodes?.length) return [];
+  const out = [];
+  for (const node of nodes) {
+    out.push(node);
+    if (node.children?.length) out.push(...flattenCategoryTree(node.children));
+  }
+  return out;
+}
+
 function ProductsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -32,8 +42,8 @@ function ProductsContent() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [localSearch, setLocalSearch] = useState('');
 
-  const { data: categoriesData } = useCategories();
   const { data: categoryTree = [], isLoading: treeLoading } = useCategoriesTree();
+  const categoriesData = useMemo(() => flattenCategoryTree(categoryTree), [categoryTree]);
 
   const rootCategories = useMemo(() => {
     const rootsFromTree = (categoryTree || []).filter((c) => c && c.isActive !== false);

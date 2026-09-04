@@ -4,16 +4,18 @@ import { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@heroui/react';
 import { useCart } from '../../context/CartContext';
 import { usePageTitle } from '../../context/ShopBrandingContext';
-import { useAlert } from '../../context/AlertContext';
 import { useAuth } from '../../context/AuthContext';
 import { useProducts } from '../../hooks/useProducts';
+import { cartKeys } from '../../hooks/useCart';
 import { useLoginNavigation } from '../../hooks/useLoginNavigation';
 import { getCartLinePreviewImageSrc } from '../../utils/productImages';
 import { getCartLineVariantLabel } from '../../utils/productUtils';
 import { computeCartSavings, getCartBottomBarPricing } from '../../utils/cartSavings';
+import { minorToMajor } from '../../utils/currencyMinor';
 import {
   getBundleFreeExtraOnPaidLine,
   getCartLineBundleLabel,
@@ -24,6 +26,7 @@ import {
 import ConfirmModal from '../../components/ConfirmModal';
 import ProductCarousel from '../../components/ProductCarousel';
 import ProductImageWithFallback from '../../components/ProductImageWithFallback';
+import CheckoutCouponsSection from '../../components/CheckoutCouponsSection';
 import CartPageSkeleton from '../../components/skeletons/CartPageSkeleton';
 import { BRAND_CHECKOUT_BTN } from '../../components/ui/brandButton';
 
@@ -31,20 +34,21 @@ import { BRAND_CHECKOUT_BTN } from '../../components/ui/brandButton';
    Sub-components
 ───────────────────────────────────────────── */
 
-function TopBar({ itemCount }) {
+function TopBar({ itemCount, onBack }) {
   const countLabel =
     itemCount == null ? '…' : `${itemCount} item${itemCount !== 1 ? 's' : ''}`;
   return (
     <div className="bg-white border-b border-gray-100 px-4 py-3.5 flex items-center gap-3 sticky top-0 z-30">
-      <Link
-        href="/"
+      <button
+        type="button"
+        onClick={onBack}
         className="w-9 h-9 rounded-full border border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0"
         aria-label="Back"
       >
         <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
-      </Link>
+      </button>
       <span className="text-base font-medium text-gray-900">My cart</span>
       <span className="ml-auto text-xs text-gray-400">{countLabel}</span>
     </div>
@@ -368,10 +372,66 @@ function CartPageContent() {
     loadSharedCart,
     loading: cartQueryLoading,
     hasHydratedLocalCart,
+    selectedCouponCode,
+    setSelectedCouponCode,
+    cartData,
+    cartQueryFetching,
   } = useCart();
-  const { showAlert } = useAlert();
+  const queryClient = useQueryClient();
 
   const [deleteCartConfirm, setDeleteCartConfirm] = useState(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+    const refresh = () => {
+      void queryClient.invalidateQueries({ queryKey: cartKeys.all });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    const onPageShow = (event) => {
+      if (event.persisted) refresh();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pageshow', onPageShow);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pageshow', onPageShow);
+    };
+  }, [isAuthenticated, queryClient]);
+
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.replace('/');
+  };
+
+  const displayCartTotal = useMemo(() => {
+    if (cartData?.total != null && Number.isFinite(Number(cartData.total))) {
+      return Number(cartData.total);
+    }
+    return Number(cartTotal) || 0;
+  }, [cartData?.total, cartTotal]);
+
+  const cartSubtotalMinor = useMemo(() => {
+    if (cartData?.subtotalBeforeCouponMinor != null) {
+      return cartData.subtotalBeforeCouponMinor;
+    }
+    return Math.round((Number(cartTotal) || 0) * 100);
+  }, [cartData?.subtotalBeforeCouponMinor, cartTotal]);
+
+  const couponDiscountMajor = useMemo(() => {
+    if (cartData?.couponDiscountMinor > 0) {
+      return minorToMajor(cartData.couponDiscountMinor);
+    }
+    const preview = cartData?.promotions?.coupon;
+    if (preview?.status === 'applied' && preview.discountMinor > 0) {
+      return minorToMajor(preview.discountMinor);
+    }
+    return 0;
+  }, [cartData?.couponDiscountMinor, cartData?.promotions?.coupon]);
 
   useEffect(() => {
     const shared = searchParams?.get('shared');
@@ -420,12 +480,12 @@ function CartPageContent() {
   }, [cartItems]);
 
   const orderSavings = useMemo(
-    () => computeCartSavings(cartItems, cartTotal),
-    [cartItems, cartTotal]
+    () => computeCartSavings(cartItems, displayCartTotal) + couponDiscountMajor,
+    [cartItems, displayCartTotal, couponDiscountMajor]
   );
   const bottomBarPricing = useMemo(
-    () => getCartBottomBarPricing(cartItems, cartTotal),
-    [cartItems, cartTotal]
+    () => getCartBottomBarPricing(cartItems, displayCartTotal),
+    [cartItems, displayCartTotal]
   );
 
   const similarProducts = useMemo(() => {
@@ -495,7 +555,7 @@ function CartPageContent() {
     <div
       className={`min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden ${cartItems.length > 0 ? 'pb-32' : 'pb-28'}`}
     >
-      <TopBar itemCount={totalQty} />
+      <TopBar itemCount={totalQty} onBack={handleBack} />
 
       {cartItems.length === 0 ? (
         <EmptyCart carouselSections={emptyCartCarouselSections} />
@@ -545,6 +605,21 @@ function CartPageContent() {
               </ActionButton>
             </div>
 
+            {isAuthenticated && (
+              <div className="pt-4">
+                <CheckoutCouponsSection
+                  cartSubtotalMinor={cartSubtotalMinor}
+                  selectedCouponCode={selectedCouponCode}
+                  onSelectCouponCode={setSelectedCouponCode}
+                  couponPreview={cartData?.promotions?.coupon}
+                  suggestedCoupons={cartData?.promotions?.suggestedCoupons}
+                  isPreviewLoading={cartQueryFetching}
+                  promotionsPaused={cartData?.promotions?.paused}
+                  enabled={cartItems.length > 0}
+                />
+              </div>
+            )}
+
             {/* Similar products — suggestions based on cart contents (or random fallback) */}
             {similarProducts.length > 0 && (
               <section className="mt-6" aria-label="Similar products">
@@ -575,7 +650,7 @@ function CartPageContent() {
           </div>
 
           {/* Order summary */}
-          <SummaryCard cartItems={cartItems} cartTotal={cartTotal} totalQty={totalQty} />
+          <SummaryCard cartItems={cartItems} cartTotal={displayCartTotal} totalQty={totalQty} />
 
           {/* Saved carts */}
           <SavedCartsSection
