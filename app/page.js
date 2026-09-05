@@ -616,7 +616,7 @@ export default function Home() {
           aria-hidden
         />
         <Container className="px-0 sm:px-0 lg:px-0 xl:px-0 2xl:px-0">
-            <div className="relative text-gray-900 flex flex-col pb-8 sm:pb-10 overflow-hidden">
+            <div className="relative text-gray-900 flex flex-col pb-3 overflow-hidden">
             {/* Header: shop branding + search + profile in one row */}
             <div className="relative z-30 flex items-center gap-2 px-3 sm:px-4 min-h-[52px] pt-5 sm:pt-6 md:pt-8">
               <div className="flex min-w-0 max-w-[38%] sm:max-w-[42%] shrink-0 items-center gap-2">
@@ -734,7 +734,7 @@ export default function Home() {
 
             {/* Bottom: categories carousel */}
             {categories.length > 0 && (
-              <div className="relative inset-x-0 z-20 mt-11 sm:mt-12 pt-2 pb-2">
+              <div className="relative inset-x-0 z-20 mt-4 pt-2 pb-2">
                 <div
                   ref={categoryScrollRef}
                   role="region"

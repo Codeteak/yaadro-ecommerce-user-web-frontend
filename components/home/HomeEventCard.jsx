@@ -29,7 +29,7 @@ export default function HomeEventCard({ section }) {
           className={`absolute inset-0 ${
             cover
               ? 'bg-gradient-to-r from-[#4c1d95]/92 via-[#6d28d9]/78 to-[#7c3aed]/40'
-              : 'bg-gradient-to-br from-[#5b21b6] via-[#6d28d9] to-[#a78bfa]'
+              : 'event-theme-wash'
           }`}
           aria-hidden
         />

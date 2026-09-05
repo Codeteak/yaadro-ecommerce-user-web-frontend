@@ -239,10 +239,14 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     void prefetchProductDetail(queryClient, product);
   }, [queryClient, product]);
 
+  const isShelf = variant === 'shelf';
+
   const chromeClass =
     variant === 'flat'
       ? 'border-0 bg-transparent shadow-none hover:shadow-none hover:border-transparent active:shadow-none'
-      : 'border border-gray-200 bg-white hover:shadow-md hover:border-gray-200 active:shadow-lg active:border-gray-300';
+      : isShelf
+        ? 'border-0 bg-white shadow-[0_8px_20px_rgba(15,23,42,0.08)] hover:shadow-[0_10px_24px_rgba(15,23,42,0.12)]'
+        : 'border border-gray-200 bg-white hover:shadow-md hover:border-gray-200 active:shadow-lg active:border-gray-300';
 
   useEffect(() => {
     setCurrentImageIndex(0);
@@ -308,7 +312,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   };
 
   const cardShellClass = `flex flex-col h-full rounded-2xl overflow-hidden touch-manipulation transition-all duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/45 ${chromeClass} ${
-    isCarousel ? 'w-[140px]' : 'w-full'
+    isShelf ? 'w-[156px]' : isCarousel ? 'w-[140px]' : 'w-full'
   }`;
 
   const navLinkProps = {
@@ -333,9 +337,11 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     ? 'h-8 min-w-[52px] px-2.5 text-[10px]'
     : 'h-9 min-w-[56px] px-3 text-[11px]';
 
-  const cartControlShellClass = isCarousel
-    ? 'min-w-[72px] rounded-tl-xl rounded-br-2xl'
-    : 'min-w-[76px] rounded-tl-xl rounded-br-2xl';
+  const cartControlShellClass = isShelf
+    ? 'min-w-[64px] rounded-xl'
+    : isCarousel
+      ? 'min-w-[72px] rounded-tl-xl rounded-br-2xl'
+      : 'min-w-[76px] rounded-tl-xl rounded-br-2xl';
 
   const cartControls = cartActionLoading ? (
     <div
@@ -394,7 +400,9 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         <Link {...navLinkProps} className="block">
           <div
             ref={carouselRef}
-            className="relative w-full aspect-[4/5] overflow-hidden rounded-2xl max-h-[120px] cursor-grab active:cursor-grabbing pointer-events-auto"
+            className={`relative w-full overflow-hidden rounded-2xl cursor-grab active:cursor-grabbing pointer-events-auto ${
+              isShelf ? 'aspect-square' : 'aspect-[4/5] max-h-[120px]'
+            }`}
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
@@ -459,7 +467,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         </Link>
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 px-3 pb-3 pt-2 min-h-0">
+      <div className={`flex flex-1 flex-col min-h-0 ${isShelf ? 'gap-1.5 px-2.5 pb-2.5 pt-2' : 'gap-2 px-3 pb-3 pt-2'}`}>
         {bundleLabel && (
           <span
             className={`self-start rounded-md bg-gradient-to-r from-violet-600 to-violet-700 font-bold text-white shadow-sm ${
@@ -472,7 +480,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           </span>
         )}
 
-        <Link {...navLinkProps} className="block min-w-0 min-h-[2.5rem]">
+        <Link {...navLinkProps} className={`block min-w-0 ${isShelf ? '' : 'min-h-[2.5rem]'}`}>
           <h3 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 tracking-tight sm:text-[15px]">
             {product.name}
           </h3>
@@ -482,15 +490,29 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           <WeightLabel label={displayWeight} placeholder />
         </Link>
 
-        <Link {...navLinkProps} className="block">
-          <PriceDisplay
-            amount={currentPrice}
-            listPrice={displayListPrice}
-            size={isCarousel ? 'sm' : 'md'}
-          />
-        </Link>
-
-        <div className="flex justify-end pointer-events-auto">{cartControls}</div>
+        {isShelf ? (
+          <div className="mt-auto flex items-end justify-between gap-1.5">
+            <Link {...navLinkProps} className="block min-w-0 flex-1">
+              <PriceDisplay
+                amount={currentPrice}
+                listPrice={displayListPrice}
+                size="sm"
+              />
+            </Link>
+            <div className="pointer-events-auto shrink-0">{cartControls}</div>
+          </div>
+        ) : (
+          <>
+            <Link {...navLinkProps} className="block">
+              <PriceDisplay
+                amount={currentPrice}
+                listPrice={displayListPrice}
+                size={isCarousel ? 'sm' : 'md'}
+              />
+            </Link>
+            <div className="flex justify-end pointer-events-auto">{cartControls}</div>
+          </>
+        )}
       </div>
     </div>
   );

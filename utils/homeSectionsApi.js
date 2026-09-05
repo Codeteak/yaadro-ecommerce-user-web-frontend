@@ -161,7 +161,15 @@ export async function getHomeSections() {
 
     const sections = extractSectionsPayload(response)
       .map(normalizeHomeSection)
-      .filter(Boolean);
+      .filter(Boolean)
+      .map((section, index) => ({ section, index }))
+      .sort((a, b) => {
+        const ao = Number.isFinite(a.section.sortOrder) ? a.section.sortOrder : Number.POSITIVE_INFINITY;
+        const bo = Number.isFinite(b.section.sortOrder) ? b.section.sortOrder : Number.POSITIVE_INFINITY;
+        if (ao !== bo) return ao - bo;
+        return a.index - b.index;
+      })
+      .map(({ section }) => section);
 
     return { sections };
   } catch (error) {

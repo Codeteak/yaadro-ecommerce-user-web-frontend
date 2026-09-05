@@ -2,7 +2,7 @@
 
 import ProductCard from './ProductCard';
 
-export default function ProductCarousel({ products, title, showMoreLink }) {
+export default function ProductCarousel({ products, title, showMoreLink, cardVariant, compact = false }) {
   if (!products || products.length === 0) {
     return (
       <div className="text-center py-12">
@@ -42,7 +42,11 @@ export default function ProductCarousel({ products, title, showMoreLink }) {
       
       {/* Scrollable Container - Left padding, no right padding */}
       <div
-        className="flex gap-1.5 md:gap-4 overflow-x-auto scrollbar-hide scroll-smooth pb-4 w-full pl-4 sm:pl-6 lg:pl-8 pr-0"
+        className={
+          compact
+            ? 'flex gap-2.5 overflow-x-auto scrollbar-hide scroll-smooth pb-1 w-full px-4 sm:px-5'
+            : 'flex gap-1.5 md:gap-4 overflow-x-auto scrollbar-hide scroll-smooth pb-4 w-full pl-4 sm:pl-6 lg:pl-8 pr-0'
+        }
         style={{
           scrollSnapType: 'x mandatory',
           WebkitOverflowScrolling: 'touch',
@@ -55,7 +59,7 @@ export default function ProductCarousel({ products, title, showMoreLink }) {
             className="flex-shrink-0"
             style={{ scrollSnapAlign: 'start' }}
           >
-            <ProductCard product={product} isCarousel={true} />
+            <ProductCard product={product} isCarousel={true} variant={cardVariant} />
           </div>
         ))}
       </div>

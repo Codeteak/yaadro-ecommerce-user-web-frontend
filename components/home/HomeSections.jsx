@@ -34,6 +34,7 @@ export default function HomeSections() {
               title={section.title}
               subtitle={section.subtitle}
               products={section.products}
+              tone={section.type === 'buy_x_get_y' ? 'plain' : 'gradient'}
             />
           );
         }
