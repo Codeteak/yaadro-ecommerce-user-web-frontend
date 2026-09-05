@@ -99,6 +99,29 @@ function collectBxgyProducts(raw) {
   ]);
 }
 
+function sectionBundleOffer(raw) {
+  const buy = Number(raw?.buyQty ?? raw?.buy_qty);
+  const get = Number(raw?.getQty ?? raw?.get_qty);
+  const label = String(raw?.label || '').trim();
+  const rule =
+    Number.isFinite(buy) && buy > 0 && Number.isFinite(get) && get > 0
+      ? { buy_qty: buy, get_qty: get, reward_type: 'free' }
+      : null;
+  return { rule, label };
+}
+
+function applyBxgyOffer(products, { rule, label }) {
+  if (!rule && !label) return products;
+  return products.map((product) => {
+    const hasRules = Array.isArray(product.bundleRules) && product.bundleRules.length > 0;
+    return {
+      ...product,
+      bundleRules: hasRules ? product.bundleRules : rule ? [rule] : product.bundleRules,
+      bundleLabel: product.bundleLabel || label || '',
+    };
+  });
+}
+
 export function formatEventDateRange(startsAt, endsAt) {
   const start = startsAt ? new Date(startsAt) : null;
   const end = endsAt ? new Date(endsAt) : null;
@@ -122,8 +145,11 @@ export function normalizeHomeSection(raw) {
 
   const title = String(raw.title || '').trim();
   const label = String(raw.label || '').trim();
+  const bxgyOffer = type === 'buy_x_get_y' ? sectionBundleOffer(raw) : { rule: null, label: '' };
   const products =
-    type === 'buy_x_get_y' ? collectBxgyProducts(raw) : mapProductList(raw.products);
+    type === 'buy_x_get_y'
+      ? applyBxgyOffer(collectBxgyProducts(raw), bxgyOffer)
+      : mapProductList(raw.products);
 
   if (type !== 'event_shelf' && products.length === 0) return null;
 

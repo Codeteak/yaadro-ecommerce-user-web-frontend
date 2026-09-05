@@ -7,6 +7,7 @@ import { useCart } from '../context/CartContext';
 import {
   getEffectivePrice,
   formatBundleRuleLabel,
+  formatBundleRibbonLabel,
   formatWeightUnitLabel,
   getPrimaryBundleRule,
   resolveProductWeightAndUnit,
@@ -16,6 +17,7 @@ import { tapFeedback } from '../utils/haptics';
 import PriceDisplay from './ui/PriceDisplay';
 import WeightLabel from './ui/WeightLabel';
 import OfferRibbon from './ui/OfferRibbon';
+import BundleOfferRibbon from './ui/BundleOfferRibbon';
 import { getResolvedProductImageUrls } from '../utils/productImages';
 import { getCartLineDisplayQty } from '../utils/cartPromotions';
 import { findPaidCartLine } from '../utils/cartLinePersist';
@@ -94,10 +96,12 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
     : formatWeightUnitLabel(productPack.weight, productPack.unit);
 
+  const bundleRule = useMemo(() => getPrimaryBundleRule(product), [product]);
   const bundleLabel = useMemo(() => {
-    const rule = getPrimaryBundleRule(product);
-    return rule ? formatBundleRuleLabel(rule) : null;
-  }, [product]);
+    if (bundleRule) return formatBundleRuleLabel(bundleRule);
+    const extra = String(product?.bundleLabel || '').trim();
+    return extra || null;
+  }, [bundleRule, product?.bundleLabel]);
 
   const productToAddPayload = useMemo(
     () => ({
@@ -240,6 +244,9 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   }, [queryClient, product]);
 
   const isShelf = variant === 'shelf';
+  const bundleRibbonText = bundleRule
+    ? formatBundleRibbonLabel(bundleRule, { compact: isCarousel || isShelf })
+    : bundleLabel;
 
   const chromeClass =
     variant === 'flat'
@@ -431,6 +438,13 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
             {showSaveRibbon && (
               <OfferRibbon saveRupees={saveRupees} compact={isCarousel} />
             )}
+            {bundleRibbonText ? (
+              <BundleOfferRibbon
+                label={bundleRibbonText}
+                compact={isCarousel || isShelf}
+                offset={showSaveRibbon}
+              />
+            ) : null}
 
             {productImages.length > 1 && (
               <div
@@ -468,7 +482,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       </div>
 
       <div className={`flex flex-1 flex-col min-h-0 ${isShelf ? 'gap-1.5 px-2.5 pb-2.5 pt-2' : 'gap-2 px-3 pb-3 pt-2'}`}>
-        {bundleLabel && (
+        {bundleLabel && !bundleRibbonText ? (
           <span
             className={`self-start rounded-md bg-gradient-to-r from-violet-600 to-violet-700 font-bold text-white shadow-sm ${
               isCarousel
@@ -478,7 +492,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           >
             {bundleLabel}
           </span>
-        )}
+        ) : null}
 
         <Link {...navLinkProps} className={`block min-w-0 ${isShelf ? '' : 'min-h-[2.5rem]'}`}>
           <h3 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 tracking-tight sm:text-[15px]">
