@@ -407,3 +407,12 @@ export function isCartCouponPreviewApplied(coupon, selectedCode) {
     String(coupon.code || '').toUpperCase() === String(selectedCode).trim().toUpperCase()
   );
 }
+
+/**
+ * GET /storefront/cart prices the server cart. After local-cart checkout, that
+ * payload is often empty while the shopper still has lines — ignore it then.
+ */
+export function isTrustedCartCouponPreview(previewCart, localItems) {
+  if (!stripPaidCartLinesOnly(localItems).length) return false;
+  return stripPaidCartLinesOnly(previewCart?.items).length > 0;
+}

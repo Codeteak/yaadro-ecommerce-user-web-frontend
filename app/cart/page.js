@@ -376,6 +376,7 @@ function CartPageContent() {
     setSelectedCouponCode,
     cartData,
     cartQueryFetching,
+    couponPreviewTrusted,
   } = useCart();
   const queryClient = useQueryClient();
 
@@ -409,20 +410,21 @@ function CartPageContent() {
   };
 
   const displayCartTotal = useMemo(() => {
-    if (cartData?.total != null && Number.isFinite(Number(cartData.total))) {
+    if (couponPreviewTrusted && cartData?.total != null && Number.isFinite(Number(cartData.total))) {
       return Number(cartData.total);
     }
     return Number(cartTotal) || 0;
-  }, [cartData?.total, cartTotal]);
+  }, [couponPreviewTrusted, cartData?.total, cartTotal]);
 
   const cartSubtotalMinor = useMemo(() => {
-    if (cartData?.subtotalBeforeCouponMinor != null) {
+    if (couponPreviewTrusted && cartData?.subtotalBeforeCouponMinor != null) {
       return cartData.subtotalBeforeCouponMinor;
     }
     return Math.round((Number(cartTotal) || 0) * 100);
-  }, [cartData?.subtotalBeforeCouponMinor, cartTotal]);
+  }, [couponPreviewTrusted, cartData?.subtotalBeforeCouponMinor, cartTotal]);
 
   const couponDiscountMajor = useMemo(() => {
+    if (!couponPreviewTrusted) return 0;
     if (cartData?.couponDiscountMinor > 0) {
       return minorToMajor(cartData.couponDiscountMinor);
     }
@@ -431,7 +433,7 @@ function CartPageContent() {
       return minorToMajor(preview.discountMinor);
     }
     return 0;
-  }, [cartData?.couponDiscountMinor, cartData?.promotions?.coupon]);
+  }, [couponPreviewTrusted, cartData?.couponDiscountMinor, cartData?.promotions?.coupon]);
 
   useEffect(() => {
     const shared = searchParams?.get('shared');
@@ -611,10 +613,10 @@ function CartPageContent() {
                   cartSubtotalMinor={cartSubtotalMinor}
                   selectedCouponCode={selectedCouponCode}
                   onSelectCouponCode={setSelectedCouponCode}
-                  couponPreview={cartData?.promotions?.coupon}
-                  suggestedCoupons={cartData?.promotions?.suggestedCoupons}
+                  couponPreview={couponPreviewTrusted ? cartData?.promotions?.coupon : null}
+                  suggestedCoupons={couponPreviewTrusted ? cartData?.promotions?.suggestedCoupons : []}
                   isPreviewLoading={cartQueryFetching}
-                  promotionsPaused={cartData?.promotions?.paused}
+                  promotionsPaused={couponPreviewTrusted ? cartData?.promotions?.paused : false}
                   enabled={cartItems.length > 0}
                 />
               </div>

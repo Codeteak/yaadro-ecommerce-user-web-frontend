@@ -6,17 +6,18 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { productKeys, useRootCategories, useProducts } from '../hooks/useProducts';
+import { homeSectionKeys } from '../hooks/useHomeSections';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useAlert } from '../context/AlertContext';
 import { useLocationService } from '../context/LocationServiceContext';
 import { useAuth } from '../context/AuthContext';
 import { useShopBranding } from '../context/ShopBrandingContext';
 import ProductCard from '../components/ProductCard';
-import ProductGrid from '../components/ProductGrid';
 import CategoryCard from '../components/CategoryCard';
 import Container from '../components/Container';
 import FloatingViewCartPill from '../components/FloatingViewCartPill';
 import BannerCarousel from '../components/BannerCarousel';
+import HomeSections from '../components/home/HomeSections';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../utils/categoryImage';
 import { dedupeProductsByVariantGroup } from '../utils/productUtils';
 import HomePageSkeleton from '../components/skeletons/HomePageSkeleton';
@@ -247,6 +248,7 @@ export default function Home() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: productKeys.lists() }),
         queryClient.invalidateQueries({ queryKey: productKeys.categoryRoots() }),
+        queryClient.invalidateQueries({ queryKey: homeSectionKeys.all }),
       ]);
     } finally {
       // Small delay to make animation visible/stable
@@ -264,7 +266,7 @@ export default function Home() {
   const startXRef = useRef(0);
   const scrollLeftRef = useRef(0);
 
-  // Load root categories + one shared catalog (home sections slice client-side).
+  // Load root categories + catalog (Fresh Zone). Merch shelves come from home-sections.
   const { data: categoriesData, isLoading: categoriesLoading } = useRootCategories();
   const { data: catalogData, isLoading: catalogLoading } = useProducts({
     limit: 24,
@@ -282,14 +284,8 @@ export default function Home() {
     [catalogData?.products]
   );
 
-  const featuredProducts = useMemo(() => catalogProducts.slice(0, 8), [catalogProducts]);
-  const bestSellers = useMemo(() => catalogProducts.slice(0, 16), [catalogProducts]);
-  const newArrivals = useMemo(() => catalogProducts.slice(0, 24), [catalogProducts]);
-
   // Fresh Zone category tabs
   const [freshZoneCategoryId, setFreshZoneCategoryId] = useState(null);
-  // Order Again category tabs (uses newArrivals for now)
-  const [orderAgainCategoryId, setOrderAgainCategoryId] = useState(null);
 
   const getCategoryImageSrc = (cat) =>
     cat?.image?.url ||
@@ -445,15 +441,6 @@ export default function Home() {
   const freshZoneDisplayProducts = freshZoneSelectedCategory
     ? freshZoneDisplayProductsBase.filter((p) => productMatchesCategory(p, freshZoneSelectedCategory))
     : freshZoneDisplayProductsBase;
-
-  const orderAgainSelectedCategory =
-    orderAgainCategoryId == null
-      ? null
-      : categories.find((c) => String(c.id) === String(orderAgainCategoryId)) || null;
-
-  const orderAgainProducts = orderAgainSelectedCategory
-    ? newArrivals.filter((p) => productMatchesCategory(p, orderAgainSelectedCategory))
-    : newArrivals;
 
   const loading = categoriesLoading || catalogLoading;
 
@@ -779,33 +766,7 @@ export default function Home() {
         </Container>
       </section>
 
-      {/* Best Sellers Section */}
-      {bestSellers.length > 0 && (
-        <section className="py-6 sm:py-8 md:py-12 lg:py-16 [@media(max-height:720px)]:py-5 [@media(max-height:720px)]:sm:py-6">
-          <Container>
-            <div className="flex items-start justify-between mb-4 md:mb-6 px-3 sm:px-4 md:px-0">
-              <div>
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow">
-                  Best Sellers
-                </h2>
-                <p className="text-gray-600 mt-1">Most loved picks, trending right now</p>
-              </div>
-            </div>
-            <ProductGrid products={bestSellers.slice(0, 8)} cardVariant="flat" />
-
-            {/* Bottom center "See all →" */}
-            <div className="mt-8 flex justify-center px-4 md:px-0">
-              <Link
-                href="/products"
-                className="inline-flex items-center gap-2 text-[13px] font-semibold text-violet-700 hover:text-violet-800 transition"
-              >
-                <span>See all</span>
-                <ArrowRight size={16} className="h-4 w-4" aria-hidden />
-              </Link>
-            </div>
-          </Container>
-        </section>
-      )}
+      <HomeSections />
 
       {/* Fresh Zone */}
       <section
@@ -939,144 +900,6 @@ export default function Home() {
           </Container>
         )}
       </section>
-
-      {/* Featured Products Grid (8 items) */}
-      {featuredProducts.length > 0 && (
-        <section className="py-6 sm:py-8 md:py-12 lg:py-16 [@media(max-height:720px)]:py-5 [@media(max-height:720px)]:sm:py-6">
-          <Container>
-            <div className="flex items-center justify-between mb-4 md:mb-6 px-3 sm:px-4 md:px-0">
-              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">Featured Products</h2>
-              <Link href="/products" className="text-primary-dark hover:text-primary-dark font-semibold text-sm md:text-base">
-                Show More
-              </Link>
-            </div>
-            <ProductGrid products={featuredProducts.slice(0, 8)} cardVariant="flat" />
-          </Container>
-        </section>
-      )}
-
-      {/* Order Again Section */}
-      {newArrivals.length > 0 && (
-        <section className="py-6 sm:py-8 md:py-12 lg:py-16 bg-white [@media(max-height:720px)]:py-5 [@media(max-height:720px)]:sm:py-6">
-          <Container>
-            <div className="mb-4 md:mb-6 px-3 sm:px-4 md:px-0">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-800 font-headingnow leading-[1]">
-                Buy Again
-              </h2>
-              <p className="mt-2 text-[13px] md:text-sm text-gray-500">
-                Your frequently purchased items, ready to reorder.
-              </p>
-            </div>
-
-            {/* Category carousel */}
-            {categories.length > 0 && (
-              <div className="w-screen relative left-1/2 -translate-x-1/2 mb-5">
-                <div className="overflow-x-auto scrollbar-hide pb-1 snap-x snap-mandatory">
-                  <div className="flex w-max gap-2 px-4 mx-auto">
-                    <button
-                      type="button"
-                      onClick={() => setOrderAgainCategoryId(null)}
-                      className={`snap-start flex-shrink-0 inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition whitespace-nowrap ${
-                        orderAgainCategoryId == null
-                          ? 'border-gray-900 bg-gray-900/5 text-gray-900'
-                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      <span>All</span>
-                    </button>
-
-                    {categories.map((cat) => {
-                      const active = orderAgainCategoryId != null && String(orderAgainCategoryId) === String(cat.id);
-                      const src = getCategoryImageSrc(cat);
-                      return (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          onClick={() => setOrderAgainCategoryId(cat.id)}
-                          className={`snap-start flex-shrink-0 inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition whitespace-nowrap ${
-                            active
-                              ? 'border-gray-900 bg-gray-900/5 text-gray-900'
-                              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          <span className="relative h-7 w-7 overflow-hidden rounded-full bg-gray-100 border border-gray-200">
-                            <img
-                              src={src || '/icons/dummy-category-card-icon.png'}
-                              alt=""
-                              className="h-full w-full object-contain"
-                              onError={(e) => {
-                                e.currentTarget.src = '/icons/dummy-category-card-icon.png';
-                              }}
-                            />
-                          </span>
-                          <span className="max-w-[9.5rem] truncate">{cat.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Products carousel (2-ish cards per view) */}
-            <div className="w-screen relative left-1/2 -translate-x-1/2">
-              <div className="overflow-x-auto scrollbar-hide pb-3 snap-x snap-mandatory">
-                <div className="flex w-max gap-2 px-4">
-                  {orderAgainProducts.slice(0, 12).map((product) => (
-                    <div key={product.id} className="snap-start flex-shrink-0">
-                      <ProductCard product={product} isCarousel />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Second products carousel (next set) */}
-              {orderAgainProducts.length > 12 && (
-                <div className="overflow-x-auto scrollbar-hide pb-3 snap-x snap-mandatory mt-3">
-                  <div className="flex w-max gap-2 px-4">
-                    {orderAgainProducts.slice(12, 24).map((product) => (
-                      <div key={product.id} className="snap-start flex-shrink-0">
-                        <ProductCard product={product} isCarousel />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Third products carousel (next set) */}
-              {orderAgainProducts.length > 24 && (
-                <div className="overflow-x-auto scrollbar-hide pb-3 snap-x snap-mandatory mt-3">
-                  <div className="flex w-max gap-2 px-4">
-                    {orderAgainProducts.slice(24, 36).map((product) => (
-                      <div key={product.id} className="snap-start flex-shrink-0">
-                        <ProductCard product={product} isCarousel />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {orderAgainSelectedCategory && orderAgainProducts.length === 0 && (
-                <div className="px-4 pb-2 text-sm text-gray-500">
-                  No products found for{' '}
-                  <span className="font-semibold text-gray-800">{orderAgainSelectedCategory.name}</span>.
-                </div>
-              )}
-            </div>
-
-            {/* Bottom center "See all →" */}
-            <div className="mt-6 flex justify-center px-4 md:px-0">
-              <Link
-                href="/products"
-                className="inline-flex items-center gap-2 text-[13px] font-semibold text-gray-800 hover:text-gray-900 transition"
-              >
-                <span>See all</span>
-                <ArrowRight size={16} className="h-4 w-4" aria-hidden />
-              </Link>
-            </div>
-          </Container>
-        </section>
-      )}
 
       {/* Shop by Category — uniform card grid */}
       {allCategories.length > 0 && (
