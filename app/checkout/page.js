@@ -29,6 +29,7 @@ import { getCartLinePreviewImageSrc } from '../../utils/productImages';
 import { getCartLineVariantLabel } from '../../utils/productUtils';
 import { getCartBottomBarPricing } from '../../utils/cartSavings';
 import { isBundleRewardCartLine } from '../../utils/cartPromotions';
+import { minorToMajor } from '../../utils/currencyMinor';
 import { normalizePhoneForApi } from '../../utils/otpVerifyPayload';
 import PhoneChangeOtpSheet from '../../components/PhoneChangeOtpSheet';
 import { useLocationService } from '../../context/LocationServiceContext';
@@ -416,7 +417,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const { cartItems, cartTotal, clearCart, removeFromCart, selectedCouponCode, setSelectedCouponCode, hasHydratedLocalCart, loading: cartQueryLoading } = useCart();
+  const { cartItems, cartTotal, clearCart, removeFromCart, selectedCouponCode, setSelectedCouponCode, hasHydratedLocalCart, loading: cartQueryLoading, cartData, cartQueryFetching, couponPreviewTrusted } = useCart();
   const {
     addresses,
     getDefaultAddress,
@@ -472,14 +473,39 @@ export default function CheckoutPage() {
     openServiceAreaSheet();
   }, [openServiceAreaSheet, selectedAddressCoords, selectedAddressId]);
 
-  const cartSubtotalMinor = useMemo(
-    () => Math.round((Number(cartTotal) || 0) * 100),
-    [cartTotal]
-  );
+  const cartSubtotalMinor = useMemo(() => {
+    if (couponPreviewTrusted && cartData?.subtotalBeforeCouponMinor != null) {
+      return cartData.subtotalBeforeCouponMinor;
+    }
+    return Math.round((Number(cartTotal) || 0) * 100);
+  }, [couponPreviewTrusted, cartData?.subtotalBeforeCouponMinor, cartTotal]);
 
-  const displayCartTotal = Number(cartTotal) || 0;
-  const couponDiscountMajor = 0;
-  const promotionDiscountMajor = null;
+  const displayCartTotal = useMemo(() => {
+    if (couponPreviewTrusted && cartData?.total != null && Number.isFinite(Number(cartData.total))) {
+      return Number(cartData.total);
+    }
+    return Number(cartTotal) || 0;
+  }, [couponPreviewTrusted, cartData?.total, cartTotal]);
+
+  const couponDiscountMajor = useMemo(() => {
+    if (!couponPreviewTrusted) return 0;
+    if (cartData?.couponDiscountMinor > 0) {
+      return minorToMajor(cartData.couponDiscountMinor);
+    }
+    const preview = cartData?.promotions?.coupon;
+    if (preview?.status === 'applied' && preview.discountMinor > 0) {
+      return minorToMajor(preview.discountMinor);
+    }
+    return 0;
+  }, [couponPreviewTrusted, cartData?.couponDiscountMinor, cartData?.promotions?.coupon]);
+
+  const promotionDiscountMajor = useMemo(() => {
+    if (!couponPreviewTrusted) return null;
+    if (cartData?.promotionDiscountMinor > 0) {
+      return minorToMajor(cartData.promotionDiscountMinor);
+    }
+    return null;
+  }, [couponPreviewTrusted, cartData?.promotionDiscountMinor]);
 
   // Pool of products for the "Similar products" carousel — same query as home → cached.
   const { data: similarPoolData } = useProducts({
@@ -856,10 +882,10 @@ export default function CheckoutPage() {
             cartSubtotalMinor={cartSubtotalMinor}
             selectedCouponCode={selectedCouponCode}
             onSelectCouponCode={setSelectedCouponCode}
-            couponPreview={null}
-            suggestedCoupons={[]}
-            isPreviewLoading={false}
-            promotionsPaused={false}
+            couponPreview={couponPreviewTrusted ? cartData?.promotions?.coupon : null}
+            suggestedCoupons={couponPreviewTrusted ? cartData?.promotions?.suggestedCoupons : []}
+            isPreviewLoading={cartQueryFetching}
+            promotionsPaused={couponPreviewTrusted ? cartData?.promotions?.paused : false}
             enabled={!!isAuthenticated && cartItems.length > 0}
           />
         </div>

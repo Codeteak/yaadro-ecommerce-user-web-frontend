@@ -1,13 +1,17 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { useUiStore } from '../stores/uiStore';
 import { useAlert } from './AlertContext';
 import { useToast } from './ToastContext';
+import { useAuth } from './AuthContext';
+import { useCartQuery } from '../hooks/useCart';
 import {
   applyGuestCartBundleQuantities,
   expandCartItemsWithBundleRewards,
+  formatCartCouponPreviewMessage,
   isBundleRewardCartLine,
+  isTrustedCartCouponPreview,
   stripPaidCartLinesOnly,
   sumCartDisplayUnits,
 } from '../utils/cartPromotions';
@@ -68,6 +72,7 @@ export function CartProvider({ children }) {
   const [selectedCouponCode, setSelectedCouponCodeState] = useState('');
   const selectedCouponCodeRef = useRef('');
 
+  const { isAuthenticated, token } = useAuth();
   const { showAlert } = useAlert();
   const { showToast } = useToast();
 
@@ -81,12 +86,12 @@ export function CartProvider({ children }) {
     selectedCouponCodeRef.current = selectedCouponCode;
   }, [selectedCouponCode]);
 
-  const setSelectedCouponCode = (code) => {
+  const setSelectedCouponCode = useCallback((code) => {
     const next = String(code || '').trim().toUpperCase();
     selectedCouponCodeRef.current = next;
     setSelectedCouponCodeState(next);
     writeSelectedCouponCode(next);
-  };
+  }, []);
 
   useLayoutEffect(() => {
     setIsClient(true);
@@ -134,6 +139,40 @@ export function CartProvider({ children }) {
     () => buildGuestDisplayCartItems(localCartItems),
     [localCartItems]
   );
+
+  const paidLocalCount = stripPaidCartLinesOnly(localCartItems).length;
+  const {
+    data: cartPreviewData,
+    isFetching: cartQueryFetching,
+  } = useCartQuery({
+    enabled: !!(isAuthenticated && token && paidLocalCount > 0 && selectedCouponCode),
+    couponCode: selectedCouponCode || undefined,
+  });
+
+  const couponPreviewTrusted =
+    !!selectedCouponCode && isTrustedCartCouponPreview(cartPreviewData, localCartItems);
+
+  useEffect(() => {
+    if (!couponPreviewTrusted || cartQueryFetching || !selectedCouponCode) return;
+    const preview = cartPreviewData?.promotions?.coupon;
+    if (preview?.status !== 'not_applicable') return;
+    const previewCode = String(preview.code || '').toUpperCase();
+    if (previewCode && previewCode !== selectedCouponCode) return;
+    setSelectedCouponCode('');
+    showAlert(
+      formatCartCouponPreviewMessage(preview) ||
+        'This coupon cannot be applied to your cart.',
+      'Coupon',
+      'warning'
+    );
+  }, [
+    couponPreviewTrusted,
+    cartQueryFetching,
+    cartPreviewData?.promotions?.coupon,
+    selectedCouponCode,
+    setSelectedCouponCode,
+    showAlert,
+  ]);
 
   useEffect(() => {
     if (isClient && typeof window !== 'undefined') {
@@ -399,11 +438,12 @@ export function CartProvider({ children }) {
     loadSharedCart,
     lastActivityTime,
     loading: false,
-    cartQueryFetching: false,
+    cartQueryFetching,
     hasHydratedLocalCart,
     selectedCouponCode,
     setSelectedCouponCode,
-    cartData: undefined,
+    cartData: couponPreviewTrusted ? cartPreviewData : undefined,
+    couponPreviewTrusted,
     /** Always true — cart UI reads from localStorage (layout) + query merge; no full-page cart gate. */
     isCartReady: true,
   };
