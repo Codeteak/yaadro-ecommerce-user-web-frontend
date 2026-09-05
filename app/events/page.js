@@ -26,20 +26,23 @@ function EventProductsInner() {
   const missing = !eventId || !section;
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden pb-20 md:pb-8">
+    <div className="event-theme-wash min-h-screen w-full max-w-full overflow-x-hidden pb-20 md:pb-8">
       <Container>
         <div className="py-6 md:py-8">
           <Link
             href="/"
-            className="mb-4 inline-flex items-center gap-1 px-3 sm:px-4 md:px-0 text-[13px] font-semibold text-violet-700 hover:text-violet-800"
+            className="mb-4 inline-flex items-center gap-1 px-3 sm:px-4 md:px-0 text-[13px] font-semibold text-white/90 hover:text-white"
           >
             <span aria-hidden>←</span>
             Home
           </Link>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-2 px-3 sm:px-4 md:px-0">
+          <p className="px-3 sm:px-4 md:px-0 text-[11px] font-bold uppercase tracking-[0.18em] text-violet-100/90">
+            Event
+          </p>
+          <h1 className="mt-2 text-2xl sm:text-3xl md:text-4xl font-extrabold text-white font-headingnow leading-tight px-3 sm:px-4 md:px-0">
             {missing ? 'Event' : title}
           </h1>
-          <p className="text-gray-600 mb-6 px-4 md:px-0">
+          <p className="mt-2 mb-6 px-4 md:px-0 text-sm font-medium text-violet-100">
             {missing
               ? 'This event is not available right now.'
               : dateLabel || 'Event picks from this shop.'}
@@ -48,7 +51,7 @@ function EventProductsInner() {
             {!missing && products.length > 0 ? (
               <ProductGrid products={products} />
             ) : (
-              <p className="text-gray-500 text-center py-12">
+              <p className="text-center py-12 text-sm font-medium text-violet-100/90">
                 {missing
                   ? 'Go back home and try another event.'
                   : 'No products in this event yet.'}
