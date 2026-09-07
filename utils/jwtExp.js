@@ -26,11 +26,12 @@ export function getJwtExpiresAtMs(jwt) {
   }
 }
 
-const ACCESS_TOKEN_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
+/** Fallback when JWT has no `exp` — matches backend default access TTL (~15m). */
+const ACCESS_TOKEN_LIFETIME_MS = 15 * 60 * 1000;
 
-/** Milliseconds until proactive access-token refresh (before JWT `exp`, ~7-day tokens). */
+/** Milliseconds until proactive access-token refresh (before JWT `exp`). */
 export function getMsUntilAccessTokenRefresh(accessToken, opts = {}) {
-  const skewMs = opts.skewMs ?? 5 * 60 * 1000;
+  const skewMs = opts.skewMs ?? 60 * 1000;
   const fallbackMs = opts.fallbackMs ?? ACCESS_TOKEN_LIFETIME_MS - skewMs;
   const minDelayMs = opts.minDelayMs ?? 5 * 1000;
   const maxDelayMs = opts.maxDelayMs ?? ACCESS_TOKEN_LIFETIME_MS;

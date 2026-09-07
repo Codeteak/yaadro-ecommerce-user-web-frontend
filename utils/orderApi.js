@@ -247,6 +247,16 @@ function transformOrder(apiOrder) {
     promotionDiscountMajor,
     couponCode: couponCode ? String(couponCode).trim() : null,
     appliedPromotionIds,
+    deliveryTrackingUrl:
+      (typeof apiOrder.deliveryTrackingUrl === 'string' && apiOrder.deliveryTrackingUrl.trim()) ||
+      (typeof apiOrder.delivery_tracking_url === 'string' && apiOrder.delivery_tracking_url.trim()) ||
+      null,
+    yadroOrderId:
+      apiOrder.yadroOrderId != null
+        ? String(apiOrder.yadroOrderId)
+        : apiOrder.yadro_order_id != null
+          ? String(apiOrder.yadro_order_id)
+          : null,
     offerId: apiOrder.offerId || null,
     offerCode: apiOrder.offerCode || couponCode || null,
     offerDetails: apiOrder.offerDetails || null,
@@ -260,7 +270,12 @@ function transformOrder(apiOrder) {
     cancelledAt: apiOrder.cancelledAt || null,
     cancelledReason: apiOrder.cancelledReason || null,
     deliveredAt: apiOrder.deliveredAt || apiOrder.delivered_at || null,
-    shippedAt: apiOrder.shippedAt || apiOrder.shipped_at || null,
+    shippedAt:
+      apiOrder.shippedAt ||
+      apiOrder.shipped_at ||
+      apiOrder.out_for_delivery_at ||
+      apiOrder.outForDeliveryAt ||
+      null,
     itemCount:
       Number(
         apiOrder.itemCount ??

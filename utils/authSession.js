@@ -1,7 +1,7 @@
 /**
  * Client-side auth session window — aligned with backend token lifetimes:
  * - Refresh token: 50 days (max logged-in window)
- * - Access token: 7 days (refreshed proactively via JWT `exp` in AuthContext)
+ * - Access token: ~15m (refreshed proactively via JWT `exp` in AuthContext)
  *
  * The stored expiry is the refresh-token deadline (JWT `exp` when present, else
  * login time + 50 days). Access-token refresh and profile fetches do NOT extend it.
@@ -16,8 +16,11 @@ export const POST_LOGIN_REDIRECT_KEY = 'yaadro_post_login_redirect';
 /** Backend refresh-token lifetime (days). */
 export const REFRESH_TOKEN_LIFETIME_DAYS = 50;
 
-/** Backend access-token lifetime (days) — used for refresh scheduling fallbacks only. */
-export const ACCESS_TOKEN_LIFETIME_DAYS = 7;
+/**
+ * Fallback only when JWT `exp` is missing — access tokens are typically 15m.
+ * Prefer scheduling from JWT `exp` in AuthContext.
+ */
+export const ACCESS_TOKEN_LIFETIME_DAYS = 15 / (24 * 60);
 
 const parsedRefreshDays =
   typeof process !== 'undefined' && process.env.NEXT_PUBLIC_AUTH_REFRESH_TOKEN_DAYS

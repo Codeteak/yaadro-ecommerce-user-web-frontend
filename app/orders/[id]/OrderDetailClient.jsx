@@ -764,6 +764,18 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                 right={fmtDate(order.createdAt)?.day}
               />
               <Timeline order={order} />
+              {order.deliveryTrackingUrl && (
+                <div className="px-4 pb-3.5">
+                  <a
+                    href={order.deliveryTrackingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex w-full cursor-pointer items-center justify-center rounded-xl border border-violet-200 bg-violet-50 py-3 text-[13px] font-semibold text-violet-900 hover:bg-violet-100/80"
+                  >
+                    Track delivery
+                  </a>
+                </div>
+              )}
               {order.status === 'delivered' && (
                 <div className="px-4 pb-3.5">
                   <button
