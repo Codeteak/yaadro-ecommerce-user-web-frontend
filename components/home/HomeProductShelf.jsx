@@ -24,13 +24,13 @@ export default function HomeProductShelf({ title, subtitle, products, tone = 'gr
   return (
     <section className="px-3 sm:px-6 md:px-8 py-3 sm:py-4">
       <div
-        className="overflow-hidden rounded-[28px] py-6 sm:py-8 shadow-[0_12px_32px_rgba(37,99,235,0.16)]"
+        className="overflow-hidden rounded-[28px] pt-5 sm:pt-6 pb-3 shadow-[0_12px_32px_rgba(37,99,235,0.16)]"
         style={{
           background:
             'radial-gradient(circle at center, #ffffff 0%, #dbeafe 42%, #3b82f6 100%)',
         }}
       >
-        <div className="mb-5 sm:mb-6 px-4 text-center">
+        <div className="mb-4 sm:mb-5 px-4 text-center">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
             {title}
           </h2>
@@ -38,9 +38,7 @@ export default function HomeProductShelf({ title, subtitle, products, tone = 'gr
             <p className="mt-2 text-[13px] md:text-sm text-blue-900/70">{subtitle}</p>
           ) : null}
         </div>
-        <div className="mx-3 sm:mx-4">
-          <ProductCarousel products={products} cardVariant="shelf" compact />
-        </div>
+        <ProductCarousel products={products} cardVariant="shelf" compact />
       </div>
     </section>
   );

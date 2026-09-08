@@ -14,6 +14,11 @@ export default function SearchSuggestInput({
   placeholder = 'Search products…',
   inputRef,
   className = '',
+  shellClassName = '',
+  iconClassName = '',
+  iconColor,
+  IconComponent = Search,
+  inputClassName = '',
   autoFocus = false,
   showSearchIcon = true,
 }) {
@@ -74,8 +79,19 @@ export default function SearchSuggestInput({
     <Popover.Root open={open} onOpenChange={setOpen}>
       <div ref={rootRef} className={`relative ${className}`.trim()}>
         <Popover.Anchor asChild>
-          <div className="flex items-center gap-2 px-3 h-11 rounded-full border border-gray-200 bg-gray-50 focus-within:bg-white focus-within:border-violet-500 transition">
-            {showSearchIcon ? <Search size={20} className="h-5 w-5 text-gray-400 flex-shrink-0" /> : null}
+          <div
+            className={
+              shellClassName ||
+              'flex items-center gap-2 px-3 h-11 rounded-full border border-gray-200 bg-gray-50 focus-within:bg-white focus-within:border-violet-500 transition'
+            }
+          >
+            {showSearchIcon ? (
+              <IconComponent
+                size={20}
+                color={iconColor}
+                className={`h-5 w-5 flex-shrink-0 ${iconClassName || (iconColor ? '' : 'text-gray-400')}`}
+              />
+            ) : null}
             <input
               ref={inputRef}
               value={q}
@@ -115,7 +131,10 @@ export default function SearchSuggestInput({
                 }
               }}
               placeholder={placeholder}
-              className="w-full bg-transparent outline-none text-[14px] text-gray-900 placeholder:text-gray-400"
+              className={
+                inputClassName ||
+                'w-full bg-transparent outline-none text-[14px] text-gray-900 placeholder:text-gray-400'
+              }
               inputMode="search"
               enterKeyHint="search"
               autoComplete="off"
