@@ -100,10 +100,11 @@ export default function BannerCarousel({
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
     const track = trackRef.current;
     if (!track) return undefined;
+    // Opacity only — GSAP scale uses `transform` and would wipe the CSS translate3d slide.
     gsap.fromTo(
       track,
-      { opacity: 0.88, scale: 0.985 },
-      { opacity: 1, scale: 1, duration: 0.45, ease: 'power2.out' }
+      { opacity: 0.88 },
+      { opacity: 1, duration: 0.45, ease: 'power2.out' }
     );
     return undefined;
   }, [currentIndex]);
