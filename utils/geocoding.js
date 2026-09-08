@@ -6,6 +6,8 @@
 //   • For any non-trivial production traffic you MUST self-host Nominatim or
 //     switch to LocationIQ / OpenCage / Mapbox. Just point
 //     `NEXT_PUBLIC_NOMINATIM_URL` at your provider — same response shape.
+//   • In the browser, reverseGeocode uses same-origin `/api/geocode/reverse`
+//     so Nominatim is only hit from the Next server (CORS / UA friendly).
 
 const NOMINATIM_URL = (
   process.env.NEXT_PUBLIC_NOMINATIM_URL || 'https://nominatim.openstreetmap.org'
@@ -25,9 +27,14 @@ const USE_API_PROVIDER = Boolean(GEOCODING_API_KEY);
 const RESPONSE_FORMAT = USE_API_PROVIDER ? 'json' : 'jsonv2';
 
 function buildHeaders() {
-  // Browsers control User-Agent, so we don't set it. Nominatim's other identity
-  // hint is the `email=` query param, which we add in `appendCredentials`.
-  return { 'Accept-Language': 'en' };
+  const headers = { 'Accept-Language': 'en', Accept: 'application/json' };
+  // Server-side only — browsers forbid setting User-Agent.
+  if (typeof window === 'undefined') {
+    headers['User-Agent'] = NOMINATIM_EMAIL
+      ? `YaadroStorefront/1.0 (${NOMINATIM_EMAIL})`
+      : 'YaadroStorefront/1.0';
+  }
+  return headers;
 }
 
 function appendCredentials(url) {
@@ -47,34 +54,7 @@ function appendCredentials(url) {
   return result;
 }
 
-/**
- * Reverse geocode a (lat, lng) into a structured address.
- *
- * @param {number} lat
- * @param {number} lng
- * @param {{ signal?: AbortSignal, zoom?: number }} [opts]
- * @returns {Promise<null | {
- *   line1: string,
- *   line2: string,
- *   landmark: string,
- *   city: string,
- *   state: string,
- *   postalCode: string,
- *   country: string,
- *   displayName: string,
- *   raw: object,
- * }>}
- */
-export async function reverseGeocode(lat, lng, opts = {}) {
-  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return null;
-  const zoom = opts.zoom ?? 18;
-  const url = appendCredentials(
-    `${NOMINATIM_URL}/reverse?format=${RESPONSE_FORMAT}&lat=${lat}&lon=${lng}&zoom=${zoom}&addressdetails=1`
-  );
-
-  const res = await fetch(url, { headers: buildHeaders(), signal: opts.signal });
-  if (!res.ok) throw new Error(`Reverse geocode failed (HTTP ${res.status})`);
-  const data = await res.json();
+function parseNominatimReversePayload(data) {
   if (!data || !data.address) return null;
 
   const a = data.address;
@@ -111,6 +91,73 @@ export async function reverseGeocode(lat, lng, opts = {}) {
     displayName: data.display_name || '',
     raw: data,
   };
+}
+
+/**
+ * Call Nominatim/LocationIQ directly (server-side / Node). Prefer reverseGeocode
+ * from the browser so traffic goes through `/api/geocode/reverse`.
+ *
+ * @param {number} lat
+ * @param {number} lng
+ * @param {{ signal?: AbortSignal, zoom?: number }} [opts]
+ */
+export async function reverseGeocodeUpstream(lat, lng, opts = {}) {
+  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return null;
+  const zoom = opts.zoom ?? 18;
+  const url = appendCredentials(
+    `${NOMINATIM_URL}/reverse?format=${RESPONSE_FORMAT}&lat=${lat}&lon=${lng}&zoom=${zoom}&addressdetails=1`
+  );
+
+  const res = await fetch(url, { headers: buildHeaders(), signal: opts.signal });
+  if (!res.ok) throw new Error(`Reverse geocode failed (HTTP ${res.status})`);
+  const data = await res.json();
+  return parseNominatimReversePayload(data);
+}
+
+/**
+ * Reverse geocode a (lat, lng) into a structured address.
+ * In the browser, proxies through same-origin `/api/geocode/reverse`.
+ *
+ * @param {number} lat
+ * @param {number} lng
+ * @param {{ signal?: AbortSignal, zoom?: number }} [opts]
+ * @returns {Promise<null | {
+ *   line1: string,
+ *   line2: string,
+ *   landmark: string,
+ *   city: string,
+ *   state: string,
+ *   postalCode: string,
+ *   country: string,
+ *   displayName: string,
+ *   raw: object,
+ * }>}
+ */
+export async function reverseGeocode(lat, lng, opts = {}) {
+  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) return null;
+
+  if (typeof window !== 'undefined') {
+    const zoom = opts.zoom ?? 18;
+    const params = new URLSearchParams({
+      lat: String(lat),
+      lng: String(lng),
+      zoom: String(zoom),
+    });
+    const res = await fetch(`/api/geocode/reverse?${params.toString()}`, {
+      headers: { Accept: 'application/json' },
+      signal: opts.signal,
+      cache: 'no-store',
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`Reverse geocode failed (HTTP ${res.status})`);
+    const payload = await res.json();
+    if (payload?.status === 'error') {
+      throw new Error(payload.message || 'Reverse geocode failed');
+    }
+    return payload?.data ?? payload ?? null;
+  }
+
+  return reverseGeocodeUpstream(lat, lng, opts);
 }
 
 /**

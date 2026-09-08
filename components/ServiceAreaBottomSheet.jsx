@@ -12,7 +12,7 @@ import {
 } from './icons';
 import { useLocationService } from '../context/LocationServiceContext';
 import { checkDeliveryLocation } from '../utils/storefrontLocationApi';
-import { getDefaultMapCenter } from '../utils/geocoding';
+import { getDefaultMapCenter, reverseGeocode } from '../utils/geocoding';
 import { getStoreCoordinates } from '../utils/storeLocation';
 import AnimatedSheet from './motion/AnimatedSheet';
 
@@ -44,15 +44,105 @@ function formatCoords(point) {
   return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 }
 
-function SavedCoordinatesCard({ coords, label = 'Saved coordinates' }) {
-  const formatted = formatCoords(coords);
-  if (!formatted) return null;
+function formatCompactAddress(result) {
+  if (!result) return null;
+  const compact = [result.line1, result.line2, result.city].filter(Boolean).join(', ').trim();
+  if (compact) return compact;
+  const display = (result.displayName || '').trim();
+  return display || null;
+}
+
+/** Reverse-geocode a lat/lng point; falls back to formatted coords. */
+function useReverseGeocodeLabel(point, { debounceMs = 0 } = {}) {
+  const lat = point?.lat != null ? Number(point.lat) : NaN;
+  const lng = point?.lng != null ? Number(point.lng) : NaN;
+  const coordsFallback = formatCoords(point);
+  const [state, setState] = useState({
+    loading: Boolean(coordsFallback),
+    label: null,
+  });
+
+  useEffect(() => {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      setState({ loading: false, label: null });
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    setState((prev) => ({ ...prev, loading: true }));
+
+    const run = async () => {
+      try {
+        const result = await reverseGeocode(lat, lng, { signal: controller.signal });
+        if (controller.signal.aborted) return;
+        setState({
+          loading: false,
+          label: formatCompactAddress(result) || coordsFallback,
+        });
+      } catch (err) {
+        if (controller.signal.aborted || err?.name === 'AbortError') return;
+        setState({ loading: false, label: coordsFallback });
+      }
+    };
+
+    let timer;
+    if (debounceMs > 0) {
+      timer = window.setTimeout(run, debounceMs);
+    } else {
+      run();
+    }
+
+    return () => {
+      controller.abort();
+      if (timer != null) window.clearTimeout(timer);
+    };
+  }, [lat, lng, coordsFallback, debounceMs]);
+
+  return state;
+}
+
+function CheckedLocationCard({ coords, label = 'Checked location' }) {
+  const { loading, label: addressLabel } = useReverseGeocodeLabel(coords);
+  const coordsFallback = formatCoords(coords);
+  if (!coordsFallback) return null;
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white px-3 py-3 mb-4">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
-      <p className="mt-1 font-mono text-sm font-semibold text-gray-900">{formatted}</p>
+      {loading ? (
+        <p className="mt-1 flex items-center gap-2 text-sm text-gray-500">
+          <Loader2 size={14} className="h-3.5 w-3.5 animate-spin" />
+          Looking up address…
+        </p>
+      ) : (
+        <p
+          className={`mt-1 text-sm font-semibold text-gray-900 ${
+            addressLabel === coordsFallback ? 'font-mono' : 'leading-snug'
+          }`}
+        >
+          {addressLabel || coordsFallback}
+        </p>
+      )}
     </div>
+  );
+}
+
+function MapPinAddressLabel({ point }) {
+  const { loading, label } = useReverseGeocodeLabel(point, { debounceMs: 420 });
+  const coordsFallback = formatCoords(point);
+  if (!coordsFallback) return null;
+
+  return (
+    <p className={`mt-2 text-[11px] text-gray-500 ${label && label !== coordsFallback ? '' : 'font-mono'}`}>
+      {loading ? (
+        <span className="inline-flex items-center gap-1.5">
+          <Loader2 size={12} className="h-3 w-3 animate-spin" />
+          Looking up address…
+        </span>
+      ) : (
+        <>Pin: {label || coordsFallback}</>
+      )}
+    </p>
   );
 }
 
@@ -76,6 +166,9 @@ export default function ServiceAreaBottomSheet() {
 
   const [mapMode, setMapMode] = useState(false);
   const [draftPin, setDraftPin] = useState(null);
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+  );
   const [pinPreview, setPinPreview] = useState({
     loading: false,
     serviceable: null,
@@ -84,6 +177,19 @@ export default function ServiceAreaBottomSheet() {
     shopLocation: null,
     error: null,
   });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+    const mq = window.matchMedia('(min-width: 768px)');
+    const sync = () => setIsDesktop(mq.matches);
+    sync();
+    if (mq.addEventListener) mq.addEventListener('change', sync);
+    else mq.addListener(sync);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', sync);
+      else mq.removeListener(sync);
+    };
+  }, []);
 
   useEffect(() => {
     document.body.style.overflow = showServiceAreaSheet ? 'hidden' : 'unset';
@@ -223,25 +329,27 @@ export default function ServiceAreaBottomSheet() {
         aria-hidden="true"
       />
 
-      <AnimatedSheet
-        className="md:hidden fixed bottom-0 left-0 right-0 z-[69] bg-white rounded-t-3xl overflow-hidden shadow-2xl"
-        style={{ maxHeight: '92vh' }}
-      >
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 bg-gray-200 rounded-full" />
+      {isDesktop ? (
+        <div className="fixed inset-0 z-[69] flex items-center justify-center px-4 pointer-events-none">
+          <div
+            className="bg-white rounded-3xl w-full max-w-[420px] overflow-hidden shadow-2xl pointer-events-auto"
+            style={{ animation: 'serviceAreaScaleIn 0.25s cubic-bezier(0.32, 0.72, 0, 1) both' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <SheetBody {...sheetProps} />
+          </div>
         </div>
-        <SheetBody {...sheetProps} />
-      </AnimatedSheet>
-
-      <div className="hidden md:flex fixed inset-0 z-[69] items-center justify-center px-4 pointer-events-none">
-        <div
-          className="bg-white rounded-3xl w-full max-w-[420px] overflow-hidden shadow-2xl pointer-events-auto"
-          style={{ animation: 'serviceAreaScaleIn 0.25s cubic-bezier(0.32, 0.72, 0, 1) both' }}
-          onClick={(e) => e.stopPropagation()}
+      ) : (
+        <AnimatedSheet
+          className="fixed bottom-0 left-0 right-0 z-[69] bg-white rounded-t-3xl overflow-hidden shadow-2xl"
+          style={{ maxHeight: '92vh' }}
         >
+          <div className="flex justify-center pt-3 pb-1">
+            <div className="w-10 h-1 bg-gray-200 rounded-full" />
+          </div>
           <SheetBody {...sheetProps} />
-        </div>
-      </div>
+        </AnimatedSheet>
+      )}
 
       <style>{`
         @keyframes serviceAreaSlideUp {
@@ -370,11 +478,7 @@ function SheetBody({
               Pan the map; we’ll check this spot automatically.
             </p>
           )}
-          {formatCoords(draftPin ?? initialMapPin) && (
-            <p className="mt-2 font-mono text-[11px] text-gray-500">
-              Pin: {formatCoords(draftPin ?? initialMapPin)}
-            </p>
-          )}
+          <MapPinAddressLabel point={draftPin ?? initialMapPin} />
         </div>
 
         <div className="mt-3 flex flex-col gap-2">
@@ -430,7 +534,7 @@ function SheetBody({
       </div>
 
       {coords && (
-        <SavedCoordinatesCard
+        <CheckedLocationCard
           coords={coords}
           label={
             locationSourceKind === 'pin' || usesPinnedLocation
