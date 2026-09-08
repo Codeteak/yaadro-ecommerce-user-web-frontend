@@ -5,8 +5,9 @@ export const runtime = 'nodejs';
 
 /**
  * GET /api/storefront/home-sections
- * Always proxy to customer API (no local DB table). Avoids Next rewrite
- * forwarding the browser User-Agent, which ngrok free blocks (ERR_NGROK_6024).
+ * Always proxy to customer API (no local DB table). Origin must be customer
+ * API (:4100), not shop-api. Avoids Next rewrite forwarding the browser
+ * User-Agent, which ngrok free blocks (ERR_NGROK_6024).
  */
 export async function GET(request) {
   return proxyUpstreamGet(request, '/api/storefront/home-sections');

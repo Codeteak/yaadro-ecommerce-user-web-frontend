@@ -344,11 +344,9 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     ? 'h-8 min-w-[52px] px-2.5 text-[10px]'
     : 'h-9 min-w-[56px] px-3 text-[11px]';
 
-  const cartControlShellClass = isShelf
-    ? 'min-w-[64px] rounded-xl'
-    : isCarousel
-      ? 'min-w-[72px] rounded-tl-xl rounded-br-2xl'
-      : 'min-w-[76px] rounded-tl-xl rounded-br-2xl';
+  const cartControlShellClass = isCarousel
+    ? 'min-w-[72px] rounded-tl-xl rounded-br-2xl'
+    : 'min-w-[76px] rounded-tl-xl rounded-br-2xl';
 
   const cartControls = cartActionLoading ? (
     <div
@@ -504,29 +502,14 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           <WeightLabel label={displayWeight} placeholder />
         </Link>
 
-        {isShelf ? (
-          <div className="mt-auto flex items-end justify-between gap-1.5">
-            <Link {...navLinkProps} className="block min-w-0 flex-1">
-              <PriceDisplay
-                amount={currentPrice}
-                listPrice={displayListPrice}
-                size="sm"
-              />
-            </Link>
-            <div className="pointer-events-auto shrink-0">{cartControls}</div>
-          </div>
-        ) : (
-          <>
-            <Link {...navLinkProps} className="block">
-              <PriceDisplay
-                amount={currentPrice}
-                listPrice={displayListPrice}
-                size={isCarousel ? 'sm' : 'md'}
-              />
-            </Link>
-            <div className="flex justify-end pointer-events-auto">{cartControls}</div>
-          </>
-        )}
+        <Link {...navLinkProps} className="block">
+          <PriceDisplay
+            amount={currentPrice}
+            listPrice={displayListPrice}
+            size={isCarousel || isShelf ? 'sm' : 'md'}
+          />
+        </Link>
+        <div className="flex justify-end pointer-events-auto">{cartControls}</div>
       </div>
     </div>
   );
