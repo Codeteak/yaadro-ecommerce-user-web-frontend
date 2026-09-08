@@ -10,6 +10,23 @@
 
 const DEFAULT_API_ORIGIN = 'https://customer.yaadro.online';
 
+const HOP_BY_HOP = new Set([
+  'connection',
+  'keep-alive',
+  'proxy-authenticate',
+  'proxy-authorization',
+  'te',
+  'trailers',
+  'transfer-encoding',
+  'upgrade',
+  'host',
+  'cf-connecting-ip',
+  'cf-ray',
+  'cf-visitor',
+  'x-forwarded-proto',
+  'x-forwarded-for',
+]);
+
 function apiOriginFromEnv(env) {
   const raw = env?.API_ORIGIN || env?.NEXT_PUBLIC_API_URL || DEFAULT_API_ORIGIN;
   return String(raw).trim().replace(/\/+$/, '');
@@ -29,7 +46,11 @@ export async function onRequest(context) {
   const origin = apiOriginFromEnv(env);
   const target = `${origin}${url.pathname}${url.search}`;
 
-  const headers = new Headers(request.headers);
+  const headers = new Headers();
+  for (const [key, value] of request.headers.entries()) {
+    if (HOP_BY_HOP.has(key.toLowerCase())) continue;
+    headers.set(key, value);
+  }
   headers.set('Host', new URL(origin).host);
 
   const init = {
@@ -39,6 +60,8 @@ export async function onRequest(context) {
   };
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     init.body = request.body;
+    // Required by some runtimes when forwarding a readable body stream.
+    init.duplex = 'half';
   }
 
   const upstream = await fetch(target, init);
