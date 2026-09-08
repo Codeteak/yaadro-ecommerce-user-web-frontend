@@ -80,7 +80,8 @@ function StickyHomeCategoryChip({ category }) {
 import {
   ArrowRightRegular as ArrowRight,
   MapPinRegular as MapPin,
-  User1Regular as User,
+  SearchFilled,
+  User1Filled as User,
 } from '../components/icons';
 
 /** Category card for home "Shop by Category" — uniform grid, image fills placeholder (centered). */
@@ -595,28 +596,46 @@ export default function Home() {
         </div>
       )}
 
-      {/* Hero section (light theme) */}
+      {/* Hero section (purple grocery) */}
       <section
         ref={heroSectionRef}
         className="home-hero-minh w-full relative overflow-hidden"
-        style={{
-          background: '#ffffff',
-          borderBottomLeftRadius: 44,
-          borderBottomRightRadius: 44,
-          WebkitMaskImage: '-webkit-radial-gradient(white, black)',
-        }}
       >
-        {/* Soft bottom fade (light) */}
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-[15] h-52 sm:h-64"
+          className="pointer-events-none absolute inset-0 z-0"
           style={{
-            background:
-              'linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,0))',
+            background: 'linear-gradient(160deg, #7d24d6 0%, #902bf5 42%, #6d28d9 100%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, #000 0%, #000 calc(100% - 7rem), rgba(0,0,0,0.4) calc(100% - 3.5rem), transparent 100%)',
+            maskImage: 'linear-gradient(to bottom, #000 0%, #000 calc(100% - 7rem), rgba(0,0,0,0.4) calc(100% - 3.5rem), transparent 100%)',
           }}
           aria-hidden
-        />
+        >
+          <div className="absolute inset-y-0 right-[-4%] w-[70%] sm:w-[58%] md:w-[50%]">
+            <Image
+              src="/banner/trolly.png"
+              alt=""
+              fill
+              className="object-contain object-right-bottom origin-bottom-right scale-[1.15]"
+              sizes="(max-width: 768px) 75vw, 50vw"
+              priority
+              unoptimized
+              style={{ mixBlendMode: 'lighten' }}
+            />
+          </div>
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'linear-gradient(90deg, rgba(125,36,214,0.97) 0%, rgba(144,43,245,0.82) 42%, rgba(109,40,217,0.28) 72%, rgba(109,40,217,0.08) 100%)',
+            }}
+          />
+        </div>
         <Container className="px-0 sm:px-0 lg:px-0 xl:px-0 2xl:px-0">
-            <div className="relative text-gray-900 flex flex-col pb-3 overflow-hidden">
+            <div
+              className={`relative text-white flex flex-col overflow-hidden ${
+                categories.length > 0 ? 'pb-16 sm:pb-20' : 'pb-6 sm:pb-8'
+              }`}
+            >
             {/* Header: shop branding + search + profile in one row */}
             <div className="relative z-30 flex items-center gap-2 px-3 sm:px-4 min-h-[52px] pt-5 sm:pt-6 md:pt-8">
               <div className="flex min-w-0 max-w-[38%] sm:max-w-[42%] shrink-0 items-center gap-2">
@@ -624,12 +643,12 @@ export default function Home() {
                   <img
                     src={shopImage}
                     alt={shopName || ''}
-                    className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-xl object-contain"
+                    className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-xl object-contain ring-1 ring-white/30 bg-white/15"
                     width={44}
                     height={44}
                   />
                 ) : (
-                  <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl bg-gray-100">
+                  <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
                     <Image
                       src="/trolley.png"
                       alt=""
@@ -640,23 +659,23 @@ export default function Home() {
                   </div>
                 )}
                 <div className="flex min-w-0 flex-col gap-0.5">
-                  <span className="truncate text-[14px] sm:text-[16px] font-extrabold text-gray-900 leading-tight">
+                  <span className="truncate text-[14px] sm:text-[16px] font-extrabold text-white leading-tight">
                     {shopName || 'Yaadro'}
                   </span>
                   {isLocationChecking ? (
                     <button
                       type="button"
                       onClick={() => openServiceAreaSheet()}
-                      className="inline-flex max-w-full items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-gray-500 hover:bg-gray-200 transition-colors"
+                      className="inline-flex max-w-full items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-white/90 hover:bg-white/30 transition-colors"
                     >
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400 animate-pulse" />
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/80 animate-pulse" />
                       <span className="truncate">Checking…</span>
                     </button>
                   ) : isServiceable === true ? (
                     <button
                       type="button"
                       onClick={() => openServiceAreaSheet()}
-                      className="inline-flex max-w-full items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-violet-700 hover:bg-violet-200 transition-colors"
+                      className="inline-flex max-w-full items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-violet-800 hover:bg-white transition-colors"
                     >
                       <MapPin size={12} className="h-3 w-3 shrink-0" />
                       <span className="truncate">Available</span>
@@ -665,7 +684,7 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => openServiceAreaSheet()}
-                      className="inline-flex max-w-full items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-red-600 hover:bg-red-200 transition-colors"
+                      className="inline-flex max-w-full items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-white hover:bg-red-600 transition-colors"
                     >
                       <MapPin size={12} className="h-3 w-3 shrink-0" />
                       <span className="truncate">Not available</span>
@@ -683,6 +702,10 @@ export default function Home() {
                 }}
                 placeholder="Search products"
                 className="min-w-0 flex-1 max-w-none"
+                shellClassName="flex items-center gap-2 px-3 h-11 rounded-full border border-gray-200 bg-white focus-within:border-white transition shadow-sm"
+                iconColor="#111827"
+                IconComponent={SearchFilled}
+                inputClassName="w-full bg-transparent outline-none text-[14px] text-gray-900 placeholder:text-gray-500"
               />
 
               <button
@@ -694,16 +717,16 @@ export default function Home() {
                     goToLogin();
                   }
                 }}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white/80 backdrop-blur hover:bg-white transition shadow-sm"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition shadow-sm"
                 aria-label={isAuthenticated ? 'Profile' : 'Login'}
               >
-                <User size={24} className="w-6 h-6 text-gray-800" />
+                <User size={22} color="#111827" className="w-[22px] h-[22px]" />
               </button>
             </div>
 
             {/* Tagline */}
             <div className="relative z-[9] mt-4 sm:mt-5 pl-4 sm:pl-5 max-w-[min(92vw,540px)]">
-              <p className="text-left text-home-hero-headline font-extrabold text-gray-900">
+              <p className="text-left text-home-hero-headline font-extrabold text-white drop-shadow-[0_8px_24px_rgba(76,29,149,0.35)]">
                 Groceries in Minutes ... 
               </p>
             </div>
@@ -712,7 +735,7 @@ export default function Home() {
             <div className="relative z-20 mt-5 pl-4 sm:pl-5">
               <Link
                 href="/products"
-                className="inline-flex items-center justify-center rounded-full bg-[#902bf5] px-6 py-3 text-[13px] font-extrabold tracking-wide text-white shadow-[0_12px_30px_rgba(15,23,42,0.18)] hover:bg-[#7e20e3] active:scale-[0.98] transition"
+                className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-[13px] font-extrabold tracking-wide text-[#902bf5] shadow-[0_12px_30px_rgba(15,23,42,0.22)] hover:bg-violet-50 active:scale-[0.98] transition"
               >
                 Shop Now
               </Link>
@@ -721,7 +744,7 @@ export default function Home() {
             {/* Banner carousel right below "Shop Now" */}
             {shopBanners.length > 0 && (
               <div className="relative z-20 mt-6 px-3 sm:px-6 md:px-8 pb-2">
-                <div className="overflow-hidden rounded-2xl shadow-[0_8px_28px_rgba(15,23,42,0.08)] ring-1 ring-gray-200/80">
+                <div className="overflow-hidden rounded-2xl shadow-[0_8px_28px_rgba(15,23,42,0.18)] ring-1 ring-white/25">
                   <BannerCarousel
                     banners={shopBanners}
                     fallbackToDefaults={false}
@@ -734,7 +757,7 @@ export default function Home() {
 
             {/* Bottom: categories carousel */}
             {categories.length > 0 && (
-              <div className="relative inset-x-0 z-20 mt-4 pt-2 pb-2">
+              <div className="relative inset-x-0 z-20 mt-4 pt-2 pb-4">
                 <div
                   ref={categoryScrollRef}
                   role="region"
@@ -755,7 +778,7 @@ export default function Home() {
                   <div className="flex items-stretch gap-4 flex-nowrap w-max flex-shrink-0 pb-2">
                     {categories.map((category) => (
                       <div key={category.id} className="flex-shrink-0 snap-start">
-                        <CategoryCard category={category} />
+                        <CategoryCard category={category} labelClassName="text-white" />
                       </div>
                     ))}
                   </div>
@@ -766,7 +789,13 @@ export default function Home() {
         </Container>
       </section>
 
-      <HomeSections />
+      <div
+        className={`relative z-10 [&>section:first-child]:!pt-1 [&>section:first-child]:sm:!pt-2 ${
+          categories.length > 0 ? '-mt-10 sm:-mt-12' : '-mt-6 sm:-mt-8'
+        }`}
+      >
+        <HomeSections />
+      </div>
 
       {/* Fresh Zone */}
       <section

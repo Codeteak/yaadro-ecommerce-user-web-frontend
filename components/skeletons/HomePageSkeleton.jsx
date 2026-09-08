@@ -32,23 +32,6 @@ function SectionHeading({ titleWidth = 280, subtitleWidth = 0, showMore = false,
   );
 }
 
-/** Matches ProductGrid: grid-cols-3 sm:4 lg:8 */
-function ProductGridSkeleton({ count = 8, cardVariant = 'flat' }) {
-  const aspect = cardVariant === 'flat' ? 'aspect-square' : 'aspect-[4/5]';
-  return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 xl:grid-cols-8 gap-1 sm:gap-3 lg:gap-4 w-full max-w-full overflow-x-hidden px-3 sm:px-4 md:px-0">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="flex flex-col gap-1.5 sm:gap-2">
-          <Bone className={`w-full ${aspect} rounded-xl sm:rounded-2xl`} />
-          <Bone className="h-2.5 w-full rounded" />
-          <Bone className="h-2.5 w-4/5 rounded" />
-          <Bone className="h-3.5 w-1/2 rounded mt-0.5" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /** Carousel product card ~140px wide (ProductCard isCarousel) */
 function ProductCarouselRowSkeleton({ count = 6, gapClass = 'gap-2' }) {
   return (
@@ -69,29 +52,14 @@ function ProductCarouselRowSkeleton({ count = 6, gapClass = 'gap-2' }) {
   );
 }
 
-function CategoryPillsRowSkeleton({ count = 6 }) {
-  return (
-    <div className="w-screen relative left-1/2 -translate-x-1/2 mb-5">
-      <div className="overflow-x-hidden scrollbar-hide pb-1">
-        <div className="flex w-max gap-2 px-4 mx-auto">
-          <Bone className="h-10 w-14 shrink-0 rounded-full" />
-          {Array.from({ length: count }).map((_, i) => (
-            <Bone key={i} className="h-10 w-28 shrink-0 rounded-full" />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function HeroCategoryCarouselSkeleton() {
   return (
-    <div className="relative inset-x-0 z-20 mt-11 sm:mt-12 pt-2 pb-2 px-4">
+    <div className="relative inset-x-0 z-20 mt-4 pt-2 pb-2 px-4">
       <div className="flex items-stretch gap-4 overflow-hidden pb-2">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="flex shrink-0 flex-col items-center gap-2">
-            <Bone className="h-20 w-20 rounded-2xl sm:h-24 sm:w-24" />
-            <Bone className="h-3 w-14 rounded" />
+            <Bone className="h-20 w-20 rounded-2xl bg-white/30 sm:h-24 sm:w-24" />
+            <Bone className="h-3 w-14 rounded bg-white/25" />
           </div>
         ))}
       </div>
@@ -101,51 +69,54 @@ function HeroCategoryCarouselSkeleton() {
 
 function HeroSkeleton() {
   return (
-    <section
-      className="home-hero-minh w-full relative overflow-hidden"
-      style={{
-        background: '#ffffff',
-        borderBottomLeftRadius: 44,
-        borderBottomRightRadius: 44,
-        WebkitMaskImage: '-webkit-radial-gradient(white, black)',
-      }}
-    >
+    <section className="home-hero-minh w-full relative overflow-hidden">
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-[15] h-52 sm:h-64"
+        className="pointer-events-none absolute inset-0 z-0"
         style={{
-          background: 'linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,0))',
+          background: 'linear-gradient(160deg, #7d24d6 0%, #902bf5 42%, #6d28d9 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, #000 0%, #000 calc(100% - 7rem), rgba(0,0,0,0.4) calc(100% - 3.5rem), transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, #000 0%, #000 calc(100% - 7rem), rgba(0,0,0,0.4) calc(100% - 3.5rem), transparent 100%)',
         }}
         aria-hidden
-      />
+      >
+        <div className="absolute inset-y-0 right-0 w-[62%] sm:w-[55%] md:w-[48%] bg-white/10" />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(90deg, rgba(125,36,214,0.97) 0%, rgba(144,43,245,0.82) 42%, rgba(109,40,217,0.28) 72%, rgba(109,40,217,0.08) 100%)',
+          }}
+        />
+      </div>
 
       <Container className="px-0 sm:px-0 lg:px-0 xl:px-0 2xl:px-0">
-        <div className="relative flex flex-col pb-8 sm:pb-10 overflow-hidden">
+        <div className="relative flex flex-col pb-16 sm:pb-20 overflow-hidden">
           {/* Header: branding + search + profile */}
           <div className="relative z-30 flex items-center gap-2 px-3 sm:px-4 min-h-[52px] pt-5 sm:pt-6 md:pt-8">
             <div className="flex min-w-0 max-w-[38%] sm:max-w-[42%] shrink-0 items-center gap-2">
-              <Bone className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-xl" />
+              <Bone className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-xl bg-white/30" />
               <div className="flex min-w-0 flex-col gap-1">
-                <Bone className="h-4 w-20 sm:w-28 rounded" />
-                <Bone className="h-5 w-24 sm:w-32 rounded-full" />
+                <Bone className="h-4 w-20 sm:w-28 rounded bg-white/35" />
+                <Bone className="h-5 w-24 sm:w-32 rounded-full bg-white/25" />
               </div>
             </div>
-            <Bone className="h-11 min-w-0 flex-1 rounded-full" />
-            <Bone className="h-11 w-11 shrink-0 rounded-full" />
+            <Bone className="h-11 min-w-0 flex-1 rounded-full bg-white/85" />
+            <Bone className="h-11 w-11 shrink-0 rounded-full bg-white/85" />
           </div>
 
           {/* Tagline */}
           <div className="relative z-[9] mt-4 sm:mt-5 pl-4 sm:pl-5 max-w-[min(92vw,540px)]">
-            <Bone className="h-10 sm:h-12 w-[min(320px,88vw)] rounded-lg" />
+            <Bone className="h-10 sm:h-12 w-[min(320px,88vw)] rounded-lg bg-white/40" />
           </div>
 
           {/* Shop Now */}
           <div className="relative z-20 mt-5 pl-4 sm:pl-5">
-            <Bone className="h-11 w-32 rounded-full" />
+            <Bone className="h-11 w-32 rounded-full bg-white" />
           </div>
 
           {/* Banner carousel */}
           <div className="relative z-20 mt-6 px-3 sm:px-6 md:px-8 pb-2">
-            <Bone className="w-full aspect-[2.4/1] max-h-[200px] rounded-2xl ring-1 ring-gray-100" />
+            <Bone className="w-full aspect-[2.4/1] max-h-[200px] rounded-2xl bg-white/35 ring-1 ring-white/25" />
           </div>
 
           <HeroCategoryCarouselSkeleton />
@@ -237,48 +208,19 @@ export default function HomePageSkeleton() {
     >
       <HeroSkeleton />
 
-      {/* Best Sellers */}
-      <section className="py-6 sm:py-8 md:py-12 lg:py-16 [@media(max-height:720px)]:py-5 [@media(max-height:720px)]:sm:py-6">
-        <Container>
-          <div className="mb-4 md:mb-6">
-            <SectionHeading titleWidth={280} subtitleWidth={320} />
-          </div>
-          <ProductGridSkeleton count={8} cardVariant="flat" />
-          <div className="mt-8 flex justify-center px-4 md:px-0">
-            <Bone className="h-4 w-20 rounded" />
-          </div>
-        </Container>
+      {/* Daily home sections (shelves / BXGY / events) */}
+      <section className="relative z-10 -mt-10 sm:-mt-12 py-6 sm:py-8" aria-label="Loading home sections">
+        <div className="mb-4 px-3 sm:px-4 md:px-6">
+          <SectionHeading titleWidth={220} subtitleWidth={180} />
+        </div>
+        <ProductCarouselRowSkeleton count={6} />
+        <div className="mt-6 px-3 sm:px-4 md:px-6">
+          <SectionHeading titleWidth={180} />
+        </div>
+        <ProductCarouselRowSkeleton count={6} />
       </section>
 
       <FreshZoneSkeleton />
-
-      {/* Featured Products */}
-      <section className="py-6 sm:py-8 md:py-12 lg:py-16 [@media(max-height:720px)]:py-5 [@media(max-height:720px)]:sm:py-6">
-        <Container>
-          <div className="mb-4 md:mb-6">
-            <SectionHeading titleWidth={220} showMore />
-          </div>
-          <ProductGridSkeleton count={8} cardVariant="flat" />
-        </Container>
-      </section>
-
-      {/* Buy Again */}
-      <section className="py-6 sm:py-8 md:py-12 lg:py-16 bg-white [@media(max-height:720px)]:py-5 [@media(max-height:720px)]:sm:py-6">
-        <Container>
-          <div className="mb-4 md:mb-6 px-3 sm:px-4 md:px-0">
-            <Bone className="h-10 sm:h-12 md:h-14 w-full max-w-[280px] rounded-lg" />
-            <Bone className="mt-2 h-4 w-full max-w-[340px] rounded" />
-          </div>
-          <CategoryPillsRowSkeleton count={6} />
-          <ProductCarouselRowSkeleton count={6} />
-          <div className="mt-3">
-            <ProductCarouselRowSkeleton count={6} />
-          </div>
-          <div className="mt-6 flex justify-center px-4 md:px-0">
-            <Bone className="h-4 w-20 rounded" />
-          </div>
-        </Container>
-      </section>
 
       {/* Shop by Category */}
       <section className="py-6 sm:py-8 md:py-12 lg:py-16 bg-white [@media(max-height:720px)]:py-5 [@media(max-height:720px)]:sm:py-6">

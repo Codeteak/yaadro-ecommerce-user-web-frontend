@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../utils/categoryImage';
 
-export default function CategoryCard({ category }) {
+export default function CategoryCard({ category, labelClassName = 'text-gray-900' }) {
   const categoryName =
     typeof category === 'string' ? category : category?.name || 'Category';
   const firstLine = categoryName.slice(0, 10);
@@ -36,7 +36,7 @@ export default function CategoryCard({ category }) {
         />
       </div>
       <h3
-        className="text-[11px] sm:text-xs md:text-sm font-semibold text-gray-900 text-center leading-[1.15] max-w-[10ch]"
+        className={`text-[11px] sm:text-xs md:text-sm font-semibold text-center leading-[1.15] max-w-[10ch] ${labelClassName}`}
         title={categoryName}
       >
         <span className="block">{firstLine}</span>

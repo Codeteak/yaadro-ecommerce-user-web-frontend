@@ -46,5 +46,7 @@ export {
   EmptyBoxFilled,
   Home1Filled,
   Refresh1Filled,
+  SearchFilled,
   ShoppingCart1Filled,
+  User1Filled,
 } from '@mingcute/react/core-filled';
