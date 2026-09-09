@@ -23,11 +23,11 @@ function FilterBar({ filters, onFilterToggle, sortKey, onSortChange, disabled })
 
   return (
     <div
-      className={`flex items-center justify-between rounded-2xl border border-gray-100 bg-white px-3 py-2 shadow-sm ${
+      className={`flex items-center rounded-2xl border border-gray-100 bg-white px-3 py-2 shadow-sm ${
         disabled ? 'pointer-events-none opacity-60' : ''
       }`}
     >
-      <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+      <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto scrollbar-hide">
         {[
           {
             key: 'organic',
