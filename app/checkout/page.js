@@ -15,6 +15,7 @@ import { useProducts } from '../../hooks/useProducts';
 import { placeStorefrontOrder } from '../../utils/storefrontCheckoutApi';
 import { getApiErrorCode, getCheckoutErrorMessage } from '../../utils/apiErrors';
 import { couponKeys } from '../../hooks/useCoupons';
+import { cartKeys } from '../../hooks/useCart';
 import { addressKeys } from '../../hooks/useAddresses';
 import { checkDeliveryLocation } from '../../utils/storefrontLocationApi';
 import { getStorefrontCookieSiteWarning } from '../../utils/storefrontApiSite';
@@ -725,6 +726,9 @@ export default function CheckoutPage() {
       if (code === 'PRICE_CHANGED') {
         await queryClient.invalidateQueries({ queryKey: couponKeys.all });
       }
+      if (code === 'PRODUCT_UNAVAILABLE' || code === 'PRICE_CHANGED' || code === 'CART_EMPTY' || code === 'CART_NOT_FOUND') {
+        await queryClient.invalidateQueries({ queryKey: cartKeys.all });
+      }
       const couponCodes = new Set([
         'COUPON_NOT_FOUND',
         'COUPON_NOT_APPLICABLE',
@@ -738,7 +742,14 @@ export default function CheckoutPage() {
       if (couponCodes.has(code)) {
         setSelectedCouponCode('');
       }
-      showAlert(getCheckoutErrorMessage(err), code === 'PRICE_CHANGED' ? 'Cart updated' : 'Error', code === 'PRICE_CHANGED' ? 'warning' : 'error');
+      const alertTitle =
+        code === 'PRICE_CHANGED'
+          ? 'Cart updated'
+          : code === 'PRODUCT_UNAVAILABLE'
+            ? 'Item unavailable'
+            : 'Error';
+      const alertTone = code === 'PRICE_CHANGED' || code === 'PRODUCT_UNAVAILABLE' ? 'warning' : 'error';
+      showAlert(getCheckoutErrorMessage(err), alertTitle, alertTone);
       setIsSubmitting(false);
     }
   };
