@@ -9,6 +9,7 @@ import {
   minorToMajor,
   parseMinorInt,
   parseOrderQuantity,
+  isOrderLineUnavailable,
 } from './orderPromotions';
 import {
   formatWeightUnitLabel,
@@ -48,7 +49,12 @@ function transformOrderItem(item) {
   if (!item) return null;
   const quantity = parseOrderQuantity(item.quantity);
   const unitPriceMinor = parseMinorInt(item.unit_price_minor_snapshot ?? item.unitPriceMinorSnapshot);
-  const lineTotalMinor = parseMinorInt(item.line_total_minor ?? item.lineTotalMinor);
+  const hasLineTotalMinor =
+    (item.line_total_minor != null && item.line_total_minor !== '') ||
+    (item.lineTotalMinor != null && item.lineTotalMinor !== '');
+  const lineTotalMinor = hasLineTotalMinor
+    ? parseMinorInt(item.line_total_minor ?? item.lineTotalMinor)
+    : null;
   const listPriceMinor = parseMinorInt(item.list_price_minor ?? item.listPriceMinor);
   const lineDiscountMinor = parseMinorInt(item.line_discount_minor ?? item.lineDiscountMinor);
   const appliedPromotionIds = Array.isArray(item.applied_promotion_ids)
@@ -62,18 +68,29 @@ function transformOrderItem(item) {
     item.product_name ||
     item.name ||
     'Product';
-  const unitPrice = unitPriceMinor > 0 ? minorToMajor(unitPriceMinor) : parseFloat(item.unitPrice || item.unit_price || 0);
-  const totalPrice =
-    lineTotalMinor > 0
-      ? minorToMajor(lineTotalMinor)
-      : parseFloat(item.totalPrice || item.total_price || 0) || unitPrice * quantity;
-  const listPrice = listPriceMinor > 0 ? minorToMajor(listPriceMinor) : null;
+  const unitPrice =
+    unitPriceMinor > 0
+      ? minorToMajor(unitPriceMinor)
+      : parseFloat(item.unitPrice || item.unit_price || 0) || 0;
 
-  const isDeleted =
-    item.isDeleted === true ||
-    item.is_deleted === true ||
-    item.deleted === true ||
-    item.removed === true;
+  const hasTotalPriceMajor =
+    (item.totalPrice != null && item.totalPrice !== '') ||
+    (item.total_price != null && item.total_price !== '');
+
+  let totalPrice;
+  let lineTotalExplicitZero = false;
+  if (hasLineTotalMinor) {
+    totalPrice = minorToMajor(lineTotalMinor);
+    lineTotalExplicitZero = lineTotalMinor === 0;
+  } else if (hasTotalPriceMajor) {
+    const major = parseFloat(item.totalPrice ?? item.total_price);
+    totalPrice = Number.isFinite(major) ? major : 0;
+    lineTotalExplicitZero = totalPrice === 0;
+  } else {
+    totalPrice = unitPrice * quantity;
+  }
+
+  const listPrice = listPriceMinor > 0 ? minorToMajor(listPriceMinor) : null;
 
   const originalQuantity = (() => {
     const raw =
@@ -91,6 +108,19 @@ function transformOrderItem(item) {
     return Number.isFinite(n) && n > 0 ? n : null;
   })();
 
+  const hasOfferSignal = appliedPromotionIds.length > 0 || lineDiscountMinor > 0;
+
+  const isDeleted = isOrderLineUnavailable(item, {
+    quantity,
+    originalQuantity,
+    lineTotalMinor,
+    unitPriceMinor,
+    unitPrice,
+    totalPrice,
+    lineTotalExplicitZero,
+    hasOfferSignal,
+  });
+
   const shopQuantityAdjusted =
     item.quantityAdjusted === true ||
     item.quantity_adjusted === true ||
@@ -99,8 +129,7 @@ function transformOrderItem(item) {
     item.shopUpdated === true ||
     item.shop_updated === true;
 
-  const hasOffer =
-    !isDeleted && (appliedPromotionIds.length > 0 || lineDiscountMinor > 0);
+  const hasOffer = !isDeleted && hasOfferSignal;
   const { weight, unit } = resolveProductWeightAndUnit({
     unit_size: item.unit_size ?? item.unit_size_snapshot ?? item.unitSize,
     unit_size_snapshot: item.unit_size_snapshot,
@@ -141,6 +170,128 @@ function transformOrderItem(item) {
   };
 }
 
+function lineDedupeKey(raw) {
+  if (!raw || typeof raw !== 'object') return '';
+  if (raw.id != null && String(raw.id).trim()) return `id:${String(raw.id).trim()}`;
+  const pid = raw.product_id ?? raw.productId;
+  if (pid != null && String(pid).trim()) return `pid:${String(pid).trim()}`;
+  const name = raw.product_name_snapshot || raw.productName || raw.product_name || raw.name || '';
+  return name ? `name:${String(name).trim().toLowerCase()}` : '';
+}
+
+/**
+ * Merge primary items with sibling unavailable/removed arrays from order payloads.
+ */
+function collectRawOrderItems(apiOrder, extraItems = []) {
+  const primary = Array.isArray(apiOrder?.items) ? apiOrder.items : [];
+  const siblings = [
+    ...(Array.isArray(extraItems) ? extraItems : []),
+    ...(Array.isArray(apiOrder?.unavailable_items) ? apiOrder.unavailable_items : []),
+    ...(Array.isArray(apiOrder?.unavailableItems) ? apiOrder.unavailableItems : []),
+    ...(Array.isArray(apiOrder?.removed_items) ? apiOrder.removed_items : []),
+    ...(Array.isArray(apiOrder?.removedItems) ? apiOrder.removedItems : []),
+    ...(Array.isArray(apiOrder?.rejected_items) ? apiOrder.rejected_items : []),
+    ...(Array.isArray(apiOrder?.rejectedItems) ? apiOrder.rejectedItems : []),
+  ];
+
+  const primaryKeys = new Set(primary.map(lineDedupeKey).filter(Boolean));
+  const out = [...primary];
+
+  for (const raw of siblings) {
+    if (!raw || typeof raw !== 'object') continue;
+    const key = lineDedupeKey(raw);
+    const forced = { ...raw, is_deleted: true, unavailable: true };
+    if (key && primaryKeys.has(key)) {
+      const idx = out.findIndex((row) => lineDedupeKey(row) === key);
+      if (idx >= 0) {
+        out[idx] = { ...out[idx], ...forced };
+      }
+      continue;
+    }
+    if (key) primaryKeys.add(key);
+    out.push(forced);
+  }
+
+  return out;
+}
+
+function mapOrderItems(apiOrder, extraItems = []) {
+  return collectRawOrderItems(apiOrder, extraItems).map(transformOrderItem).filter(Boolean);
+}
+
+/**
+ * When picker drops a line from order totals but leaves unit×qty on the item,
+ * mark that non-offer line unavailable if removing it makes line sums match subtotal.
+ */
+function markUnavailableExcludedFromSubtotal(items, subtotalMajor) {
+  if (!Array.isArray(items) || !items.length) return items;
+  const subtotal = Number(subtotalMajor);
+  if (!Number.isFinite(subtotal)) return items;
+
+  const sumAll = items.reduce((acc, it) => acc + (Number(it.totalPrice) || 0), 0);
+  if (Math.abs(sumAll - subtotal) < 0.02) return items;
+
+  const candidates = items.filter(
+    (it) =>
+      !it.isDeleted &&
+      !it.hasOffer &&
+      Number(it.quantity) > 0 &&
+      Number(it.unitPrice || it.price || 0) > 0 &&
+      Number(it.totalPrice) > 0.009
+  );
+  if (!candidates.length) return items;
+
+  for (const candidate of candidates) {
+    const without = sumAll - (Number(candidate.totalPrice) || 0);
+    if (Math.abs(without - subtotal) < 0.02) {
+      return items.map((it) =>
+        it === candidate || (it.id != null && it.id === candidate.id)
+          ? { ...it, isDeleted: true, totalPrice: 0, hasOffer: false }
+          : it
+      );
+    }
+  }
+
+  return items;
+}
+
+/**
+ * After picker has removed at least one line, treat remaining ₹0 "offer" lines as
+ * unavailable too (promo ids often linger on rejected freebies).
+ * Runs regardless of order status (status can briefly fall back to pending).
+ */
+function markZeroOfferLinesUnavailableAfterPicker(items, _orderStatus) {
+  if (!Array.isArray(items) || !items.length) return items;
+
+  const pickerActed = items.some((it) => it?.isDeleted);
+  if (!pickerActed) return items;
+
+  return items.map((it) => {
+    if (it?.isDeleted) return it;
+    const isZeroOffer =
+      Number(it.totalPrice) === 0 &&
+      (it.hasOffer === true ||
+        (Array.isArray(it.appliedPromotionIds) && it.appliedPromotionIds.length > 0) ||
+        Number(it.lineDiscountMinor) > 0);
+    if (!isZeroOffer) return it;
+    return { ...it, isDeleted: true, hasOffer: false, totalPrice: 0 };
+  });
+}
+
+function applyUnavailableLinePasses(items, subtotalMajor, orderStatus) {
+  const afterSubtotal = markUnavailableExcludedFromSubtotal(items, subtotalMajor);
+  return markZeroOfferLinesUnavailableAfterPicker(afterSubtotal, orderStatus);
+}
+
+const FULFILLMENT_RANK = {
+  pending: 0,
+  confirmed: 1,
+  processing: 2,
+  shipped: 3,
+  delivered: 4,
+  cancelled: 100,
+};
+
 /**
  * Map vendor/API fulfillment labels to our timeline + pill keys.
  * e.g. backend "accepted" / "ACKNOWLEDGED" should not fall through to pending styling.
@@ -166,12 +317,32 @@ export function normalizeFulfillmentStatus(raw) {
     order_confirmed: 'confirmed',
     confirmed: 'confirmed',
     confirm: 'confirmed',
+    assigned: 'confirmed',
+    assigned_to_picker: 'confirmed',
+    picker_assigned: 'confirmed',
+    ready_for_picker: 'confirmed',
     processing: 'processing',
     in_progress: 'processing',
     inprogress: 'processing',
     packing: 'processing',
     preparing: 'processing',
     packed: 'processing',
+    picking: 'processing',
+    picker: 'processing',
+    in_picking: 'processing',
+    pick_in_progress: 'processing',
+    allocated: 'processing',
+    ready_to_pack: 'processing',
+    ready: 'processing',
+    item_ready: 'processing',
+    items_ready: 'processing',
+    picked: 'processing',
+    partially_picked: 'processing',
+    partial: 'processing',
+    partial_pick: 'processing',
+    picking_complete: 'processing',
+    pick_complete: 'processing',
+    ready_for_dispatch: 'processing',
     shipped: 'shipped',
     ship: 'shipped',
     dispatched: 'shipped',
@@ -191,9 +362,42 @@ export function normalizeFulfillmentStatus(raw) {
   if (s.includes('cancel')) return 'cancelled';
   if (s.includes('deliver') && (s.includes('ed') || s.endsWith('ed'))) return 'delivered';
   if (s.includes('deliver') || s.includes('ship') || s.includes('dispatch') || s.includes('transit')) return 'shipped';
-  if (s.includes('process') || s.includes('pack')) return 'processing';
-  if (s.includes('accept') || s.includes('confirm') || s.includes('approv')) return 'confirmed';
+  if (
+    s.includes('process') ||
+    s.includes('pack') ||
+    s.includes('pick') ||
+    s.includes('allocat') ||
+    s.includes('ready')
+  ) {
+    return 'processing';
+  }
+  if (
+    s.includes('accept') ||
+    s.includes('confirm') ||
+    s.includes('approv') ||
+    s.includes('assign')
+  ) {
+    return 'confirmed';
+  }
   return 'pending';
+}
+
+/** Prefer the furthest fulfillment stage when APIs split status across fields. */
+export function pickFurthestFulfillmentStatus(rawCandidates) {
+  const list = Array.isArray(rawCandidates) ? rawCandidates : [rawCandidates];
+  let best = 'pending';
+  let bestRank = FULFILLMENT_RANK.pending;
+  for (const raw of list) {
+    if (raw == null || raw === '') continue;
+    const normalized = normalizeFulfillmentStatus(raw);
+    const rank = FULFILLMENT_RANK[normalized] ?? 0;
+    if (normalized === 'cancelled') return 'cancelled';
+    if (rank > bestRank) {
+      best = normalized;
+      bestRank = rank;
+    }
+  }
+  return best;
 }
 
 /**
@@ -202,8 +406,14 @@ export function normalizeFulfillmentStatus(raw) {
 function transformOrder(apiOrder) {
   if (!apiOrder) return null;
 
-  const rawStatus =
-    apiOrder.status || apiOrder.order_status || apiOrder.fulfillment_status || apiOrder.state || '';
+  const status = pickFurthestFulfillmentStatus([
+    apiOrder.status,
+    apiOrder.order_status,
+    apiOrder.orderStatus,
+    apiOrder.fulfillment_status,
+    apiOrder.fulfillmentStatus,
+    apiOrder.state,
+  ]);
   const methodRaw = apiOrder.paymentMethod || apiOrder.payment_method || 'cod';
   const paymentStatusRaw = apiOrder.paymentStatus || apiOrder.payment_status || '';
   const promotionDiscountMinor = parseMinorInt(
@@ -219,13 +429,19 @@ function transformOrder(apiOrder) {
     : Array.isArray(apiOrder.appliedPromotionIds)
       ? apiOrder.appliedPromotionIds
       : [];
+  const mappedItems = mapOrderItems(apiOrder);
   const promotionDiscountMajor = minorToMajor(promotionDiscountMinor);
+  const subtotal =
+    apiOrder.subtotal_minor != null
+      ? minorToMajor(apiOrder.subtotal_minor)
+      : parseFloat(apiOrder.subtotal || 0);
+  const items = applyUnavailableLinePasses(mappedItems, subtotal, status);
 
   return {
     id: apiOrder.id,
     // Storefront fields (snake_case)
     orderNumber: apiOrder.orderNumber || apiOrder.order_number || '',
-    status: normalizeFulfillmentStatus(rawStatus),
+    status,
     paymentMethod: methodRaw,
     paymentStatus: (() => {
       if (paymentStatusRaw) return String(paymentStatusRaw).trim();
@@ -234,7 +450,7 @@ function transformOrder(apiOrder) {
       return 'pending';
     })(),
     paymentId: apiOrder.paymentId || null,
-    subtotal: apiOrder.subtotal_minor != null ? minorToMajor(apiOrder.subtotal_minor) : parseFloat(apiOrder.subtotal || 0),
+    subtotal,
     tax: parseFloat(apiOrder.tax || 0),
     shipping:
       apiOrder.delivery_fee_minor != null ? minorToMajor(apiOrder.delivery_fee_minor) : parseFloat(apiOrder.shipping || 0),
@@ -284,9 +500,9 @@ function transformOrder(apiOrder) {
           apiOrder.items_count ??
           apiOrder.total_items ??
           apiOrder.totalItems ??
-          (Array.isArray(apiOrder.items) ? apiOrder.items.length : 0)
-      ) || 0,
-    items: (apiOrder.items || []).map(transformOrderItem).filter(Boolean),
+          items.length
+      ) || items.length,
+    items,
     createdAt: apiOrder.createdAt || apiOrder.created_at || apiOrder.placed_at || '',
     updatedAt: apiOrder.updatedAt || apiOrder.updated_at || '',
     // Storefront API doesn't expose cancel/modify endpoints in current docs
@@ -367,13 +583,30 @@ export async function getOrder(orderId) {
     });
 
     const apiOrder = response?.order || null;
-    const items = Array.isArray(response?.items) ? response.items : [];
-    const order = transformOrder(
-      apiOrder ? { ...apiOrder, items: items.length ? items : apiOrder.items } : null
-    );
-    if (order && items.length) {
-      order.items = items.map(transformOrderItem).filter(Boolean);
-      order.itemCount = order.items.length;
+    const topLevelItems = Array.isArray(response?.items) ? response.items : [];
+    const topLevelUnavailable = [
+      ...(Array.isArray(response?.unavailable_items) ? response.unavailable_items : []),
+      ...(Array.isArray(response?.unavailableItems) ? response.unavailableItems : []),
+      ...(Array.isArray(response?.removed_items) ? response.removed_items : []),
+      ...(Array.isArray(response?.removedItems) ? response.removedItems : []),
+      ...(Array.isArray(response?.rejected_items) ? response.rejected_items : []),
+      ...(Array.isArray(response?.rejectedItems) ? response.rejectedItems : []),
+    ];
+    const mergedSource = apiOrder
+      ? {
+          ...apiOrder,
+          items: topLevelItems.length ? topLevelItems : apiOrder.items,
+        }
+      : null;
+    const order = transformOrder(mergedSource);
+    if (order) {
+      const remapped = applyUnavailableLinePasses(
+        mapOrderItems(mergedSource || {}, topLevelUnavailable),
+        order.subtotal,
+        order.status
+      );
+      order.items = remapped;
+      order.itemCount = remapped.length;
     }
     return order;
   } catch (error) {
