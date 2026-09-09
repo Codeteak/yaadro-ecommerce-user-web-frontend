@@ -105,10 +105,20 @@ function getOrderItemImage(item) {
   );
 }
 
-/** Lines the customer still sees (omits `isDeleted` fulfillment snapshots). */
-function getVisibleOrderItems(order) {
+/** All order lines including shop-removed / unavailable. */
+function getOrderItems(order) {
   if (!order?.items?.length) return [];
-  return order.items.filter((it) => it && !it.isDeleted);
+  return order.items.filter(Boolean);
+}
+
+/** Lines still being fulfilled (excludes unavailable / removed). */
+function getActiveOrderItems(order) {
+  return getOrderItems(order).filter((it) => !getShopLineFulfillmentMeta(it).showRemoved);
+}
+
+/** @deprecated use getOrderItems — kept as alias for list rendering */
+function getVisibleOrderItems(order) {
+  return getOrderItems(order);
 }
 
 /** Tailwind rings — aligned with checkout / home (white + violet brand) */
@@ -177,11 +187,19 @@ function ShopQtyAdjustedBadge() {
   );
 }
 
+function UnavailableBadge() {
+  return (
+    <span className="inline-flex items-center rounded-md bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-800 ring-1 ring-red-200/80">
+      Unavailable
+    </span>
+  );
+}
+
 function OrderPromotionsSection({ order }) {
   const promo = getOrderPromotionSummary(order);
   if (!promo.hasPromotions) return null;
 
-  const lineOffers = getVisibleOrderItems(order).filter((it) => it.hasOffer);
+  const lineOffers = getActiveOrderItems(order).filter((it) => it.hasOffer);
 
   return (
     <Section>
@@ -266,6 +284,7 @@ function OrderItemRow({ item }) {
   const displayQty = meta.currentQty;
   const paidQty = inferOrderLinePaidQuantity(item);
   const offerLabel = getOrderLineOfferLabel(item);
+  const unavailable = meta.showRemoved;
   const packSuffix = (() => {
     const pack = item.packLabel ? String(item.packLabel).trim() : '';
     if (pack) return ` × ${pack}`;
@@ -274,11 +293,19 @@ function OrderItemRow({ item }) {
   })();
   const listPrice = item.listPrice;
   const showListStrike =
-    listPrice != null && Number.isFinite(listPrice) && listPrice > (item.unitPrice || 0) + 0.009;
+    !unavailable &&
+    listPrice != null &&
+    Number.isFinite(listPrice) &&
+    listPrice > (item.unitPrice || 0) + 0.009;
 
   let qtyText = `Qty ${displayQty}${packSuffix}`;
 
-  if (paidQty > 0 && displayQty > paidQty) {
+  if (unavailable) {
+    qtyText =
+      meta.originalQty != null
+        ? `Not available · you ordered ${meta.originalQty}${packSuffix}`
+        : `Not available${packSuffix}`;
+  } else if (paidQty > 0 && displayQty > paidQty) {
     qtyText = `${paidQty} paid + ${displayQty - paidQty} free${packSuffix}`;
     if (meta.showShopQtyUpdate && meta.originalQty != null) {
       qtyText += ` · you ordered ${meta.originalQty}`;
@@ -293,18 +320,23 @@ function OrderItemRow({ item }) {
 
   return (
     <>
-      <div className="min-w-0 flex-1">
-        <p className="m-0 truncate text-[13px] font-medium text-gray-900">{item.productName || item.name}</p>
+      <div className={`min-w-0 flex-1 ${unavailable ? 'opacity-70' : ''}`}>
+        <p
+          className={`m-0 truncate text-[13px] font-medium ${
+            unavailable ? 'text-gray-500 line-through' : 'text-gray-900'
+          }`}
+        >
+          {item.productName || item.name}
+        </p>
         <p className="mt-0.5 text-[11px] text-gray-500">
           {qtyText}
           {item.productSku ? ` · SKU: ${item.productSku}` : ''}
         </p>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          {meta.showShopQtyUpdate && <ShopQtyAdjustedBadge />}
-          {offerLabel && (
-            <OfferBadge>{offerLabel}</OfferBadge>
-          )}
-          {item.lineDiscount > 0 && (
+          {unavailable && <UnavailableBadge />}
+          {!unavailable && meta.showShopQtyUpdate && <ShopQtyAdjustedBadge />}
+          {!unavailable && offerLabel && <OfferBadge>{offerLabel}</OfferBadge>}
+          {!unavailable && item.lineDiscount > 0 && (
             <span className="text-[11px] font-medium text-violet-700">
               Saved {formatInrMajor(item.lineDiscount)}
             </span>
@@ -312,11 +344,19 @@ function OrderItemRow({ item }) {
         </div>
       </div>
       <div className="ml-auto shrink-0 text-right">
-        <p className="m-0 whitespace-nowrap text-[13px] font-medium text-gray-900">{fmt(item.totalPrice)}</p>
-        {showListStrike && (
-          <p className="m-0 mt-0.5 text-[11px] text-gray-400 line-through">
-            {fmt(listPrice * (displayQty || 1))}
+        {unavailable ? (
+          <p className="m-0 whitespace-nowrap text-[13px] font-medium text-gray-400 line-through">
+            {fmt(item.totalPrice || item.unitPrice || 0)}
           </p>
+        ) : (
+          <>
+            <p className="m-0 whitespace-nowrap text-[13px] font-medium text-gray-900">{fmt(item.totalPrice)}</p>
+            {showListStrike && (
+              <p className="m-0 mt-0.5 text-[11px] text-gray-400 line-through">
+                {fmt(listPrice * (displayQty || 1))}
+              </p>
+            )}
+          </>
         )}
       </div>
     </>
@@ -445,7 +485,9 @@ function downloadInvoice(order) {
       const meta = getShopLineFulfillmentMeta(it);
       const suffix = label ? ` (${label})` : '';
       let extra = '';
-      if (meta.showShopQtyUpdate && meta.originalQty != null) {
+      if (meta.showRemoved) {
+        extra = ' [UNAVAILABLE]';
+      } else if (meta.showShopQtyUpdate && meta.originalQty != null) {
         extra = ` [shop qty: ordered ${meta.originalQty} → fulfilling ${meta.currentQty}]`;
       } else if (meta.showShopQtyUpdate) {
         extra = ' [quantity updated by store]';
@@ -526,7 +568,7 @@ function ReturnModal({ order, onClose, onSubmit }) {
 
         <p className="mb-2.5 text-xs text-gray-500">Select items to return</p>
         <div className="mb-3.5 flex flex-col gap-1.5">
-          {getVisibleOrderItems(order).map((item) => (
+          {getActiveOrderItems(order).map((item) => (
             <label
               key={item.id}
               className={`flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2 ${
@@ -579,6 +621,13 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   const { ok, ready } = useRequireAuth();
   const { data: order, isLoading, error } = useOrderDetail(resolvedOrderId, {
     enabled: ok && Boolean(resolvedOrderId),
+    refetchInterval: (query) => {
+      const status = String(query.state.data?.status || '')
+        .trim()
+        .toLowerCase();
+      if (status === 'delivered' || status === 'cancelled') return false;
+      return 10000;
+    },
   });
   const { addToCart }   = useCart();
   const { user }        = useAuth();
@@ -587,8 +636,9 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   const [isReordering, setIsReordering] = useState(false);
   const [showReturn, setShowReturn]     = useState(false);
 
-  const visibleOrderItems = order ? getVisibleOrderItems(order) : [];
-  const firstVisibleItem = visibleOrderItems[0];
+  const visibleOrderItems = order ? getOrderItems(order) : [];
+  const activeOrderItems = order ? getActiveOrderItems(order) : [];
+  const firstVisibleItem = activeOrderItems[0] || visibleOrderItems[0];
 
   // Backend `/storefront/products/:id` expects a slug, not UUID.
   // Prefer slug from nested product; fall back to slugified name; never pass UUID here.
@@ -610,7 +660,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
       : null);
 
   const { data: relatedData } = useProductWithRelated(seedSlug);
-  const orderedIds = new Set(visibleOrderItems.map((it) => it.productId || it.product?.id).filter(Boolean));
+  const orderedIds = new Set(activeOrderItems.map((it) => it.productId || it.product?.id).filter(Boolean));
   const related = (relatedData?.relatedProducts || []).filter((p) => p?.id && !orderedIds.has(p.id)).slice(0, 12);
 
   useEffect(() => {
@@ -690,9 +740,9 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   };
 
   const handleReorder = async () => {
-    const items = order ? getVisibleOrderItems(order) : [];
+    const items = order ? getActiveOrderItems(order) : [];
     if (!items.length) {
-      showAlert('No items found in this order.', 'Reorder', 'warning');
+      showAlert('No available items found in this order.', 'Reorder', 'warning');
       return;
     }
     if (isReordering) return;
@@ -788,19 +838,34 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
             <OrderPromotionsSection order={order} />
 
             <Section>
-              <SectionHeader title={`Items · ${getVisibleOrderItems(order).length}`} right={fmt(order.subtotal)} />
-              {getVisibleOrderItems(order).some((it) => getShopLineFulfillmentMeta(it).showShopQtyUpdate) && (
+              <SectionHeader
+                title={`Items · ${getActiveOrderItems(order).length}`}
+                right={fmt(order.subtotal)}
+              />
+              {getOrderItems(order).some((it) => getShopLineFulfillmentMeta(it).showRemoved) && (
+                <div className="border-b border-red-100 bg-red-50/70 px-4 py-2.5 text-[11px] leading-snug text-red-950">
+                  Some items were marked unavailable while the store prepared this order. Those lines show an{' '}
+                  <span className="font-semibold">Unavailable</span> badge.
+                </div>
+              )}
+              {getOrderItems(order).some((it) => getShopLineFulfillmentMeta(it).showShopQtyUpdate) && (
                 <div className="border-b border-amber-100 bg-amber-50/70 px-4 py-2.5 text-[11px] leading-snug text-amber-950">
                   Some quantities may differ from what you ordered if the store adjusted them while fulfilling this order.
                   Lines marked <span className="font-semibold">Shop updated qty</span> show those changes.
                 </div>
               )}
-              {getVisibleOrderItems(order).map((item, idx) => (
+              {getOrderItems(order).map((item, idx) => (
                 <div
                   key={item.id || idx}
-                  className={`flex items-center gap-3 px-4 py-3 ${idx > 0 ? 'border-t border-gray-100' : ''}`}
+                  className={`flex items-center gap-3 px-4 py-3 ${idx > 0 ? 'border-t border-gray-100' : ''} ${
+                    getShopLineFulfillmentMeta(item).showRemoved ? 'bg-gray-50/80' : ''
+                  }`}
                 >
-                  <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
+                  <div
+                    className={`relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-gray-50 ${
+                      getShopLineFulfillmentMeta(item).showRemoved ? 'opacity-50 grayscale' : ''
+                    }`}
+                  >
                     <Image
                       src={getOrderItemImage(item)}
                       alt={item.productName || item.name || 'Item'}
