@@ -17,6 +17,7 @@ import Container from '../components/Container';
 import FloatingViewCartPill from '../components/FloatingViewCartPill';
 import BannerCarousel from '../components/BannerCarousel';
 import HomeSections from '../components/home/HomeSections';
+import HomeClientShelves from '../components/home/HomeClientShelves';
 import { dedupeProductsByVariantGroup } from '../utils/productUtils';
 import HomePageSkeleton from '../components/skeletons/HomePageSkeleton';
 import { ProductCarouselRowSkeleton } from '../components/skeletons/primitives';
@@ -825,6 +826,8 @@ export default function Home() {
           </Container>
         )}
       </section>
+
+      <HomeClientShelves products={catalogProducts} />
 
       {/* Footer */}
       <footer className="relative bg-white pt-8 pb-6 sm:pt-10 sm:pb-8 md:pt-16 md:pb-12 border-t border-gray-100 [@media(max-height:720px)]:pt-6 [@media(max-height:720px)]:pb-5">
