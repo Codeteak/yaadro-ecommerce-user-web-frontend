@@ -2,6 +2,10 @@
 
 Static Next.js export (`out/`) is deployed by GitHub Actions to **Cloudflare Pages**.
 
+> **Production path (four-instance plan):** prefer EC2 Next server via
+> `yaadro-ecommerce-admin-web-backend/infra/stacks/prod-customer-web` (`next start` + `DATABASE_URL`).
+> Use Pages only until that ASG is cut over; then point storefront DNS at the shared ALB and stop Pages prod deploys.
+
 | Item | Value |
 |------|--------|
 | Pages project | `yaadro-ecommerce-user-web-frontend` |

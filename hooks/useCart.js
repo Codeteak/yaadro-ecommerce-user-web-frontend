@@ -1,16 +1,25 @@
 /**
- * TanStack Query hooks for Cart
+ * TanStack Query hooks for cart coupon preview (localStorage cart + POST /cart/preview).
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getCart, addToCart as apiAddToCart, updateCartItem, removeFromCart as apiRemoveFromCart, clearCart as apiClearCart } from '../utils/cartApi';
-import { couponKeys } from './useCoupons';
-import { useToast } from '../context/ToastContext';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { previewCart } from '../utils/cartApi';
+import { stripPaidCartLinesOnly } from '../utils/cartPromotions';
 
 // Query keys
 export const cartKeys = {
   all: ['cart'],
-  /** @param {string|undefined} couponCode Optional coupon preview (GET /storefront/cart?couponCode=) */
+  /**
+   * @param {string|undefined} couponCode
+   * @param {string} [itemsKey] Stable fingerprint of local paid lines
+   */
+  preview: (couponCode, itemsKey = '') => [
+    ...cartKeys.all,
+    'preview',
+    couponCode ? String(couponCode).trim().toUpperCase() : '',
+    itemsKey,
+  ],
+  /** @deprecated Prefer cartKeys.preview — kept for invalidateQueries callers */
   cart: (couponCode) => [
     ...cartKeys.all,
     couponCode ? String(couponCode).trim().toUpperCase() : '',
@@ -26,154 +35,53 @@ export const EMPTY_CART_QUERY = {
   subtotalMinor: 0,
 };
 
-function syncCartFromMutation(queryClient, cartData, couponCode) {
-  if (!cartData || !Array.isArray(cartData.items)) return;
-  const normalized = couponCode ? String(couponCode).trim().toUpperCase() : '';
-  queryClient.setQueryData(cartKeys.cart(normalized || undefined), cartData);
-  queryClient.invalidateQueries({
-    queryKey: cartKeys.all,
-    predicate: (query) => {
-      const code = query.queryKey?.[1];
-      return typeof code === 'string' && code !== normalized;
-    },
-  });
-  queryClient.invalidateQueries({ queryKey: couponKeys.all });
+function fingerprintPaidItems(items) {
+  return toPreviewPayload(items)
+    .map((it) => `${it.productId}:${it.quantity}`)
+    .sort()
+    .join('|');
+}
+
+function toPreviewPayload(items) {
+  return stripPaidCartLinesOnly(items)
+    .map((it) => ({
+      productId: String(
+        it?.productId ?? it?.product_id ?? it?.product?.id ?? ''
+      ).trim(),
+      quantity: Number(it?.quantity) || 0,
+    }))
+    .filter((it) => it.productId && it.quantity > 0);
 }
 
 /**
- * Get current user's cart (optional coupon preview on read).
+ * Preview pricing/coupon for local cart lines (no Redis cart).
  */
 export function useCartQuery(options = {}) {
-  const { couponCode, ...queryOptions } = options;
+  const { couponCode, items = [], ...queryOptions } = options;
   const normalizedCoupon = couponCode
     ? String(couponCode).trim().toUpperCase()
     : '';
+  const payload = toPreviewPayload(items);
+  const itemsKey = fingerprintPaidItems(items);
 
   return useQuery({
-    queryKey: cartKeys.cart(normalizedCoupon || undefined),
-    queryFn: () => getCart({ couponCode: normalizedCoupon || undefined }),
-    staleTime: 1000 * 30, // 30 seconds
+    queryKey: cartKeys.preview(normalizedCoupon || undefined, itemsKey),
+    queryFn: () =>
+      previewCart({
+        items: payload,
+        couponCode: normalizedCoupon || undefined,
+      }),
+    staleTime: 1000 * 30,
     refetchOnWindowFocus: true,
     ...queryOptions,
   });
 }
 
-/**
- * Add item to cart mutation — with optimistic count update and toast feedback.
- */
-export function useAddToCart() {
+/** Clear all cart preview query caches (e.g. after local clear / checkout). */
+export function useInvalidateCartQueries() {
   const queryClient = useQueryClient();
-  const { showToast } = useToast();
-
-  return useMutation({
-    mutationFn: ({ productId, quantity, delta, couponCode }) => {
-      const amount = delta ?? quantity ?? 1;
-      const options = couponCode ? { couponCode } : {};
-      return apiAddToCart(productId, amount, options);
-    },
-    onMutate: async ({ productId, quantity, delta, couponCode }) => {
-      const key = cartKeys.cart(couponCode || undefined);
-      await queryClient.cancelQueries({ queryKey: cartKeys.all });
-      const previous = queryClient.getQueryData(key);
-      const amount = delta ?? quantity ?? 1;
-      queryClient.setQueryData(key, (old) => {
-        if (!old || !Array.isArray(old.items)) return old;
-        const existingIdx = old.items.findIndex(
-          (item) => String(item?.productId ?? item?.product_id ?? '') === String(productId)
-        );
-        if (existingIdx >= 0) {
-          const updatedItems = old.items.map((item, idx) =>
-            idx === existingIdx
-              ? { ...item, quantity: (item.quantity ?? 0) + amount }
-              : item
-          );
-          return { ...old, items: updatedItems };
-        }
-        return old;
-      });
-      return { previous };
-    },
-    onSuccess: (cartData, variables) => {
-      syncCartFromMutation(queryClient, cartData, variables?.couponCode);
-      showToast('Added to cart', 'success');
-    },
-    onError: (error, variables, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(cartKeys.cart(variables?.couponCode || undefined), context.previous);
-      }
-      showToast(error?.message || 'Could not add item. Please try again.', 'error');
-    },
-  });
-}
-
-/**
- * Update cart item quantity mutation
- */
-export function useUpdateCartItem() {
-  const queryClient = useQueryClient();
-  const { showToast } = useToast();
-
-  return useMutation({
-    mutationFn: ({ itemId, quantity, delta, couponCode }) => {
-      const opts = { couponCode: couponCode || undefined };
-      if (delta != null && Number.isFinite(Number(delta))) {
-        opts.delta = Math.trunc(Number(delta));
-        return updateCartItem(itemId, undefined, opts);
-      }
-      return updateCartItem(itemId, quantity, opts);
-    },
-    onSuccess: (cartData, variables) =>
-      syncCartFromMutation(queryClient, cartData, variables?.couponCode),
-    onError: (error) => {
-      showToast(error?.message || 'Could not update cart. Please try again.', 'error');
-    },
-  });
-}
-
-/**
- * Remove item from cart mutation
- */
-export function useRemoveFromCart() {
-  const queryClient = useQueryClient();
-  const { showToast } = useToast();
-
-  return useMutation({
-    mutationFn: (itemId, options) => {
-      if (typeof itemId === 'object' && itemId != null) {
-        return apiRemoveFromCart(itemId.itemId, { couponCode: itemId.couponCode });
-      }
-      return apiRemoveFromCart(itemId, options);
-    },
-    onSuccess: (cartData, variables) => {
-      const code =
-        typeof variables === 'object' && variables != null ? variables.couponCode : undefined;
-      syncCartFromMutation(queryClient, cartData, code);
-    },
-    onError: (error) => {
-      showToast(error?.message || 'Could not remove item. Please try again.', 'error');
-    },
-  });
-}
-
-/**
- * Clear cart mutation
- */
-export function useClearCart() {
-  const queryClient = useQueryClient();
-  const { showToast } = useToast();
-
-  return useMutation({
-    mutationFn: () => apiClearCart(),
-    onSuccess: (cartData) => {
-      if (cartData && Array.isArray(cartData.items)) {
-        syncCartFromMutation(queryClient, cartData);
-      } else {
-        queryClient.setQueryData(cartKeys.cart(), EMPTY_CART_QUERY);
-      }
-      queryClient.invalidateQueries({ queryKey: cartKeys.all });
-    },
-    onError: (error) => {
-      showToast(error?.message || 'Could not clear cart. Please try again.', 'error');
-    },
-  });
+  return () => {
+    queryClient.setQueryData(cartKeys.cart(), EMPTY_CART_QUERY);
+    queryClient.invalidateQueries({ queryKey: cartKeys.all });
+  };
 }

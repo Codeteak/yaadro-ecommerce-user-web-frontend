@@ -64,7 +64,13 @@ export async function placeStorefrontOrder({
         }))
         .filter((it) => it.productId && it.quantity > 0)
     : [];
-  if (checkoutItems.length) body.items = checkoutItems;
+  if (checkoutItems.length) {
+    body.items = checkoutItems;
+  } else {
+    const err = new Error('Cart is empty. Add items before checkout.');
+    err.code = 'CART_EMPTY';
+    throw err;
+  }
 
   const headers = {
     'x-shop-id': shopId,

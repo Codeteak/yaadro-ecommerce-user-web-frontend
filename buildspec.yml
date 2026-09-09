@@ -1,0 +1,49 @@
+version: 0.2
+
+env:
+  variables:
+    AWS_REGION: ap-south-1
+    DOCKER_BUILDKIT: "1"
+    BUILDKIT_PROGRESS: plain
+    NEXT_STATIC_EXPORT: "false"
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 22
+    commands:
+      - echo "=== INSTALL customer-web $(date -u +%FT%TZ) ==="
+      - node --version && npm --version && docker --version
+
+  pre_build:
+    commands:
+      - ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+      - ECR_URI="${ECR_REPOSITORY_URI}"
+      - IMAGE_TAG="$(echo "${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}" | cut -c1-12)"
+      - aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+      - echo "Building ${ECR_URI}:${IMAGE_TAG}"
+
+  build:
+    commands:
+      - |
+        docker build \
+          --build-arg "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://customer.yaadro.online}" \
+          --build-arg "NEXT_PUBLIC_STOREFRONT_CATALOG_REALTIME_TOKEN=${NEXT_PUBLIC_STOREFRONT_CATALOG_REALTIME_TOKEN:-}" \
+          -t "${ECR_URI}:${IMAGE_TAG}" \
+          -t "${ECR_URI}:latest" \
+          .
+      - docker push "${ECR_URI}:${IMAGE_TAG}"
+      - docker push "${ECR_URI}:latest"
+
+  post_build:
+    commands:
+      - printf '{"imageUri":"%s","imageTag":"%s","repository":"%s","builtAt":"%s"}\n' "${ECR_URI}:${IMAGE_TAG}" "${IMAGE_TAG}" "${ECR_URI}" "$(date -u +%FT%TZ)" > image-detail.json
+      - cat image-detail.json
+
+artifacts:
+  files:
+    - appspec.yml
+    - docker-compose.yml
+    - image-detail.json
+    - scripts/**/*
+  discard-paths: no

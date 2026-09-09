@@ -409,8 +409,8 @@ export function isCartCouponPreviewApplied(coupon, selectedCode) {
 }
 
 /**
- * GET /storefront/cart prices the server cart. After local-cart checkout, that
- * payload is often empty while the shopper still has lines — ignore it then.
+ * POST /storefront/cart/preview prices the client cart lines.
+ * After local-cart checkout, ignore empty previews while the shopper still has lines.
  */
 export function isTrustedCartCouponPreview(previewCart, localItems) {
   if (!stripPaidCartLinesOnly(localItems).length) return false;
