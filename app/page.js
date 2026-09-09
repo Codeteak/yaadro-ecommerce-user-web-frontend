@@ -13,16 +13,21 @@ import { useLocationService } from '../context/LocationServiceContext';
 import { useAuth } from '../context/AuthContext';
 import { useShopBranding } from '../context/ShopBrandingContext';
 import ProductCard from '../components/ProductCard';
-import CategoryCard from '../components/CategoryCard';
 import Container from '../components/Container';
 import FloatingViewCartPill from '../components/FloatingViewCartPill';
 import BannerCarousel from '../components/BannerCarousel';
 import HomeSections from '../components/home/HomeSections';
-import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../utils/categoryImage';
 import { dedupeProductsByVariantGroup } from '../utils/productUtils';
 import HomePageSkeleton from '../components/skeletons/HomePageSkeleton';
 import { ProductCarouselRowSkeleton } from '../components/skeletons/primitives';
 import SearchSuggestInput from '../components/search/SearchSuggestInput';
+import {
+  ArrowRightRegular as ArrowRight,
+  ClassifyRegular as Classify,
+  MapPinRegular as MapPin,
+  SearchFilled,
+  User1Filled as User,
+} from '../components/icons';
 
 const PREVIEW_FIRST_CARD = process.env.NODE_ENV === 'development';
 
@@ -42,84 +47,57 @@ function withHomeCardPreview(product, index) {
   };
 }
 
-/** Compact category tile for the sticky home header (light theme). */
-function StickyHomeCategoryChip({ category }) {
-  const categoryName = typeof category === 'object' ? category?.name || 'Category' : String(category);
-  const catObj = typeof category === 'object' ? category : { name: categoryName };
-  const initialSrc = getCategoryImageUrl(catObj);
-  const [imgSrc, setImgSrc] = useState(initialSrc || CATEGORY_DUMMY_IMAGE);
-  const isDummy = imgSrc === CATEGORY_DUMMY_IMAGE;
-
-  return (
-    <Link
-      href={`/products?category=${encodeURIComponent(categoryName)}`}
-      className="flex w-[68px] flex-shrink-0 flex-col items-center gap-1 active:scale-[0.97] transition-transform"
-    >
-      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-gray-100 shadow-sm ring-1 ring-gray-200/90">
-        <Image
-          src={imgSrc}
-          alt={isDummy ? '' : categoryName}
-          fill
-          className={isDummy ? 'object-contain p-1.5' : 'object-cover object-center'}
-          sizes="48px"
-          onError={() => {
-            if (!isDummy) setImgSrc(CATEGORY_DUMMY_IMAGE);
-          }}
-          unoptimized
-        />
-      </div>
-      <span
-        className="max-w-[4.25rem] text-center text-[10px] font-semibold leading-snug text-gray-800 line-clamp-2"
-        title={categoryName}
+/** Full-width Browse Categories CTA — hero (on purple) or sticky (after scroll). */
+function BrowseCategoriesCta({ variant = 'hero' }) {
+  if (variant === 'sticky') {
+    return (
+      <Link
+        href="/categories"
+        className="mx-3 mt-1 flex items-center justify-between gap-3 rounded-full px-4 py-2.5 text-gray-900 shadow-[0_12px_32px_rgba(109,40,217,0.28)] ring-2 ring-violet-300/80 backdrop-blur-md transition hover:brightness-105 active:scale-[0.98]"
+        style={{ background: 'rgba(167, 139, 250, 0.78)' }}
+        aria-label="Browse categories"
       >
-        {categoryName}
-      </span>
-    </Link>
-  );
-}
-import {
-  ArrowRightRegular as ArrowRight,
-  MapPinRegular as MapPin,
-  SearchFilled,
-  User1Filled as User,
-} from '../components/icons';
-
-/** Category card for home "Shop by Category" — uniform grid, image fills placeholder (centered). */
-function HomeShopCategoryCard({ category }) {
-  const categoryName = category?.name || 'Category';
-  const initialSrc = getCategoryImageUrl(category) || CATEGORY_DUMMY_IMAGE;
-  const [imgSrc, setImgSrc] = useState(initialSrc);
-  const isDummy = imgSrc === CATEGORY_DUMMY_IMAGE;
+        <span className="inline-flex items-center gap-2.5 min-w-0">
+          <span
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-violet-400/40"
+            style={{ background: 'rgba(196, 181, 253, 0.9)' }}
+          >
+            <Classify size={20} color="#111827" className="h-5 w-5" aria-hidden />
+          </span>
+          <span className="truncate text-[14px] font-extrabold tracking-wide text-gray-900">
+            Browse Categories
+          </span>
+        </span>
+        <ArrowRight size={18} color="#111827" className="h-[18px] w-[18px] shrink-0" aria-hidden />
+      </Link>
+    );
+  }
 
   return (
-    <Link
-      href={`/products?category=${encodeURIComponent(categoryName)}`}
-      className="block overflow-hidden rounded-[18px] border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:border-gray-200 hover:shadow-md active:scale-[0.98]"
-      aria-label={categoryName}
-    >
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-50">
-        <Image
-          src={imgSrc}
-          alt={isDummy ? '' : categoryName}
-          fill
-          className={
-            isDummy
-              ? 'object-contain object-center p-4'
-              : 'object-cover object-center'
-          }
-          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-          onError={() => {
-            if (!isDummy) setImgSrc(CATEGORY_DUMMY_IMAGE);
-          }}
-          unoptimized
-        />
-      </div>
-      <div className="border-t border-gray-100 bg-white px-3 py-2.5">
-        <p className="truncate text-center text-[13px] font-bold leading-snug text-gray-900">
-          {categoryName}
-        </p>
-      </div>
-    </Link>
+    <div className="relative z-20 mt-5 px-3 sm:px-6 md:px-8 pb-2">
+      <Link
+        href="/categories"
+        className="group flex w-full items-center justify-between gap-3 rounded-full bg-violet-200/50 px-4 py-3.5 sm:px-5 sm:py-4 shadow-[0_12px_40px_rgba(109,40,217,0.22)] ring-1 ring-violet-300/70 backdrop-blur-md transition hover:bg-violet-200/65 active:scale-[0.98]"
+        aria-label="Browse categories"
+      >
+        <span className="inline-flex items-center gap-3 min-w-0">
+          <span className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-100/90 ring-1 ring-violet-300/60">
+            <Classify size={24} color="#111827" className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-[15px] sm:text-base font-extrabold tracking-wide text-gray-900">
+              Browse Categories
+            </span>
+            <span className="mt-0.5 block truncate text-[12px] font-medium text-gray-700">
+              See everything we stock
+            </span>
+          </span>
+        </span>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/95 shadow-[0_8px_20px_rgba(15,23,42,0.12)] ring-1 ring-violet-100 transition group-hover:bg-violet-50">
+          <ArrowRight size={18} color="#111827" className="h-[18px] w-[18px]" aria-hidden />
+        </span>
+      </Link>
+    </div>
   );
 }
 
@@ -260,12 +238,8 @@ export default function Home() {
     }
   };
 
-  const categoryScrollRef = useRef(null);
   const heroSectionRef = useRef(null);
   const [stickyCategoryNavVisible, setStickyCategoryNavVisible] = useState(false);
-  const isDraggingRef = useRef(false);
-  const startXRef = useRef(0);
-  const scrollLeftRef = useRef(0);
 
   // Load root categories + catalog (Fresh Zone). Merch shelves come from home-sections.
   const { data: categoriesData, isLoading: categoriesLoading } = useRootCategories();
@@ -275,10 +249,8 @@ export default function Home() {
     sort_order: 'desc',
   });
 
-  // Process data
-  // Home categories strip: roots only (already parentId == null from API helper).
+  // Process data — root categories still feed Fresh Zone tabs; Browse CTA links to /categories.
   const allCategories = categoriesData?.filter((cat) => cat.isActive !== false) || [];
-  const categories = allCategories.slice(0, 12);
 
   const catalogProducts = useMemo(
     () => dedupeProductsByVariantGroup(catalogData?.products || []),
@@ -448,7 +420,7 @@ export default function Home() {
   useEffect(() => {
     if (loading) return undefined;
     const hero = heroSectionRef.current;
-    if (!hero || categories.length === 0) {
+    if (!hero) {
       setStickyCategoryNavVisible(false);
       return undefined;
     }
@@ -465,37 +437,8 @@ export default function Home() {
       window.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);
     };
-  }, [loading, categories.length]);
+  }, [loading]);
 
-  const handleCategoryMouseDown = (e) => {
-    if (!categoryScrollRef.current) return;
-    if (e.pointerType === 'touch') return;
-    isDraggingRef.current = true;
-    categoryScrollRef.current.classList.add('cursor-grabbing');
-    startXRef.current = e.pageX - categoryScrollRef.current.offsetLeft;
-    scrollLeftRef.current = categoryScrollRef.current.scrollLeft;
-  };
-
-  const handleCategoryMouseLeave = () => {
-    if (!categoryScrollRef.current) return;
-    isDraggingRef.current = false;
-    categoryScrollRef.current.classList.remove('cursor-grabbing');
-  };
-
-  const handleCategoryMouseUp = () => {
-    if (!categoryScrollRef.current) return;
-    isDraggingRef.current = false;
-    categoryScrollRef.current.classList.remove('cursor-grabbing');
-  };
-
-  const handleCategoryMouseMove = (e) => {
-    if (!isDraggingRef.current || !categoryScrollRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - categoryScrollRef.current.offsetLeft;
-    const walk = (x - startXRef.current) * 1.2;
-    categoryScrollRef.current.scrollLeft = scrollLeftRef.current - walk;
-  };
-  
   const handleNewsletterSubmit = (e) => {
     e.preventDefault();
     showAlert('Thank you for subscribing!', 'Success', 'success');
@@ -568,30 +511,19 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Sticky category strip — appears after scrolling past the hero */}
-      {!loading && categories.length > 0 && (
+      {/* Sticky Browse Categories — button only (no full-width card chrome) */}
+      {!loading && (
         <div
           className={`fixed inset-x-0 top-0 z-[65] transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none ${
             stickyCategoryNavVisible
-              ? 'translate-y-0 opacity-100 pointer-events-auto'
+              ? 'translate-y-0 opacity-100 pointer-events-none'
               : 'pointer-events-none -translate-y-[calc(100%+8px)] opacity-0'
           }`}
           style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
           aria-hidden={!stickyCategoryNavVisible}
         >
-          <div className="border-b border-gray-100/90 bg-white/95 shadow-[0_8px_28px_rgba(15,23,42,0.07)] backdrop-blur-md">
-            <div
-              role="region"
-              aria-label="Browse categories"
-              className="scrollbar-hide overflow-x-auto overflow-y-hidden px-3 pb-2 pt-2.5 touch-pan-x"
-              style={{ WebkitOverflowScrolling: 'touch' }}
-            >
-              <div className="flex w-max items-start gap-3 pb-0.5 pr-1">
-                {categories.map((category) => (
-                  <StickyHomeCategoryChip key={category.id} category={category} />
-                ))}
-              </div>
-            </div>
+          <div className={`px-0 ${stickyCategoryNavVisible ? 'pointer-events-auto' : 'pointer-events-none'}`}>
+            <BrowseCategoriesCta variant="sticky" />
           </div>
         </div>
       )}
@@ -631,11 +563,7 @@ export default function Home() {
           />
         </div>
         <Container className="px-0 sm:px-0 lg:px-0 xl:px-0 2xl:px-0">
-            <div
-              className={`relative text-white flex flex-col overflow-hidden ${
-                categories.length > 0 ? 'pb-16 sm:pb-20' : 'pb-6 sm:pb-8'
-              }`}
-            >
+            <div className="relative text-white flex flex-col overflow-hidden pb-14 sm:pb-16">
             {/* Header: shop branding + search + profile in one row */}
             <div className="relative z-30 flex items-center gap-2 px-3 sm:px-4 min-h-[52px] pt-5 sm:pt-6 md:pt-8">
               <div className="flex min-w-0 max-w-[38%] sm:max-w-[42%] shrink-0 items-center gap-2">
@@ -755,45 +683,13 @@ export default function Home() {
               </div>
             )}
 
-            {/* Bottom: categories carousel */}
-            {categories.length > 0 && (
-              <div className="relative inset-x-0 z-20 mt-4 pt-2 pb-4">
-                <div
-                  ref={categoryScrollRef}
-                  role="region"
-                  aria-label="Categories"
-                  onPointerDown={handleCategoryMouseDown}
-                  onPointerLeave={handleCategoryMouseLeave}
-                  onPointerUp={handleCategoryMouseUp}
-                  onPointerMove={handleCategoryMouseMove}
-                  onPointerCancel={handleCategoryMouseUp}
-                  className="category-scroll-track flex items-center gap-4 overflow-x-auto overflow-y-hidden scrollbar-hide px-4 cursor-grab select-none touch-pan-x touch-pan-y snap-x snap-mandatory scroll-smooth min-w-0 w-full"
-                  style={{
-                    WebkitOverflowScrolling: 'touch',
-                    overflowX: 'auto',
-                    overflowY: 'hidden',
-                    touchAction: 'pan-x pan-y',
-                  }}
-                >
-                  <div className="flex items-stretch gap-4 flex-nowrap w-max flex-shrink-0 pb-2">
-                    {categories.map((category) => (
-                      <div key={category.id} className="flex-shrink-0 snap-start">
-                        <CategoryCard category={category} labelClassName="text-white" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Single Browse Categories CTA (replaces category icon boxes) */}
+            <BrowseCategoriesCta variant="hero" />
           </div>
         </Container>
       </section>
 
-      <div
-        className={`relative z-10 [&>section:first-child]:!pt-1 [&>section:first-child]:sm:!pt-2 ${
-          categories.length > 0 ? '-mt-10 sm:-mt-12' : '-mt-6 sm:-mt-8'
-        }`}
-      >
+      <div className="relative z-10 [&>section:first-child]:!pt-1 [&>section:first-child]:sm:!pt-2 -mt-8 sm:-mt-10">
         <HomeSections />
       </div>
 
@@ -929,28 +825,6 @@ export default function Home() {
           </Container>
         )}
       </section>
-
-      {/* Shop by Category — uniform card grid */}
-      {allCategories.length > 0 && (
-        <section className="py-6 sm:py-8 md:py-12 lg:py-16 bg-white [@media(max-height:720px)]:py-5 [@media(max-height:720px)]:sm:py-6">
-          <Container>
-            <div className="mb-5 sm:mb-6 md:mb-8 px-3 sm:px-4 md:px-0">
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
-                Shop by Category
-              </h2>
-              <p className="mt-2 text-[13px] md:text-sm text-gray-500">
-                Browse every category — find what you need, fast.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:gap-4 px-3 sm:px-4 md:px-0">
-              {allCategories.map((category) => (
-                <HomeShopCategoryCard key={category.id ?? category.name} category={category} />
-              ))}
-            </div>
-          </Container>
-        </section>
-      )}
 
       {/* Footer */}
       <footer className="relative bg-white pt-8 pb-6 sm:pt-10 sm:pb-8 md:pt-16 md:pb-12 border-t border-gray-100 [@media(max-height:720px)]:pt-6 [@media(max-height:720px)]:pb-5">
