@@ -25,6 +25,7 @@ import {
   readSelectedCouponCode,
   writeSelectedCouponCode,
 } from '../utils/checkoutSession';
+import { RESOLVED_SHOP_ID_STORAGE_KEY } from '../utils/shopResolver';
 
 function buildGuestDisplayCartItems(localLines) {
   const withBundle = applyGuestCartBundleQuantities(stripPaidCartLinesOnly(localLines));
@@ -35,18 +36,42 @@ const CartContext = createContext();
 const GUEST_CART_STORAGE_KEY = 'cart';
 const API_CART_CACHE_STORAGE_KEY = 'cartApiCache';
 
-function shopCartStorageKey() {
-  const shopId =
+function resolveShopIdForCartStorage() {
+  if (typeof window !== 'undefined') {
+    try {
+      const resolved = window.localStorage.getItem(RESOLVED_SHOP_ID_STORAGE_KEY);
+      if (resolved && String(resolved).trim()) return String(resolved).trim();
+    } catch {
+      // ignore storage errors
+    }
+  }
+  const envShopId =
     typeof process.env.NEXT_PUBLIC_SHOP_ID === 'string'
       ? process.env.NEXT_PUBLIC_SHOP_ID.trim()
       : '';
+  return envShopId || '';
+}
+
+function shopCartStorageKey() {
+  const shopId = resolveShopIdForCartStorage();
   return shopId ? `yaadro_cart_${shopId}` : GUEST_CART_STORAGE_KEY;
+}
+
+/** Keys to try when hydrating — primary first, then pre-cutover / legacy keys. */
+function cartStorageFallbackKeys() {
+  const keys = [shopCartStorageKey()];
+  const envShopId =
+    typeof process.env.NEXT_PUBLIC_SHOP_ID === 'string'
+      ? process.env.NEXT_PUBLIC_SHOP_ID.trim()
+      : '';
+  if (envShopId) keys.push(`yaadro_cart_${envShopId}`);
+  keys.push(GUEST_CART_STORAGE_KEY, API_CART_CACHE_STORAGE_KEY);
+  return [...new Set(keys.filter(Boolean))];
 }
 
 function readPaidCartLinesFromStorage() {
   if (typeof window === 'undefined') return [];
-  const primary = shopCartStorageKey();
-  for (const key of [primary, GUEST_CART_STORAGE_KEY, API_CART_CACHE_STORAGE_KEY]) {
+  for (const key of cartStorageFallbackKeys()) {
     try {
       const raw = localStorage.getItem(key);
       if (!raw) continue;
@@ -147,6 +172,7 @@ export function CartProvider({ children }) {
   } = useCartQuery({
     enabled: !!(isAuthenticated && token && paidLocalCount > 0 && selectedCouponCode),
     couponCode: selectedCouponCode || undefined,
+    items: localCartItems,
   });
 
   const couponPreviewTrusted =

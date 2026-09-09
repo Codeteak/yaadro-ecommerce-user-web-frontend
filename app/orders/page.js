@@ -9,7 +9,6 @@ import { useProducts } from '../../hooks/useProducts';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { cartKeys } from '../../hooks/useCart';
-import { getCart } from '../../utils/cartApi';
 import { useAlert } from '../../context/AlertContext';
 import PageTopBar from '../../components/PageTopBar';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
@@ -252,10 +251,7 @@ export default function OrdersPage() {
         }
         if (isAuthenticated) {
           try {
-            await queryClient.fetchQuery({
-              queryKey: cartKeys.cart(),
-              queryFn: getCart,
-            });
+            await queryClient.invalidateQueries({ queryKey: cartKeys.all });
           } catch (e) {
             console.error('Cart refresh after reorder:', e);
           }

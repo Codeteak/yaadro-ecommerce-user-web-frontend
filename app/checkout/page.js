@@ -660,17 +660,24 @@ export default function CheckoutPage() {
         setIsSubmitting(false);
         return;
       }
+      const checkoutLines = cartItems
+        .filter((it) => !isBundleRewardCartLine(it))
+        .map((it) => ({
+          productId: String(it.productId ?? it.product_id ?? it.product?.id ?? '').trim(),
+          quantity: Number(it.quantity) || 1,
+        }))
+        .filter((it) => it.productId && it.quantity > 0);
+      if (!checkoutLines.length) {
+        showAlert('Your cart is empty. Add items before placing an order.', 'Cart empty', 'warning');
+        setIsSubmitting(false);
+        return;
+      }
       const orderResponse = await placeStorefrontOrder({
         notes: notes.trim() || undefined,
         couponCode: (selectedCouponCode || '').trim() || undefined,
         lat: selectedAddressCoords.lat,
         lng: selectedAddressCoords.lng,
-        items: cartItems
-          .filter((it) => !isBundleRewardCartLine(it))
-          .map((it) => ({
-            productId: String(it.productId ?? it.product?.id ?? it.id),
-            quantity: Number(it.quantity) || 1,
-          })),
+        items: checkoutLines,
       });
 
       if (!orderResponse?.orderId) throw new Error('Failed to create order');

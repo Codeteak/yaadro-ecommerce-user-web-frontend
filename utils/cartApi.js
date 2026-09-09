@@ -5,7 +5,6 @@
 
 import { apiFetchRoot } from './apiClient';
 import { resolveShopId } from './authApi';
-import { getProductById } from './productApi';
 import {
   getResolvedProductImageUrls,
   PRODUCT_IMAGE_PLACEHOLDER,
@@ -15,7 +14,6 @@ import { minorToMajor, parseMinorInt } from './currencyMinor';
 import {
   getPaidCartItemId,
   isBundleRewardCartLine,
-  isBundleRewardCartLineId,
   normalizeCartPromotions,
   sumCartDisplayUnits,
 } from './cartPromotions';
@@ -23,26 +21,6 @@ import {
   formatWeightUnitLabel,
   resolveProductWeightAndUnit,
 } from './productUtils';
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function isUuid(value) {
-  return UUID_RE.test(String(value || '').trim());
-}
-
-async function resolveProductIdForCart(productInput) {
-  const raw =
-    typeof productInput === 'string'
-      ? productInput
-      : productInput?.productId || productInput?.id || productInput?.slug;
-  const normalized = String(raw || '').trim();
-  if (!normalized) return '';
-  if (isUuid(normalized)) return normalized;
-
-  // Backward compatibility for old local carts that may store slug/non-UUID ids.
-  const resolvedProduct = await getProductById(normalized);
-  return isUuid(resolvedProduct?.id) ? resolvedProduct.id : '';
-}
 
 /** Read quantity from legacy flat fields or v2 nested `quantity` object. */
 function readCartLineQuantityFields(apiItem) {
@@ -471,7 +449,8 @@ function parseStorefrontCartResponse(response) {
 }
 
 /**
- * Get current user's cart with live promos; optional coupon preview (not persisted until checkout).
+ * GET /storefront/cart is retired for contents (always empty). Prefer previewCart.
+ * Kept for callers that only need to clear query cache shape.
  *
  * @param {{ couponCode?: string }} [options]
  * @returns {Promise<object>}
@@ -503,33 +482,40 @@ export async function getCart(options = {}) {
 }
 
 /**
- * Add product to cart (relative `delta`; merges if product already in cart).
+ * Price local cart lines + optional coupon via POST /storefront/cart/preview.
+ * Does not read or write a server cart.
  *
- * @param {string|object} productInput - Product UUID or product-like object
- * @param {number} delta - Units to add (positive integer)
- * @param {{ couponCode?: string }} [options] - Optional coupon preview on response
- * @returns {Promise<object>} Full repriced cart (`StorefrontCartResponse` shape)
+ * @param {{ items: Array<{ productId: string, quantity: number }>, couponCode?: string, includeSuggestedCoupons?: boolean }} options
+ * @returns {Promise<object>}
  */
-export async function addToCart(productInput, delta = 1, options = {}) {
+export async function previewCart(options = {}) {
   try {
-    const productId = await resolveProductIdForCart(productInput);
-    if (!productId) {
-      throw new Error('Invalid productId for cart API (must be UUID).');
-    }
-    const safeDelta = Math.max(1, Math.floor(Number(delta) || 1));
-
     const shopId = await resolveShopId();
     if (!shopId) {
       throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/* requests on localhost).');
     }
 
-    const body = { productId, delta: safeDelta };
+    const items = (Array.isArray(options.items) ? options.items : [])
+      .map((it) => ({
+        productId: String(it?.productId ?? it?.product_id ?? '').trim(),
+        quantity: Number(it?.quantity) || 0,
+      }))
+      .filter((it) => it.productId && it.quantity > 0);
+
+    if (!items.length) {
+      return { ...EMPTY_CART };
+    }
+
+    const body = { items };
     const couponCode = String(options.couponCode || '')
       .trim()
       .toUpperCase();
     if (couponCode) body.couponCode = couponCode;
+    if (options.includeSuggestedCoupons === false) {
+      body.includeSuggestedCoupons = false;
+    }
 
-    const response = await apiFetchRoot('/storefront/cart/items', {
+    const response = await apiFetchRoot('/storefront/cart/preview', {
       method: 'POST',
       headers: { 'x-shop-id': shopId },
       omitTenantHeader: true,
@@ -538,112 +524,7 @@ export async function addToCart(productInput, delta = 1, options = {}) {
 
     return parseStorefrontCartResponse(response);
   } catch (error) {
-    console.error('Error adding to cart:', error);
-    throw error;
-  }
-}
-
-/**
- * Update cart line quantity via relative `delta` (preferred) or absolute `quantity`.
- *
- * @param {string} itemId - Paid cart line UUID (not `:bundle-reward`)
- * @param {number|null|undefined} quantity - Absolute quantity (legacy); omit when using `delta`
- * @param {{ delta?: number, couponCode?: string }} [options]
- * @returns {Promise<object>} Full repriced cart
- */
-export async function updateCartItem(itemId, quantity, options = {}) {
-  if (isBundleRewardCartLineId(itemId)) {
-    throw new Error('Cannot change quantity on a free bundle item.');
-  }
-  try {
-    const shopId = await resolveShopId();
-    if (!shopId) {
-      throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/* requests on localhost).');
-    }
-
-    const body = {};
-    if (options.delta != null && Number.isFinite(Number(options.delta))) {
-      const d = Math.trunc(Number(options.delta));
-      if (d === 0) {
-        throw new Error('Cart quantity delta must be non-zero.');
-      }
-      body.delta = d;
-    } else if (quantity != null && Number.isFinite(Number(quantity))) {
-      body.quantity = Math.max(1, Number(quantity) || 1);
-    } else {
-      throw new Error('Provide delta or quantity for cart item update.');
-    }
-
-    const couponCode = String(options.couponCode || '')
-      .trim()
-      .toUpperCase();
-    if (couponCode) body.couponCode = couponCode;
-
-    const response = await apiFetchRoot(`/storefront/cart/items/${itemId}`, {
-      method: 'PATCH',
-      headers: { 'x-shop-id': shopId },
-      omitTenantHeader: true,
-      body,
-    });
-
-    return parseStorefrontCartResponse(response);
-  } catch (error) {
-    console.error('Error updating cart item:', error);
-    throw error;
-  }
-}
-
-/**
- * Remove item from cart
- * @param {string} itemId - Cart item UUID
- * @param {{ couponCode?: string }} [options]
- * @returns {Promise<object>} Full repriced cart
- */
-export async function removeFromCart(itemId, options = {}) {
-  if (isBundleRewardCartLineId(itemId)) {
-    throw new Error('Cannot remove a free bundle item directly.');
-  }
-  try {
-    const shopId = await resolveShopId();
-    if (!shopId) {
-      throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/* requests on localhost).');
-    }
-
-    const body = {};
-    const couponCode = String(options.couponCode || '')
-      .trim()
-      .toUpperCase();
-    if (couponCode) body.couponCode = couponCode;
-
-    const response = await apiFetchRoot(`/storefront/cart/items/${itemId}`, {
-      method: 'DELETE',
-      headers: { 'x-shop-id': shopId },
-      omitTenantHeader: true,
-      body: Object.keys(body).length ? body : undefined,
-    });
-
-    return parseStorefrontCartResponse(response);
-  } catch (error) {
-    console.error('Error removing from cart:', error);
-    throw error;
-  }
-}
-
-/**
- * Clear entire cart
- * @returns {Promise<object>} Normalized empty cart
- */
-export async function clearCart() {
-  try {
-    // Backend exposes item delete; clear by fetching cart and deleting lines.
-    const cart = await getCart();
-    const paidLines = (cart.items || []).filter((it) => !it.isBundleReward);
-    if (paidLines.length > 0) {
-      await Promise.all(paidLines.map((it) => removeFromCart(it.cartItemId || it.id)));
-    }
-    return getCart();
-  } catch (error) {
-    console.error('Error clearing cart:', error);
+    console.error('Error previewing cart:', error);
     throw error;
   }
 }
