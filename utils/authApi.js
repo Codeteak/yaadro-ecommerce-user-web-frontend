@@ -69,11 +69,11 @@ export async function resolveShopId() {
 
 async function resolveShopIdForOtp(explicitShopId) {
   const explicit = explicitShopId != null ? String(explicitShopId).trim() : '';
+  // Prefer caller-provided shopId (already resolved on LoginPanel) to avoid a duplicate
+  // resolve-by-domain round-trip on every OTP request/verify.
+  if (explicit) return explicit;
   const runtime = await resolveShopId();
-  const rt = runtime != null ? String(runtime).trim() : '';
-  // Prefer freshly resolved shop for the current origin so OTP request + verify always use the same
-  // tenant (avoids stale React state vs domain resolver / cache drift on PWA or slow hydrate).
-  return rt || explicit || '';
+  return runtime != null ? String(runtime).trim() : '';
 }
 
 /**

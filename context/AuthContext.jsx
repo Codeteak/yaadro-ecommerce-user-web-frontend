@@ -10,7 +10,6 @@ import {
   isClientSessionExpired,
   shouldAttemptSessionRecovery,
   syncSessionExpiryFromRefreshToken,
-  takePostLoginRedirect,
 } from '../utils/authSession';
 import { isUnauthorizedError, isTransientAuthError } from '../utils/authErrors';
 import { normalizeCustomer } from '../utils/authApi';
@@ -379,9 +378,10 @@ export function AuthProvider({ children }) {
 
   /**
    * Login function - stores user + tokens and starts/resets the client session window.
-   * @returns {boolean} true if a full-page redirect was triggered (caller should skip client routing).
+   * Post-login navigation is owned by LoginPageClient (soft router.replace).
+   * @returns {boolean} always false (no hard redirect).
    */
-  const login = (userData, tokens = {}, options = {}) => {
+  const login = (userData, tokens = {}, _options = {}) => {
     setUser(normalizeCustomer(userData) || userData);
     const access = tokens?.token || tokens?.accessToken;
     if (access) {
@@ -393,13 +393,6 @@ export function AuthProvider({ children }) {
       window.localStorage.setItem('refreshToken', tokens.refreshToken);
     }
     establishClientSession({ refreshToken: tokens?.refreshToken });
-    if (typeof window !== 'undefined' && !options.skipPostLoginRedirect) {
-      const next = takePostLoginRedirect();
-      if (next) {
-        window.location.assign(next);
-        return true;
-      }
-    }
     return false;
   };
 

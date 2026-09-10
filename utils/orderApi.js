@@ -10,6 +10,8 @@ import {
   parseMinorInt,
   parseOrderQuantity,
   isOrderLineUnavailable,
+  isConfirmedFreeRewardLine,
+  inferOrderLinePaidQuantity,
 } from './orderPromotions';
 import {
   formatWeightUnitLabel,
@@ -68,10 +70,13 @@ function transformOrderItem(item) {
     item.product_name ||
     item.name ||
     'Product';
-  const unitPrice =
+  const unitPriceRaw =
     unitPriceMinor > 0
       ? minorToMajor(unitPriceMinor)
       : parseFloat(item.unitPrice || item.unit_price || 0) || 0;
+  const listPrice = listPriceMinor > 0 ? minorToMajor(listPriceMinor) : null;
+  // When API zeroes unit but leaves list (common after picker / BXGY wipe), use list as catalog.
+  const unitPrice = unitPriceRaw > 0 ? unitPriceRaw : listPrice != null && listPrice > 0 ? listPrice : 0;
 
   const hasTotalPriceMajor =
     (item.totalPrice != null && item.totalPrice !== '') ||
@@ -90,8 +95,6 @@ function transformOrderItem(item) {
     totalPrice = unitPrice * quantity;
   }
 
-  const listPrice = listPriceMinor > 0 ? minorToMajor(listPriceMinor) : null;
-
   const originalQuantity = (() => {
     const raw =
       item.originalQuantity ??
@@ -108,17 +111,23 @@ function transformOrderItem(item) {
     return Number.isFinite(n) && n > 0 ? n : null;
   })();
 
-  const hasOfferSignal = appliedPromotionIds.length > 0 || lineDiscountMinor > 0;
+  const isConfirmedFreeReward = isConfirmedFreeRewardLine(item);
+  const catalogPrice = Math.max(unitPrice, listPrice != null ? listPrice : 0);
+  const lineDiscountMajor = minorToMajor(lineDiscountMinor);
 
   const isDeleted = isOrderLineUnavailable(item, {
     quantity,
     originalQuantity,
     lineTotalMinor,
-    unitPriceMinor,
+    unitPriceMinor: unitPriceMinor > 0 ? unitPriceMinor : listPriceMinor,
     unitPrice,
+    listPrice: listPrice != null ? listPrice : 0,
+    listPriceMinor,
     totalPrice,
-    lineTotalExplicitZero,
-    hasOfferSignal,
+    lineDiscount: lineDiscountMajor,
+    lineDiscountMinor,
+    lineTotalExplicitZero: lineTotalExplicitZero || (totalPrice === 0 && catalogPrice > 0),
+    isConfirmedFreeReward,
   });
 
   const shopQuantityAdjusted =
@@ -129,7 +138,28 @@ function transformOrderItem(item) {
     item.shopUpdated === true ||
     item.shop_updated === true;
 
-  const hasOffer = !isDeleted && hasOfferSignal;
+  const draftForPaid = {
+    ...item,
+    quantity,
+    unitPrice,
+    totalPrice,
+    isConfirmedFreeReward,
+    offer_quantity: item.offer_quantity ?? item.offerQuantity,
+    free_quantity: item.free_quantity ?? item.freeQuantity,
+  };
+  const paidQty = inferOrderLinePaidQuantity(draftForPaid);
+  const mixedPaidFree = paidQty > 0 && quantity > paidQty;
+  const hasOffer =
+    !isDeleted &&
+    (isConfirmedFreeReward ||
+      mixedPaidFree ||
+      (lineDiscountMajor > 0.009 && totalPrice > 0.009));
+
+  // Rebuild payable total when API zeroed a still-active paid line incorrectly.
+  if (!isDeleted && !isConfirmedFreeReward && catalogPrice > 0 && paidQty > 0 && totalPrice < 0.009) {
+    totalPrice = catalogPrice * paidQty;
+  }
+
   const { weight, unit } = resolveProductWeightAndUnit({
     unit_size: item.unit_size ?? item.unit_size_snapshot ?? item.unitSize,
     unit_size_snapshot: item.unit_size_snapshot,
@@ -155,10 +185,11 @@ function transformOrderItem(item) {
     unitPrice,
     listPrice,
     lineDiscountMinor,
-    lineDiscount: minorToMajor(lineDiscountMinor),
+    lineDiscount: lineDiscountMajor,
     totalPrice,
     appliedPromotionIds,
     hasOffer,
+    isConfirmedFreeReward,
     isDeleted,
     originalQuantity,
     shopQuantityAdjusted,
@@ -167,6 +198,8 @@ function transformOrderItem(item) {
     image: resolveOrderItemImage(item),
     price: unitPrice,
     discount: parseFloat(item.discount || 0),
+    offer_quantity: item.offer_quantity ?? item.offerQuantity ?? null,
+    free_quantity: item.free_quantity ?? item.freeQuantity ?? null,
   };
 }
 
@@ -256,9 +289,8 @@ function markUnavailableExcludedFromSubtotal(items, subtotalMajor) {
 }
 
 /**
- * After picker has removed at least one line, treat remaining ₹0 "offer" lines as
- * unavailable too (promo ids often linger on rejected freebies).
- * Runs regardless of order status (status can briefly fall back to pending).
+ * After picker has removed at least one line, mark remaining confirmed free-reward
+ * ₹0 lines unavailable (rejected freebies). Do not mass-wipe every promo-stamped row.
  */
 function markZeroOfferLinesUnavailableAfterPicker(items, _orderStatus) {
   if (!Array.isArray(items) || !items.length) return items;
@@ -268,12 +300,10 @@ function markZeroOfferLinesUnavailableAfterPicker(items, _orderStatus) {
 
   return items.map((it) => {
     if (it?.isDeleted) return it;
-    const isZeroOffer =
+    const isZeroConfirmedFree =
       Number(it.totalPrice) === 0 &&
-      (it.hasOffer === true ||
-        (Array.isArray(it.appliedPromotionIds) && it.appliedPromotionIds.length > 0) ||
-        Number(it.lineDiscountMinor) > 0);
-    if (!isZeroOffer) return it;
+      (it.isConfirmedFreeReward === true || isConfirmedFreeRewardLine(it));
+    if (!isZeroConfirmedFree) return it;
     return { ...it, isDeleted: true, hasOffer: false, totalPrice: 0 };
   });
 }
@@ -401,6 +431,84 @@ export function pickFurthestFulfillmentStatus(rawCandidates) {
 }
 
 /**
+ * Normalize delivery address from common storefront / snapshot field shapes.
+ */
+function normalizeDeliveryAddress(apiOrder) {
+  if (!apiOrder || typeof apiOrder !== 'object') return {};
+
+  const candidates = [
+    apiOrder.deliveryAddress,
+    apiOrder.delivery_address,
+    apiOrder.shippingAddress,
+    apiOrder.shipping_address,
+    apiOrder.delivery_address_snapshot,
+    apiOrder.deliveryAddressSnapshot,
+    apiOrder.address_snapshot,
+    apiOrder.addressSnapshot,
+    apiOrder.customer_address,
+    apiOrder.customerAddress,
+    apiOrder.shipping_address_snapshot,
+    apiOrder.shippingAddressSnapshot,
+  ];
+
+  let raw = null;
+  for (const c of candidates) {
+    if (c && typeof c === 'object' && !Array.isArray(c) && Object.keys(c).length) {
+      raw = c;
+      break;
+    }
+    if (typeof c === 'string' && c.trim()) {
+      return { street: c.trim(), address: c.trim() };
+    }
+  }
+
+  const pick = (...keys) => {
+    for (const k of keys) {
+      const v = raw?.[k] ?? apiOrder?.[k];
+      if (v != null && String(v).trim() !== '') return String(v).trim();
+    }
+    return '';
+  };
+
+  const street =
+    pick(
+      'street',
+      'address',
+      'line1',
+      'address_line1',
+      'addressLine1',
+      'address_line_1',
+      'full_address',
+      'fullAddress'
+    ) || '';
+  const line2 = pick('line2', 'address_line2', 'addressLine2', 'address_line_2');
+  const fullName = pick('fullName', 'full_name', 'name', 'recipient_name', 'recipientName');
+  const city = pick('city', 'town', 'district');
+  const state = pick('state', 'province', 'region');
+  const zipCode = pick('zipCode', 'postalCode', 'postal_code', 'zip', 'pincode', 'pin_code');
+  const country = pick('country');
+  const phone = pick('phone', 'mobile', 'contact_phone', 'contactPhone');
+
+  if (!street && !fullName && !city && !phone && !raw) return {};
+
+  return {
+    ...(raw && typeof raw === 'object' ? raw : {}),
+    fullName: fullName || raw?.fullName || raw?.name || '',
+    name: fullName || raw?.name || raw?.fullName || '',
+    street: street || raw?.street || '',
+    address: street || raw?.address || street,
+    line1: street || raw?.line1 || '',
+    line2: line2 || raw?.line2 || '',
+    city: city || raw?.city || '',
+    state: state || raw?.state || '',
+    zipCode: zipCode || raw?.zipCode || raw?.postalCode || '',
+    postalCode: zipCode || raw?.postalCode || raw?.zipCode || '',
+    country: country || raw?.country || '',
+    phone: phone || raw?.phone || '',
+  };
+}
+
+/**
  * Transform API order to frontend format
  */
 function transformOrder(apiOrder) {
@@ -476,12 +584,7 @@ function transformOrder(apiOrder) {
     offerId: apiOrder.offerId || null,
     offerCode: apiOrder.offerCode || couponCode || null,
     offerDetails: apiOrder.offerDetails || null,
-    deliveryAddress:
-      apiOrder.deliveryAddress ||
-      apiOrder.delivery_address ||
-      apiOrder.shippingAddress ||
-      apiOrder.shipping_address ||
-      {},
+    deliveryAddress: normalizeDeliveryAddress(apiOrder),
     notes: apiOrder.notes || null,
     cancelledAt: apiOrder.cancelledAt || null,
     cancelledReason: apiOrder.cancelledReason || null,

@@ -197,9 +197,27 @@ function UnavailableBadge() {
 
 function OrderPromotionsSection({ order }) {
   const promo = getOrderPromotionSummary(order);
-  if (!promo.hasPromotions) return null;
+  const activeItems = getActiveOrderItems(order);
+  const allRemoved =
+    getOrderItems(order).length > 0 && activeItems.length === 0;
+  // Don't show order-level promo against a fully wiped / zero-payable order.
+  const showOrderPromo =
+    promo.promotionDiscountMajor > 0 &&
+    !allRemoved &&
+    Number(order?.subtotal ?? 0) > 0.009;
+  if (!promo.hasPromotions && !showOrderPromo) return null;
+  if (!promo.couponCode && !showOrderPromo && activeItems.filter((it) => it.hasOffer).length === 0) {
+    return null;
+  }
 
-  const lineOffers = getActiveOrderItems(order).filter((it) => it.hasOffer);
+  const lineOffers = activeItems.filter((it) => it.hasOffer);
+  const sumLineDisc = lineOffers.reduce((acc, it) => acc + (Number(it.lineDiscount) || 0), 0);
+  // Hide redundant per-line −amounts when they triple-count vs order-level promo savings.
+  const showLineDiscountAmounts =
+    promo.promotionDiscountMajor <= 0 ||
+    (sumLineDisc > 0 && sumLineDisc <= promo.promotionDiscountMajor + 0.5);
+
+  if (!promo.couponCode && !showOrderPromo && lineOffers.length === 0) return null;
 
   return (
     <Section>
@@ -213,7 +231,7 @@ function OrderPromotionsSection({ order }) {
               </p>
               <p className="mb-0 mt-1 font-mono text-sm font-semibold text-violet-900">{promo.couponCode}</p>
             </div>
-            {promo.promotionDiscountMajor > 0 && (
+            {showOrderPromo && (
               <p className="m-0 shrink-0 text-sm font-semibold text-violet-700">
                 −{formatInrMajor(promo.promotionDiscountMajor)}
               </p>
@@ -221,14 +239,14 @@ function OrderPromotionsSection({ order }) {
           </div>
         )}
 
-        {promo.promotionDiscountMajor > 0 && !promo.couponCode && (
+        {showOrderPromo && !promo.couponCode && (
           <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 text-[13px]">
             <span className="text-gray-600">Promotion savings</span>
             <span className="font-medium text-violet-700">−{formatInrMajor(promo.promotionDiscountMajor)}</span>
           </div>
         )}
 
-        {promo.promotionDiscountMajor > 0 && promo.couponCode && (
+        {showOrderPromo && promo.couponCode && (
           <div className="flex items-center justify-between text-[12px] text-gray-500">
             <span>Total promotion savings on this order</span>
             <span className="font-medium text-violet-700">−{formatInrMajor(promo.promotionDiscountMajor)}</span>
@@ -246,7 +264,9 @@ function OrderPromotionsSection({ order }) {
                 const qtyNote =
                   paidQty > 0 && displayQty > paidQty
                     ? `${paidQty} paid + ${displayQty - paidQty} free`
-                    : `Qty ${displayQty}`;
+                    : item.isConfirmedFreeReward
+                      ? `Qty ${displayQty} · free`
+                      : `Qty ${displayQty}`;
                 return (
                   <li
                     key={item.id}
@@ -263,7 +283,7 @@ function OrderPromotionsSection({ order }) {
                         </div>
                       )}
                     </div>
-                    {item.lineDiscount > 0 && (
+                    {showLineDiscountAmounts && item.lineDiscount > 0 && Number(item.totalPrice) > 0.009 && (
                       <span className="shrink-0 text-[12px] font-medium text-violet-700">
                         −{formatInrMajor(item.lineDiscount)}
                       </span>
@@ -336,7 +356,9 @@ function OrderItemRow({ item }) {
           {unavailable && <UnavailableBadge />}
           {!unavailable && meta.showShopQtyUpdate && <ShopQtyAdjustedBadge />}
           {!unavailable && offerLabel && <OfferBadge>{offerLabel}</OfferBadge>}
-          {!unavailable && item.lineDiscount > 0 && (
+          {!unavailable &&
+            item.lineDiscount > 0 &&
+            Number(item.totalPrice) > 0.009 && (
             <span className="text-[11px] font-medium text-violet-700">
               Saved {formatInrMajor(item.lineDiscount)}
             </span>
@@ -346,7 +368,18 @@ function OrderItemRow({ item }) {
       <div className="ml-auto shrink-0 text-right">
         {unavailable ? (
           <p className="m-0 whitespace-nowrap text-[13px] font-medium text-gray-400 line-through">
-            {fmt(item.totalPrice || item.unitPrice || 0)}
+            {fmt(
+              (Number(item.unitPrice) > 0
+                ? Number(item.unitPrice) * (displayQty || 1)
+                : null) ||
+                (Number(item.listPrice) > 0
+                  ? Number(item.listPrice) * (displayQty || 1)
+                  : null) ||
+                item.totalPrice ||
+                item.unitPrice ||
+                item.listPrice ||
+                0
+            )}
           </p>
         ) : (
           <>
@@ -693,6 +726,16 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
 
   const addr = order.deliveryAddress || {};
   const orderPromo = getOrderPromotionSummary(order);
+  const hasAddress =
+    Boolean(
+      addr.fullName ||
+        addr.name ||
+        addr.street ||
+        addr.address ||
+        addr.line1 ||
+        addr.city ||
+        addr.phone
+    );
 
   const orderItemToCartProduct = (item) => {
     const qty = Number(item?.quantity ?? 1) || 1;
@@ -839,8 +882,10 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
 
             <Section>
               <SectionHeader
-                title={`Items · ${getActiveOrderItems(order).length}`}
-                right={fmt(order.subtotal)}
+                title={`Items · ${getOrderItems(order).length}`}
+                right={fmt(
+                  getActiveOrderItems(order).reduce((sum, it) => sum + (Number(it.totalPrice) || 0), 0)
+                )}
               />
               {getOrderItems(order).some((it) => getShopLineFulfillmentMeta(it).showRemoved) && (
                 <div className="border-b border-red-100 bg-red-50/70 px-4 py-2.5 text-[11px] leading-snug text-red-950">
@@ -905,7 +950,9 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                     <span className="text-gray-900">{value}</span>
                   </div>
                 ))}
-              {order.discount > 0 && (
+              {order.discount > 0 &&
+                Number(order.subtotal) > 0.009 &&
+                getActiveOrderItems(order).length > 0 && (
                 <div className="flex justify-between border-t border-gray-100 px-4 py-2.5 text-[13px]">
                   <span className="text-gray-500">
                     {orderPromo.couponCode ? `Coupon (${orderPromo.couponCode})` : 'Offers & promotions'}
@@ -928,7 +975,10 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                     {addr.phone ? ` · ${addr.phone}` : ''}
                   </p>
                 )}
-                {(addr.street || addr.address) && <p className="m-0 text-gray-500">{addr.street || addr.address}</p>}
+                {(addr.street || addr.address || addr.line1) && (
+                  <p className="m-0 text-gray-500">{addr.street || addr.address || addr.line1}</p>
+                )}
+                {addr.line2 && <p className="m-0 text-gray-500">{addr.line2}</p>}
                 {(addr.city || addr.state) && (
                   <p className="m-0 text-gray-500">{[addr.city, addr.state].filter(Boolean).join(', ')}</p>
                 )}
@@ -940,7 +990,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                 {addr.landmark && (
                   <p className="mb-0 mt-1 text-[11px] text-gray-500">Near {addr.landmark}</p>
                 )}
-                {!Object.keys(addr).length && <p className="m-0 italic text-gray-500">No address on file</p>}
+                {!hasAddress && <p className="m-0 italic text-gray-500">No address on file</p>}
               </div>
               <div className="grid grid-cols-2 border-t border-gray-100">
                 <div className="border-r border-gray-100 px-4 py-3">

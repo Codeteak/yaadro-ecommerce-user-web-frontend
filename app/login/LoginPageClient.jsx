@@ -1,21 +1,21 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import LoginPanel from '../../components/LoginPanel';
 import {
-  clearPostLoginRedirect,
-  getPostLoginRedirect,
   sanitizeInternalPath,
   setPostLoginRedirect,
+  takePostLoginRedirect,
 } from '../../utils/authSession';
 
 export default function LoginPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, authHydrated } = useAuth();
+  const [isContinuing, setIsContinuing] = useState(false);
 
   useEffect(() => {
     const next = sanitizeInternalPath(searchParams.get('next'));
@@ -24,8 +24,8 @@ export default function LoginPageClient() {
 
   useEffect(() => {
     if (!authHydrated || !isAuthenticated) return;
-    const dest = getPostLoginRedirect() || '/';
-    clearPostLoginRedirect();
+    const dest = takePostLoginRedirect() || '/';
+    setIsContinuing(true);
     router.replace(dest);
   }, [authHydrated, isAuthenticated, router]);
 
@@ -56,7 +56,13 @@ export default function LoginPageClient() {
 
       <main className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto px-5 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6">
         <div className="mx-auto w-full max-w-[420px]">
-          <LoginPanel />
+          {isContinuing ? (
+            <p className="text-center text-[14px] text-gray-600" role="status">
+              Continuing…
+            </p>
+          ) : (
+            <LoginPanel />
+          )}
         </div>
       </main>
     </div>
