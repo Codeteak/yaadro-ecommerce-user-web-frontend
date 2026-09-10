@@ -22,13 +22,39 @@ phases:
       - IMAGE_TAG="$(echo "${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}" | cut -c1-12)"
       - aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
       - echo "Building ${ECR_URI}:${IMAGE_TAG}"
+      - |
+        if [ -n "${AWS_SECRET_ID:-}" ]; then
+          echo "Writing .env.production from Secrets Manager (CUSTOMER_WEB_ NEXT_PUBLIC_* / API_PROXY_TARGET)"
+          aws secretsmanager get-secret-value \
+            --secret-id "${AWS_SECRET_ID}" \
+            --region "${AWS_REGION}" \
+            --query SecretString \
+            --output text | APP_ENV_SECRET_PREFIX="${APP_ENV_SECRET_PREFIX:-CUSTOMER_WEB_}" python3 -c '
+        import json, os, sys
+        data = json.load(sys.stdin)
+        prefix = os.environ.get("APP_ENV_SECRET_PREFIX") or "CUSTOMER_WEB_"
+        keep_exact = {"API_PROXY_TARGET", "NODE_ENV"}
+        lines = ["NEXT_STATIC_EXPORT=false", "NODE_ENV=production"]
+        for k, v in data.items():
+            if not isinstance(k, str) or isinstance(v, (dict, list)):
+                continue
+            if not k.startswith(prefix):
+                continue
+            name = k[len(prefix):]
+            if name.startswith("NEXT_PUBLIC_") or name in keep_exact:
+                lines.append(f"{name}={v}")
+        open(".env.production", "w", encoding="utf-8").write("\n".join(lines) + "\n")
+        '
+        else
+          printf "NEXT_STATIC_EXPORT=false\nNODE_ENV=production\nNEXT_PUBLIC_API_URL=https://customer.yaadro.online\n" > .env.production
+        fi
+        echo "=== .env.production keys ==="
+        cut -d= -f1 .env.production
 
   build:
     commands:
       - |
         docker build \
-          --build-arg "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://customer.yaadro.online}" \
-          --build-arg "NEXT_PUBLIC_STOREFRONT_CATALOG_REALTIME_TOKEN=${NEXT_PUBLIC_STOREFRONT_CATALOG_REALTIME_TOKEN:-}" \
           -t "${ECR_URI}:${IMAGE_TAG}" \
           -t "${ECR_URI}:latest" \
           .

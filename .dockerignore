@@ -6,6 +6,7 @@ out
 *.md
 .env*
 !.env.example
+!.env.production
 .DS_Store
 cloudflared
 wrangler*

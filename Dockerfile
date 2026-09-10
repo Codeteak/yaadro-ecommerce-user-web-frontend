@@ -2,8 +2,12 @@
 # Production Next.js server (Route Handlers + DATABASE_URL). Not for static Pages export.
 FROM public.ecr.aws/docker/library/node:22-bookworm-slim AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+# next@14 peers react@18; the app uses react@19. Must not rely on .npmrc alone —
+# npm ci in Docker ignores it unless copied, and CodeBuild was still on the old
+# Dockerfile that only copied package.json + lockfile.
+ENV NPM_CONFIG_LEGACY_PEER_DEPS=true
+COPY package.json package-lock.json .npmrc ./
+RUN npm ci --legacy-peer-deps
 
 FROM public.ecr.aws/docker/library/node:22-bookworm-slim AS builder
 WORKDIR /app
@@ -12,10 +16,7 @@ COPY . .
 # Never static-export in this image path.
 ENV NEXT_STATIC_EXPORT=false
 ENV NODE_ENV=production
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_STOREFRONT_CATALOG_REALTIME_TOKEN
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-ENV NEXT_PUBLIC_STOREFRONT_CATALOG_REALTIME_TOKEN=${NEXT_PUBLIC_STOREFRONT_CATALOG_REALTIME_TOKEN}
+# NEXT_PUBLIC_* come from .env.production (CodeBuild writes it from CUSTOMER_WEB_*).
 RUN npm run build
 
 FROM public.ecr.aws/docker/library/node:22-bookworm-slim AS runner

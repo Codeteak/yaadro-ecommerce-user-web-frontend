@@ -33,17 +33,16 @@ const baseConfig = {
   },
 }
 
-/** Dev-only: proxy /api/* to the real backend so serviceability cookies are same-origin. */
-const devOnlyConfig = {
+/** Node server (dev + EC2 `next start`): proxy unmatched /api/* to customer API. */
+const serverConfig = {
   ...baseConfig,
-  // Keep `pg` external for Route Handlers that read DATABASE_URL.
   experimental: {
     ...(baseConfig.experimental || {}),
     serverComponentsExternalPackages: ['pg'],
   },
   async rewrites() {
     // `fallback`: only proxy when no App Router handler matched.
-    // Lets GET app/api/storefront/products|categories use DATABASE_URL locally,
+    // Lets GET app/api/storefront/products|categories use DATABASE_URL,
     // while cart/auth/checkout still proxy to the upstream API.
     return {
       fallback: [
@@ -56,10 +55,5 @@ const devOnlyConfig = {
   },
 };
 
-module.exports = isProduction && useStaticExport ? baseConfig : isProduction ? {
-  ...baseConfig,
-  experimental: {
-    serverComponentsExternalPackages: ['pg'],
-  },
-} : devOnlyConfig;
+module.exports = isProduction && useStaticExport ? baseConfig : serverConfig;
 
