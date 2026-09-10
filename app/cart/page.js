@@ -95,14 +95,20 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
             {bundleLabel}
           </span>
         )}
-        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-xl bg-gray-50">
+        <div className="relative h-full w-full overflow-hidden rounded-xl bg-gray-50">
           <ProductImageWithFallback
             src={imageSrc}
             alt={item.name}
-            width={72}
-            height={72}
-            className="h-full w-full object-contain"
+            fill
+            className="object-contain object-center"
             sizes="72px"
+            placeholderName={item.name}
+            placeholderCategory={
+              item.categoryName ||
+              item.category?.name ||
+              (typeof item.category === 'string' ? item.category : '') ||
+              ''
+            }
           />
         </div>
       </div>

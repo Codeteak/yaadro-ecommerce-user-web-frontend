@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { CheckRegular as Check, More2Regular as MoreVertical } from '../icons';
 import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../utils/productImages';
+import ProductImageWithFallback from '../ProductImageWithFallback';
 
 function getOrderStatusTone(status = '') {
   const s = String(status || '').toLowerCase();
@@ -228,12 +229,21 @@ function OrderCard({ order, reorderLoading, onOpenDetails, onReorder, onCancel, 
                   className="relative h-10 w-10 overflow-hidden rounded-lg border-2 border-white bg-gray-100 shadow-sm"
                   style={{ marginLeft: idx === 0 ? 0 : -10, zIndex: 10 - idx }}
                 >
-                  <Image
+                  <ProductImageWithFallback
                     src={getOrderItemImage(item)}
                     alt={item.productName || item.name || 'Item'}
                     fill
                     className="object-contain"
                     sizes="40px"
+                    placeholderName={item.productName || item.name || item.product?.name || ''}
+                    placeholderCategory={
+                      item.categoryName ||
+                      item.category?.name ||
+                      (typeof item.category === 'string' ? item.category : '') ||
+                      item.product?.categoryName ||
+                      (typeof item.product?.category === 'string' ? item.product.category : '') ||
+                      ''
+                    }
                   />
                 </div>
               ))}

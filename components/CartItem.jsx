@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import Image from 'next/image';
 import { useCart } from '../context/CartContext';
 import {
   getBundleFreeExtraOnPaidLine,
@@ -9,6 +8,7 @@ import {
 } from '../utils/cartPromotions';
 import { useWishlist } from '../context/WishlistContext';
 import { formatRupeeINR, getCartLineVariantLabel } from '../utils/productUtils';
+import ProductImageWithFallback from './ProductImageWithFallback';
 
 export default function CartItem({ item }) {
   const { updateQuantity, removeFromCart, updateCartItemNote } = useCart();
@@ -61,7 +61,7 @@ export default function CartItem({ item }) {
   const isBundleReward = !!item.isBundleReward;
   const paidQty = isBundleReward ? Number(item.quantity) || 1 : getCartLinePaidQty(item);
   const bundleFreeExtra = isBundleReward ? 0 : getBundleFreeExtraOnPaidLine(item);
-  const imageSrc = item.image || '/images/dummy.png';
+  const imageSrc = item.image || item.product?.images?.[0] || '';
   const unitPrice = parseFloat(item.price);
   const lineTotal =
     Number.isFinite(Number(item.lineTotal)) && item.lineTotal >= 0
@@ -80,12 +80,19 @@ export default function CartItem({ item }) {
     <div className="flex gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
       {/* Product Image */}
       <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0">
-        <Image
+        <ProductImageWithFallback
           src={imageSrc}
           alt={item.name}
           fill
           className="object-contain object-center"
           sizes="64px"
+          placeholderName={item.name}
+          placeholderCategory={
+            item.categoryName ||
+            item.category?.name ||
+            (typeof item.category === 'string' ? item.category : '') ||
+            ''
+          }
         />
       </div>
 

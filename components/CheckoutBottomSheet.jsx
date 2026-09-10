@@ -1,8 +1,8 @@
 'use client';
 
-import Image from 'next/image';
 import { formatQuantityWithPack } from '../utils/productUtils';
 import AnimatedSheet from './motion/AnimatedSheet';
+import ProductImageWithFallback from './ProductImageWithFallback';
 
 export default function CheckoutBottomSheet({
   isOpen, 
@@ -36,12 +36,19 @@ export default function CheckoutBottomSheet({
             {cartItems.map((item) => (
               <div key={item.id} className="flex items-center gap-3">
                 <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0">
-                  <Image
-                    src={item.image || item.product?.images?.[0] || '/images/dummy.png'}
+                  <ProductImageWithFallback
+                    src={item.image || item.product?.images?.[0] || ''}
                     alt={item.name}
                     fill
                     className="object-contain"
                     sizes="48px"
+                    placeholderName={item.name || ''}
+                    placeholderCategory={
+                      item.categoryName ||
+                      item.category?.name ||
+                      (typeof item.category === 'string' ? item.category : '') ||
+                      ''
+                    }
                   />
                 </div>
                 <div className="flex-1 min-w-0">

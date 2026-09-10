@@ -11,6 +11,7 @@ import { getProductDetailPath } from '../../utils/productApi';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryImage';
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import { CategoryCardSkeleton } from '../../components/skeletons/primitives';
+import ProductImageWithFallback from '../../components/ProductImageWithFallback';
 
 /** Rotating hint (same UX as header search). */
 const FALLBACK_HINT_WORDS = [
@@ -410,12 +411,14 @@ export default function CategoriesPage() {
                     className="w-full flex items-center gap-3 rounded-2xl border border-gray-100 bg-white px-3.5 py-3 text-left hover:border-gray-200 active:scale-[0.99] transition"
                   >
                     <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-gray-50 border border-gray-100">
-                      <Image
+                      <ProductImageWithFallback
                         src={img}
                         alt={p?.name || 'Product'}
                         fill
                         className="object-contain"
                         sizes="48px"
+                        placeholderName={p?.name || ''}
+                        placeholderCategory={p?.category || p?.categoryName || ''}
                       />
                     </div>
                     <div className="min-w-0 flex-1">
