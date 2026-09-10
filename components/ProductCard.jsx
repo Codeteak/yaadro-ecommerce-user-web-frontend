@@ -427,6 +427,14 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
                     fill
                     className="object-cover object-center"
                     sizes="(max-width: 640px) 50vw, (max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+                    placeholderName={product.name}
+                    placeholderCategory={
+                      product.categoryName ||
+                      product.category?.name ||
+                      (typeof product.category === 'string' ? product.category : '') ||
+                      product.primaryCategoryName ||
+                      ''
+                    }
                   />
                 </div>
               ))}

@@ -514,16 +514,23 @@ export default function ProductDetailClient({ productId = null }) {
             {galleryUrls.map((img, idx) => (
               <div
                 key={`${idx}-${img}`}
-                className="flex w-full flex-shrink-0 items-center justify-center bg-white min-h-[min(58vh,62svh)] sm:min-h-[64vh] md:min-h-[70vh]"
+                className="relative flex w-full flex-shrink-0 items-center justify-center bg-white min-h-[min(58vh,62svh)] sm:min-h-[64vh] md:min-h-[70vh]"
               >
                 <ProductImageWithFallback
                   src={img}
                   alt={`${product.name} – image ${idx + 1}`}
-                  width={1600}
-                  height={1600}
-                  className="h-auto w-full max-h-[min(90vh,140vw)] object-contain sm:max-h-[min(86vh,95vw)] md:max-h-[min(82vh,56rem)]"
+                  fill
+                  className="object-contain object-center p-4 sm:p-6"
                   sizes="100vw"
                   priority={idx === 0}
+                  placeholderName={product.name}
+                  placeholderCategory={
+                    product.categoryName ||
+                    product.category?.name ||
+                    (typeof product.category === 'string' ? product.category : '') ||
+                    product.primaryCategoryName ||
+                    ''
+                  }
                 />
               </div>
             ))}
@@ -577,6 +584,14 @@ export default function ProductDetailClient({ productId = null }) {
                     fill
                     className="object-contain"
                     sizes="56px"
+                    placeholderName={product.name}
+                    placeholderCategory={
+                      product.categoryName ||
+                      product.category?.name ||
+                      (typeof product.category === 'string' ? product.category : '') ||
+                      product.primaryCategoryName ||
+                      ''
+                    }
                   />
                 </button>
               ))}
@@ -749,6 +764,15 @@ export default function ProductDetailClient({ productId = null }) {
                               fill
                               className="object-cover object-center"
                               sizes="128px"
+                              placeholderName={p.name || product.name}
+                              placeholderCategory={
+                                p.categoryName ||
+                                p.category?.name ||
+                                (typeof p.category === 'string' ? p.category : '') ||
+                                product.categoryName ||
+                                (typeof product.category === 'string' ? product.category : '') ||
+                                ''
+                              }
                             />
                           </div>
                           <div className="px-3 py-2.5">
