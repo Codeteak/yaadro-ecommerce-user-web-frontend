@@ -253,8 +253,9 @@ function mapOrderItems(apiOrder, extraItems = []) {
 }
 
 /**
- * When picker drops a line from order totals but leaves unit×qty on the item,
- * mark that non-offer line unavailable if removing it makes line sums match subtotal.
+ * When picker drops line(s) from order totals but leaves unit×qty on the items,
+ * mark the unique candidate subset whose prices sum to (lineSum − subtotal) as unavailable.
+ * Handles multi-line removals (e.g. gap 390 = 175 + 215); skips if multiple subsets match.
  */
 function markUnavailableExcludedFromSubtotal(items, subtotalMajor) {
   if (!Array.isArray(items) || !items.length) return items;
@@ -263,6 +264,9 @@ function markUnavailableExcludedFromSubtotal(items, subtotalMajor) {
 
   const sumAll = items.reduce((acc, it) => acc + (Number(it.totalPrice) || 0), 0);
   if (Math.abs(sumAll - subtotal) < 0.02) return items;
+
+  const gap = sumAll - subtotal;
+  if (!(gap > 0.02)) return items;
 
   const candidates = items.filter(
     (it) =>
@@ -274,18 +278,48 @@ function markUnavailableExcludedFromSubtotal(items, subtotalMajor) {
   );
   if (!candidates.length) return items;
 
-  for (const candidate of candidates) {
-    const without = sumAll - (Number(candidate.totalPrice) || 0);
-    if (Math.abs(without - subtotal) < 0.02) {
-      return items.map((it) =>
-        it === candidate || (it.id != null && it.id === candidate.id)
-          ? { ...it, isDeleted: true, totalPrice: 0, hasOffer: false }
-          : it
-      );
+  // Cap enumeration; storefront orders are small.
+  const capped = candidates.slice(0, 12);
+  const n = capped.length;
+  /** @type {number[]|null} */
+  let matchingIndices = null;
+  let matchCount = 0;
+
+  for (let mask = 1; mask < 1 << n; mask += 1) {
+    let subsetSum = 0;
+    for (let i = 0; i < n; i += 1) {
+      if (mask & (1 << i)) subsetSum += Number(capped[i].totalPrice) || 0;
+    }
+    if (Math.abs(subsetSum - gap) < 0.02) {
+      matchCount += 1;
+      if (matchCount === 1) {
+        matchingIndices = [];
+        for (let i = 0; i < n; i += 1) {
+          if (mask & (1 << i)) matchingIndices.push(i);
+        }
+      } else {
+        // Ambiguous: more than one distinct subset explains the gap.
+        return items;
+      }
     }
   }
 
-  return items;
+  if (!matchingIndices || !matchingIndices.length) return items;
+
+  const removeIds = new Set();
+  const removeRefs = new Set();
+  for (const idx of matchingIndices) {
+    const it = capped[idx];
+    if (it?.id != null) removeIds.add(String(it.id));
+    removeRefs.add(it);
+  }
+
+  return items.map((it) => {
+    const hit =
+      removeRefs.has(it) || (it?.id != null && removeIds.has(String(it.id)));
+    if (!hit) return it;
+    return { ...it, isDeleted: true, totalPrice: 0, hasOffer: false };
+  });
 }
 
 /**
