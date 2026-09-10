@@ -33,7 +33,7 @@ import { SHOW_PRODUCT_EXTENDED_SECTIONS } from './productDetailFlags';
 import { getResolvedProductImageUrls } from '../../../utils/productImages';
 import ProductImageWithFallback from '../../../components/ProductImageWithFallback';
 import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
-import { getCartLineDisplayQty, getBundleFreeExtraOnPaidLine } from '../../../utils/cartPromotions';
+import { getCartLinePaidQty, getBundleFreeExtraOnPaidLine } from '../../../utils/cartPromotions';
 import { findPaidCartLine } from '../../../utils/cartLinePersist';
 import { getProductDetailPath, normalizeProductRouteParam, resolveProductDetailSegment } from '../../../utils/productApi';
 
@@ -369,8 +369,7 @@ export default function ProductDetailClient({ productId = null }) {
     [cartItems, product, activeSize]
   );
 
-  const paidCartQty = cartLine?.quantity ?? 0;
-  const cartBadgeQty = cartLine ? getCartLineDisplayQty(cartLine) : 0;
+  const paidCartQty = cartLine ? getCartLinePaidQty(cartLine) : 0;
   const cartQty = paidCartQty;
   const bundleFreeExtra =
     cartLine && !cartLine.isBundleReward ? getBundleFreeExtraOnPaidLine(cartLine) : 0;

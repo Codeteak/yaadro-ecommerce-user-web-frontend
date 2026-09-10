@@ -29,7 +29,7 @@ import CheckoutCouponsSection from '../../components/CheckoutCouponsSection';
 import { getCartLinePreviewImageSrc } from '../../utils/productImages';
 import { getCartLineVariantLabel } from '../../utils/productUtils';
 import { getCartBottomBarPricing } from '../../utils/cartSavings';
-import { isBundleRewardCartLine } from '../../utils/cartPromotions';
+import { isBundleRewardCartLine, sumCartPaidUnits } from '../../utils/cartPromotions';
 import { minorToMajor } from '../../utils/currencyMinor';
 import { normalizePhoneForApi } from '../../utils/otpVerifyPayload';
 import PhoneChangeOtpSheet from '../../components/PhoneChangeOtpSheet';
@@ -241,10 +241,7 @@ function OrderSummary({
       ? promotionDiscount
       : Math.max(0, savings - (couponDiscount > 0.009 ? couponDiscount : 0));
   const discount = savings > 0.009 ? savings : 0;
-  const totalQty = cartItems.reduce(
-    (a, i) => a + (Number(i.displayQuantity) || Number(i.quantity) || 1),
-    0
-  );
+  const totalQty = sumCartPaidUnits(cartItems);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4">
@@ -285,7 +282,7 @@ function OrderSummary({
                   {item.name}
                   {isBundleReward && (
                     <span className="ml-1.5 rounded bg-violet-100 px-1 py-0.5 text-[9px] font-semibold uppercase text-violet-800">
-                      Free
+                      Offer
                     </span>
                   )}
                 </p>
