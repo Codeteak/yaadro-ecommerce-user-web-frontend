@@ -177,11 +177,17 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
                 >
                   <ProductImageWithFallback
                     src={src}
-                    alt=""
-                    width={36}
-                    height={36}
-                    className="h-full w-full object-contain"
+                    alt={item.name || ''}
+                    fill
+                    className="object-contain object-center"
                     sizes="36px"
+                    placeholderName={item.name || ''}
+                    placeholderCategory={
+                      item.categoryName ||
+                      item.category?.name ||
+                      (typeof item.category === 'string' ? item.category : '') ||
+                      ''
+                    }
                   />
                 </span>
               );

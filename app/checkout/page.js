@@ -267,14 +267,20 @@ function OrderSummary({
           const lineKey = item.cartItemKey ?? item.cartItemId ?? item.id;
           return (
             <div key={lineKey} className="flex gap-3">
-              <div className="w-11 h-11 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden self-start">
+              <div className="relative w-11 h-11 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden self-start">
                 <ProductImageWithFallback
                   src={imgSrc}
                   alt={item.name || ''}
-                  width={44}
-                  height={44}
-                  className="h-full w-full object-contain"
+                  fill
+                  className="object-contain object-center"
                   sizes="44px"
+                  placeholderName={item.name || ''}
+                  placeholderCategory={
+                    item.categoryName ||
+                    item.category?.name ||
+                    (typeof item.category === 'string' ? item.category : '') ||
+                    ''
+                  }
                 />
               </div>
               <div className="min-w-0 flex-1">

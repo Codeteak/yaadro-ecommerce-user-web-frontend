@@ -4,7 +4,6 @@ import { useState, Suspense, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useOrderDetail } from '../../../hooks/useOrders';
 import { useRequireAuth } from '../../../hooks/useRequireAuth';
 import { useProductWithRelated } from '../../../hooks/useProducts';
@@ -13,6 +12,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { cartKeys } from '../../../hooks/useCart';
 import { useAlert } from '../../../context/AlertContext';
 import ProductCarousel from '../../../components/ProductCarousel';
+import ProductImageWithFallback from '../../../components/ProductImageWithFallback';
 import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
 import GuestAuthPrompt from '../../../components/GuestAuthPrompt';
 import OrderDetailPageSkeleton from '../../../components/skeletons/OrderDetailPageSkeleton';
@@ -866,12 +866,21 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                       getShopLineFulfillmentMeta(item).showRemoved ? 'opacity-50 grayscale' : ''
                     }`}
                   >
-                    <Image
+                    <ProductImageWithFallback
                       src={getOrderItemImage(item)}
                       alt={item.productName || item.name || 'Item'}
                       fill
                       className="object-contain"
                       sizes="48px"
+                      placeholderName={item.productName || item.name || item.product?.name || ''}
+                      placeholderCategory={
+                        item.categoryName ||
+                        item.category?.name ||
+                        (typeof item.category === 'string' ? item.category : '') ||
+                        item.product?.categoryName ||
+                        (typeof item.product?.category === 'string' ? item.product.category : '') ||
+                        ''
+                      }
                     />
                   </div>
                   <OrderItemRow item={item} />
