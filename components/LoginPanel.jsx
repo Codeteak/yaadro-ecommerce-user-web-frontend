@@ -285,10 +285,12 @@ export default function LoginPanel({ className = '' }) {
   const clearError = () => setError('');
 
   const ensureShopId = async () => {
+    const cached = shopId ? String(shopId).trim() : '';
+    if (cached) return cached;
     const resolved = await resolveShopId();
     const id = resolved ? String(resolved).trim() : '';
     if (id) {
-      if (id !== shopId) setShopId(id);
+      setShopId(id);
       return id;
     }
     setError(getShopIdConfigError());
@@ -388,7 +390,7 @@ export default function LoginPanel({ className = '' }) {
         if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
       }
 
-      login(mergedUser, { token, refreshToken });
+      login(mergedUser, { token, refreshToken }, { skipPostLoginRedirect: true });
     } catch (err) {
       setError(err?.message || 'Invalid OTP. Please try again.');
     } finally {
