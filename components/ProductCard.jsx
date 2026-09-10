@@ -19,7 +19,7 @@ import WeightLabel from './ui/WeightLabel';
 import OfferRibbon from './ui/OfferRibbon';
 import BundleOfferRibbon from './ui/BundleOfferRibbon';
 import { getResolvedProductImageUrls } from '../utils/productImages';
-import { getCartLineDisplayQty } from '../utils/cartPromotions';
+import { getCartLinePaidQty } from '../utils/cartPromotions';
 import { findPaidCartLine } from '../utils/cartLinePersist';
 import ProductImageWithFallback from './ProductImageWithFallback';
 import { getProductDetailPath } from '../utils/productApi';
@@ -120,13 +120,12 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     [cartItems, product.id, activeSize, product]
   );
 
-  const paidCartQty = cartLine?.quantity ?? 0;
-  const cartBadgeQty = cartLine ? getCartLineDisplayQty(cartLine) : 0;
-  const displayCartQty = cartBadgeQty > 0 ? cartBadgeQty : pendingCartQty;
+  const paidCartQty = cartLine ? getCartLinePaidQty(cartLine) : 0;
+  const displayCartQty = paidCartQty > 0 ? paidCartQty : pendingCartQty;
 
   useEffect(() => {
-    if (cartBadgeQty > 0) setPendingCartQty(0);
-  }, [cartBadgeQty]);
+    if (paidCartQty > 0) setPendingCartQty(0);
+  }, [paidCartQty]);
   const cartUpdateKey =
     cartLine?.cartItemKey ?? cartLine?.cartItemId ?? cartLine?.id ?? null;
 

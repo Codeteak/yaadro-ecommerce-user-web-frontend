@@ -159,6 +159,14 @@ export function sumCartDisplayUnits(items) {
   );
 }
 
+/** Sum paid/billable units only (excludes BXGY free reward lines from item counts). */
+export function sumCartPaidUnits(items) {
+  if (!Array.isArray(items) || !items.length) return 0;
+  return items
+    .filter((it) => !isBundleRewardCartLine(it))
+    .reduce((sum, line) => sum + getCartLinePaidQty(line), 0);
+}
+
 /** Free units on a paid line (from API `offer_quantity` / `free_quantity` or bundle rules). */
 export function getBundleFreeExtraOnPaidLine(item) {
   if (!item || isBundleRewardCartLine(item)) return 0;

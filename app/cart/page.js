@@ -21,7 +21,7 @@ import {
   getCartLineBundleLabel,
   getCartLineDisplayQty,
   getCartLinePaidQty,
-  sumCartDisplayUnits,
+  sumCartPaidUnits,
 } from '../../utils/cartPromotions';
 import ConfirmModal from '../../components/ConfirmModal';
 import ProductCarousel from '../../components/ProductCarousel';
@@ -113,7 +113,7 @@ function CartItemCard({ item, onQuantityChange, onRemove }) {
           {item.name}
           {isBundleReward && (
             <span className="ml-2 rounded-md bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-violet-800">
-              Free
+              Offer
             </span>
           )}
         </p>
@@ -441,7 +441,7 @@ function CartPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  const totalQty = cartCount > 0 ? cartCount : sumCartDisplayUnits(cartItems);
+  const totalQty = cartCount > 0 ? cartCount : sumCartPaidUnits(cartItems);
 
   /** Only block on initial load — not background refetches when the cart is already empty. */
   const showCartLoading =

@@ -626,7 +626,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
         .trim()
         .toLowerCase();
       if (status === 'delivered' || status === 'cancelled') return false;
-      return 10000;
+      return 3000;
     },
   });
   const { addToCart }   = useCart();

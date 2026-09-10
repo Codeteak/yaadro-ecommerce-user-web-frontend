@@ -13,7 +13,7 @@ import {
   isBundleRewardCartLine,
   isTrustedCartCouponPreview,
   stripPaidCartLinesOnly,
-  sumCartDisplayUnits,
+  sumCartPaidUnits,
 } from '../utils/cartPromotions';
 import {
   addOrMergeCartLine,
@@ -429,7 +429,7 @@ export function CartProvider({ children }) {
     }
   };
 
-  const cartCount = cartItems.length === 0 ? 0 : sumCartDisplayUnits(cartItems);
+  const cartCount = cartItems.length === 0 ? 0 : sumCartPaidUnits(cartItems);
 
   const cartTotal =
     cartItems.length === 0

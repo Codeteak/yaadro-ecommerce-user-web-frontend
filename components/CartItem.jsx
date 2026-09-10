@@ -98,7 +98,7 @@ export default function CartItem({ item }) {
             </h3>
             {isBundleReward && (
               <span className="mt-1 inline-block rounded-md bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">
-                Free
+                Offer
               </span>
             )}
             {variantLabel ? (
