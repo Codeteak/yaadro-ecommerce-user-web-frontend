@@ -6,7 +6,14 @@ import { useQuery, useInfiniteQuery, keepPreviousData } from '@tanstack/react-qu
 import { listOrders, getOrder } from '../utils/orderApi';
 
 const ORDERS_STALE_MS = 1000 * 90;
-const ORDER_DETAIL_STALE_MS = 1000 * 60;
+
+function liveOrderRefetchInterval(query) {
+  const status = String(query.state.data?.status || '')
+    .trim()
+    .toLowerCase();
+  if (status === 'delivered' || status === 'cancelled') return false;
+  return 2000;
+}
 
 // Query keys
 export const orderKeys = {
@@ -64,8 +71,10 @@ export function useOrderDetail(orderId, queryOptions = {}) {
     queryKey: orderKeys.detail(orderId),
     queryFn: () => getOrder(orderId),
     enabled: !!orderId && enabledOpt,
-    staleTime: ORDER_DETAIL_STALE_MS,
+    staleTime: 0,
+    refetchOnMount: 'always',
     refetchOnWindowFocus: true,
+    refetchInterval: liveOrderRefetchInterval,
     placeholderData: keepPreviousData,
     ...rest,
   });

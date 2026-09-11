@@ -420,14 +420,19 @@ function Timeline({ order }) {
   if (order.status === 'cancelled') {
     const cx = order.cancelledAt;
     const d = fmtDate(cx);
+    const reason = String(order.cancelledReason || '').trim();
+    const isRejected = Boolean(order.looksRejected) || /reject/i.test(reason);
     return (
       <div className="p-4">
         <div className="rounded-xl border border-red-100 bg-red-50/90 px-3 py-3 text-[13px] text-red-900">
-          <p className="m-0 font-medium">Order cancelled</p>
+          <p className="m-0 font-medium">{isRejected ? 'Order rejected' : 'Order cancelled'}</p>
           {d ? (
             <p className="mb-0 mt-1 text-[11px] text-red-800/90">
               {d.day} · {d.time}
             </p>
+          ) : null}
+          {reason ? (
+            <p className="mb-0 mt-1 text-[11px] text-red-800/90">{reason}</p>
           ) : null}
         </div>
       </div>
@@ -654,13 +659,6 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   const { ok, ready } = useRequireAuth();
   const { data: order, isLoading, error } = useOrderDetail(resolvedOrderId, {
     enabled: ok && Boolean(resolvedOrderId),
-    refetchInterval: (query) => {
-      const status = String(query.state.data?.status || '')
-        .trim()
-        .toLowerCase();
-      if (status === 'delivered' || status === 'cancelled') return false;
-      return 3000;
-    },
   });
   const { addToCart }   = useCart();
   const { user }        = useAuth();

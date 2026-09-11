@@ -33,7 +33,7 @@ export default function OrdersPage() {
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
-  } = useInfiniteOrdersList({ limit: 100 }, { enabled: ok });
+  } = useInfiniteOrdersList({ limit: 100 }, { enabled: ok, refetchInterval: 2000 });
   const { addToCart } = useCart();
   const { showAlert } = useAlert();
   const [reorderLoadingId, setReorderLoadingId] = useState(null);
