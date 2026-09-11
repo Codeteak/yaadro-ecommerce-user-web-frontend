@@ -255,6 +255,8 @@ function mapOrderItems(apiOrder, extraItems = []) {
 /**
  * When picker drops line(s) from order totals but leaves unit×qty on the items,
  * mark the unique candidate subset whose prices sum to (lineSum − subtotal) as unavailable.
+ * Includes offer-stamped paid lines (picker often leaves Offer applied on removed SKUs).
+ * Confirmed free rewards are not used to explain a payable gap.
  * Handles multi-line removals (e.g. gap 390 = 175 + 215); skips if multiple subsets match.
  */
 function markUnavailableExcludedFromSubtotal(items, subtotalMajor) {
@@ -271,7 +273,7 @@ function markUnavailableExcludedFromSubtotal(items, subtotalMajor) {
   const candidates = items.filter(
     (it) =>
       !it.isDeleted &&
-      !it.hasOffer &&
+      !it.isConfirmedFreeReward &&
       Number(it.quantity) > 0 &&
       Number(it.unitPrice || it.price || 0) > 0 &&
       Number(it.totalPrice) > 0.009
