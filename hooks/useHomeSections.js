@@ -15,8 +15,7 @@ export function useHomeSections(options = {}) {
     queryKey: homeSectionKeys.list(),
     queryFn: getHomeSections,
     enabled,
-    staleTime: 30 * 1000,
-    refetchOnMount: 'always',
+    staleTime: 2 * 60 * 1000,
     retry: 1,
   });
 
