@@ -1,47 +1,36 @@
-import { NextResponse } from 'next/server';
 import { listCategoriesFromDb } from '../../../../lib/storefrontDbCatalog';
-import { proxyUpstreamGet } from '../../../../lib/proxyUpstreamApi';
-import { shouldUseUpstreamStorefrontCatalog } from '../../../../lib/storefrontCatalogRouteSource';
+import {
+  jsonOk,
+  readStorefrontShopId,
+  tryDbThenUpstream,
+} from '../../../../lib/storefrontTryDbThenUpstream';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
  * GET /api/storefront/categories
- * Read-only categories from DATABASE_URL when set.
+ * Postgres first (global_categories); customer API fallback.
  */
 export async function GET(request) {
-  if (shouldUseUpstreamStorefrontCatalog()) {
-    return proxyUpstreamGet(request, '/api/storefront/categories');
-  }
-
-  try {
+  return tryDbThenUpstream(request, '/api/storefront/categories', async () => {
     const { searchParams } = new URL(request.url);
-    const shopId =
-      request.headers.get('x-shop-id') ||
-      process.env.NEXT_PUBLIC_SHOP_ID ||
-      '';
+    const shopId = readStorefrontShopId(request);
     const parentId = searchParams.get('parent_id');
+    const all =
+      searchParams.get('all') === 'true' || searchParams.get('all') === '1';
 
     const result = await listCategoriesFromDb({
       shopId: shopId || undefined,
       parentId: parentId == null || parentId === '' ? null : parentId,
+      all,
     });
 
-    return NextResponse.json({
+    return jsonOk({
       status: 'success',
       data: {
         categories: result.categories,
       },
     });
-  } catch (err) {
-    console.error('[api/storefront/categories]', err?.message || err);
-    return NextResponse.json(
-      {
-        status: 'error',
-        message: err?.message || 'Failed to load categories from database',
-      },
-      { status: 500 }
-    );
-  }
+  });
 }

@@ -42,8 +42,8 @@ const serverConfig = {
   },
   async rewrites() {
     // `fallback`: only proxy when no App Router handler matched.
-    // Lets GET app/api/storefront/products|categories use DATABASE_URL,
-    // while cart/auth/checkout still proxy to the upstream API.
+    // Unauthenticated catalog GETs (products, categories, coupons, home-sections)
+    // read DATABASE_URL first; cart/auth/checkout still proxy to customer API.
     return {
       fallback: [
         {

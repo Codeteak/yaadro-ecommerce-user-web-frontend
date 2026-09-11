@@ -7,7 +7,7 @@ export const couponKeys = {
 };
 
 /**
- * Fetch available coupons for checkout (requires auth + shop).
+ * Fetch available coupons for checkout (shop-scoped; login not required for the list).
  */
 export function useStorefrontCoupons(cartSubtotalMinor, options = {}) {
   const { enabled = true, code, onlyApplicable = false, ...queryOptions } = options;
