@@ -258,7 +258,7 @@ export function normalizeShopResolvePayload(payload) {
   return { shopId, shopName, shopImage, bannerEnabled, bannerImages, seo };
 }
 
-function readCachedBranding(domain) {
+export function readCachedBranding(domain) {
   if (typeof window === 'undefined' || !domain) return null;
   const cachedHost = window.localStorage.getItem(RESOLVED_SHOP_HOST_STORAGE_KEY) || '';
   if (cachedHost !== domain) return null;
@@ -303,6 +303,13 @@ function readCachedBranding(domain) {
     bannerImages,
     seo,
   };
+}
+
+/** Cached branding for the current hostname, if any (no network). */
+export function getCachedShopBranding() {
+  if (typeof window === 'undefined') return null;
+  const domain = String(window.location.hostname || '').toLowerCase().trim();
+  return readCachedBranding(domain);
 }
 
 export function persistResolvedShop(

@@ -19,7 +19,6 @@ import BannerCarousel from '../components/BannerCarousel';
 import HomeSections from '../components/home/HomeSections';
 import HomeClientShelves from '../components/home/HomeClientShelves';
 import { dedupeProductsByVariantGroup } from '../utils/productUtils';
-import HomePageSkeleton from '../components/skeletons/HomePageSkeleton';
 import { ProductCarouselRowSkeleton } from '../components/skeletons/primitives';
 import SearchSuggestInput from '../components/search/SearchSuggestInput';
 import {
@@ -243,7 +242,7 @@ export default function Home() {
   const [stickyCategoryNavVisible, setStickyCategoryNavVisible] = useState(false);
 
   // Load root categories + catalog (Fresh Zone). Merch shelves come from home-sections.
-  const { data: categoriesData, isLoading: categoriesLoading } = useRootCategories();
+  const { data: categoriesData } = useRootCategories();
   const { data: catalogData, isLoading: catalogLoading } = useProducts({
     limit: 24,
     sort_by: 'created_at',
@@ -416,10 +415,7 @@ export default function Home() {
     ? freshZoneDisplayProductsBase.filter((p) => productMatchesCategory(p, freshZoneSelectedCategory))
     : freshZoneDisplayProductsBase;
 
-  const loading = categoriesLoading || catalogLoading;
-
   useEffect(() => {
-    if (loading) return undefined;
     const hero = heroSectionRef.current;
     if (!hero) {
       setStickyCategoryNavVisible(false);
@@ -438,17 +434,13 @@ export default function Home() {
       window.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);
     };
-  }, [loading]);
+  }, []);
 
   const handleNewsletterSubmit = (e) => {
     e.preventDefault();
     showAlert('Thank you for subscribing!', 'Success', 'success');
     setEmail('');
   };
-
-  if (loading) {
-    return <HomePageSkeleton />;
-  }
 
   return (
     <div
@@ -513,21 +505,19 @@ export default function Home() {
       </div>
 
       {/* Sticky Browse Categories — button only (no full-width card chrome) */}
-      {!loading && (
-        <div
-          className={`fixed inset-x-0 top-0 z-[65] transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none ${
-            stickyCategoryNavVisible
-              ? 'translate-y-0 opacity-100 pointer-events-none'
-              : 'pointer-events-none -translate-y-[calc(100%+8px)] opacity-0'
-          }`}
-          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-          aria-hidden={!stickyCategoryNavVisible}
-        >
-          <div className={`px-0 ${stickyCategoryNavVisible ? 'pointer-events-auto' : 'pointer-events-none'}`}>
-            <BrowseCategoriesCta variant="sticky" />
-          </div>
+      <div
+        className={`fixed inset-x-0 top-0 z-[65] transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none ${
+          stickyCategoryNavVisible
+            ? 'translate-y-0 opacity-100 pointer-events-none'
+            : 'pointer-events-none -translate-y-[calc(100%+8px)] opacity-0'
+        }`}
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+        aria-hidden={!stickyCategoryNavVisible}
+      >
+        <div className={`px-0 ${stickyCategoryNavVisible ? 'pointer-events-auto' : 'pointer-events-none'}`}>
+          <BrowseCategoriesCta variant="sticky" />
         </div>
-      )}
+      </div>
 
       {/* Hero section (purple grocery) */}
       <section

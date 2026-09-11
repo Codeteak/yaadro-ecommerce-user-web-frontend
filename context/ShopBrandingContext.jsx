@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -12,6 +13,7 @@ import {
 import { usePathname } from 'next/navigation';
 import {
   formatShopPageTitle,
+  getCachedShopBranding,
   resolveShopBranding,
   shouldSkipLocalDevTenantFetch,
 } from '../utils/shopResolver';
@@ -59,15 +61,22 @@ function isProductDetailPath(pathname) {
 
 const ShopBrandingContext = createContext(null);
 
+function initialCachedBranding() {
+  return typeof window !== 'undefined' ? getCachedShopBranding() : null;
+}
+
 export function ShopBrandingProvider({ children }) {
   const pathname = usePathname();
-  const [shopId, setShopId] = useState('');
-  const [shopName, setShopName] = useState('');
-  const [shopImage, setShopImage] = useState(null);
-  const [shopSeo, setShopSeo] = useState(null);
-  const [bannerEnabled, setBannerEnabled] = useState(false);
-  const [bannerImages, setBannerImages] = useState([]);
-  const [isResolving, setIsResolving] = useState(true);
+  const [cachedBoot] = useState(initialCachedBranding);
+  const [shopId, setShopId] = useState(() => cachedBoot?.shopId || '');
+  const [shopName, setShopName] = useState(() => cachedBoot?.shopName || '');
+  const [shopImage, setShopImage] = useState(() => cachedBoot?.shopImage || null);
+  const [shopSeo, setShopSeo] = useState(() => cachedBoot?.seo || null);
+  const [bannerEnabled, setBannerEnabled] = useState(() => Boolean(cachedBoot?.bannerEnabled));
+  const [bannerImages, setBannerImages] = useState(() =>
+    Array.isArray(cachedBoot?.bannerImages) ? cachedBoot.bannerImages : []
+  );
+  const [isResolving, setIsResolving] = useState(() => !cachedBoot?.shopId);
   const pageTitleRef = useRef(null);
   const resolveStartedRef = useRef(false);
 
@@ -89,32 +98,46 @@ export function ShopBrandingProvider({ children }) {
     }
   }, []);
 
+  useLayoutEffect(() => {
+    const cached = getCachedShopBranding();
+    if (!cached?.shopId) return;
+    setShopId(cached.shopId);
+    setShopName(cached.shopName || 'Yaadro');
+    setShopImage(cached.shopImage || null);
+    setBannerEnabled(Boolean(cached.bannerEnabled));
+    setBannerImages(Array.isArray(cached.bannerImages) ? cached.bannerImages : []);
+    if (cached.seo) setShopSeo(cached.seo);
+    applyShopBrandingAssets(cached.shopName, cached.shopImage);
+    setIsResolving(false);
+  }, [applyShopBrandingAssets]);
+
   useEffect(() => {
     if (resolveStartedRef.current) return;
     resolveStartedRef.current = true;
 
     (async () => {
+      let result = null;
       try {
-        const result = await resolveShopBranding();
+        result = await resolveShopBranding();
         setShopId(result.shopId || '');
         setShopName(result.shopName || 'Yaadro');
         setShopImage(result.shopImage || null);
         setBannerEnabled(Boolean(result.bannerEnabled));
         setBannerImages(Array.isArray(result.bannerImages) ? result.bannerImages : []);
-
-        let seo = result.seo || null;
-        const skipSeoFetch =
-          typeof window !== 'undefined' &&
-          shouldSkipLocalDevTenantFetch(window.location.hostname);
-        if (!seo && result.shopId && !skipSeoFetch) {
-          const fetched = await fetchShopSeoMetadata(result.shopId);
-          seo = fetched?.seo || null;
-        }
-        setShopSeo(seo);
+        if (result.seo) setShopSeo(result.seo);
         applyShopBrandingAssets(result.shopName, result.shopImage);
       } finally {
         setIsResolving(false);
       }
+
+      if (!result?.shopId) return;
+      if (result.seo) return;
+      const skipSeoFetch =
+        typeof window !== 'undefined' &&
+        shouldSkipLocalDevTenantFetch(window.location.hostname);
+      if (skipSeoFetch) return;
+      const fetched = await fetchShopSeoMetadata(result.shopId);
+      if (fetched?.seo) setShopSeo(fetched.seo);
     })();
   }, [applyShopBrandingAssets]);
 
