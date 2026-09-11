@@ -320,12 +320,20 @@ function EmptyCart({ carouselSections = [] }) {
           </span>
         </h2>
         <p className="text-sm text-gray-400 mb-6">Add products to start your order</p>
-        <Link
-          href="/products"
-          className="inline-flex items-center justify-center bg-violet-600 text-white text-sm font-medium px-5 py-2.5 rounded-full hover:bg-violet-700 transition"
-        >
-          Shop now
-        </Link>
+        <div className="flex flex-wrap items-center justify-center gap-2.5">
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center bg-violet-600 text-white text-sm font-medium px-5 py-2.5 rounded-full hover:bg-violet-700 transition"
+          >
+            Home
+          </Link>
+          <Link
+            href="/products"
+            className="inline-flex items-center justify-center border border-gray-200 bg-white text-sm font-medium text-gray-800 px-5 py-2.5 rounded-full hover:bg-gray-50 transition"
+          >
+            Shop now
+          </Link>
+        </div>
       </div>
 
       {carouselSections.map(({ key, title, description, products }) =>
