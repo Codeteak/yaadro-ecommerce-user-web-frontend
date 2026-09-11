@@ -79,6 +79,7 @@ export function ShopBrandingProvider({ children }) {
   const [isResolving, setIsResolving] = useState(() => !cachedBoot?.shopId);
   const pageTitleRef = useRef(null);
   const resolveStartedRef = useRef(false);
+  const brandingFetchInFlightRef = useRef(false);
 
   const applyDocumentTitle = useCallback(
     (pageTitle) => {
@@ -98,38 +99,35 @@ export function ShopBrandingProvider({ children }) {
     }
   }, []);
 
-  useLayoutEffect(() => {
-    const cached = getCachedShopBranding();
-    if (!cached?.shopId) return;
-    setShopId(cached.shopId);
-    setShopName(cached.shopName || 'Yaadro');
-    setShopImage(cached.shopImage || null);
-    setBannerEnabled(Boolean(cached.bannerEnabled));
-    setBannerImages(Array.isArray(cached.bannerImages) ? cached.bannerImages : []);
-    if (cached.seo) setShopSeo(cached.seo);
-    applyShopBrandingAssets(cached.shopName, cached.shopImage);
-    setIsResolving(false);
-  }, [applyShopBrandingAssets]);
+  const applyResolvedBranding = useCallback(
+    (result) => {
+      if (!result) return;
+      setShopId(result.shopId || '');
+      setShopName(result.shopName || 'Yaadro');
+      setShopImage(result.shopImage || null);
+      setBannerEnabled(Boolean(result.bannerEnabled));
+      setBannerImages(Array.isArray(result.bannerImages) ? result.bannerImages : []);
+      if (result.seo) setShopSeo(result.seo);
+      applyShopBrandingAssets(result.shopName, result.shopImage);
+    },
+    [applyShopBrandingAssets]
+  );
 
-  useEffect(() => {
-    if (resolveStartedRef.current) return;
-    resolveStartedRef.current = true;
-
-    (async () => {
+  const refreshShopBranding = useCallback(
+    async ({ withSeoFallback = false, markResolving = false } = {}) => {
+      if (brandingFetchInFlightRef.current) return;
+      brandingFetchInFlightRef.current = true;
       let result = null;
       try {
+        if (markResolving) setIsResolving(true);
         result = await resolveShopBranding();
-        setShopId(result.shopId || '');
-        setShopName(result.shopName || 'Yaadro');
-        setShopImage(result.shopImage || null);
-        setBannerEnabled(Boolean(result.bannerEnabled));
-        setBannerImages(Array.isArray(result.bannerImages) ? result.bannerImages : []);
-        if (result.seo) setShopSeo(result.seo);
-        applyShopBrandingAssets(result.shopName, result.shopImage);
+        applyResolvedBranding(result);
       } finally {
         setIsResolving(false);
+        brandingFetchInFlightRef.current = false;
       }
 
+      if (!withSeoFallback) return;
       if (!result?.shopId) return;
       if (result.seo) return;
       const skipSeoFetch =
@@ -138,8 +136,31 @@ export function ShopBrandingProvider({ children }) {
       if (skipSeoFetch) return;
       const fetched = await fetchShopSeoMetadata(result.shopId);
       if (fetched?.seo) setShopSeo(fetched.seo);
-    })();
-  }, [applyShopBrandingAssets]);
+    },
+    [applyResolvedBranding]
+  );
+
+  useLayoutEffect(() => {
+    const cached = getCachedShopBranding();
+    if (!cached?.shopId) return;
+    applyResolvedBranding(cached);
+    setIsResolving(false);
+  }, [applyResolvedBranding]);
+
+  useEffect(() => {
+    if (resolveStartedRef.current) return;
+    resolveStartedRef.current = true;
+    void refreshShopBranding({ withSeoFallback: true, markResolving: !cachedBoot?.shopId });
+  }, [refreshShopBranding]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      void refreshShopBranding({ withSeoFallback: false, markResolving: false });
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [refreshShopBranding]);
 
   useEffect(() => {
     if (!shopName || isResolving) return;
