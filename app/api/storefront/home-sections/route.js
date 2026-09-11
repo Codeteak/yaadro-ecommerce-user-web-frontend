@@ -1,14 +1,21 @@
-import { proxyUpstreamGet } from '../../../../lib/proxyUpstreamApi';
+import {
+  jsonOk,
+  readStorefrontShopId,
+  tryDbThenUpstream,
+} from '../../../../lib/storefrontTryDbThenUpstream';
+import { listYaadroHomeSections } from '../../../../lib/storefrontYaadroCatalog';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
  * GET /api/storefront/home-sections
- * Always proxy to customer API (no local DB table). Origin must be customer
- * API (:4100), not shop-api. Avoids Next rewrite forwarding the browser
- * User-Agent, which ngrok free blocks (ERR_NGROK_6024).
+ * Postgres first (shop_home_sections); customer API fallback.
  */
 export async function GET(request) {
-  return proxyUpstreamGet(request, '/api/storefront/home-sections');
+  return tryDbThenUpstream(request, '/api/storefront/home-sections', async () => {
+    const shopId = readStorefrontShopId(request);
+    const payload = await listYaadroHomeSections(shopId);
+    return jsonOk(payload);
+  });
 }

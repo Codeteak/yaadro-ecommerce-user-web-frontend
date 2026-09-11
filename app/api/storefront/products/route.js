@@ -1,28 +1,21 @@
-import { NextResponse } from 'next/server';
 import { listProductsFromDb } from '../../../../lib/storefrontDbCatalog';
-import { proxyUpstreamGet } from '../../../../lib/proxyUpstreamApi';
-import { shouldUseUpstreamStorefrontCatalog } from '../../../../lib/storefrontCatalogRouteSource';
+import {
+  jsonOk,
+  readStorefrontShopId,
+  tryDbThenUpstream,
+} from '../../../../lib/storefrontTryDbThenUpstream';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
  * GET /api/storefront/products
- * - With DATABASE_URL: read-only SQL against Supabase/Postgres
- * - Without: proxy to configured upstream API
+ * Postgres first (shop_products); customer API fallback.
  */
 export async function GET(request) {
-  if (shouldUseUpstreamStorefrontCatalog()) {
-    return proxyUpstreamGet(request, '/api/storefront/products');
-  }
-
-  try {
+  return tryDbThenUpstream(request, '/api/storefront/products', async () => {
     const { searchParams } = new URL(request.url);
-    const shopId =
-      request.headers.get('x-shop-id') ||
-      process.env.NEXT_PUBLIC_SHOP_ID ||
-      '';
-
+    const shopId = readStorefrontShopId(request);
     const limit = searchParams.get('limit') || searchParams.get('per_page') || '20';
     const offset = searchParams.get('offset');
     const page = Number(searchParams.get('page') || 1);
@@ -44,21 +37,12 @@ export async function GET(request) {
       sortOrder: searchParams.get('sort_order') || undefined,
     });
 
-    return NextResponse.json({
+    return jsonOk({
       status: 'success',
       data: {
         products: result.products,
         nextCursor: result.nextCursor,
       },
     });
-  } catch (err) {
-    console.error('[api/storefront/products]', err?.message || err);
-    return NextResponse.json(
-      {
-        status: 'error',
-        message: err?.message || 'Failed to load products from database',
-      },
-      { status: 500 }
-    );
-  }
+  });
 }
