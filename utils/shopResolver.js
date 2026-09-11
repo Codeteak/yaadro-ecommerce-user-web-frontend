@@ -345,6 +345,37 @@ export function persistResolvedShop(
   }
 }
 
+/**
+ * Bust browser/CDN cache for remote shop assets (same URL, new bytes).
+ * Leaves same-origin paths like `/banner/...` unchanged.
+ */
+export function withAssetCacheBust(url, version) {
+  const raw = String(url || '').trim();
+  if (!raw) return raw;
+  if (raw.startsWith('/') && !raw.startsWith('//')) return raw;
+
+  let parsed;
+  try {
+    parsed = new URL(raw, 'https://yaadro.local');
+  } catch {
+    return raw;
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return raw;
+  const v = String(version ?? '').trim() || String(Date.now());
+  parsed.searchParams.set('v', v);
+  return parsed.toString();
+}
+
+function applyBrandingCacheBust(branding, version) {
+  if (!branding || typeof branding !== 'object') return branding;
+  const v = version != null && String(version).trim() ? String(version).trim() : String(Date.now());
+  const shopImage = branding.shopImage ? withAssetCacheBust(branding.shopImage, v) : null;
+  const bannerImages = Array.isArray(branding.bannerImages)
+    ? branding.bannerImages.map((u) => withAssetCacheBust(u, v))
+    : [];
+  return { ...branding, shopImage, bannerImages };
+}
+
 function isLocalDevHostname(hostname) {
   const h = String(hostname || '').toLowerCase().trim();
   return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
@@ -398,6 +429,7 @@ export async function fetchShopByDomain(domain) {
     const response = await fetch(requestUrl, {
       method: 'GET',
       headers: { Accept: 'application/json' },
+      cache: 'no-store',
     });
 
     if (response.status === 404) {
@@ -523,14 +555,6 @@ export async function resolveShopBranding() {
     const envId = envShopId();
     if (envId) {
       const cached = readCachedBranding(domain);
-      if (
-        cached &&
-        cached.shopId === envId &&
-        cached.shopImage &&
-        cached.bannerImages?.length > 0
-      ) {
-        return { ...cached, fromCache: true, notFound: false };
-      }
       try {
         const resolverUrl = getDefaultTenantResolverUrl();
         if (resolverUrl && domain) {
@@ -540,6 +564,7 @@ export async function resolveShopBranding() {
           const res = await fetch(requestUrl, {
             method: 'GET',
             headers: { Accept: 'application/json' },
+            cache: 'no-store',
           });
           let payload = null;
           if (res.ok) {
@@ -560,12 +585,16 @@ export async function resolveShopBranding() {
             normalized,
           });
           if (res.ok && normalized?.shopId) {
-            persistResolvedShop(domain, normalized);
-            return { ...normalized, fromCache: false, notFound: false };
+            const stamped = applyBrandingCacheBust(normalized);
+            persistResolvedShop(domain, stamped);
+            return { ...stamped, fromCache: false, notFound: false };
           }
         }
       } catch {
-        // Fall through to env fallback
+        // Fall through to cache or env fallback
+      }
+      if (cached) {
+        return { ...cached, fromCache: true, notFound: false };
       }
     }
     return devBrandingFallback();
@@ -586,14 +615,15 @@ export async function resolveShopBranding() {
   }
 
   const cached = readCachedBranding(domain);
-  if (cached) {
-    return { ...cached, fromCache: true, notFound: false };
-  }
-
   const fetched = await fetchShopByDomain(domain);
   if (fetched.shopId) {
-    persistResolvedShop(domain, fetched);
-    return { ...fetched, fromCache: false, notFound: false };
+    const stamped = applyBrandingCacheBust(fetched);
+    persistResolvedShop(domain, stamped);
+    return { ...stamped, fromCache: false, notFound: false };
+  }
+
+  if (cached) {
+    return { ...cached, fromCache: true, notFound: false };
   }
 
   const fallbackId = envShopId();
