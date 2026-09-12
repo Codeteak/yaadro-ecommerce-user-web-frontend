@@ -246,6 +246,16 @@ function transformProduct(apiProduct) {
       thumbnail: apiProduct.thumbnail || null,
       categoryId: apiProduct.category_id || null,
       categoryObj: apiProduct.category || null,
+      soldByWeight:
+        apiProduct.soldByWeight === true || apiProduct.sold_by_weight === true,
+      base_unit:
+        apiProduct.base_unit != null
+          ? String(apiProduct.base_unit).trim()
+          : apiProduct.baseUnit != null
+            ? String(apiProduct.baseUnit).trim()
+            : apiProduct.unit != null
+              ? String(apiProduct.unit).trim()
+              : undefined,
     };
   }
 
@@ -352,6 +362,14 @@ function transformProduct(apiProduct) {
     shop: apiProduct.shop || null,
     createdAt: apiProduct.createdAt || '',
     updatedAt: apiProduct.updatedAt || '',
+    soldByWeight:
+      apiProduct.soldByWeight === true || apiProduct.sold_by_weight === true,
+    base_unit:
+      apiProduct.base_unit != null
+        ? String(apiProduct.base_unit).trim()
+        : apiProduct.baseUnit != null
+          ? String(apiProduct.baseUnit).trim()
+          : undefined,
   };
 }
 
@@ -402,6 +420,7 @@ function transformCategory(apiCategory) {
  * Supported filters (see OpenAPI / product search spec):
  * - `search` / `q` — partial match on name & slug, max 200 chars
  * - `category_id`, `brand_id` — UUIDs only (non-UUID values are ignored)
+ * - `include_descendants` — when `1`/`true` with `category_id`, include child categories
  * - `availability` — `in_stock` | `out_of_stock` | `unknown`
  * - `min_price_minor`, `max_price_minor` — integers ≥ 0 (paise); invalid range drops both
  * - `sort_by` — `price` | `created_at` | `name` (unknown values omitted)
@@ -428,6 +447,19 @@ export function buildStorefrontProductsQuery(raw = {}) {
   const cat = raw.category_id ?? raw.category;
   if (cat != null && cat !== '' && UUID.test(String(cat))) {
     out.category_id = String(cat);
+  }
+
+  const includeDesc =
+    raw.include_descendants === true ||
+    raw.include_descendants === 1 ||
+    raw.include_descendants === '1' ||
+    raw.include_descendants === 'true' ||
+    raw.includeDescendants === true ||
+    raw.includeDescendants === 1 ||
+    raw.includeDescendants === '1' ||
+    raw.includeDescendants === 'true';
+  if (includeDesc && out.category_id) {
+    out.include_descendants = '1';
   }
 
   const brand = raw.brand_id ?? raw.brandId;
@@ -815,11 +847,16 @@ export async function getCategoriesTree() {
 }
 
 /**
- * Build tree from flat list (parentId references)
+ * Build tree from flat list (parentId references).
+ * Parent/child ids are compared as strings so UUID typing never orphans children.
  */
 function buildTreeFromFlat(flat, parentId = null) {
+  const parentKey = parentId == null ? null : String(parentId);
   return flat
-    .filter((c) => (c.parentId == null && parentId == null) || c.parentId === parentId)
+    .filter((c) => {
+      const pid = c.parentId == null ? null : String(c.parentId);
+      return pid === parentKey;
+    })
     .map((node) => ({
       ...node,
       children: buildTreeFromFlat(flat, node.id),

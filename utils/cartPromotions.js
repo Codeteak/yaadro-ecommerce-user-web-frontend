@@ -24,6 +24,33 @@ export function getCartLineBundleLabel(item) {
   return rule ? formatBundleRuleLabel(rule) : null;
 }
 
+/**
+ * True when the cart contains a Buy X Get Y / bundle offer product.
+ * Coupons must not stack with these offer lines.
+ */
+export function cartHasBxgyOffer(items) {
+  const list = Array.isArray(items) ? items : [];
+  for (const it of list) {
+    if (isBundleRewardCartLine(it)) return true;
+    if (getCartLineBundleRule(it)) return true;
+    // Nested product shapes (persisted line vs API merge)
+    if (getPrimaryBundleRule(it?.product)) return true;
+    if (
+      getPrimaryBundleRule({
+        bundleRules: it?.product?.bundleRules ?? it?.product?.bundle_rules,
+        bundle_rules: it?.product?.bundle_rules ?? it?.product?.bundleRules,
+      })
+    ) {
+      return true;
+    }
+    if (getBundleFreeExtraOnPaidLine(it) > 0) return true;
+  }
+  return false;
+}
+
+export const BXGY_COUPON_BLOCKED_MESSAGE =
+  'Coupons are not accepted when offer (Buy X Get Y) products are in your cart.';
+
 export function bundleRewardMatchesParent(rewardLine, parentId) {
   const pid = String(parentId || '');
   if (!pid || !isBundleRewardCartLine(rewardLine)) return false;
@@ -432,10 +459,21 @@ export function isTrustedCartCouponPreview(previewCart, localItems) {
 /**
  * Overlay server preview unit/MRP/line totals onto local display cart lines.
  * Matches paid lines by productId; leaves qty and cart keys from local.
+ * @param {object} [options]
+ * @param {boolean} [options.ignoreCouponPricing] — BXGY carts: never take coupon-reduced
+ *   payable; keep list/catalog × paid qty so coupons cannot stack with offers.
  */
-export function mergePreviewPricingOntoLocalLines(localDisplayItems, previewItems) {
+export function mergePreviewPricingOntoLocalLines(
+  localDisplayItems,
+  previewItems,
+  options = {}
+) {
   if (!Array.isArray(localDisplayItems) || !localDisplayItems.length) return localDisplayItems || [];
   if (!Array.isArray(previewItems) || !previewItems.length) return localDisplayItems;
+
+  const ignoreCouponPricing = options.ignoreCouponPricing === true;
+  const cartIsBxgy =
+    ignoreCouponPricing || cartHasBxgyOffer(localDisplayItems);
 
   const byProductId = new Map();
   for (const preview of previewItems) {
@@ -452,6 +490,51 @@ export function mergePreviewPricingOntoLocalLines(localDisplayItems, previewItem
     if (!preview) return local;
 
     const next = { ...local };
+    const isBxgyLine =
+      cartIsBxgy &&
+      (getCartLineBundleRule(local) ||
+        getBundleFreeExtraOnPaidLine(local) > 0 ||
+        Boolean(preview.free_quantity || preview.freeQuantity));
+
+    if (isBxgyLine) {
+      const listUnit = Number(
+        preview.originalPrice ??
+          local.originalPrice ??
+          (Number(local.originalPrice) > 0 ? local.originalPrice : null) ??
+          preview.price ??
+          local.price
+      );
+      const paid = getCartLinePaidQty(local);
+      // Prefer local catalog list when preview unit looks coupon-reduced.
+      const localList = Number(local.originalPrice);
+      const localPay = Number(local.price);
+      const sellUnit =
+        Number.isFinite(localList) && localList > 0
+          ? localList
+          : Number.isFinite(listUnit) && listUnit > 0
+            ? listUnit
+            : Number.isFinite(localPay) && localPay > 0
+              ? localPay
+              : null;
+      if (sellUnit != null && sellUnit > 0 && paid > 0) {
+        next.price = sellUnit;
+        next.originalPrice = null;
+        next.lineTotal = sellUnit * paid;
+        next.total = next.lineTotal;
+      }
+      if (preview.free_quantity != null || preview.freeQuantity != null) {
+        const free = Number(preview.free_quantity ?? preview.freeQuantity) || 0;
+        next.free_quantity = free;
+        next.freeQuantity = free;
+        next.offer_quantity = free;
+        next.offerQuantity = free;
+      }
+      if (preview.displayQuantity != null) {
+        next.displayQuantity = Number(preview.displayQuantity) || next.displayQuantity;
+      }
+      return next;
+    }
+
     if (preview.price != null && Number.isFinite(Number(preview.price))) {
       next.price = Number(preview.price);
     }

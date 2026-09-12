@@ -24,7 +24,7 @@ import {
   resolveProductWeightAndUnit,
   stripPackFromProductName,
 } from '../../../utils/productUtils';
-import { buildAvailableSizes, resolveSelectedSize } from '../../../utils/productSizeSelection';
+import { buildAvailableSizes, resolveSelectedSize, sizePackCount } from '../../../utils/productSizeSelection';
 import Container from '../../../components/Container';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
 import PdpOfferPanel from '../../../components/promotions/PdpOfferPanel';
@@ -232,9 +232,11 @@ export default function ProductDetailClient({ productId = null }) {
     ? parseFloat(product.price)
     : 0;
   const resolvedPack = product ? resolveProductWeightAndUnit(product) : { weight: null, unit: '' };
-  const displayWeight = activeSize
-    ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
-    : formatWeightUnitLabel(resolvedPack.weight, resolvedPack.unit);
+  const displayWeight = activeSize?.label
+    ? activeSize.label
+    : activeSize
+      ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
+      : formatWeightUnitLabel(resolvedPack.weight, resolvedPack.unit);
 
   const descriptionText =
     typeof product?.description === 'string' ? product.description.trim() : '';
@@ -413,11 +415,11 @@ export default function ProductDetailClient({ productId = null }) {
     if (!productToAddPayload || !product?.inStock) return;
     setCartActionLoading(true);
     try {
-      await addToCart(productToAddPayload, 1);
+      await addToCart(productToAddPayload, sizePackCount(activeSize));
     } finally {
       setCartActionLoading(false);
     }
-  }, [addToCart, productToAddPayload, product?.inStock]);
+  }, [addToCart, productToAddPayload, product?.inStock, activeSize]);
 
   const handleStepperIncrement = useCallback(() => {
     if (cartActionLoading || !productToAddPayload || cartUpdateKey == null) return;
@@ -812,7 +814,11 @@ export default function ProductDetailClient({ productId = null }) {
                 <div className="flex flex-wrap gap-2 mb-5 mt-3">
                   {availableSizes.map((size, i) => {
                     const isActive =
-                      selectedSize?.weight === size.weight && selectedSize?.unit === size.unit;
+                      sizePackCount(selectedSize) === sizePackCount(size) &&
+                      String(selectedSize?.weight ?? '') === String(size.weight ?? '') &&
+                      String(selectedSize?.unit ?? '') === String(size.unit ?? '');
+                    const chipLabel =
+                      size.label || `${size.weight} ${size.unit}`.trim();
                     return (
                       <button
                         key={i}
@@ -823,7 +829,7 @@ export default function ProductDetailClient({ productId = null }) {
                             : 'bg-white text-gray-700 border-gray-200 hover:border-violet-400'
                         }`}
                       >
-                        {size.weight} {size.unit} — ₹
+                        {chipLabel} — ₹
                         {formatRupeeINR(
                           product ? getEffectivePrice(product, parseFloat(size.price)) : parseFloat(size.price)
                         )}

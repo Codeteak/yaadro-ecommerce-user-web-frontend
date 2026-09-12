@@ -7,9 +7,11 @@ import { useToast } from './ToastContext';
 import { useCartQuery } from '../hooks/useCart';
 import {
   applyGuestCartBundleQuantities,
+  cartHasBxgyOffer,
   expandCartItemsWithBundleRewards,
   formatCartCouponPreviewMessage,
   getBundleFreeExtraOnPaidLine,
+  getCartLinePaidQty,
   isBundleRewardCartLine,
   isTrustedCartCouponPreview,
   mergePreviewPricingOntoLocalLines,
@@ -188,8 +190,13 @@ export function CartProvider({ children }) {
     // Guest-safe: POST /storefront/cart/preview does not require JWT.
     // Always preview when the cart has paid lines so offer/pricing merge works with or without coupons.
     enabled: paidLocalCount > 0,
-    couponCode: selectedCouponCode || undefined,
-    couponCodes: selectedCouponCodes.length > 1 ? selectedCouponCodes : undefined,
+    couponCode: cartHasBxgyOffer(localCartItems)
+      ? undefined
+      : selectedCouponCode || undefined,
+    couponCodes:
+      cartHasBxgyOffer(localCartItems) || selectedCouponCodes.length <= 1
+        ? undefined
+        : selectedCouponCodes,
     items: localCartItems,
   });
 
@@ -198,14 +205,72 @@ export function CartProvider({ children }) {
   /** @deprecated alias — same as cartPreviewTrusted; kept for checkout coupon UI */
   const couponPreviewTrusted = cartPreviewTrusted;
 
+  const previewHasBundle = Boolean(
+    cartPreviewData?.promotions?.auto?.hasBundle ||
+      cartPreviewData?.promotions?.hasBundle ||
+      (Array.isArray(cartPreviewData?.promotions?.types) &&
+        cartPreviewData.promotions.types.includes('bundle'))
+  );
+
+  const bxgyBlocksCoupons = useMemo(
+    () => cartHasBxgyOffer(localCartItems) || previewHasBundle,
+    [localCartItems, previewHasBundle]
+  );
+
   const cartItems = useMemo(() => {
     const base = buildGuestDisplayCartItems(localCartItems);
     if (!cartPreviewTrusted || !cartPreviewData?.items?.length) return base;
-    return mergePreviewPricingOntoLocalLines(base, cartPreviewData.items);
-  }, [localCartItems, cartPreviewTrusted, cartPreviewData?.items]);
+    return mergePreviewPricingOntoLocalLines(base, cartPreviewData.items, {
+      ignoreCouponPricing: bxgyBlocksCoupons,
+    });
+  }, [localCartItems, cartPreviewTrusted, cartPreviewData?.items, bxgyBlocksCoupons]);
+
+  const cartDataForUi = useMemo(() => {
+    if (!cartPreviewTrusted || !cartPreviewData) return undefined;
+    if (!bxgyBlocksCoupons) return cartPreviewData;
+    const itemsSum = stripPaidCartLinesOnly(cartItems).reduce((sum, it) => {
+      const line = Number(it.lineTotal);
+      if (Number.isFinite(line) && line >= 0) return sum + line;
+      const unit = Number(it.price) || 0;
+      return sum + unit * getCartLinePaidQty(it);
+    }, 0);
+    // Strip coupon ledger so checkout totals never show coupon savings on BXGY carts.
+    return {
+      ...cartPreviewData,
+      total: itemsSum,
+      couponDiscountMinor: 0,
+      promotions: cartPreviewData.promotions
+        ? {
+            ...cartPreviewData.promotions,
+            hasCoupon: false,
+            coupon: {
+              ...(cartPreviewData.promotions.coupon || {}),
+              status: 'none',
+              code: null,
+              discountMinor: 0,
+            },
+            couponCodes: [],
+            suggestedCoupons: [],
+          }
+        : cartPreviewData.promotions,
+    };
+  }, [cartPreviewTrusted, cartPreviewData, bxgyBlocksCoupons, cartItems]);
 
   useEffect(() => {
-    if (!cartPreviewTrusted || cartQueryFetching || !selectedCouponCode) return;
+    if (!bxgyBlocksCoupons) return;
+    if (!selectedCouponCode && selectedCouponCodes.length === 0) return;
+    setSelectedCouponCode('');
+  }, [
+    bxgyBlocksCoupons,
+    selectedCouponCode,
+    selectedCouponCodes.length,
+    setSelectedCouponCode,
+  ]);
+
+  useEffect(() => {
+    if (!cartPreviewTrusted || cartQueryFetching || !selectedCouponCode || bxgyBlocksCoupons) {
+      return;
+    }
     const preview = cartPreviewData?.promotions?.coupon;
     if (preview?.status !== 'not_applicable') return;
     const previewCode = String(preview.code || '').toUpperCase();
@@ -224,6 +289,7 @@ export function CartProvider({ children }) {
     selectedCouponCode,
     setSelectedCouponCode,
     showAlert,
+    bxgyBlocksCoupons,
   ]);
 
   useEffect(() => {
@@ -521,9 +587,10 @@ export function CartProvider({ children }) {
     hasHydratedLocalCart,
     selectedCouponCode,
     setSelectedCouponCode,
+    bxgyBlocksCoupons,
     selectedCouponCodes,
     setSelectedCouponCodes,
-    cartData: cartPreviewTrusted ? cartPreviewData : undefined,
+    cartData: cartDataForUi,
     couponPreviewTrusted,
     cartPreviewTrusted,
     /** Always true — cart UI reads from localStorage (layout) + query merge; no full-page cart gate. */

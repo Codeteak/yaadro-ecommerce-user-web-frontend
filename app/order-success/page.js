@@ -8,6 +8,7 @@ import { useShopBranding } from '../../context/ShopBrandingContext';
 import { useOrderDetail } from '../../hooks/useOrders';
 import { clearCheckoutDraft } from '../../utils/checkoutSession';
 import { downloadBillHtml, printBillPdf } from '../../utils/orderInvoice';
+import { orderHasBxgyOffer } from '../../utils/orderPromotions';
 import BillPreviewSheet from '../../components/BillPreviewSheet';
 import { getOrderPromotionSummary } from '../../utils/orderPromotions';
 
@@ -86,6 +87,7 @@ function CheckIcon({ rejected }) {
 
 function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
   const items   = order?.items || [];
+  const hasBxgy = orderHasBxgyOffer(items.filter((it) => !it?.isDeleted));
   const addr    = order?.deliveryAddress || order?.address || {};
   const rawMethod = order?.paymentMethod || paymentStatus;
   const method =
@@ -226,7 +228,7 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
             <span>Tax</span><span>{money(order.tax)}</span>
           </div>
         )}
-        {showSplit ? (
+        {!hasBxgy && showSplit ? (
           <>
             {saleSavings > 0.009 && (
               <div style={{ ...styles.totalLine, color: '#7d24d6' }}>
@@ -246,6 +248,7 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
             )}
           </>
         ) : (
+          !hasBxgy &&
           order?.discount != null &&
           Number(order.discount) > 0 && (
             <div style={{ ...styles.totalLine, color: '#7d24d6' }}>

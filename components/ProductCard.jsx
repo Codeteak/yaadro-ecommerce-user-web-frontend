@@ -9,12 +9,13 @@ import {
   formatBundleRuleLabel,
   formatBundleRibbonLabel,
   formatWeightUnitLabel,
+  formatRupeeINR,
   getPrimaryBundleRule,
   resolveProductWeightAndUnit,
 } from '../utils/productUtils';
 import { getProductOfferDisplay } from '../utils/offerDisplay';
 import { OfferBadgePill } from './promotions/OfferGroupCard';
-import { buildAvailableSizes, resolveSelectedSize } from '../utils/productSizeSelection';
+import { buildAvailableSizes, resolveSelectedSize, sizePackCount } from '../utils/productSizeSelection';
 import { tapFeedback } from '../utils/haptics';
 import PriceDisplay from './ui/PriceDisplay';
 import WeightLabel from './ui/WeightLabel';
@@ -94,9 +95,15 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     return null;
   }, [strikeList, currentPrice, basePrice]);
   const productPack = useMemo(() => resolveProductWeightAndUnit(product), [product]);
-  const displayWeight = activeSize
-    ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
-    : formatWeightUnitLabel(productPack.weight, productPack.unit);
+  const displayWeight = activeSize?.label
+    ? activeSize.label
+    : activeSize
+      ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
+      : formatWeightUnitLabel(productPack.weight, productPack.unit);
+  const addQty = sizePackCount(activeSize);
+  const showPackChips =
+    (product.soldByWeight === true || product.sold_by_weight === true) &&
+    availableSizes.length > 1;
 
   const bundleRule = useMemo(() => getPrimaryBundleRule(product), [product]);
   const offerDisplay = useMemo(() => getProductOfferDisplay(product), [product]);
@@ -138,9 +145,9 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       return;
     }
     setCartActionLoading(true);
-    setPendingCartQty(1);
+    setPendingCartQty(addQty);
     try {
-      await addToCart(productToAddPayload, 1);
+      await addToCart(productToAddPayload, addQty);
       tapFeedback();
     } catch {
       setPendingCartQty(0);
@@ -148,7 +155,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     } finally {
       setCartActionLoading(false);
     }
-  }, [availableSizes.length, selectedSize, addToCart, productToAddPayload]);
+  }, [availableSizes.length, selectedSize, addToCart, productToAddPayload, addQty]);
 
   const handleIncrement = useCallback(
     async (e) => {
@@ -161,9 +168,9 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       }
       if (paidCartQty === 0 && pendingCartQty === 0) {
         setCartActionLoading(true);
-        setPendingCartQty(1);
+        setPendingCartQty(addQty);
         try {
-          await addToCart(productToAddPayload, 1);
+          await addToCart(productToAddPayload, addQty);
           tapFeedback();
         } catch {
           setPendingCartQty(0);
@@ -201,6 +208,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       addToCart,
       productToAddPayload,
       updateQuantity,
+      addQty,
     ]
   );
 
@@ -527,9 +535,37 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           </p>
         ) : null}
 
-        <Link {...navLinkProps} className="block min-w-0">
-          <WeightLabel label={displayWeight} placeholder />
-        </Link>
+        {showPackChips ? (
+          <div className="flex flex-wrap gap-1" onPointerDown={stopCartBubble}>
+            {availableSizes.map((size) => {
+              const active = sizePackCount(activeSize) === sizePackCount(size);
+              const chipPay = getEffectivePrice(product, parseFloat(size.price));
+              return (
+                <button
+                  key={`${size.packCount}-${size.weight}-${size.unit}`}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSelectedSize(size);
+                  }}
+                  className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-tight ${
+                    active
+                      ? 'border-violet-600 bg-violet-600 text-white'
+                      : 'border-gray-200 bg-white text-gray-700'
+                  }`}
+                >
+                  {size.label || formatWeightUnitLabel(size.weight, size.unit)}
+                  <span className="ml-1 tabular-nums font-bold">₹{formatRupeeINR(chipPay)}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <Link {...navLinkProps} className="block min-w-0">
+            <WeightLabel label={displayWeight} placeholder />
+          </Link>
+        )}
 
         <Link {...navLinkProps} className="block">
           <PriceDisplay

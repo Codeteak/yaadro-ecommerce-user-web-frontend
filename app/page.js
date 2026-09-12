@@ -42,6 +42,11 @@ function flattenCategoryNodes(node) {
   return out;
 }
 
+function flattenCategoryForest(nodes) {
+  if (!Array.isArray(nodes)) return [];
+  return nodes.flatMap((n) => flattenCategoryNodes(n));
+}
+
 /** Depth-first exact name match (`name.trim() === expected`). Skips inactive nodes. */
 function findCategoryByExactName(nodes, name) {
   if (!Array.isArray(nodes)) return null;
@@ -54,12 +59,34 @@ function findCategoryByExactName(nodes, name) {
   return null;
 }
 
-function collectCategoryIds(node) {
-  return flattenCategoryNodes(node)
-    .filter((c) => c?.isActive !== false)
-    .map((c) => c?.id ?? c?._id)
-    .filter((id) => id != null)
-    .map(String);
+/**
+ * Root + all descendants via parent_id links (string-normalized).
+ * Survives broken nested `children` arrays as long as flat parent links exist.
+ */
+function collectDescendantCategoryIds(flat, rootId) {
+  if (rootId == null || !Array.isArray(flat)) return [];
+  const root = String(rootId);
+  const byParent = new Map();
+  for (const c of flat) {
+    if (!c || c.isActive === false) continue;
+    const id = c.id ?? c._id;
+    if (id == null) continue;
+    const pid = c.parentId != null ? String(c.parentId) : c.parent_id != null ? String(c.parent_id) : null;
+    if (!byParent.has(pid)) byParent.set(pid, []);
+    byParent.get(pid).push(String(id));
+  }
+  const out = [];
+  const stack = [root];
+  const seen = new Set();
+  while (stack.length) {
+    const id = stack.pop();
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+    const kids = byParent.get(id) || [];
+    for (let i = kids.length - 1; i >= 0; i -= 1) stack.push(kids[i]);
+  }
+  return out;
 }
 
 /** Full-width Browse Categories CTA — hero (on purple) or sticky (after scroll). */
@@ -228,10 +255,19 @@ export default function Home() {
 
   const freshZoneResolved = useMemo(() => {
     const tree = categoryTree || [];
+    const flat = flattenCategoryForest(tree);
     return FRESH_ZONE_CATEGORY_NAMES.map((name) => {
       const category = findCategoryByExactName(tree, name);
       if (!category) return null;
-      const categoryIds = collectCategoryIds(category);
+      const rootId = category.id ?? category._id;
+      const fromTree = collectDescendantCategoryIds(flat, rootId);
+      // Merge nested children walk if flat missed anything (belt-and-suspenders).
+      const fromNested = flattenCategoryNodes(category)
+        .filter((c) => c?.isActive !== false)
+        .map((c) => c?.id ?? c?._id)
+        .filter((id) => id != null)
+        .map(String);
+      const categoryIds = [...new Set([...fromTree, ...fromNested])];
       if (!categoryIds.length) return null;
       return { category, categoryIds, name };
     }).filter(Boolean);
@@ -252,14 +288,19 @@ export default function Home() {
   } = useQuery({
     queryKey: [...productKeys.all, 'fresh-zone', freshZoneFetchKey],
     enabled: freshZoneResolved.length > 0,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 45,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const rows = await Promise.all(
         freshZoneResolved.map(async ({ category, categoryIds }) => {
+          const rootId = String(category.id ?? category._id);
+          // Root + descendants (local DB CTE). Also fetch each known child id so
+          // upstream APIs that ignore include_descendants still return Ghee SKUs.
           const lists = await Promise.all(
             categoryIds.map((category_id) =>
               getProducts({
                 category_id,
+                include_descendants: category_id === rootId,
                 limit: 24,
                 sort_by: 'created_at',
                 sort_order: 'desc',

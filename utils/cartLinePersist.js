@@ -159,46 +159,58 @@ export function buildPersistableCartLineFromProduct(product) {
   const sizeKey = cartLineSizeKey({ selectedSize });
   const cartItemKey = `${id ?? productId}_${sizeKey}`;
 
+  const bundleRules =
+    product.bundleRules ??
+    product.bundle_rules ??
+    (Array.isArray(product.product?.bundleRules) ? product.product.bundleRules : null);
+
+  const hasBxgyRules = Array.isArray(bundleRules) && bundleRules.length > 0;
+
   // Prefer payable = offer when catalog still has list on `price` + offerPrice.
   // ProductCard may already set price=payable and originalPrice=list.
+  // BXGY / BOGO: coupons never stack — lock cart payable to list/MRP (product price).
   const listed =
     Number(
       product.originalPrice ??
         product.compareAtPrice ??
+        (hasBxgyRules ? product.price : null) ??
         product.price ??
         0
     ) || 0;
   const offerRaw = product.offerPrice ?? product.offerPriceEffective;
   const offerNum = offerRaw != null ? Number(offerRaw) : null;
   const priceAlreadyPayable =
+    !hasBxgyRules &&
     product.originalPrice != null &&
     Number.isFinite(Number(product.price)) &&
     Number(product.originalPrice) > Number(product.price) + 1e-9;
-  const price = priceAlreadyPayable
-    ? Number(product.price)
-    : offerNum != null &&
-        Number.isFinite(offerNum) &&
-        offerNum > 0 &&
-        listed > 0 &&
-        offerNum < listed - 1e-9
-      ? offerNum
-      : Number(product.price ?? product.offerPriceEffective ?? product.offerPrice ?? 0) || 0;
-  const originalPrice =
-    listed > price + 1e-9
-      ? listed
-      : product.originalPrice != null && Number.isFinite(Number(product.originalPrice))
-        ? Number(product.originalPrice)
-        : undefined;
+  let price;
+  let originalPrice;
+  if (hasBxgyRules && listed > 0) {
+    price = listed;
+    originalPrice = undefined;
+  } else {
+    price = priceAlreadyPayable
+      ? Number(product.price)
+      : offerNum != null &&
+          Number.isFinite(offerNum) &&
+          offerNum > 0 &&
+          listed > 0 &&
+          offerNum < listed - 1e-9
+        ? offerNum
+        : Number(product.price ?? product.offerPriceEffective ?? product.offerPrice ?? 0) || 0;
+    originalPrice =
+      listed > price + 1e-9
+        ? listed
+        : product.originalPrice != null && Number.isFinite(Number(product.originalPrice))
+          ? Number(product.originalPrice)
+          : undefined;
+  }
 
   const category =
     typeof product.category === 'string'
       ? product.category
       : product.category?.name ?? product.categoryName ?? undefined;
-
-  const bundleRules =
-    product.bundleRules ??
-    product.bundle_rules ??
-    (Array.isArray(product.product?.bundleRules) ? product.product.bundleRules : null);
 
   const { weight, unit } = resolveProductWeightAndUnit(product);
   const packLabel = formatWeightUnitLabel(weight, unit);
