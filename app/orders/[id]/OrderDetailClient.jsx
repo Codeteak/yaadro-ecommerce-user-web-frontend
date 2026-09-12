@@ -25,6 +25,9 @@ import {
   inferOrderLinePaidQuantity,
   parseOrderQuantity,
 } from '../../../utils/orderPromotions';
+import { printBillPdf, downloadBillHtml } from '../../../utils/orderInvoice';
+import { useShopBranding } from '../../../context/ShopBrandingContext';
+import BillPreviewSheet from '../../../components/BillPreviewSheet';
 
 function IconBack() {
   return (
@@ -508,63 +511,6 @@ function Timeline({ order }) {
   );
 }
 
-function downloadInvoice(order) {
-  const promo = getOrderPromotionSummary(order);
-  const visibleItems = getVisibleOrderItems(order);
-  const lines = [
-    `INVOICE`,
-    `Order: ${order.orderNumber || order.id}`,
-    `Date:  ${new Date(order.createdAt).toLocaleString()}`,
-    ...(promo.couponCode ? [`Coupon: ${promo.couponCode}`] : []),
-    ``,
-    `Items:`,
-    ...visibleItems.map((it) => {
-      const label = getOrderLineOfferLabel(it);
-      const meta = getShopLineFulfillmentMeta(it);
-      const suffix = label ? ` (${label})` : '';
-      let extra = '';
-      if (meta.showRemoved) {
-        extra = ' [UNAVAILABLE]';
-      } else if (meta.showShopQtyUpdate && meta.originalQty != null) {
-        extra = ` [shop qty: ordered ${meta.originalQty} → fulfilling ${meta.currentQty}]`;
-      } else if (meta.showShopQtyUpdate) {
-        extra = ' [quantity updated by store]';
-      }
-      return `  ${it.productName || it.name} ×${it.quantity}  ${fmt(it.totalPrice)}${suffix}${extra}`;
-    }),
-    ``,
-    `Subtotal : ${fmt(order.subtotal)}`,
-    `Tax      : ${fmt(order.tax)}`,
-    `Shipping : ${fmt(order.shipping)}`,
-    ...(order.discount > 0
-      ? [
-          `${promo.couponCode ? `Coupon (${promo.couponCode})` : 'Offers & promotions'} : −${fmt(order.discount)}`,
-        ]
-      : []),
-    `Total    : ${fmt(order.total)}`,
-    ``,
-    `Shipping address:`,
-    ...(order.deliveryAddress
-      ? [
-          order.deliveryAddress.fullName || order.deliveryAddress.name || '',
-          order.deliveryAddress.street   || order.deliveryAddress.address || '',
-          [order.deliveryAddress.city, order.deliveryAddress.state].filter(Boolean).join(', '),
-          [order.deliveryAddress.zipCode || order.deliveryAddress.postalCode, order.deliveryAddress.country].filter(Boolean).join(', '),
-          order.deliveryAddress.phone ? `Phone: ${order.deliveryAddress.phone}` : '',
-        ].filter(Boolean)
-      : ['No address on file']),
-    ``,
-    `Payment: ${order.paymentMethod === 'cod' ? 'Cash on Delivery' : order.paymentMethod}`,
-    `Status:  ${order.paymentStatus}`,
-  ].join('\n');
-
-  const blob = new Blob([lines], { type: 'text/plain' });
-  const url  = URL.createObjectURL(blob);
-  const a    = Object.assign(document.createElement('a'), { href: url, download: `${order.orderNumber || order.id}.txt` });
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a); URL.revokeObjectURL(url);
-}
-
 function ErrorState({ message, ordersHref = '/orders' }) {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 bg-gray-50 px-6 text-center">
@@ -663,9 +609,11 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   const { addToCart }   = useCart();
   const { user }        = useAuth();
   const { showAlert }   = useAlert();
+  const { shopName, shopImage } = useShopBranding();
 
   const [isReordering, setIsReordering] = useState(false);
   const [showReturn, setShowReturn]     = useState(false);
+  const [billOpen, setBillOpen]         = useState(false);
 
   const visibleOrderItems = order ? getOrderItems(order) : [];
   const activeOrderItems = order ? getActiveOrderItems(order) : [];
@@ -1012,10 +960,10 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
 
             <Section>
               <div className="flex gap-2 p-3">
-                {order.status === 'delivered' && (
+                {order.status !== 'cancelled' && (
                   <button
                     type="button"
-                    onClick={() => downloadInvoice(order)}
+                    onClick={() => setBillOpen(true)}
                     className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 py-3.5 text-[13px] font-medium text-gray-900"
                   >
                     <IconDownload /> Invoice
@@ -1051,6 +999,34 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
       </div>
 
       {showReturn && <ReturnModal order={order} onClose={() => setShowReturn(false)} onSubmit={handleReturnSubmit} />}
+
+      <BillPreviewSheet
+        isOpen={billOpen}
+        onClose={() => setBillOpen(false)}
+        orderId={order.id}
+        paymentStatus={order.paymentStatus}
+        order={order}
+        shopName={shopName || 'Yaadro'}
+        shopImage={shopImage || null}
+        onDownloadPdf={() =>
+          printBillPdf({
+            order,
+            orderId: order.id,
+            paymentStatus: order.paymentStatus,
+            shopName: shopName || 'Yaadro',
+            shopImage: shopImage || null,
+          })
+        }
+        onDownloadHtml={() =>
+          downloadBillHtml({
+            order,
+            orderId: order.id,
+            paymentStatus: order.paymentStatus,
+            shopName: shopName || 'Yaadro',
+            shopImage: shopImage || null,
+          })
+        }
+      />
 
       <FloatingViewCartPill />
     </>

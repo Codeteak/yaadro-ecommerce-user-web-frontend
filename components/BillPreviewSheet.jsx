@@ -15,6 +15,8 @@ export default function BillPreviewSheet({
   orderId,
   paymentStatus,
   order,
+  shopName = 'Yaadro',
+  shopImage = null,
   onDownloadPdf,
   onDownloadHtml,
 }) {
@@ -79,13 +81,27 @@ export default function BillPreviewSheet({
           <div className="px-5 pb-4 max-h-[62vh] overflow-y-auto overscroll-contain">
             <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
               {/* Top brand bar */}
-              <div className="px-4 py-4 bg-gradient-to-r from-primary to-primary-dark text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-xl font-extrabold tracking-tight">Yaadro</div>
-                    <div className="text-xs text-primary/10">Professional Supermarket</div>
+              <div className="px-4 py-4 bg-gradient-to-r from-violet-600 to-violet-800 text-white">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    {shopImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={shopImage}
+                        alt=""
+                        className="h-10 w-10 shrink-0 rounded-xl object-contain bg-white/15 ring-1 ring-white/25"
+                        width={40}
+                        height={40}
+                      />
+                    ) : null}
+                    <div className="min-w-0">
+                      <div className="truncate text-xl font-extrabold tracking-tight">
+                        {shopName || 'Yaadro'}
+                      </div>
+                      <div className="text-xs text-white/70">Order invoice</div>
+                    </div>
                   </div>
-                  <div className="text-right">
+                  <div className="shrink-0 text-right">
                     <div className="text-xs opacity-90">INVOICE</div>
                     <div className="text-sm font-bold">{meta.orderNumber || orderId}</div>
                   </div>

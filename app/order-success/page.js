@@ -4,8 +4,11 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useOrder } from '../../context/OrderContext';
+import { useShopBranding } from '../../context/ShopBrandingContext';
 import { useOrderDetail } from '../../hooks/useOrders';
 import { clearCheckoutDraft } from '../../utils/checkoutSession';
+import { downloadBillHtml, printBillPdf } from '../../utils/orderInvoice';
+import BillPreviewSheet from '../../components/BillPreviewSheet';
 
 /* ─────────────────────────────────────────────────────────────
    Tiny inline helpers – no extra deps
@@ -216,114 +219,13 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   Invoice HTML builder (unchanged logic, same as original)
-───────────────────────────────────────────────────────────── */
-function buildBillHtml({ order, orderId, paymentStatus }) {
-  const items     = order?.items || [];
-  const addr      = order?.deliveryAddress || order?.address || {};
-  const createdAt = order?.createdAt ? new Date(order.createdAt).toLocaleString() : '';
-  const orderNumber = order?.orderNumber || '';
-  const payment   = paymentStatus || order?.paymentStatus || 'success';
-  const method    = order?.paymentMethod || '';
-
-  const rows = items.map((it) => {
-    const name  = safe(it.productName || it.name || it.product?.name || 'Item');
-    const qty   = it.quantity ?? 1;
-    const unit  = it.unitPrice ?? it.price ?? '';
-    const total = it.totalPrice ?? (unit !== '' ? Number(unit) * qty : '');
-    return `<tr>
-      <td>${name}</td>
-      <td class="right">${qty}</td>
-      <td class="right">${money(unit)}</td>
-      <td class="right">${money(total)}</td>
-    </tr>`;
-  }).join('');
-
-  return `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width,initial-scale=1"/>
-    <title>Invoice ${safe(orderNumber || orderId)}</title>
-    <style>
-      body{margin:0;font-family:ui-sans-serif,system-ui,sans-serif;color:#111;background:#f5f7f7}
-      .page{max-width:820px;margin:24px auto;padding:16px}
-      .card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.06)}
-      .top{background:linear-gradient(90deg,#902bf5,#7d24d6);color:#fff;padding:18px}
-      .brand{display:flex;justify-content:space-between;align-items:flex-start}
-      .brand h1{margin:0;font-size:22px}
-      .meta{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:16px}
-      .pill{border:1px solid #e5e7eb;border-radius:12px;background:#f9fafb;padding:12px}
-      .pill .k{font-size:11px;color:#6b7280}
-      .pill .v{font-weight:700;margin-top:4px}
-      .section{padding:0 16px 16px}
-      .section h3{margin:0 0 8px;font-size:13px}
-      .address{border:1px solid #e5e7eb;border-radius:14px;padding:12px}
-      table{width:100%;border-collapse:collapse}
-      th,td{padding:10px 8px;border-bottom:1px solid #f1f5f9;font-size:13px;vertical-align:top}
-      th{background:#f9fafb;color:#374151;font-size:12px}
-      .right{text-align:right}
-      .totals{border:1px solid #e5e7eb;border-radius:14px;padding:12px}
-      .row{display:flex;justify-content:space-between;margin:6px 0;font-size:13px;color:#374151}
-      .grand{border-top:1px solid #e5e7eb;margin-top:10px;padding-top:10px;font-size:15px}
-      .foot{padding:14px 16px;color:#6b7280;font-size:11px;border-top:1px solid #eef2f7}
-      @media print{body{background:#fff}.page{margin:0}.card{box-shadow:none}}
-    </style>
-  </head>
-  <body>
-    <div class="page"><div class="card">
-      <div class="top">
-        <div class="brand">
-          <div><h1>Yaadro</h1><small>Professional Supermarket</small></div>
-          <div style="text-align:right"><small>INVOICE</small>
-            <div style="font-weight:800;font-size:14px;margin-top:2px">${safe(orderNumber || orderId)}</div>
-          </div>
-        </div>
-      </div>
-      <div class="meta">
-        <div class="pill"><div class="k">Order ID</div><div class="v">${safe(orderId)}</div></div>
-        <div class="pill"><div class="k">Date</div><div class="v">${safe(createdAt) || '—'}</div></div>
-        <div class="pill"><div class="k">Payment</div><div class="v">${safe(payment)}</div></div>
-        <div class="pill"><div class="k">Method</div><div class="v">${safe(method) || '—'}</div></div>
-      </div>
-      <div class="section">
-        <h3>Delivery Address</h3>
-        <div class="address">
-          <div style="font-weight:700">${safe(addr.fullName || addr.name || '')}${addr.phone ? ' • ' + safe(addr.phone) : ''}</div>
-          <div style="margin-top:4px;color:#374151">
-            ${[addr.street || addr.address, addr.city, addr.state, addr.zipCode || addr.postalCode, addr.country].filter(Boolean).map(safe).join(', ')}
-          </div>
-        </div>
-      </div>
-      <div class="section">
-        <h3>Items</h3>
-        <table>
-          <thead><tr><th>Item</th><th class="right">Qty</th><th class="right">Unit</th><th class="right">Total</th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="4">No items</td></tr>'}</tbody>
-        </table>
-      </div>
-      <div class="section">
-        <div class="totals">
-          ${order?.subtotal != null ? `<div class="row"><span>Subtotal</span><b>${money(order.subtotal)}</b></div>` : ''}
-          ${order?.shipping != null ? `<div class="row"><span>Delivery</span><b>${money(order.shipping)}</b></div>` : ''}
-          ${order?.tax != null ? `<div class="row"><span>Tax</span><b>${money(order.tax)}</b></div>` : ''}
-          ${order?.discount != null && Number(order.discount) > 0 ? `<div class="row"><span>Discount</span><b style="color:#7d24d6">−${money(order.discount)}</b></div>` : ''}
-          <div class="row grand"><span><b>Total</b></span><b>${order?.total != null ? money(order.total) : '—'}</b></div>
-        </div>
-      </div>
-      <div class="foot">This is a computer-generated invoice.</div>
-    </div></div>
-  </body>
-</html>`;
-}
-
-/* ─────────────────────────────────────────────────────────────
    Main content
 ───────────────────────────────────────────────────────────── */
 function OrderSuccessContent() {
   const searchParams  = useSearchParams();
   const router        = useRouter();
   const { getOrderById } = useOrder();
+  const { shopName, shopImage } = useShopBranding();
 
   useEffect(() => {
     clearCheckoutDraft();
@@ -336,9 +238,22 @@ function OrderSuccessContent() {
   const order         = apiOrder || getOrderById(orderId);
 
   const [countdown, setCountdown] = useState(10);
+  const [billOpen, setBillOpen] = useState(false);
+  const [openBillWhenReady, setOpenBillWhenReady] = useState(false);
 
   const isRejected = paymentStatus === 'cancelled' || paymentStatus === 'failed';
   const isSuccess  = !isRejected;
+
+  const invoiceOpts = useMemo(
+    () => ({
+      order,
+      orderId: orderId || rawOrderId,
+      paymentStatus,
+      shopName: shopName || 'Yaadro',
+      shopImage: shopImage || null,
+    }),
+    [order, orderId, rawOrderId, paymentStatus, shopName, shopImage]
+  );
 
   /* Auto-redirect */
   useEffect(() => {
@@ -352,6 +267,17 @@ function OrderSuccessContent() {
     return () => clearInterval(timer);
   }, [isSuccess, orderId, router]);
 
+  useEffect(() => {
+    if (!openBillWhenReady) return;
+    if (orderLoading) return;
+    if (!order) {
+      setOpenBillWhenReady(false);
+      return;
+    }
+    setBillOpen(true);
+    setOpenBillWhenReady(false);
+  }, [openBillWhenReady, orderLoading, order]);
+
   /* Headline copy */
   const copy = useMemo(() => {
     if (paymentStatus === 'cod')       return { title: 'Order placed!',       sub: 'Keep cash ready for delivery.' };
@@ -361,15 +287,16 @@ function OrderSuccessContent() {
     return { title: 'Order confirmed!', sub: "You'll get a confirmation email shortly." };
   }, [paymentStatus]);
 
-  /* Invoice actions */
-  const handleDownloadPdf = () => {
-    try {
-      const html = buildBillHtml({ order, orderId, paymentStatus });
-      const w = window.open('', '_blank', 'noopener,noreferrer');
-      if (!w) return;
-      w.document.open(); w.document.write(html); w.document.close();
-      w.focus(); setTimeout(() => w.print(), 400);
-    } catch (e) { console.error(e); }
+  const handleOpenInvoice = () => {
+    if (order) {
+      setBillOpen(true);
+      return;
+    }
+    if (orderLoading) {
+      setOpenBillWhenReady(true);
+      return;
+    }
+    setOpenBillWhenReady(true);
   };
 
   return (
@@ -459,9 +386,9 @@ function OrderSuccessContent() {
               {isRejected ? 'View order & retry payment' : 'Track my order'}
             </Link>
 
-            <button type="button" onClick={handleDownloadPdf} style={styles.btnSecondary}>
+            <button type="button" onClick={handleOpenInvoice} style={styles.btnSecondary}>
               <DownloadIcon />
-              Download invoice
+              {openBillWhenReady && orderLoading ? 'Loading invoice…' : 'Download invoice'}
             </button>
 
             <Link href="/" style={styles.btnGhost}>
@@ -478,6 +405,18 @@ function OrderSuccessContent() {
           )}
         </div>
       </div>
+
+      <BillPreviewSheet
+        isOpen={billOpen}
+        onClose={() => setBillOpen(false)}
+        orderId={orderId || rawOrderId}
+        paymentStatus={paymentStatus}
+        order={order}
+        shopName={shopName || 'Yaadro'}
+        shopImage={shopImage || null}
+        onDownloadPdf={() => printBillPdf(invoiceOpts)}
+        onDownloadHtml={() => downloadBillHtml(invoiceOpts)}
+      />
     </>
   );
 }

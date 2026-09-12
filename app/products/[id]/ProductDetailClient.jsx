@@ -1087,10 +1087,10 @@ export default function ProductDetailClient({ productId = null }) {
           </button>
         ) : (
           <Link
-            href="/cart"
+            href="/checkout"
             className="flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-sm font-medium transition bg-violet-600 text-white hover:bg-violet-700 active:scale-[0.98] whitespace-nowrap"
           >
-            Go to cart
+            Go to checkout
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
