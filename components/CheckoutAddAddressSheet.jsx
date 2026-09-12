@@ -8,6 +8,13 @@ import { updateProfile, resolveShopId } from '../utils/authApi';
 import { normalizePhoneForApi } from '../utils/otpVerifyPayload';
 import IndianPhoneInput from './IndianPhoneInput';
 import { validateAddressCheckoutForm } from '../lib/validations/address.schema';
+import { sanitizeAddressNotes } from '../utils/addressApi';
+import { checkDeliveryLocation } from '../utils/storefrontLocationApi';
+import { getStoreCoordinates } from '../utils/storeLocation';
+import { useLocationService } from '../context/LocationServiceContext';
+
+const DELIVERY_RADIUS_FALLBACK_M =
+  Number(process.env.NEXT_PUBLIC_DELIVERY_RADIUS_FALLBACK_M) || 8000;
 
 // Leaflet uses `window` at import time, so we load the picker only on the
 // client to keep this sheet SSR-safe.
@@ -36,11 +43,7 @@ function addressToForm(addr) {
       raw: '',
     };
   }
-  const line1 =
-    addr.line1 ||
-    (typeof addr.street === 'string' && addr.street ? addr.street.split(',')[0]?.trim() : '') ||
-    (typeof addr.address === 'string' ? addr.address.split(',')[0]?.trim() : '') ||
-    '';
+  const line1 = String(addr.line1 || addr.apartment || addr.flat || '').trim();
   return {
     label: addr.label || 'Home',
     line1,
@@ -52,7 +55,7 @@ function addressToForm(addr) {
     country: addr.country || 'India',
     lat: addr.lat ?? null,
     lng: addr.lng ?? null,
-    raw: addr.raw != null ? String(addr.raw) : '',
+    raw: sanitizeAddressNotes(addr.raw),
   };
 }
 
@@ -67,6 +70,9 @@ export default function CheckoutAddAddressSheet({
   initialPhone = '',
 }) {
   const { user, refreshUser } = useAuth();
+  const { maxRadiusM: locationMaxRadiusM, shopLocation: contextShopLocation } =
+    useLocationService();
+  const storeCoords = useMemo(() => getStoreCoordinates(), []);
   const isEdit = Boolean(editingAddress?.id);
 
   const nameFromProfile = (user?.name || initialFullName || '').trim();
@@ -92,6 +98,14 @@ export default function CheckoutAddAddressSheet({
   const pinCacheRef = useRef(new Map()); // pin -> { city, state }
   const pinAbortRef = useRef(null);
   const lastLookedUpPinRef = useRef('');
+  const [pinDeliveryCheck, setPinDeliveryCheck] = useState({
+    loading: false,
+    serviceable: null,
+    distanceM: null,
+    maxRadiusM: null,
+    shopLocation: null,
+    error: null,
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -124,6 +138,73 @@ export default function CheckoutAddAddressSheet({
       document.body.style.overflow = '';
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setPinDeliveryCheck({
+        loading: false,
+        serviceable: null,
+        distanceM: null,
+        maxRadiusM: null,
+        shopLocation: null,
+        error: null,
+      });
+      return undefined;
+    }
+    const lat = Number(form.lat);
+    const lng = Number(form.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
+    let cancelled = false;
+    const t = window.setTimeout(async () => {
+      setPinDeliveryCheck((prev) => ({ ...prev, loading: true, error: null }));
+      try {
+        const data = await checkDeliveryLocation(lat, lng);
+        if (cancelled) return;
+        setPinDeliveryCheck({
+          loading: false,
+          serviceable: !!data.serviceable,
+          distanceM: data.distanceM,
+          maxRadiusM: data.maxRadiusM,
+          shopLocation: data.shopLocation ?? null,
+          error: null,
+        });
+      } catch (e) {
+        if (cancelled) return;
+        setPinDeliveryCheck({
+          loading: false,
+          serviceable: null,
+          distanceM: null,
+          maxRadiusM: null,
+          shopLocation: null,
+          error: e?.message || 'Could not verify delivery',
+        });
+      }
+    }, 420);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [isOpen, form.lat, form.lng]);
+
+  const mapDeliveryRadiusM =
+    pinDeliveryCheck.maxRadiusM ??
+    (typeof locationMaxRadiusM === 'number' && locationMaxRadiusM > 0
+      ? locationMaxRadiusM
+      : null) ??
+    DELIVERY_RADIUS_FALLBACK_M;
+
+  const effectiveStoreLocation = useMemo(() => {
+    if (
+      pinDeliveryCheck.shopLocation?.lat != null &&
+      pinDeliveryCheck.shopLocation?.lng != null
+    ) {
+      return pinDeliveryCheck.shopLocation;
+    }
+    if (contextShopLocation?.lat != null && contextShopLocation?.lng != null) {
+      return contextShopLocation;
+    }
+    return storeCoords;
+  }, [pinDeliveryCheck.shopLocation, contextShopLocation, storeCoords]);
 
   const setField = (key) => (e) => {
     const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -249,7 +330,7 @@ export default function CheckoutAddAddressSheet({
     country: form.country || 'India',
     lat: form.lat,
     lng: form.lng,
-    raw: form.raw.trim() || null,
+    raw: sanitizeAddressNotes(form.raw) || null,
     street: [form.line1, form.line2].filter(Boolean).join(', '),
     address: form.line1.trim(),
     zipCode: form.postalCode.replace(/\s/g, '').trim(),
@@ -445,10 +526,8 @@ export default function CheckoutAddAddressSheet({
                   setGeoStatus('ready');
                 }}
                 onAddress={(resolved) => {
-                  // Auto-fill any blank fields from the reverse geocode.
                   setForm((prev) => {
                     const next = { ...prev };
-                    if (!String(prev.line1 || '').trim() && resolved.line1) next.line1 = resolved.line1;
                     if (!String(prev.line2 || '').trim() && resolved.line2) next.line2 = resolved.line2;
                     if (!String(prev.landmark || '').trim() && resolved.landmark) next.landmark = resolved.landmark;
                     if (!touched.city && !String(prev.city || '').trim() && resolved.city) next.city = resolved.city;
@@ -463,6 +542,10 @@ export default function CheckoutAddAddressSheet({
                   setPinLookupMessage('');
                 }}
                 height={240}
+                storeLocation={effectiveStoreLocation}
+                showStoreMarker
+                deliveryRadiusM={mapDeliveryRadiusM}
+                fitDeliveryZone
               />
             </div>
 

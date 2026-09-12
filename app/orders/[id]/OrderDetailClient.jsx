@@ -31,6 +31,11 @@ import {
   parseOrderQuantity,
 } from "../../../utils/orderPromotions";
 import { printBillPdf, downloadBillHtml } from "../../../utils/orderInvoice";
+import {
+  hasOrderDisplayAddress,
+  savedAddressToOrderAddress,
+} from "../../../utils/orderApi";
+import { useAddress } from "../../../context/AddressContext";
 import { useShopBranding } from "../../../context/ShopBrandingContext";
 import BillPreviewSheet from "../../../components/BillPreviewSheet";
 
@@ -257,10 +262,10 @@ function OfferBadge({ children }) {
   );
 }
 
-function ShopQtyAdjustedBadge() {
+function EditedByShopBadge() {
   return (
     <span className="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 ring-1 ring-amber-200/80">
-      Shop updated qty
+      Edited by shop
     </span>
   );
 }
@@ -492,7 +497,7 @@ function OrderItemRow({ item }) {
         </p>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {unavailable && <UnavailableBadge />}
-          {!unavailable && meta.showShopQtyUpdate && <ShopQtyAdjustedBadge />}
+          {!unavailable && meta.shopEdited && <EditedByShopBadge />}
           {!unavailable && isBogo && <OfferBadge>BOGO</OfferBadge>}
           {!unavailable && freeQty > 0 && <OfferBadge>FREE</OfferBadge>}
           {!unavailable && offerLabel && !isBogo && (
@@ -789,6 +794,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   const { user } = useAuth();
   const { showAlert } = useAlert();
   const { shopName, shopImage } = useShopBranding();
+  const { getDefaultAddress } = useAddress();
 
   const [isReordering, setIsReordering] = useState(false);
   const [showReturn, setShowReturn] = useState(false);
@@ -858,18 +864,16 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   if (isLoading) return <OrderDetailPageSkeleton />;
   if (error || !order) return <ErrorState message={error?.message} />;
 
-  const addr = order.deliveryAddress || {};
+  const addr = hasOrderDisplayAddress(order.deliveryAddress)
+    ? order.deliveryAddress
+    : savedAddressToOrderAddress(getDefaultAddress());
+  const orderWithAddress = {
+    ...order,
+    deliveryAddress: addr,
+  };
   const orderPromo = getOrderPromotionSummary(order);
   const orderHasBxgy = orderHasBxgyOffer(activeOrderItems);
-  const hasAddress = Boolean(
-    addr.fullName ||
-      addr.name ||
-      addr.street ||
-      addr.address ||
-      addr.line1 ||
-      addr.city ||
-      addr.phone,
-  );
+  const hasAddress = hasOrderDisplayAddress(addr);
 
   const orderItemToCartProduct = (item) => {
     const qty = Number(item?.quantity ?? 1) || 1;
@@ -1064,10 +1068,9 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                 (it) => getShopLineFulfillmentMeta(it).showShopQtyUpdate,
               ) && (
                 <div className="border-b border-amber-100 bg-amber-50/70 px-4 py-2.5 text-[11px] leading-snug text-amber-950">
-                  Some quantities may differ from what you ordered if the store
-                  adjusted them while fulfilling this order. Lines marked{" "}
-                  <span className="font-semibold">Shop updated qty</span> show
-                  those changes.
+                  The store added or changed some items after you placed this
+                  order. Those lines are marked{" "}
+                  <span className="font-semibold">Edited by shop</span>.
                 </div>
               )}
               {getOrderItems(order).map((item, idx) => {
@@ -1333,12 +1336,12 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
         onClose={() => setBillOpen(false)}
         orderId={order.id}
         paymentStatus={order.paymentStatus}
-        order={order}
+        order={orderWithAddress}
         shopName={shopName || "Yaadro"}
         shopImage={shopImage || null}
         onDownloadPdf={() =>
           printBillPdf({
-            order,
+            order: orderWithAddress,
             orderId: order.id,
             paymentStatus: order.paymentStatus,
             shopName: shopName || "Yaadro",
@@ -1347,7 +1350,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
         }
         onDownloadHtml={() =>
           downloadBillHtml({
-            order,
+            order: orderWithAddress,
             orderId: order.id,
             paymentStatus: order.paymentStatus,
             shopName: shopName || "Yaadro",

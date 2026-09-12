@@ -13,6 +13,7 @@ import {
   isConfirmedFreeRewardLine,
   inferOrderLinePaidQuantity,
   orderHasBxgyOffer,
+  detectShopLineEdit,
 } from "./orderPromotions";
 import {
   formatWeightUnitLabel,
@@ -145,13 +146,11 @@ function transformOrderItem(item) {
     isConfirmedFreeReward,
   });
 
-  const shopQuantityAdjusted =
-    item.quantityAdjusted === true ||
-    item.quantity_adjusted === true ||
-    item.shopQuantityUpdated === true ||
-    item.shop_quantity_updated === true ||
-    item.shopUpdated === true ||
-    item.shop_updated === true;
+  const { shopAdded, shopEdited } = detectShopLineEdit(item, {
+    quantity,
+    originalQuantity,
+  });
+  const shopQuantityAdjusted = shopEdited && !shopAdded;
 
   const draftForPaid = {
     ...item,
@@ -226,6 +225,8 @@ function transformOrderItem(item) {
     isDeleted,
     originalQuantity,
     shopQuantityAdjusted,
+    shopAdded,
+    shopEdited,
     product: item.product || {},
     name: productName,
     image: resolveOrderItemImage(item),
@@ -536,11 +537,64 @@ export function pickFurthestFulfillmentStatus(rawCandidates) {
   return best;
 }
 
+function tryParseJsonObject(value) {
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  if (!text.startsWith("{") && !text.startsWith("[")) return null;
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function asAddressRecord(value) {
+  if (value == null || value === "") return null;
+  const fromJson = tryParseJsonObject(value);
+  if (fromJson) return fromJson;
+  if (typeof value === "string" && value.trim()) {
+    return { street: value.trim(), address: value.trim() };
+  }
+  if (typeof value !== "object" || Array.isArray(value)) return null;
+  const nested =
+    (value.address && typeof value.address === "object" && value.address) ||
+    (value.deliveryAddress &&
+      typeof value.deliveryAddress === "object" &&
+      value.deliveryAddress) ||
+    (value.delivery_address &&
+      typeof value.delivery_address === "object" &&
+      value.delivery_address) ||
+    (value.location &&
+      typeof value.location === "object" &&
+      (value.location.line1 || value.location.city || value.location.street) &&
+      value.location) ||
+    null;
+  if (nested && Object.keys(nested).length) return nested;
+  return Object.keys(value).length ? value : null;
+}
+
 /**
  * Normalize delivery address from common storefront / snapshot field shapes.
  */
 function normalizeDeliveryAddress(apiOrder) {
   if (!apiOrder || typeof apiOrder !== "object") return {};
+
+  const customer =
+    apiOrder.customer && typeof apiOrder.customer === "object"
+      ? apiOrder.customer
+      : null;
+  const user =
+    apiOrder.user && typeof apiOrder.user === "object" ? apiOrder.user : null;
+  const meta =
+    (apiOrder.meta && typeof apiOrder.meta === "object" && apiOrder.meta) ||
+    (apiOrder.metadata &&
+      typeof apiOrder.metadata === "object" &&
+      apiOrder.metadata) ||
+    null;
 
   const candidates = [
     apiOrder.deliveryAddress,
@@ -555,23 +609,39 @@ function normalizeDeliveryAddress(apiOrder) {
     apiOrder.customerAddress,
     apiOrder.shipping_address_snapshot,
     apiOrder.shippingAddressSnapshot,
+    apiOrder.address,
+    apiOrder.drop_location,
+    apiOrder.dropLocation,
+    apiOrder.fulfillment_address,
+    apiOrder.fulfillmentAddress,
+    customer?.address,
+    customer?.deliveryAddress,
+    customer?.delivery_address,
+    user?.address,
+    user?.deliveryAddress,
+    meta?.deliveryAddress,
+    meta?.delivery_address,
+    meta?.address,
   ];
 
   let raw = null;
+  let stringFallback = null;
   for (const c of candidates) {
-    if (
-      c &&
-      typeof c === "object" &&
-      !Array.isArray(c) &&
-      Object.keys(c).length
-    ) {
-      raw = c;
-      break;
+    const record = asAddressRecord(c);
+    if (!record) continue;
+    const keys = Object.keys(record);
+    const looksLikePlainString =
+      typeof c === "string" &&
+      !tryParseJsonObject(c) &&
+      keys.every((k) => k === "street" || k === "address");
+    if (looksLikePlainString) {
+      if (!stringFallback) stringFallback = record;
+      continue;
     }
-    if (typeof c === "string" && c.trim()) {
-      return { street: c.trim(), address: c.trim() };
-    }
+    raw = record;
+    break;
   }
+  if (!raw) raw = stringFallback;
 
   const pick = (...keys) => {
     for (const k of keys) {
@@ -591,12 +661,20 @@ function normalizeDeliveryAddress(apiOrder) {
       "address_line_1",
       "full_address",
       "fullAddress",
+      "formatted_address",
+      "formattedAddress",
+      "display_address",
+      "displayAddress",
+      "building",
+      "apartment",
+      "house",
     ) || "";
   const line2 = pick(
     "line2",
     "address_line2",
     "addressLine2",
     "address_line_2",
+    "landmark",
   );
   const fullName = pick(
     "fullName",
@@ -604,8 +682,10 @@ function normalizeDeliveryAddress(apiOrder) {
     "name",
     "recipient_name",
     "recipientName",
+    "customer_name",
+    "customerName",
   );
-  const city = pick("city", "town", "district");
+  const city = pick("city", "town", "district", "area", "locality");
   const state = pick("state", "province", "region");
   const zipCode = pick(
     "zipCode",
@@ -614,11 +694,25 @@ function normalizeDeliveryAddress(apiOrder) {
     "zip",
     "pincode",
     "pin_code",
+    "pinCode",
   );
   const country = pick("country");
   const phone = pick("phone", "mobile", "contact_phone", "contactPhone");
+  const area = pick("area", "locality", "suburb");
+  const landmark = pick("landmark", "nearby", "near");
 
-  if (!street && !fullName && !city && !phone && !raw) return {};
+  if (
+    !street &&
+    !fullName &&
+    !city &&
+    !phone &&
+    !zipCode &&
+    !area &&
+    !landmark &&
+    !raw
+  ) {
+    return {};
+  }
 
   return {
     ...(raw && typeof raw === "object" ? raw : {}),
@@ -628,12 +722,56 @@ function normalizeDeliveryAddress(apiOrder) {
     address: street || raw?.address || street,
     line1: street || raw?.line1 || "",
     line2: line2 || raw?.line2 || "",
-    city: city || raw?.city || "",
+    city: city || raw?.city || area || "",
+    area: area || raw?.area || "",
     state: state || raw?.state || "",
     zipCode: zipCode || raw?.zipCode || raw?.postalCode || "",
     postalCode: zipCode || raw?.postalCode || raw?.zipCode || "",
     country: country || raw?.country || "",
     phone: phone || raw?.phone || "",
+    landmark: landmark || raw?.landmark || "",
+  };
+}
+
+export function hasOrderDisplayAddress(addr) {
+  if (!addr || typeof addr !== "object") return false;
+  return [
+    "fullName",
+    "name",
+    "street",
+    "address",
+    "line1",
+    "line2",
+    "city",
+    "area",
+    "phone",
+    "zipCode",
+    "postalCode",
+    "landmark",
+    "formattedAddress",
+  ].some((key) => String(addr[key] || "").trim());
+}
+
+export function savedAddressToOrderAddress(saved) {
+  if (!saved || typeof saved !== "object") return {};
+  const line1 = String(saved.line1 || saved.street || saved.address || "").trim();
+  const line2 = String(saved.line2 || "").trim();
+  const street = [line1, line2].filter(Boolean).join(", ");
+  return {
+    fullName: String(saved.fullName || saved.name || "").trim(),
+    name: String(saved.fullName || saved.name || "").trim(),
+    street,
+    address: street || line1,
+    line1,
+    line2,
+    city: String(saved.city || saved.area || "").trim(),
+    area: String(saved.area || "").trim(),
+    state: String(saved.state || "").trim(),
+    zipCode: String(saved.zipCode || saved.postalCode || "").trim(),
+    postalCode: String(saved.postalCode || saved.zipCode || "").trim(),
+    country: String(saved.country || "").trim(),
+    phone: String(saved.phone || "").trim(),
+    landmark: String(saved.landmark || "").trim(),
   };
 }
 
@@ -963,6 +1101,15 @@ export async function getOrder(orderId) {
 
     const apiOrder = response?.order || null;
     const topLevelItems = Array.isArray(response?.items) ? response.items : [];
+    const topLevelAddress =
+      response?.deliveryAddress ||
+      response?.delivery_address ||
+      response?.shippingAddress ||
+      response?.shipping_address ||
+      response?.address_snapshot ||
+      response?.addressSnapshot ||
+      response?.address ||
+      null;
     const topLevelUnavailable = [
       ...(Array.isArray(response?.unavailable_items)
         ? response.unavailable_items
@@ -979,10 +1126,19 @@ export async function getOrder(orderId) {
     ];
     const mergedSource = apiOrder
       ? {
+          ...response,
           ...apiOrder,
           items: topLevelItems.length ? topLevelItems : apiOrder.items,
+          deliveryAddress:
+            asAddressRecord(apiOrder.deliveryAddress) ||
+            asAddressRecord(apiOrder.delivery_address) ||
+            asAddressRecord(topLevelAddress) ||
+            asAddressRecord(apiOrder.address) ||
+            apiOrder.deliveryAddress,
         }
-      : null;
+      : response && typeof response === "object"
+        ? response
+        : null;
     const order = transformOrder(mergedSource);
     if (order) {
       const remapped = applyUnavailableLinePasses(
