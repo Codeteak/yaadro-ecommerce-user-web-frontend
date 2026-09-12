@@ -373,10 +373,13 @@ export function normalizeCartPromotions(raw) {
           bundleDiscountMinor: Number(autoRaw?.bundle_discount_minor ?? autoRaw?.bundleDiscountMinor ?? 0) || 0,
           linePromoDiscountMinor:
             Number(autoRaw?.line_promo_discount_minor ?? autoRaw?.linePromoDiscountMinor ?? 0) || 0,
+          autoCartDiscountMinor:
+            Number(autoRaw?.auto_cart_discount_minor ?? autoRaw?.autoCartDiscountMinor ?? 0) || 0,
           hasSkuPromo:
             types.includes('sku') || !!(autoRaw?.has_sku_promo ?? autoRaw?.hasSkuPromo),
           hasBundle:
             types.includes('bundle') || !!(autoRaw?.has_bundle ?? autoRaw?.hasBundle),
+          hasAutoCart: !!(autoRaw?.has_auto_cart ?? autoRaw?.hasAutoCart),
         }
       : null;
 

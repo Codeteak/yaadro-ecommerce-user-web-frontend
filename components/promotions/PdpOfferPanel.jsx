@@ -1,6 +1,7 @@
 'use client';
 
 import { getProductOfferDisplay } from '../../utils/offerDisplay';
+import { hasActiveOffer } from '../../utils/productUtils';
 import { OfferBadgePill } from './OfferGroupCard';
 
 /**
@@ -8,7 +9,7 @@ import { OfferBadgePill } from './OfferGroupCard';
  */
 export default function PdpOfferPanel({ product }) {
   const display = getProductOfferDisplay(product);
-  if (!display.bundleLabel && !(display.saveRupees > 0)) return null;
+  if (!(hasActiveOffer(product) || display.badges.length > 0)) return null;
 
   const buy = display.buyQty;
   const get = display.getQty;

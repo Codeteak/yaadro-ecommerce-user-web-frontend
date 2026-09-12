@@ -1,51 +1,57 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { useQueryClient } from '@tanstack/react-query';
-import { Button } from '@heroui/react';
-import { useCart } from '../../context/CartContext';
-import { useAddress } from '../../context/AddressContext';
-import { useAuth } from '../../context/AuthContext';
-import { useAlert } from '../../context/AlertContext';
-import ProductCarousel from '../../components/ProductCarousel';
-import { useProducts } from '../../hooks/useProducts';
-import { placeStorefrontOrder } from '../../utils/storefrontCheckoutApi';
-import { getApiErrorCode, getCheckoutErrorMessage } from '../../utils/apiErrors';
-import { couponKeys } from '../../hooks/useCoupons';
-import { cartKeys } from '../../hooks/useCart';
-import { addressKeys } from '../../hooks/useAddresses';
-import { checkDeliveryLocation } from '../../utils/storefrontLocationApi';
-import { getStorefrontCookieSiteWarning } from '../../utils/storefrontApiSite';
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@heroui/react";
+import { useCart } from "../../context/CartContext";
+import { useAddress } from "../../context/AddressContext";
+import { useAuth } from "../../context/AuthContext";
+import { useAlert } from "../../context/AlertContext";
+import ProductCarousel from "../../components/ProductCarousel";
+import { useProducts } from "../../hooks/useProducts";
+import { placeStorefrontOrder } from "../../utils/storefrontCheckoutApi";
+import {
+  getApiErrorCode,
+  getCheckoutErrorMessage,
+} from "../../utils/apiErrors";
+import { couponKeys } from "../../hooks/useCoupons";
+import { cartKeys } from "../../hooks/useCart";
+import { addressKeys } from "../../hooks/useAddresses";
+import { checkDeliveryLocation } from "../../utils/storefrontLocationApi";
+import { getStorefrontCookieSiteWarning } from "../../utils/storefrontApiSite";
 import {
   readCheckoutDraft,
   writeCheckoutDraft,
   clearCheckoutDraft,
-} from '../../utils/checkoutSession';
-import { useLoginNavigation } from '../../hooks/useLoginNavigation';
-import CheckoutCouponsSection from '../../components/CheckoutCouponsSection';
-import { getCartBottomBarPricing } from '../../utils/cartSavings';
+} from "../../utils/checkoutSession";
+import { useLoginNavigation } from "../../hooks/useLoginNavigation";
+import CheckoutCouponsSection from "../../components/CheckoutCouponsSection";
+import { getCartBottomBarPricing } from "../../utils/cartSavings";
 import {
   BXGY_COUPON_BLOCKED_MESSAGE,
   sumCartPaidUnits,
   isBundleRewardCartLine,
-} from '../../utils/cartPromotions';
-import { buildCartOfferGroups, getCouponThresholdHint } from '../../utils/offerDisplay';
-import { minorToMajor } from '../../utils/currencyMinor';
-import { normalizePhoneForApi } from '../../utils/otpVerifyPayload';
-import PhoneChangeOtpSheet from '../../components/PhoneChangeOtpSheet';
-import { useLocationService } from '../../context/LocationServiceContext';
-import ConfirmModal from '../../components/ConfirmModal';
-import CheckoutPageSkeleton from '../../components/skeletons/CheckoutPageSkeleton';
-import OfferGroupCard from '../../components/promotions/OfferGroupCard';
-import CouponThresholdBanner from '../../components/promotions/CouponThresholdBanner';
-import { BRAND_PRIMARY_BTN } from '../../components/ui/brandButton';
-import { AddressCardSkeleton } from '../../components/skeletons/primitives';
+} from "../../utils/cartPromotions";
+import {
+  buildCartOfferGroups,
+  getCouponThresholdHint,
+} from "../../utils/offerDisplay";
+import { minorToMajor } from "../../utils/currencyMinor";
+import { normalizePhoneForApi } from "../../utils/otpVerifyPayload";
+import PhoneChangeOtpSheet from "../../components/PhoneChangeOtpSheet";
+import { useLocationService } from "../../context/LocationServiceContext";
+import ConfirmModal from "../../components/ConfirmModal";
+import CheckoutPageSkeleton from "../../components/skeletons/CheckoutPageSkeleton";
+import OfferGroupCard from "../../components/promotions/OfferGroupCard";
+import CouponThresholdBanner from "../../components/promotions/CouponThresholdBanner";
+import { BRAND_PRIMARY_BTN } from "../../components/ui/brandButton";
+import { AddressCardSkeleton } from "../../components/skeletons/primitives";
 
 function isAddressNotServiceableError(err) {
   const code = getApiErrorCode(err) || err?.code;
-  return code === 'ADDRESS_NOT_SERVICEABLE';
+  return code === "ADDRESS_NOT_SERVICEABLE";
 }
 
 /* ─────────────────────────────────────────────
@@ -70,8 +76,8 @@ function Divider() {
 }
 
 function hasUserPhone(user) {
-  if (!user || typeof user !== 'object') return false;
-  const raw = user.phone ?? user.mobile ?? user.phoneNumber ?? '';
+  if (!user || typeof user !== "object") return false;
+  const raw = user.phone ?? user.mobile ?? user.phoneNumber ?? "";
   return normalizePhoneForApi(raw).length === 10;
 }
 
@@ -79,7 +85,7 @@ function hasUserPhone(user) {
    Step progress bar
 ───────────────────────────────────────────── */
 function StepBar({ current }) {
-  const steps = ['Cart', 'Address', 'Confirm'];
+  const steps = ["Cart", "Address", "Confirm"];
   return (
     <div className="flex items-center px-4 py-3 bg-white border-b border-gray-100">
       {steps.map((label, i) => {
@@ -92,13 +98,23 @@ function StepBar({ current }) {
               <div
                 className={`w-[22px] h-[22px] rounded-full flex items-center justify-center text-[11px] font-medium flex-shrink-0 ${
                   done || active
-                    ? 'bg-violet-600 text-white'
-                    : 'bg-gray-100 text-gray-400 border border-gray-200'
+                    ? "bg-violet-600 text-white"
+                    : "bg-gray-100 text-gray-400 border border-gray-200"
                 }`}
               >
                 {done ? (
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.5}
+                      d="M5 13l4 4L19 7"
+                    />
                   </svg>
                 ) : (
                   idx
@@ -106,7 +122,11 @@ function StepBar({ current }) {
               </div>
               <span
                 className={`text-[11px] font-medium ${
-                  active ? 'text-gray-900' : done ? 'text-violet-700' : 'text-gray-400'
+                  active
+                    ? "text-gray-900"
+                    : done
+                      ? "text-violet-700"
+                      : "text-gray-400"
                 }`}
               >
                 {label}
@@ -114,7 +134,7 @@ function StepBar({ current }) {
             </div>
             {i < steps.length - 1 && (
               <div
-                className={`flex-1 h-px mx-2 ${done ? 'bg-violet-500' : 'bg-gray-200'}`}
+                className={`flex-1 h-px mx-2 ${done ? "bg-violet-500" : "bg-gray-200"}`}
               />
             )}
           </div>
@@ -130,19 +150,21 @@ function StepBar({ current }) {
 function AddressCard({ address, selected, onSelect, onEdit }) {
   const { user } = useAuth();
   const labelColors = {
-    Home: 'bg-violet-100 text-violet-800',
-    Work: 'bg-blue-100 text-blue-800',
+    Home: "bg-violet-100 text-violet-800",
+    Work: "bg-blue-100 text-blue-800",
   };
-  const pill = labelColors[address.label] || 'bg-gray-100 text-gray-600';
+  const pill = labelColors[address.label] || "bg-gray-100 text-gray-600";
   const streetLine =
-    [address.line1, address.line2].filter(Boolean).join(', ') ||
+    [address.line1, address.line2].filter(Boolean).join(", ") ||
     address.street ||
     address.address;
 
   return (
     <div
       className={`w-full rounded-2xl border p-3.5 flex items-start gap-3 transition-all ${
-        selected ? 'border-2 border-violet-500' : 'border border-gray-100 hover:border-gray-200'
+        selected
+          ? "border-2 border-violet-500"
+          : "border border-gray-100 hover:border-gray-200"
       } bg-white`}
     >
       <button
@@ -154,7 +176,7 @@ function AddressCard({ address, selected, onSelect, onEdit }) {
         {/* Radio */}
         <div
           className={`w-[18px] h-[18px] rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors ${
-            selected ? 'border-violet-500 bg-violet-500' : 'border-gray-300'
+            selected ? "border-violet-500 bg-violet-500" : "border-gray-300"
           }`}
         >
           {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
@@ -169,14 +191,20 @@ function AddressCard({ address, selected, onSelect, onEdit }) {
             </span>
           )}
           <p className="text-[13px] font-medium text-gray-900 mb-0.5">
-            {address.fullName || user?.name || '—'}
+            {address.fullName || user?.name || "—"}
           </p>
           <p className="text-[12px] text-gray-500 leading-relaxed">
-            {[streetLine, address.landmark, address.city, address.state].filter(Boolean).join(', ')}
-            {address.postalCode || address.zipCode ? ` – ${address.postalCode || address.zipCode}` : ''}
+            {[streetLine, address.landmark, address.city, address.state]
+              .filter(Boolean)
+              .join(", ")}
+            {address.postalCode || address.zipCode
+              ? ` – ${address.postalCode || address.zipCode}`
+              : ""}
           </p>
           {(address.phone || user?.phone) && (
-            <p className="text-[12px] text-gray-400 mt-1">{address.phone || user?.phone}</p>
+            <p className="text-[12px] text-gray-400 mt-1">
+              {address.phone || user?.phone}
+            </p>
           )}
         </div>
       </button>
@@ -187,7 +215,13 @@ function AddressCard({ address, selected, onSelect, onEdit }) {
         className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
         aria-label="Edit address"
       >
-        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+        <svg
+          className="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -207,7 +241,12 @@ function CodBadge() {
   return (
     <div className="bg-violet-50 border-2 border-violet-500 rounded-2xl p-3.5 flex items-center gap-3">
       <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0">
-        <svg className="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg
+          className="w-5 h-5 text-violet-600"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -217,12 +256,26 @@ function CodBadge() {
         </svg>
       </div>
       <div className="flex-1">
-        <p className="text-[14px] font-medium text-violet-900">Cash on delivery</p>
-        <p className="text-[12px] text-violet-700 mt-0.5">Pay when your order arrives</p>
+        <p className="text-[14px] font-medium text-violet-900">
+          Cash on delivery
+        </p>
+        <p className="text-[12px] text-violet-700 mt-0.5">
+          Pay when your order arrives
+        </p>
       </div>
       <div className="w-5 h-5 rounded-full bg-violet-600 flex items-center justify-center flex-shrink-0">
-        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+        <svg
+          className="w-3 h-3 text-white"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2.5}
+            d="M5 13l4 4L19 7"
+          />
         </svg>
       </div>
     </div>
@@ -236,10 +289,20 @@ function OrderSummary({
   cartItems,
   cartTotal,
   couponDiscount = 0,
+  autoCartDiscount = 0,
+  linePromoDiscount = 0,
+  bundleDiscount = 0,
   promotionDiscount = null,
   onRemove,
 }) {
   const { mrpTotal, savings } = getCartBottomBarPricing(cartItems, cartTotal);
+  const itemPromo =
+    linePromoDiscount > 0.009
+      ? linePromoDiscount
+      : Math.max(
+          0,
+          savings - couponDiscount - autoCartDiscount - bundleDiscount,
+        );
   const promoDiscount =
     promotionDiscount != null && promotionDiscount > 0.009
       ? promotionDiscount
@@ -270,7 +333,7 @@ function OrderSummary({
         <div className="flex justify-between text-gray-500">
           <span>Subtotal ({totalQty} items)</span>
           <span className="font-medium text-gray-900 tabular-nums">
-            ₹{mrpTotal.toLocaleString('en-IN')}
+            ₹{mrpTotal.toLocaleString("en-IN")}
           </span>
         </div>
         <div className="flex justify-between text-gray-500">
@@ -279,11 +342,27 @@ function OrderSummary({
             Free
           </span>
         </div>
-        {promoDiscount > 0.009 && (
+        {itemPromo > 0.009 && (
           <div className="flex justify-between text-gray-500">
-            <span>Promo savings</span>
+            <span>Sale price savings</span>
             <span className="font-medium text-violet-700 tabular-nums">
-              −₹{promoDiscount.toLocaleString('en-IN')}
+              −₹{itemPromo.toLocaleString("en-IN")}
+            </span>
+          </div>
+        )}
+        {bundleDiscount > 0.009 && (
+          <div className="flex justify-between text-gray-500">
+            <span>Free items (buy more, get free)</span>
+            <span className="font-medium text-violet-700 tabular-nums">
+              −₹{bundleDiscount.toLocaleString("en-IN")}
+            </span>
+          </div>
+        )}
+        {autoCartDiscount > 0.009 && (
+          <div className="flex justify-between text-gray-500">
+            <span>Automatic cart discount</span>
+            <span className="font-medium text-violet-700 tabular-nums">
+              −₹{autoCartDiscount.toLocaleString("en-IN")}
             </span>
           </div>
         )}
@@ -291,23 +370,38 @@ function OrderSummary({
           <div className="flex justify-between text-gray-500">
             <span>Coupon</span>
             <span className="font-medium text-violet-700 tabular-nums">
-              −₹{couponDiscount.toLocaleString('en-IN')}
+              −₹{couponDiscount.toLocaleString("en-IN")}
             </span>
           </div>
         )}
+        {promoDiscount > 0.009 &&
+          itemPromo <= 0.009 &&
+          bundleDiscount <= 0.009 &&
+          autoCartDiscount <= 0.009 && (
+            <div className="flex justify-between text-gray-500">
+              <span>Promo savings</span>
+              <span className="font-medium text-violet-700 tabular-nums">
+                −₹{promoDiscount.toLocaleString("en-IN")}
+              </span>
+            </div>
+          )}
       </div>
 
       <Divider />
 
       <div className="flex justify-between text-[15px] font-medium text-gray-900">
         <span>Total</span>
-        <span className="tabular-nums">₹{cartTotal.toLocaleString('en-IN')}</span>
+        <span className="tabular-nums">
+          ₹{cartTotal.toLocaleString("en-IN")}
+        </span>
       </div>
       <marquee
         className="mt-2 block w-full rounded-md bg-red-600 py-1.5 text-[12px] font-medium tracking-wide text-white"
         scrollAmount={4}
       >
-        {Array.from({ length: 16 }, () => 'Price may vary').join('        ·        ')}
+        {Array.from({ length: 16 }, () => "Price may vary").join(
+          "        ·        ",
+        )}
       </marquee>
     </div>
   );
@@ -320,8 +414,12 @@ function CheckoutPageState({ title, subtitle }) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-2 px-6">
       <div className="w-9 h-9 rounded-full border-2 border-violet-200 border-t-violet-600 animate-spin" />
-      {title ? <p className="text-sm font-medium text-gray-900 text-center">{title}</p> : null}
-      {subtitle ? <p className="text-xs text-gray-500 text-center max-w-xs">{subtitle}</p> : null}
+      {title ? (
+        <p className="text-sm font-medium text-gray-900 text-center">{title}</p>
+      ) : null}
+      {subtitle ? (
+        <p className="text-xs text-gray-500 text-center max-w-xs">{subtitle}</p>
+      ) : null}
     </div>
   );
 }
@@ -330,12 +428,26 @@ function EmptyCheckout() {
   return (
     <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
       <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-5">
-        <svg className="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+        <svg
+          className="w-7 h-7 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
+          />
         </svg>
       </div>
-      <h2 className="text-lg font-medium text-gray-900 mb-2">Your cart is empty</h2>
-      <p className="text-sm text-gray-400 mb-6">Add some items before checkout.</p>
+      <h2 className="text-lg font-medium text-gray-900 mb-2">
+        Your cart is empty
+      </h2>
+      <p className="text-sm text-gray-400 mb-6">
+        Add some items before checkout.
+      </p>
       <div className="flex flex-wrap items-center justify-center gap-2.5">
         <Link
           href="/"
@@ -361,7 +473,22 @@ export default function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const { cartItems, cartTotal, clearCart, removeFromCart, selectedCouponCode, setSelectedCouponCode, bxgyBlocksCoupons, hasHydratedLocalCart, loading: cartQueryLoading, cartData, cartQueryFetching, couponPreviewTrusted } = useCart();
+  const {
+    cartItems,
+    cartTotal,
+    clearCart,
+    removeFromCart,
+    selectedCouponCode,
+    setSelectedCouponCode,
+    selectedCouponCodes,
+    setSelectedCouponCodes,
+    bxgyBlocksCoupons,
+    hasHydratedLocalCart,
+    loading: cartQueryLoading,
+    cartData,
+    cartQueryFetching,
+    couponPreviewTrusted,
+  } = useCart();
   const {
     addresses,
     getDefaultAddress,
@@ -373,18 +500,20 @@ export default function CheckoutPage() {
   const { openServiceAreaSheet } = useLocationService();
 
   const [selectedAddressId, setSelectedAddressId] = useState(null);
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
   const [showPhoneSheet, setShowPhoneSheet] = useState(false);
-  const [phoneOverride, setPhoneOverride] = useState('');
+  const [phoneOverride, setPhoneOverride] = useState("");
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [showPriceVaryConfirm, setShowPriceVaryConfirm] = useState(false);
   const [checkoutDraftHydrated, setCheckoutDraftHydrated] = useState(false);
 
   const selectedAddress = useMemo(() => {
     if (!selectedAddressId) return null;
-    return addresses.find((a) => String(a.id) === String(selectedAddressId)) || null;
+    return (
+      addresses.find((a) => String(a.id) === String(selectedAddressId)) || null
+    );
   }, [addresses, selectedAddressId]);
 
   const selectedAddressCoords = useMemo(() => {
@@ -397,7 +526,10 @@ export default function CheckoutPage() {
   const verifySelectedAddressServiceability = useCallback(async () => {
     if (!selectedAddressCoords) return false;
     try {
-      const r = await checkDeliveryLocation(selectedAddressCoords.lat, selectedAddressCoords.lng);
+      const r = await checkDeliveryLocation(
+        selectedAddressCoords.lat,
+        selectedAddressCoords.lng,
+      );
       return r?.serviceable === true;
     } catch {
       return false;
@@ -410,7 +542,7 @@ export default function CheckoutPage() {
         lat: selectedAddressCoords.lat,
         lng: selectedAddressCoords.lng,
         addressId: selectedAddressId,
-        label: 'your delivery address pin',
+        label: "your delivery address pin",
       });
       return;
     }
@@ -425,7 +557,11 @@ export default function CheckoutPage() {
   }, [couponPreviewTrusted, cartData?.subtotalBeforeCouponMinor, cartTotal]);
 
   const displayCartTotal = useMemo(() => {
-    if (couponPreviewTrusted && cartData?.total != null && Number.isFinite(Number(cartData.total))) {
+    if (
+      couponPreviewTrusted &&
+      cartData?.total != null &&
+      Number.isFinite(Number(cartData.total))
+    ) {
       return Number(cartData.total);
     }
     return Number(cartTotal) || 0;
@@ -437,11 +573,15 @@ export default function CheckoutPage() {
       return minorToMajor(cartData.couponDiscountMinor);
     }
     const preview = cartData?.promotions?.coupon;
-    if (preview?.status === 'applied' && preview.discountMinor > 0) {
+    if (preview?.status === "applied" && preview.discountMinor > 0) {
       return minorToMajor(preview.discountMinor);
     }
     return 0;
-  }, [couponPreviewTrusted, cartData?.couponDiscountMinor, cartData?.promotions?.coupon]);
+  }, [
+    couponPreviewTrusted,
+    cartData?.couponDiscountMinor,
+    cartData?.promotions?.coupon,
+  ]);
 
   const promotionDiscountMajor = useMemo(() => {
     if (!couponPreviewTrusted) return null;
@@ -454,8 +594,8 @@ export default function CheckoutPage() {
   // Pool of products for the "Similar products" carousel — same query as home → cached.
   const { data: similarPoolData } = useProducts({
     limit: 50,
-    sort_by: 'created_at',
-    sort_order: 'desc',
+    sort_by: "created_at",
+    sort_order: "desc",
   });
   const similarPool = similarPoolData?.products || [];
 
@@ -465,43 +605,49 @@ export default function CheckoutPage() {
         cartItems
           .map((item) => item.productId ?? item.product?.id ?? item.id)
           .filter((id) => id != null)
-          .map((id) => String(id))
+          .map((id) => String(id)),
       ),
-    [cartItems]
+    [cartItems],
   );
 
   /** “You might also like” above order summary; other slices below delivery notes. */
-  const { checkoutMightLikeSection, checkoutCarouselsBelowNotes } = useMemo(() => {
-    const list = similarPool.filter((p) => p?.id != null && !cartProductIds.has(String(p.id)));
-    const mightLike =
-      list.length > 0
-        ? {
-            key: 'checkout-might-like',
-            title: 'You might also like',
-            description: 'Add a few more items before you check out.',
-            products: list.slice(0, 8),
-          }
-        : null;
-    const belowNotes = [
-      {
-        key: 'checkout-trending',
-        title: 'Trending picks',
-        description: 'Popular choices shoppers add with their orders.',
-        products: list.slice(8, 16),
-      },
-      {
-        key: 'checkout-more',
-        title: 'More to explore',
-        description: 'Recently listed items worth a quick look.',
-        products: list.slice(16, 24),
-      },
-    ].filter((s) => s.products.length > 0);
-    return { checkoutMightLikeSection: mightLike, checkoutCarouselsBelowNotes: belowNotes };
-  }, [similarPool, cartProductIds]);
+  const { checkoutMightLikeSection, checkoutCarouselsBelowNotes } =
+    useMemo(() => {
+      const list = similarPool.filter(
+        (p) => p?.id != null && !cartProductIds.has(String(p.id)),
+      );
+      const mightLike =
+        list.length > 0
+          ? {
+              key: "checkout-might-like",
+              title: "You might also like",
+              description: "Add a few more items before you check out.",
+              products: list.slice(0, 8),
+            }
+          : null;
+      const belowNotes = [
+        {
+          key: "checkout-trending",
+          title: "Trending picks",
+          description: "Popular choices shoppers add with their orders.",
+          products: list.slice(8, 16),
+        },
+        {
+          key: "checkout-more",
+          title: "More to explore",
+          description: "Recently listed items worth a quick look.",
+          products: list.slice(16, 24),
+        },
+      ].filter((s) => s.products.length > 0);
+      return {
+        checkoutMightLikeSection: mightLike,
+        checkoutCarouselsBelowNotes: belowNotes,
+      };
+    }, [similarPool, cartProductIds]);
 
   const bottomBarPricing = useMemo(
     () => getCartBottomBarPricing(cartItems, displayCartTotal),
-    [cartItems, displayCartTotal]
+    [cartItems, displayCartTotal],
   );
 
   /* ── Restore checkout draft (coupon, notes, address) after /add/address, etc. ── */
@@ -529,13 +675,20 @@ export default function CheckoutPage() {
     writeCheckoutDraft({
       notes,
       couponCode: selectedCouponCode,
+      couponCodes: selectedCouponCodes,
       selectedAddressId,
     });
-  }, [checkoutDraftHydrated, notes, selectedCouponCode, selectedAddressId]);
+  }, [
+    checkoutDraftHydrated,
+    notes,
+    selectedCouponCode,
+    selectedCouponCodes,
+    selectedAddressId,
+  ]);
 
   /* ── Returning from /add/address?selectAddress= — pick address once list is ready ── */
   useEffect(() => {
-    const incomingId = searchParams.get('selectAddress');
+    const incomingId = searchParams.get("selectAddress");
     if (!incomingId) return;
     if (isLoadingAddresses) return;
 
@@ -546,9 +699,9 @@ export default function CheckoutPage() {
     }
 
     const params = new URLSearchParams(searchParams.toString());
-    params.delete('selectAddress');
+    params.delete("selectAddress");
     const qs = params.toString();
-    router.replace(qs ? `/checkout?${qs}` : '/checkout');
+    router.replace(qs ? `/checkout?${qs}` : "/checkout");
   }, [searchParams, addresses, isLoadingAddresses, router]);
 
   /* ── Refresh cart + addresses when tabbing back (e.g. from address map). ── */
@@ -558,16 +711,16 @@ export default function CheckoutPage() {
       void queryClient.invalidateQueries({ queryKey: addressKeys.all });
     };
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') refresh();
+      if (document.visibilityState === "visible") refresh();
     };
     const onPageShow = (event) => {
       if (event.persisted) refresh();
     };
-    document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('pageshow', onPageShow);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pageshow", onPageShow);
     return () => {
-      document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('pageshow', onPageShow);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pageshow", onPageShow);
     };
   }, [isAuthenticated, queryClient]);
 
@@ -576,7 +729,7 @@ export default function CheckoutPage() {
     if (!authHydrated) return;
     if (cartItems.length === 0) return;
     if (!isAuthenticated) {
-      goToLogin('/checkout');
+      goToLogin("/checkout");
     }
   }, [authHydrated, isAuthenticated, cartItems.length, goToLogin]);
 
@@ -584,10 +737,11 @@ export default function CheckoutPage() {
     writeCheckoutDraft({
       notes,
       couponCode: selectedCouponCode,
+      couponCodes: selectedCouponCodes,
       selectedAddressId: selectedAddressId || undefined,
     });
-    const params = new URLSearchParams({ from: '/checkout' });
-    if (addressId) params.set('id', String(addressId));
+    const params = new URLSearchParams({ from: "/checkout" });
+    if (addressId) params.set("id", String(addressId));
     router.push(`/add/address?${params.toString()}`);
   };
 
@@ -596,9 +750,15 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
-      const line1 = String(selectedAddress?.line1 || selectedAddress?.street || '').trim();
+      const line1 = String(
+        selectedAddress?.line1 || selectedAddress?.street || "",
+      ).trim();
       if (!selectedAddressId || !selectedAddressCoords || !line1) {
-        showAlert('Please save a delivery address with a street and map pin.', 'Delivery address', 'warning');
+        showAlert(
+          "Please save a delivery address with a street and map pin.",
+          "Delivery address",
+          "warning",
+        );
         showDeliveryAreaForSelectedAddress();
         setIsSubmitting(false);
         return;
@@ -606,12 +766,18 @@ export default function CheckoutPage() {
       const checkoutLines = cartItems
         .filter((it) => !isBundleRewardCartLine(it))
         .map((it) => ({
-          productId: String(it.productId ?? it.product_id ?? it.product?.id ?? '').trim(),
+          productId: String(
+            it.productId ?? it.product_id ?? it.product?.id ?? "",
+          ).trim(),
           quantity: Number(it.quantity) || 1,
         }))
         .filter((it) => it.productId && it.quantity > 0);
       if (!checkoutLines.length) {
-        showAlert('Your cart is empty. Add items before placing an order.', 'Cart empty', 'warning');
+        showAlert(
+          "Your cart is empty. Add items before placing an order.",
+          "Cart empty",
+          "warning",
+        );
         setIsSubmitting(false);
         return;
       }
@@ -619,13 +785,18 @@ export default function CheckoutPage() {
         notes: notes.trim() || undefined,
         couponCode: bxgyBlocksCoupons
           ? undefined
-          : (selectedCouponCode || '').trim() || undefined,
+          : (selectedCouponCode || "").trim() || undefined,
+        couponCodes:
+          bxgyBlocksCoupons ||
+          !(Array.isArray(selectedCouponCodes) && selectedCouponCodes.length > 1)
+            ? undefined
+            : selectedCouponCodes,
         lat: selectedAddressCoords.lat,
         lng: selectedAddressCoords.lng,
         items: checkoutLines,
       });
 
-      if (!orderResponse?.orderId) throw new Error('Failed to create order');
+      if (!orderResponse?.orderId) throw new Error("Failed to create order");
 
       // Latch the "finishing" flag BEFORE clearing the cart so the empty-cart UI
       // never gets a chance to render between cartItems becoming [] and navigation.
@@ -634,15 +805,15 @@ export default function CheckoutPage() {
       await clearCart();
       router.push(
         `/order-success?orderId=${encodeURIComponent(orderResponse.orderId)}&orderNumber=${encodeURIComponent(
-          orderResponse.orderNumber || ''
-        )}&payment=cod`
+          orderResponse.orderNumber || "",
+        )}&payment=cod`,
       );
     } catch (err) {
       const apiCode = getApiErrorCode(err) || err?.code;
       const locationNotVerified =
-        /location not verified/i.test(String(err?.message || '')) ||
-        apiCode === 'LOCATION_NOT_VERIFIED' ||
-        apiCode === 'SERVICE_AREA';
+        /location not verified/i.test(String(err?.message || "")) ||
+        apiCode === "LOCATION_NOT_VERIFIED" ||
+        apiCode === "SERVICE_AREA";
 
       if (isAddressNotServiceableError(err) || locationNotVerified) {
         const crossSite = getStorefrontCookieSiteWarning();
@@ -650,57 +821,69 @@ export default function CheckoutPage() {
           locationNotVerified
             ? crossSite
               ? `${crossSite} Also confirm the map pin on your delivery address is inside the delivery zone.`
-              : 'Your delivery location could not be verified for this shop. Update the map pin on your address and try again.'
-            : 'Delivery is not available for this address. Please choose another address or update the map pin.',
-          'Delivery not available',
-          'warning'
+              : "Your delivery location could not be verified for this shop. Update the map pin on your address and try again."
+            : "Delivery is not available for this address. Please choose another address or update the map pin.",
+          "Delivery not available",
+          "warning",
         );
         showDeliveryAreaForSelectedAddress();
         setIsSubmitting(false);
         return;
       }
-      if (/phone number is required before checkout/i.test(String(err?.message || ''))) {
+      if (
+        /phone number is required before checkout/i.test(
+          String(err?.message || ""),
+        )
+      ) {
         setShowPhoneSheet(true);
         setIsSubmitting(false);
         return;
       }
       if (err?.status === 401) {
         showAlert(
-          'Your session expired. Please sign in again to place your order.',
-          'Sign in required',
-          'warning'
+          "Your session expired. Please sign in again to place your order.",
+          "Sign in required",
+          "warning",
         );
-        goToLogin('/checkout');
+        goToLogin("/checkout");
         setIsSubmitting(false);
         return;
       }
       const code = getApiErrorCode(err) || err?.code;
-      if (code === 'PRICE_CHANGED') {
+      if (code === "PRICE_CHANGED") {
         await queryClient.invalidateQueries({ queryKey: couponKeys.all });
       }
-      if (code === 'PRODUCT_UNAVAILABLE' || code === 'PRICE_CHANGED' || code === 'CART_EMPTY' || code === 'CART_NOT_FOUND') {
+      if (
+        code === "PRODUCT_UNAVAILABLE" ||
+        code === "PRICE_CHANGED" ||
+        code === "CART_EMPTY" ||
+        code === "CART_NOT_FOUND"
+      ) {
         await queryClient.invalidateQueries({ queryKey: cartKeys.all });
       }
       const couponCodes = new Set([
-        'COUPON_NOT_FOUND',
-        'COUPON_NOT_APPLICABLE',
-        'COUPON_NO_CART_BENEFIT',
-        'COUPON_EXHAUSTED',
-        'MIN_SUBTOTAL_NOT_MET',
-        'FIRST_ORDER_ONLY_NOT_MET',
-        'NEW_CUSTOMER_ONLY_NOT_MET',
-        'EMPTY_CART_WITH_COUPON',
+        "COUPON_NOT_FOUND",
+        "COUPON_NOT_APPLICABLE",
+        "COUPON_NO_CART_BENEFIT",
+        "COUPON_EXHAUSTED",
+        "MIN_SUBTOTAL_NOT_MET",
+        "FIRST_ORDER_ONLY_NOT_MET",
+        "NEW_CUSTOMER_ONLY_NOT_MET",
+        "EMPTY_CART_WITH_COUPON",
       ]);
       if (couponCodes.has(code)) {
-        setSelectedCouponCode('');
+        setSelectedCouponCodes([]);
       }
       const alertTitle =
-        code === 'PRICE_CHANGED'
-          ? 'Cart updated'
-          : code === 'PRODUCT_UNAVAILABLE'
-            ? 'Item unavailable'
-            : 'Error';
-      const alertTone = code === 'PRICE_CHANGED' || code === 'PRODUCT_UNAVAILABLE' ? 'warning' : 'error';
+        code === "PRICE_CHANGED"
+          ? "Cart updated"
+          : code === "PRODUCT_UNAVAILABLE"
+            ? "Item unavailable"
+            : "Error";
+      const alertTone =
+        code === "PRICE_CHANGED" || code === "PRODUCT_UNAVAILABLE"
+          ? "warning"
+          : "error";
       showAlert(getCheckoutErrorMessage(err), alertTitle, alertTone);
       setIsSubmitting(false);
     }
@@ -712,15 +895,23 @@ export default function CheckoutPage() {
     if (isSubmitting) return;
 
     if (!isAuthenticated) {
-      goToLogin('/checkout');
+      goToLogin("/checkout");
       return;
     }
     if (cartItems.length === 0) {
-      showAlert('Your cart is empty.', 'Empty Cart', 'warning');
+      showAlert("Your cart is empty.", "Empty Cart", "warning");
       return;
     }
-    if (!selectedAddressId || !selectedAddressCoords || !String(selectedAddress?.line1 || selectedAddress?.street || '').trim()) {
-      showAlert('Please save a delivery address with a street and map pin.', 'Delivery address', 'warning');
+    if (
+      !selectedAddressId ||
+      !selectedAddressCoords ||
+      !String(selectedAddress?.line1 || selectedAddress?.street || "").trim()
+    ) {
+      showAlert(
+        "Please save a delivery address with a street and map pin.",
+        "Delivery address",
+        "warning",
+      );
       return;
     }
     // Use backend-consistent verification for the selected delivery address pin.
@@ -728,9 +919,9 @@ export default function CheckoutPage() {
     const pinOk = await verifySelectedAddressServiceability();
     if (!pinOk) {
       showAlert(
-        'Delivery is not available for this address. Please choose another address or update the map pin.',
-        'Delivery not available',
-        'warning'
+        "Delivery is not available for this address. Please choose another address or update the map pin.",
+        "Delivery not available",
+        "warning",
       );
       showDeliveryAreaForSelectedAddress();
       return;
@@ -760,7 +951,12 @@ export default function CheckoutPage() {
   // Order in flight, or finishing up after a successful order — keep the loader
   // on screen until navigation lands the user on /order-success.
   if (isSubmitting || isFinishing) {
-    return <CheckoutPageState title="Placing your order…" subtitle="Please wait, do not close this page." />;
+    return (
+      <CheckoutPageState
+        title="Placing your order…"
+        subtitle="Please wait, do not close this page."
+      />
+    );
   }
 
   if (!hasHydratedLocalCart || (cartItems.length === 0 && cartQueryLoading)) {
@@ -776,7 +972,6 @@ export default function CheckoutPage() {
   ───────────────────────────────────────────── */
   return (
     <div className="min-h-screen bg-gray-50 pb-36 w-full max-w-full overflow-x-hidden">
-
       {/* Top bar */}
       <div className="sticky top-0 z-30 bg-white border-b border-gray-100">
         <div className="flex items-center gap-3 px-4 py-3.5">
@@ -785,8 +980,18 @@ export default function CheckoutPage() {
             className="w-9 h-9 rounded-full border border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0"
             aria-label="Back to cart"
           >
-            <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <svg
+              className="w-4 h-4 text-gray-700"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
           </Link>
           <span className="text-base font-medium text-gray-900">Checkout</span>
@@ -795,7 +1000,6 @@ export default function CheckoutPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-0">
-
         {/* ── Delivery address ── */}
         <div
           className="px-4 pt-5 pb-1"
@@ -803,7 +1007,9 @@ export default function CheckoutPage() {
         >
           <SectionLabel>Delivery address</SectionLabel>
 
-          <div className={`space-y-2 ${isLoadingAddresses && addresses.length === 0 ? 'min-h-[52px]' : ''}`}>
+          <div
+            className={`space-y-2 ${isLoadingAddresses && addresses.length === 0 ? "min-h-[52px]" : ""}`}
+          >
             {isLoadingAddresses && addresses.length === 0 ? (
               <AddressCardSkeleton />
             ) : null}
@@ -825,8 +1031,18 @@ export default function CheckoutPage() {
               onClick={() => goToAddAddress()}
               className="w-full mt-3 border-2 border-dashed border-gray-200 rounded-2xl py-3 flex items-center justify-center gap-2 text-[13px] font-medium text-gray-500 hover:border-violet-400 hover:text-violet-700 transition"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
               </svg>
               Add delivery address
             </button>
@@ -848,18 +1064,26 @@ export default function CheckoutPage() {
                 : getCouponThresholdHint(
                     couponPreviewTrusted ? cartData?.promotions : null,
                     cartSubtotalMinor,
-                    []
+                    [],
                   )
             }
           />
           <CheckoutCouponsSection
             cartSubtotalMinor={cartSubtotalMinor}
             selectedCouponCode={selectedCouponCode}
+            selectedCouponCodes={selectedCouponCodes}
             onSelectCouponCode={setSelectedCouponCode}
-            couponPreview={couponPreviewTrusted ? cartData?.promotions?.coupon : null}
-            suggestedCoupons={couponPreviewTrusted ? cartData?.promotions?.suggestedCoupons : []}
+            onSelectCouponCodes={setSelectedCouponCodes}
+            couponPreview={
+              couponPreviewTrusted ? cartData?.promotions?.coupon : null
+            }
+            suggestedCoupons={
+              couponPreviewTrusted ? cartData?.promotions?.suggestedCoupons : []
+            }
             isPreviewLoading={cartQueryFetching}
-            promotionsPaused={couponPreviewTrusted ? cartData?.promotions?.paused : false}
+            promotionsPaused={
+              couponPreviewTrusted ? cartData?.promotions?.paused : false
+            }
             couponsBlocked={!!bxgyBlocksCoupons}
             couponsBlockedMessage={BXGY_COUPON_BLOCKED_MESSAGE}
             enabled={!!isAuthenticated && cartItems.length > 0}
@@ -889,7 +1113,10 @@ export default function CheckoutPage() {
                 See all
               </Link>
             </div>
-            <ProductCarousel products={checkoutMightLikeSection.products} showMoreLink="/products" />
+            <ProductCarousel
+              products={checkoutMightLikeSection.products}
+              showMoreLink="/products"
+            />
           </section>
         )}
 
@@ -900,6 +1127,29 @@ export default function CheckoutPage() {
             cartItems={cartItems}
             cartTotal={displayCartTotal}
             couponDiscount={couponDiscountMajor}
+            autoCartDiscount={
+              cartData?.autoCartDiscountMinor > 0
+                ? minorToMajor(cartData.autoCartDiscountMinor)
+                : cartData?.promotions?.auto?.autoCartDiscountMinor > 0
+                  ? minorToMajor(cartData.promotions.auto.autoCartDiscountMinor)
+                  : 0
+            }
+            linePromoDiscount={
+              cartData?.linePromoDiscountMinor > 0
+                ? minorToMajor(cartData.linePromoDiscountMinor)
+                : cartData?.promotions?.auto?.linePromoDiscountMinor > 0
+                  ? minorToMajor(
+                      cartData.promotions.auto.linePromoDiscountMinor,
+                    )
+                  : 0
+            }
+            bundleDiscount={
+              cartData?.bundleDiscountMinor > 0
+                ? minorToMajor(cartData.bundleDiscountMinor)
+                : cartData?.promotions?.auto?.bundleDiscountMinor > 0
+                  ? minorToMajor(cartData.promotions.auto.bundleDiscountMinor)
+                  : 0
+            }
             promotionDiscount={promotionDiscountMajor}
             onRemove={removeFromCart}
           />
@@ -940,26 +1190,29 @@ export default function CheckoutPage() {
         </div>
 
         {/* ── Trending / more carousels (below delivery notes) ── */}
-        {checkoutCarouselsBelowNotes.map(({ key, title, description, products }) => (
-          <section key={key} className="px-4 pt-2 pb-4" aria-label={title}>
-            <div className="mb-4 flex items-end justify-between gap-3">
-              <div>
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold leading-[1] text-gray-900 font-headingnow">
-                  {title}
-                </h2>
-                <p className="mt-2 text-[13px] text-gray-500 md:text-sm">{description}</p>
+        {checkoutCarouselsBelowNotes.map(
+          ({ key, title, description, products }) => (
+            <section key={key} className="px-4 pt-2 pb-4" aria-label={title}>
+              <div className="mb-4 flex items-end justify-between gap-3">
+                <div>
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold leading-[1] text-gray-900 font-headingnow">
+                    {title}
+                  </h2>
+                  <p className="mt-2 text-[13px] text-gray-500 md:text-sm">
+                    {description}
+                  </p>
+                </div>
+                <Link
+                  href="/products"
+                  className="whitespace-nowrap text-[12px] font-medium text-violet-700 transition hover:text-violet-800"
+                >
+                  See all
+                </Link>
               </div>
-              <Link
-                href="/products"
-                className="whitespace-nowrap text-[12px] font-medium text-violet-700 transition hover:text-violet-800"
-              >
-                See all
-              </Link>
-            </div>
-            <ProductCarousel products={products} showMoreLink="/products" />
-          </section>
-        ))}
-
+              <ProductCarousel products={products} showMoreLink="/products" />
+            </section>
+          ),
+        )}
       </form>
 
       {/* ── Sticky bottom bar (marquee is full bar width; padded block below) ── */}
@@ -968,88 +1221,140 @@ export default function CheckoutPage() {
           className="block w-full bg-red-600 py-0.5 text-[10px] font-medium leading-tight text-white"
           scrollAmount={3}
         >
-          {Array.from({ length: 16 }, () => 'Price may vary').join('        ·        ')}
+          {Array.from({ length: 16 }, () => "Price may vary").join(
+            "        ·        ",
+          )}
         </marquee>
         <div className="px-4 pt-3 pb-5">
-        <div className="mb-3 flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] text-gray-400">Total payable</p>
-            <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <p className="text-[17px] font-semibold tabular-nums text-gray-900">
-                ₹{bottomBarPricing.payable.toLocaleString('en-IN')}
-              </p>
-              {bottomBarPricing.hasOffer && (
-                <>
-                  <p className="text-sm text-gray-400 line-through tabular-nums">
-                    ₹{bottomBarPricing.mrpTotal.toLocaleString('en-IN')}
-                  </p>
-                  <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-800">
-                    Save ₹{Math.round(bottomBarPricing.savings).toLocaleString('en-IN')}
-                  </span>
-                </>
-              )}
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] text-gray-400">Total payable</p>
+              <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <p className="text-[17px] font-semibold tabular-nums text-gray-900">
+                  ₹{bottomBarPricing.payable.toLocaleString("en-IN")}
+                </p>
+                {bottomBarPricing.hasOffer && (
+                  <>
+                    <p className="text-sm text-gray-400 line-through tabular-nums">
+                      ₹{bottomBarPricing.mrpTotal.toLocaleString("en-IN")}
+                    </p>
+                    <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-800">
+                      Save ₹
+                      {Math.round(bottomBarPricing.savings).toLocaleString(
+                        "en-IN",
+                      )}
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
+            <span className="flex-shrink-0 rounded-full bg-violet-50 px-3 py-1 text-[12px] font-medium text-violet-700">
+              Cash on delivery
+            </span>
           </div>
-          <span className="flex-shrink-0 rounded-full bg-violet-50 px-3 py-1 text-[12px] font-medium text-violet-700">
-            Cash on delivery
-          </span>
-        </div>
 
-        <Button
-          variant="primary"
-          isDisabled={isSubmitting || showPriceVaryConfirm}
-          isLoading={isSubmitting}
-          onPress={() => {
-            if (!selectedAddressId) {
-              if (addresses.length === 0) {
-                goToAddAddress();
-              } else {
-                setShowAddressSelector(true);
+          <Button
+            variant="primary"
+            isDisabled={isSubmitting || showPriceVaryConfirm}
+            isLoading={isSubmitting}
+            onPress={() => {
+              if (!selectedAddressId) {
+                if (addresses.length === 0) {
+                  goToAddAddress();
+                } else {
+                  setShowAddressSelector(true);
+                }
+                return;
               }
-              return;
-            }
-            if (!selectedAddressCoords) {
-              showAlert('Please set a map pin on your delivery address.', 'Delivery address', 'warning');
-              goToAddAddress(selectedAddressId);
-              return;
-            }
-            handleSubmit({ preventDefault: () => {} });
-          }}
-          className={`w-full h-12 rounded-full text-sm font-medium flex items-center justify-center gap-2 transition active:scale-[0.98] ${
-            isSubmitting || showPriceVaryConfirm
-              ? 'bg-gray-200 text-gray-400'
-              : !selectedAddressId || !selectedAddressCoords
-                ? 'bg-amber-500 text-white hover:bg-amber-600'
-                : BRAND_PRIMARY_BTN
-          }`}
-        >
-          {!isSubmitting && !selectedAddressId ? (
-            <>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              Select address
-            </>
-          ) : !isSubmitting && !selectedAddressCoords ? (
-            <>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              Set map pin on address
-            </>
-          ) : isSubmitting ? (
-            'Placing order…'
-          ) : (
-            <>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              Place order
-            </>
-          )}
-        </Button>
+              if (!selectedAddressCoords) {
+                showAlert(
+                  "Please set a map pin on your delivery address.",
+                  "Delivery address",
+                  "warning",
+                );
+                goToAddAddress(selectedAddressId);
+                return;
+              }
+              handleSubmit({ preventDefault: () => {} });
+            }}
+            className={`w-full h-12 rounded-full text-sm font-medium flex items-center justify-center gap-2 transition active:scale-[0.98] ${
+              isSubmitting || showPriceVaryConfirm
+                ? "bg-gray-200 text-gray-400"
+                : !selectedAddressId || !selectedAddressCoords
+                  ? "bg-amber-500 text-white hover:bg-amber-600"
+                  : BRAND_PRIMARY_BTN
+            }`}
+          >
+            {!isSubmitting && !selectedAddressId ? (
+              <>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.244-4.243a8 8 0 1111.314 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+                Select address
+              </>
+            ) : !isSubmitting && !selectedAddressCoords ? (
+              <>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.244-4.243a8 8 0 1111.314 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+                Set map pin on address
+              </>
+            ) : isSubmitting ? (
+              "Placing order…"
+            ) : (
+              <>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                Place order
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
@@ -1076,7 +1381,9 @@ export default function CheckoutPage() {
           />
           <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl">
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-gray-200" />
-            <h3 className="text-base font-semibold text-gray-900">Select delivery address</h3>
+            <h3 className="text-base font-semibold text-gray-900">
+              Select delivery address
+            </h3>
             <p className="mt-1 text-sm text-gray-500">
               Choose where we should deliver your order.
             </p>
@@ -1107,8 +1414,19 @@ export default function CheckoutPage() {
               }}
               className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-violet-300 bg-violet-50/40 px-4 py-3 text-[13px] font-semibold text-violet-800 transition hover:border-violet-500 hover:bg-violet-50"
             >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
               </svg>
               Add a new address
             </button>
@@ -1133,7 +1451,7 @@ export default function CheckoutPage() {
         onSuccess={(nextPhone) => {
           setPhoneOverride(nextPhone);
           setShowPhoneSheet(false);
-          showAlert('Phone number saved.', 'Success', 'success');
+          showAlert("Phone number saved.", "Success", "success");
         }}
       />
     </div>

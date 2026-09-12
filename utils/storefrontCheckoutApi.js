@@ -27,6 +27,7 @@ function attachApiErrorCode(err) {
 export async function placeStorefrontOrder({
   notes,
   couponCode,
+  couponCodes,
   items,
   idempotencyKey,
   lat,
@@ -54,8 +55,18 @@ export async function placeStorefrontOrder({
 
   const body = {};
   if (notes) body.notes = notes;
-  const trimmedCode = String(couponCode || '').trim();
-  if (trimmedCode) body.couponCode = trimmedCode;
+  const codes = Array.isArray(couponCodes)
+    ? [...new Set(couponCodes.map((c) => String(c || '').trim().toUpperCase()).filter(Boolean))]
+    : [];
+  const trimmedCode = String(couponCode || '').trim().toUpperCase();
+  if (codes.length > 1) {
+    body.couponCodes = codes;
+    body.couponCode = codes[0];
+  } else if (codes.length === 1) {
+    body.couponCode = codes[0];
+  } else if (trimmedCode) {
+    body.couponCode = trimmedCode;
+  }
   const checkoutItems = Array.isArray(items)
     ? items
         .map((it) => ({

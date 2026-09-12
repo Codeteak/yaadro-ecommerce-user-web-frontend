@@ -45,10 +45,43 @@ export function normalizeCouponCode(code) {
   return String(code || '').trim().toUpperCase();
 }
 
+export function normalizeCouponCodes(codes) {
+  const list = Array.isArray(codes) ? codes : codes ? [codes] : [];
+  const out = [];
+  const seen = new Set();
+  for (const raw of list) {
+    const n = normalizeCouponCode(raw);
+    if (!n || seen.has(n)) continue;
+    seen.add(n);
+    out.push(n);
+  }
+  return out;
+}
+
 export function readSelectedCouponCode() {
   return normalizeCouponCode(readCheckoutDraft()?.couponCode);
 }
 
 export function writeSelectedCouponCode(code) {
-  writeCheckoutDraft({ couponCode: normalizeCouponCode(code) });
+  const normalized = normalizeCouponCode(code);
+  writeCheckoutDraft({
+    couponCode: normalized,
+    couponCodes: normalized ? [normalized] : [],
+  });
+}
+
+export function readSelectedCouponCodes() {
+  const draft = readCheckoutDraft();
+  const fromArray = normalizeCouponCodes(draft?.couponCodes);
+  if (fromArray.length) return fromArray;
+  const single = normalizeCouponCode(draft?.couponCode);
+  return single ? [single] : [];
+}
+
+export function writeSelectedCouponCodes(codes) {
+  const normalized = normalizeCouponCodes(codes);
+  writeCheckoutDraft({
+    couponCode: normalized[0] || '',
+    couponCodes: normalized,
+  });
 }

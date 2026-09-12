@@ -15,7 +15,7 @@ import {
 } from '../utils/cartPromotions';
 import { formatInrFromMinor } from '../utils/currencyMinor';
 
-function CouponRow({ coupon, cartSubtotalMinor, selected, onSelect, onClear }) {
+function CouponRow({ coupon, cartSubtotalMinor, selected, onSelect, onClear, multi }) {
   const applicable = coupon.eligibility?.applicable !== false;
   const benefit =
     coupon.benefits?.length > 0 ? formatCouponBenefitLabel(coupon.benefits[0]) : 'Special offer';
@@ -29,7 +29,7 @@ function CouponRow({ coupon, cartSubtotalMinor, selected, onSelect, onClear }) {
     <button
       type="button"
       disabled={!applicable}
-      onClick={() => (selected ? onClear() : onSelect(coupon.code))}
+      onClick={() => (selected ? onClear(coupon.code) : onSelect(coupon.code))}
       className={`w-full rounded-2xl border p-3.5 text-left transition ${
         selected
           ? 'border-violet-500 bg-violet-50/80 ring-1 ring-violet-500/30'
@@ -53,7 +53,7 @@ function CouponRow({ coupon, cartSubtotalMinor, selected, onSelect, onClear }) {
             </span>
             {selected && (
               <span className="text-[10px] font-semibold uppercase tracking-wide text-violet-700">
-                Selected
+                {multi ? 'Applied' : 'Selected'}
               </span>
             )}
           </div>
@@ -89,7 +89,9 @@ function SuggestedCouponChip({ code, applicable, onSelect }) {
 export default function CheckoutCouponsSection({
   cartSubtotalMinor,
   selectedCouponCode,
+  selectedCouponCodes,
   onSelectCouponCode,
+  onSelectCouponCodes,
   couponPreview,
   suggestedCoupons = [],
   isPreviewLoading = false,
@@ -98,7 +100,21 @@ export default function CheckoutCouponsSection({
   couponsBlockedMessage = '',
   enabled = true,
 }) {
-  const [codeInput, setCodeInput] = useState(selectedCouponCode || '');
+  const codesFromProps = useMemo(() => {
+    if (Array.isArray(selectedCouponCodes) && selectedCouponCodes.length) {
+      return [
+        ...new Set(
+          selectedCouponCodes.map((c) => String(c || '').trim().toUpperCase()).filter(Boolean)
+        ),
+      ];
+    }
+    const single = String(selectedCouponCode || '')
+      .trim()
+      .toUpperCase();
+    return single ? [single] : [];
+  }, [selectedCouponCode, selectedCouponCodes]);
+
+  const [codeInput, setCodeInput] = useState(codesFromProps[0] || '');
   const [lookupCode, setLookupCode] = useState(null);
   const [codeLookupError, setCodeLookupError] = useState('');
 
@@ -109,6 +125,11 @@ export default function CheckoutCouponsSection({
 
   const coupons = data?.coupons ?? [];
   const promotionsPaused = data?.promotionsPaused || promotionsPausedFromCart;
+  const maxCouponsPerOrder = Math.max(
+    1,
+    Number(data?.settings?.maxCouponsPerOrder ?? 1) || 1
+  );
+  const multi = maxCouponsPerOrder > 1;
 
   const sortedCoupons = useMemo(() => {
     return [...coupons].sort((a, b) => {
@@ -118,13 +139,13 @@ export default function CheckoutCouponsSection({
     });
   }, [coupons]);
 
-  const previewApplied = isCartCouponPreviewApplied(couponPreview, selectedCouponCode);
+  const primaryCode = codesFromProps[0] || '';
+  const previewApplied = isCartCouponPreviewApplied(couponPreview, primaryCode);
 
   const previewNotApplicable =
-    !!selectedCouponCode &&
+    !!primaryCode &&
     couponPreview?.status === 'not_applicable' &&
-    String(couponPreview.code || '').toUpperCase() ===
-      String(selectedCouponCode).toUpperCase();
+    String(couponPreview.code || '').toUpperCase() === String(primaryCode).toUpperCase();
 
   const previewFailureMessage = previewNotApplicable
     ? formatCartCouponPreviewMessage(couponPreview)
@@ -136,10 +157,21 @@ export default function CheckoutCouponsSection({
       : null;
 
   useEffect(() => {
-    if (selectedCouponCode) {
-      setCodeInput(String(selectedCouponCode).toUpperCase());
+    if (codesFromProps[0]) {
+      setCodeInput(String(codesFromProps[0]).toUpperCase());
     }
-  }, [selectedCouponCode]);
+  }, [codesFromProps]);
+
+  const commitCodes = (nextCodes) => {
+    const normalized = [
+      ...new Set(nextCodes.map((c) => String(c || '').trim().toUpperCase()).filter(Boolean)),
+    ].slice(0, maxCouponsPerOrder);
+    if (typeof onSelectCouponCodes === 'function') {
+      onSelectCouponCodes(normalized);
+    } else if (typeof onSelectCouponCode === 'function') {
+      onSelectCouponCode(normalized[0] || '');
+    }
+  };
 
   useEffect(() => {
     if (!couponsBlocked) return;
@@ -156,7 +188,6 @@ export default function CheckoutCouponsSection({
     );
     if (!match) {
       setCodeLookupError('This coupon code is not available.');
-      onSelectCouponCode('');
       return;
     }
     if (match.eligibility?.applicable === false) {
@@ -164,12 +195,20 @@ export default function CheckoutCouponsSection({
         formatCouponIneligibilityHint(match.eligibility?.ineligibilityCodes) ||
           'This coupon cannot be used on this order.'
       );
-      onSelectCouponCode('');
       return;
     }
     setCodeLookupError('');
-    onSelectCouponCode(match.code);
-  }, [lookupCode, coupons, isLoading, isFetching, onSelectCouponCode]);
+    if (multi) {
+      const next = codesFromProps.includes(match.code)
+        ? codesFromProps
+        : [...codesFromProps, match.code];
+      commitCodes(next);
+    } else {
+      commitCodes([match.code]);
+    }
+    setLookupCode(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- commit on lookup resolve only
+  }, [lookupCode, coupons, isLoading, isFetching, multi, maxCouponsPerOrder]);
 
   const handleApplyInput = () => {
     if (couponsBlocked) return;
@@ -182,13 +221,28 @@ export default function CheckoutCouponsSection({
   const handleSelect = (code) => {
     if (couponsBlocked) return;
     const normalized = String(code || '').trim().toUpperCase();
-    onSelectCouponCode(normalized);
+    if (!normalized) return;
     setCodeInput(normalized);
     setCodeLookupError('');
+    if (multi) {
+      if (codesFromProps.includes(normalized)) return;
+      if (codesFromProps.length >= maxCouponsPerOrder) {
+        setCodeLookupError(`You can apply up to ${maxCouponsPerOrder} coupons.`);
+        return;
+      }
+      commitCodes([...codesFromProps, normalized]);
+    } else {
+      commitCodes([normalized]);
+    }
   };
 
-  const handleClear = () => {
-    onSelectCouponCode('');
+  const handleClear = (code) => {
+    if (multi && code) {
+      const normalized = String(code).trim().toUpperCase();
+      commitCodes(codesFromProps.filter((c) => c !== normalized));
+    } else {
+      commitCodes([]);
+    }
     setCodeInput('');
     setLookupCode(null);
     setCodeLookupError('');
@@ -213,6 +267,11 @@ export default function CheckoutCouponsSection({
       <div className="mb-3 flex items-center gap-2">
         <Tag size={16} className="h-4 w-4 text-violet-600" aria-hidden />
         <p className="text-[13px] font-medium text-gray-900">Coupons & offers</p>
+        {multi && (
+          <span className="text-[11px] text-gray-400">
+            Up to {maxCouponsPerOrder}
+          </span>
+        )}
         {isPreviewLoading && (
           <Loader2 size={14} className="ml-auto h-3.5 w-3.5 animate-spin text-gray-400" aria-hidden />
         )}
@@ -261,7 +320,7 @@ export default function CheckoutCouponsSection({
         </button>
       </div>
 
-      {selectedCouponCode && (
+      {codesFromProps.length > 0 && (
         <div
           className={`mt-3 flex items-center justify-between gap-2 rounded-xl px-3 py-2 ${
             previewApplied
@@ -281,7 +340,7 @@ export default function CheckoutCouponsSection({
             }`}
             role={previewNotApplicable ? 'alert' : undefined}
           >
-            <span className="font-mono font-semibold">{selectedCouponCode}</span>
+            <span className="font-mono font-semibold">{codesFromProps.join(', ')}</span>
             {previewApplied && previewDiscountLabel ? (
               <>
                 {' '}
@@ -297,7 +356,7 @@ export default function CheckoutCouponsSection({
           </p>
           <button
             type="button"
-            onClick={handleClear}
+            onClick={() => handleClear()}
             className="text-[12px] font-medium text-violet-800 hover:text-violet-950"
           >
             Remove
@@ -338,12 +397,10 @@ export default function CheckoutCouponsSection({
               key={coupon.id || coupon.code}
               coupon={coupon}
               cartSubtotalMinor={cartSubtotalMinor}
-              selected={
-                selectedCouponCode &&
-                String(selectedCouponCode).toUpperCase() === String(coupon.code).toUpperCase()
-              }
+              selected={codesFromProps.includes(String(coupon.code).toUpperCase())}
               onSelect={handleSelect}
               onClear={handleClear}
+              multi={multi}
             />
           ))}
         </div>

@@ -502,9 +502,9 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           </span>
         ) : null}
 
-        {offerDisplay.badges.length > 0 && !isCarousel ? (
+        {offerDisplay.badges.length > 0 ? (
           <div className="flex flex-wrap gap-1">
-            {offerDisplay.badges.slice(0, 2).map((b) => (
+            {offerDisplay.badges.slice(0, isCarousel || isShelf ? 1 : 2).map((b) => (
               <OfferBadgePill
                 key={b}
                 tone={String(b).startsWith('SAVE') ? 'red' : 'violet'}

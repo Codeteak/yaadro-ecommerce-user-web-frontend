@@ -3,7 +3,7 @@
  */
 
 export function parseOrderQuantity(raw) {
-  const n = parseFloat(String(raw ?? '1'));
+  const n = parseFloat(String(raw ?? "1"));
   if (!Number.isFinite(n)) return 1;
   if (n === 0) return 0;
   return n > 0 ? n : 1;
@@ -26,30 +26,30 @@ export function formatInrFromMinor(minor) {
 
 export function formatInrMajor(major) {
   const n = Number(major);
-  if (!Number.isFinite(n)) return '—';
-  return `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  if (!Number.isFinite(n)) return "—";
+  return `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
 function truthyFlag(value) {
   if (value === true || value === 1) return true;
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     const s = value.trim().toLowerCase();
-    return s === 'true' || s === '1' || s === 'yes';
+    return s === "true" || s === "1" || s === "yes";
   }
   return false;
 }
 
 function falsyAvailabilityFlag(value) {
   if (value === false || value === 0) return true;
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     const s = value.trim().toLowerCase();
-    return s === 'false' || s === '0' || s === 'no';
+    return s === "false" || s === "0" || s === "no";
   }
   return false;
 }
 
 function parseOptionalQty(raw) {
-  if (raw == null || raw === '') return null;
+  if (raw == null || raw === "") return null;
   const n = parseFloat(String(raw));
   return Number.isFinite(n) ? n : null;
 }
@@ -59,7 +59,7 @@ function parseOptionalQty(raw) {
  * Aligns with cart `isBundleRewardCartLine` + free/offer quantity fields.
  */
 export function isConfirmedFreeRewardLine(item) {
-  if (!item || typeof item !== 'object') return false;
+  if (!item || typeof item !== "object") return false;
   if (truthyFlag(item.isConfirmedFreeReward)) return true;
   if (
     truthyFlag(item.is_bundle_reward) ||
@@ -71,8 +71,8 @@ export function isConfirmedFreeRewardLine(item) {
   ) {
     return true;
   }
-  const id = String(item.id ?? item.cartItemId ?? '');
-  if (id.endsWith(':bundle-reward')) return true;
+  const id = String(item.id ?? item.cartItemId ?? "");
+  if (id.endsWith(":bundle-reward")) return true;
 
   const statusBlob = [
     item.status,
@@ -85,15 +85,20 @@ export function isConfirmedFreeRewardLine(item) {
     item.line_type,
     item.lineType,
   ]
-    .filter((v) => v != null && v !== '')
-    .map((v) => String(v).trim().toLowerCase().replace(/[\s-]+/g, '_'))
-    .join(' ');
+    .filter((v) => v != null && v !== "")
+    .map((v) =>
+      String(v)
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_"),
+    )
+    .join(" ");
   if (
     statusBlob &&
-    (statusBlob.includes('free_reward') ||
-      statusBlob.includes('bundle_reward') ||
-      statusBlob === 'free' ||
-      statusBlob === 'reward')
+    (statusBlob.includes("free_reward") ||
+      statusBlob.includes("bundle_reward") ||
+      statusBlob === "free" ||
+      statusBlob === "reward")
   ) {
     return true;
   }
@@ -105,16 +110,25 @@ export function isConfirmedFreeRewardLine(item) {
       item.free_quantity ??
       item.freeQuantity ??
       item.free_qty ??
-      item.freeQty
+      item.freeQty,
   );
   if (freeQty != null && freeQty > 0 && qty > 0 && freeQty >= qty - 1e-9) {
     return true;
   }
 
   const paidQty = parseOptionalQty(
-    item.paid_quantity ?? item.paidQuantity ?? item.billable_quantity ?? item.billableQuantity
+    item.paid_quantity ??
+      item.paidQuantity ??
+      item.billable_quantity ??
+      item.billableQuantity,
   );
-  if (paidQty != null && paidQty <= 0 && qty > 0 && freeQty != null && freeQty > 0) {
+  if (
+    paidQty != null &&
+    paidQty <= 0 &&
+    qty > 0 &&
+    freeQty != null &&
+    freeQty > 0
+  ) {
     return true;
   }
 
@@ -126,13 +140,18 @@ export function inferOrderLinePaidQuantity(item) {
   if (isConfirmedFreeRewardLine(item)) return 0;
   const qty = parseOrderQuantity(item?.quantity);
   const freeQty = parseOptionalQty(
-    item?.offer_quantity ?? item?.offerQuantity ?? item?.free_quantity ?? item?.freeQuantity
+    item?.offer_quantity ??
+      item?.offerQuantity ??
+      item?.free_quantity ??
+      item?.freeQuantity,
   );
   if (freeQty != null && freeQty > 0 && freeQty < qty) {
     return Math.max(0, qty - freeQty);
   }
   let unitMinor = parseMinorInt(
-    item?.unit_price_minor_snapshot ?? item?.unitPriceMinorSnapshot ?? item?.unitPriceMinor
+    item?.unit_price_minor_snapshot ??
+      item?.unitPriceMinorSnapshot ??
+      item?.unitPriceMinor,
   );
   let lineMinor = parseMinorInt(item?.line_total_minor ?? item?.lineTotalMinor);
   if (unitMinor <= 0 && item?.unitPrice != null) {
@@ -156,15 +175,17 @@ export function getOrderLineOfferLabel(item) {
   const lineDiscMajor =
     item?.lineDiscount != null
       ? Number(item.lineDiscount)
-      : minorToMajor(parseMinorInt(item?.line_discount_minor ?? item?.lineDiscountMinor));
+      : minorToMajor(
+          parseMinorInt(item?.line_discount_minor ?? item?.lineDiscountMinor),
+        );
   const total = Number(item?.totalPrice ?? 0);
 
   if (freeReward || (paid > 0 && displayQty > paid)) {
-    return displayQty > paid && paid > 0 ? 'BOGO' : 'FREE';
+    return displayQty > paid && paid > 0 ? "BOGO" : "FREE";
   }
   // Real partial discount on a still-payable line — not a full wipe disguised as an offer.
   if (lineDiscMajor > 0.009 && total > 0.009) {
-    return 'Offer applied';
+    return "Offer applied";
   }
   return null;
 }
@@ -228,7 +249,7 @@ export function getOrderLineOfferSavingsMajor(item) {
  * reward (promo ids alone do not shield picker-zeroed paid lines).
  */
 export function isOrderLineUnavailable(item, opts = {}) {
-  if (!item || typeof item !== 'object') return false;
+  if (!item || typeof item !== "object") return false;
 
   if (
     truthyFlag(item.isDeleted) ||
@@ -271,26 +292,33 @@ export function isOrderLineUnavailable(item, opts = {}) {
     item.picker_status,
     item.pickerStatus,
   ]
-    .filter((v) => v != null && v !== '')
-    .map((v) => String(v).trim().toLowerCase().replace(/[\s-]+/g, '_'))
-    .join(' ');
+    .filter((v) => v != null && v !== "")
+    .map((v) =>
+      String(v)
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_"),
+    )
+    .join(" ");
 
   if (statusBlob) {
     if (
-      statusBlob.includes('unavail') ||
-      statusBlob.includes('out_of_stock') ||
-      statusBlob.includes('oos') ||
-      statusBlob.includes('removed') ||
-      statusBlob.includes('cancel') ||
-      statusBlob.includes('not_available') ||
-      statusBlob.includes('rejected')
+      statusBlob.includes("unavail") ||
+      statusBlob.includes("out_of_stock") ||
+      statusBlob.includes("oos") ||
+      statusBlob.includes("removed") ||
+      statusBlob.includes("cancel") ||
+      statusBlob.includes("not_available") ||
+      statusBlob.includes("rejected")
     ) {
       return true;
     }
   }
 
   const currentQty =
-    opts.quantity != null ? Number(opts.quantity) : parseOrderQuantity(item.quantity);
+    opts.quantity != null
+      ? Number(opts.quantity)
+      : parseOrderQuantity(item.quantity);
 
   let originalQty = opts.originalQuantity;
   if (originalQty == null) {
@@ -306,7 +334,7 @@ export function isOrderLineUnavailable(item, opts = {}) {
       item.customerQuantity ??
       item.customer_quantity ??
       null;
-    if (rawOriginal != null && rawOriginal !== '') {
+    if (rawOriginal != null && rawOriginal !== "") {
       const n = parseFloat(String(rawOriginal));
       if (Number.isFinite(n) && n > 0) originalQty = n;
     }
@@ -319,7 +347,10 @@ export function isOrderLineUnavailable(item, opts = {}) {
 
   // Explicit fulfill/shop qty zeroed while customer still has ordered units.
   const fulfillQty = parseOptionalQty(
-    item.fulfilled_quantity ?? item.fulfilledQuantity ?? item.shop_quantity ?? item.shopQuantity
+    item.fulfilled_quantity ??
+      item.fulfilledQuantity ??
+      item.shop_quantity ??
+      item.shopQuantity,
   );
   const orderedUnits =
     originalQty != null && originalQty > 0
@@ -327,11 +358,18 @@ export function isOrderLineUnavailable(item, opts = {}) {
       : Number.isFinite(currentQty) && currentQty > 0
         ? currentQty
         : null;
-  if (fulfillQty != null && fulfillQty <= 0 && orderedUnits != null && orderedUnits > 0) {
+  if (
+    fulfillQty != null &&
+    fulfillQty <= 0 &&
+    orderedUnits != null &&
+    orderedUnits > 0
+  ) {
     return true;
   }
 
-  const pickedQty = parseOptionalQty(item.picked_quantity ?? item.pickedQuantity);
+  const pickedQty = parseOptionalQty(
+    item.picked_quantity ?? item.pickedQuantity,
+  );
   if (
     pickedQty != null &&
     pickedQty <= 0 &&
@@ -356,7 +394,7 @@ export function isOrderLineUnavailable(item, opts = {}) {
  * Backend may send `originalQuantity`, `isDeleted`, `quantityAdjusted`, etc.
  */
 export function getShopLineFulfillmentMeta(item) {
-  if (!item || typeof item !== 'object') {
+  if (!item || typeof item !== "object") {
     return {
       isDeleted: false,
       currentQty: 1,
@@ -381,7 +419,7 @@ export function getShopLineFulfillmentMeta(item) {
     item.customer_quantity ??
     null;
   let originalQty = null;
-  if (rawOriginal != null && rawOriginal !== '') {
+  if (rawOriginal != null && rawOriginal !== "") {
     const n = parseFloat(String(rawOriginal));
     if (Number.isFinite(n) && n > 0) originalQty = n;
   }
@@ -416,8 +454,7 @@ export function getShopLineFulfillmentMeta(item) {
   const qtyDiffers =
     originalQty != null && Math.abs(originalQty - currentQty) > 1e-6;
 
-  const showShopQtyUpdate =
-    !isDeleted && (explicitAdjust || qtyDiffers);
+  const showShopQtyUpdate = !isDeleted && (explicitAdjust || qtyDiffers);
 
   return {
     isDeleted,
@@ -432,8 +469,13 @@ export function getOrderPromotionSummary(order) {
   if (!order) {
     return {
       couponCode: null,
+      couponCodes: [],
       promotionDiscountMinor: 0,
       promotionDiscountMajor: 0,
+      couponDiscountMinor: 0,
+      couponDiscountMajor: 0,
+      autoPromotionDiscountMinor: 0,
+      autoPromotionDiscountMajor: 0,
       appliedPromotionIds: [],
       hasPromotions: false,
     };
@@ -445,10 +487,30 @@ export function getOrderPromotionSummary(order) {
     order.coupon_code ??
     null;
 
+  const couponCodes = Array.isArray(order.couponCodes)
+    ? order.couponCodes
+        .map((c) =>
+          String(c || "")
+            .trim()
+            .toUpperCase(),
+        )
+        .filter(Boolean)
+    : couponCode
+      ? [String(couponCode).trim().toUpperCase()]
+      : [];
+
   const promotionDiscountMinor = parseMinorInt(
     order.promotionDiscountMinor ??
       order.promotion_discount_total_minor ??
-      order.promotionDiscountTotalMinor
+      order.promotionDiscountTotalMinor,
+  );
+  const couponDiscountMinor = parseMinorInt(
+    order.couponDiscountMinor ?? order.coupon_discount_minor,
+  );
+  const autoPromotionDiscountMinor = parseMinorInt(
+    order.autoPromotionDiscountMinor ??
+      order.auto_promotion_discount_minor ??
+      Math.max(0, promotionDiscountMinor - couponDiscountMinor),
   );
 
   const appliedPromotionIds = Array.isArray(order.appliedPromotionIds)
@@ -459,13 +521,21 @@ export function getOrderPromotionSummary(order) {
 
   const hasPromotions =
     promotionDiscountMinor > 0 ||
-    Boolean(String(couponCode || '').trim()) ||
+    couponDiscountMinor > 0 ||
+    autoPromotionDiscountMinor > 0 ||
+    couponCodes.length > 0 ||
+    Boolean(String(couponCode || "").trim()) ||
     appliedPromotionIds.length > 0;
 
   return {
     couponCode: couponCode ? String(couponCode).trim().toUpperCase() : null,
+    couponCodes,
     promotionDiscountMinor,
     promotionDiscountMajor: minorToMajor(promotionDiscountMinor),
+    couponDiscountMinor,
+    couponDiscountMajor: minorToMajor(couponDiscountMinor),
+    autoPromotionDiscountMinor,
+    autoPromotionDiscountMajor: minorToMajor(autoPromotionDiscountMinor),
     appliedPromotionIds,
     hasPromotions,
   };

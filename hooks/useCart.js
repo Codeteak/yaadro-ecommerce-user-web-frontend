@@ -12,11 +12,13 @@ export const cartKeys = {
   /**
    * @param {string|undefined} couponCode
    * @param {string} [itemsKey] Stable fingerprint of local paid lines
+   * @param {string} [couponCodesKey]
    */
-  preview: (couponCode, itemsKey = '') => [
+  preview: (couponCode, itemsKey = '', couponCodesKey = '') => [
     ...cartKeys.all,
     'preview',
     couponCode ? String(couponCode).trim().toUpperCase() : '',
+    couponCodesKey,
     itemsKey,
   ],
   /** @deprecated Prefer cartKeys.preview — kept for invalidateQueries callers */
@@ -53,23 +55,39 @@ function toPreviewPayload(items) {
     .filter((it) => it.productId && it.quantity > 0);
 }
 
+function normalizeCodes(couponCode, couponCodes) {
+  const fromArray = Array.isArray(couponCodes)
+    ? couponCodes.map((c) => String(c || '').trim().toUpperCase()).filter(Boolean)
+    : [];
+  const single = couponCode ? String(couponCode).trim().toUpperCase() : '';
+  const merged = [];
+  const seen = new Set();
+  for (const c of [...(single ? [single] : []), ...fromArray]) {
+    if (seen.has(c)) continue;
+    seen.add(c);
+    merged.push(c);
+  }
+  return merged;
+}
+
 /**
- * Preview pricing/coupon for local cart lines (no Redis cart).
+ * Preview pricing/coupon for local cart lines (no Redis cart). Works for guests.
  */
 export function useCartQuery(options = {}) {
-  const { couponCode, items = [], ...queryOptions } = options;
-  const normalizedCoupon = couponCode
-    ? String(couponCode).trim().toUpperCase()
-    : '';
+  const { couponCode, couponCodes, items = [], ...queryOptions } = options;
+  const codes = normalizeCodes(couponCode, couponCodes);
+  const normalizedCoupon = codes[0] || '';
+  const codesKey = codes.join(',');
   const payload = toPreviewPayload(items);
   const itemsKey = fingerprintPaidItems(items);
 
   return useQuery({
-    queryKey: cartKeys.preview(normalizedCoupon || undefined, itemsKey),
+    queryKey: cartKeys.preview(normalizedCoupon || undefined, itemsKey, codesKey),
     queryFn: () =>
       previewCart({
         items: payload,
         couponCode: normalizedCoupon || undefined,
+        couponCodes: codes.length > 1 ? codes : undefined,
       }),
     staleTime: 1000 * 30,
     refetchOnWindowFocus: true,

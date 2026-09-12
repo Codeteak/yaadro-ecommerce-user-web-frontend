@@ -1,22 +1,25 @@
-'use client';
+"use client";
 
-import { useState, Suspense, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
-import { useOrderDetail } from '../../../hooks/useOrders';
-import { useRequireAuth } from '../../../hooks/useRequireAuth';
-import { useProductWithRelated } from '../../../hooks/useProducts';
-import { useCart } from '../../../context/CartContext';
-import { useAuth } from '../../../context/AuthContext';
-import { cartKeys } from '../../../hooks/useCart';
-import { useAlert } from '../../../context/AlertContext';
-import ProductCarousel from '../../../components/ProductCarousel';
-import ProductImageWithFallback from '../../../components/ProductImageWithFallback';
-import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
-import GuestAuthPrompt from '../../../components/GuestAuthPrompt';
-import OrderDetailPageSkeleton from '../../../components/skeletons/OrderDetailPageSkeleton';
-import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../../utils/productImages';
+import { useState, Suspense, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
+import { useOrderDetail } from "../../../hooks/useOrders";
+import { useRequireAuth } from "../../../hooks/useRequireAuth";
+import { useProductWithRelated } from "../../../hooks/useProducts";
+import { useCart } from "../../../context/CartContext";
+import { useAuth } from "../../../context/AuthContext";
+import { cartKeys } from "../../../hooks/useCart";
+import { useAlert } from "../../../context/AlertContext";
+import ProductCarousel from "../../../components/ProductCarousel";
+import ProductImageWithFallback from "../../../components/ProductImageWithFallback";
+import FloatingViewCartPill from "../../../components/FloatingViewCartPill";
+import GuestAuthPrompt from "../../../components/GuestAuthPrompt";
+import OrderDetailPageSkeleton from "../../../components/skeletons/OrderDetailPageSkeleton";
+import {
+  getResolvedProductImageUrls,
+  PRODUCT_IMAGE_PLACEHOLDER,
+} from "../../../utils/productImages";
 import {
   formatInrMajor,
   getOrderLineOfferLabel,
@@ -26,35 +29,60 @@ import {
   inferOrderLinePaidQuantity,
   orderHasBxgyOffer,
   parseOrderQuantity,
-} from '../../../utils/orderPromotions';
-import { printBillPdf, downloadBillHtml } from '../../../utils/orderInvoice';
-import { useShopBranding } from '../../../context/ShopBrandingContext';
-import BillPreviewSheet from '../../../components/BillPreviewSheet';
+} from "../../../utils/orderPromotions";
+import { printBillPdf, downloadBillHtml } from "../../../utils/orderInvoice";
+import { useShopBranding } from "../../../context/ShopBrandingContext";
+import BillPreviewSheet from "../../../components/BillPreviewSheet";
 
 function IconBack() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M10 4L6 8l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M10 4L6 8l4 4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
-function IconCheck({ color = '#902bf5' }) {
+function IconCheck({ color = "#902bf5" }) {
   return (
     <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-      <path d="M2 5l2 2 4-4" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M2 5l2 2 4-4"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 function IconDownload() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-      <path d="M8 2v8M5 7l3 3 3-3M3 13h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M8 2v8M5 7l3 3 3-3M3 13h10"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 function IconReorder() {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-current" aria-hidden>
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      className="text-current"
+      aria-hidden
+    >
       <path
         d="M2 3h1.6l.45 2.1m0 0H13l-1.1 4.1H5.2m-1.15-4.1L5.2 9.2m0 0l-.9 1c-.28.3-.07.8.33.8H11.7"
         stroke="currentColor"
@@ -62,31 +90,55 @@ function IconReorder() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path d="M6.2 12.7a.9.9 0 11-1.8 0 .9.9 0 011.8 0zM12.3 12.7a.9.9 0 11-1.8 0 .9.9 0 011.8 0z" fill="currentColor" />
+      <path
+        d="M6.2 12.7a.9.9 0 11-1.8 0 .9.9 0 011.8 0zM12.3 12.7a.9.9 0 11-1.8 0 .9.9 0 011.8 0z"
+        fill="currentColor"
+      />
     </svg>
   );
 }
 function IconSpinner() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ animation: 'odSpin 0.8s linear infinite' }}>
-      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeDashoffset="12" strokeLinecap="round" />
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      style={{ animation: "odSpin 0.8s linear infinite" }}
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeDasharray="32"
+        strokeDashoffset="12"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
 
 const fmt = (v) => {
-  const n = typeof v === 'string' ? parseFloat(v) : Number(v);
-  return Number.isFinite(n) ? `₹${n.toFixed(2)}` : '—';
+  const n = typeof v === "string" ? parseFloat(v) : Number(v);
+  return Number.isFinite(n) ? `₹${n.toFixed(2)}` : "—";
 };
 
-const STATUS_ORDER = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+const STATUS_ORDER = [
+  "pending",
+  "confirmed",
+  "processing",
+  "shipped",
+  "delivered",
+];
 
 const TIMELINE_LABELS = {
-  pending:    'Order placed',
-  confirmed:  'Confirmed',
-  processing: 'Processing',
-  shipped:    'Shipped',
-  delivered:  'Delivered',
+  pending: "Order placed",
+  confirmed: "Confirmed",
+  processing: "Processing",
+  shipped: "Shipped",
+  delivered: "Delivered",
 };
 
 function fmtDate(d) {
@@ -94,8 +146,16 @@ function fmtDate(d) {
   const dt = new Date(d);
   if (Number.isNaN(dt.getTime())) return null;
   return {
-    day:  dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-    time: dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+    day: dt.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }),
+    time: dt.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }),
   };
 }
 
@@ -105,7 +165,7 @@ function getOrderItemImage(item) {
   return (
     fromProduct.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER) ||
     fromItem.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER) ||
-    (typeof item?.image === 'string' ? item.image : item?.image?.url) ||
+    (typeof item?.image === "string" ? item.image : item?.image?.url) ||
     PRODUCT_IMAGE_PLACEHOLDER
   );
 }
@@ -118,7 +178,9 @@ function getOrderItems(order) {
 
 /** Lines still being fulfilled (excludes unavailable / removed). */
 function getActiveOrderItems(order) {
-  return getOrderItems(order).filter((it) => !getShopLineFulfillmentMeta(it).showRemoved);
+  return getOrderItems(order).filter(
+    (it) => !getShopLineFulfillmentMeta(it).showRemoved,
+  );
 }
 
 /** @deprecated use getOrderItems — kept as alias for list rendering */
@@ -128,40 +190,49 @@ function getVisibleOrderItems(order) {
 
 /** Tailwind rings — aligned with checkout / home (white + violet brand) */
 const STATUS_PILL_CLASS = {
-  pending:    'bg-amber-50 text-amber-900 ring-1 ring-amber-200/90',
-  confirmed:  'bg-violet-50 text-violet-900 ring-1 ring-violet-200/90',
-  processing: 'bg-violet-50 text-violet-900 ring-1 ring-violet-200/90',
-  shipped:    'bg-sky-50 text-sky-900 ring-1 ring-sky-200/90',
-  delivered:  'bg-violet-50 text-violet-900 ring-1 ring-violet-200/90',
-  cancelled:  'bg-red-50 text-red-900 ring-1 ring-red-200/90',
+  pending: "bg-amber-50 text-amber-900 ring-1 ring-amber-200/90",
+  confirmed: "bg-violet-50 text-violet-900 ring-1 ring-violet-200/90",
+  processing: "bg-violet-50 text-violet-900 ring-1 ring-violet-200/90",
+  shipped: "bg-sky-50 text-sky-900 ring-1 ring-sky-200/90",
+  delivered: "bg-violet-50 text-violet-900 ring-1 ring-violet-200/90",
+  cancelled: "bg-red-50 text-red-900 ring-1 ring-red-200/90",
 };
 
 const PAYMENT_PILL_CLASS = {
-  paid:     'bg-violet-50 text-violet-900 ring-1 ring-violet-200/90',
-  success:  'bg-violet-50 text-violet-900 ring-1 ring-violet-200/90',
-  cod:      'bg-violet-50 text-violet-900 ring-1 ring-violet-200/90',
-  pending:  'bg-amber-50 text-amber-900 ring-1 ring-amber-200/90',
-  failed:   'bg-red-50 text-red-900 ring-1 ring-red-200/90',
-  refunded: 'bg-gray-100 text-gray-700 ring-1 ring-gray-200/90',
+  paid: "bg-violet-50 text-violet-900 ring-1 ring-violet-200/90",
+  success: "bg-violet-50 text-violet-900 ring-1 ring-violet-200/90",
+  cod: "bg-violet-50 text-violet-900 ring-1 ring-violet-200/90",
+  pending: "bg-amber-50 text-amber-900 ring-1 ring-amber-200/90",
+  failed: "bg-red-50 text-red-900 ring-1 ring-red-200/90",
+  refunded: "bg-gray-100 text-gray-700 ring-1 ring-gray-200/90",
 };
 
-function StatusPill({ label, variant = 'fulfillment', status }) {
-  const key = String(status || 'pending').toLowerCase();
-  const map = variant === 'payment' ? PAYMENT_PILL_CLASS : STATUS_PILL_CLASS;
-  const cls = map[key] || (variant === 'payment' ? PAYMENT_PILL_CLASS.pending : STATUS_PILL_CLASS.pending);
+function StatusPill({ label, variant = "fulfillment", status }) {
+  const key = String(status || "pending").toLowerCase();
+  const map = variant === "payment" ? PAYMENT_PILL_CLASS : STATUS_PILL_CLASS;
+  const cls =
+    map[key] ||
+    (variant === "payment"
+      ? PAYMENT_PILL_CLASS.pending
+      : STATUS_PILL_CLASS.pending);
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${cls}`}
     >
-      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-70" aria-hidden />
+      <span
+        className="h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-70"
+        aria-hidden
+      />
       {label || key}
     </span>
   );
 }
 
-function Section({ children, className = '' }) {
+function Section({ children, className = "" }) {
   return (
-    <div className={`mt-3 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm ${className}`}>
+    <div
+      className={`mt-3 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm ${className}`}
+    >
       {children}
     </div>
   );
@@ -170,7 +241,9 @@ function Section({ children, className = '' }) {
 function SectionHeader({ title, right }) {
   return (
     <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-      <span className="text-[11px] font-medium uppercase tracking-wider text-gray-500">{title}</span>
+      <span className="text-[11px] font-medium uppercase tracking-wider text-gray-500">
+        {title}
+      </span>
       {right && <span className="text-xs text-gray-500">{right}</span>}
     </div>
   );
@@ -224,7 +297,7 @@ function OrderPromotionsSection({ order }) {
   const lineOffers = activeItems.filter((it) => it.hasOffer);
   const sumLineDisc = lineOffers.reduce(
     (acc, it) => acc + getOrderLineOfferSavingsMajor(it),
-    0
+    0,
   );
   // Hide redundant per-line −amounts when they triple-count vs order-level promo savings.
   const showLineDiscountAmounts =
@@ -243,33 +316,45 @@ function OrderPromotionsSection({ order }) {
               <p className="m-0 text-[10px] font-medium uppercase tracking-wider text-violet-800/80">
                 Coupon applied
               </p>
-              <p className="mb-0 mt-1 font-mono text-sm font-semibold text-violet-900">{promo.couponCode}</p>
-            </div>
-            {showOrderPromo && (
-              <p className="m-0 shrink-0 text-sm font-semibold text-violet-700">
-                −{formatInrMajor(promo.promotionDiscountMajor)}
+              <p className="mb-0 mt-1 font-mono text-sm font-semibold text-violet-900">
+                {promo.couponCodes?.length > 0
+                  ? promo.couponCodes.join(", ")
+                  : promo.couponCode}
               </p>
-            )}
+            </div>
+            {promo.couponDiscountMajor > 0.009 ? (
+              <p className="m-0 shrink-0 text-sm font-semibold text-violet-700">
+                −{formatInrMajor(promo.couponDiscountMajor)}
+              </p>
+            ) : null}
           </div>
         )}
 
-        {showOrderPromo && !showCoupon && (
+        {!hasBxgy && promo.autoPromotionDiscountMajor > 0.009 && (
           <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 text-[13px]">
-            <span className="text-gray-600">Promotion savings</span>
-            <span className="font-medium text-violet-700">−{formatInrMajor(promo.promotionDiscountMajor)}</span>
+            <span className="text-gray-600">Sale & free-item savings</span>
+            <span className="font-medium text-violet-700">
+              −{formatInrMajor(promo.autoPromotionDiscountMajor)}
+            </span>
           </div>
         )}
 
-        {showOrderPromo && showCoupon && (
-          <div className="flex items-center justify-between text-[12px] text-gray-500">
-            <span>Total promotion savings on this order</span>
-            <span className="font-medium text-violet-700">−{formatInrMajor(promo.promotionDiscountMajor)}</span>
-          </div>
-        )}
+        {showOrderPromo &&
+          promo.autoPromotionDiscountMajor <= 0.009 &&
+          promo.couponDiscountMajor <= 0.009 && (
+            <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 text-[13px]">
+              <span className="text-gray-600">Offers & discounts</span>
+              <span className="font-medium text-violet-700">
+                −{formatInrMajor(promo.promotionDiscountMajor)}
+              </span>
+            </div>
+          )}
 
         {lineOffers.length > 0 && (
           <div>
-            <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-gray-500">Item offers</p>
+            <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-gray-500">
+              Item offers
+            </p>
             <ul className="m-0 list-none space-y-2 p-0">
               {lineOffers.map((item) => {
                 const label = getOrderLineOfferLabel(item);
@@ -291,7 +376,9 @@ function OrderPromotionsSection({ order }) {
                       <p className="m-0 truncate text-[12px] font-medium text-gray-900">
                         {item.productName || item.name}
                       </p>
-                      <p className="m-0 mt-0.5 text-[11px] text-gray-500">{qtyNote}</p>
+                      <p className="m-0 mt-0.5 text-[11px] text-gray-500">
+                        {qtyNote}
+                      </p>
                       {label && (
                         <div className="mt-1.5">
                           <OfferBadge>{label}</OfferBadge>
@@ -326,10 +413,10 @@ function OrderItemRow({ item }) {
   const freeQty = isBogo && paidQty > 0 ? Math.max(0, displayQty - paidQty) : 0;
   const offerSavings = getOrderLineOfferSavingsMajor(item);
   const packSuffix = (() => {
-    const pack = item.packLabel ? String(item.packLabel).trim() : '';
+    const pack = item.packLabel ? String(item.packLabel).trim() : "";
     if (pack) return ` × ${pack}`;
-    const unitLabel = item.unitLabel ? String(item.unitLabel).trim() : '';
-    return unitLabel ? ` ${unitLabel}` : '';
+    const unitLabel = item.unitLabel ? String(item.unitLabel).trim() : "";
+    return unitLabel ? ` ${unitLabel}` : "";
   })();
   const listPrice = item.listPrice;
   const showListStrike =
@@ -351,7 +438,10 @@ function OrderItemRow({ item }) {
       qtyText += ` · you ordered ${meta.originalQty}`;
     }
   } else if (meta.showShopQtyUpdate) {
-    if (meta.originalQty != null && Math.abs(meta.originalQty - displayQty) > 1e-6) {
+    if (
+      meta.originalQty != null &&
+      Math.abs(meta.originalQty - displayQty) > 1e-6
+    ) {
       qtyText = `Fulfilling ${displayQty}${packSuffix} (you ordered ${meta.originalQty})`;
     } else {
       qtyText = `Qty ${displayQty}${packSuffix} · updated by store`;
@@ -370,13 +460,13 @@ function OrderItemRow({ item }) {
           item.totalPrice ||
           item.unitPrice ||
           item.listPrice ||
-          0
+          0,
       )}
     </p>
   ) : (
     <>
       <p className="m-0 whitespace-nowrap text-[13px] font-semibold text-gray-900">
-        {item.isConfirmedFreeReward ? '₹0' : fmt(item.totalPrice)}
+        {item.isConfirmedFreeReward ? "₹0" : fmt(item.totalPrice)}
       </p>
       {showListStrike ? (
         <p className="m-0 mt-0.5 text-[11px] text-gray-400 line-through">
@@ -388,24 +478,26 @@ function OrderItemRow({ item }) {
 
   const content = (
     <>
-      <div className={`min-w-0 flex-1 ${unavailable ? 'opacity-70' : ''}`}>
+      <div className={`min-w-0 flex-1 ${unavailable ? "opacity-70" : ""}`}>
         <p
           className={`m-0 truncate text-[13px] font-medium ${
-            unavailable ? 'text-gray-500 line-through' : 'text-gray-900'
+            unavailable ? "text-gray-500 line-through" : "text-gray-900"
           }`}
         >
           {item.productName || item.name}
         </p>
         <p className="mt-0.5 text-[11px] text-gray-500">
           {qtyText}
-          {item.productSku ? ` · SKU: ${item.productSku}` : ''}
+          {item.productSku ? ` · ${item.productSku}` : ""}
         </p>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {unavailable && <UnavailableBadge />}
           {!unavailable && meta.showShopQtyUpdate && <ShopQtyAdjustedBadge />}
           {!unavailable && isBogo && <OfferBadge>BOGO</OfferBadge>}
           {!unavailable && freeQty > 0 && <OfferBadge>FREE</OfferBadge>}
-          {!unavailable && offerLabel && !isBogo && <OfferBadge>{offerLabel}</OfferBadge>}
+          {!unavailable && offerLabel && !isBogo && (
+            <OfferBadge>{offerLabel}</OfferBadge>
+          )}
           {!unavailable && offerSavings > 0.009 && (
             <span className="text-[11px] font-medium text-violet-700">
               Saved {formatInrMajor(offerSavings)}
@@ -414,12 +506,14 @@ function OrderItemRow({ item }) {
         </div>
         {isBogo && freeQty > 0 ? (
           <div className="relative mt-2 ml-1 border-l border-dashed border-gray-300 pl-3">
-            <span className="absolute -left-[1px] top-1 text-gray-400" aria-hidden>
+            <span
+              className="absolute -left-[1px] top-1 text-gray-400"
+              aria-hidden
+            >
               ⌞
             </span>
             <p className="m-0 text-[12px] font-medium text-gray-800">
-              {item.productName || item.name}{' '}
-              <OfferBadge>FREE</OfferBadge>
+              {item.productName || item.name} <OfferBadge>FREE</OfferBadge>
             </p>
             <p className="mt-0.5 text-[11px] text-gray-500">
               Qty {freeQty}
@@ -448,31 +542,33 @@ function pickStepDate(order, status) {
   const updated = order.updatedAt;
   const delivered = order.deliveredAt;
   const shipped = order.shippedAt;
-  if (status === 'delivered') return delivered || updated || created;
-  if (status === 'shipped') return shipped || updated || created;
-  if (status === 'pending') return created;
+  if (status === "delivered") return delivered || updated || created;
+  if (status === "shipped") return shipped || updated || created;
+  if (status === "pending") return created;
   return updated || created;
 }
 
 function stepTimelineSubtitle(order, status, isActive, isDone, d) {
   if (d) return `${d.day} · ${d.time}`;
-  if (status === 'shipped' && isActive) return 'Out for delivery';
-  if (isDone) return 'Completed';
-  if (isActive && status === 'pending') return 'Waiting for confirmation';
-  if (isActive) return 'In progress';
-  return '—';
+  if (status === "shipped" && isActive) return "Out for delivery";
+  if (isDone) return "Completed";
+  if (isActive && status === "pending") return "Waiting for confirmation";
+  if (isActive) return "In progress";
+  return "—";
 }
 
 function Timeline({ order }) {
-  if (order.status === 'cancelled') {
+  if (order.status === "cancelled") {
     const cx = order.cancelledAt;
     const d = fmtDate(cx);
-    const reason = String(order.cancelledReason || '').trim();
+    const reason = String(order.cancelledReason || "").trim();
     const isRejected = Boolean(order.looksRejected) || /reject/i.test(reason);
     return (
       <div className="p-4">
         <div className="rounded-xl border border-red-100 bg-red-50/90 px-3 py-3 text-[13px] text-red-900">
-          <p className="m-0 font-medium">{isRejected ? 'Order rejected' : 'Order cancelled'}</p>
+          <p className="m-0 font-medium">
+            {isRejected ? "Order rejected" : "Order cancelled"}
+          </p>
           {d ? (
             <p className="mb-0 mt-1 text-[11px] text-red-800/90">
               {d.day} · {d.time}
@@ -498,7 +594,13 @@ function Timeline({ order }) {
         const isLast = i === steps.length - 1;
         const dateRef = pickStepDate(order, status);
         const d = fmtDate(dateRef);
-        const subtitle = stepTimelineSubtitle(order, status, isActive, isDone, d);
+        const subtitle = stepTimelineSubtitle(
+          order,
+          status,
+          isActive,
+          isDone,
+          d,
+        );
 
         return (
           <div key={status} className="flex gap-3">
@@ -506,26 +608,28 @@ function Timeline({ order }) {
               <div
                 className={`z-[1] flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-[1.5px] ${
                   isDone
-                    ? 'border-violet-500 bg-violet-50'
+                    ? "border-violet-500 bg-violet-50"
                     : isActive
-                      ? 'border-violet-600 bg-violet-600'
-                      : 'border-gray-200 bg-gray-50'
+                      ? "border-violet-600 bg-violet-600"
+                      : "border-gray-200 bg-gray-50"
                 }`}
               >
                 {isDone && <IconCheck />}
-                {isActive && <span className="block h-1.5 w-1.5 rounded-full bg-white" />}
+                {isActive && (
+                  <span className="block h-1.5 w-1.5 rounded-full bg-white" />
+                )}
               </div>
               {!isLast && (
                 <div
-                  className={`my-0.5 w-[2px] flex-1 min-h-[20px] ${isDone ? 'bg-violet-400' : 'bg-gray-200'}`}
+                  className={`my-0.5 w-[2px] flex-1 min-h-[20px] ${isDone ? "bg-violet-400" : "bg-gray-200"}`}
                 />
               )}
             </div>
 
-            <div className={`min-w-0 flex-1 ${isLast ? '' : 'pb-5'}`}>
+            <div className={`min-w-0 flex-1 ${isLast ? "" : "pb-5"}`}>
               <div
                 className={`text-[13px] font-medium ${
-                  isActive || isDone ? 'text-gray-900' : 'text-gray-500'
+                  isActive || isDone ? "text-gray-900" : "text-gray-500"
                 }`}
               >
                 {TIMELINE_LABELS[status]}
@@ -546,7 +650,9 @@ function Timeline({ order }) {
               {TIMELINE_LABELS[STATUS_ORDER[safeIdx + 1]]}
             </div>
             <div className="mt-0.5 text-[11px] text-gray-500">
-              {STATUS_ORDER[safeIdx + 1] === 'delivered' ? 'We will notify you when it ships' : 'Upcoming'}
+              {STATUS_ORDER[safeIdx + 1] === "delivered"
+                ? "We will notify you when it ships"
+                : "Upcoming"}
             </div>
           </div>
         </div>
@@ -555,17 +661,26 @@ function Timeline({ order }) {
   );
 }
 
-function ErrorState({ message, ordersHref = '/orders' }) {
+function ErrorState({ message, ordersHref = "/orders" }) {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 bg-gray-50 px-6 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-full border border-red-100 bg-red-50">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M10 6v5M10 14h.01M18 10A8 8 0 112 10a8 8 0 0116 0z" stroke="#b91c1c" strokeWidth="1.5" strokeLinecap="round" />
+          <path
+            d="M10 6v5M10 14h.01M18 10A8 8 0 112 10a8 8 0 0116 0z"
+            stroke="#b91c1c"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
         </svg>
       </div>
       <div>
-        <p className="mb-1 text-base font-medium text-gray-900">Order not found</p>
-        <p className="text-sm text-gray-500">{message || "This order doesn't exist or was removed."}</p>
+        <p className="mb-1 text-base font-medium text-gray-900">
+          Order not found
+        </p>
+        <p className="text-sm text-gray-500">
+          {message || "This order doesn't exist or was removed."}
+        </p>
       </div>
       <Link
         href={ordersHref}
@@ -579,17 +694,25 @@ function ErrorState({ message, ordersHref = '/orders' }) {
 
 function ReturnModal({ order, onClose, onSubmit }) {
   const [selected, setSelected] = useState([]);
-  const [reason, setReason]     = useState('');
+  const [reason, setReason] = useState("");
 
   const toggle = (id) =>
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
 
   return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40">
       <div className="max-h-[80vh] w-full max-w-[480px] overflow-y-auto rounded-t-[20px] border border-gray-100 bg-white px-4 pb-8 pt-5">
         <div className="mb-4 flex items-center justify-between">
-          <p className="text-[15px] font-medium text-gray-900">Request return / refund</p>
-          <button type="button" onClick={onClose} className="cursor-pointer border-0 bg-transparent text-xl leading-none text-gray-400">
+          <p className="text-[15px] font-medium text-gray-900">
+            Request return / refund
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="cursor-pointer border-0 bg-transparent text-xl leading-none text-gray-400"
+          >
             ×
           </button>
         </div>
@@ -601,12 +724,19 @@ function ReturnModal({ order, onClose, onSubmit }) {
               key={item.id}
               className={`flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2 ${
                 selected.includes(item.id)
-                  ? 'border-violet-300 bg-violet-50'
-                  : 'border-gray-100 bg-gray-50'
+                  ? "border-violet-300 bg-violet-50"
+                  : "border-gray-100 bg-gray-50"
               }`}
             >
-              <input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggle(item.id)} className="accent-violet-600" />
-              <span className="text-[13px] text-gray-900">{item.productName || item.name}</span>
+              <input
+                type="checkbox"
+                checked={selected.includes(item.id)}
+                onChange={() => toggle(item.id)}
+                className="accent-violet-600"
+              />
+              <span className="text-[13px] text-gray-900">
+                {item.productName || item.name}
+              </span>
             </label>
           ))}
         </div>
@@ -642,22 +772,27 @@ function ReturnModal({ order, onClose, onSubmit }) {
 }
 
 function OrderDetailContent({ orderId: orderIdProp = null }) {
-  const params   = useParams();
-  const router   = useRouter();
+  const params = useParams();
+  const router = useRouter();
   const queryClient = useQueryClient();
-  const resolvedOrderId = orderIdProp != null ? String(orderIdProp).trim() : params.id;
+  const resolvedOrderId =
+    orderIdProp != null ? String(orderIdProp).trim() : params.id;
   const { ok, ready } = useRequireAuth();
-  const { data: order, isLoading, error } = useOrderDetail(resolvedOrderId, {
+  const {
+    data: order,
+    isLoading,
+    error,
+  } = useOrderDetail(resolvedOrderId, {
     enabled: ok && Boolean(resolvedOrderId),
   });
-  const { addToCart }   = useCart();
-  const { user }        = useAuth();
-  const { showAlert }   = useAlert();
+  const { addToCart } = useCart();
+  const { user } = useAuth();
+  const { showAlert } = useAlert();
   const { shopName, shopImage } = useShopBranding();
 
   const [isReordering, setIsReordering] = useState(false);
-  const [showReturn, setShowReturn]     = useState(false);
-  const [billOpen, setBillOpen]         = useState(false);
+  const [showReturn, setShowReturn] = useState(false);
+  const [billOpen, setBillOpen] = useState(false);
 
   const visibleOrderItems = order ? getOrderItems(order) : [];
   const activeOrderItems = order ? getActiveOrderItems(order) : [];
@@ -676,25 +811,34 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
       ? String(firstVisibleItem.productName)
           .toLowerCase()
           .trim()
-          .replace(/['"]/g, '')
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-+|-+$/g, '')
+          .replace(/['"]/g, "")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
           .slice(0, 80)
       : null);
 
   const { data: relatedData } = useProductWithRelated(seedSlug);
-  const orderedIds = new Set(activeOrderItems.map((it) => it.productId || it.product?.id).filter(Boolean));
-  const related = (relatedData?.relatedProducts || []).filter((p) => p?.id && !orderedIds.has(p.id)).slice(0, 12);
+  const orderedIds = new Set(
+    activeOrderItems
+      .map((it) => it.productId || it.product?.id)
+      .filter(Boolean),
+  );
+  const related = (relatedData?.relatedProducts || [])
+    .filter((p) => p?.id && !orderedIds.has(p.id))
+    .slice(0, 12);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
     const orig = console.warn;
     console.warn = (...args) => {
-      const msg = args[0]?.toString() || '';
-      if (msg.includes('unsafe header') || msg.includes('x-rtb-fingerprint-id')) return;
+      const msg = args[0]?.toString() || "";
+      if (msg.includes("unsafe header") || msg.includes("x-rtb-fingerprint-id"))
+        return;
       orig.apply(console, args);
     };
-    return () => { console.warn = orig; };
+    return () => {
+      console.warn = orig;
+    };
   }, []);
 
   if (!ready) {
@@ -717,16 +861,15 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   const addr = order.deliveryAddress || {};
   const orderPromo = getOrderPromotionSummary(order);
   const orderHasBxgy = orderHasBxgyOffer(activeOrderItems);
-  const hasAddress =
-    Boolean(
-      addr.fullName ||
-        addr.name ||
-        addr.street ||
-        addr.address ||
-        addr.line1 ||
-        addr.city ||
-        addr.phone
-    );
+  const hasAddress = Boolean(
+    addr.fullName ||
+      addr.name ||
+      addr.street ||
+      addr.address ||
+      addr.line1 ||
+      addr.city ||
+      addr.phone,
+  );
 
   const orderItemToCartProduct = (item) => {
     const qty = Number(item?.quantity ?? 1) || 1;
@@ -744,16 +887,21 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
       item?.productUuid ??
       item?.id;
 
-    const name = item?.productName ?? item?.name ?? item?.product?.name ?? 'Item';
+    const name =
+      item?.productName ?? item?.name ?? item?.product?.name ?? "Item";
     const image =
       item?.product?.images?.[0] ||
-      (typeof item?.image === 'string' ? item.image : item?.image?.url) ||
-      '/images/dummy.png';
+      (typeof item?.image === "string" ? item.image : item?.image?.url) ||
+      "/images/dummy.png";
 
     const selectedSize =
       item?.selectedSize ||
       (item?.weight && item?.unit
-        ? { weight: item.weight, unit: item.unit, price: Number.isFinite(unitPrice) ? unitPrice : undefined }
+        ? {
+            weight: item.weight,
+            unit: item.unit,
+            price: Number.isFinite(unitPrice) ? unitPrice : undefined,
+          }
         : null);
 
     return {
@@ -762,7 +910,8 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
       name,
       image,
       price: Number.isFinite(unitPrice) ? unitPrice : 0,
-      originalPrice: item?.originalPrice ?? item?.mrp ?? item?.listPrice ?? undefined,
+      originalPrice:
+        item?.originalPrice ?? item?.mrp ?? item?.listPrice ?? undefined,
       selectedSize: selectedSize || undefined,
       sizeDisplay: item?.sizeDisplay || item?.packLabel || undefined,
       weight: item?.weight ?? item?.unitSize ?? undefined,
@@ -776,7 +925,11 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   const handleReorder = async () => {
     const items = order ? getActiveOrderItems(order) : [];
     if (!items.length) {
-      showAlert('No available items found in this order.', 'Reorder', 'warning');
+      showAlert(
+        "No available items found in this order.",
+        "Reorder",
+        "warning",
+      );
       return;
     }
     if (isReordering) return;
@@ -791,23 +944,33 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
         try {
           await queryClient.invalidateQueries({ queryKey: cartKeys.all });
         } catch (e) {
-          console.error('Cart refresh after reorder:', e);
+          console.error("Cart refresh after reorder:", e);
         }
       }
-      showAlert('Items added to cart!', 'Success', 'success');
-      router.push('/cart');
+      showAlert("Items added to cart!", "Success", "success");
+      router.push("/cart");
     } catch (e) {
-      showAlert(e?.message || 'Failed to reorder. Please try again.', 'Error', 'error');
+      showAlert(
+        e?.message || "Failed to reorder. Please try again.",
+        "Error",
+        "error",
+      );
     } finally {
       setIsReordering(false);
     }
   };
 
   const handleReturnSubmit = (items, reason) => {
-    if (!items.length) { showAlert('Select at least one item.', 'Required', 'warning'); return; }
-    if (!reason.trim()) { showAlert('Please provide a reason.', 'Required', 'warning'); return; }
+    if (!items.length) {
+      showAlert("Select at least one item.", "Required", "warning");
+      return;
+    }
+    if (!reason.trim()) {
+      showAlert("Please provide a reason.", "Required", "warning");
+      return;
+    }
     setShowReturn(false);
-    showAlert('Return request feature coming soon!', 'Coming soon', 'info');
+    showAlert("Return request feature coming soon!", "Coming soon", "info");
   };
 
   return (
@@ -820,19 +983,26 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
             <button
               type="button"
               onClick={() => {
-                if (typeof window !== 'undefined' && window.history.length > 1) {
+                if (
+                  typeof window !== "undefined" &&
+                  window.history.length > 1
+                ) {
                   router.back();
                   return;
                 }
-                router.replace('/orders');
+                router.replace("/orders");
               }}
               className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700"
             >
               <IconBack />
             </button>
             <div className="min-w-0 flex-1">
-              <p className="m-0 text-base font-medium text-gray-900">Order details</p>
-              <p className="m-0 font-mono text-[11px] text-gray-500">{order.orderNumber || order.id}</p>
+              <p className="m-0 text-base font-medium text-gray-900">
+                Order details
+              </p>
+              <p className="m-0 font-mono text-[11px] text-gray-500">
+                {order.orderNumber || order.id}
+              </p>
             </div>
             <StatusPill label={order.status} status={order.status} />
           </div>
@@ -856,7 +1026,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                   </a>
                 </div>
               )}
-              {order.status === 'delivered' && (
+              {order.status === "delivered" && (
                 <div className="px-4 pb-3.5">
                   <button
                     type="button"
@@ -875,19 +1045,29 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
               <SectionHeader
                 title={`Items · ${getOrderItems(order).length}`}
                 right={fmt(
-                  getActiveOrderItems(order).reduce((sum, it) => sum + (Number(it.totalPrice) || 0), 0)
+                  getActiveOrderItems(order).reduce(
+                    (sum, it) => sum + (Number(it.totalPrice) || 0),
+                    0,
+                  ),
                 )}
               />
-              {getOrderItems(order).some((it) => getShopLineFulfillmentMeta(it).showRemoved) && (
+              {getOrderItems(order).some(
+                (it) => getShopLineFulfillmentMeta(it).showRemoved,
+              ) && (
                 <div className="border-b border-red-100 bg-red-50/70 px-4 py-2.5 text-[11px] leading-snug text-red-950">
-                  Some items were marked unavailable while the store prepared this order. Those lines show an{' '}
+                  Some items were marked unavailable while the store prepared
+                  this order. Those lines show an{" "}
                   <span className="font-semibold">Unavailable</span> badge.
                 </div>
               )}
-              {getOrderItems(order).some((it) => getShopLineFulfillmentMeta(it).showShopQtyUpdate) && (
+              {getOrderItems(order).some(
+                (it) => getShopLineFulfillmentMeta(it).showShopQtyUpdate,
+              ) && (
                 <div className="border-b border-amber-100 bg-amber-50/70 px-4 py-2.5 text-[11px] leading-snug text-amber-950">
-                  Some quantities may differ from what you ordered if the store adjusted them while fulfilling this order.
-                  Lines marked <span className="font-semibold">Shop updated qty</span> show those changes.
+                  Some quantities may differ from what you ordered if the store
+                  adjusted them while fulfilling this order. Lines marked{" "}
+                  <span className="font-semibold">Shop updated qty</span> show
+                  those changes.
                 </div>
               )}
               {getOrderItems(order).map((item, idx) => {
@@ -895,29 +1075,38 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                 return (
                   <div
                     key={item.id || idx}
-                    className={`flex items-start gap-3 px-4 py-3 ${idx > 0 ? 'border-t border-gray-100' : ''} ${
-                      lineMeta.showRemoved ? 'bg-gray-50/80' : ''
+                    className={`flex items-start gap-3 px-4 py-3 ${idx > 0 ? "border-t border-gray-100" : ""} ${
+                      lineMeta.showRemoved ? "bg-gray-50/80" : ""
                     }`}
                   >
                     <div
                       className={`relative mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-white ${
-                        lineMeta.showRemoved ? 'opacity-50 grayscale' : ''
+                        lineMeta.showRemoved ? "opacity-50 grayscale" : ""
                       }`}
                     >
                       <ProductImageWithFallback
                         src={getOrderItemImage(item)}
-                        alt={item.productName || item.name || 'Item'}
+                        alt={item.productName || item.name || "Item"}
                         fill
                         className="object-contain"
                         sizes="48px"
-                        placeholderName={item.productName || item.name || item.product?.name || ''}
+                        placeholderName={
+                          item.productName ||
+                          item.name ||
+                          item.product?.name ||
+                          ""
+                        }
                         placeholderCategory={
                           item.categoryName ||
                           item.category?.name ||
-                          (typeof item.category === 'string' ? item.category : '') ||
+                          (typeof item.category === "string"
+                            ? item.category
+                            : "") ||
                           item.product?.categoryName ||
-                          (typeof item.product?.category === 'string' ? item.product.category : '') ||
-                          ''
+                          (typeof item.product?.category === "string"
+                            ? item.product.category
+                            : "") ||
+                          ""
                         }
                       />
                     </div>
@@ -932,9 +1121,11 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
             <Section>
               <SectionHeader title="Price summary" />
               {[
-                { label: 'Subtotal', value: fmt(order.subtotal) },
-                order.tax > 0 ? { label: 'Tax', value: fmt(order.tax) } : null,
-                order.shipping ? { label: 'Delivery', value: fmt(order.shipping) } : null,
+                { label: "Subtotal", value: fmt(order.subtotal) },
+                order.tax > 0 ? { label: "Tax", value: fmt(order.tax) } : null,
+                order.shipping
+                  ? { label: "Delivery", value: fmt(order.shipping) }
+                  : null,
               ]
                 .filter(Boolean)
                 .map(({ label, value }) => (
@@ -946,17 +1137,76 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                     <span className="text-gray-900">{value}</span>
                   </div>
                 ))}
-              {order.discount > 0 &&
-                !orderHasBxgy &&
-                Number(order.subtotal) > 0.009 &&
-                getActiveOrderItems(order).length > 0 && (
-                <div className="flex justify-between border-t border-gray-100 px-4 py-2.5 text-[13px]">
-                  <span className="text-gray-500">
-                    {orderPromo.couponCode ? `Coupon (${orderPromo.couponCode})` : 'Offers & promotions'}
-                  </span>
-                  <span className="font-medium text-violet-700">−{fmt(order.discount)}</span>
-                </div>
-              )}
+              {!orderHasBxgy &&
+                (() => {
+                  const saleSavings =
+                    orderPromo.autoPromotionDiscountMajor > 0.009
+                      ? orderPromo.autoPromotionDiscountMajor
+                      : orderPromo.couponDiscountMajor > 0.009
+                        ? Math.max(
+                            0,
+                            Number(order.discount || 0) -
+                              orderPromo.couponDiscountMajor,
+                          )
+                        : 0;
+                  const couponSavings =
+                    orderPromo.couponDiscountMajor > 0.009
+                      ? orderPromo.couponDiscountMajor
+                      : 0;
+                  const couponLabelCodes =
+                    orderPromo.couponCodes?.length > 0
+                      ? orderPromo.couponCodes.join(", ")
+                      : orderPromo.couponCode;
+                  const showSplit = saleSavings > 0.009 || couponSavings > 0.009;
+                  const showLegacyDiscount =
+                    !showSplit &&
+                    order.discount > 0 &&
+                    Number(order.subtotal) > 0.009 &&
+                    getActiveOrderItems(order).length > 0;
+
+                  return (
+                    <>
+                      {saleSavings > 0.009 &&
+                        Number(order.subtotal) > 0.009 &&
+                        getActiveOrderItems(order).length > 0 && (
+                          <div className="flex justify-between border-t border-gray-100 px-4 py-2.5 text-[13px]">
+                            <span className="text-gray-500">
+                              Sale & free-item savings
+                            </span>
+                            <span className="font-medium text-violet-700">
+                              −{fmt(saleSavings)}
+                            </span>
+                          </div>
+                        )}
+                      {couponSavings > 0.009 &&
+                        Number(order.subtotal) > 0.009 &&
+                        getActiveOrderItems(order).length > 0 && (
+                          <div className="flex justify-between border-t border-gray-100 px-4 py-2.5 text-[13px]">
+                            <span className="text-gray-500">
+                              {couponLabelCodes
+                                ? `Coupon (${couponLabelCodes})`
+                                : "Coupon"}
+                            </span>
+                            <span className="font-medium text-violet-700">
+                              −{fmt(couponSavings)}
+                            </span>
+                          </div>
+                        )}
+                      {showLegacyDiscount && (
+                        <div className="flex justify-between border-t border-gray-100 px-4 py-2.5 text-[13px]">
+                          <span className="text-gray-500">
+                            {orderPromo.couponCode
+                              ? `Coupon (${orderPromo.couponCode})`
+                              : "Offers & promotions"}
+                          </span>
+                          <span className="font-medium text-violet-700">
+                            −{fmt(order.discount)}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               <div className="flex justify-between border-t border-gray-100 px-4 py-3 text-sm font-medium text-gray-900">
                 <span>Total paid</span>
                 <span>{fmt(order.total)}</span>
@@ -969,35 +1219,53 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                 {(addr.fullName || addr.name) && (
                   <p className="m-0 font-medium">
                     {addr.fullName || addr.name}
-                    {addr.phone ? ` · ${addr.phone}` : ''}
+                    {addr.phone ? ` · ${addr.phone}` : ""}
                   </p>
                 )}
                 {(addr.street || addr.address || addr.line1) && (
-                  <p className="m-0 text-gray-500">{addr.street || addr.address || addr.line1}</p>
+                  <p className="m-0 text-gray-500">
+                    {addr.street || addr.address || addr.line1}
+                  </p>
                 )}
-                {addr.line2 && <p className="m-0 text-gray-500">{addr.line2}</p>}
+                {addr.line2 && (
+                  <p className="m-0 text-gray-500">{addr.line2}</p>
+                )}
                 {(addr.city || addr.state) && (
-                  <p className="m-0 text-gray-500">{[addr.city, addr.state].filter(Boolean).join(', ')}</p>
+                  <p className="m-0 text-gray-500">
+                    {[addr.city, addr.state].filter(Boolean).join(", ")}
+                  </p>
                 )}
                 {(addr.zipCode || addr.postalCode || addr.country) && (
                   <p className="m-0 text-gray-500">
-                    {[addr.zipCode || addr.postalCode, addr.country].filter(Boolean).join(', ')}
+                    {[addr.zipCode || addr.postalCode, addr.country]
+                      .filter(Boolean)
+                      .join(", ")}
                   </p>
                 )}
                 {addr.landmark && (
-                  <p className="mb-0 mt-1 text-[11px] text-gray-500">Near {addr.landmark}</p>
+                  <p className="mb-0 mt-1 text-[11px] text-gray-500">
+                    Near {addr.landmark}
+                  </p>
                 )}
-                {!hasAddress && <p className="m-0 italic text-gray-500">No address on file</p>}
+                {!hasAddress && (
+                  <p className="m-0 italic text-gray-500">No address on file</p>
+                )}
               </div>
               <div className="grid grid-cols-2 border-t border-gray-100">
                 <div className="border-r border-gray-100 px-4 py-3">
-                  <p className="m-0 text-[10px] uppercase tracking-wider text-gray-500">Payment</p>
+                  <p className="m-0 text-[10px] uppercase tracking-wider text-gray-500">
+                    Payment
+                  </p>
                   <p className="mb-0 mt-1 text-[13px] font-medium text-gray-900">
-                    {order.paymentMethod === 'cod' ? 'Cash on delivery' : order.paymentMethod || '—'}
+                    {order.paymentMethod === "cod"
+                      ? "Cash on delivery"
+                      : order.paymentMethod || "—"}
                   </p>
                 </div>
                 <div className="px-4 py-3">
-                  <p className="m-0 text-[10px] uppercase tracking-wider text-gray-500">Status</p>
+                  <p className="m-0 text-[10px] uppercase tracking-wider text-gray-500">
+                    Status
+                  </p>
                   <div className="mt-1">
                     <StatusPill
                       variant="payment"
@@ -1011,7 +1279,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
 
             <Section>
               <div className="flex gap-2 p-3">
-                {order.status !== 'cancelled' && (
+                {order.status !== "cancelled" && (
                   <button
                     type="button"
                     onClick={() => setBillOpen(true)}
@@ -1041,15 +1309,24 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
 
             {related.length > 0 && (
               <div className="mt-5">
-                <ProductCarousel products={related} title="You might also like" showMoreLink="/products" />
+                <ProductCarousel
+                  products={related}
+                  title="You might also like"
+                  showMoreLink="/products"
+                />
               </div>
             )}
-
           </div>
         </div>
       </div>
 
-      {showReturn && <ReturnModal order={order} onClose={() => setShowReturn(false)} onSubmit={handleReturnSubmit} />}
+      {showReturn && (
+        <ReturnModal
+          order={order}
+          onClose={() => setShowReturn(false)}
+          onSubmit={handleReturnSubmit}
+        />
+      )}
 
       <BillPreviewSheet
         isOpen={billOpen}
@@ -1057,14 +1334,14 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
         orderId={order.id}
         paymentStatus={order.paymentStatus}
         order={order}
-        shopName={shopName || 'Yaadro'}
+        shopName={shopName || "Yaadro"}
         shopImage={shopImage || null}
         onDownloadPdf={() =>
           printBillPdf({
             order,
             orderId: order.id,
             paymentStatus: order.paymentStatus,
-            shopName: shopName || 'Yaadro',
+            shopName: shopName || "Yaadro",
             shopImage: shopImage || null,
           })
         }
@@ -1073,7 +1350,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
             order,
             orderId: order.id,
             paymentStatus: order.paymentStatus,
-            shopName: shopName || 'Yaadro',
+            shopName: shopName || "Yaadro",
             shopImage: shopImage || null,
           })
         }

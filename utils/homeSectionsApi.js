@@ -34,7 +34,7 @@ function firstImageUrl(raw) {
 /**
  * Map a home-sections product into the shape ProductCard expects.
  * Uses shared pricing normalizer (list + discount/final → offerPrice).
- * Do not invent offer prices from buyQty / getQty.
+ * Do not invent offer prices or fake bundle rules from buyQty / getQty.
  */
 export function mapHomeSectionProduct(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -55,6 +55,8 @@ export function mapHomeSectionProduct(raw) {
     finalPriceMinor,
     totalDiscountMinor,
     discountPercentage,
+    offerPriceMinor,
+    promoPriceMinor,
   } = pricing;
 
   const bundleRules = Array.isArray(raw.bundleRules)
@@ -81,6 +83,8 @@ export function mapHomeSectionProduct(raw) {
     finalPriceMinor: finalPriceMinor || undefined,
     totalDiscountMinor: totalDiscountMinor || undefined,
     discountPercentage: discountPercentage || undefined,
+    offerPriceMinor: offerPriceMinor || undefined,
+    promoPriceMinor: promoPriceMinor || undefined,
     bundleRules,
     inStock: true,
     stock: 1,
@@ -100,37 +104,6 @@ function mapProductList(list) {
   return out;
 }
 
-function collectBxgyProducts(raw) {
-  return mapProductList([
-    ...asArray(raw.buyProducts ?? raw.buy_products),
-    ...asArray(raw.getProducts ?? raw.get_products),
-    ...asArray(raw.products),
-  ]);
-}
-
-function sectionBundleOffer(raw) {
-  const buy = Number(raw?.buyQty ?? raw?.buy_qty);
-  const get = Number(raw?.getQty ?? raw?.get_qty);
-  const label = String(raw?.label || '').trim();
-  const rule =
-    Number.isFinite(buy) && buy > 0 && Number.isFinite(get) && get > 0
-      ? { buy_qty: buy, get_qty: get, reward_type: 'free' }
-      : null;
-  return { rule, label };
-}
-
-function applyBxgyOffer(products, { rule, label }) {
-  if (!rule && !label) return products;
-  return products.map((product) => {
-    const hasRules = Array.isArray(product.bundleRules) && product.bundleRules.length > 0;
-    return {
-      ...product,
-      bundleRules: hasRules ? product.bundleRules : rule ? [rule] : product.bundleRules,
-      bundleLabel: product.bundleLabel || label || '',
-    };
-  });
-}
-
 export function formatEventDateRange(startsAt, endsAt) {
   const start = startsAt ? new Date(startsAt) : null;
   const end = endsAt ? new Date(endsAt) : null;
@@ -144,6 +117,19 @@ export function formatEventDateRange(startsAt, endsAt) {
   return null;
 }
 
+function isSectionInDateWindow(startsAt, endsAt) {
+  const now = Date.now();
+  if (startsAt) {
+    const t = new Date(startsAt).getTime();
+    if (Number.isFinite(t) && t > now) return false;
+  }
+  if (endsAt) {
+    const t = new Date(endsAt).getTime();
+    if (Number.isFinite(t) && t < now) return false;
+  }
+  return true;
+}
+
 export function normalizeHomeSection(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const type = String(raw.type || '').trim();
@@ -154,25 +140,52 @@ export function normalizeHomeSection(raw) {
 
   const title = String(raw.title || '').trim();
   const label = String(raw.label || '').trim();
-  const bxgyOffer = type === 'buy_x_get_y' ? sectionBundleOffer(raw) : { rule: null, label: '' };
+  const startsAt = raw.startsAt ?? raw.starts_at ?? null;
+  const endsAt = raw.endsAt ?? raw.ends_at ?? null;
+  if (!isSectionInDateWindow(startsAt, endsAt)) return null;
+
+  const buyProducts = mapProductList(raw.buyProducts ?? raw.buy_products);
+  const getProducts = mapProductList(raw.getProducts ?? raw.get_products);
   const products =
     type === 'buy_x_get_y'
-      ? applyBxgyOffer(collectBxgyProducts(raw), bxgyOffer)
+      ? buyProducts.length || getProducts.length
+        ? []
+        : mapProductList(raw.products)
       : mapProductList(raw.products);
 
-  if (type !== 'event_shelf' && products.length === 0) return null;
+  if (type === 'buy_x_get_y') {
+    if (buyProducts.length === 0 && getProducts.length === 0 && products.length === 0) {
+      return null;
+    }
+  } else if (type !== 'event_shelf' && products.length === 0) {
+    return null;
+  }
 
-  const coverImageUrl = products[0]?.imageUrl || firstImageUrl(raw) || '';
+  const coverSource =
+    products[0] || buyProducts[0] || getProducts[0] || null;
+  const coverImageUrl = coverSource?.imageUrl || firstImageUrl(raw) || '';
 
   return {
     id,
     type,
     title: title || (type === 'buy_x_get_y' ? label : '') || 'Offers',
-    subtitle: type === 'buy_x_get_y' && label && label !== title ? label : '',
+    subtitle:
+      type === 'buy_x_get_y' && label
+        ? label
+        : type === 'event_shelf'
+          ? formatEventDateRange(startsAt, endsAt) || ''
+          : '',
     sortOrder: Number(raw.sortOrder ?? raw.sort_order),
-    startsAt: raw.startsAt ?? raw.starts_at ?? null,
-    endsAt: raw.endsAt ?? raw.ends_at ?? null,
-    products,
+    startsAt,
+    endsAt,
+    products:
+      type === 'buy_x_get_y' && (buyProducts.length || getProducts.length)
+        ? []
+        : products,
+    buyProducts: type === 'buy_x_get_y' ? buyProducts : [],
+    getProducts: type === 'buy_x_get_y' ? getProducts : [],
+    buyQty: raw.buyQty ?? raw.buy_qty ?? null,
+    getQty: raw.getQty ?? raw.get_qty ?? null,
     coverImageUrl,
   };
 }

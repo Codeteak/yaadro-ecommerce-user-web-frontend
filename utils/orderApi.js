@@ -3,8 +3,8 @@
  * Uses the multi-tenant backend API
  */
 
-import { apiFetchRoot } from './apiClient';
-import { resolveShopId } from './authApi';
+import { apiFetchRoot } from "./apiClient";
+import { resolveShopId } from "./authApi";
 import {
   minorToMajor,
   parseMinorInt,
@@ -13,24 +13,26 @@ import {
   isConfirmedFreeRewardLine,
   inferOrderLinePaidQuantity,
   orderHasBxgyOffer,
-} from './orderPromotions';
+} from "./orderPromotions";
 import {
   formatWeightUnitLabel,
   parseProductUnitSize,
   resolveProductWeightAndUnit,
-} from './productUtils';
+} from "./productUtils";
 
 function firstImageUrl(value) {
-  if (value == null || value === '') return null;
+  if (value == null || value === "") return null;
   const s = String(value).trim();
   if (!s) return null;
-  if (s.includes(',')) return s.split(',')[0].trim() || null;
+  if (s.includes(",")) return s.split(",")[0].trim() || null;
   return s;
 }
 
 function resolveOrderItemImage(item = {}) {
   const nested =
-    typeof item?.image === 'object' && item?.image != null ? item.image.url : item?.image;
+    typeof item?.image === "object" && item?.image != null
+      ? item.image.url
+      : item?.image;
   return (
     firstImageUrl(item?.product_image_snapshot) ||
     firstImageUrl(item?.productImage) ||
@@ -44,22 +46,28 @@ function resolveOrderItemImage(item = {}) {
     item?.product?.images?.[0] ||
     firstImageUrl(item?.product?.imageUrl) ||
     firstImageUrl(item?.product?.image) ||
-    '/images/dummy.png'
+    "/images/dummy.png"
   );
 }
 
 function transformOrderItem(item) {
   if (!item) return null;
   const quantity = parseOrderQuantity(item.quantity);
-  const unitPriceMinor = parseMinorInt(item.unit_price_minor_snapshot ?? item.unitPriceMinorSnapshot);
+  const unitPriceMinor = parseMinorInt(
+    item.unit_price_minor_snapshot ?? item.unitPriceMinorSnapshot,
+  );
   const hasLineTotalMinor =
-    (item.line_total_minor != null && item.line_total_minor !== '') ||
-    (item.lineTotalMinor != null && item.lineTotalMinor !== '');
+    (item.line_total_minor != null && item.line_total_minor !== "") ||
+    (item.lineTotalMinor != null && item.lineTotalMinor !== "");
   const lineTotalMinor = hasLineTotalMinor
     ? parseMinorInt(item.line_total_minor ?? item.lineTotalMinor)
     : null;
-  const listPriceMinor = parseMinorInt(item.list_price_minor ?? item.listPriceMinor);
-  const lineDiscountMinor = parseMinorInt(item.line_discount_minor ?? item.lineDiscountMinor);
+  const listPriceMinor = parseMinorInt(
+    item.list_price_minor ?? item.listPriceMinor,
+  );
+  const lineDiscountMinor = parseMinorInt(
+    item.line_discount_minor ?? item.lineDiscountMinor,
+  );
   const appliedPromotionIds = Array.isArray(item.applied_promotion_ids)
     ? item.applied_promotion_ids
     : Array.isArray(item.appliedPromotionIds)
@@ -70,18 +78,23 @@ function transformOrderItem(item) {
     item.productName ||
     item.product_name ||
     item.name ||
-    'Product';
+    "Product";
   const unitPriceRaw =
     unitPriceMinor > 0
       ? minorToMajor(unitPriceMinor)
       : parseFloat(item.unitPrice || item.unit_price || 0) || 0;
   const listPrice = listPriceMinor > 0 ? minorToMajor(listPriceMinor) : null;
   // When API zeroes unit but leaves list (common after picker / BXGY wipe), use list as catalog.
-  const unitPrice = unitPriceRaw > 0 ? unitPriceRaw : listPrice != null && listPrice > 0 ? listPrice : 0;
+  const unitPrice =
+    unitPriceRaw > 0
+      ? unitPriceRaw
+      : listPrice != null && listPrice > 0
+        ? listPrice
+        : 0;
 
   const hasTotalPriceMajor =
-    (item.totalPrice != null && item.totalPrice !== '') ||
-    (item.total_price != null && item.total_price !== '');
+    (item.totalPrice != null && item.totalPrice !== "") ||
+    (item.total_price != null && item.total_price !== "");
 
   let totalPrice;
   let lineTotalExplicitZero = false;
@@ -107,7 +120,7 @@ function transformOrderItem(item) {
       item.requestedQuantity ??
       item.requested_quantity ??
       null;
-    if (raw == null || raw === '') return null;
+    if (raw == null || raw === "") return null;
     const n = parseFloat(String(raw));
     return Number.isFinite(n) && n > 0 ? n : null;
   })();
@@ -127,7 +140,8 @@ function transformOrderItem(item) {
     totalPrice,
     lineDiscount: lineDiscountMajor,
     lineDiscountMinor,
-    lineTotalExplicitZero: lineTotalExplicitZero || (totalPrice === 0 && catalogPrice > 0),
+    lineTotalExplicitZero:
+      lineTotalExplicitZero || (totalPrice === 0 && catalogPrice > 0),
     isConfirmedFreeReward,
   });
 
@@ -195,7 +209,7 @@ function transformOrderItem(item) {
     productSlug: item.product_slug ?? item.productSlug,
     productName,
     productSku: item.productSku ?? item.product_sku,
-    unitLabel: item.unit_label_snapshot ?? item.unitLabel ?? unit ?? '',
+    unitLabel: item.unit_label_snapshot ?? item.unitLabel ?? unit ?? "",
     unitSize,
     weight,
     unit,
@@ -223,12 +237,18 @@ function transformOrderItem(item) {
 }
 
 function lineDedupeKey(raw) {
-  if (!raw || typeof raw !== 'object') return '';
-  if (raw.id != null && String(raw.id).trim()) return `id:${String(raw.id).trim()}`;
+  if (!raw || typeof raw !== "object") return "";
+  if (raw.id != null && String(raw.id).trim())
+    return `id:${String(raw.id).trim()}`;
   const pid = raw.product_id ?? raw.productId;
   if (pid != null && String(pid).trim()) return `pid:${String(pid).trim()}`;
-  const name = raw.product_name_snapshot || raw.productName || raw.product_name || raw.name || '';
-  return name ? `name:${String(name).trim().toLowerCase()}` : '';
+  const name =
+    raw.product_name_snapshot ||
+    raw.productName ||
+    raw.product_name ||
+    raw.name ||
+    "";
+  return name ? `name:${String(name).trim().toLowerCase()}` : "";
 }
 
 /**
@@ -238,8 +258,12 @@ function collectRawOrderItems(apiOrder, extraItems = []) {
   const primary = Array.isArray(apiOrder?.items) ? apiOrder.items : [];
   const siblings = [
     ...(Array.isArray(extraItems) ? extraItems : []),
-    ...(Array.isArray(apiOrder?.unavailable_items) ? apiOrder.unavailable_items : []),
-    ...(Array.isArray(apiOrder?.unavailableItems) ? apiOrder.unavailableItems : []),
+    ...(Array.isArray(apiOrder?.unavailable_items)
+      ? apiOrder.unavailable_items
+      : []),
+    ...(Array.isArray(apiOrder?.unavailableItems)
+      ? apiOrder.unavailableItems
+      : []),
     ...(Array.isArray(apiOrder?.removed_items) ? apiOrder.removed_items : []),
     ...(Array.isArray(apiOrder?.removedItems) ? apiOrder.removedItems : []),
     ...(Array.isArray(apiOrder?.rejected_items) ? apiOrder.rejected_items : []),
@@ -250,7 +274,7 @@ function collectRawOrderItems(apiOrder, extraItems = []) {
   const out = [...primary];
 
   for (const raw of siblings) {
-    if (!raw || typeof raw !== 'object') continue;
+    if (!raw || typeof raw !== "object") continue;
     const key = lineDedupeKey(raw);
     const forced = { ...raw, is_deleted: true, unavailable: true };
     if (key && primaryKeys.has(key)) {
@@ -268,7 +292,9 @@ function collectRawOrderItems(apiOrder, extraItems = []) {
 }
 
 function mapOrderItems(apiOrder, extraItems = []) {
-  return collectRawOrderItems(apiOrder, extraItems).map(transformOrderItem).filter(Boolean);
+  return collectRawOrderItems(apiOrder, extraItems)
+    .map(transformOrderItem)
+    .filter(Boolean);
 }
 
 /**
@@ -286,7 +312,10 @@ function markUnavailableExcludedFromSubtotal(items, subtotalMajor) {
   // picker removing a subset of lines — don't invent UNAVAILABLE from the gap.
   if (!(subtotal > 0.009)) return items;
 
-  const sumAll = items.reduce((acc, it) => acc + (Number(it.totalPrice) || 0), 0);
+  const sumAll = items.reduce(
+    (acc, it) => acc + (Number(it.totalPrice) || 0),
+    0,
+  );
   if (Math.abs(sumAll - subtotal) < 0.02) return items;
 
   const gap = sumAll - subtotal;
@@ -298,7 +327,7 @@ function markUnavailableExcludedFromSubtotal(items, subtotalMajor) {
       !it.isConfirmedFreeReward &&
       Number(it.quantity) > 0 &&
       Number(it.unitPrice || it.price || 0) > 0 &&
-      Number(it.totalPrice) > 0.009
+      Number(it.totalPrice) > 0.009,
   );
   if (!candidates.length) return items;
 
@@ -367,7 +396,10 @@ function markZeroOfferLinesUnavailableAfterPicker(items, _orderStatus) {
 }
 
 function applyUnavailableLinePasses(items, subtotalMajor, orderStatus) {
-  const afterSubtotal = markUnavailableExcludedFromSubtotal(items, subtotalMajor);
+  const afterSubtotal = markUnavailableExcludedFromSubtotal(
+    items,
+    subtotalMajor,
+  );
   return markZeroOfferLinesUnavailableAfterPicker(afterSubtotal, orderStatus);
 }
 
@@ -385,109 +417,117 @@ const FULFILLMENT_RANK = {
  * e.g. backend "accepted" / "ACKNOWLEDGED" should not fall through to pending styling.
  */
 export function normalizeFulfillmentStatus(raw) {
-  const s = String(raw || '')
+  const s = String(raw || "")
     .trim()
     .toLowerCase()
-    .replace(/[\s-]+/g, '_');
-  if (!s) return 'pending';
+    .replace(/[\s-]+/g, "_");
+  if (!s) return "pending";
 
   const direct = {
-    pending: 'pending',
-    placed: 'pending',
-    new: 'pending',
-    created: 'pending',
-    open: 'pending',
-    accepted: 'confirmed',
-    accept: 'confirmed',
-    approved: 'confirmed',
-    acknowledged: 'confirmed',
-    acknowledgement: 'confirmed',
-    order_confirmed: 'confirmed',
-    confirmed: 'confirmed',
-    confirm: 'confirmed',
-    assigned: 'confirmed',
-    assigned_to_picker: 'confirmed',
-    picker_assigned: 'confirmed',
-    ready_for_picker: 'confirmed',
-    processing: 'processing',
-    in_progress: 'processing',
-    inprogress: 'processing',
-    packing: 'processing',
-    preparing: 'processing',
-    packed: 'processing',
-    picking: 'processing',
-    picker: 'processing',
-    in_picking: 'processing',
-    pick_in_progress: 'processing',
-    allocated: 'processing',
-    ready_to_pack: 'processing',
-    ready: 'processing',
-    item_ready: 'processing',
-    items_ready: 'processing',
-    picked: 'processing',
-    partially_picked: 'processing',
-    partial: 'processing',
-    partial_pick: 'processing',
-    picking_complete: 'processing',
-    pick_complete: 'processing',
-    ready_for_dispatch: 'processing',
-    shipped: 'shipped',
-    ship: 'shipped',
-    dispatched: 'shipped',
-    out_for_delivery: 'shipped',
-    outfordelivery: 'shipped',
-    delivering: 'shipped',
-    in_transit: 'shipped',
-    intransit: 'shipped',
-    delivered: 'delivered',
-    delivery: 'delivered',
-    completed: 'delivered',
-    complete: 'delivered',
-    cancelled: 'cancelled',
-    canceled: 'cancelled',
-    rejected: 'cancelled',
-    reject: 'cancelled',
-    declined: 'cancelled',
-    shop_rejected: 'cancelled',
-    rejected_by_shop: 'cancelled',
-    rejected_by_admin: 'cancelled',
-    refused: 'cancelled',
+    pending: "pending",
+    placed: "pending",
+    new: "pending",
+    created: "pending",
+    open: "pending",
+    accepted: "confirmed",
+    accept: "confirmed",
+    approved: "confirmed",
+    acknowledged: "confirmed",
+    acknowledgement: "confirmed",
+    order_confirmed: "confirmed",
+    confirmed: "confirmed",
+    confirm: "confirmed",
+    assigned: "confirmed",
+    assigned_to_picker: "confirmed",
+    picker_assigned: "confirmed",
+    ready_for_picker: "confirmed",
+    processing: "processing",
+    in_progress: "processing",
+    inprogress: "processing",
+    packing: "processing",
+    preparing: "processing",
+    packed: "processing",
+    picking: "processing",
+    picker: "processing",
+    in_picking: "processing",
+    pick_in_progress: "processing",
+    allocated: "processing",
+    ready_to_pack: "processing",
+    ready: "processing",
+    item_ready: "processing",
+    items_ready: "processing",
+    picked: "processing",
+    partially_picked: "processing",
+    partial: "processing",
+    partial_pick: "processing",
+    picking_complete: "processing",
+    pick_complete: "processing",
+    ready_for_dispatch: "processing",
+    shipped: "shipped",
+    ship: "shipped",
+    dispatched: "shipped",
+    out_for_delivery: "shipped",
+    outfordelivery: "shipped",
+    delivering: "shipped",
+    in_transit: "shipped",
+    intransit: "shipped",
+    delivered: "delivered",
+    delivery: "delivered",
+    completed: "delivered",
+    complete: "delivered",
+    cancelled: "cancelled",
+    canceled: "cancelled",
+    rejected: "cancelled",
+    reject: "cancelled",
+    declined: "cancelled",
+    shop_rejected: "cancelled",
+    rejected_by_shop: "cancelled",
+    rejected_by_admin: "cancelled",
+    refused: "cancelled",
   };
   if (direct[s]) return direct[s];
-  if (s.includes('cancel')) return 'cancelled';
-  if (s.includes('reject') || s.includes('declin') || s.includes('refus')) return 'cancelled';
-  if (s.includes('deliver') && (s.includes('ed') || s.endsWith('ed'))) return 'delivered';
-  if (s.includes('deliver') || s.includes('ship') || s.includes('dispatch') || s.includes('transit')) return 'shipped';
+  if (s.includes("cancel")) return "cancelled";
+  if (s.includes("reject") || s.includes("declin") || s.includes("refus"))
+    return "cancelled";
+  if (s.includes("deliver") && (s.includes("ed") || s.endsWith("ed")))
+    return "delivered";
   if (
-    s.includes('process') ||
-    s.includes('pack') ||
-    s.includes('pick') ||
-    s.includes('allocat') ||
-    s.includes('ready')
+    s.includes("deliver") ||
+    s.includes("ship") ||
+    s.includes("dispatch") ||
+    s.includes("transit")
+  )
+    return "shipped";
+  if (
+    s.includes("process") ||
+    s.includes("pack") ||
+    s.includes("pick") ||
+    s.includes("allocat") ||
+    s.includes("ready")
   ) {
-    return 'processing';
+    return "processing";
   }
   if (
-    s.includes('accept') ||
-    s.includes('confirm') ||
-    s.includes('approv') ||
-    s.includes('assign')
+    s.includes("accept") ||
+    s.includes("confirm") ||
+    s.includes("approv") ||
+    s.includes("assign")
   ) {
-    return 'confirmed';
+    return "confirmed";
   }
-  return 'pending';
+  return "pending";
 }
 
 /** Prefer the furthest fulfillment stage when APIs split status across fields. */
 export function pickFurthestFulfillmentStatus(rawCandidates) {
   const list = Array.isArray(rawCandidates) ? rawCandidates : [rawCandidates];
-  let best = 'pending';
+  let best = "pending";
   let bestRank = FULFILLMENT_RANK.pending;
   for (const raw of list) {
-    if (raw == null || raw === '') continue;
+    if (raw == null || raw === "") continue;
     const normalized = normalizeFulfillmentStatus(raw);
     const rank = FULFILLMENT_RANK[normalized] ?? 0;
-    if (normalized === 'cancelled') return 'cancelled';
+    if (normalized === "cancelled") return "cancelled";
     if (rank > bestRank) {
       best = normalized;
       bestRank = rank;
@@ -500,7 +540,7 @@ export function pickFurthestFulfillmentStatus(rawCandidates) {
  * Normalize delivery address from common storefront / snapshot field shapes.
  */
 function normalizeDeliveryAddress(apiOrder) {
-  if (!apiOrder || typeof apiOrder !== 'object') return {};
+  if (!apiOrder || typeof apiOrder !== "object") return {};
 
   const candidates = [
     apiOrder.deliveryAddress,
@@ -519,11 +559,16 @@ function normalizeDeliveryAddress(apiOrder) {
 
   let raw = null;
   for (const c of candidates) {
-    if (c && typeof c === 'object' && !Array.isArray(c) && Object.keys(c).length) {
+    if (
+      c &&
+      typeof c === "object" &&
+      !Array.isArray(c) &&
+      Object.keys(c).length
+    ) {
       raw = c;
       break;
     }
-    if (typeof c === 'string' && c.trim()) {
+    if (typeof c === "string" && c.trim()) {
       return { street: c.trim(), address: c.trim() };
     }
   }
@@ -531,46 +576,64 @@ function normalizeDeliveryAddress(apiOrder) {
   const pick = (...keys) => {
     for (const k of keys) {
       const v = raw?.[k] ?? apiOrder?.[k];
-      if (v != null && String(v).trim() !== '') return String(v).trim();
+      if (v != null && String(v).trim() !== "") return String(v).trim();
     }
-    return '';
+    return "";
   };
 
   const street =
     pick(
-      'street',
-      'address',
-      'line1',
-      'address_line1',
-      'addressLine1',
-      'address_line_1',
-      'full_address',
-      'fullAddress'
-    ) || '';
-  const line2 = pick('line2', 'address_line2', 'addressLine2', 'address_line_2');
-  const fullName = pick('fullName', 'full_name', 'name', 'recipient_name', 'recipientName');
-  const city = pick('city', 'town', 'district');
-  const state = pick('state', 'province', 'region');
-  const zipCode = pick('zipCode', 'postalCode', 'postal_code', 'zip', 'pincode', 'pin_code');
-  const country = pick('country');
-  const phone = pick('phone', 'mobile', 'contact_phone', 'contactPhone');
+      "street",
+      "address",
+      "line1",
+      "address_line1",
+      "addressLine1",
+      "address_line_1",
+      "full_address",
+      "fullAddress",
+    ) || "";
+  const line2 = pick(
+    "line2",
+    "address_line2",
+    "addressLine2",
+    "address_line_2",
+  );
+  const fullName = pick(
+    "fullName",
+    "full_name",
+    "name",
+    "recipient_name",
+    "recipientName",
+  );
+  const city = pick("city", "town", "district");
+  const state = pick("state", "province", "region");
+  const zipCode = pick(
+    "zipCode",
+    "postalCode",
+    "postal_code",
+    "zip",
+    "pincode",
+    "pin_code",
+  );
+  const country = pick("country");
+  const phone = pick("phone", "mobile", "contact_phone", "contactPhone");
 
   if (!street && !fullName && !city && !phone && !raw) return {};
 
   return {
-    ...(raw && typeof raw === 'object' ? raw : {}),
-    fullName: fullName || raw?.fullName || raw?.name || '',
-    name: fullName || raw?.name || raw?.fullName || '',
-    street: street || raw?.street || '',
+    ...(raw && typeof raw === "object" ? raw : {}),
+    fullName: fullName || raw?.fullName || raw?.name || "",
+    name: fullName || raw?.name || raw?.fullName || "",
+    street: street || raw?.street || "",
     address: street || raw?.address || street,
-    line1: street || raw?.line1 || '',
-    line2: line2 || raw?.line2 || '',
-    city: city || raw?.city || '',
-    state: state || raw?.state || '',
-    zipCode: zipCode || raw?.zipCode || raw?.postalCode || '',
-    postalCode: zipCode || raw?.postalCode || raw?.zipCode || '',
-    country: country || raw?.country || '',
-    phone: phone || raw?.phone || '',
+    line1: street || raw?.line1 || "",
+    line2: line2 || raw?.line2 || "",
+    city: city || raw?.city || "",
+    state: state || raw?.state || "",
+    zipCode: zipCode || raw?.zipCode || raw?.postalCode || "",
+    postalCode: zipCode || raw?.postalCode || raw?.zipCode || "",
+    country: country || raw?.country || "",
+    phone: phone || raw?.phone || "",
   };
 }
 
@@ -588,10 +651,12 @@ function transformOrder(apiOrder) {
     apiOrder.fulfillmentStatus,
     apiOrder.state,
   ]);
-  const methodRaw = apiOrder.paymentMethod || apiOrder.payment_method || 'cod';
-  const paymentStatusRaw = apiOrder.paymentStatus || apiOrder.payment_status || '';
+  const methodRaw = apiOrder.paymentMethod || apiOrder.payment_method || "cod";
+  const paymentStatusRaw =
+    apiOrder.paymentStatus || apiOrder.payment_status || "";
   const promotionDiscountMinor = parseMinorInt(
-    apiOrder.promotion_discount_total_minor ?? apiOrder.promotionDiscountTotalMinor
+    apiOrder.promotion_discount_total_minor ??
+      apiOrder.promotionDiscountTotalMinor,
   );
   const couponCode =
     apiOrder.coupon_code_normalized ??
@@ -603,6 +668,24 @@ function transformOrder(apiOrder) {
     : Array.isArray(apiOrder.appliedPromotionIds)
       ? apiOrder.appliedPromotionIds
       : [];
+  const couponDiscountMinor = parseMinorInt(
+    apiOrder.coupon_discount_minor ?? apiOrder.couponDiscountMinor,
+  );
+  const autoPromotionDiscountMinor = parseMinorInt(
+    apiOrder.auto_promotion_discount_minor ??
+      apiOrder.autoPromotionDiscountMinor,
+  );
+  const couponCodesRaw =
+    apiOrder.coupon_codes_normalized ?? apiOrder.couponCodesNormalized ?? null;
+  const couponCodes = Array.isArray(couponCodesRaw)
+    ? couponCodesRaw
+        .map((c) =>
+          String(c || "")
+            .trim()
+            .toUpperCase(),
+        )
+        .filter(Boolean)
+    : [];
   const mappedItems = mapOrderItems(apiOrder);
   const promotionDiscountMajor = minorToMajor(promotionDiscountMinor);
   let subtotal =
@@ -651,11 +734,17 @@ function transformOrder(apiOrder) {
       : parseFloat(apiOrder.discount || 0);
   let resolvedPromoMinor = promotionDiscountMinor;
   let resolvedPromoMajor = promotionDiscountMajor;
+  let resolvedCouponDiscountMinor = couponDiscountMinor;
+  let resolvedAutoPromoMinor = autoPromotionDiscountMinor;
+  let resolvedCouponCodes = couponCodes;
   if (hasBxgy) {
     resolvedCouponCode = null;
     resolvedDiscount = 0;
     resolvedPromoMinor = 0;
     resolvedPromoMajor = 0;
+    resolvedCouponDiscountMinor = 0;
+    resolvedAutoPromoMinor = 0;
+    resolvedCouponCodes = [];
   }
 
   if (hasBxgy && activeSum > 0.009) {
@@ -676,29 +765,38 @@ function transformOrder(apiOrder) {
   return {
     id: apiOrder.id,
     // Storefront fields (snake_case)
-    orderNumber: apiOrder.orderNumber || apiOrder.order_number || '',
+    orderNumber: apiOrder.orderNumber || apiOrder.order_number || "",
     status,
     paymentMethod: methodRaw,
     paymentStatus: (() => {
       if (paymentStatusRaw) return String(paymentStatusRaw).trim();
-      const m = String(methodRaw || '').toLowerCase();
-      if (m === 'cod' || m === 'cash_on_delivery') return 'cod';
-      return 'pending';
+      const m = String(methodRaw || "").toLowerCase();
+      if (m === "cod" || m === "cash_on_delivery") return "cod";
+      return "pending";
     })(),
     paymentId: apiOrder.paymentId || null,
     subtotal,
     tax: parseFloat(apiOrder.tax || 0),
     shipping:
-      apiOrder.delivery_fee_minor != null ? minorToMajor(apiOrder.delivery_fee_minor) : parseFloat(apiOrder.shipping || 0),
+      apiOrder.delivery_fee_minor != null
+        ? minorToMajor(apiOrder.delivery_fee_minor)
+        : parseFloat(apiOrder.shipping || 0),
     discount: resolvedDiscount,
     total,
     promotionDiscountMinor: resolvedPromoMinor,
     promotionDiscountMajor: resolvedPromoMajor,
+    couponDiscountMinor: resolvedCouponDiscountMinor,
+    couponDiscountMajor: minorToMajor(resolvedCouponDiscountMinor),
+    autoPromotionDiscountMinor: resolvedAutoPromoMinor,
+    autoPromotionDiscountMajor: minorToMajor(resolvedAutoPromoMinor),
     couponCode: resolvedCouponCode,
+    couponCodes: resolvedCouponCodes,
     appliedPromotionIds,
     deliveryTrackingUrl:
-      (typeof apiOrder.deliveryTrackingUrl === 'string' && apiOrder.deliveryTrackingUrl.trim()) ||
-      (typeof apiOrder.delivery_tracking_url === 'string' && apiOrder.delivery_tracking_url.trim()) ||
+      (typeof apiOrder.deliveryTrackingUrl === "string" &&
+        apiOrder.deliveryTrackingUrl.trim()) ||
+      (typeof apiOrder.delivery_tracking_url === "string" &&
+        apiOrder.delivery_tracking_url.trim()) ||
       null,
     yadroOrderId:
       apiOrder.yadroOrderId != null
@@ -726,7 +824,7 @@ function transformOrder(apiOrder) {
         apiOrder.rejection_reason ||
         apiOrder.cancel_reason ||
         apiOrder.cancelReason ||
-        '';
+        "";
       const text = String(raw).trim();
       return text || null;
     })(),
@@ -744,7 +842,7 @@ function transformOrder(apiOrder) {
       apiOrder.rejection_reason,
       apiOrder.cancel_reason,
       apiOrder.cancelReason,
-    ].some((v) => /reject/i.test(String(v || ''))),
+    ].some((v) => /reject/i.test(String(v || ""))),
     deliveredAt: apiOrder.deliveredAt || apiOrder.delivered_at || null,
     shippedAt:
       apiOrder.shippedAt ||
@@ -760,11 +858,12 @@ function transformOrder(apiOrder) {
           apiOrder.items_count ??
           apiOrder.total_items ??
           apiOrder.totalItems ??
-          items.length
+          items.length,
       ) || items.length,
     items,
-    createdAt: apiOrder.createdAt || apiOrder.created_at || apiOrder.placed_at || '',
-    updatedAt: apiOrder.updatedAt || apiOrder.updated_at || '',
+    createdAt:
+      apiOrder.createdAt || apiOrder.created_at || apiOrder.placed_at || "",
+    updatedAt: apiOrder.updatedAt || apiOrder.updated_at || "",
     // Storefront API doesn't expose cancel/modify endpoints in current docs
     canCancel: false,
     canModify: false,
@@ -777,7 +876,9 @@ function transformOrder(apiOrder) {
  * @returns {Promise<{order: object, payment: object}>}
  */
 export async function createOrder(orderData) {
-  throw new Error('createOrder is not supported. Use POST /storefront/checkout instead.');
+  throw new Error(
+    "createOrder is not supported. Use POST /storefront/checkout instead.",
+  );
 }
 
 /**
@@ -787,7 +888,9 @@ export async function createOrder(orderData) {
  * @returns {Promise<object>}
  */
 export async function verifyPayment(orderId, paymentData) {
-  throw new Error('Payment verification is not supported by this storefront API.');
+  throw new Error(
+    "Payment verification is not supported by this storefront API.",
+  );
 }
 
 /**
@@ -798,19 +901,27 @@ export async function verifyPayment(orderId, paymentData) {
 export async function listOrders(params = {}) {
   try {
     const shopId = await resolveShopId();
-    if (!shopId) throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/orders).');
+    if (!shopId)
+      throw new Error(
+        "Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/orders).",
+      );
 
-    const limit = Math.min(100, Math.max(1, Math.floor(Number(params.limit ?? params.per_page) || 50)));
+    const limit = Math.min(
+      100,
+      Math.max(1, Math.floor(Number(params.limit ?? params.per_page) || 50)),
+    );
 
-    const response = await apiFetchRoot('/storefront/orders', {
-      method: 'GET',
-      headers: { 'x-shop-id': shopId },
+    const response = await apiFetchRoot("/storefront/orders", {
+      method: "GET",
+      headers: { "x-shop-id": shopId },
       omitTenantHeader: true,
-      cache: 'no-store',
+      cache: "no-store",
       query: { limit },
     });
 
-    const orders = (response?.orders || []).map((o) => transformOrder(o)).filter(Boolean);
+    const orders = (response?.orders || [])
+      .map((o) => transformOrder(o))
+      .filter(Boolean);
 
     return {
       orders,
@@ -822,7 +933,7 @@ export async function listOrders(params = {}) {
       },
     };
   } catch (error) {
-    console.error('Error listing orders:', error);
+    console.error("Error listing orders:", error);
     throw error;
   }
 }
@@ -835,23 +946,35 @@ export async function listOrders(params = {}) {
 export async function getOrder(orderId) {
   try {
     const shopId = await resolveShopId();
-    if (!shopId) throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/orders/:id).');
+    if (!shopId)
+      throw new Error(
+        "Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/orders/:id).",
+      );
 
-    const response = await apiFetchRoot(`/storefront/orders/${encodeURIComponent(orderId)}`, {
-      method: 'GET',
-      headers: { 'x-shop-id': shopId },
-      omitTenantHeader: true,
-      cache: 'no-store',
-    });
+    const response = await apiFetchRoot(
+      `/storefront/orders/${encodeURIComponent(orderId)}`,
+      {
+        method: "GET",
+        headers: { "x-shop-id": shopId },
+        omitTenantHeader: true,
+        cache: "no-store",
+      },
+    );
 
     const apiOrder = response?.order || null;
     const topLevelItems = Array.isArray(response?.items) ? response.items : [];
     const topLevelUnavailable = [
-      ...(Array.isArray(response?.unavailable_items) ? response.unavailable_items : []),
-      ...(Array.isArray(response?.unavailableItems) ? response.unavailableItems : []),
+      ...(Array.isArray(response?.unavailable_items)
+        ? response.unavailable_items
+        : []),
+      ...(Array.isArray(response?.unavailableItems)
+        ? response.unavailableItems
+        : []),
       ...(Array.isArray(response?.removed_items) ? response.removed_items : []),
       ...(Array.isArray(response?.removedItems) ? response.removedItems : []),
-      ...(Array.isArray(response?.rejected_items) ? response.rejected_items : []),
+      ...(Array.isArray(response?.rejected_items)
+        ? response.rejected_items
+        : []),
       ...(Array.isArray(response?.rejectedItems) ? response.rejectedItems : []),
     ];
     const mergedSource = apiOrder
@@ -865,14 +988,14 @@ export async function getOrder(orderId) {
       const remapped = applyUnavailableLinePasses(
         mapOrderItems(mergedSource || {}, topLevelUnavailable),
         order.subtotal,
-        order.status
+        order.status,
       );
       order.items = remapped;
       order.itemCount = remapped.length;
     }
     return order;
   } catch (error) {
-    console.error('Error getting order:', error);
+    console.error("Error getting order:", error);
     throw error;
   }
 }
@@ -884,7 +1007,7 @@ export async function getOrder(orderId) {
  * @returns {Promise<object>}
  */
 export async function cancelOrder(orderId, reason) {
-  throw new Error('Cancel order is not supported by this storefront API.');
+  throw new Error("Cancel order is not supported by this storefront API.");
 }
 
 /**
@@ -894,5 +1017,5 @@ export async function cancelOrder(orderId, reason) {
  * @returns {Promise<{order: object, payment: object}>}
  */
 export async function retryPayment(orderId, paymentMethod = null) {
-  throw new Error('Retry payment is not supported by this storefront API.');
+  throw new Error("Retry payment is not supported by this storefront API.");
 }
