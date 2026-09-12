@@ -170,6 +170,54 @@ export function getOrderLineOfferLabel(item) {
 }
 
 /**
+ * True when the order has Buy X Get Y / free-reward lines (coupons must not show as applied).
+ */
+export function orderHasBxgyOffer(items) {
+  const list = Array.isArray(items) ? items : [];
+  for (const it of list) {
+    if (!it || it.isDeleted === true) continue;
+    if (it.isConfirmedFreeReward === true || isConfirmedFreeRewardLine(it)) return true;
+    const paid = inferOrderLinePaidQuantity(it);
+    const displayQty = parseOrderQuantity(it.quantity);
+    if (paid > 0 && displayQty > paid) return true;
+    const label = getOrderLineOfferLabel(it);
+    if (label === 'BOGO' || label === 'FREE') return true;
+  }
+  return false;
+}
+
+/**
+ * Display savings for a line. BXGY/BOGO uses product price × free qty — never
+ * raw `lineDiscount` (that field often includes leftover coupon / list stacking).
+ */
+export function getOrderLineOfferSavingsMajor(item) {
+  if (!item || item.isDeleted === true) return 0;
+  const paid = inferOrderLinePaidQuantity(item);
+  const displayQty = parseOrderQuantity(item.quantity);
+  const freeReward = item.isConfirmedFreeReward === true || isConfirmedFreeRewardLine(item);
+  const unit = Number(item.unitPrice ?? item.price ?? item.listPrice ?? 0);
+  if (!Number.isFinite(unit) || unit <= 0) return 0;
+
+  // Savings live on the paid/mixed row (unit × free). Do not also count a
+  // separate FREE sibling — that would double the BOGO amount.
+  if (paid > 0 && displayQty > paid) {
+    return unit * (displayQty - paid);
+  }
+  if (freeReward && !(paid > 0)) {
+    return 0;
+  }
+
+  const lineDisc =
+    item.lineDiscount != null
+      ? Number(item.lineDiscount)
+      : minorToMajor(parseMinorInt(item.line_discount_minor ?? item.lineDiscountMinor));
+  if (Number.isFinite(lineDisc) && lineDisc > 0.009 && Number(item.totalPrice) > 0.009) {
+    return lineDisc;
+  }
+  return 0;
+}
+
+/**
  * Whether a line was marked unavailable / removed by the shop or picker.
  * Accepts raw API items or transformed order items.
  *
@@ -297,79 +345,9 @@ export function isOrderLineUnavailable(item, opts = {}) {
     return true;
   }
 
-  const confirmedFree =
-    opts.isConfirmedFreeReward === true || isConfirmedFreeRewardLine(item);
-
-  const unitMinor =
-    opts.unitPriceMinor != null
-      ? Number(opts.unitPriceMinor)
-      : parseMinorInt(
-          item.unit_price_minor_snapshot ?? item.unitPriceMinorSnapshot ?? item.unitPriceMinor
-        );
-  const unitMajor =
-    opts.unitPrice != null
-      ? Number(opts.unitPrice)
-      : unitMinor > 0
-        ? minorToMajor(unitMinor)
-        : parseFloat(item.unitPrice ?? item.unit_price ?? item.price ?? 0) || 0;
-
-  // Picker / promo wipe often zeroes unit_price + line_total but leaves list_price
-  // (UI then shows ₹0 with struck list — must still count as unavailable).
-  const listMinor =
-    opts.listPriceMinor != null
-      ? Number(opts.listPriceMinor)
-      : parseMinorInt(item.list_price_minor ?? item.listPriceMinor);
-  const listMajor =
-    opts.listPrice != null
-      ? Number(opts.listPrice)
-      : listMinor > 0
-        ? minorToMajor(listMinor)
-        : parseFloat(item.listPrice ?? item.list_price ?? 0) || 0;
-  const catalogMajor = Math.max(unitMajor > 0 ? unitMajor : 0, listMajor > 0 ? listMajor : 0);
-
-  const lineDiscountMinor = parseMinorInt(
-    opts.lineDiscountMinor != null
-      ? opts.lineDiscountMinor
-      : item.line_discount_minor ?? item.lineDiscountMinor ?? item.lineDiscount
-  );
-  // lineDiscount on transformed items is already major; avoid double-scaling when raw minor missing
-  const lineDiscountMajor =
-    opts.lineDiscount != null
-      ? Number(opts.lineDiscount)
-      : item.lineDiscount != null && item.line_discount_minor == null && item.lineDiscountMinor == null
-        ? Number(item.lineDiscount) || 0
-        : minorToMajor(lineDiscountMinor);
-
-  const explicitZeroLine =
-    opts.lineTotalExplicitZero === true ||
-    (opts.lineTotalMinor != null && Number(opts.lineTotalMinor) === 0) ||
-    (opts.totalPrice != null && Number(opts.totalPrice) === 0);
-
-  // Picker-zeroed / fully wiped lines: catalog price present but payable total wiped.
-  // Confirmed free rewards stay available at ₹0; bare promo ids do NOT shield this.
-  if (
-    !confirmedFree &&
-    Number.isFinite(currentQty) &&
-    currentQty > 0 &&
-    catalogMajor > 0 &&
-    explicitZeroLine
-  ) {
-    return true;
-  }
-
-  // Full discount covering catalog×qty with ₹0 payable (common BXGY/picker wipe shape).
-  if (
-    !confirmedFree &&
-    Number.isFinite(currentQty) &&
-    currentQty > 0 &&
-    catalogMajor > 0 &&
-    Number(opts.totalPrice ?? item.totalPrice ?? 0) < 0.009 &&
-    lineDiscountMajor > 0 &&
-    lineDiscountMajor + 0.02 >= catalogMajor * currentQty
-  ) {
-    return true;
-  }
-
+  // Catalog-present + ₹0 payable alone is NOT unavailable — that shape is common
+  // for BXGY / full promo discounts and was falsely labeled UNAVAILABLE before any
+  // picker/admin action. Hard signals above remain authoritative.
   return false;
 }
 

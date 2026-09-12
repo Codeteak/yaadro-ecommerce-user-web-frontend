@@ -133,6 +133,10 @@ function ProductsListingPanelInner({
       search: combined || undefined,
       availability: filters.inStock ? 'in_stock' : undefined,
     };
+    // Root rail categories (e.g. Dairy) must include children like Ghee.
+    if (categoryId) {
+      q.include_descendants = true;
+    }
     if (sortKey === 'price-asc') {
       q.sort_by = 'price';
       q.sort_order = 'asc';

@@ -27,6 +27,7 @@ import { useLoginNavigation } from '../../hooks/useLoginNavigation';
 import CheckoutCouponsSection from '../../components/CheckoutCouponsSection';
 import { getCartBottomBarPricing } from '../../utils/cartSavings';
 import {
+  BXGY_COUPON_BLOCKED_MESSAGE,
   sumCartPaidUnits,
   isBundleRewardCartLine,
 } from '../../utils/cartPromotions';
@@ -360,7 +361,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const { cartItems, cartTotal, clearCart, removeFromCart, selectedCouponCode, setSelectedCouponCode, hasHydratedLocalCart, loading: cartQueryLoading, cartData, cartQueryFetching, couponPreviewTrusted } = useCart();
+  const { cartItems, cartTotal, clearCart, removeFromCart, selectedCouponCode, setSelectedCouponCode, bxgyBlocksCoupons, hasHydratedLocalCart, loading: cartQueryLoading, cartData, cartQueryFetching, couponPreviewTrusted } = useCart();
   const {
     addresses,
     getDefaultAddress,
@@ -616,7 +617,9 @@ export default function CheckoutPage() {
       }
       const orderResponse = await placeStorefrontOrder({
         notes: notes.trim() || undefined,
-        couponCode: (selectedCouponCode || '').trim() || undefined,
+        couponCode: bxgyBlocksCoupons
+          ? undefined
+          : (selectedCouponCode || '').trim() || undefined,
         lat: selectedAddressCoords.lat,
         lng: selectedAddressCoords.lng,
         items: checkoutLines,
@@ -839,11 +842,15 @@ export default function CheckoutPage() {
         {/* ── Coupons (applied at checkout via POST /storefront/checkout) ── */}
         <div className="px-4 pt-5 pb-1 space-y-2.5">
           <CouponThresholdBanner
-            hint={getCouponThresholdHint(
-              couponPreviewTrusted ? cartData?.promotions : null,
-              cartSubtotalMinor,
-              []
-            )}
+            hint={
+              bxgyBlocksCoupons
+                ? null
+                : getCouponThresholdHint(
+                    couponPreviewTrusted ? cartData?.promotions : null,
+                    cartSubtotalMinor,
+                    []
+                  )
+            }
           />
           <CheckoutCouponsSection
             cartSubtotalMinor={cartSubtotalMinor}
@@ -853,6 +860,8 @@ export default function CheckoutPage() {
             suggestedCoupons={couponPreviewTrusted ? cartData?.promotions?.suggestedCoupons : []}
             isPreviewLoading={cartQueryFetching}
             promotionsPaused={couponPreviewTrusted ? cartData?.promotions?.paused : false}
+            couponsBlocked={!!bxgyBlocksCoupons}
+            couponsBlockedMessage={BXGY_COUPON_BLOCKED_MESSAGE}
             enabled={!!isAuthenticated && cartItems.length > 0}
           />
         </div>

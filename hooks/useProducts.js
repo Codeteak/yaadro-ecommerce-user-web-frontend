@@ -67,6 +67,7 @@ export function useInfiniteProducts(params = {}) {
     enabled = true,
     limit = DEFAULT_PAGE_SIZE,
     category_id,
+    include_descendants,
     search,
     availability,
     sort_by,
@@ -79,6 +80,7 @@ export function useInfiniteProducts(params = {}) {
   const filters = {
     limit: pageSize,
     category_id: category_id || undefined,
+    include_descendants: include_descendants || undefined,
     search: search || undefined,
     availability: availability || undefined,
     sort_by: sort_by && sort_by !== 'default' ? sort_by : cursorMode ? 'created_at' : undefined,
@@ -93,6 +95,7 @@ export function useInfiniteProducts(params = {}) {
       const base = {
         limit: pageSize,
         category_id: filters.category_id,
+        include_descendants: filters.include_descendants,
         search: filters.search,
         availability: filters.availability,
         sort_by: filters.sort_by,

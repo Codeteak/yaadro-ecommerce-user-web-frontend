@@ -14,7 +14,7 @@ import { cartKeys } from '../../hooks/useCart';
 import { useLoginNavigation } from '../../hooks/useLoginNavigation';
 import { computeCartSavings, getCartBottomBarPricing } from '../../utils/cartSavings';
 import { minorToMajor } from '../../utils/currencyMinor';
-import { sumCartPaidUnits } from '../../utils/cartPromotions';
+import { sumCartPaidUnits, BXGY_COUPON_BLOCKED_MESSAGE } from '../../utils/cartPromotions';
 import {
   buildCartOfferGroups,
   getCouponThresholdHint,
@@ -246,6 +246,7 @@ function CartPageContent() {
     hasHydratedLocalCart,
     selectedCouponCode,
     setSelectedCouponCode,
+    bxgyBlocksCoupons,
     cartData,
     cartQueryFetching,
     couponPreviewTrusted,
@@ -318,8 +319,11 @@ function CartPageContent() {
   const offerGroups = useMemo(() => buildCartOfferGroups(cartItems), [cartItems]);
 
   const couponThresholdHint = useMemo(
-    () => getCouponThresholdHint(cartData?.promotions, cartSubtotalMinor, []),
-    [cartData?.promotions, cartSubtotalMinor]
+    () =>
+      bxgyBlocksCoupons
+        ? null
+        : getCouponThresholdHint(cartData?.promotions, cartSubtotalMinor, []),
+    [bxgyBlocksCoupons, cartData?.promotions, cartSubtotalMinor]
   );
 
   const handleCartQtyChange = (id, qty) => {
@@ -508,6 +512,8 @@ function CartPageContent() {
                   suggestedCoupons={couponPreviewTrusted ? cartData?.promotions?.suggestedCoupons : []}
                   isPreviewLoading={cartQueryFetching}
                   promotionsPaused={couponPreviewTrusted ? cartData?.promotions?.paused : false}
+                  couponsBlocked={!!bxgyBlocksCoupons}
+                  couponsBlockedMessage={BXGY_COUPON_BLOCKED_MESSAGE}
                   enabled={cartItems.length > 0}
                 />
               </div>

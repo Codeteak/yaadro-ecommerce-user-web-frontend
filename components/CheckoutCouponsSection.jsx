@@ -8,6 +8,7 @@ import {
   formatCouponMinCartHint,
 } from '../utils/storefrontCouponsApi';
 import {
+  BXGY_COUPON_BLOCKED_MESSAGE,
   formatCartCouponPreviewMessage,
   formatCouponIneligibilityHint,
   isCartCouponPreviewApplied,
@@ -93,6 +94,8 @@ export default function CheckoutCouponsSection({
   suggestedCoupons = [],
   isPreviewLoading = false,
   promotionsPaused: promotionsPausedFromCart = false,
+  couponsBlocked = false,
+  couponsBlockedMessage = '',
   enabled = true,
 }) {
   const [codeInput, setCodeInput] = useState(selectedCouponCode || '');
@@ -100,7 +103,7 @@ export default function CheckoutCouponsSection({
   const [codeLookupError, setCodeLookupError] = useState('');
 
   const { data, isLoading, isFetching, error } = useStorefrontCoupons(cartSubtotalMinor, {
-    enabled: enabled && cartSubtotalMinor != null,
+    enabled: enabled && !couponsBlocked && cartSubtotalMinor != null,
     code: lookupCode || undefined,
   });
 
@@ -139,6 +142,14 @@ export default function CheckoutCouponsSection({
   }, [selectedCouponCode]);
 
   useEffect(() => {
+    if (!couponsBlocked) return;
+    setLookupCode(null);
+    setCodeLookupError('');
+    setCodeInput('');
+    if (selectedCouponCode) onSelectCouponCode('');
+  }, [couponsBlocked, selectedCouponCode, onSelectCouponCode]);
+
+  useEffect(() => {
     if (!lookupCode || isLoading || isFetching) return;
     const match = coupons.find(
       (c) => String(c.code).toUpperCase() === String(lookupCode).toUpperCase()
@@ -161,6 +172,7 @@ export default function CheckoutCouponsSection({
   }, [lookupCode, coupons, isLoading, isFetching, onSelectCouponCode]);
 
   const handleApplyInput = () => {
+    if (couponsBlocked) return;
     const normalized = String(codeInput || '').trim().toUpperCase();
     if (!normalized) return;
     setCodeLookupError('');
@@ -168,6 +180,7 @@ export default function CheckoutCouponsSection({
   };
 
   const handleSelect = (code) => {
+    if (couponsBlocked) return;
     const normalized = String(code || '').trim().toUpperCase();
     onSelectCouponCode(normalized);
     setCodeInput(normalized);
@@ -180,6 +193,20 @@ export default function CheckoutCouponsSection({
     setLookupCode(null);
     setCodeLookupError('');
   };
+
+  if (couponsBlocked) {
+    return (
+      <div className="rounded-2xl border border-amber-100 bg-amber-50/80 p-4">
+        <div className="mb-1 flex items-center gap-2">
+          <Tag size={16} className="h-4 w-4 text-amber-700" aria-hidden />
+          <p className="text-[13px] font-medium text-amber-950">Coupons & offers</p>
+        </div>
+        <p className="text-[12px] leading-snug text-amber-900" role="status">
+          {couponsBlockedMessage || BXGY_COUPON_BLOCKED_MESSAGE}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-4">

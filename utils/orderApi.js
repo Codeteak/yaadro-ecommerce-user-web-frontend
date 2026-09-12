@@ -12,6 +12,7 @@ import {
   isOrderLineUnavailable,
   isConfirmedFreeRewardLine,
   inferOrderLinePaidQuantity,
+  orderHasBxgyOffer,
 } from './orderPromotions';
 import {
   formatWeightUnitLabel,
@@ -149,16 +150,34 @@ function transformOrderItem(item) {
   };
   const paidQty = inferOrderLinePaidQuantity(draftForPaid);
   const mixedPaidFree = paidQty > 0 && quantity > paidQty;
+  const isBxgyPaidLine = !isConfirmedFreeReward && (mixedPaidFree || paidQty > 0 && (
+    Number(item.offer_quantity ?? item.offerQuantity ?? item.free_quantity ?? item.freeQuantity) > 0
+  ));
+
+  // Buy X Get Y never stacks with coupons. Prefer list/catalog × paid qty so a
+  // coupon-wiped unit_price (e.g. ₹40) cannot replace the product price (₹60).
+  let displayUnitPrice = unitPrice;
+  if (!isDeleted && isBxgyPaidLine && listPrice != null && listPrice > 0 && paidQty > 0) {
+    displayUnitPrice = listPrice;
+    totalPrice = listPrice * paidQty;
+  } else if (
+    !isDeleted &&
+    !isConfirmedFreeReward &&
+    catalogPrice > 0 &&
+    paidQty > 0 &&
+    totalPrice < 0.009
+  ) {
+    // Rebuild payable total when API zeroed a still-active paid line incorrectly.
+    const sellUnit = listPrice != null && listPrice > 0 ? listPrice : catalogPrice;
+    displayUnitPrice = sellUnit;
+    totalPrice = sellUnit * paidQty;
+  }
+
   const hasOffer =
     !isDeleted &&
     (isConfirmedFreeReward ||
       mixedPaidFree ||
       (lineDiscountMajor > 0.009 && totalPrice > 0.009));
-
-  // Rebuild payable total when API zeroed a still-active paid line incorrectly.
-  if (!isDeleted && !isConfirmedFreeReward && catalogPrice > 0 && paidQty > 0 && totalPrice < 0.009) {
-    totalPrice = catalogPrice * paidQty;
-  }
 
   const { weight, unit } = resolveProductWeightAndUnit({
     unit_size: item.unit_size ?? item.unit_size_snapshot ?? item.unitSize,
@@ -182,7 +201,7 @@ function transformOrderItem(item) {
     unit,
     packLabel,
     quantity,
-    unitPrice,
+    unitPrice: displayUnitPrice,
     listPrice,
     lineDiscountMinor,
     lineDiscount: lineDiscountMajor,
@@ -196,7 +215,7 @@ function transformOrderItem(item) {
     product: item.product || {},
     name: productName,
     image: resolveOrderItemImage(item),
-    price: unitPrice,
+    price: displayUnitPrice,
     discount: parseFloat(item.discount || 0),
     offer_quantity: item.offer_quantity ?? item.offerQuantity ?? null,
     free_quantity: item.free_quantity ?? item.freeQuantity ?? null,
@@ -263,6 +282,9 @@ function markUnavailableExcludedFromSubtotal(items, subtotalMajor) {
   if (!Array.isArray(items) || !items.length) return items;
   const subtotal = Number(subtotalMajor);
   if (!Number.isFinite(subtotal)) return items;
+  // Zero/negative subtotal is usually promo/API math (or rejected wipe), not a
+  // picker removing a subset of lines — don't invent UNAVAILABLE from the gap.
+  if (!(subtotal > 0.009)) return items;
 
   const sumAll = items.reduce((acc, it) => acc + (Number(it.totalPrice) || 0), 0);
   if (Math.abs(sumAll - subtotal) < 0.02) return items;
@@ -583,11 +605,73 @@ function transformOrder(apiOrder) {
       : [];
   const mappedItems = mapOrderItems(apiOrder);
   const promotionDiscountMajor = minorToMajor(promotionDiscountMinor);
-  const subtotal =
+  let subtotal =
     apiOrder.subtotal_minor != null
       ? minorToMajor(apiOrder.subtotal_minor)
       : parseFloat(apiOrder.subtotal || 0);
-  const items = applyUnavailableLinePasses(mappedItems, subtotal, status);
+  const itemsRaw = applyUnavailableLinePasses(mappedItems, subtotal, status);
+
+  // Coupons must not stack with BXGY. Restore every active paid line to list × paid qty
+  // when the order has BXGY (covers paid rows that lack free_qty while a free sibling exists).
+  const hasBxgy = orderHasBxgyOffer(itemsRaw);
+  const items = hasBxgy
+    ? itemsRaw.map((it) => {
+        if (!it || it.isDeleted || it.isConfirmedFreeReward) return it;
+        const list = Number(it.listPrice);
+        if (!(list > 0)) return it;
+        const paidQty = inferOrderLinePaidQuantity(it);
+        if (!(paidQty > 0)) return it;
+        const nextTotal = list * paidQty;
+        if (
+          Math.abs(Number(it.unitPrice) - list) < 0.009 &&
+          Math.abs(Number(it.totalPrice) - nextTotal) < 0.009
+        ) {
+          return it;
+        }
+        return {
+          ...it,
+          unitPrice: list,
+          price: list,
+          totalPrice: nextTotal,
+        };
+      })
+    : itemsRaw;
+
+  // When reject/promo wipe zeroes order-level money but lines still have payable
+  // totals (Items header), reconcile so Price summary matches Items / admin.
+  const activeSum = items
+    .filter((it) => !it?.isDeleted && !it?.isConfirmedFreeReward)
+    .reduce((sum, it) => sum + (Number(it.totalPrice) || 0), 0);
+
+  // Coupons must not stack with BXGY — drop coupon ledger and use line payables.
+  let resolvedCouponCode = couponCode ? String(couponCode).trim() : null;
+  let resolvedDiscount =
+    promotionDiscountMajor > 0
+      ? promotionDiscountMajor
+      : parseFloat(apiOrder.discount || 0);
+  let resolvedPromoMinor = promotionDiscountMinor;
+  let resolvedPromoMajor = promotionDiscountMajor;
+  if (hasBxgy) {
+    resolvedCouponCode = null;
+    resolvedDiscount = 0;
+    resolvedPromoMinor = 0;
+    resolvedPromoMajor = 0;
+  }
+
+  if (hasBxgy && activeSum > 0.009) {
+    subtotal = activeSum;
+  } else if (!(Number(subtotal) > 0.009) && activeSum > 0.009) {
+    subtotal = activeSum;
+  }
+  let total =
+    apiOrder.total_minor != null
+      ? minorToMajor(apiOrder.total_minor)
+      : parseFloat(apiOrder.total || 0);
+  if (hasBxgy && activeSum > 0.009) {
+    total = activeSum;
+  } else if (!(Number(total) > 0.009) && activeSum > 0.009) {
+    total = activeSum;
+  }
 
   return {
     id: apiOrder.id,
@@ -606,14 +690,11 @@ function transformOrder(apiOrder) {
     tax: parseFloat(apiOrder.tax || 0),
     shipping:
       apiOrder.delivery_fee_minor != null ? minorToMajor(apiOrder.delivery_fee_minor) : parseFloat(apiOrder.shipping || 0),
-    discount:
-      promotionDiscountMajor > 0
-        ? promotionDiscountMajor
-        : parseFloat(apiOrder.discount || 0),
-    total: apiOrder.total_minor != null ? minorToMajor(apiOrder.total_minor) : parseFloat(apiOrder.total || 0),
-    promotionDiscountMinor,
-    promotionDiscountMajor,
-    couponCode: couponCode ? String(couponCode).trim() : null,
+    discount: resolvedDiscount,
+    total,
+    promotionDiscountMinor: resolvedPromoMinor,
+    promotionDiscountMajor: resolvedPromoMajor,
+    couponCode: resolvedCouponCode,
     appliedPromotionIds,
     deliveryTrackingUrl:
       (typeof apiOrder.deliveryTrackingUrl === 'string' && apiOrder.deliveryTrackingUrl.trim()) ||
@@ -626,7 +707,7 @@ function transformOrder(apiOrder) {
           ? String(apiOrder.yadro_order_id)
           : null,
     offerId: apiOrder.offerId || null,
-    offerCode: apiOrder.offerCode || couponCode || null,
+    offerCode: apiOrder.offerCode || resolvedCouponCode || null,
     offerDetails: apiOrder.offerDetails || null,
     deliveryAddress: normalizeDeliveryAddress(apiOrder),
     notes: apiOrder.notes || null,

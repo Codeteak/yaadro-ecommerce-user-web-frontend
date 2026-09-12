@@ -8,6 +8,7 @@ import { useShopBranding } from '../../context/ShopBrandingContext';
 import { useOrderDetail } from '../../hooks/useOrders';
 import { clearCheckoutDraft } from '../../utils/checkoutSession';
 import { downloadBillHtml, printBillPdf } from '../../utils/orderInvoice';
+import { orderHasBxgyOffer } from '../../utils/orderPromotions';
 import BillPreviewSheet from '../../components/BillPreviewSheet';
 
 /* ─────────────────────────────────────────────────────────────
@@ -85,6 +86,7 @@ function CheckIcon({ rejected }) {
 
 function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
   const items   = order?.items || [];
+  const hasBxgy = orderHasBxgyOffer(items.filter((it) => !it?.isDeleted));
   const addr    = order?.deliveryAddress || order?.address || {};
   const rawMethod = order?.paymentMethod || paymentStatus;
   const method =
@@ -206,7 +208,7 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
             <span>Tax</span><span>{money(order.tax)}</span>
           </div>
         )}
-        {order?.discount != null && Number(order.discount) > 0 && (
+        {order?.discount != null && Number(order.discount) > 0 && !hasBxgy && (
           <div style={{ ...styles.totalLine, color: '#7d24d6' }}>
             <span>{order.couponCode ? `Coupon (${order.couponCode})` : 'Discount'}</span>
             <span>−{money(order.discount)}</span>

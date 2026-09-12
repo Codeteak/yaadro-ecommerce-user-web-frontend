@@ -101,6 +101,10 @@ function CategoryBrowseInner() {
       category_id: filterCategoryId,
       limit: 24,
     };
+    // Parent category (e.g. Dairy) should include children like Ghee.
+    if (!validSub && filterCategoryId) {
+      q.include_descendants = true;
+    }
     if (sortKey === 'price-asc') {
       q.sort_by = 'price';
       q.sort_order = 'asc';
@@ -112,7 +116,7 @@ function CategoryBrowseInner() {
       q.sort_order = 'desc';
     }
     return q;
-  }, [filterCategoryId, sortKey]);
+  }, [filterCategoryId, sortKey, validSub]);
 
   const {
     data: productsInfinite,

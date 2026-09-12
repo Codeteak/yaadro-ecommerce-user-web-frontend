@@ -20,9 +20,11 @@ import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../..
 import {
   formatInrMajor,
   getOrderLineOfferLabel,
+  getOrderLineOfferSavingsMajor,
   getOrderPromotionSummary,
   getShopLineFulfillmentMeta,
   inferOrderLinePaidQuantity,
+  orderHasBxgyOffer,
   parseOrderQuantity,
 } from '../../../utils/orderPromotions';
 import { printBillPdf, downloadBillHtml } from '../../../utils/orderInvoice';
@@ -201,32 +203,41 @@ function UnavailableBadge() {
 function OrderPromotionsSection({ order }) {
   const promo = getOrderPromotionSummary(order);
   const activeItems = getActiveOrderItems(order);
+  const hasBxgy = orderHasBxgyOffer(activeItems);
+  const showCoupon = Boolean(promo.couponCode) && !hasBxgy;
   const allRemoved =
     getOrderItems(order).length > 0 && activeItems.length === 0;
   // Don't show order-level promo against a fully wiped / zero-payable order.
+  // On BXGY orders, line offers already cover free/BOGO — hide stacked coupon savings.
   const showOrderPromo =
+    !hasBxgy &&
     promo.promotionDiscountMajor > 0 &&
     !allRemoved &&
     Number(order?.subtotal ?? 0) > 0.009;
-  if (!promo.hasPromotions && !showOrderPromo) return null;
-  if (!promo.couponCode && !showOrderPromo && activeItems.filter((it) => it.hasOffer).length === 0) {
+  if (!promo.hasPromotions && !showOrderPromo && activeItems.filter((it) => it.hasOffer).length === 0) {
+    return null;
+  }
+  if (!showCoupon && !showOrderPromo && activeItems.filter((it) => it.hasOffer).length === 0) {
     return null;
   }
 
   const lineOffers = activeItems.filter((it) => it.hasOffer);
-  const sumLineDisc = lineOffers.reduce((acc, it) => acc + (Number(it.lineDiscount) || 0), 0);
+  const sumLineDisc = lineOffers.reduce(
+    (acc, it) => acc + getOrderLineOfferSavingsMajor(it),
+    0
+  );
   // Hide redundant per-line −amounts when they triple-count vs order-level promo savings.
   const showLineDiscountAmounts =
     promo.promotionDiscountMajor <= 0 ||
     (sumLineDisc > 0 && sumLineDisc <= promo.promotionDiscountMajor + 0.5);
 
-  if (!promo.couponCode && !showOrderPromo && lineOffers.length === 0) return null;
+  if (!showCoupon && !showOrderPromo && lineOffers.length === 0) return null;
 
   return (
     <Section>
-      <SectionHeader title="Offers & coupons" />
+      <SectionHeader title={hasBxgy ? 'Offers' : 'Offers & coupons'} />
       <div className="space-y-3 px-4 py-3">
-        {promo.couponCode && (
+        {showCoupon && (
           <div className="flex items-start justify-between gap-3 rounded-xl border border-violet-100 bg-violet-50/80 px-3 py-2.5">
             <div>
               <p className="m-0 text-[10px] font-medium uppercase tracking-wider text-violet-800/80">
@@ -242,14 +253,14 @@ function OrderPromotionsSection({ order }) {
           </div>
         )}
 
-        {showOrderPromo && !promo.couponCode && (
+        {showOrderPromo && !showCoupon && (
           <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 text-[13px]">
             <span className="text-gray-600">Promotion savings</span>
             <span className="font-medium text-violet-700">−{formatInrMajor(promo.promotionDiscountMajor)}</span>
           </div>
         )}
 
-        {showOrderPromo && promo.couponCode && (
+        {showOrderPromo && showCoupon && (
           <div className="flex items-center justify-between text-[12px] text-gray-500">
             <span>Total promotion savings on this order</span>
             <span className="font-medium text-violet-700">−{formatInrMajor(promo.promotionDiscountMajor)}</span>
@@ -270,6 +281,7 @@ function OrderPromotionsSection({ order }) {
                     : item.isConfirmedFreeReward
                       ? `Qty ${displayQty} · free`
                       : `Qty ${displayQty}`;
+                const savings = getOrderLineOfferSavingsMajor(item);
                 return (
                   <li
                     key={item.id}
@@ -286,9 +298,9 @@ function OrderPromotionsSection({ order }) {
                         </div>
                       )}
                     </div>
-                    {showLineDiscountAmounts && item.lineDiscount > 0 && Number(item.totalPrice) > 0.009 && (
+                    {showLineDiscountAmounts && savings > 0.009 && (
                       <span className="shrink-0 text-[12px] font-medium text-violet-700">
-                        −{formatInrMajor(item.lineDiscount)}
+                        −{formatInrMajor(savings)}
                       </span>
                     )}
                   </li>
@@ -312,6 +324,7 @@ function OrderItemRow({ item }) {
     !unavailable &&
     ((paidQty > 0 && displayQty > paidQty) || !!item.isConfirmedFreeReward);
   const freeQty = isBogo && paidQty > 0 ? Math.max(0, displayQty - paidQty) : 0;
+  const offerSavings = getOrderLineOfferSavingsMajor(item);
   const packSuffix = (() => {
     const pack = item.packLabel ? String(item.packLabel).trim() : '';
     if (pack) return ` × ${pack}`;
@@ -393,11 +406,9 @@ function OrderItemRow({ item }) {
           {!unavailable && isBogo && <OfferBadge>BOGO</OfferBadge>}
           {!unavailable && freeQty > 0 && <OfferBadge>FREE</OfferBadge>}
           {!unavailable && offerLabel && !isBogo && <OfferBadge>{offerLabel}</OfferBadge>}
-          {!unavailable &&
-            item.lineDiscount > 0 &&
-            Number(item.totalPrice) > 0.009 && (
+          {!unavailable && offerSavings > 0.009 && (
             <span className="text-[11px] font-medium text-violet-700">
-              Saved {formatInrMajor(item.lineDiscount)}
+              Saved {formatInrMajor(offerSavings)}
             </span>
           )}
         </div>
@@ -705,6 +716,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
 
   const addr = order.deliveryAddress || {};
   const orderPromo = getOrderPromotionSummary(order);
+  const orderHasBxgy = orderHasBxgyOffer(activeOrderItems);
   const hasAddress =
     Boolean(
       addr.fullName ||
@@ -935,6 +947,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                   </div>
                 ))}
               {order.discount > 0 &&
+                !orderHasBxgy &&
                 Number(order.subtotal) > 0.009 &&
                 getActiveOrderItems(order).length > 0 && (
                 <div className="flex justify-between border-t border-gray-100 px-4 py-2.5 text-[13px]">
