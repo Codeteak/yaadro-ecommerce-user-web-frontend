@@ -78,20 +78,15 @@ ecommerce/
 - `npm start` - Start production server
 - `npm run lint` - Run ESLint
 - `npm run pages:dev` - Preview `out/` locally with Wrangler (run `build` first)
-- `npm run pages:deploy` - Build and deploy to Cloudflare Pages (requires API token)
+- `npm run pages:deploy` - Manual Pages upload only (not production)
 
-## Production deployment (Cloudflare Pages)
+## Production deployment (EC2)
 
-| | |
-|--|--|
-| **Project** | `yaadro-ecommerce-user-web-frontend` |
-| **Domains** | `testshop.yaadro.online`, `marketfresh.in` |
-| **CI/CD** | GitHub Actions on push to `main` |
+Storefront production is **Next.js on EC2** behind the shared ALB (`prod-customer-web`). Push to **`main`** on this repo starts AWS CodePipeline **`customer-web-pipeline`**. There is no GitHub Actions production deploy.
 
-Setup: [docs/deploy-cloudflare-pages.md](docs/deploy-cloudflare-pages.md)
+DNS for `testshop.yaadro.online` must CNAME to the shared ALB, not CloudFront or Pages.
 
-Required GitHub **secrets**: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`  
-Required GitHub **variables** (production environment): `NEXT_PUBLIC_*` — see `.env.example` and deploy doc.
+GitHub Actions: **CI** (lint/build) on pull requests only. Old Cloudflare Pages workflow was removed.
 
 ## Key Features Explained
 

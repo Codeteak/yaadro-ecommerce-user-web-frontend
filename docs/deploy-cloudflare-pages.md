@@ -1,10 +1,10 @@
-# Deploy to Cloudflare Pages
+# Cloudflare Pages (not production)
 
-Static Next.js export (`out/`) is deployed by GitHub Actions to **Cloudflare Pages**.
+Production storefront is **EC2 + CodePipeline** (`customer-web-pipeline`). GitHub Actions no longer deploys to Pages.
 
-> **Production path (four-instance plan):** prefer EC2 Next server via
-> `yaadro-ecommerce-admin-web-backend/infra/stacks/prod-customer-web` (`next start` + `DATABASE_URL`).
-> Use Pages only until that ASG is cut over; then point storefront DNS at the shared ALB and stop Pages prod deploys.
+This doc is only for a leftover Pages project or a manual `npm run pages:deploy`. Do not point `testshop.yaadro.online` at Pages or CloudFront.
+
+> **Production path:** `yaadro-ecommerce-admin-web-backend/infra/stacks/prod-customer-web` (`next start` + `DATABASE_URL`). DNS → shared ALB.
 
 | Item | Value |
 |------|--------|
@@ -134,8 +134,8 @@ Response header `x-tenant-seo: 1` means middleware applied tenant tags.
 
 | Workflow | Trigger | Action |
 |----------|---------|--------|
-| `.github/workflows/ci.yml` | PR + push to `main` | `npm ci`, lint, build |
-| `.github/workflows/deploy-cloudflare-pages.yml` | push to `main`, manual | build + deploy `out/` |
+| `.github/workflows/ci.yml` | pull requests to `main` | `npm ci`, lint, static build check |
+| AWS `customer-web-pipeline` | push to `main` | Docker image → ECR → CodeDeploy on EC2 |
 
 No cache invalidation step — each deploy replaces assets on Pages.
 
