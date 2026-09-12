@@ -27,6 +27,7 @@ import {
 import { buildAvailableSizes, resolveSelectedSize } from '../../../utils/productSizeSelection';
 import Container from '../../../components/Container';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
+import PdpOfferPanel from '../../../components/promotions/PdpOfferPanel';
 import Link from 'next/link';
 import ProductCarousel from '../../../components/ProductCarousel';
 import { SHOW_PRODUCT_EXTENDED_SECTIONS } from './productDetailFlags';
@@ -663,6 +664,7 @@ export default function ProductDetailClient({ productId = null }) {
                 </div>
 
                 <div className="space-y-3 pt-0.5">
+                  <PdpOfferPanel product={product} />
                   <div className="flex flex-wrap items-end gap-3 sm:gap-4">
                     <span className="text-2xl font-bold tabular-nums text-gray-900 sm:text-3xl md:text-[2rem]">
                       ₹{formatRupeeINR(effectivePrice)}

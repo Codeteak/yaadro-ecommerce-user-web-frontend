@@ -12,22 +12,19 @@ import { useAuth } from '../../context/AuthContext';
 import { useProducts } from '../../hooks/useProducts';
 import { cartKeys } from '../../hooks/useCart';
 import { useLoginNavigation } from '../../hooks/useLoginNavigation';
-import { getCartLinePreviewImageSrc } from '../../utils/productImages';
-import { getCartLineVariantLabel } from '../../utils/productUtils';
 import { computeCartSavings, getCartBottomBarPricing } from '../../utils/cartSavings';
 import { minorToMajor } from '../../utils/currencyMinor';
+import { sumCartPaidUnits } from '../../utils/cartPromotions';
 import {
-  getBundleFreeExtraOnPaidLine,
-  getCartLineBundleLabel,
-  getCartLineDisplayQty,
-  getCartLinePaidQty,
-  sumCartPaidUnits,
-} from '../../utils/cartPromotions';
+  buildCartOfferGroups,
+  getCouponThresholdHint,
+} from '../../utils/offerDisplay';
 import ConfirmModal from '../../components/ConfirmModal';
 import ProductCarousel from '../../components/ProductCarousel';
-import ProductImageWithFallback from '../../components/ProductImageWithFallback';
 import CheckoutCouponsSection from '../../components/CheckoutCouponsSection';
 import CartPageSkeleton from '../../components/skeletons/CartPageSkeleton';
+import OfferGroupCard from '../../components/promotions/OfferGroupCard';
+import CouponThresholdBanner from '../../components/promotions/CouponThresholdBanner';
 import { BRAND_CHECKOUT_BTN } from '../../components/ui/brandButton';
 
 /* ─────────────────────────────────────────────
@@ -63,145 +60,6 @@ function SectionLabel({ children }) {
   );
 }
 
-function CartItemCard({ item, onQuantityChange, onRemove }) {
-  const isBundleReward = !!item.isBundleReward;
-  const paidQty = isBundleReward ? Number(item.quantity) || 1 : getCartLinePaidQty(item);
-  const displayQty = isBundleReward ? paidQty : getCartLineDisplayQty(item);
-  const bundleFreeExtra = isBundleReward ? 0 : getBundleFreeExtraOnPaidLine(item);
-  const bundleLabel = isBundleReward ? null : getCartLineBundleLabel(item);
-  const imageSrc = getCartLinePreviewImageSrc(item);
-  const unitPrice = item.selectedSize?.price ?? parseFloat(item.price);
-  const cartItemRef = item.cartItemKey ?? item.cartItemId ?? item.id;
-  const originalPrice = item.originalPrice || null;
-  const lineTotal =
-    Number.isFinite(Number(item.lineTotal)) && item.lineTotal >= 0
-      ? Number(item.lineTotal)
-      : unitPrice * (Number(item.quantity) || 1);
-  const discountPct =
-    !isBundleReward && originalPrice && originalPrice > unitPrice
-      ? Math.round(((originalPrice - unitPrice) / originalPrice) * 100)
-      : 0;
-
-  return (
-    <div
-      className={`bg-white rounded-2xl border border-gray-100 p-3 flex gap-3 ${
-        isBundleReward ? 'ml-3 border-violet-100 bg-violet-50/40' : ''
-      }`}
-    >
-      {/* Image */}
-      <div className="relative w-[72px] h-[72px] flex-shrink-0">
-        {bundleLabel && (
-          <span className="absolute left-0 top-0 z-10 max-w-[68px] rounded-br-lg rounded-tl-xl bg-gradient-to-r from-violet-600 to-violet-700 px-1 py-0.5 text-[8px] font-bold leading-tight text-white shadow-sm">
-            {bundleLabel}
-          </span>
-        )}
-        <div className="relative h-full w-full overflow-hidden rounded-xl bg-gray-50">
-          <ProductImageWithFallback
-            src={imageSrc}
-            alt={item.name}
-            fill
-            className="object-contain object-center"
-            sizes="72px"
-            placeholderName={item.name}
-            placeholderCategory={
-              item.categoryName ||
-              item.category?.name ||
-              (typeof item.category === 'string' ? item.category : '') ||
-              ''
-            }
-          />
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-medium text-gray-900 leading-snug truncate mb-0.5">
-          {item.name}
-          {isBundleReward && (
-            <span className="ml-2 rounded-md bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-violet-800">
-              Offer
-            </span>
-          )}
-        </p>
-        <p className="text-[11px] text-gray-400 mb-2">
-          {[getCartLineVariantLabel(item), item.brand].filter(Boolean).join(' · ')}
-        </p>
-        {!isBundleReward && bundleFreeExtra > 0 && (
-          <p className="text-[11px] font-medium text-violet-700 mb-1">
-            {bundleFreeExtra} free with bundle offer
-            {displayQty > paidQty ? ` · ${displayQty} in cart total` : ''}
-          </p>
-        )}
-
-        <div className="flex items-center justify-between">
-          {/* Price */}
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[15px] font-medium text-gray-900">
-              {isBundleReward
-                ? 'FREE'
-                : `₹${lineTotal.toLocaleString('en-IN')}`}
-            </span>
-            {!isBundleReward && originalPrice && originalPrice > unitPrice && (
-              <span className="text-[11px] text-gray-400 line-through">
-                ₹{(originalPrice * item.quantity).toLocaleString('en-IN')}
-              </span>
-            )}
-            {discountPct > 0 && (
-              <span className="text-[11px] font-medium text-violet-700">{discountPct}% off</span>
-            )}
-          </div>
-
-          {isBundleReward ? (
-            <span className="text-[12px] font-medium text-gray-600">Qty: {item.quantity}</span>
-          ) : (
-            <div className="flex items-center overflow-hidden rounded-full border border-gray-200">
-              <button
-                type="button"
-                onClick={() => onQuantityChange(cartItemRef, paidQty - 1)}
-                className="flex h-7 w-8 items-center justify-center text-base text-gray-700 transition hover:bg-gray-50"
-                aria-label={paidQty <= 1 ? 'Remove item' : 'Decrease quantity'}
-              >
-                −
-              </button>
-              <span
-                className="min-w-[20px] text-center text-[13px] font-medium text-gray-900"
-                title={
-                  bundleFreeExtra > 0
-                    ? `${paidQty} paid + ${bundleFreeExtra} free`
-                    : undefined
-                }
-              >
-                {paidQty}
-              </span>
-              <button
-                type="button"
-                onClick={() => onQuantityChange(cartItemRef, paidQty + 1)}
-                disabled={paidQty >= 10}
-                className="flex h-7 w-8 items-center justify-center text-base text-gray-700 transition hover:bg-gray-50 disabled:text-gray-300"
-                aria-label="Increase quantity"
-              >
-                +
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Remove */}
-      {!isBundleReward && (
-      <button
-        onClick={() => onRemove(cartItemRef)}
-        className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0 self-start hover:bg-red-50 hover:text-red-500 transition"
-        aria-label="Remove item"
-      >
-        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-        </svg>
-      </button>
-      )}
-    </div>
-  );
-}
 
 function ActionButton({ onClick, variant = 'default', icon, children }) {
   const variants = {
@@ -449,6 +307,25 @@ function CartPageContent() {
 
   const totalQty = cartCount > 0 ? cartCount : sumCartPaidUnits(cartItems);
 
+  const offerGroups = useMemo(() => buildCartOfferGroups(cartItems), [cartItems]);
+
+  const couponThresholdHint = useMemo(
+    () => getCouponThresholdHint(cartData?.promotions, cartSubtotalMinor, []),
+    [cartData?.promotions, cartSubtotalMinor]
+  );
+
+  const handleCartQtyChange = (id, qty) => {
+    if (qty < 1) {
+      removeFromCart(id);
+      return;
+    }
+    updateQuantity(id, qty);
+  };
+
+  const handleCartRemove = (id) => {
+    removeFromCart(id);
+  };
+
   /** Only block on initial load — not background refetches when the cart is already empty. */
   const showCartLoading =
     !hasHydratedLocalCart || (cartItems.length === 0 && cartQueryLoading);
@@ -572,15 +449,15 @@ function CartPageContent() {
           {/* Cart items */}
           <div className="px-4 pt-4 space-y-2.5 mb-4">
             <SectionLabel>Items</SectionLabel>
-            {cartItems.map((item) => (
-              <CartItemCard
-                key={item.cartItemKey ?? item.cartItemId ?? item.id}
-                item={item}
-                onQuantityChange={(id, qty) => {
-                  if (qty < 1) removeFromCart(id);
-                  else updateQuantity(id, qty);
-                }}
-                onRemove={removeFromCart}
+            {couponThresholdHint ? (
+              <CouponThresholdBanner hint={couponThresholdHint} />
+            ) : null}
+            {offerGroups.map((group) => (
+              <OfferGroupCard
+                key={group.parentLineItemId}
+                group={group}
+                onQuantityChange={handleCartQtyChange}
+                onRemove={handleCartRemove}
               />
             ))}
 

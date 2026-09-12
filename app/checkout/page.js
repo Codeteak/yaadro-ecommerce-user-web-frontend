@@ -10,7 +10,6 @@ import { useAddress } from '../../context/AddressContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import ProductCarousel from '../../components/ProductCarousel';
-import ProductImageWithFallback from '../../components/ProductImageWithFallback';
 import { useProducts } from '../../hooks/useProducts';
 import { placeStorefrontOrder } from '../../utils/storefrontCheckoutApi';
 import { getApiErrorCode, getCheckoutErrorMessage } from '../../utils/apiErrors';
@@ -26,16 +25,20 @@ import {
 } from '../../utils/checkoutSession';
 import { useLoginNavigation } from '../../hooks/useLoginNavigation';
 import CheckoutCouponsSection from '../../components/CheckoutCouponsSection';
-import { getCartLinePreviewImageSrc } from '../../utils/productImages';
-import { getCartLineVariantLabel } from '../../utils/productUtils';
 import { getCartBottomBarPricing } from '../../utils/cartSavings';
-import { isBundleRewardCartLine, sumCartPaidUnits } from '../../utils/cartPromotions';
+import {
+  sumCartPaidUnits,
+  isBundleRewardCartLine,
+} from '../../utils/cartPromotions';
+import { buildCartOfferGroups, getCouponThresholdHint } from '../../utils/offerDisplay';
 import { minorToMajor } from '../../utils/currencyMinor';
 import { normalizePhoneForApi } from '../../utils/otpVerifyPayload';
 import PhoneChangeOtpSheet from '../../components/PhoneChangeOtpSheet';
 import { useLocationService } from '../../context/LocationServiceContext';
 import ConfirmModal from '../../components/ConfirmModal';
 import CheckoutPageSkeleton from '../../components/skeletons/CheckoutPageSkeleton';
+import OfferGroupCard from '../../components/promotions/OfferGroupCard';
+import CouponThresholdBanner from '../../components/promotions/CouponThresholdBanner';
 import { BRAND_PRIMARY_BTN } from '../../components/ui/brandButton';
 import { AddressCardSkeleton } from '../../components/skeletons/primitives';
 
@@ -242,93 +245,21 @@ function OrderSummary({
       : Math.max(0, savings - (couponDiscount > 0.009 ? couponDiscount : 0));
   const discount = savings > 0.009 ? savings : 0;
   const totalQty = sumCartPaidUnits(cartItems);
+  const offerGroups = buildCartOfferGroups(cartItems);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4">
       {/* Item rows */}
       <div className="space-y-3 mb-4">
-        {cartItems.map((item) => {
-          const isBundleReward = !!item.isBundleReward;
-          const qty = Number(item.quantity) || 1;
-          const effectiveUnit = Number.parseFloat(String(item.price ?? '0')) || 0;
-          const listUnitRaw =
-            item.originalPrice != null && Number.isFinite(Number(item.originalPrice))
-              ? Number(item.originalPrice)
-              : item.selectedSize?.price != null && Number.isFinite(Number(item.selectedSize.price))
-                ? Number(item.selectedSize.price)
-                : null;
-          const linePay =
-            Number.isFinite(Number(item.lineTotal)) && item.lineTotal >= 0
-              ? Number(item.lineTotal)
-              : effectiveUnit * qty;
-          const showListStrike =
-            !isBundleReward && listUnitRaw != null && listUnitRaw > effectiveUnit + 1e-9;
-          const imgSrc = getCartLinePreviewImageSrc(item);
-          const lineKey = item.cartItemKey ?? item.cartItemId ?? item.id;
-          return (
-            <div key={lineKey} className="flex gap-3">
-              <div className="relative w-11 h-11 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden self-start">
-                <ProductImageWithFallback
-                  src={imgSrc}
-                  alt={item.name || ''}
-                  fill
-                  className="object-contain object-center"
-                  sizes="44px"
-                  placeholderName={item.name || ''}
-                  placeholderCategory={
-                    item.categoryName ||
-                    item.category?.name ||
-                    (typeof item.category === 'string' ? item.category : '') ||
-                    ''
-                  }
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-medium text-gray-900 truncate">
-                  {item.name}
-                  {isBundleReward && (
-                    <span className="ml-1.5 rounded bg-violet-100 px-1 py-0.5 text-[9px] font-semibold uppercase text-violet-800">
-                      Offer
-                    </span>
-                  )}
-                </p>
-                <p className="text-[11px] text-gray-400">
-                  {getCartLineVariantLabel(item)}
-                </p>
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <span className="text-[12px] text-gray-600">Qty: {qty}</span>
-                  <div className="flex flex-shrink-0 flex-col items-end gap-0.5 text-right">
-                    <p className="text-[13px] font-medium tabular-nums text-gray-900">
-                      {isBundleReward ? 'FREE' : `₹${linePay.toLocaleString('en-IN')}`}
-                    </p>
-                    {showListStrike && (
-                      <p className="text-[11px] text-gray-400 line-through tabular-nums">
-                        ₹{(listUnitRaw * qty).toLocaleString('en-IN')}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-              {onRemove && lineKey != null && !isBundleReward && (
-                <button
-                  type="button"
-                  onClick={() => onRemove(lineKey)}
-                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center self-start rounded-lg bg-gray-50 text-gray-400 transition hover:bg-red-50 hover:text-red-500"
-                  aria-label="Remove item"
-                >
-                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
-              )}
-            </div>
-          );
-        })}
+        {offerGroups.map((group) => (
+          <OfferGroupCard
+            key={group.parentLineItemId}
+            group={group}
+            compact
+            showStepper={false}
+            onRemove={onRemove}
+          />
+        ))}
       </div>
 
       <Divider />
@@ -898,7 +829,14 @@ export default function CheckoutPage() {
         </div>
 
         {/* ── Coupons (applied at checkout via POST /storefront/checkout) ── */}
-        <div className="px-4 pt-5 pb-1">
+        <div className="px-4 pt-5 pb-1 space-y-2.5">
+          <CouponThresholdBanner
+            hint={getCouponThresholdHint(
+              couponPreviewTrusted ? cartData?.promotions : null,
+              cartSubtotalMinor,
+              []
+            )}
+          />
           <CheckoutCouponsSection
             cartSubtotalMinor={cartSubtotalMinor}
             selectedCouponCode={selectedCouponCode}

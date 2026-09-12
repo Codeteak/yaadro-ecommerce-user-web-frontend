@@ -8,7 +8,9 @@ import { useAuth } from '../context/AuthContext';
 import IndianPhoneInput from './IndianPhoneInput';
 import {
   resolveShopId,
+  refreshShopId,
   getShopIdConfigError,
+  isShopNotFoundError,
   normalizeSession,
   requestOtp,
   verifyOtp,
@@ -284,10 +286,12 @@ export default function LoginPanel({ className = '' }) {
 
   const clearError = () => setError('');
 
-  const ensureShopId = async () => {
-    const cached = shopId ? String(shopId).trim() : '';
-    if (cached) return cached;
-    const resolved = await resolveShopId();
+  const ensureShopId = async ({ forceRefresh = false } = {}) => {
+    if (!forceRefresh) {
+      const cached = shopId ? String(shopId).trim() : '';
+      if (cached) return cached;
+    }
+    const resolved = forceRefresh ? await refreshShopId() : await resolveShopId();
     const id = resolved ? String(resolved).trim() : '';
     if (id) {
       setShopId(id);
@@ -295,6 +299,22 @@ export default function LoginPanel({ className = '' }) {
     }
     setError(getShopIdConfigError());
     return '';
+  };
+
+  /** One retry after clearing stale shop cache when API says shop not found. */
+  const withShopNotFoundRetry = async (run) => {
+    let resolvedShopId = await ensureShopId();
+    if (!resolvedShopId) return { ok: false, resolvedShopId: '' };
+    try {
+      await run(resolvedShopId);
+      return { ok: true, resolvedShopId };
+    } catch (err) {
+      if (!isShopNotFoundError(err)) throw err;
+      resolvedShopId = await ensureShopId({ forceRefresh: true });
+      if (!resolvedShopId) return { ok: false, resolvedShopId: '' };
+      await run(resolvedShopId);
+      return { ok: true, resolvedShopId };
+    }
   };
 
   useEffect(() => {
@@ -323,8 +343,6 @@ export default function LoginPanel({ className = '' }) {
   const handleRequestOtp = async (e) => {
     e.preventDefault();
     clearError();
-    const resolvedShopId = await ensureShopId();
-    if (!resolvedShopId) return;
     const nextPhone = apiPhone();
     const phoneErr = validateLoginPhone(sanitizeIndianPhoneInput(phone));
     if (phoneErr) {
@@ -335,9 +353,15 @@ export default function LoginPanel({ className = '' }) {
     beginWebOtp();
 
     setIsSubmitting(true);
+    let resolvedShopId = '';
     try {
       if (otpCooldownSecondsLeft > 0) return;
-      await requestOtp({ phone: nextPhone, shopId: resolvedShopId });
+      const result = await withShopNotFoundRetry(async (shop) => {
+        resolvedShopId = shop;
+        await requestOtp({ phone: nextPhone, shopId: shop });
+      });
+      if (!result.ok) return;
+      resolvedShopId = result.resolvedShopId;
       setStep('otp');
       setResendSecondsLeft(OTP_RESEND_COOLDOWN_SEC);
       writeOtpRateLimitUntilMs({ shopId: resolvedShopId, phone: nextPhone, untilMs: 0 });
@@ -347,6 +371,8 @@ export default function LoginPanel({ className = '' }) {
         const untilMs = Date.now() + OTP_RATE_LIMIT_COOLDOWN_SEC * 1000;
         writeOtpRateLimitUntilMs({ shopId: resolvedShopId, phone: nextPhone, untilMs });
         setError('Too many OTP requests. Please wait 5 minutes and try again.');
+      } else if (isShopNotFoundError(err)) {
+        setError(getShopIdConfigError());
       } else {
         setError(err?.message || 'Something went wrong. Please try again.');
       }
@@ -358,8 +384,6 @@ export default function LoginPanel({ className = '' }) {
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     clearError();
-    const resolvedShopId = await ensureShopId();
-    if (!resolvedShopId) return;
     const nextPhone = apiPhone();
     const phoneErr = validateLoginPhone(sanitizeIndianPhoneInput(phone));
     if (phoneErr) {
@@ -376,7 +400,11 @@ export default function LoginPanel({ className = '' }) {
     cancelWebOtp();
     setIsSubmitting(true);
     try {
-      const session = await verifyOtp({ phone: nextPhone, shopId: resolvedShopId, code: nextCode });
+      let session;
+      const result = await withShopNotFoundRetry(async (shop) => {
+        session = await verifyOtp({ phone: nextPhone, shopId: shop, code: nextCode });
+      });
+      if (!result.ok) return;
       const { user, token, refreshToken } = normalizeSession(session);
       if (!token) throw new Error('Invalid response from server.');
 
@@ -392,7 +420,11 @@ export default function LoginPanel({ className = '' }) {
 
       login(mergedUser, { token, refreshToken }, { skipPostLoginRedirect: true });
     } catch (err) {
-      setError(err?.message || 'Invalid OTP. Please try again.');
+      if (isShopNotFoundError(err)) {
+        setError(getShopIdConfigError());
+      } else {
+        setError(err?.message || 'Invalid OTP. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -401,8 +433,6 @@ export default function LoginPanel({ className = '' }) {
   const handleResend = async () => {
     if (resendSecondsLeft > 0 || otpCooldownSecondsLeft > 0 || isSubmitting) return;
     clearError();
-    const resolvedShopId = await ensureShopId();
-    if (!resolvedShopId) return;
     const nextPhone = apiPhone();
     const phoneErr = validateLoginPhone(sanitizeIndianPhoneInput(phone));
     if (phoneErr) {
@@ -414,8 +444,14 @@ export default function LoginPanel({ className = '' }) {
     beginWebOtp();
 
     setIsSubmitting(true);
+    let resolvedShopId = '';
     try {
-      await requestOtp({ phone: nextPhone, shopId: resolvedShopId });
+      const result = await withShopNotFoundRetry(async (shop) => {
+        resolvedShopId = shop;
+        await requestOtp({ phone: nextPhone, shopId: shop });
+      });
+      if (!result.ok) return;
+      resolvedShopId = result.resolvedShopId;
       setResendSecondsLeft(OTP_RESEND_COOLDOWN_SEC);
       writeOtpRateLimitUntilMs({ shopId: resolvedShopId, phone: nextPhone, untilMs: 0 });
     } catch (err) {
@@ -424,6 +460,8 @@ export default function LoginPanel({ className = '' }) {
         const untilMs = Date.now() + OTP_RATE_LIMIT_COOLDOWN_SEC * 1000;
         writeOtpRateLimitUntilMs({ shopId: resolvedShopId, phone: nextPhone, untilMs });
         setError('Too many OTP requests. Please wait 5 minutes and try again.');
+      } else if (isShopNotFoundError(err)) {
+        setError(getShopIdConfigError());
       } else {
         setError(err?.message || 'Could not resend OTP.');
       }
