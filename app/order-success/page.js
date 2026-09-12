@@ -11,6 +11,8 @@ import { downloadBillHtml, printBillPdf } from '../../utils/orderInvoice';
 import { orderHasBxgyOffer } from '../../utils/orderPromotions';
 import BillPreviewSheet from '../../components/BillPreviewSheet';
 import { getOrderPromotionSummary } from '../../utils/orderPromotions';
+import { hasOrderDisplayAddress, savedAddressToOrderAddress } from '../../utils/orderApi';
+import { useAddress } from '../../context/AddressContext';
 
 /* ─────────────────────────────────────────────────────────────
    Tiny inline helpers – no extra deps
@@ -295,6 +297,7 @@ function OrderSuccessContent() {
   const router        = useRouter();
   const { getOrderById } = useOrder();
   const { shopName, shopImage } = useShopBranding();
+  const { getDefaultAddress } = useAddress();
 
   useEffect(() => {
     clearCheckoutDraft();
@@ -304,7 +307,16 @@ function OrderSuccessContent() {
   const orderId       = rawOrderId && rawOrderId !== 'ORD-PENDING' ? rawOrderId : '';
   const paymentStatus = searchParams?.get('payment');
   const { data: apiOrder, isLoading: orderLoading, isError: orderError } = useOrderDetail(orderId);
-  const order         = apiOrder || getOrderById(orderId);
+  const rawOrder = apiOrder || getOrderById(orderId);
+  const order = useMemo(() => {
+    if (!rawOrder) return rawOrder;
+    if (hasOrderDisplayAddress(rawOrder.deliveryAddress) || hasOrderDisplayAddress(rawOrder.address)) {
+      return rawOrder;
+    }
+    const fallback = savedAddressToOrderAddress(getDefaultAddress());
+    if (!hasOrderDisplayAddress(fallback)) return rawOrder;
+    return { ...rawOrder, deliveryAddress: fallback, address: fallback };
+  }, [rawOrder, getDefaultAddress]);
 
   const [countdown, setCountdown] = useState(10);
   const [billOpen, setBillOpen] = useState(false);

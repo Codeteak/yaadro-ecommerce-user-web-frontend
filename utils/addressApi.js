@@ -7,6 +7,20 @@ import { apiFetchRoot } from './apiClient';
 import { resolveShopId } from './authApi';
 
 /**
+ * Delivery notes only — drop geocode objects / JSON dumps stored in `raw`.
+ * @param {unknown} raw
+ * @returns {string}
+ */
+export function sanitizeAddressNotes(raw) {
+  if (raw == null) return '';
+  if (typeof raw === 'object') return '';
+  const text = String(raw).trim();
+  if (!text || text === '[object Object]') return '';
+  if (text.startsWith('{') || text.startsWith('[')) return '';
+  return text;
+}
+
+/**
  * Transform API address to frontend format
  */
 function transformAddress(apiAddress) {
@@ -38,7 +52,7 @@ function transformAddress(apiAddress) {
     addressType: apiAddress.addressType || apiAddress.address_type || 'other',
     lat: apiAddress.lat ?? null,
     lng: apiAddress.lng ?? null,
-    raw: apiAddress.raw ?? null,
+    raw: sanitizeAddressNotes(apiAddress.raw) || null,
     createdAt: apiAddress.createdAt || apiAddress.created_at || '',
     updatedAt: apiAddress.updatedAt || apiAddress.updated_at || '',
   };
@@ -93,7 +107,7 @@ export async function createAddress(addressData) {
     const shopId = await resolveShopId();
     if (!shopId) throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for storefront address).');
 
-    const rawVal = addressData.raw;
+    const notes = sanitizeAddressNotes(addressData.raw);
     const apiData = {
       line1: addressData.line1 || addressData.street || addressData.address || '',
       line2: addressData.line2 || '',
@@ -104,10 +118,7 @@ export async function createAddress(addressData) {
       country: addressData.country || 'India',
       lat: addressData.lat ?? null,
       lng: addressData.lng ?? null,
-      raw:
-        rawVal != null && String(rawVal).trim() !== ''
-          ? String(rawVal).trim()
-          : null,
+      raw: notes || null,
     };
 
     await apiFetchRoot('/storefront/address', {
@@ -151,7 +162,9 @@ export async function updateAddress(addressId, addressData) {
     if (addressData.landmark !== undefined) apiData.landmark = addressData.landmark;
     if (addressData.lat !== undefined) apiData.lat = addressData.lat;
     if (addressData.lng !== undefined) apiData.lng = addressData.lng;
-    if (addressData.raw !== undefined) apiData.raw = addressData.raw;
+    if (addressData.raw !== undefined) {
+      apiData.raw = sanitizeAddressNotes(addressData.raw) || null;
+    }
 
     await apiFetchRoot('/storefront/address', {
       method: 'PATCH',

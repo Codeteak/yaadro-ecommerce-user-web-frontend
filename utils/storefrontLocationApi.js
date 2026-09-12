@@ -25,14 +25,42 @@ export function parseLocationServiceable(data) {
   return false;
 }
 
+function parseFiniteNumber(value) {
+  if (value == null || value === '') return null;
+  const n = typeof value === 'number' ? value : Number(String(value).trim());
+  return Number.isFinite(n) ? n : null;
+}
+
 function parseShopLocation(data) {
   if (!data || typeof data !== 'object') return null;
-  const loc = data.shopLocation ?? data.shop_location;
+  const loc = data.shopLocation ?? data.shop_location ?? data.shop;
   if (!loc || typeof loc !== 'object') return null;
-  const lat = Number(loc.lat);
-  const lng = Number(loc.lng);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const lat = parseFiniteNumber(loc.lat ?? loc.latitude);
+  const lng = parseFiniteNumber(loc.lng ?? loc.longitude ?? loc.lon);
+  if (lat == null || lng == null) return null;
   return { lat, lng };
+}
+
+function parseMaxRadiusM(data) {
+  if (!data || typeof data !== 'object') return null;
+  const meters = parseFiniteNumber(
+    data.maxRadiusM ?? data.max_radius_m ?? data.radiusM ?? data.radius_m,
+  );
+  if (meters != null && meters > 0) return meters;
+  const km = parseFiniteNumber(
+    data.maxRadiusKm ?? data.max_radius_km ?? data.radiusKm ?? data.radius_km,
+  );
+  if (km != null && km > 0) return km * 1000;
+  return null;
+}
+
+function parseDistanceM(data) {
+  if (!data || typeof data !== 'object') return null;
+  const meters = parseFiniteNumber(data.distanceM ?? data.distance_m);
+  if (meters != null) return meters;
+  const km = parseFiniteNumber(data.distanceKm ?? data.distance_km);
+  if (km != null) return km * 1000;
+  return null;
 }
 
 /**
@@ -70,18 +98,8 @@ export async function checkDeliveryLocation(lat, lng) {
 
   return {
     serviceable,
-    distanceM:
-      typeof data.distanceM === 'number'
-        ? data.distanceM
-        : typeof data.distance_m === 'number'
-          ? data.distance_m
-          : null,
-    maxRadiusM:
-      typeof data.maxRadiusM === 'number'
-        ? data.maxRadiusM
-        : typeof data.max_radius_m === 'number'
-          ? data.max_radius_m
-          : null,
+    distanceM: parseDistanceM(data),
+    maxRadiusM: parseMaxRadiusM(data),
     shopLocation: parseShopLocation(data),
     apiPayload: data && typeof data === 'object' ? data : {},
   };

@@ -54,6 +54,94 @@ function parseOptionalQty(raw) {
   return Number.isFinite(n) ? n : null;
 }
 
+const SHOP_ACTOR_ROLES = new Set([
+  "shop",
+  "admin",
+  "merchant",
+  "picker",
+  "staff",
+  "store",
+]);
+
+function shopActorFromItem(item) {
+  const raw =
+    item.added_by ??
+    item.addedBy ??
+    item.source ??
+    item.line_source ??
+    item.lineSource ??
+    item.origin ??
+    item.created_by_role ??
+    item.createdByRole ??
+    "";
+  return SHOP_ACTOR_ROLES.has(String(raw).trim().toLowerCase());
+}
+
+/**
+ * Shop added this line after the customer placed, or changed qty.
+ * @returns {{ shopAdded: boolean, shopEdited: boolean }}
+ */
+export function detectShopLineEdit(item, opts = {}) {
+  if (!item || typeof item !== "object") {
+    return { shopAdded: false, shopEdited: false };
+  }
+
+  const currentQty =
+    opts.quantity != null ? Number(opts.quantity) : parseOrderQuantity(item.quantity);
+
+  const shopAdded =
+    truthyFlag(item.shopAdded) ||
+    truthyFlag(item.added_by_shop) ||
+    truthyFlag(item.addedByShop) ||
+    truthyFlag(item.shop_added) ||
+    truthyFlag(item.shopAddedLine) ||
+    truthyFlag(item.added_after_placement) ||
+    truthyFlag(item.addedAfterPlacement) ||
+    shopActorFromItem(item);
+
+  const explicitAdjust =
+    truthyFlag(item.quantityAdjusted) ||
+    truthyFlag(item.quantity_adjusted) ||
+    truthyFlag(item.shopQuantityAdjusted) ||
+    truthyFlag(item.shopQuantityUpdated) ||
+    truthyFlag(item.shop_quantity_updated) ||
+    truthyFlag(item.shopUpdated) ||
+    truthyFlag(item.shop_updated);
+
+  const rawOriginal =
+    opts.originalQuantity ??
+    item.originalQuantity ??
+    item.original_quantity ??
+    item.orderedQuantity ??
+    item.ordered_quantity ??
+    item.placedQuantity ??
+    item.placed_quantity ??
+    item.requestedQuantity ??
+    item.requested_quantity ??
+    item.customerQuantity ??
+    item.customer_quantity ??
+    null;
+  const parsedOriginal = parseOptionalQty(rawOriginal);
+  const originalZero = parsedOriginal === 0;
+  const originalPositive = parsedOriginal != null && parsedOriginal > 0;
+  const qtyDiffers =
+    originalPositive &&
+    Number.isFinite(currentQty) &&
+    Math.abs(parsedOriginal - currentQty) > 1e-6;
+
+  const inferredAdded = originalZero && currentQty > 0;
+
+  const confirmedFree = isConfirmedFreeRewardLine(item);
+  if (confirmedFree && !shopAdded && !explicitAdjust) {
+    return { shopAdded: false, shopEdited: false };
+  }
+
+  return {
+    shopAdded: shopAdded || inferredAdded,
+    shopEdited: shopAdded || inferredAdded || explicitAdjust || qtyDiffers,
+  };
+}
+
 /**
  * Confirmed free BXGY / bundle reward — not merely applied_promotion_ids.
  * Aligns with cart `isBundleRewardCartLine` + free/offer quantity fields.
@@ -401,6 +489,8 @@ export function getShopLineFulfillmentMeta(item) {
       originalQty: null,
       showRemoved: false,
       showShopQtyUpdate: false,
+      shopAdded: false,
+      shopEdited: false,
     };
   }
 
@@ -442,19 +532,12 @@ export function getShopLineFulfillmentMeta(item) {
     isConfirmedFreeReward: confirmedFree,
   });
 
-  const explicitAdjust =
-    item.quantityAdjusted === true ||
-    item.quantity_adjusted === true ||
-    item.shopQuantityAdjusted === true ||
-    item.shopQuantityUpdated === true ||
-    item.shop_quantity_updated === true ||
-    item.shopUpdated === true ||
-    item.shop_updated === true;
+  const { shopAdded, shopEdited } = detectShopLineEdit(item, {
+    quantity: currentQty,
+    originalQuantity: originalQty,
+  });
 
-  const qtyDiffers =
-    originalQty != null && Math.abs(originalQty - currentQty) > 1e-6;
-
-  const showShopQtyUpdate = !isDeleted && (explicitAdjust || qtyDiffers);
+  const showShopQtyUpdate = !isDeleted && shopEdited;
 
   return {
     isDeleted,
@@ -462,6 +545,8 @@ export function getShopLineFulfillmentMeta(item) {
     originalQty,
     showRemoved: isDeleted,
     showShopQtyUpdate,
+    shopAdded: !isDeleted && shopAdded,
+    shopEdited: showShopQtyUpdate,
   };
 }
 
