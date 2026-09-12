@@ -2,6 +2,7 @@
 
 import { useHomeSections } from '../../hooks/useHomeSections';
 import { ProductCarouselRowSkeleton } from '../skeletons/primitives';
+import HomeBxgyShelf from './HomeBxgyShelf';
 import HomeEventCard from './HomeEventCard';
 import HomeProductShelf from './HomeProductShelf';
 
@@ -27,14 +28,27 @@ export default function HomeSections() {
         if (section.type === 'event_shelf') {
           return <HomeEventCard key={section.id} section={section} />;
         }
-        if (section.type === 'product_shelf' || section.type === 'buy_x_get_y') {
+        if (section.type === 'buy_x_get_y') {
+          return (
+            <HomeBxgyShelf
+              key={section.id}
+              title={section.title}
+              subtitle={section.subtitle}
+              buyProducts={section.buyProducts}
+              getProducts={section.getProducts}
+              buyQty={section.buyQty}
+              getQty={section.getQty}
+            />
+          );
+        }
+        if (section.type === 'product_shelf') {
           return (
             <HomeProductShelf
               key={section.id}
               title={section.title}
               subtitle={section.subtitle}
               products={section.products}
-              tone={section.type === 'buy_x_get_y' ? 'plain' : 'gradient'}
+              tone="gradient"
             />
           );
         }

@@ -1,6 +1,6 @@
 /**
  * Normalized offer types / badges / cart grouping for storefront promo UX.
- * Same-SKU BOGO only (paid line + free reward row); no cross-SKU gift model.
+ * Supports same-SKU BOGO and cross-SKU buy→reward rules from the promotions engine.
  */
 
 import {
