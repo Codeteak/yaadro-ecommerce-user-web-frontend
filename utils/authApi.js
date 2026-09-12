@@ -23,6 +23,7 @@ export {
 import {
   RESOLVED_SHOP_HOST_STORAGE_KEY,
   RESOLVED_SHOP_ID_STORAGE_KEY,
+  clearResolvedShopCache,
   resolveShopIdFromDomain,
 } from './shopResolver';
 
@@ -46,6 +47,17 @@ export function getShopIdConfigError() {
   return 'This store could not be loaded for this domain. Check that the domain is registered with the backend, or try again.';
 }
 
+/** True when auth/API error means the shop id is missing or invalid. */
+export function isShopNotFoundError(err) {
+  const code = String(err?.code || err?.error?.code || '').toUpperCase();
+  if (code === 'NOT_FOUND' || code === 'SHOP_NOT_FOUND') {
+    const msg = String(err?.message || err?.error?.message || '').toLowerCase();
+    return !msg || msg.includes('shop');
+  }
+  const message = String(err?.message || '').toLowerCase();
+  return message === 'shop not found' || message.includes('shop not found');
+}
+
 /** Shop UUID for storefront auth (OpenAPI: `shopId`). Set `NEXT_PUBLIC_SHOP_ID` in env. */
 export function getShopIdFromEnv() {
   const envShopId = process.env.NEXT_PUBLIC_SHOP_ID
@@ -62,9 +74,19 @@ export function getShopIdFromEnv() {
  * Resolve shop id for current domain.
  * - Development: always return NEXT_PUBLIC_SHOP_ID.
  * - Production: resolve from tenant resolver API and cache by domain.
+ * @param {{ forceRefresh?: boolean }} [options]
  */
-export async function resolveShopId() {
-  return resolveShopIdFromDomain();
+export async function resolveShopId(options = {}) {
+  return resolveShopIdFromDomain(options);
+}
+
+/**
+ * Clear cached shop id and re-resolve from the domain API.
+ * Use after OTP/auth returns Shop not found for a stale cached id.
+ */
+export async function refreshShopId() {
+  clearResolvedShopCache();
+  return resolveShopIdFromDomain({ forceRefresh: true });
 }
 
 async function resolveShopIdForOtp(explicitShopId) {

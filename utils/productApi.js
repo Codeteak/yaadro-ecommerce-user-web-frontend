@@ -202,6 +202,7 @@ function transformProduct(apiProduct) {
       name: apiProduct.name,
       shortName: apiProduct.name,
       slug,
+      status: apiProduct.status != null ? String(apiProduct.status) : undefined,
       price: listPrice,
       originalPrice: hasDiscount ? listPrice : null,
       compareAtPrice: hasDiscount ? listPrice : null,
@@ -569,7 +570,14 @@ export async function getProducts(params = {}) {
     const { rawProducts, nextCursor } = extractStorefrontProductsPayload(response);
 
     return {
-      products: rawProducts.map(transformProduct).filter(Boolean),
+      products: rawProducts
+        .map(transformProduct)
+        .filter(Boolean)
+        // Defense in depth: never surface draft/archived (pending activation) SKUs.
+        .filter((p) => {
+          const status = p.status != null ? String(p.status).toLowerCase() : '';
+          return !status || status === 'active';
+        }),
       pagination: {
         nextCursor,
       },
@@ -614,7 +622,11 @@ export async function getProductById(productId, options = {}) {
             : response;
 
     const product = transformProduct(payload);
-    if (product) rememberSlugMapping(product, resolveProductDetailSegment(product));
+    if (product) {
+      const status = product.status != null ? String(product.status).toLowerCase() : '';
+      if (status && status !== 'active') return null;
+      rememberSlugMapping(product, resolveProductDetailSegment(product));
+    }
     return product;
   } catch (error) {
     if (!silent) {

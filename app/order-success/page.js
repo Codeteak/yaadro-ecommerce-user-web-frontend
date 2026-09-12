@@ -18,7 +18,16 @@ const money = (v) => {
   return Number.isFinite(n) ? `₹${n.toFixed(2)}` : '—';
 };
 
-const safe = (v) => (v === null || v === undefined ? '' : String(v));
+/** Escape for HTML text/attribute contexts (invoice document.write). */
+const safe = (v) => {
+  if (v === null || v === undefined) return '';
+  return String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};
 
 /* ─────────────────────────────────────────────────────────────
    Sub-components

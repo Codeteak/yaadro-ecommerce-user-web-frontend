@@ -176,7 +176,7 @@ function SectionHeader({ title, right }) {
 
 function OfferBadge({ children }) {
   return (
-    <span className="inline-flex items-center rounded-md bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800 ring-1 ring-violet-200/80">
+    <span className="inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-800">
       {children}
     </span>
   );
@@ -308,6 +308,10 @@ function OrderItemRow({ item }) {
   const paidQty = inferOrderLinePaidQuantity(item);
   const offerLabel = getOrderLineOfferLabel(item);
   const unavailable = meta.showRemoved;
+  const isBogo =
+    !unavailable &&
+    ((paidQty > 0 && displayQty > paidQty) || !!item.isConfirmedFreeReward);
+  const freeQty = isBogo && paidQty > 0 ? Math.max(0, displayQty - paidQty) : 0;
   const packSuffix = (() => {
     const pack = item.packLabel ? String(item.packLabel).trim() : '';
     if (pack) return ` × ${pack}`;
@@ -341,7 +345,35 @@ function OrderItemRow({ item }) {
     }
   }
 
-  return (
+  const priceBlock = unavailable ? (
+    <p className="m-0 whitespace-nowrap text-[13px] font-medium text-gray-400 line-through">
+      {fmt(
+        (Number(item.unitPrice) > 0
+          ? Number(item.unitPrice) * (displayQty || 1)
+          : null) ||
+          (Number(item.listPrice) > 0
+            ? Number(item.listPrice) * (displayQty || 1)
+            : null) ||
+          item.totalPrice ||
+          item.unitPrice ||
+          item.listPrice ||
+          0
+      )}
+    </p>
+  ) : (
+    <>
+      <p className="m-0 whitespace-nowrap text-[13px] font-semibold text-gray-900">
+        {item.isConfirmedFreeReward ? '₹0' : fmt(item.totalPrice)}
+      </p>
+      {showListStrike ? (
+        <p className="m-0 mt-0.5 text-[11px] text-gray-400 line-through">
+          {fmt(listPrice * (paidQty || displayQty || 1))}
+        </p>
+      ) : null}
+    </>
+  );
+
+  const content = (
     <>
       <div className={`min-w-0 flex-1 ${unavailable ? 'opacity-70' : ''}`}>
         <p
@@ -358,7 +390,9 @@ function OrderItemRow({ item }) {
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {unavailable && <UnavailableBadge />}
           {!unavailable && meta.showShopQtyUpdate && <ShopQtyAdjustedBadge />}
-          {!unavailable && offerLabel && <OfferBadge>{offerLabel}</OfferBadge>}
+          {!unavailable && isBogo && <OfferBadge>BOGO</OfferBadge>}
+          {!unavailable && freeQty > 0 && <OfferBadge>FREE</OfferBadge>}
+          {!unavailable && offerLabel && !isBogo && <OfferBadge>{offerLabel}</OfferBadge>}
           {!unavailable &&
             item.lineDiscount > 0 &&
             Number(item.totalPrice) > 0.009 && (
@@ -367,36 +401,35 @@ function OrderItemRow({ item }) {
             </span>
           )}
         </div>
+        {isBogo && freeQty > 0 ? (
+          <div className="relative mt-2 ml-1 border-l border-dashed border-gray-300 pl-3">
+            <span className="absolute -left-[1px] top-1 text-gray-400" aria-hidden>
+              ⌞
+            </span>
+            <p className="m-0 text-[12px] font-medium text-gray-800">
+              {item.productName || item.name}{' '}
+              <OfferBadge>FREE</OfferBadge>
+            </p>
+            <p className="mt-0.5 text-[11px] text-gray-500">
+              Qty {freeQty}
+              {packSuffix} · ₹0
+            </p>
+          </div>
+        ) : null}
       </div>
-      <div className="ml-auto shrink-0 text-right">
-        {unavailable ? (
-          <p className="m-0 whitespace-nowrap text-[13px] font-medium text-gray-400 line-through">
-            {fmt(
-              (Number(item.unitPrice) > 0
-                ? Number(item.unitPrice) * (displayQty || 1)
-                : null) ||
-                (Number(item.listPrice) > 0
-                  ? Number(item.listPrice) * (displayQty || 1)
-                  : null) ||
-                item.totalPrice ||
-                item.unitPrice ||
-                item.listPrice ||
-                0
-            )}
-          </p>
-        ) : (
-          <>
-            <p className="m-0 whitespace-nowrap text-[13px] font-medium text-gray-900">{fmt(item.totalPrice)}</p>
-            {showListStrike && (
-              <p className="m-0 mt-0.5 text-[11px] text-gray-400 line-through">
-                {fmt(listPrice * (displayQty || 1))}
-              </p>
-            )}
-          </>
-        )}
-      </div>
+      <div className="ml-auto shrink-0 text-right">{priceBlock}</div>
     </>
   );
+
+  if (isBogo) {
+    return (
+      <div className="flex w-full items-start gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3">
+        {content}
+      </div>
+    );
+  }
+
+  return <div className="flex w-full items-start gap-3">{content}</div>;
 }
 
 function pickStepDate(order, status) {
@@ -845,38 +878,43 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                   Lines marked <span className="font-semibold">Shop updated qty</span> show those changes.
                 </div>
               )}
-              {getOrderItems(order).map((item, idx) => (
-                <div
-                  key={item.id || idx}
-                  className={`flex items-center gap-3 px-4 py-3 ${idx > 0 ? 'border-t border-gray-100' : ''} ${
-                    getShopLineFulfillmentMeta(item).showRemoved ? 'bg-gray-50/80' : ''
-                  }`}
-                >
+              {getOrderItems(order).map((item, idx) => {
+                const lineMeta = getShopLineFulfillmentMeta(item);
+                return (
                   <div
-                    className={`relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-gray-50 ${
-                      getShopLineFulfillmentMeta(item).showRemoved ? 'opacity-50 grayscale' : ''
+                    key={item.id || idx}
+                    className={`flex items-start gap-3 px-4 py-3 ${idx > 0 ? 'border-t border-gray-100' : ''} ${
+                      lineMeta.showRemoved ? 'bg-gray-50/80' : ''
                     }`}
                   >
-                    <ProductImageWithFallback
-                      src={getOrderItemImage(item)}
-                      alt={item.productName || item.name || 'Item'}
-                      fill
-                      className="object-contain"
-                      sizes="48px"
-                      placeholderName={item.productName || item.name || item.product?.name || ''}
-                      placeholderCategory={
-                        item.categoryName ||
-                        item.category?.name ||
-                        (typeof item.category === 'string' ? item.category : '') ||
-                        item.product?.categoryName ||
-                        (typeof item.product?.category === 'string' ? item.product.category : '') ||
-                        ''
-                      }
-                    />
+                    <div
+                      className={`relative mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-white ${
+                        lineMeta.showRemoved ? 'opacity-50 grayscale' : ''
+                      }`}
+                    >
+                      <ProductImageWithFallback
+                        src={getOrderItemImage(item)}
+                        alt={item.productName || item.name || 'Item'}
+                        fill
+                        className="object-contain"
+                        sizes="48px"
+                        placeholderName={item.productName || item.name || item.product?.name || ''}
+                        placeholderCategory={
+                          item.categoryName ||
+                          item.category?.name ||
+                          (typeof item.category === 'string' ? item.category : '') ||
+                          item.product?.categoryName ||
+                          (typeof item.product?.category === 'string' ? item.product.category : '') ||
+                          ''
+                        }
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <OrderItemRow item={item} />
+                    </div>
                   </div>
-                  <OrderItemRow item={item} />
-                </div>
-              ))}
+                );
+              })}
             </Section>
 
             <Section>

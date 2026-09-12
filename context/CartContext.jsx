@@ -9,12 +9,14 @@ import {
   applyGuestCartBundleQuantities,
   expandCartItemsWithBundleRewards,
   formatCartCouponPreviewMessage,
+  getBundleFreeExtraOnPaidLine,
   isBundleRewardCartLine,
   isTrustedCartCouponPreview,
   mergePreviewPricingOntoLocalLines,
   stripPaidCartLinesOnly,
   sumCartPaidUnits,
 } from '../utils/cartPromotions';
+import { findProductNameForNewFreeUnits } from '../utils/offerDisplay';
 import {
   addOrMergeCartLine,
   buildPersistableCartLineFromProduct,
@@ -236,6 +238,7 @@ export function CartProvider({ children }) {
       return;
     }
 
+    const prevExpanded = buildGuestDisplayCartItems(localCartItemsRef.current);
     const merged = addOrMergeCartLine(localCartItemsRef.current, persistable, addQty);
     const nextItems = applyGuestCartBundleQuantities(merged);
     setLocalCartItems(nextItems);
@@ -244,6 +247,12 @@ export function CartProvider({ children }) {
       persistCartLinesImmediate(nextItems, shopCartStorageKey());
     }
     setLastActivityTime(Date.now());
+
+    const nextExpanded = buildGuestDisplayCartItems(nextItems);
+    const freeName = findProductNameForNewFreeUnits(prevExpanded, nextExpanded);
+    if (freeName) {
+      showToast(`Nice! We added your free ${freeName} to the cart.`, 'success');
+    }
   };
 
   const lineMatchesKey = (row, key) =>
@@ -257,6 +266,7 @@ export function CartProvider({ children }) {
     if (!item) return;
     if (item.isBundleReward) return;
 
+    const freeExtra = getBundleFreeExtraOnPaidLine(item);
     setLocalCartItems((prevItems) =>
       applyGuestCartBundleQuantities(
         prevItems.filter(
@@ -268,6 +278,9 @@ export function CartProvider({ children }) {
         )
       )
     );
+    if (freeExtra > 0) {
+      showToast('Free offer items for this product were removed.', 'info');
+    }
   };
 
   const updateQuantity = (idOrKey, quantity) => {
@@ -281,13 +294,20 @@ export function CartProvider({ children }) {
     );
     if (!item) return;
 
-    setLocalCartItems((prevItems) => {
-      const updated = prevItems
-        .filter((row) => !isBundleRewardCartLine(row))
-        .map((row) => (lineMatchesKey(row, idOrKey) ? { ...row, quantity } : row));
-      return applyGuestCartBundleQuantities(updated);
-    });
+    const prevExpanded = cartItems;
+    const updated = localCartItemsRef.current
+      .filter((row) => !isBundleRewardCartLine(row))
+      .map((row) => (lineMatchesKey(row, idOrKey) ? { ...row, quantity } : row));
+    const nextItems = applyGuestCartBundleQuantities(updated);
+    setLocalCartItems(nextItems);
+    localCartItemsRef.current = nextItems;
     setLastActivityTime(Date.now());
+
+    const nextExpanded = buildGuestDisplayCartItems(nextItems);
+    const freeName = findProductNameForNewFreeUnits(prevExpanded, nextExpanded);
+    if (freeName) {
+      showToast(`Nice! We added your free ${freeName} to the cart.`, 'success');
+    }
   };
 
   const updateCartItemNote = (idOrKey, note) => {

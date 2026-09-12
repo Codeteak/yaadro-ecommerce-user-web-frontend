@@ -192,6 +192,9 @@ function unwrapResolvePayload(payload) {
 }
 
 function getDefaultTenantResolverUrl() {
+  if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_USE_SAME_ORIGIN_API === 'true') {
+    return `${window.location.origin}/api/shops/resolve-by-domain`;
+  }
   const base = process.env.NEXT_PUBLIC_API_BASE_URL
     ? String(process.env.NEXT_PUBLIC_API_BASE_URL).trim()
     : process.env.NEXT_PUBLIC_API_URL
@@ -345,6 +348,17 @@ export function persistResolvedShop(
   }
 }
 
+/** Clear domain-scoped shop branding cache (e.g. after OTP SHOP_NOT_FOUND). */
+export function clearResolvedShopCache() {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(RESOLVED_SHOP_HOST_STORAGE_KEY);
+  window.localStorage.removeItem(RESOLVED_SHOP_ID_STORAGE_KEY);
+  window.localStorage.removeItem(RESOLVED_SHOP_NAME_STORAGE_KEY);
+  window.localStorage.removeItem(RESOLVED_SHOP_IMAGE_STORAGE_KEY);
+  window.localStorage.removeItem(RESOLVED_SHOP_BANNER_ENABLED_KEY);
+  window.localStorage.removeItem(RESOLVED_SHOP_BANNER_IMAGES_KEY);
+  window.localStorage.removeItem(RESOLVED_SHOP_BANNER_PARSE_VERSION_KEY);
+  window.localStorage.removeItem(RESOLVED_SHOP_SEO_STORAGE_KEY);
 /**
  * Bust browser/CDN cache for remote shop assets (same URL, new bytes).
  * Leaves same-origin paths like `/banner/...` unchanged.
@@ -406,9 +420,12 @@ function devBrandingFallback() {
  * @returns {Promise<{ shopId: string, shopName: string, shopImage: string|null, notFound?: boolean }>}
  */
 export async function fetchShopByDomain(domain) {
-  const resolverUrl = process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL
-    ? String(process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL).trim()
-    : getDefaultTenantResolverUrl();
+  const resolverUrl =
+    typeof window !== 'undefined' && process.env.NEXT_PUBLIC_USE_SAME_ORIGIN_API === 'true'
+      ? `${window.location.origin}/api/shops/resolve-by-domain`
+      : process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL
+        ? String(process.env.NEXT_PUBLIC_TENANT_RESOLVER_URL).trim()
+        : getDefaultTenantResolverUrl();
   if (!resolverUrl || !domain) {
     return {
       shopId: '',
@@ -529,8 +546,10 @@ export async function fetchShopByDomain(domain) {
  * Resolve shop for current origin (id + display name + logo URL).
  * Development: `NEXT_PUBLIC_SHOP_ID` + optional `NEXT_PUBLIC_SHOP_NAME` / `NEXT_PUBLIC_SHOP_IMAGE`.
  * Production: domain resolver API with localStorage cache.
+ * @param {{ forceRefresh?: boolean }} [options]
  */
-export async function resolveShopBranding() {
+export async function resolveShopBranding(options = {}) {
+  const forceRefresh = !!options.forceRefresh;
   if (typeof window === 'undefined') {
     return {
       shopId: envShopId(),
@@ -554,7 +573,15 @@ export async function resolveShopBranding() {
     }
     const envId = envShopId();
     if (envId) {
-      const cached = readCachedBranding(domain);
+      const cached = !forceRefresh ? readCachedBranding(domain) : null;
+      if (
+        cached &&
+        cached.shopId === envId &&
+        cached.shopImage &&
+        cached.bannerImages?.length > 0
+      ) {
+        return { ...cached, fromCache: true, notFound: false };
+      }
       try {
         const resolverUrl = getDefaultTenantResolverUrl();
         if (resolverUrl && domain) {
@@ -614,7 +641,15 @@ export async function resolveShopBranding() {
     };
   }
 
-  const cached = readCachedBranding(domain);
+  if (forceRefresh) {
+    clearResolvedShopCache();
+  } else {
+    const cached = readCachedBranding(domain);
+    if (cached) {
+      return { ...cached, fromCache: true, notFound: false };
+    }
+  }
+
   const fetched = await fetchShopByDomain(domain);
   if (fetched.shopId) {
     const stamped = applyBrandingCacheBust(fetched);
@@ -653,8 +688,8 @@ export async function resolveShopBranding() {
 }
 
 /** Shop UUID only — backward compatible with existing callers. */
-export async function resolveShopIdFromDomain() {
-  const branding = await resolveShopBranding();
+export async function resolveShopIdFromDomain(options = {}) {
+  const branding = await resolveShopBranding(options);
   return branding.shopId || '';
 }
 
