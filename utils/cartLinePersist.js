@@ -159,11 +159,36 @@ export function buildPersistableCartLineFromProduct(product) {
   const sizeKey = cartLineSizeKey({ selectedSize });
   const cartItemKey = `${id ?? productId}_${sizeKey}`;
 
-  const price =
-    Number(product.price ?? product.offerPriceEffective ?? product.offerPrice ?? 0) || 0;
-  const op = product.originalPrice ?? product.compareAtPrice;
+  // Prefer payable = offer when catalog still has list on `price` + offerPrice.
+  // ProductCard may already set price=payable and originalPrice=list.
+  const listed =
+    Number(
+      product.originalPrice ??
+        product.compareAtPrice ??
+        product.price ??
+        0
+    ) || 0;
+  const offerRaw = product.offerPrice ?? product.offerPriceEffective;
+  const offerNum = offerRaw != null ? Number(offerRaw) : null;
+  const priceAlreadyPayable =
+    product.originalPrice != null &&
+    Number.isFinite(Number(product.price)) &&
+    Number(product.originalPrice) > Number(product.price) + 1e-9;
+  const price = priceAlreadyPayable
+    ? Number(product.price)
+    : offerNum != null &&
+        Number.isFinite(offerNum) &&
+        offerNum > 0 &&
+        listed > 0 &&
+        offerNum < listed - 1e-9
+      ? offerNum
+      : Number(product.price ?? product.offerPriceEffective ?? product.offerPrice ?? 0) || 0;
   const originalPrice =
-    op != null && Number.isFinite(Number(op)) ? Number(op) : undefined;
+    listed > price + 1e-9
+      ? listed
+      : product.originalPrice != null && Number.isFinite(Number(product.originalPrice))
+        ? Number(product.originalPrice)
+        : undefined;
 
   const category =
     typeof product.category === 'string'

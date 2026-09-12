@@ -138,8 +138,10 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
           {items.slice(0, 3).map((item, idx) => {
             const name  = safe(item.productName || item.name || item.product?.name || 'Item');
             const qty   = item.quantity ?? 1;
-            const unit  = item.unitPrice ?? item.price ?? 0;
-            const total = item.totalPrice ?? (Number(unit) * qty);
+            const unit  = Number(item.unitPrice ?? item.price ?? 0) || 0;
+            const list  = Number(item.listPrice ?? item.originalPrice ?? 0) || 0;
+            const total = item.totalPrice != null ? Number(item.totalPrice) : unit * qty;
+            const listLine = list > unit + 1e-9 ? list * qty : null;
             const imgSrc =
               item?.product?.images?.[0] ||
               (typeof item?.image === 'string' ? item.image : item?.image?.url) ||
@@ -156,7 +158,14 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
                   <div style={styles.itemName}>{name}</div>
                   <div style={styles.itemQty}>Qty {qty}</div>
                 </div>
-                <div style={styles.itemPrice}>{money(total)}</div>
+                <div style={{ ...styles.itemPrice, textAlign: 'right' }}>
+                  {listLine != null && (
+                    <div style={{ fontSize: 11, color: '#9ca3af', textDecoration: 'line-through' }}>
+                      {money(listLine)}
+                    </div>
+                  )}
+                  <div>{money(total)}</div>
+                </div>
               </div>
             );
           })}

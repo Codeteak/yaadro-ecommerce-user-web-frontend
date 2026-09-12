@@ -1,7 +1,7 @@
 import { apiFetchRoot } from './apiClient';
 import { resolveShopId } from './authApi';
-import { minorToMajor, parseMinorInt } from './currencyMinor';
 import { PRODUCT_IMAGE_PLACEHOLDER } from './productImages';
+import { normalizeStorefrontProductPricing } from './storefrontProductPricing';
 
 const SECTION_TYPES = new Set(['product_shelf', 'event_shelf', 'buy_x_get_y']);
 
@@ -33,6 +33,7 @@ function firstImageUrl(raw) {
 
 /**
  * Map a home-sections product into the shape ProductCard expects.
+ * Uses shared pricing normalizer (list + discount/final → offerPrice).
  * Do not invent offer prices from buyQty / getQty.
  */
 export function mapHomeSectionProduct(raw) {
@@ -45,15 +46,16 @@ export function mapHomeSectionProduct(raw) {
   const imageUrl = firstImageUrl(raw);
   const image = imageUrl || PRODUCT_IMAGE_PLACEHOLDER;
 
-  const listMinor = parseMinorInt(
-    raw.priceMinorPerUnit ??
-      raw.price_minor_per_unit ??
-      raw.actualPriceMinor ??
-      raw.actual_price_minor ??
-      raw.priceMinor ??
-      raw.price_minor
-  );
-  const price = listMinor > 0 ? minorToMajor(listMinor) : Number(raw.price) || 0;
+  const pricing = normalizeStorefrontProductPricing(raw);
+  const {
+    listPrice,
+    offerPrice,
+    hasDiscount,
+    actualPriceMinor,
+    finalPriceMinor,
+    totalDiscountMinor,
+    discountPercentage,
+  } = pricing;
 
   const bundleRules = Array.isArray(raw.bundleRules)
     ? raw.bundleRules
@@ -66,12 +68,19 @@ export function mapHomeSectionProduct(raw) {
     name,
     shortName: name,
     slug,
-    price,
+    price: listPrice,
+    originalPrice: hasDiscount ? listPrice : null,
+    compareAtPrice: hasDiscount ? listPrice : null,
+    offerPrice,
+    offerPriceEffective: offerPrice,
     image,
     images: [image],
     imageUrl: imageUrl || null,
     imageUrls: [image],
-    actualPriceMinor: listMinor || undefined,
+    actualPriceMinor: actualPriceMinor || undefined,
+    finalPriceMinor: finalPriceMinor || undefined,
+    totalDiscountMinor: totalDiscountMinor || undefined,
+    discountPercentage: discountPercentage || undefined,
     bundleRules,
     inStock: true,
     stock: 1,
