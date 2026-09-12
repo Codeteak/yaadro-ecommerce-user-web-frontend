@@ -359,6 +359,8 @@ export function clearResolvedShopCache() {
   window.localStorage.removeItem(RESOLVED_SHOP_BANNER_IMAGES_KEY);
   window.localStorage.removeItem(RESOLVED_SHOP_BANNER_PARSE_VERSION_KEY);
   window.localStorage.removeItem(RESOLVED_SHOP_SEO_STORAGE_KEY);
+}
+
 /**
  * Bust browser/CDN cache for remote shop assets (same URL, new bytes).
  * Leaves same-origin paths like `/banner/...` unchanged.
