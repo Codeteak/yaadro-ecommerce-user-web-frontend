@@ -10,7 +10,7 @@ export const runtime = 'nodejs';
 
 /**
  * GET /api/storefront/home-sections
- * Postgres first (shop_home_sections); customer API fallback.
+ * Postgres first (shop_home_sections + shop_products pricing); customer API fallback.
  */
 export async function GET(request) {
   return tryDbThenUpstream(request, '/api/storefront/home-sections', async () => {

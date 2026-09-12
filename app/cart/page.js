@@ -373,8 +373,8 @@ function CartPageContent() {
   }, [cartItems]);
 
   const orderSavings = useMemo(
-    () => computeCartSavings(cartItems, displayCartTotal) + couponDiscountMajor,
-    [cartItems, displayCartTotal, couponDiscountMajor]
+    () => computeCartSavings(cartItems, displayCartTotal),
+    [cartItems, displayCartTotal]
   );
   const bottomBarPricing = useMemo(
     () => getCartBottomBarPricing(cartItems, displayCartTotal),

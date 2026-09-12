@@ -4,7 +4,6 @@ import { createContext, useContext, useState, useEffect, useLayoutEffect, useRef
 import { useUiStore } from '../stores/uiStore';
 import { useAlert } from './AlertContext';
 import { useToast } from './ToastContext';
-import { useAuth } from './AuthContext';
 import { useCartQuery } from '../hooks/useCart';
 import {
   applyGuestCartBundleQuantities,
@@ -13,6 +12,7 @@ import {
   getBundleFreeExtraOnPaidLine,
   isBundleRewardCartLine,
   isTrustedCartCouponPreview,
+  mergePreviewPricingOntoLocalLines,
   stripPaidCartLinesOnly,
   sumCartPaidUnits,
 } from '../utils/cartPromotions';
@@ -99,7 +99,6 @@ export function CartProvider({ children }) {
   const [selectedCouponCode, setSelectedCouponCodeState] = useState('');
   const selectedCouponCodeRef = useRef('');
 
-  const { isAuthenticated, token } = useAuth();
   const { showAlert } = useAlert();
   const { showToast } = useToast();
 
@@ -162,26 +161,29 @@ export function CartProvider({ children }) {
     }
   }, []);
 
-  const cartItems = useMemo(
-    () => buildGuestDisplayCartItems(localCartItems),
-    [localCartItems]
-  );
-
   const paidLocalCount = stripPaidCartLinesOnly(localCartItems).length;
   const {
     data: cartPreviewData,
     isFetching: cartQueryFetching,
   } = useCartQuery({
-    enabled: !!(isAuthenticated && token && paidLocalCount > 0 && selectedCouponCode),
+    enabled: paidLocalCount > 0,
     couponCode: selectedCouponCode || undefined,
     items: localCartItems,
   });
 
-  const couponPreviewTrusted =
-    !!selectedCouponCode && isTrustedCartCouponPreview(cartPreviewData, localCartItems);
+  /** Server preview has priced lines for the current local cart (with or without coupon). */
+  const cartPreviewTrusted = isTrustedCartCouponPreview(cartPreviewData, localCartItems);
+  /** @deprecated alias — same as cartPreviewTrusted; kept for checkout coupon UI */
+  const couponPreviewTrusted = cartPreviewTrusted;
+
+  const cartItems = useMemo(() => {
+    const base = buildGuestDisplayCartItems(localCartItems);
+    if (!cartPreviewTrusted || !cartPreviewData?.items?.length) return base;
+    return mergePreviewPricingOntoLocalLines(base, cartPreviewData.items);
+  }, [localCartItems, cartPreviewTrusted, cartPreviewData?.items]);
 
   useEffect(() => {
-    if (!couponPreviewTrusted || cartQueryFetching || !selectedCouponCode) return;
+    if (!cartPreviewTrusted || cartQueryFetching || !selectedCouponCode) return;
     const preview = cartPreviewData?.promotions?.coupon;
     if (preview?.status !== 'not_applicable') return;
     const previewCode = String(preview.code || '').toUpperCase();
@@ -194,7 +196,7 @@ export function CartProvider({ children }) {
       'warning'
     );
   }, [
-    couponPreviewTrusted,
+    cartPreviewTrusted,
     cartQueryFetching,
     cartPreviewData?.promotions?.coupon,
     selectedCouponCode,
@@ -451,7 +453,7 @@ export function CartProvider({ children }) {
 
   const cartCount = cartItems.length === 0 ? 0 : sumCartPaidUnits(cartItems);
 
-  const cartTotal =
+  const localLinesTotal =
     cartItems.length === 0
       ? 0
       : cartItems.reduce((total, item) => {
@@ -460,6 +462,14 @@ export function CartProvider({ children }) {
           if (Number.isFinite(line) && line >= 0) return total + line;
           return total + (Number(item.price) || 0) * (Number(item.quantity) || 0);
         }, 0);
+
+  // Prefer server preview grand total (includes coupon) when available.
+  const cartTotal =
+    cartPreviewTrusted &&
+    cartPreviewData?.total != null &&
+    Number.isFinite(Number(cartPreviewData.total))
+      ? Number(cartPreviewData.total)
+      : localLinesTotal;
 
   const value = {
     cartItems,
@@ -488,8 +498,9 @@ export function CartProvider({ children }) {
     hasHydratedLocalCart,
     selectedCouponCode,
     setSelectedCouponCode,
-    cartData: couponPreviewTrusted ? cartPreviewData : undefined,
+    cartData: cartPreviewTrusted ? cartPreviewData : undefined,
     couponPreviewTrusted,
+    cartPreviewTrusted,
     /** Always true — cart UI reads from localStorage (layout) + query merge; no full-page cart gate. */
     isCartReady: true,
   };

@@ -419,8 +419,62 @@ export function isCartCouponPreviewApplied(coupon, selectedCode) {
 /**
  * POST /storefront/cart/preview prices the client cart lines.
  * After local-cart checkout, ignore empty previews while the shopper still has lines.
+ * Works with or without a coupon code.
  */
 export function isTrustedCartCouponPreview(previewCart, localItems) {
   if (!stripPaidCartLinesOnly(localItems).length) return false;
   return stripPaidCartLinesOnly(previewCart?.items).length > 0;
+}
+
+/**
+ * Overlay server preview unit/MRP/line totals onto local display cart lines.
+ * Matches paid lines by productId; leaves qty and cart keys from local.
+ */
+export function mergePreviewPricingOntoLocalLines(localDisplayItems, previewItems) {
+  if (!Array.isArray(localDisplayItems) || !localDisplayItems.length) return localDisplayItems || [];
+  if (!Array.isArray(previewItems) || !previewItems.length) return localDisplayItems;
+
+  const byProductId = new Map();
+  for (const preview of previewItems) {
+    if (isBundleRewardCartLine(preview)) continue;
+    const pid = String(preview?.productId ?? preview?.product?.id ?? preview?.id ?? '').trim();
+    if (!pid) continue;
+    if (!byProductId.has(pid)) byProductId.set(pid, preview);
+  }
+
+  return localDisplayItems.map((local) => {
+    if (isBundleRewardCartLine(local)) return local;
+    const pid = String(local?.productId ?? local?.product?.id ?? local?.id ?? '').trim();
+    const preview = pid ? byProductId.get(pid) : null;
+    if (!preview) return local;
+
+    const next = { ...local };
+    if (preview.price != null && Number.isFinite(Number(preview.price))) {
+      next.price = Number(preview.price);
+    }
+    if (preview.originalPrice != null && Number.isFinite(Number(preview.originalPrice))) {
+      next.originalPrice = Number(preview.originalPrice);
+    } else if (
+      next.originalPrice == null &&
+      preview.price != null &&
+      Number(local.originalPrice) > Number(preview.price)
+    ) {
+      next.originalPrice = Number(local.originalPrice);
+    }
+    if (preview.lineTotal != null && Number.isFinite(Number(preview.lineTotal))) {
+      next.lineTotal = Number(preview.lineTotal);
+      next.total = Number(preview.lineTotal);
+    }
+    if (preview.free_quantity != null || preview.freeQuantity != null) {
+      const free = Number(preview.free_quantity ?? preview.freeQuantity) || 0;
+      next.free_quantity = free;
+      next.freeQuantity = free;
+      next.offer_quantity = free;
+      next.offerQuantity = free;
+    }
+    if (preview.displayQuantity != null) {
+      next.displayQuantity = Number(preview.displayQuantity) || next.displayQuantity;
+    }
+    return next;
+  });
 }

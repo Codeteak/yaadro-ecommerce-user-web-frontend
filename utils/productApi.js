@@ -5,13 +5,13 @@
 
 import { api, apiFetchRoot } from './apiClient';
 import { resolveShopId } from './authApi';
-import { minorToMajor, parseMinorInt } from './currencyMinor';
 import { mediaObjectToUrl } from './mediaUrl';
 import { normalizeProductImages, PRODUCT_IMAGE_PLACEHOLDER } from './productImages';
 import {
   parseProductDescription,
   resolveProductWeightAndUnit,
 } from './productUtils';
+import { normalizeStorefrontProductPricing } from './storefrontProductPricing';
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -148,24 +148,24 @@ function transformProduct(apiProduct) {
     apiProduct.price_minor_per_unit !== undefined ||
     apiProduct.final_price_minor !== undefined ||
     apiProduct.actual_price_minor !== undefined ||
-    apiProduct.total_price_minor !== undefined;
+    apiProduct.total_price_minor !== undefined ||
+    apiProduct.total_discount_minor !== undefined ||
+    apiProduct.totalDiscountMinor !== undefined;
 
   if (isStorefrontCatalog) {
-    const listMinor =
-      parseMinorInt(apiProduct.actual_price_minor ?? apiProduct.total_price_minor) ||
-      parseMinorInt(apiProduct.price_minor_per_unit);
-    const finalMinor =
-      parseMinorInt(apiProduct.final_price_minor) ||
-      parseMinorInt(apiProduct.offer_price_minor_per_unit) ||
-      listMinor;
-    const offerLayerMinor = parseMinorInt(apiProduct.offer_price_minor);
-    const promoLayerMinor = parseMinorInt(apiProduct.promo_price_minor);
-    const totalDiscountMinor = parseMinorInt(apiProduct.total_discount_minor);
-
-    const listPrice = minorToMajor(listMinor);
-    const finalPrice = minorToMajor(finalMinor);
-    const hasDiscount = listPrice > 0 && finalPrice < listPrice - 1e-9;
-    const offerPrice = hasDiscount ? finalPrice : null;
+    const pricing = normalizeStorefrontProductPricing(apiProduct);
+    const {
+      listPrice,
+      offerPrice,
+      hasDiscount,
+      actualPriceMinor: listMinor,
+      finalPriceMinor: finalMinor,
+      totalDiscountMinor,
+      offerPriceMinor: offerLayerMinor,
+      promoPriceMinor: promoLayerMinor,
+      promoPrice,
+      discountPercentage,
+    } = pricing;
 
     const availability = apiProduct.availability || 'unknown';
     const inStock = availability === 'in_stock';
@@ -189,16 +189,6 @@ function transformProduct(apiProduct) {
     const slug = resolveProductSlug(apiProduct);
     rememberSlugMapping(apiProduct, slug);
 
-    const discountFromApi = totalDiscountMinor > 0 && listMinor > 0
-      ? (totalDiscountMinor / listMinor) * 100
-      : 0;
-    const discountPercentage =
-      discountFromApi > 0
-        ? Math.round(discountFromApi)
-        : hasDiscount
-          ? Math.round(((listPrice - finalPrice) / listPrice) * 100)
-          : 0;
-
     const bundleRules = Array.isArray(apiProduct.bundle_rules)
       ? apiProduct.bundle_rules
       : Array.isArray(apiProduct.bundleRules)
@@ -218,7 +208,7 @@ function transformProduct(apiProduct) {
       compareAtPrice: hasDiscount ? listPrice : null,
       offerPrice,
       offerPriceEffective: offerPrice,
-      promoPrice: promoLayerMinor > 0 ? minorToMajor(promoLayerMinor) : null,
+      promoPrice,
       actualPriceMinor: listMinor,
       finalPriceMinor: finalMinor,
       offerPriceMinor: offerLayerMinor,
@@ -283,17 +273,32 @@ function transformProduct(apiProduct) {
   const slug = resolveProductSlug(apiProduct);
   rememberSlugMapping(apiProduct, slug);
   const legacyWeightUnit = resolveProductWeightAndUnit(apiProduct);
+  const legacyPricing = normalizeStorefrontProductPricing(apiProduct);
+  const legacyList = legacyPricing.listPrice > 0
+    ? legacyPricing.listPrice
+    : parseFloat(apiProduct.price) || 0;
+  const legacyOffer = legacyPricing.offerPrice;
+  const legacyHasDiscount = legacyPricing.hasDiscount;
   return {
     id: apiProduct.id,
     name: apiProduct.name,
     shortName: apiProduct.shortName || apiProduct.name,
     slug,
-    price: parseFloat(apiProduct.price) || 0,
-    originalPrice: apiProduct.compareAtPrice ? parseFloat(apiProduct.compareAtPrice) : null,
-    compareAtPrice: apiProduct.compareAtPrice ? parseFloat(apiProduct.compareAtPrice) : null,
+    price: legacyList,
+    originalPrice: legacyHasDiscount
+      ? legacyList
+      : apiProduct.compareAtPrice
+        ? parseFloat(apiProduct.compareAtPrice)
+        : null,
+    compareAtPrice: legacyHasDiscount
+      ? legacyList
+      : apiProduct.compareAtPrice
+        ? parseFloat(apiProduct.compareAtPrice)
+        : null,
     costPrice: apiProduct.costPrice != null ? parseFloat(apiProduct.costPrice) : null,
-    offerPrice: apiProduct.offerPrice != null ? parseFloat(apiProduct.offerPrice) : null,
-    offerPriceEffective: apiProduct.offerPriceEffective != null ? parseFloat(apiProduct.offerPriceEffective) : null,
+    offerPrice: legacyOffer,
+    offerPriceEffective: legacyOffer,
+    totalDiscountMinor: legacyPricing.totalDiscountMinor || undefined,
     category: apiProduct.category || apiProduct.subcategory || '',
     subcategory: apiProduct.subcategory || '',
     description: apiProduct.description || '',
@@ -339,7 +344,11 @@ function transformProduct(apiProduct) {
     isFeatured: apiProduct.isFeatured || false,
     tags: apiProduct.tags || [],
     attributes: apiProduct.attributes || {},
-    discountPercentage: apiProduct.discountPercentage ?? apiProduct.discountPercent ?? 0,
+    discountPercentage:
+      legacyPricing.discountPercentage ||
+      apiProduct.discountPercentage ||
+      apiProduct.discountPercent ||
+      0,
     shop: apiProduct.shop || null,
     createdAt: apiProduct.createdAt || '',
     updatedAt: apiProduct.updatedAt || '',

@@ -106,10 +106,6 @@ export function getProductDiscount(product) {
       return ((original - current) / original) * 100;
     }
   }
-  if (typeof product.id === 'number' && product.id % 3 === 0) {
-    const seed = product.id * 11;
-    return 10 + (seed % 30);
-  }
   return 0;
 }
 

@@ -1,11 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
-import { productKeys, useRootCategories, useProducts } from '../hooks/useProducts';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { productKeys, useCategoriesTree, useProducts } from '../hooks/useProducts';
 import { homeSectionKeys } from '../hooks/useHomeSections';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useAlert } from '../context/AlertContext';
@@ -19,6 +19,7 @@ import BannerCarousel from '../components/BannerCarousel';
 import HomeSections from '../components/home/HomeSections';
 import HomeClientShelves from '../components/home/HomeClientShelves';
 import { dedupeProductsByVariantGroup } from '../utils/productUtils';
+import { getProducts } from '../utils/productApi';
 import { ProductCarouselRowSkeleton } from '../components/skeletons/primitives';
 import SearchSuggestInput from '../components/search/SearchSuggestInput';
 import {
@@ -29,22 +30,36 @@ import {
   User1Filled as User,
 } from '../components/icons';
 
-const PREVIEW_FIRST_CARD = process.env.NODE_ENV === 'development';
+/** Exact admin category names for Fresh Zone (fixed tab order). */
+const FRESH_ZONE_CATEGORY_NAMES = ['Vegetables', 'Fruits', 'Dairy'];
 
-function withHomeCardPreview(product, index) {
-  if (!PREVIEW_FIRST_CARD || index !== 0) return product;
-  const listPrice = 155;
-  const offerPrice = 105;
-  return {
-    ...product,
-    name: 'Fresh Organic Tomatoes',
-    price: listPrice,
-    offerPrice,
-    weight: 500,
-    unit: 'g',
-    unit_size: '500',
-    bundle_rules: [{ buy_qty: 2, get_qty: 1, reward_type: 'free' }],
-  };
+function flattenCategoryNodes(node) {
+  if (!node) return [];
+  const out = [node];
+  for (const child of node.children || []) {
+    out.push(...flattenCategoryNodes(child));
+  }
+  return out;
+}
+
+/** Depth-first exact name match (`name.trim() === expected`). Skips inactive nodes. */
+function findCategoryByExactName(nodes, name) {
+  if (!Array.isArray(nodes)) return null;
+  for (const node of nodes) {
+    if (node?.isActive === false) continue;
+    if (String(node?.name ?? '').trim() === name) return node;
+    const found = findCategoryByExactName(node.children || [], name);
+    if (found) return found;
+  }
+  return null;
+}
+
+function collectCategoryIds(node) {
+  return flattenCategoryNodes(node)
+    .filter((c) => c?.isActive !== false)
+    .map((c) => c?.id ?? c?._id)
+    .filter((id) => id != null)
+    .map(String);
 }
 
 /** Full-width Browse Categories CTA — hero (on purple) or sticky (after scroll). */
@@ -100,65 +115,6 @@ function BrowseCategoriesCta({ variant = 'hero' }) {
     </div>
   );
 }
-
-// Fresh Zone taxonomy derived from common supermarket "fresh" departments.
-const FRESH_CATEGORY_KEYWORDS = [
-  'fresh',
-  'fruit',
-  'fruits',
-  'vegetable',
-  'vegetables',
-  'dairy',
-  'milk',
-  'egg',
-  'eggs',
-  'meat',
-  'seafood',
-  'fish',
-  'chicken',
-  'mutton',
-  'poultry',
-  'bakery',
-  'bread',
-  'paneer',
-  'curd',
-  'buttermilk',
-];
-
-const FRESH_PRODUCT_KEYWORDS = [
-  'fresh',
-  'organic',
-  'farm',
-  'juice',
-  'fruit',
-  'vegetable',
-  'milk',
-  'egg',
-  'bread',
-  'paneer',
-  'curd',
-  'fish',
-  'chicken',
-  'meat',
-  'seafood',
-  'leafy',
-  'herb',
-];
-
-const NON_FRESH_KEYWORDS = [
-  'frozen',
-  'snack',
-  'pantry',
-  'cleaning',
-  'personal care',
-  'baby care',
-  'health',
-  'wellness',
-  'spice',
-  'condiment',
-  'home',
-  'kitchen',
-];
 
 export default function Home() {
   const router = useRouter();
@@ -226,7 +182,8 @@ export default function Home() {
       recheckLocation?.();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: productKeys.lists() }),
-        queryClient.invalidateQueries({ queryKey: productKeys.categoryRoots() }),
+        queryClient.invalidateQueries({ queryKey: [...productKeys.categories(), 'tree'] }),
+        queryClient.invalidateQueries({ queryKey: [...productKeys.all, 'fresh-zone'] }),
         queryClient.invalidateQueries({ queryKey: homeSectionKeys.all }),
       ]);
     } finally {
@@ -241,16 +198,13 @@ export default function Home() {
   const heroSectionRef = useRef(null);
   const [stickyCategoryNavVisible, setStickyCategoryNavVisible] = useState(false);
 
-  // Load root categories + catalog (Fresh Zone). Merch shelves come from home-sections.
-  const { data: categoriesData } = useRootCategories();
-  const { data: catalogData, isLoading: catalogLoading } = useProducts({
+  // Catalog for home shelves; Fresh Zone loads from exact Vegetables / Fruits / Dairy categories.
+  const { data: categoryTree, isLoading: categoryTreeLoading } = useCategoriesTree();
+  const { data: catalogData } = useProducts({
     limit: 24,
     sort_by: 'created_at',
     sort_order: 'desc',
   });
-
-  // Process data — root categories still feed Fresh Zone tabs; Browse CTA links to /categories.
-  const allCategories = categoriesData?.filter((cat) => cat.isActive !== false) || [];
 
   const catalogProducts = useMemo(
     () => dedupeProductsByVariantGroup(catalogData?.products || []),
@@ -272,136 +226,79 @@ export default function Home() {
     cat?.icon_url ||
     null;
 
-  const productMatchesCategory = (product, cat) => {
-    if (!product || !cat) return true;
-    const catId = cat?.id ?? cat?._id ?? null;
-    const catName = (cat?.name || '').toString().trim().toLowerCase();
+  const freshZoneResolved = useMemo(() => {
+    const tree = categoryTree || [];
+    return FRESH_ZONE_CATEGORY_NAMES.map((name) => {
+      const category = findCategoryByExactName(tree, name);
+      if (!category) return null;
+      const categoryIds = collectCategoryIds(category);
+      if (!categoryIds.length) return null;
+      return { category, categoryIds, name };
+    }).filter(Boolean);
+  }, [categoryTree]);
 
-    const pidCatId =
-      product?.categoryId ??
-      product?.category_id ??
-      product?.category?.id ??
-      product?.category?._id ??
-      null;
-    if (catId != null && pidCatId != null && String(pidCatId) === String(catId)) return true;
+  const freshZoneFetchKey = useMemo(
+    () =>
+      freshZoneResolved.map((r) => ({
+        id: String(r.category.id ?? r.category._id),
+        ids: r.categoryIds,
+      })),
+    [freshZoneResolved]
+  );
 
-    const pName =
-      (product?.category?.name ?? product?.category ?? product?.categoryName ?? product?.category_name ?? '')
-        .toString()
-        .trim()
-        .toLowerCase();
-    if (catName && pName && pName === catName) return true;
+  const {
+    data: freshZoneByCategory,
+    isLoading: freshZoneProductsLoading,
+  } = useQuery({
+    queryKey: [...productKeys.all, 'fresh-zone', freshZoneFetchKey],
+    enabled: freshZoneResolved.length > 0,
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const rows = await Promise.all(
+        freshZoneResolved.map(async ({ category, categoryIds }) => {
+          const lists = await Promise.all(
+            categoryIds.map((category_id) =>
+              getProducts({
+                category_id,
+                limit: 24,
+                sort_by: 'created_at',
+                sort_order: 'desc',
+              })
+            )
+          );
+          const products = dedupeProductsByVariantGroup(
+            lists.flatMap((list) => list?.products || [])
+          );
+          return { category, categoryIds, products };
+        })
+      );
+      return rows;
+    },
+  });
 
-    const pCats = Array.isArray(product?.categories) ? product.categories : null;
-    if (catName && pCats?.some((c) => (c?.name ?? c)?.toString?.().trim?.().toLowerCase?.() === catName))
-      return true;
+  const freshZoneLoading =
+    categoryTreeLoading || (freshZoneResolved.length > 0 && freshZoneProductsLoading);
 
-    return false;
-  };
-
-  const normalizeText = (value) =>
-    (value ?? '')
-      .toString()
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-  const hasAnyKeyword = (text, keywords) => keywords.some((keyword) => text.includes(keyword));
-
-  const getProductFreshText = (product) =>
-    normalizeText(
-      [
-        product?.name,
-        product?.title,
-        product?.description,
-        product?.category?.name,
-        product?.categoryName,
-        product?.category_name,
-        product?.category,
-      ]
-        .filter(Boolean)
-        .join(' ')
-    );
-
-  const allFreshZoneProducts = catalogProducts;
-  const freshZoneLoading = catalogLoading;
-
-  const freshZoneCategories = useMemo(() => {
-    if (!allCategories.length || !allFreshZoneProducts.length) return [];
-
-    const scored = allCategories
-      .map((cat) => {
-        const catText = normalizeText([cat?.name, cat?.slug].filter(Boolean).join(' '));
-        const categoryProducts = allFreshZoneProducts.filter((p) => productMatchesCategory(p, cat));
-        if (!categoryProducts.length) {
-          return { category: cat, score: Number.NEGATIVE_INFINITY };
-        }
-
-        const categoryMatchScore = hasAnyKeyword(catText, FRESH_CATEGORY_KEYWORDS) ? 6 : 0;
-        const categoryPenalty = hasAnyKeyword(catText, NON_FRESH_KEYWORDS) ? -5 : 0;
-
-        let productFreshHits = 0;
-        let productPenaltyHits = 0;
-        categoryProducts.forEach((p) => {
-          const pText = getProductFreshText(p);
-          if (hasAnyKeyword(pText, FRESH_PRODUCT_KEYWORDS)) productFreshHits += 1;
-          if (hasAnyKeyword(pText, NON_FRESH_KEYWORDS)) productPenaltyHits += 1;
-        });
-
-        const productSignalScore = productFreshHits * 2 - productPenaltyHits;
-        const score = categoryMatchScore + productSignalScore + categoryPenalty;
-
-        return { category: cat, score };
-      })
-      .filter((item) => item.score >= 3)
-      .sort((a, b) => b.score - a.score)
-      .map((item) => item.category);
-
-    return scored;
-  }, [allCategories, allFreshZoneProducts]);
-
-  const freshZoneBaseProducts = useMemo(() => {
-    if (!allFreshZoneProducts.length) return [];
-    const freshCategoryProducts = allFreshZoneProducts.filter((p) =>
-      freshZoneCategories.some((c) => productMatchesCategory(p, c))
-    );
-    return dedupeProductsByVariantGroup(freshCategoryProducts);
-  }, [allFreshZoneProducts, freshZoneCategories]);
-
-  const freshZoneProductPool = useMemo(() => {
-    const merged = allFreshZoneProducts.length ? allFreshZoneProducts : catalogProducts;
-    return dedupeProductsByVariantGroup(merged);
-  }, [allFreshZoneProducts, catalogProducts]);
-
-  const isFreshKeywordProduct = useCallback((product) => {
-    const pText = getProductFreshText(product);
-    if (hasAnyKeyword(pText, NON_FRESH_KEYWORDS)) return false;
-    return hasAnyKeyword(pText, FRESH_PRODUCT_KEYWORDS);
-  }, []);
+  const freshZoneDisplayCategories = useMemo(
+    () =>
+      (freshZoneByCategory || [])
+        .filter((row) => Array.isArray(row.products) && row.products.length > 0)
+        .map((row) => row.category),
+    [freshZoneByCategory]
+  );
 
   const freshZoneDisplayProductsBase = useMemo(() => {
-    if (freshZoneBaseProducts.length) return freshZoneBaseProducts;
-
-    const keywordProducts = freshZoneProductPool.filter(isFreshKeywordProduct);
-    if (keywordProducts.length) return dedupeProductsByVariantGroup(keywordProducts);
-
-    return catalogProducts.slice(0, 12);
-  }, [freshZoneBaseProducts, freshZoneProductPool, catalogProducts, isFreshKeywordProduct]);
-
-  const freshZoneDisplayCategories = useMemo(() => {
-    if (freshZoneCategories.length) return freshZoneCategories;
-    if (!allCategories.length || !freshZoneDisplayProductsBase.length) return [];
-
-    return allCategories
-      .filter((cat) => freshZoneDisplayProductsBase.some((p) => productMatchesCategory(p, cat)))
-      .slice(0, 8);
-  }, [freshZoneCategories, allCategories, freshZoneDisplayProductsBase]);
+    const rows = (freshZoneByCategory || []).filter(
+      (row) => Array.isArray(row.products) && row.products.length > 0
+    );
+    return dedupeProductsByVariantGroup(rows.flatMap((row) => row.products));
+  }, [freshZoneByCategory]);
 
   const freshZoneSelectedCategory =
     freshZoneCategoryId == null
       ? null
-      : freshZoneDisplayCategories.find((c) => String(c.id) === String(freshZoneCategoryId)) || null;
+      : freshZoneDisplayCategories.find((c) => String(c.id) === String(freshZoneCategoryId)) ||
+        null;
 
   useEffect(() => {
     if (freshZoneCategoryId == null) return;
@@ -411,9 +308,13 @@ export default function Home() {
     if (!stillExists) setFreshZoneCategoryId(null);
   }, [freshZoneCategoryId, freshZoneDisplayCategories]);
 
-  const freshZoneDisplayProducts = freshZoneSelectedCategory
-    ? freshZoneDisplayProductsBase.filter((p) => productMatchesCategory(p, freshZoneSelectedCategory))
-    : freshZoneDisplayProductsBase;
+  const freshZoneDisplayProducts = useMemo(() => {
+    if (freshZoneCategoryId == null) return freshZoneDisplayProductsBase;
+    const row = (freshZoneByCategory || []).find(
+      (r) => String(r.category.id ?? r.category._id) === String(freshZoneCategoryId)
+    );
+    return row?.products || [];
+  }, [freshZoneCategoryId, freshZoneByCategory, freshZoneDisplayProductsBase]);
 
   useEffect(() => {
     const hero = heroSectionRef.current;
@@ -781,9 +682,9 @@ export default function Home() {
             <div className="w-screen relative left-1/2 -translate-x-1/2">
               <div className="overflow-x-auto scrollbar-hide pb-3 snap-x snap-mandatory">
                 <div className="flex w-max gap-3 px-4 mx-auto">
-                  {freshZoneDisplayProducts.slice(0, 12).map((product, index) => (
+                  {freshZoneDisplayProducts.slice(0, 12).map((product) => (
                     <div key={product.id} className="snap-start flex-shrink-0">
-                      <ProductCard product={withHomeCardPreview(product, index)} isCarousel />
+                      <ProductCard product={product} isCarousel />
                     </div>
                   ))}
                 </div>
@@ -809,7 +710,7 @@ export default function Home() {
           </>
         )}
 
-        {!freshZoneLoading && catalogProducts.length === 0 && freshZoneDisplayProducts.length === 0 && (
+        {!freshZoneLoading && freshZoneDisplayProducts.length === 0 && (
           <Container className="relative z-[2] py-10 sm:py-14 text-center">
             <h2 className="text-3xl font-extrabold text-gray-900 font-headingnow">FRESH ZONE</h2>
             <p className="mt-2 text-gray-500">Fresh picks coming soon.</p>
