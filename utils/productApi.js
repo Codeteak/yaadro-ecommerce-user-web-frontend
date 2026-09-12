@@ -584,7 +584,8 @@ export async function getProducts(params = {}) {
     };
   } catch (error) {
     console.error('Error fetching products:', error);
-    return { products: [], pagination: { nextCursor: null } };
+    // Propagate so React Query marks the query failed instead of caching an empty list.
+    throw error;
   }
 }
 
@@ -700,7 +701,7 @@ export async function searchProducts(params = {}) {
     return { ...list, query: search };
   } catch (error) {
     console.error('Error searching products:', error);
-    return { products: [], pagination: { nextCursor: null }, query: params.q || '' };
+    throw error;
   }
 }
 
@@ -739,7 +740,7 @@ export async function getRootCategories() {
       .filter((c) => c.parentId == null);
   } catch (error) {
     console.error('Error fetching root categories:', error);
-    return [];
+    throw error;
   }
 }
 
@@ -850,11 +851,7 @@ export async function getCategoryProducts(categoryIdOrSlug, params = {}) {
     };
   } catch (error) {
     console.error('Error fetching category products:', error);
-    return {
-      category: null,
-      products: [],
-      pagination: { nextCursor: null },
-    };
+    throw error;
   }
 }
 
