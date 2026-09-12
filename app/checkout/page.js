@@ -335,12 +335,20 @@ function EmptyCheckout() {
       </div>
       <h2 className="text-lg font-medium text-gray-900 mb-2">Your cart is empty</h2>
       <p className="text-sm text-gray-400 mb-6">Add some items before checkout.</p>
-      <Link
-        href="/products"
-        className="inline-flex items-center gap-2 bg-violet-600 text-white text-sm font-medium px-5 py-2.5 rounded-full hover:bg-violet-700 transition"
-      >
-        Shop now
-      </Link>
+      <div className="flex flex-wrap items-center justify-center gap-2.5">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 bg-violet-600 text-white text-sm font-medium px-5 py-2.5 rounded-full hover:bg-violet-700 transition"
+        >
+          Home
+        </Link>
+        <Link
+          href="/products"
+          className="inline-flex items-center gap-2 border border-gray-200 bg-white text-sm font-medium text-gray-800 px-5 py-2.5 rounded-full hover:bg-gray-50 transition"
+        >
+          Shop now
+        </Link>
+      </div>
     </div>
   );
 }

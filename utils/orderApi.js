@@ -255,6 +255,8 @@ function mapOrderItems(apiOrder, extraItems = []) {
 /**
  * When picker drops line(s) from order totals but leaves unit×qty on the items,
  * mark the unique candidate subset whose prices sum to (lineSum − subtotal) as unavailable.
+ * Includes offer-stamped paid lines (picker often leaves Offer applied on removed SKUs).
+ * Confirmed free rewards are not used to explain a payable gap.
  * Handles multi-line removals (e.g. gap 390 = 175 + 215); skips if multiple subsets match.
  */
 function markUnavailableExcludedFromSubtotal(items, subtotalMajor) {
@@ -271,7 +273,7 @@ function markUnavailableExcludedFromSubtotal(items, subtotalMajor) {
   const candidates = items.filter(
     (it) =>
       !it.isDeleted &&
-      !it.hasOffer &&
+      !it.isConfirmedFreeReward &&
       Number(it.quantity) > 0 &&
       Number(it.unitPrice || it.price || 0) > 0 &&
       Number(it.totalPrice) > 0.009
@@ -421,9 +423,17 @@ export function normalizeFulfillmentStatus(raw) {
     complete: 'delivered',
     cancelled: 'cancelled',
     canceled: 'cancelled',
+    rejected: 'cancelled',
+    reject: 'cancelled',
+    declined: 'cancelled',
+    shop_rejected: 'cancelled',
+    rejected_by_shop: 'cancelled',
+    rejected_by_admin: 'cancelled',
+    refused: 'cancelled',
   };
   if (direct[s]) return direct[s];
   if (s.includes('cancel')) return 'cancelled';
+  if (s.includes('reject') || s.includes('declin') || s.includes('refus')) return 'cancelled';
   if (s.includes('deliver') && (s.includes('ed') || s.endsWith('ed'))) return 'delivered';
   if (s.includes('deliver') || s.includes('ship') || s.includes('dispatch') || s.includes('transit')) return 'shipped';
   if (
@@ -620,8 +630,40 @@ function transformOrder(apiOrder) {
     offerDetails: apiOrder.offerDetails || null,
     deliveryAddress: normalizeDeliveryAddress(apiOrder),
     notes: apiOrder.notes || null,
-    cancelledAt: apiOrder.cancelledAt || null,
-    cancelledReason: apiOrder.cancelledReason || null,
+    cancelledAt:
+      apiOrder.cancelledAt ||
+      apiOrder.cancelled_at ||
+      apiOrder.rejectedAt ||
+      apiOrder.rejected_at ||
+      null,
+    cancelledReason: (() => {
+      const raw =
+        apiOrder.cancelledReason ||
+        apiOrder.cancelled_reason ||
+        apiOrder.rejectedReason ||
+        apiOrder.rejected_reason ||
+        apiOrder.rejection_reason ||
+        apiOrder.cancel_reason ||
+        apiOrder.cancelReason ||
+        '';
+      const text = String(raw).trim();
+      return text || null;
+    })(),
+    looksRejected: [
+      apiOrder.status,
+      apiOrder.order_status,
+      apiOrder.orderStatus,
+      apiOrder.fulfillment_status,
+      apiOrder.fulfillmentStatus,
+      apiOrder.state,
+      apiOrder.cancelledReason,
+      apiOrder.cancelled_reason,
+      apiOrder.rejectedReason,
+      apiOrder.rejected_reason,
+      apiOrder.rejection_reason,
+      apiOrder.cancel_reason,
+      apiOrder.cancelReason,
+    ].some((v) => /reject/i.test(String(v || ''))),
     deliveredAt: apiOrder.deliveredAt || apiOrder.delivered_at || null,
     shippedAt:
       apiOrder.shippedAt ||
@@ -683,6 +725,7 @@ export async function listOrders(params = {}) {
       method: 'GET',
       headers: { 'x-shop-id': shopId },
       omitTenantHeader: true,
+      cache: 'no-store',
       query: { limit },
     });
 
@@ -717,6 +760,7 @@ export async function getOrder(orderId) {
       method: 'GET',
       headers: { 'x-shop-id': shopId },
       omitTenantHeader: true,
+      cache: 'no-store',
     });
 
     const apiOrder = response?.order || null;
