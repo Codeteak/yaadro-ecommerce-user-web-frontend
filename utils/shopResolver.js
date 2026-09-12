@@ -359,6 +359,8 @@ export function clearResolvedShopCache() {
   window.localStorage.removeItem(RESOLVED_SHOP_BANNER_IMAGES_KEY);
   window.localStorage.removeItem(RESOLVED_SHOP_BANNER_PARSE_VERSION_KEY);
   window.localStorage.removeItem(RESOLVED_SHOP_SEO_STORAGE_KEY);
+}
+
 /**
  * Bust browser/CDN cache for remote shop assets (same URL, new bytes).
  * Leaves same-origin paths like `/banner/...` unchanged.
@@ -641,13 +643,11 @@ export async function resolveShopBranding(options = {}) {
     };
   }
 
+  const cached = readCachedBranding(domain);
   if (forceRefresh) {
     clearResolvedShopCache();
-  } else {
-    const cached = readCachedBranding(domain);
-    if (cached) {
-      return { ...cached, fromCache: true, notFound: false };
-    }
+  } else if (cached) {
+    return { ...cached, fromCache: true, notFound: false };
   }
 
   const fetched = await fetchShopByDomain(domain);
