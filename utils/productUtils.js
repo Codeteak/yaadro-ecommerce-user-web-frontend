@@ -398,6 +398,8 @@ function parseProductUnitFromFields(raw) {
     raw.uom ??
     raw.measurement_unit ??
     raw.measurementUnit ??
+    raw.base_unit ??
+    raw.baseUnit ??
     '';
   return u != null ? normalizeProductUnit(u) : '';
 }

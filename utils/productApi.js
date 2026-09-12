@@ -246,6 +246,16 @@ function transformProduct(apiProduct) {
       thumbnail: apiProduct.thumbnail || null,
       categoryId: apiProduct.category_id || null,
       categoryObj: apiProduct.category || null,
+      soldByWeight:
+        apiProduct.soldByWeight === true || apiProduct.sold_by_weight === true,
+      base_unit:
+        apiProduct.base_unit != null
+          ? String(apiProduct.base_unit).trim()
+          : apiProduct.baseUnit != null
+            ? String(apiProduct.baseUnit).trim()
+            : apiProduct.unit != null
+              ? String(apiProduct.unit).trim()
+              : undefined,
     };
   }
 
@@ -352,6 +362,14 @@ function transformProduct(apiProduct) {
     shop: apiProduct.shop || null,
     createdAt: apiProduct.createdAt || '',
     updatedAt: apiProduct.updatedAt || '',
+    soldByWeight:
+      apiProduct.soldByWeight === true || apiProduct.sold_by_weight === true,
+    base_unit:
+      apiProduct.base_unit != null
+        ? String(apiProduct.base_unit).trim()
+        : apiProduct.baseUnit != null
+          ? String(apiProduct.baseUnit).trim()
+          : undefined,
   };
 }
 
