@@ -2,18 +2,23 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useMemo } from 'react';
 import { useDrag } from '@use-gesture/react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { formatRupeeINR } from '../utils/productUtils';
+import { buildCartOfferGroups } from '../utils/offerDisplay';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
-import CartItem from './CartItem';
+import OfferGroupCard from './promotions/OfferGroupCard';
 
 export default function CartSidebar() {
   const router = useRouter();
-  const { cartItems, cartTotal, showSidebarCart, setShowSidebarCart } = useCart();
+  const { cartItems, cartTotal, showSidebarCart, setShowSidebarCart, updateQuantity, removeFromCart } =
+    useCart();
   const { isAuthenticated, authHydrated } = useAuth();
   const { goToLogin } = useLoginNavigation();
+
+  const offerGroups = useMemo(() => buildCartOfferGroups(cartItems), [cartItems]);
 
   const handleClose = () => setShowSidebarCart(false);
 
@@ -35,6 +40,18 @@ export default function CartSidebar() {
       return;
     }
     goToLogin('/checkout');
+  };
+
+  const handleQtyChange = (id, qty) => {
+    if (qty < 1) {
+      removeFromCart(id);
+      return;
+    }
+    updateQuantity(id, qty);
+  };
+
+  const handleRemove = (id) => {
+    removeFromCart(id);
   };
 
   return (
@@ -77,8 +94,14 @@ export default function CartSidebar() {
             </div>
           ) : (
             <div className="space-y-3">
-              {cartItems.map((item) => (
-                <CartItem key={item.cartItemKey || item.id} item={item} />
+              {offerGroups.map((group) => (
+                <OfferGroupCard
+                  key={group.parentLineItemId}
+                  group={group}
+                  compact
+                  onQuantityChange={handleQtyChange}
+                  onRemove={handleRemove}
+                />
               ))}
             </div>
           )}

@@ -160,7 +160,7 @@ export function getOrderLineOfferLabel(item) {
   const total = Number(item?.totalPrice ?? 0);
 
   if (freeReward || (paid > 0 && displayQty > paid)) {
-    return displayQty > paid && paid > 0 ? 'Bundle offer' : 'Offer';
+    return displayQty > paid && paid > 0 ? 'BOGO' : 'FREE';
   }
   // Real partial discount on a still-payable line — not a full wipe disguised as an offer.
   if (lineDiscMajor > 0.009 && total > 0.009) {

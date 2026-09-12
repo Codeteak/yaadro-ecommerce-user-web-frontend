@@ -12,6 +12,8 @@ import {
   getPrimaryBundleRule,
   resolveProductWeightAndUnit,
 } from '../utils/productUtils';
+import { getProductOfferDisplay } from '../utils/offerDisplay';
+import { OfferBadgePill } from './promotions/OfferGroupCard';
 import { buildAvailableSizes, resolveSelectedSize } from '../utils/productSizeSelection';
 import { tapFeedback } from '../utils/haptics';
 import PriceDisplay from './ui/PriceDisplay';
@@ -97,6 +99,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     : formatWeightUnitLabel(productPack.weight, productPack.unit);
 
   const bundleRule = useMemo(() => getPrimaryBundleRule(product), [product]);
+  const offerDisplay = useMemo(() => getProductOfferDisplay(product), [product]);
   const bundleLabel = useMemo(() => {
     if (bundleRule) return formatBundleRuleLabel(bundleRule);
     const extra = String(product?.bundleLabel || '').trim();
@@ -499,11 +502,30 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           </span>
         ) : null}
 
+        {offerDisplay.badges.length > 0 && !isCarousel ? (
+          <div className="flex flex-wrap gap-1">
+            {offerDisplay.badges.slice(0, 2).map((b) => (
+              <OfferBadgePill
+                key={b}
+                tone={String(b).startsWith('SAVE') ? 'red' : 'violet'}
+              >
+                {b}
+              </OfferBadgePill>
+            ))}
+          </div>
+        ) : null}
+
         <Link {...navLinkProps} className={`block min-w-0 ${isShelf ? '' : 'min-h-[2.5rem]'}`}>
           <h3 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 tracking-tight sm:text-[15px]">
             {product.name}
           </h3>
         </Link>
+
+        {offerDisplay.secondaryText ? (
+          <p className="text-[11px] font-medium text-violet-700 line-clamp-1">
+            {offerDisplay.secondaryText}
+          </p>
+        ) : null}
 
         <Link {...navLinkProps} className="block min-w-0">
           <WeightLabel label={displayWeight} placeholder />
