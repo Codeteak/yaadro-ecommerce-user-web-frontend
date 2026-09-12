@@ -391,6 +391,9 @@ function parseStorefrontCartResponse(response) {
   const bundleDiscountMinor = parseMinorInt(
     summary.bundle_discount_minor ?? summary.bundleDiscountMinor
   );
+  const autoCartDiscountMinor = parseMinorInt(
+    summary.auto_cart_discount_minor ?? summary.autoCartDiscountMinor
+  );
   const subtotalFromSummary = minorToMajor(summary.total_price_minor);
   const totalOffer = minorToMajor(summary.total_offer_price_minor);
   const payableFromLines = items.reduce((sum, it) => {
@@ -435,6 +438,7 @@ function parseStorefrontCartResponse(response) {
     subtotalBeforeCouponMinor: eligibilityMinor,
     couponDiscountMinor,
     bundleDiscountMinor,
+    autoCartDiscountMinor,
     discount: minorToMajor(summary.total_discount_minor),
     promotionDiscountMinor: parseMinorInt(
       summary.promotion_discount_minor ?? summary.promotionDiscountMinor
@@ -485,7 +489,7 @@ export async function getCart(options = {}) {
  * Price local cart lines + optional coupon via POST /storefront/cart/preview.
  * Does not read or write a server cart.
  *
- * @param {{ items: Array<{ productId: string, quantity: number }>, couponCode?: string, includeSuggestedCoupons?: boolean }} options
+ * @param {{ items: Array<{ productId: string, quantity: number }>, couponCode?: string, couponCodes?: string[], includeSuggestedCoupons?: boolean }} options
  * @returns {Promise<object>}
  */
 export async function previewCart(options = {}) {
@@ -507,10 +511,20 @@ export async function previewCart(options = {}) {
     }
 
     const body = { items };
+    const codes = Array.isArray(options.couponCodes)
+      ? [...new Set(options.couponCodes.map((c) => String(c || '').trim().toUpperCase()).filter(Boolean))]
+      : [];
     const couponCode = String(options.couponCode || '')
       .trim()
       .toUpperCase();
-    if (couponCode) body.couponCode = couponCode;
+    if (codes.length > 1) {
+      body.couponCodes = codes;
+      body.couponCode = codes[0];
+    } else if (codes.length === 1) {
+      body.couponCode = codes[0];
+    } else if (couponCode) {
+      body.couponCode = couponCode;
+    }
     if (options.includeSuggestedCoupons === false) {
       body.includeSuggestedCoupons = false;
     }

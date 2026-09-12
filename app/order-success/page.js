@@ -9,6 +9,7 @@ import { useOrderDetail } from '../../hooks/useOrders';
 import { clearCheckoutDraft } from '../../utils/checkoutSession';
 import { downloadBillHtml, printBillPdf } from '../../utils/orderInvoice';
 import BillPreviewSheet from '../../components/BillPreviewSheet';
+import { getOrderPromotionSummary } from '../../utils/orderPromotions';
 
 /* ─────────────────────────────────────────────────────────────
    Tiny inline helpers – no extra deps
@@ -95,6 +96,25 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
         : '—';
   const slot    = order?.deliverySlot || '—';
   const area    = addr.area || addr.city || addr.line1 || 'Your address';
+  const orderPromo = getOrderPromotionSummary(order);
+  const saleSavings =
+    orderPromo.autoPromotionDiscountMajor > 0.009
+      ? orderPromo.autoPromotionDiscountMajor
+      : orderPromo.couponDiscountMajor > 0.009
+        ? Math.max(
+            0,
+            Number(order?.discount || 0) - orderPromo.couponDiscountMajor
+          )
+        : 0;
+  const couponSavings =
+    orderPromo.couponDiscountMajor > 0.009
+      ? orderPromo.couponDiscountMajor
+      : 0;
+  const couponLabelCodes =
+    orderPromo.couponCodes?.length > 0
+      ? orderPromo.couponCodes.join(', ')
+      : orderPromo.couponCode;
+  const showSplit = saleSavings > 0.009 || couponSavings > 0.009;
 
   if (isLoading && !order) {
     return (
@@ -206,11 +226,39 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
             <span>Tax</span><span>{money(order.tax)}</span>
           </div>
         )}
-        {order?.discount != null && Number(order.discount) > 0 && (
-          <div style={{ ...styles.totalLine, color: '#7d24d6' }}>
-            <span>{order.couponCode ? `Coupon (${order.couponCode})` : 'Discount'}</span>
-            <span>−{money(order.discount)}</span>
-          </div>
+        {showSplit ? (
+          <>
+            {saleSavings > 0.009 && (
+              <div style={{ ...styles.totalLine, color: '#7d24d6' }}>
+                <span>Sale & free-item savings</span>
+                <span>−{money(saleSavings)}</span>
+              </div>
+            )}
+            {couponSavings > 0.009 && (
+              <div style={{ ...styles.totalLine, color: '#7d24d6' }}>
+                <span>
+                  {couponLabelCodes
+                    ? `Coupon (${couponLabelCodes})`
+                    : 'Coupon'}
+                </span>
+                <span>−{money(couponSavings)}</span>
+              </div>
+            )}
+          </>
+        ) : (
+          order?.discount != null &&
+          Number(order.discount) > 0 && (
+            <div style={{ ...styles.totalLine, color: '#7d24d6' }}>
+              <span>
+                {couponLabelCodes
+                  ? `Coupon (${couponLabelCodes})`
+                  : order.couponCode
+                    ? `Coupon (${order.couponCode})`
+                    : 'Discount'}
+              </span>
+              <span>−{money(order.discount)}</span>
+            </div>
+          )
         )}
         {order?.total != null && (
           <div style={styles.totalLineGrand}>

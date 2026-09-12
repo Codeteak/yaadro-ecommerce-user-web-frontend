@@ -55,6 +55,8 @@ export function mapHomeSectionProduct(raw) {
     finalPriceMinor,
     totalDiscountMinor,
     discountPercentage,
+    offerPriceMinor,
+    promoPriceMinor,
   } = pricing;
 
   const bundleRules = Array.isArray(raw.bundleRules)
@@ -81,6 +83,8 @@ export function mapHomeSectionProduct(raw) {
     finalPriceMinor: finalPriceMinor || undefined,
     totalDiscountMinor: totalDiscountMinor || undefined,
     discountPercentage: discountPercentage || undefined,
+    offerPriceMinor: offerPriceMinor || undefined,
+    promoPriceMinor: promoPriceMinor || undefined,
     bundleRules,
     inStock: true,
     stock: 1,

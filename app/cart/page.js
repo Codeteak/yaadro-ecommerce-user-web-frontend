@@ -1,31 +1,34 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
-import { Button } from '@heroui/react';
-import { useCart } from '../../context/CartContext';
-import { usePageTitle } from '../../context/ShopBrandingContext';
-import { useAuth } from '../../context/AuthContext';
-import { useProducts } from '../../hooks/useProducts';
-import { cartKeys } from '../../hooks/useCart';
-import { useLoginNavigation } from '../../hooks/useLoginNavigation';
-import { computeCartSavings, getCartBottomBarPricing } from '../../utils/cartSavings';
-import { minorToMajor } from '../../utils/currencyMinor';
-import { sumCartPaidUnits } from '../../utils/cartPromotions';
+import { useState, useEffect, useMemo, Suspense } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { Button } from "@heroui/react";
+import { useCart } from "../../context/CartContext";
+import { usePageTitle } from "../../context/ShopBrandingContext";
+import { useAuth } from "../../context/AuthContext";
+import { useProducts } from "../../hooks/useProducts";
+import { cartKeys } from "../../hooks/useCart";
+import { useLoginNavigation } from "../../hooks/useLoginNavigation";
+import {
+  computeCartSavings,
+  getCartBottomBarPricing,
+} from "../../utils/cartSavings";
+import { minorToMajor } from "../../utils/currencyMinor";
+import { sumCartPaidUnits } from "../../utils/cartPromotions";
 import {
   buildCartOfferGroups,
   getCouponThresholdHint,
-} from '../../utils/offerDisplay';
-import ConfirmModal from '../../components/ConfirmModal';
-import ProductCarousel from '../../components/ProductCarousel';
-import CheckoutCouponsSection from '../../components/CheckoutCouponsSection';
-import CartPageSkeleton from '../../components/skeletons/CartPageSkeleton';
-import OfferGroupCard from '../../components/promotions/OfferGroupCard';
-import CouponThresholdBanner from '../../components/promotions/CouponThresholdBanner';
-import { BRAND_CHECKOUT_BTN } from '../../components/ui/brandButton';
+} from "../../utils/offerDisplay";
+import ConfirmModal from "../../components/ConfirmModal";
+import ProductCarousel from "../../components/ProductCarousel";
+import CheckoutCouponsSection from "../../components/CheckoutCouponsSection";
+import CartPageSkeleton from "../../components/skeletons/CartPageSkeleton";
+import OfferGroupCard from "../../components/promotions/OfferGroupCard";
+import CouponThresholdBanner from "../../components/promotions/CouponThresholdBanner";
+import { BRAND_CHECKOUT_BTN } from "../../components/ui/brandButton";
 
 /* ─────────────────────────────────────────────
    Sub-components
@@ -33,7 +36,7 @@ import { BRAND_CHECKOUT_BTN } from '../../components/ui/brandButton';
 
 function TopBar({ itemCount, onBack }) {
   const countLabel =
-    itemCount == null ? '…' : `${itemCount} item${itemCount !== 1 ? 's' : ''}`;
+    itemCount == null ? "…" : `${itemCount} item${itemCount !== 1 ? "s" : ""}`;
   return (
     <div className="bg-white border-b border-gray-100 px-4 py-3.5 flex items-center gap-3 sticky top-0 z-30">
       <button
@@ -42,8 +45,18 @@ function TopBar({ itemCount, onBack }) {
         className="w-9 h-9 rounded-full border border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0"
         aria-label="Back"
       >
-        <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        <svg
+          className="w-4 h-4 text-gray-700"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19l-7-7 7-7"
+          />
         </svg>
       </button>
       <span className="text-base font-medium text-gray-900">My cart</span>
@@ -60,12 +73,11 @@ function SectionLabel({ children }) {
   );
 }
 
-
-function ActionButton({ onClick, variant = 'default', icon, children }) {
+function ActionButton({ onClick, variant = "default", icon, children }) {
   const variants = {
-    default: 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100',
-    green: 'border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100',
-    danger: 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100',
+    default: "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100",
+    green: "border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100",
+    danger: "border-red-200 bg-red-50 text-red-700 hover:bg-red-100",
   };
   return (
     <button
@@ -78,10 +90,32 @@ function ActionButton({ onClick, variant = 'default', icon, children }) {
   );
 }
 
-function SummaryCard({ cartItems, cartTotal, totalQty: totalQtyProp }) {
+function SummaryCard({
+  cartItems,
+  cartTotal,
+  totalQty: totalQtyProp,
+  couponDiscount = 0,
+  autoCartDiscount = 0,
+  bundleDiscount = 0,
+  linePromoDiscount = 0,
+}) {
   const { mrpTotal, savings } = getCartBottomBarPricing(cartItems, cartTotal);
-  const discount = savings > 0.009 ? savings : 0;
-  const totalQty = totalQtyProp ?? cartItems.reduce((a, i) => a + (Number(i.quantity) || 1), 0);
+  const totalQty =
+    totalQtyProp ??
+    cartItems.reduce((a, i) => a + (Number(i.quantity) || 1), 0);
+  const saleSavings =
+    linePromoDiscount > 0.009
+      ? linePromoDiscount
+      : Math.max(
+          0,
+          savings - couponDiscount - autoCartDiscount - bundleDiscount,
+        );
+  const hasSplit =
+    saleSavings > 0.009 ||
+    bundleDiscount > 0.009 ||
+    autoCartDiscount > 0.009 ||
+    couponDiscount > 0.009;
+  const lumpDiscount = !hasSplit && savings > 0.009 ? savings : 0;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4 mx-4 mb-3">
@@ -89,7 +123,9 @@ function SummaryCard({ cartItems, cartTotal, totalQty: totalQtyProp }) {
       <div className="space-y-0 divide-y divide-gray-100 text-[13px]">
         <div className="flex justify-between py-2.5 text-gray-500">
           <span>Subtotal ({totalQty} items)</span>
-          <span className="font-medium text-gray-900">₹{mrpTotal.toLocaleString('en-IN')}</span>
+          <span className="font-medium text-gray-900">
+            ₹{mrpTotal.toLocaleString("en-IN")}
+          </span>
         </div>
         <div className="flex justify-between py-2.5 text-gray-500">
           <span>Shipping</span>
@@ -97,22 +133,58 @@ function SummaryCard({ cartItems, cartTotal, totalQty: totalQtyProp }) {
             Free
           </span>
         </div>
-        {discount > 0 && (
+        {saleSavings > 0.009 && (
           <div className="flex justify-between py-2.5 text-gray-500">
-            <span>Discount</span>
-            <span className="font-medium text-violet-700">−₹{discount.toLocaleString('en-IN')}</span>
+            <span>Sale price savings</span>
+            <span className="font-medium text-violet-700">
+              −₹{saleSavings.toLocaleString("en-IN")}
+            </span>
+          </div>
+        )}
+        {bundleDiscount > 0.009 && (
+          <div className="flex justify-between py-2.5 text-gray-500">
+            <span>Free items (buy more, get free)</span>
+            <span className="font-medium text-violet-700">
+              −₹{bundleDiscount.toLocaleString("en-IN")}
+            </span>
+          </div>
+        )}
+        {autoCartDiscount > 0.009 && (
+          <div className="flex justify-between py-2.5 text-gray-500">
+            <span>Automatic cart discount</span>
+            <span className="font-medium text-violet-700">
+              −₹{autoCartDiscount.toLocaleString("en-IN")}
+            </span>
+          </div>
+        )}
+        {couponDiscount > 0.009 && (
+          <div className="flex justify-between py-2.5 text-gray-500">
+            <span>Coupon</span>
+            <span className="font-medium text-violet-700">
+              −₹{couponDiscount.toLocaleString("en-IN")}
+            </span>
+          </div>
+        )}
+        {lumpDiscount > 0 && (
+          <div className="flex justify-between py-2.5 text-gray-500">
+            <span>Offers & discounts</span>
+            <span className="font-medium text-violet-700">
+              −₹{lumpDiscount.toLocaleString("en-IN")}
+            </span>
           </div>
         )}
         <div className="flex justify-between pt-3 pb-1 text-[15px] font-medium text-gray-900">
           <span>Total</span>
-          <span>₹{cartTotal.toLocaleString('en-IN')}</span>
+          <span>₹{cartTotal.toLocaleString("en-IN")}</span>
         </div>
       </div>
       <marquee
         className="mt-2 block w-full rounded-md bg-red-600 py-1.5 text-[12px] font-medium tracking-wide text-white"
         scrollAmount={4}
       >
-        {Array.from({ length: 16 }, () => 'Price may vary').join('        ·        ')}
+        {Array.from({ length: 16 }, () => "Price may vary").join(
+          "        ·        ",
+        )}
       </marquee>
     </div>
   );
@@ -124,14 +196,24 @@ function SavedCartsSection({ savedCarts, onLoad, onDelete }) {
     <div className="mx-4 mb-3 bg-white rounded-2xl border border-gray-100 overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
         <p className="text-[13px] font-medium text-gray-900">Saved carts</p>
-        <span className="text-[11px] text-gray-400">{savedCarts.length} saved</span>
+        <span className="text-[11px] text-gray-400">
+          {savedCarts.length} saved
+        </span>
       </div>
       {savedCarts.map((sc) => (
-        <div key={sc.id} className="px-4 py-3 flex items-center justify-between border-b border-gray-100 last:border-0">
+        <div
+          key={sc.id}
+          className="px-4 py-3 flex items-center justify-between border-b border-gray-100 last:border-0"
+        >
           <div>
             <p className="text-[12px] font-medium text-gray-800">{sc.name}</p>
             <p className="text-[11px] text-gray-400">
-              {sc.items.length} items · {new Date(sc.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+              {sc.items.length} items ·{" "}
+              {new Date(sc.createdAt).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
             </p>
           </div>
           <div className="flex gap-2">
@@ -171,13 +253,13 @@ function EmptyCart({ carouselSections = [] }) {
         </div>
         <h2 className="text-lg font-medium text-gray-900 mb-2 inline-flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
           <span>Your cart is</span>
-          <span
-            className="inline-flex items-center justify-center px-[1.1rem] py-[0.2rem] text-[1.07rem] font-semibold leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)] bg-[url('/red-brush.png')] bg-center bg-no-repeat [background-size:100%_100%]"
-          >
+          <span className="inline-flex items-center justify-center px-[1.1rem] py-[0.2rem] text-[1.07rem] font-semibold leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)] bg-[url('/red-brush.png')] bg-center bg-no-repeat [background-size:100%_100%]">
             Empty
           </span>
         </h2>
-        <p className="text-sm text-gray-400 mb-6">Add products to start your order</p>
+        <p className="text-sm text-gray-400 mb-6">
+          Add products to start your order
+        </p>
         <div className="flex flex-wrap items-center justify-center gap-2.5">
           <Link
             href="/"
@@ -201,7 +283,9 @@ function EmptyCart({ carouselSections = [] }) {
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
                 {title}
               </h2>
-              <p className="mt-2 text-[13px] md:text-sm text-gray-500">{description}</p>
+              <p className="mt-2 text-[13px] md:text-sm text-gray-500">
+                {description}
+              </p>
             </div>
             <ProductCarousel products={products} showMoreLink="/products" />
             <div className="mt-4 flex justify-center">
@@ -210,13 +294,24 @@ function EmptyCart({ carouselSections = [] }) {
                 className="inline-flex items-center gap-2 text-[12px] font-medium text-violet-700 hover:text-violet-800 transition"
               >
                 <span>See all</span>
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
                 </svg>
               </Link>
             </div>
           </section>
-        ) : null
+        ) : null,
       )}
     </div>
   );
@@ -226,7 +321,7 @@ function EmptyCart({ carouselSections = [] }) {
    Main cart content
 ───────────────────────────────────────────── */
 function CartPageContent() {
-  usePageTitle('Cart');
+  usePageTitle("Cart");
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, authHydrated } = useAuth();
@@ -246,6 +341,8 @@ function CartPageContent() {
     hasHydratedLocalCart,
     selectedCouponCode,
     setSelectedCouponCode,
+    selectedCouponCodes,
+    setSelectedCouponCodes,
     cartData,
     cartQueryFetching,
     couponPreviewTrusted,
@@ -260,29 +357,33 @@ function CartPageContent() {
       void queryClient.invalidateQueries({ queryKey: cartKeys.all });
     };
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') refresh();
+      if (document.visibilityState === "visible") refresh();
     };
     const onPageShow = (event) => {
       if (event.persisted) refresh();
     };
-    document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('pageshow', onPageShow);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pageshow", onPageShow);
     return () => {
-      document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('pageshow', onPageShow);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pageshow", onPageShow);
     };
   }, [isAuthenticated, queryClient]);
 
   const handleBack = () => {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
+    if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
       return;
     }
-    router.replace('/');
+    router.replace("/");
   };
 
   const displayCartTotal = useMemo(() => {
-    if (couponPreviewTrusted && cartData?.total != null && Number.isFinite(Number(cartData.total))) {
+    if (
+      couponPreviewTrusted &&
+      cartData?.total != null &&
+      Number.isFinite(Number(cartData.total))
+    ) {
       return Number(cartData.total);
     }
     return Number(cartTotal) || 0;
@@ -301,25 +402,42 @@ function CartPageContent() {
       return minorToMajor(cartData.couponDiscountMinor);
     }
     const preview = cartData?.promotions?.coupon;
-    if (preview?.status === 'applied' && preview.discountMinor > 0) {
+    if (preview?.status === "applied" && preview.discountMinor > 0) {
       return minorToMajor(preview.discountMinor);
     }
     return 0;
-  }, [couponPreviewTrusted, cartData?.couponDiscountMinor, cartData?.promotions?.coupon]);
+  }, [
+    couponPreviewTrusted,
+    cartData?.couponDiscountMinor,
+    cartData?.promotions?.coupon,
+  ]);
 
   useEffect(() => {
-    const shared = searchParams?.get('shared');
+    const shared = searchParams?.get("shared");
     if (shared) loadSharedCart(shared);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const totalQty = cartCount > 0 ? cartCount : sumCartPaidUnits(cartItems);
 
-  const offerGroups = useMemo(() => buildCartOfferGroups(cartItems), [cartItems]);
+  const offerGroups = useMemo(
+    () => buildCartOfferGroups(cartItems),
+    [cartItems],
+  );
 
   const couponThresholdHint = useMemo(
-    () => getCouponThresholdHint(cartData?.promotions, cartSubtotalMinor, []),
-    [cartData?.promotions, cartSubtotalMinor]
+    () =>
+      getCouponThresholdHint(
+        cartData?.promotions,
+        cartSubtotalMinor,
+        couponPreviewTrusted ? cartData?.promotions?.suggestedCoupons ?? [] : []
+      ),
+    [
+      cartData?.promotions,
+      cartSubtotalMinor,
+      couponPreviewTrusted,
+      cartData?.promotions?.suggestedCoupons,
+    ],
   );
 
   const handleCartQtyChange = (id, qty) => {
@@ -341,8 +459,8 @@ function CartPageContent() {
   // Pool of products used to suggest "similar products". Same query as home → cached.
   const { data: similarPoolData } = useProducts({
     limit: 50,
-    sort_by: 'created_at',
-    sort_order: 'desc',
+    sort_by: "created_at",
+    sort_order: "desc",
   });
   const similarPool = similarPoolData?.products || [];
 
@@ -352,9 +470,9 @@ function CartPageContent() {
         cartItems
           .map((item) => item.productId ?? item.product?.id ?? item.id)
           .filter((id) => id != null)
-          .map((id) => String(id))
+          .map((id) => String(id)),
       ),
-    [cartItems]
+    [cartItems],
   );
 
   const cartCategoryNames = useMemo(() => {
@@ -367,33 +485,29 @@ function CartPageContent() {
         item?.product?.category?.name ??
         item?.product?.category ??
         null;
-      if (typeof cat === 'string' && cat.trim()) names.add(cat.trim().toLowerCase());
+      if (typeof cat === "string" && cat.trim())
+        names.add(cat.trim().toLowerCase());
     });
     return names;
   }, [cartItems]);
 
   const orderSavings = useMemo(
     () => computeCartSavings(cartItems, displayCartTotal),
-    [cartItems, displayCartTotal]
+    [cartItems, displayCartTotal],
   );
   const bottomBarPricing = useMemo(
     () => getCartBottomBarPricing(cartItems, displayCartTotal),
-    [cartItems, displayCartTotal]
+    [cartItems, displayCartTotal],
   );
 
   const similarProducts = useMemo(() => {
     if (similarPool.length === 0) return [];
     const candidates = similarPool.filter(
-      (p) => p?.id != null && !cartProductIds.has(String(p.id))
+      (p) => p?.id != null && !cartProductIds.has(String(p.id)),
     );
     if (cartCategoryNames.size === 0) return candidates.slice(0, 12);
     const matchesCart = (p) => {
-      const pc = (
-        p?.category?.name ??
-        p?.category ??
-        p?.categoryName ??
-        ''
-      )
+      const pc = (p?.category?.name ?? p?.category ?? p?.categoryName ?? "")
         .toString()
         .trim()
         .toLowerCase();
@@ -410,15 +524,15 @@ function CartPageContent() {
     if (list.length === 0) return [];
     return [
       {
-        key: 'empty-picks-1',
-        title: 'You might like',
-        description: 'Popular picks you can add anytime.',
+        key: "empty-picks-1",
+        title: "You might like",
+        description: "Popular picks you can add anytime.",
         products: list.slice(0, 8),
       },
       {
-        key: 'empty-picks-2',
-        title: 'More to explore',
-        description: 'Recently listed items worth a look.',
+        key: "empty-picks-2",
+        title: "More to explore",
+        description: "Recently listed items worth a look.",
         products: list.slice(8, 16),
       },
     ];
@@ -427,16 +541,21 @@ function CartPageContent() {
   const handleProceedToCheckout = () => {
     if (!authHydrated) return;
     if (isAuthenticated) {
-      router.push('/checkout');
+      router.push("/checkout");
       return;
     }
-    goToLogin('/checkout');
+    goToLogin("/checkout");
   };
 
   /* ── Icons ── */
   const TrashIcon = (
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+      />
     </svg>
   );
 
@@ -446,7 +565,7 @@ function CartPageContent() {
 
   return (
     <div
-      className={`min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden ${cartItems.length > 0 ? 'pb-32' : 'pb-28'}`}
+      className={`min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden ${cartItems.length > 0 ? "pb-32" : "pb-28"}`}
     >
       <TopBar itemCount={totalQty} onBack={handleBack} />
 
@@ -493,7 +612,11 @@ function CartPageContent() {
 
             {/* Action buttons */}
             <div className="flex flex-wrap gap-2 pt-1">
-              <ActionButton onClick={clearCart} variant="danger" icon={TrashIcon}>
+              <ActionButton
+                onClick={clearCart}
+                variant="danger"
+                icon={TrashIcon}
+              >
                 Clear all
               </ActionButton>
             </div>
@@ -503,11 +626,21 @@ function CartPageContent() {
                 <CheckoutCouponsSection
                   cartSubtotalMinor={cartSubtotalMinor}
                   selectedCouponCode={selectedCouponCode}
+                  selectedCouponCodes={selectedCouponCodes}
                   onSelectCouponCode={setSelectedCouponCode}
-                  couponPreview={couponPreviewTrusted ? cartData?.promotions?.coupon : null}
-                  suggestedCoupons={couponPreviewTrusted ? cartData?.promotions?.suggestedCoupons : []}
+                  onSelectCouponCodes={setSelectedCouponCodes}
+                  couponPreview={
+                    couponPreviewTrusted ? cartData?.promotions?.coupon : null
+                  }
+                  suggestedCoupons={
+                    couponPreviewTrusted
+                      ? cartData?.promotions?.suggestedCoupons
+                      : []
+                  }
                   isPreviewLoading={cartQueryFetching}
-                  promotionsPaused={couponPreviewTrusted ? cartData?.promotions?.paused : false}
+                  promotionsPaused={
+                    couponPreviewTrusted ? cartData?.promotions?.paused : false
+                  }
                   enabled={cartItems.length > 0}
                 />
               </div>
@@ -526,15 +659,29 @@ function CartPageContent() {
                     </p>
                   </div>
                 </div>
-                <ProductCarousel products={similarProducts} showMoreLink="/products" />
+                <ProductCarousel
+                  products={similarProducts}
+                  showMoreLink="/products"
+                />
                 <div className="mt-4 flex justify-center">
                   <Link
                     href="/products"
                     className="inline-flex items-center gap-2 text-[12px] font-medium text-violet-700 hover:text-violet-800 transition"
                   >
                     <span>See all</span>
-                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    <svg
+                      className="h-3.5 w-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
                     </svg>
                   </Link>
                 </div>
@@ -543,7 +690,38 @@ function CartPageContent() {
           </div>
 
           {/* Order summary */}
-          <SummaryCard cartItems={cartItems} cartTotal={displayCartTotal} totalQty={totalQty} />
+          <SummaryCard
+            cartItems={cartItems}
+            cartTotal={displayCartTotal}
+            totalQty={totalQty}
+            couponDiscount={couponDiscountMajor}
+            autoCartDiscount={
+              couponPreviewTrusted && cartData?.autoCartDiscountMinor > 0
+                ? minorToMajor(cartData.autoCartDiscountMinor)
+                : couponPreviewTrusted &&
+                    cartData?.promotions?.auto?.autoCartDiscountMinor > 0
+                  ? minorToMajor(cartData.promotions.auto.autoCartDiscountMinor)
+                  : 0
+            }
+            bundleDiscount={
+              couponPreviewTrusted && cartData?.bundleDiscountMinor > 0
+                ? minorToMajor(cartData.bundleDiscountMinor)
+                : couponPreviewTrusted &&
+                    cartData?.promotions?.auto?.bundleDiscountMinor > 0
+                  ? minorToMajor(cartData.promotions.auto.bundleDiscountMinor)
+                  : 0
+            }
+            linePromoDiscount={
+              couponPreviewTrusted && cartData?.linePromoDiscountMinor > 0
+                ? minorToMajor(cartData.linePromoDiscountMinor)
+                : couponPreviewTrusted &&
+                    cartData?.promotions?.auto?.linePromoDiscountMinor > 0
+                  ? minorToMajor(
+                      cartData.promotions.auto.linePromoDiscountMinor,
+                    )
+                  : 0
+            }
+          />
 
           {/* Saved carts */}
           <SavedCartsSection
@@ -560,7 +738,7 @@ function CartPageContent() {
           {orderSavings > 0 && (
             <div
               className="flex items-center justify-center gap-1.5 border-b border-white/15 px-3 py-2 text-center"
-              style={{ backgroundColor: '#902bf5' }}
+              style={{ backgroundColor: "#902bf5" }}
             >
               <svg
                 className="h-3.5 w-3.5 flex-shrink-0 text-white"
@@ -577,27 +755,31 @@ function CartPageContent() {
                 />
               </svg>
               <p className="text-[11px] font-semibold leading-tight text-white">
-                You&apos;re saving ₹{orderSavings.toLocaleString('en-IN')} on this order
+                You&apos;re saving ₹{orderSavings.toLocaleString("en-IN")} on
+                this order
               </p>
             </div>
           )}
           <div
             className="flex items-center gap-3 px-4 py-3"
-            style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+            style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
           >
             <div className="min-w-0 flex-1">
               <p className="text-[11px] text-gray-400">Total</p>
               <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                 <p className="text-lg font-semibold text-gray-900 tabular-nums">
-                  ₹{bottomBarPricing.payable.toLocaleString('en-IN')}
+                  ₹{bottomBarPricing.payable.toLocaleString("en-IN")}
                 </p>
                 {bottomBarPricing.hasOffer && (
                   <>
                     <p className="text-sm text-gray-400 line-through tabular-nums">
-                      ₹{bottomBarPricing.mrpTotal.toLocaleString('en-IN')}
+                      ₹{bottomBarPricing.mrpTotal.toLocaleString("en-IN")}
                     </p>
                     <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-800">
-                      Save ₹{Math.round(bottomBarPricing.savings).toLocaleString('en-IN')}
+                      Save ₹
+                      {Math.round(bottomBarPricing.savings).toLocaleString(
+                        "en-IN",
+                      )}
                     </span>
                   </>
                 )}
@@ -609,8 +791,18 @@ function CartPageContent() {
               className={`flex h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap ${BRAND_CHECKOUT_BTN} active:scale-[0.98]`}
             >
               Checkout
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
               </svg>
             </Button>
           </div>
@@ -620,7 +812,10 @@ function CartPageContent() {
       <ConfirmModal
         isOpen={deleteCartConfirm !== null}
         onClose={() => setDeleteCartConfirm(null)}
-        onConfirm={() => { deleteSavedCart(deleteCartConfirm); setDeleteCartConfirm(null); }}
+        onConfirm={() => {
+          deleteSavedCart(deleteCartConfirm);
+          setDeleteCartConfirm(null);
+        }}
         title="Delete saved cart"
         message="Are you sure you want to delete this saved cart?"
         confirmText="Yes, delete"
@@ -635,7 +830,9 @@ function CartPageContent() {
 ───────────────────────────────────────────── */
 export default function CartPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50" aria-hidden />}>
+    <Suspense
+      fallback={<div className="min-h-screen bg-gray-50" aria-hidden />}
+    >
       <CartPageContent />
     </Suspense>
   );

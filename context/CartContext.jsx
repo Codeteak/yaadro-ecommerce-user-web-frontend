@@ -25,7 +25,8 @@ import {
 } from '../utils/cartLinePersist';
 import {
   readSelectedCouponCode,
-  writeSelectedCouponCode,
+  readSelectedCouponCodes,
+  writeSelectedCouponCodes,
 } from '../utils/checkoutSession';
 import { RESOLVED_SHOP_ID_STORAGE_KEY } from '../utils/shopResolver';
 
@@ -97,6 +98,7 @@ export function CartProvider({ children }) {
   const [savedCarts, setSavedCarts] = useState([]);
   const [cartTemplates, setCartTemplates] = useState([]);
   const [selectedCouponCode, setSelectedCouponCodeState] = useState('');
+  const [selectedCouponCodes, setSelectedCouponCodesState] = useState([]);
   const selectedCouponCodeRef = useRef('');
 
   const { showAlert } = useAlert();
@@ -112,12 +114,21 @@ export function CartProvider({ children }) {
     selectedCouponCodeRef.current = selectedCouponCode;
   }, [selectedCouponCode]);
 
+  const setSelectedCouponCodes = useCallback((codes) => {
+    const list = Array.isArray(codes)
+      ? [...new Set(codes.map((c) => String(c || '').trim().toUpperCase()).filter(Boolean))]
+      : [];
+    setSelectedCouponCodesState(list);
+    const primary = list[0] || '';
+    selectedCouponCodeRef.current = primary;
+    setSelectedCouponCodeState(primary);
+    writeSelectedCouponCodes(list);
+  }, []);
+
   const setSelectedCouponCode = useCallback((code) => {
     const next = String(code || '').trim().toUpperCase();
-    selectedCouponCodeRef.current = next;
-    setSelectedCouponCodeState(next);
-    writeSelectedCouponCode(next);
-  }, []);
+    setSelectedCouponCodes(next ? [next] : []);
+  }, [setSelectedCouponCodes]);
 
   useLayoutEffect(() => {
     setIsClient(true);
@@ -154,10 +165,18 @@ export function CartProvider({ children }) {
     }
 
     setHasHydratedLocalCart(true);
-    const savedCoupon = readSelectedCouponCode();
-    if (savedCoupon) {
-      selectedCouponCodeRef.current = savedCoupon;
-      setSelectedCouponCodeState(savedCoupon);
+    const savedCodes = readSelectedCouponCodes();
+    if (savedCodes.length) {
+      setSelectedCouponCodesState(savedCodes);
+      selectedCouponCodeRef.current = savedCodes[0];
+      setSelectedCouponCodeState(savedCodes[0]);
+    } else {
+      const savedCoupon = readSelectedCouponCode();
+      if (savedCoupon) {
+        selectedCouponCodeRef.current = savedCoupon;
+        setSelectedCouponCodeState(savedCoupon);
+        setSelectedCouponCodesState([savedCoupon]);
+      }
     }
   }, []);
 
@@ -166,8 +185,11 @@ export function CartProvider({ children }) {
     data: cartPreviewData,
     isFetching: cartQueryFetching,
   } = useCartQuery({
+    // Guest-safe: POST /storefront/cart/preview does not require JWT.
+    // Always preview when the cart has paid lines so offer/pricing merge works with or without coupons.
     enabled: paidLocalCount > 0,
     couponCode: selectedCouponCode || undefined,
+    couponCodes: selectedCouponCodes.length > 1 ? selectedCouponCodes : undefined,
     items: localCartItems,
   });
 
@@ -324,7 +346,8 @@ export function CartProvider({ children }) {
     localCartItemsRef.current = [];
     selectedCouponCodeRef.current = '';
     setSelectedCouponCodeState('');
-    writeSelectedCouponCode('');
+    setSelectedCouponCodesState([]);
+    writeSelectedCouponCodes([]);
     if (isClient && typeof window !== 'undefined') {
       localStorage.removeItem(shopCartStorageKey());
       localStorage.removeItem(API_CART_CACHE_STORAGE_KEY);
@@ -498,6 +521,8 @@ export function CartProvider({ children }) {
     hasHydratedLocalCart,
     selectedCouponCode,
     setSelectedCouponCode,
+    selectedCouponCodes,
+    setSelectedCouponCodes,
     cartData: cartPreviewTrusted ? cartPreviewData : undefined,
     couponPreviewTrusted,
     cartPreviewTrusted,
