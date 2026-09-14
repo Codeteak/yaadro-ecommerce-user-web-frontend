@@ -44,8 +44,8 @@ export default function ProductCarousel({ products, title, showMoreLink, cardVar
       <div
         className={
           compact
-            ? 'flex items-start gap-2.5 overflow-x-auto scrollbar-hide scroll-smooth pb-1 w-full [scroll-padding-inline:1rem] sm:[scroll-padding-inline:1.5rem] lg:[scroll-padding-inline:2rem]'
-            : 'flex items-start gap-1.5 md:gap-4 overflow-x-auto scrollbar-hide scroll-smooth pb-4 w-full pl-4 sm:pl-6 lg:pl-8 pr-0'
+            ? 'flex items-stretch gap-2.5 overflow-x-auto scrollbar-hide scroll-smooth pb-1 w-full [scroll-padding-inline:1rem] sm:[scroll-padding-inline:1.5rem] lg:[scroll-padding-inline:2rem]'
+            : 'flex items-stretch gap-1.5 md:gap-4 overflow-x-auto scrollbar-hide scroll-smooth pb-4 w-full pl-4 sm:pl-6 lg:pl-8 pr-0'
         }
         style={{
           scrollSnapType: 'x mandatory',
@@ -57,7 +57,7 @@ export default function ProductCarousel({ products, title, showMoreLink, cardVar
         {products.map((product) => (
           <div
             key={product.id}
-            className="flex-shrink-0"
+            className="flex h-full flex-shrink-0"
             style={{ scrollSnapAlign: 'start' }}
           >
             <ProductCard product={product} isCarousel={true} variant={cardVariant} />
