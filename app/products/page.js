@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useCategoriesTree } from '../../hooks/useProducts';
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import ProductsCategoryRail from '../../components/products/ProductsCategoryRail';
-import ProductsListingPanel from '../../components/products/ProductsListingPanel';
+import ProductsListingPanel, { FilterBar } from '../../components/products/ProductsListingPanel';
 import { CATEGORY_ID_UUID } from '../../components/products/productsBrowseConstants';
 import ProductsPageSkeleton from '../../components/skeletons/ProductsPageSkeleton';
 import BrowsePageHeader from '../../components/BrowsePageHeader';
@@ -42,6 +42,12 @@ function ProductsContent() {
   );
   const [searchOpen, setSearchOpen] = useState(false);
   const [localSearch, setLocalSearch] = useState('');
+  const [filters, setFilters] = useState({
+    organic: false,
+    inStock: false,
+    onSale: false,
+  });
+  const [sortKey, setSortKey] = useState('default');
 
   const { data: categoryTree = [], isLoading: treeLoading } = useCategoriesTree();
   const categoriesData = useMemo(() => flattenCategoryTree(categoryTree), [categoryTree]);
@@ -114,6 +120,13 @@ function ProductsContent() {
 
   const onBack = useCallback(() => router.back(), [router]);
   const onSearchOpenToggle = useCallback(() => setSearchOpen((v) => !v), []);
+  const onFilterToggle = useCallback((key) => {
+    setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+  const onClearFilters = useCallback(() => {
+    setFilters({ organic: false, inStock: false, onSale: false });
+    setSortKey('default');
+  }, []);
 
   if (showRailSkeleton) {
     return (
@@ -157,6 +170,14 @@ function ProductsContent() {
             />
           </div>
         }
+        toolbar={
+          <FilterBar
+            filters={filters}
+            onFilterToggle={onFilterToggle}
+            sortKey={sortKey}
+            onSortChange={setSortKey}
+          />
+        }
       />
 
       <div className="mx-auto flex w-full max-w-screen-2xl flex-row">
@@ -173,6 +194,11 @@ function ProductsContent() {
           localInResultsSearch={localSearch}
           onResetBrowse={onResetBrowse}
           isPending={isCategoryPending}
+          filters={filters}
+          onFilterToggle={onFilterToggle}
+          sortKey={sortKey}
+          onSortChange={setSortKey}
+          onClearFilters={onClearFilters}
         />
       </div>
 

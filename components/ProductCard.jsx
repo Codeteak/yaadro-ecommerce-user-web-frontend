@@ -343,7 +343,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     setTouchEnd(null);
   };
 
-  const cardShellClass = `flex flex-col h-full rounded-2xl overflow-hidden touch-manipulation transition-all duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/45 ${chromeClass} ${
+  const cardShellClass = `flex flex-col self-start rounded-2xl overflow-hidden touch-manipulation transition-all duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/45 ${chromeClass} ${
     isShelf ? 'w-[156px]' : isCarousel ? 'w-[140px]' : 'w-full'
   }`;
 
@@ -433,9 +433,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         <Link {...navLinkProps} className="block">
           <div
             ref={carouselRef}
-            className={`relative w-full overflow-hidden rounded-2xl cursor-grab active:cursor-grabbing pointer-events-auto ${
-              isShelf ? 'aspect-square' : 'aspect-[4/5] max-h-[120px]'
-            }`}
+            className="relative aspect-square w-full overflow-hidden rounded-2xl bg-gray-50 cursor-grab active:cursor-grabbing pointer-events-auto"
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
@@ -454,7 +452,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
                     src={img}
                     alt={`${product.name} – image ${idx + 1}`}
                     fill
-                    className="object-cover object-center"
+                    className="object-contain object-center p-2"
                     sizes="(max-width: 640px) 50vw, (max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                     placeholderName={product.name}
                     placeholderCategory={
