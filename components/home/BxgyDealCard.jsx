@@ -1,8 +1,12 @@
 'use client';
 
 import ProductCard from '../ProductCard';
+import {
+  formatCrossBxgyLabel,
+  formatSameSkuBxgyLabel,
+} from '../../utils/bxgyLabels';
 
-function withChrome(product, role, buyQty, getQty, offerMode) {
+function withChrome(product, role, buyQty, getQty, offerMode, pairNames) {
   if (!product) return null;
   return {
     ...product,
@@ -10,6 +14,8 @@ function withChrome(product, role, buyQty, getQty, offerMode) {
     bxgyBuyQty: buyQty,
     bxgyGetQty: getQty,
     bxgyOfferMode: offerMode,
+    bxgyBuyProductName: pairNames?.buyName || '',
+    bxgyGetProductName: pairNames?.getName || '',
   };
 }
 
@@ -31,38 +37,31 @@ export default function BxgyDealCard({ deal }) {
   const getRaw = Array.isArray(deal.getProducts) ? deal.getProducts[0] : null;
   if (!buyRaw) return null;
 
-  const buy = withChrome(buyRaw, 'buy', buyQty, getQty, mode);
+  const buyName = buyRaw.name || buyRaw.shortName || '';
+  const getName = getRaw?.name || getRaw?.shortName || '';
+  const pairNames = { buyName, getName };
+
+  const buy = withChrome(buyRaw, 'buy', buyQty, getQty, mode, pairNames);
   const get =
     mode === 'cross_sku' && getRaw
-      ? withChrome(getRaw, 'get', buyQty, getQty, mode)
+      ? withChrome(getRaw, 'get', buyQty, getQty, mode, pairNames)
       : null;
 
   const headline =
     deal.headline ||
     (mode === 'same_sku'
-      ? buyQty === 1 && getQty === 1
-        ? 'Buy 1 Get 1 Free'
-        : `Buy ${buyQty} Get ${getQty} Free`
-      : buyQty === 1 && getQty === 1
-        ? 'Buy this → get that free'
-        : `Buy ${buyQty} → get ${getQty} free`);
-
-  const hint =
-    deal.hint ||
-    (mode === 'same_sku'
-      ? 'Same product — free units apply at checkout'
-      : `Add ${buyQty} of the left item to unlock ${getQty} free of the right item`);
+      ? formatSameSkuBxgyLabel(buyQty, getQty)
+      : formatCrossBxgyLabel({ buyQty, getQty, buyName, getName }));
 
   if (mode === 'same_sku') {
     return (
       <article className="rounded-2xl border border-violet-200/80 bg-gradient-to-b from-violet-50/80 to-white p-3 sm:p-4 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span className="inline-flex rounded-full bg-violet-700 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
-            {buyQty === 1 && getQty === 1 ? 'B1G1' : `B${buyQty}G${getQty}`}
+            {buyQty === 1 && getQty === 1 ? 'BOGO' : `B${buyQty}G${getQty}`}
           </span>
           <p className="text-sm font-bold text-gray-900">{headline}</p>
         </div>
-        <p className="mb-3 text-[12px] text-gray-500">{hint}</p>
         <div className="max-w-[220px]">
           <ProductCard product={buy} isCarousel variant="shelf" />
         </div>
@@ -76,7 +75,6 @@ export default function BxgyDealCard({ deal }) {
     <article className="rounded-2xl border border-violet-200/80 bg-gradient-to-b from-violet-50/80 to-white p-3 sm:p-4 shadow-sm">
       <div className="mb-2">
         <p className="text-sm font-bold text-gray-900">{headline}</p>
-        <p className="mt-1 text-[12px] text-gray-500">{hint}</p>
       </div>
 
       <div className="flex items-stretch gap-2 sm:gap-3">
@@ -93,9 +91,6 @@ export default function BxgyDealCard({ deal }) {
         >
           <span className="rounded-full bg-violet-700 px-2 py-1 text-[11px] font-bold text-white">
             →
-          </span>
-          <span className="mt-1 text-[10px] font-semibold text-violet-700">
-            unlock
           </span>
         </div>
 

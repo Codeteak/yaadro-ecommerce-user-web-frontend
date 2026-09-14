@@ -114,14 +114,35 @@ function transformOrderItem(item) {
     const raw =
       item.originalQuantity ??
       item.original_quantity ??
-      item.orderedQuantity ??
-      item.ordered_quantity ??
       item.placedQuantity ??
       item.placed_quantity ??
       item.requestedQuantity ??
       item.requested_quantity ??
       null;
-    if (raw == null || raw === "") return null;
+    if (raw == null || raw === "") {
+      // Shop qty-edit only: orderedQuantity is pre-edit when not a BXGY paid split.
+      const freeQ = item.free_quantity ?? item.freeQuantity ?? item.offer_quantity;
+      const paidQ = item.paid_quantity ?? item.paidQuantity;
+      const freeN = freeQ != null && freeQ !== "" ? parseFloat(String(freeQ)) : null;
+      const paidN = paidQ != null && paidQ !== "" ? parseFloat(String(paidQ)) : null;
+      const looksBxgy =
+        (Number.isFinite(freeN) && freeN > 0) ||
+        (Number.isFinite(paidN) && paidN === 0) ||
+        item.is_bundle_reward === true ||
+        item.isBundleReward === true ||
+        item.is_confirmed_free_reward === true;
+      if (
+        !looksBxgy &&
+        (item.quantityAdjusted === true || item.quantity_adjusted === true)
+      ) {
+        const ord = item.orderedQuantity ?? item.ordered_quantity;
+        if (ord != null && ord !== "") {
+          const n = parseFloat(String(ord));
+          return Number.isFinite(n) && n > 0 ? n : null;
+        }
+      }
+      return null;
+    }
     const n = parseFloat(String(raw));
     return Number.isFinite(n) && n > 0 ? n : null;
   })();
@@ -158,10 +179,13 @@ function transformOrderItem(item) {
     unitPrice,
     totalPrice,
     isConfirmedFreeReward,
-    offer_quantity: item.offer_quantity ?? item.offerQuantity,
+    offer_quantity: item.offer_quantity ?? item.offerQuantity ?? item.free_quantity ?? item.freeQuantity,
     free_quantity: item.free_quantity ?? item.freeQuantity,
+    paid_quantity: item.paid_quantity ?? item.paidQuantity,
+    ordered_quantity: item.ordered_quantity ?? item.orderedQuantity,
   };
   const paidQty = inferOrderLinePaidQuantity(draftForPaid);
+  const freeQtyResolved = Math.max(0, quantity - paidQty);
   const mixedPaidFree = paidQty > 0 && quantity > paidQty;
   const isBxgyPaidLine = !isConfirmedFreeReward && (mixedPaidFree || paidQty > 0 && (
     Number(item.offer_quantity ?? item.offerQuantity ?? item.free_quantity ?? item.freeQuantity) > 0
@@ -232,8 +256,15 @@ function transformOrderItem(item) {
     image: resolveOrderItemImage(item),
     price: displayUnitPrice,
     discount: parseFloat(item.discount || 0),
-    offer_quantity: item.offer_quantity ?? item.offerQuantity ?? null,
-    free_quantity: item.free_quantity ?? item.freeQuantity ?? null,
+    offer_quantity:
+      item.offer_quantity ??
+      item.offerQuantity ??
+      (freeQtyResolved > 0 ? freeQtyResolved : null),
+    free_quantity:
+      item.free_quantity ?? item.freeQuantity ?? (freeQtyResolved > 0 ? freeQtyResolved : null),
+    paid_quantity: paidQty,
+    paidQuantity: paidQty,
+    ordered_quantity: item.ordered_quantity ?? item.orderedQuantity ?? paidQty,
   };
 }
 
@@ -293,9 +324,36 @@ function collectRawOrderItems(apiOrder, extraItems = []) {
 }
 
 function mapOrderItems(apiOrder, extraItems = []) {
-  return collectRawOrderItems(apiOrder, extraItems)
+  const items = collectRawOrderItems(apiOrder, extraItems)
     .map(transformOrderItem)
     .filter(Boolean);
+
+  const freePromoIds = new Set();
+  for (const it of items) {
+    if (!it || it.isDeleted) continue;
+    const free =
+      it.isConfirmedFreeReward === true ||
+      (Number(it.paid_quantity ?? it.paidQuantity) <= 0 &&
+        Number(it.totalPrice) < 0.01 &&
+        Number(it.quantity) > 0);
+    if (!free) continue;
+    for (const id of it.appliedPromotionIds || []) {
+      if (id) freePromoIds.add(String(id));
+    }
+  }
+  if (!freePromoIds.size) return items;
+
+  return items.map((it) => {
+    if (!it || it.isDeleted || it.isConfirmedFreeReward) return it;
+    const paid = Number(it.paid_quantity ?? it.paidQuantity);
+    const qty = Number(it.quantity);
+    if (!(paid > 0 && Math.abs(paid - qty) < 1e-6)) return it;
+    const shares = (it.appliedPromotionIds || []).some((id) =>
+      freePromoIds.has(String(id)),
+    );
+    if (!shares) return it;
+    return { ...it, isBxgyBuyLine: true, is_bxgy_buy_line: true };
+  });
 }
 
 /**

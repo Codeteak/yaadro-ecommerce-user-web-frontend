@@ -126,7 +126,13 @@ export function isOnSale(product) {
 /** True when checkout rule is buy-product-A → free-product-B (not same SKU). */
 export function isCrossSkuBundleRule(rule) {
   if (!rule || typeof rule !== 'object') return false;
-  return String(rule.scope || '') === 'cross_shop_products';
+  if (String(rule.scope || '') === 'cross_shop_products') return true;
+  // Legacy rows may omit scope but still carry distinct buy/reward IDs.
+  const buyId = String(rule.buy_shop_product_id ?? rule.buyShopProductId ?? '').trim();
+  const rewardId = String(
+    rule.reward_shop_product_id ?? rule.rewardShopProductId ?? '',
+  ).trim();
+  return Boolean(buyId && rewardId && buyId !== rewardId);
 }
 
 /**
@@ -147,30 +153,48 @@ export function bundleRuleRoleForProduct(rule, productId) {
   return 'buy';
 }
 
-/** Human-readable label for storefront `bundle_rules[]` (e.g. Buy 2 Get 1 free). */
-export function formatBundleRuleLabel(rule, { role = 'same' } = {}) {
+function ruleNames(rule) {
+  return {
+    buyName:
+      rule?.buy_product_name ??
+      rule?.buyProductName ??
+      rule?.buy_name ??
+      '',
+    getName:
+      rule?.reward_product_name ??
+      rule?.rewardProductName ??
+      rule?.get_product_name ??
+      rule?.getProductName ??
+      '',
+  };
+}
+
+/** Human-readable label for storefront `bundle_rules[]`. */
+export function formatBundleRuleLabel(rule, { role = 'same', buyName, getName } = {}) {
   if (!rule || typeof rule !== 'object') return '';
   const buy = Number(rule.buy_qty ?? rule.buyQty);
   const get = Number(rule.get_qty ?? rule.getQty);
-  const reward = rule.reward_type ?? rule.rewardType;
   if (!(Number.isFinite(buy) && buy > 0 && Number.isFinite(get) && get > 0)) {
-    return 'Bundle offer';
+    return 'Offer';
   }
+  const names = ruleNames(rule);
+  // Lazy import avoided — inline short copy to prevent cycles with bxgyLabels.
+  const left = String(buyName ?? names.buyName ?? '').trim();
+  const right = String(getName ?? names.getName ?? '').trim();
+  const short = (s) => (s.length > 28 ? `${s.slice(0, 26)}…` : s);
 
-  if (role === 'get') return 'Free with this offer';
-
-  // Cross-SKU (or shelf-injected scope): never say "Get N free" of the same item.
+  if (role === 'get') {
+    return left ? `Free with ${short(left)}` : 'Free with offer';
+  }
   if (isCrossSkuBundleRule(rule) || role === 'buy') {
-    if (reward === 'free') {
-      return buy === 1 && get === 1
-        ? 'Buy 1 · unlock a free item'
-        : `Buy ${buy} · unlock ${get} free`;
+    if (left && right) {
+      if (buy === 1 && get === 1) return `Buy ${short(left)} → ${short(right)} free`;
+      return `Buy ${buy} ${short(left)} → ${get} ${short(right)} free`;
     }
-    return `Buy ${buy} · unlock reward`;
+    if (buy === 1 && get === 1) return 'Buy this → get that free';
+    return `Buy ${buy} → get ${get} free`;
   }
-
-  if (reward === 'free') return `Buy ${buy} Get ${get} free`;
-  return `Buy ${buy} Get ${get}`;
+  return `Buy ${buy} Get ${get} Free`;
 }
 
 /** Shorter copy for diagonal corner ribbons on narrow product tiles. */
@@ -178,7 +202,6 @@ export function formatBundleRibbonLabel(rule, { compact = false, role = 'same' }
   if (!rule || typeof rule !== 'object') return '';
   const buy = Number(rule.buy_qty ?? rule.buyQty);
   const get = Number(rule.get_qty ?? rule.getQty);
-  const reward = rule.reward_type ?? rule.rewardType;
 
   if (role === 'get') return 'FREE';
   if (isCrossSkuBundleRule(rule) || role === 'buy') {
@@ -187,16 +210,44 @@ export function formatBundleRibbonLabel(rule, { compact = false, role = 'same' }
   }
 
   if (compact && Number.isFinite(buy) && buy > 0 && Number.isFinite(get) && get > 0) {
-    if (reward === 'free') return `B${buy}G${get} FREE`;
+    if (buy === 1 && get === 1) return 'B1G1';
     return `B${buy}G${get}`;
   }
   return formatBundleRuleLabel(rule, { role });
 }
 
-export function getPrimaryBundleRule(product) {
+/** All bundle rules on a product (stable order). */
+export function getBundleRules(product) {
   const rules = product?.bundleRules ?? product?.bundle_rules;
-  if (!Array.isArray(rules) || !rules.length) return null;
-  return rules[0];
+  return Array.isArray(rules) ? rules.filter((r) => r && typeof r === 'object') : [];
+}
+
+/**
+ * Best rule for this product: prefer buy-side cross, then same-SKU, then get-side.
+ * Avoids treating a free reward SKU as if it unlocks its own BOGO.
+ */
+export function getPrimaryBundleRule(product) {
+  const rules = getBundleRules(product);
+  if (!rules.length) return null;
+  const pid = String(product?.id ?? product?.productId ?? '');
+  const scored = rules.map((rule, index) => {
+    const role = bundleRuleRoleForProduct(rule, pid);
+    let score = 0;
+    if (role === 'buy') score = 30;
+    else if (role === 'same') score = 20;
+    else if (role === 'get') score = 10;
+    return { rule, score, index };
+  });
+  scored.sort((a, b) => b.score - a.score || a.index - b.index);
+  return scored[0]?.rule ?? rules[0];
+}
+
+/** True when this product is only a free reward (not also a buy trigger). */
+export function isRewardOnlyBundleProduct(product) {
+  const rules = getBundleRules(product);
+  if (!rules.length) return false;
+  const pid = String(product?.id ?? product?.productId ?? '');
+  return rules.every((r) => bundleRuleRoleForProduct(r, pid) === 'get');
 }
 
 // Get product popularity score (based on ratings, views, sales, etc.)

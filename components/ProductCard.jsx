@@ -11,6 +11,7 @@ import {
   formatWeightUnitLabel,
   formatRupeeINR,
   getPrimaryBundleRule,
+  bundleRuleRoleForProduct,
   resolveProductWeightAndUnit,
 } from '../utils/productUtils';
 import { getProductOfferDisplay } from '../utils/offerDisplay';
@@ -257,13 +258,18 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   const isShelf = variant === 'shelf';
   const shelfRole = String(product?.bxgyShelfRole || '').trim();
   const shelfMode = String(product?.bxgyOfferMode || '').trim();
-  // Only force BUY/FREE ribbon roles for cross-SKU shelves; same-SKU keeps B1G1 chrome.
+  // Prefer engine role for cross BUY/FREE ribbons on PLP (not only Damaka shelf).
+  const engineRole = bundleRule
+    ? bundleRuleRoleForProduct(bundleRule, product?.id)
+    : 'same';
   const ribbonRole =
     shelfMode === 'cross_sku' && (shelfRole === 'buy' || shelfRole === 'get')
       ? shelfRole
-      : shelfRole === 'get'
+      : shelfRole === 'get' || engineRole === 'get'
         ? 'get'
-        : 'same';
+        : shelfRole === 'buy' || engineRole === 'buy'
+          ? 'buy'
+          : 'same';
   const bundleRibbonText =
     offerDisplay.bundleRibbon ||
     (bundleRule

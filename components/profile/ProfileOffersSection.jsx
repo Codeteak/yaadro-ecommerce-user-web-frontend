@@ -31,10 +31,18 @@ function formatDiscountRule(rule) {
 
 function formatBundleRule(rule) {
   if (!rule) return null;
-  const buy = rule.buy_quantity ?? rule.buyQuantity;
-  const get = rule.free_quantity ?? rule.freeQuantity ?? rule.getQuantity ?? rule.get_quantity;
-  if (buy && get) return `Buy ${buy} Get ${get} Free`;
-  return 'Bundle offer available';
+  const buy = rule.buy_qty ?? rule.buy_quantity ?? rule.buyQuantity;
+  const get =
+    rule.get_qty ??
+    rule.free_quantity ??
+    rule.freeQuantity ??
+    rule.getQuantity ??
+    rule.get_quantity;
+  if (!(buy && get)) return 'Offer available';
+  if (String(rule.scope || '') === 'cross_shop_products') {
+    return `Buy ${buy} → get ${get} free`;
+  }
+  return `Buy ${buy} Get ${get} Free`;
 }
 
 function getOfferLabels(cat) {

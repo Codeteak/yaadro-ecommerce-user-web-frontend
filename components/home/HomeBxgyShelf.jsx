@@ -1,6 +1,10 @@
 'use client';
 
 import BxgyDealCard from './BxgyDealCard';
+import {
+  formatCrossBxgyLabel,
+  formatSameSkuBxgyLabel,
+} from '../../utils/bxgyLabels';
 
 /**
  * Build customer-facing deal cards when API did not send `deals`.
@@ -46,11 +50,7 @@ function buildDealsFallback({
         getQty: gq,
         buyProducts: [p],
         getProducts: [p],
-        headline:
-          bq === 1 && gq === 1
-            ? 'Buy 1 Get 1 Free'
-            : `Buy ${bq} Get ${gq} Free`,
-        hint: 'Same product — free units apply at checkout',
+        headline: formatSameSkuBxgyLabel(bq, gq),
       });
     }
     return deals;
@@ -58,23 +58,25 @@ function buildDealsFallback({
 
   if (!buyRaw.length || !getRaw.length) return [];
 
-  if (buyRaw.length === getRaw.length) {
-    buyRaw.forEach((b, i) => {
-      const g = getRaw[i];
-      deals.push({
-        id: `cross-${b.id}-${g.id}`,
-        dealMode: 'cross_sku',
+  const pushCross = (b, g) => {
+    deals.push({
+      id: `cross-${b.id}-${g.id}`,
+      dealMode: 'cross_sku',
+      buyQty: bq,
+      getQty: gq,
+      buyProducts: [b],
+      getProducts: [g],
+      headline: formatCrossBxgyLabel({
         buyQty: bq,
         getQty: gq,
-        buyProducts: [b],
-        getProducts: [g],
-        headline:
-          bq === 1 && gq === 1
-            ? 'Buy this → get that free'
-            : `Buy ${bq} → get ${gq} free`,
-        hint: `Buy ${bq} of the left item to unlock ${gq} free of the right item`,
-      });
+        buyName: b.name || b.shortName,
+        getName: g.name || g.shortName,
+      }),
     });
+  };
+
+  if (buyRaw.length === getRaw.length) {
+    buyRaw.forEach((b, i) => pushCross(b, getRaw[i]));
     return deals;
   }
 
@@ -82,27 +84,14 @@ function buildDealsFallback({
   for (const b of buyRaw) {
     for (const g of getRaw) {
       if (deals.length >= cap) break;
-      deals.push({
-        id: `cross-${b.id}-${g.id}`,
-        dealMode: 'cross_sku',
-        buyQty: bq,
-        getQty: gq,
-        buyProducts: [b],
-        getProducts: [g],
-        headline:
-          bq === 1 && gq === 1
-            ? 'Buy this → get that free'
-            : `Buy ${bq} → get ${gq} free`,
-        hint: `Buy ${bq} of the left item to unlock ${gq} free of the right item`,
-      });
+      pushCross(b, g);
     }
   }
   return deals;
 }
 
 /**
- * Offer Damaka / BXGY home shelf — one card per deal so customers see
- * exactly what to buy to unlock which free product (or classic BOGO).
+ * Offer Damaka / BXGY home shelf — one card per deal.
  */
 export default function HomeBxgyShelf({
   title,
@@ -132,14 +121,9 @@ export default function HomeBxgyShelf({
 
   let sectionHint = subtitle || '';
   if (!sectionHint) {
-    if (hasCross && hasSame) {
-      sectionHint = 'Each card is one offer — buy the left item to unlock the free item';
-    } else if (hasCross) {
-      sectionHint =
-        'Each card shows what to buy and what you get free — match left → right';
-    } else {
-      sectionHint = 'Buy more of the same product — free units apply at checkout';
-    }
+    if (hasCross && hasSame) sectionHint = 'Each card is one offer';
+    else if (hasCross) sectionHint = 'Buy left → get right free';
+    else sectionHint = 'Buy more — get free units';
   }
 
   return (

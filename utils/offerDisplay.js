@@ -33,7 +33,7 @@ function parseMoney(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-/** Compact same-SKU badge: B1G1 / BOGO / B2G1 — never use for cross-SKU. */
+/** Compact same-SKU badge: BOGO / B2G1 — never use for cross-SKU. */
 export function formatBogoBadge(rule) {
   if (!rule || typeof rule !== "object") return "BOGO";
   if (isCrossSkuBundleRule(rule)) return "BUY";
@@ -119,11 +119,20 @@ export function getProductOfferDisplay(product) {
 
   // Home / PLP "Get free" chrome — never imply same-product BOGO.
   if (role === "get") {
+    const buyName =
+      engineRule?.buy_product_name ||
+      engineRule?.buyProductName ||
+      product?.bxgyBuyProductName ||
+      "";
+    const getLabel = formatBundleRuleLabel(
+      rule || engineRule || shelfRule,
+      { role: "get", buyName },
+    );
     return {
       offerType: OFFER_TYPES.BUY_X_GET_Y,
       badges: ["FREE"],
-      secondaryText: "Free with this offer",
-      bundleLabel: "Free with this offer",
+      secondaryText: getLabel,
+      bundleLabel: getLabel,
       bundleRibbon: "FREE",
       saveRupees: null,
       buyQty: Number(rule?.buy_qty ?? shelfRule.buy_qty) || null,
@@ -132,14 +141,21 @@ export function getProductOfferDisplay(product) {
     };
   }
 
-  // Cross-SKU buy card: unlock messaging, not BOGO / B1G1.
+  // Cross-SKU buy card: name the free product when known.
   if (role === "buy" && cross) {
     const buy = Number(rule?.buy_qty ?? shelfRule.buy_qty) || 1;
     const get = Number(rule?.get_qty ?? shelfRule.get_qty) || 1;
-    const label =
-      buy === 1 && get === 1
-        ? "Buy 1 · unlock a free item"
-        : `Buy ${buy} · unlock ${get} free`;
+    const buyName = product?.name || product?.shortName || "";
+    const getName =
+      engineRule?.reward_product_name ||
+      engineRule?.rewardProductName ||
+      product?.bxgyGetProductName ||
+      "";
+    const label = formatBundleRuleLabel(rule || engineRule || shelfRule, {
+      role: "buy",
+      buyName,
+      getName,
+    });
     return {
       offerType: OFFER_TYPES.BUY_X_GET_Y,
       badges: ["BUY"],
@@ -290,14 +306,20 @@ export function buildCartOfferGroups(items) {
     const badges = [];
     let offerType = OFFER_TYPES.NONE;
     const cross = isCrossSkuBundleRule(rule);
-    const freeIsDifferentSku = children.some(
-      (c) => String(c.id ?? c.productId ?? "") !== String(it.id ?? it.productId ?? ""),
-    );
+    const parentProductId = String(it.productId ?? it.product?.id ?? it.id ?? "");
+    const freeIsDifferentSku = children.some((c) => {
+      const childProductId = String(c.productId ?? c.product?.id ?? "");
+      if (childProductId && parentProductId) {
+        return childProductId !== parentProductId;
+      }
+      // Fallback: synthetic reward without productId still counts as cross when rule says so.
+      return cross;
+    });
 
     if (children.length > 0 || freeExtra > 0) {
       offerType = OFFER_TYPES.BUY_X_GET_Y;
       if (cross || freeIsDifferentSku) {
-        badges.push("DEAL");
+        badges.push("BUY");
         badges.push("FREE");
       } else {
         badges.push(formatBogoBadge(rule));
@@ -334,7 +356,20 @@ export function buildCartOfferGroups(items) {
       children,
       badges: [...new Set(badges)],
       savingsMinor: Math.round(savingsMajor * 100),
-      bundleLabel: getCartLineBundleLabel(it),
+      bundleLabel: (() => {
+        if (!rule) return getCartLineBundleLabel(it);
+        const buyName = it?.name || it?.productName || "";
+        const getName =
+          children.find((c) => c?.name)?.name ||
+          rule.reward_product_name ||
+          rule.rewardProductName ||
+          "";
+        return formatBundleRuleLabel(rule, {
+          role: cross ? "buy" : "same",
+          buyName,
+          getName,
+        });
+      })(),
       paidQuantity: paidQty,
       freeQuantity:
         freeExtra ||
@@ -370,8 +405,8 @@ export function getCouponThresholdHint(
         code,
         remainingMinor: remaining,
         message: code
-          ? `₹${(remaining / 100).toLocaleString("en-IN")} more to unlock ${code}`
-          : `₹${(remaining / 100).toLocaleString("en-IN")} more to unlock a coupon`,
+          ? `₹${(remaining / 100).toLocaleString("en-IN")} more for ${code}`
+          : `₹${(remaining / 100).toLocaleString("en-IN")} more for a coupon`,
       };
     }
   }
@@ -391,7 +426,7 @@ export function getCouponThresholdHint(
       message:
         coupon.reasonMessage ||
         coupon.reason_message ||
-        `Add more items to unlock ${String(coupon.code).toUpperCase()}`,
+        `Add more items for ${String(coupon.code).toUpperCase()}`,
     };
   }
 
@@ -405,7 +440,7 @@ export function getCouponThresholdHint(
       return {
         code: String(row.code).toUpperCase(),
         remainingMinor: 0,
-        message: `Add more items to unlock ${String(row.code).toUpperCase()}`,
+        message: `Add more items for ${String(row.code).toUpperCase()}`,
       };
     }
   }

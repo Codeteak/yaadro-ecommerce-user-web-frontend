@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Compact “₹X more to unlock coupon” banner for cart / checkout.
+ * Compact “₹X more for coupon” banner for cart / checkout.
  */
 export default function CouponThresholdBanner({ hint }) {
   if (!hint?.message) return null;
