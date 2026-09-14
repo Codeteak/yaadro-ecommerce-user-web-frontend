@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { productKeys, useCategoriesTree, useProducts } from '../hooks/useProducts';
 import { homeSectionKeys } from '../hooks/useHomeSections';
@@ -21,7 +20,6 @@ import HomeClientShelves from '../components/home/HomeClientShelves';
 import { dedupeProductsByVariantGroup } from '../utils/productUtils';
 import { getProducts } from '../utils/productApi';
 import { ProductCarouselRowSkeleton } from '../components/skeletons/primitives';
-import SearchSuggestInput from '../components/search/SearchSuggestInput';
 import {
   ArrowRightRegular as ArrowRight,
   ClassifyRegular as Classify,
@@ -144,11 +142,9 @@ function BrowseCategoriesCta({ variant = 'hero' }) {
 }
 
 export default function Home() {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
-  const [homeSearch, setHomeSearch] = useState('');
-  
+   
   const { showAlert } = useAlert();
   const { isAuthenticated } = useAuth();
   const { goToLogin } = useLoginNavigation();
@@ -554,20 +550,14 @@ export default function Home() {
                 </div>
               </div>
 
-              <SearchSuggestInput
-                value={homeSearch}
-                onValueChange={setHomeSearch}
-                onSubmitQuery={(next) => {
-                  const q = String(next || '').trim();
-                  router.push(q ? `/search/?q=${encodeURIComponent(q)}` : '/search/');
-                }}
-                placeholder="Search products"
-                className="min-w-0 flex-1 max-w-none"
-                shellClassName="flex items-center gap-2 px-3 h-11 rounded-full border border-gray-200 bg-white focus-within:border-white transition shadow-sm"
-                iconColor="#111827"
-                IconComponent={SearchFilled}
-                inputClassName="w-full bg-transparent outline-none text-[14px] text-gray-900 placeholder:text-gray-500"
-              />
+              <Link
+                href="/search/"
+                className="min-w-0 flex-1 max-w-none flex items-center gap-2 px-3 h-11 rounded-full border border-gray-200 bg-white shadow-sm hover:bg-gray-50 transition"
+                aria-label="Search products"
+              >
+                <SearchFilled size={20} color="#111827" className="h-5 w-5 flex-shrink-0" />
+                <span className="truncate text-[14px] text-gray-500">Search products</span>
+              </Link>
 
               <button
                 type="button"
