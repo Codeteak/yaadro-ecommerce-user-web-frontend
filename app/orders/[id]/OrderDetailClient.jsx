@@ -534,7 +534,7 @@ function OrderItemRow({ item }) {
     </>
   );
 
-  if (isBogo) {
+  if (isSameSkuBogo) {
     return (
       <div className="flex w-full items-start gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3">
         {content}
