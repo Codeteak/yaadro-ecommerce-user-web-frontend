@@ -256,7 +256,7 @@ function ProductsListingPanelInner({
       }`}
       aria-busy={isPending || isLoading}
     >
-      <div className="mb-3">
+      <div className="sticky z-20 -mx-2.5 mb-3 bg-gray-50 px-2.5 py-1 sm:-mx-3 sm:px-3 top-[calc(52px+env(safe-area-inset-top,0px))]">
         <FilterBar
           filters={filters}
           onFilterToggle={handleFilterToggle}

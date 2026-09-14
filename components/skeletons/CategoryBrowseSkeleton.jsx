@@ -5,7 +5,7 @@ import {
   StickyHeaderSkeleton,
 } from './primitives';
 
-/** Matches `/categories/[categoryId]` — header, subcategory rail, filters, grid. */
+/** Matches `/categories/[categoryId]` — Products-style header, subcategory rail, filters, grid. */
 export default function CategoryBrowseSkeleton() {
   return (
     <div
@@ -13,12 +13,12 @@ export default function CategoryBrowseSkeleton() {
       aria-busy="true"
       aria-label="Loading category"
     >
-      <StickyHeaderSkeleton centerTitle />
+      <StickyHeaderSkeleton centerTitle showSearch />
       <div className="flex w-full max-w-screen-2xl flex-row">
         <CategoryRailSkeleton count={6} />
         <main className="min-w-0 flex-1 bg-gray-50 px-2.5 py-3 sm:px-3">
           <FilterPillsRowSkeleton />
-          <ProductGridSkeleton count={8} variant="browse" />
+          <ProductGridSkeleton count={8} variant="products" />
         </main>
       </div>
     </div>
