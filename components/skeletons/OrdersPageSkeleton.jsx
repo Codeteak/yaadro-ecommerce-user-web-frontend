@@ -1,21 +1,19 @@
 import {
   Bone,
   OrderListCardSkeleton,
-  PageTopBarSkeleton,
   ProductCarouselRowSkeleton,
+  StickyHeaderSkeleton,
 } from './primitives';
 
-/** Matches `/orders` — order cards + recommendation carousels. */
+/** Matches `/orders` — sticky header, order cards + recommendation carousels. */
 export default function OrdersPageSkeleton() {
   return (
     <div
-      className="flex min-h-screen flex-col bg-gray-50"
+      className="flex min-h-screen flex-col bg-gray-50 pt-[env(safe-area-inset-top,0px)]"
       aria-busy="true"
       aria-label="Loading orders"
     >
-      <div className="sticky top-0 z-20 shrink-0">
-        <PageTopBarSkeleton titleWidth={110} />
-      </div>
+      <StickyHeaderSkeleton centerTitle showSearch />
 
       <div className="mx-auto w-full max-w-lg flex-1 space-y-4 px-4 pb-24 pt-4">
         {[0, 1, 2].map((i) => (
