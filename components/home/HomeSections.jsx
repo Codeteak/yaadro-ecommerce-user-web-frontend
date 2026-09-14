@@ -38,6 +38,7 @@ export default function HomeSections() {
               getProducts={section.getProducts}
               buyQty={section.buyQty}
               getQty={section.getQty}
+              dealMode={section.dealMode}
             />
           );
         }

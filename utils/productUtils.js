@@ -123,30 +123,74 @@ export function isOnSale(product) {
   );
 }
 
+/** True when checkout rule is buy-product-A → free-product-B (not same SKU). */
+export function isCrossSkuBundleRule(rule) {
+  if (!rule || typeof rule !== 'object') return false;
+  return String(rule.scope || '') === 'cross_shop_products';
+}
+
+/**
+ * Role of this product in a bundle rule.
+ * @returns {'same' | 'buy' | 'get'}
+ */
+export function bundleRuleRoleForProduct(rule, productId) {
+  if (!rule || typeof rule !== 'object') return 'same';
+  if (!isCrossSkuBundleRule(rule)) return 'same';
+  const id = String(productId ?? '');
+  if (!id) return 'buy';
+  const rewardId = String(
+    rule.reward_shop_product_id ?? rule.rewardShopProductId ?? ''
+  );
+  const buyId = String(rule.buy_shop_product_id ?? rule.buyShopProductId ?? '');
+  if (rewardId && rewardId === id) return 'get';
+  if (buyId && buyId === id) return 'buy';
+  return 'buy';
+}
+
 /** Human-readable label for storefront `bundle_rules[]` (e.g. Buy 2 Get 1 free). */
-export function formatBundleRuleLabel(rule) {
+export function formatBundleRuleLabel(rule, { role = 'same' } = {}) {
   if (!rule || typeof rule !== 'object') return '';
   const buy = Number(rule.buy_qty ?? rule.buyQty);
   const get = Number(rule.get_qty ?? rule.getQty);
   const reward = rule.reward_type ?? rule.rewardType;
-  if (Number.isFinite(buy) && buy > 0 && Number.isFinite(get) && get > 0) {
-    if (reward === 'free') return `Buy ${buy} Get ${get} free`;
-    return `Buy ${buy} Get ${get}`;
+  if (!(Number.isFinite(buy) && buy > 0 && Number.isFinite(get) && get > 0)) {
+    return 'Bundle offer';
   }
-  return 'Bundle offer';
+
+  if (role === 'get') return 'Free with this offer';
+
+  // Cross-SKU (or shelf-injected scope): never say "Get N free" of the same item.
+  if (isCrossSkuBundleRule(rule) || role === 'buy') {
+    if (reward === 'free') {
+      return buy === 1 && get === 1
+        ? 'Buy 1 · unlock a free item'
+        : `Buy ${buy} · unlock ${get} free`;
+    }
+    return `Buy ${buy} · unlock reward`;
+  }
+
+  if (reward === 'free') return `Buy ${buy} Get ${get} free`;
+  return `Buy ${buy} Get ${get}`;
 }
 
 /** Shorter copy for diagonal corner ribbons on narrow product tiles. */
-export function formatBundleRibbonLabel(rule, { compact = false } = {}) {
+export function formatBundleRibbonLabel(rule, { compact = false, role = 'same' } = {}) {
   if (!rule || typeof rule !== 'object') return '';
   const buy = Number(rule.buy_qty ?? rule.buyQty);
   const get = Number(rule.get_qty ?? rule.getQty);
   const reward = rule.reward_type ?? rule.rewardType;
+
+  if (role === 'get') return 'FREE';
+  if (isCrossSkuBundleRule(rule) || role === 'buy') {
+    if (compact) return 'BUY';
+    return formatBundleRuleLabel(rule, { role: 'buy' });
+  }
+
   if (compact && Number.isFinite(buy) && buy > 0 && Number.isFinite(get) && get > 0) {
     if (reward === 'free') return `B${buy}G${get} FREE`;
     return `B${buy}G${get}`;
   }
-  return formatBundleRuleLabel(rule);
+  return formatBundleRuleLabel(rule, { role });
 }
 
 export function getPrimaryBundleRule(product) {

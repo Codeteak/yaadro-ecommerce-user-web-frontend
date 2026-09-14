@@ -255,10 +255,22 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   }, [queryClient, product]);
 
   const isShelf = variant === 'shelf';
+  const shelfRole = String(product?.bxgyShelfRole || '').trim();
+  const shelfMode = String(product?.bxgyOfferMode || '').trim();
+  // Only force BUY/FREE ribbon roles for cross-SKU shelves; same-SKU keeps B1G1 chrome.
+  const ribbonRole =
+    shelfMode === 'cross_sku' && (shelfRole === 'buy' || shelfRole === 'get')
+      ? shelfRole
+      : shelfRole === 'get'
+        ? 'get'
+        : 'same';
   const bundleRibbonText =
     offerDisplay.bundleRibbon ||
     (bundleRule
-      ? formatBundleRibbonLabel(bundleRule, { compact: isCarousel || isShelf })
+      ? formatBundleRibbonLabel(bundleRule, {
+          compact: isCarousel || isShelf,
+          role: ribbonRole,
+        })
       : bundleLabel);
 
   const chromeClass =

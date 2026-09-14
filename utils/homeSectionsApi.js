@@ -165,6 +165,24 @@ export function normalizeHomeSection(raw) {
     products[0] || buyProducts[0] || getProducts[0] || null;
   const coverImageUrl = coverSource?.imageUrl || firstImageUrl(raw) || '';
 
+  let dealMode = null;
+  if (type === 'buy_x_get_y') {
+    const apiMode = String(raw.dealMode ?? raw.deal_mode ?? '').trim();
+    if (apiMode === 'same_sku' || apiMode === 'cross_sku') {
+      dealMode = apiMode;
+    } else {
+      const buyIds = new Set(buyProducts.map((p) => p.id));
+      const getIds = new Set(getProducts.map((p) => p.id));
+      dealMode =
+        getProducts.length === 0 ||
+        (buyProducts.length > 0 &&
+          getProducts.length === buyProducts.length &&
+          [...buyIds].every((id) => getIds.has(id)))
+          ? 'same_sku'
+          : 'cross_sku';
+    }
+  }
+
   return {
     id,
     type,
@@ -186,6 +204,7 @@ export function normalizeHomeSection(raw) {
     getProducts: type === 'buy_x_get_y' ? getProducts : [],
     buyQty: raw.buyQty ?? raw.buy_qty ?? null,
     getQty: raw.getQty ?? raw.get_qty ?? null,
+    dealMode,
     coverImageUrl,
   };
 }
