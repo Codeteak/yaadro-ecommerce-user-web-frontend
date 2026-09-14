@@ -6,21 +6,16 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCart } from '../context/CartContext';
 import {
   getEffectivePrice,
-  formatBundleRuleLabel,
-  formatBundleRibbonLabel,
   formatWeightUnitLabel,
   formatRupeeINR,
-  getPrimaryBundleRule,
   resolveProductWeightAndUnit,
 } from '../utils/productUtils';
 import { getProductOfferDisplay } from '../utils/offerDisplay';
-import { OfferBadgePill } from './promotions/OfferGroupCard';
 import { buildAvailableSizes, resolveSelectedSize, sizePackCount } from '../utils/productSizeSelection';
 import { tapFeedback } from '../utils/haptics';
 import PriceDisplay from './ui/PriceDisplay';
-import WeightLabel from './ui/WeightLabel';
 import OfferRibbon from './ui/OfferRibbon';
-import BundleOfferRibbon from './ui/BundleOfferRibbon';
+import { DietIcon, resolveProductDiet } from './ui/DietIcon';
 import { getResolvedProductImageUrls } from '../utils/productImages';
 import { getCartLinePaidQty } from '../utils/cartPromotions';
 import { findPaidCartLine } from '../utils/cartLinePersist';
@@ -105,14 +100,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     (product.soldByWeight === true || product.sold_by_weight === true) &&
     availableSizes.length > 1;
 
-  const bundleRule = useMemo(() => getPrimaryBundleRule(product), [product]);
   const offerDisplay = useMemo(() => getProductOfferDisplay(product), [product]);
-  const bundleLabel = useMemo(() => {
-    if (offerDisplay.bundleLabel) return offerDisplay.bundleLabel;
-    if (bundleRule) return formatBundleRuleLabel(bundleRule);
-    const extra = String(product?.bundleLabel || '').trim();
-    return extra || null;
-  }, [offerDisplay.bundleLabel, bundleRule, product?.bundleLabel]);
 
   const productToAddPayload = useMemo(
     () => ({
@@ -141,6 +129,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     cartLine?.cartItemKey ?? cartLine?.cartItemId ?? cartLine?.id ?? null;
 
   const handleAddToCart = useCallback(async () => {
+    if (product?.inStock === false) return;
     if (availableSizes.length > 1 && !selectedSize) {
       setShowSizeSelector(true);
       return;
@@ -156,13 +145,14 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     } finally {
       setCartActionLoading(false);
     }
-  }, [availableSizes.length, selectedSize, addToCart, productToAddPayload, addQty]);
+  }, [availableSizes.length, selectedSize, addToCart, productToAddPayload, addQty, product?.inStock]);
 
   const handleIncrement = useCallback(
     async (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (cartActionLoading) return;
+      if (product?.inStock === false) return;
       if (availableSizes.length > 1 && !selectedSize) {
         setShowSizeSelector(true);
         return;
@@ -210,6 +200,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       productToAddPayload,
       updateQuantity,
       addQty,
+      product?.inStock,
     ]
   );
 
@@ -255,18 +246,18 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   }, [queryClient, product]);
 
   const isShelf = variant === 'shelf';
-  const bundleRibbonText =
-    offerDisplay.bundleRibbon ||
-    (bundleRule
-      ? formatBundleRibbonLabel(bundleRule, { compact: isCarousel || isShelf })
-      : bundleLabel);
 
   const chromeClass =
     variant === 'flat'
-      ? 'border-0 bg-transparent shadow-none hover:shadow-none hover:border-transparent active:shadow-none'
-      : isShelf
-        ? 'border-0 bg-white shadow-[0_8px_20px_rgba(15,23,42,0.08)] hover:shadow-[0_10px_24px_rgba(15,23,42,0.12)]'
-        : 'border border-gray-200 bg-white hover:shadow-md hover:border-gray-200 active:shadow-lg active:border-gray-300';
+      ? 'border-0 bg-transparent shadow-none'
+      : 'bg-white';
+
+  const dietKind = resolveProductDiet(product);
+  const unitOverlayLabel = String(displayWeight || '')
+    .trim()
+    .replace(/\s+/g, '')
+    .toUpperCase();
+  const isUnavailable = product?.inStock === false;
 
   useEffect(() => {
     setCurrentImageIndex(0);
@@ -331,8 +322,8 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     setTouchEnd(null);
   };
 
-  const cardShellClass = `flex h-full flex-col rounded-2xl overflow-hidden touch-manipulation transition-all duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/45 ${chromeClass} ${
-    isShelf ? 'w-[156px]' : isCarousel ? 'w-[140px]' : 'w-full'
+  const cardShellClass = `flex h-full flex-col overflow-hidden rounded-[20px] touch-manipulation transition-transform duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/45 ${chromeClass} ${
+    isShelf || isCarousel ? 'w-[173px] max-w-[173px]' : 'w-full'
   }`;
 
   const navLinkProps = {
@@ -356,17 +347,9 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     saveRupees != null &&
     saveRupees >= 0.005;
 
-  const addRibbonSizeClass = isCarousel
-    ? 'h-8 min-w-[52px] px-2.5 text-[10px]'
-    : 'h-9 min-w-[56px] px-3 text-[11px]';
-
-  const cartControlShellClass = isCarousel
-    ? 'min-w-[72px] rounded-tl-xl rounded-br-2xl'
-    : 'min-w-[76px] rounded-tl-xl rounded-br-2xl';
-
   const cartControls = cartActionLoading ? (
     <div
-      className={`flex items-center justify-center border-2 border-violet-600 bg-white/95 shadow-sm backdrop-blur-sm ${isCarousel ? 'h-8' : 'h-9'} ${cartControlShellClass}`}
+      className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
       aria-busy="true"
       aria-label="Updating cart"
     >
@@ -377,28 +360,30 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     </div>
   ) : displayCartQty > 0 ? (
     <div
-      className={`flex items-stretch overflow-hidden border-2 border-violet-600 bg-white text-violet-700 shadow-[0_4px_12px_rgba(144,43,245,0.2)] ${cartControlShellClass}`}
+      className="flex h-9 min-w-[96px] items-center justify-between rounded-full bg-white px-2 ring-2 ring-[#902bf5] shadow-[0_8px_20px_rgba(144,43,245,0.35)]"
+      role="group"
+      aria-label="Quantity"
     >
       <button
         type="button"
         onClick={handleDecrement}
         onPointerDown={stopCartBubble}
-        className="flex min-w-[26px] flex-1 items-center justify-center py-1 text-sm font-bold hover:bg-violet-50 active:bg-violet-100"
-        aria-label="Decrease quantity"
+        className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] active:scale-95"
+        aria-label={displayCartQty <= 1 ? 'Remove from cart' : 'Decrease quantity'}
       >
-        −
+        <span className="text-base font-bold leading-none">−</span>
       </button>
-      <span className="flex min-w-[22px] items-center justify-center border-x border-violet-200 px-1 text-[11px] font-bold tabular-nums">
+      <span className="min-w-[1.5rem] text-center text-sm font-bold tabular-nums text-[#902bf5]">
         {displayCartQty}
       </span>
       <button
         type="button"
         onClick={handleIncrement}
         onPointerDown={stopCartBubble}
-        className="flex min-w-[26px] flex-1 items-center justify-center py-1 text-sm font-bold hover:bg-violet-50 active:bg-violet-100"
+        className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] active:scale-95"
         aria-label="Increase quantity"
       >
-        +
+        <span className="text-base font-bold leading-none">+</span>
       </button>
     </div>
   ) : (
@@ -409,19 +394,19 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       }}
       onPointerDown={stopCartBubble}
       aria-label="Add to cart"
-      className={`flex items-center justify-center bg-[#902bf5] font-semibold uppercase leading-none tracking-wide text-white shadow-[0_4px_12px_rgba(144,43,245,0.35)] transition hover:bg-[#7d24d6] active:scale-[0.97] ${addRibbonSizeClass} ${cartControlShellClass}`}
+      className="flex h-9 min-w-[68px] items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-[#902bf5] px-4 text-[12px] font-bold uppercase leading-none tracking-[0.14em] text-white shadow-[0_8px_20px_rgba(144,43,245,0.4)] transition hover:bg-[#7d24d6] active:scale-[0.97]"
     >
       ADD
     </button>
   );
 
   return (
-    <div className={cardShellClass}>
-      <div className="relative">
+    <article className={cardShellClass}>
+      <div className="relative w-full shrink-0 overflow-hidden rounded-t-[20px] bg-gray-50">
         <Link {...navLinkProps} className="block">
           <div
             ref={carouselRef}
-            className="relative aspect-square w-full overflow-hidden rounded-2xl bg-gray-50 cursor-grab active:cursor-grabbing pointer-events-auto"
+            className="relative aspect-square w-full cursor-grab overflow-hidden bg-gray-50 pointer-events-auto active:cursor-grabbing"
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
@@ -430,18 +415,20 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
             onMouseUp={onMouseUp}
             onMouseLeave={onMouseUp}
           >
-            <div 
-              className="relative z-0 flex h-full transition-transform duration-500 ease-in-out"
+            <div
+              className="relative z-0 flex h-full min-h-0 w-full transition-transform duration-500 ease-in-out"
               style={{ transform: `translateX(-${currentImageIndex * 100}%)` }}
             >
               {productImages.map((img, idx) => (
-                <div key={`${idx}-${img}`} className="relative w-full h-full flex-shrink-0">
+                <div key={`${idx}-${img}`} className="relative h-full min-h-0 w-full flex-shrink-0">
                   <ProductImageWithFallback
                     src={img}
                     alt={`${product.name} – image ${idx + 1}`}
                     fill
-                    className="object-contain object-center p-2"
-                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+                    className={`object-contain object-center ${
+                      isUnavailable ? 'brightness-[0.55] grayscale' : ''
+                    }`}
+                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 50vw, (max-width: 1200px) 33vw, 173px"
                     placeholderName={product.name}
                     placeholderCategory={
                       product.categoryName ||
@@ -455,97 +442,67 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
               ))}
             </div>
 
-            {showSaveRibbon && (
-              <OfferRibbon saveRupees={saveRupees} compact={isCarousel} />
-            )}
-            {bundleRibbonText ? (
-              <BundleOfferRibbon
-                label={bundleRibbonText}
-                compact={isCarousel || isShelf}
-                offset={showSaveRibbon}
-              />
+            {isUnavailable ? (
+              <div className="absolute inset-0 z-[2] flex flex-col justify-end">
+                <div className="bg-gradient-to-t from-black/85 via-black/55 to-transparent px-2 pb-2 pt-10 text-center">
+                  <p className="text-[10px] font-extrabold uppercase leading-tight tracking-[0.08em] text-white">
+                    Out of stock
+                  </p>
+                </div>
+              </div>
             ) : null}
 
-            {productImages.length > 1 && (
+            {showSaveRibbon ? <OfferRibbon saveRupees={saveRupees} compact={isCarousel} /> : null}
+
+            {productImages.length > 1 ? (
               <div
-                className="absolute top-2 right-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white tabular-nums"
+                className="absolute right-2 top-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white"
                 aria-label={`Image ${currentImageIndex + 1} of ${productImages.length}`}
               >
                 {currentImageIndex + 1}/{productImages.length}
               </div>
-            )}
-
-            {/* Image indicators — tap to select (multiple images only) */}
-            {productImages.length > 1 && (
-              <div className="absolute bottom-1 left-1/2 flex -translate-x-1/2 transform gap-1 z-10">
-                {productImages.map((_, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    aria-label={`Show image ${idx + 1}`}
-                    aria-current={idx === currentImageIndex ? 'true' : undefined}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      markSwipeSoNavClickIgnored();
-                      setCurrentImageIndex(idx);
-                    }}
-                    className={`h-1.5 w-1.5 rounded-full transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white ${
-                      idx === currentImageIndex ? 'bg-white' : 'bg-white/50'
-                    }`}
-                  />
-                ))}
-              </div>
-            )}
+            ) : null}
           </div>
         </Link>
-      </div>
 
-      <div className={`flex flex-1 flex-col min-h-0 ${isShelf ? 'gap-1.5 px-2.5 pb-2.5 pt-2' : 'gap-2 px-3 pb-3 pt-2'}`}>
-        {bundleLabel && !bundleRibbonText ? (
-          <span
-            className={`self-start rounded-md bg-gradient-to-r from-violet-600 to-violet-700 font-bold text-white shadow-sm ${
-              isCarousel
-                ? 'max-w-full px-1.5 py-0.5 text-[8px] leading-tight'
-                : 'px-2 py-0.5 text-[10px] leading-snug sm:text-[11px]'
-            }`}
+        {(dietKind || unitOverlayLabel) && !isUnavailable ? (
+          <div
+            className="absolute bottom-0 left-0 z-[1] flex items-center gap-1 bg-white py-1.5 pl-2 pr-2.5"
+            style={{ borderTopRightRadius: 12 }}
           >
-            {bundleLabel}
-          </span>
+            {dietKind ? <DietIcon isVeg={dietKind === 'veg'} className="size-3.5 shrink-0" /> : null}
+            {unitOverlayLabel ? (
+              <span className="text-[11px] font-bold leading-none text-gray-900">{unitOverlayLabel}</span>
+            ) : null}
+          </div>
         ) : null}
 
-        <div
-          className={`flex min-h-[1.375rem] flex-wrap items-center gap-1 ${
-            offerDisplay.badges.length === 0 ? 'invisible' : ''
-          }`}
-          aria-hidden={offerDisplay.badges.length === 0}
-        >
-          {offerDisplay.badges.slice(0, isCarousel || isShelf ? 1 : 2).map((b) => (
-            <OfferBadgePill
-              key={b}
-              tone={String(b).startsWith('SAVE') ? 'red' : 'violet'}
-            >
-              {b}
-            </OfferBadgePill>
-          ))}
-        </div>
+        {!isUnavailable ? (
+          <div
+            className="absolute z-10 flex justify-end"
+            style={{ right: 10, bottom: 10 }}
+            onClick={stopCartBubble}
+            onPointerDown={stopCartBubble}
+          >
+            {cartControls}
+          </div>
+        ) : null}
+      </div>
 
-        <Link {...navLinkProps} className={`block min-w-0 ${isShelf ? '' : 'min-h-[2.5rem]'}`}>
-          <h3 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 tracking-tight sm:text-[15px]">
+      <div className="flex min-h-0 flex-1 flex-col px-3 pb-2 pt-1.5">
+        <Link {...navLinkProps} className="block min-w-0">
+          <h3 className="truncate text-[13px] font-bold leading-4 tracking-tight text-gray-900">
             {product.name}
           </h3>
+          {offerDisplay.secondaryText ? (
+            <p className="mt-0.5 line-clamp-2 text-[11px] leading-tight text-violet-700">
+              {offerDisplay.secondaryText}
+            </p>
+          ) : null}
         </Link>
 
-        <p
-          className={`min-h-[1.125rem] text-[11px] font-medium line-clamp-1 ${
-            offerDisplay.secondaryText ? 'text-violet-700' : 'invisible'
-          }`}
-        >
-          {offerDisplay.secondaryText || '\u00a0'}
-        </p>
-
         {showPackChips ? (
-          <div className="flex flex-wrap gap-1" onPointerDown={stopCartBubble}>
+          <div className="mt-1 flex flex-wrap gap-1" onPointerDown={stopCartBubble}>
             {availableSizes.map((size) => {
               const active = sizePackCount(activeSize) === sizePackCount(size);
               const chipPay = getEffectivePrice(product, parseFloat(size.price));
@@ -565,44 +522,33 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
                   }`}
                 >
                   {size.label || formatWeightUnitLabel(size.weight, size.unit)}
-                  <span className="ml-1 tabular-nums font-bold">₹{formatRupeeINR(chipPay)}</span>
+                  <span className="ml-1 font-bold tabular-nums">₹{formatRupeeINR(chipPay)}</span>
                 </button>
               );
             })}
           </div>
-        ) : (
-          <Link {...navLinkProps} className="block min-w-0">
-            <WeightLabel label={displayWeight} placeholder />
-          </Link>
-        )}
+        ) : null}
 
-        <div className={`mt-auto flex flex-col ${isShelf ? 'gap-1.5' : 'gap-2'}`}>
-          <Link {...navLinkProps} className="block">
-            {product?.bxgyShelfRole === 'get' ? (
-              <div className={isCarousel || isShelf ? 'text-sm' : 'text-base'}>
-                <span className="font-bold text-violet-700">Free</span>
-                {displayListPrice != null && displayListPrice > 0 ? (
-                  <span className="ml-1.5 text-xs text-gray-400 line-through tabular-nums">
-                    ₹{formatRupeeINR(displayListPrice)}
-                  </span>
-                ) : currentPrice > 0 ? (
-                  <span className="ml-1.5 text-xs text-gray-400 line-through tabular-nums">
-                    ₹{formatRupeeINR(currentPrice)}
-                  </span>
-                ) : null}
-              </div>
-            ) : (
-              <PriceDisplay
-                amount={currentPrice}
-                listPrice={displayListPrice}
-                size={isCarousel || isShelf ? 'sm' : 'md'}
-              />
-            )}
-          </Link>
-          <div className="flex justify-end pointer-events-auto">{cartControls}</div>
-        </div>
+        <Link {...navLinkProps} className="mt-0.5 block">
+          {product?.bxgyShelfRole === 'get' ? (
+            <div className="text-base font-bold leading-5">
+              <span className="text-violet-700">Free</span>
+              {displayListPrice != null && displayListPrice > 0 ? (
+                <span className="ml-1.5 text-xs font-medium text-gray-400 line-through tabular-nums">
+                  ₹{formatRupeeINR(displayListPrice)}
+                </span>
+              ) : currentPrice > 0 ? (
+                <span className="ml-1.5 text-xs font-medium text-gray-400 line-through tabular-nums">
+                  ₹{formatRupeeINR(currentPrice)}
+                </span>
+              ) : null}
+            </div>
+          ) : (
+            <PriceDisplay amount={currentPrice} listPrice={displayListPrice} size="sm" />
+          )}
+        </Link>
       </div>
-    </div>
+    </article>
   );
 }
 

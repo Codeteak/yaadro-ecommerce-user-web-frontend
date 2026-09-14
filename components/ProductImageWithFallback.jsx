@@ -7,6 +7,8 @@ import ProductPlaceholderGraphic from './ui/ProductPlaceholderGraphic';
 
 /**
  * Next/Image with graphic/skeleton first paint, lazy-friendly loading, and broken-URL fallback.
+ * `fill` avoids next/image absolute stretch (global `img { height: auto }` crops that).
+ * `object-cover` in className keeps cover thumbs; otherwise the full photo is contained.
  */
 export default function ProductImageWithFallback({
   src,
@@ -29,15 +31,13 @@ export default function ProductImageWithFallback({
     return raw;
   });
   const [failed, setFailed] = useState(false);
-  // `ready` controls whether we show the skeleton/graphic overlay.
-  // We intentionally avoid re-showing the skeleton on background data refreshes
-  // when an image was already rendered once (prevents "skeleton on top of data").
   const [ready, setReady] = useState(() => {
     const raw = src || '';
     return hasNamedGraphic && (!raw || raw === PRODUCT_IMAGE_PLACEHOLDER);
   });
   const hasEverLoadedRef = useRef(false);
   const prevSrcRef = useRef(null);
+  const fit = /\bobject-cover\b/.test(className) ? 'cover' : 'contain';
 
   useEffect(() => {
     const raw = src || '';
@@ -55,7 +55,6 @@ export default function ProductImageWithFallback({
     if (!hasEverLoadedRef.current && next !== prev) {
       setReady(false);
     }
-    // Named graphic with no real image — treat as ready (graphic is the display).
     if (hasNamedGraphic && !next) {
       markReady();
     }
@@ -69,8 +68,29 @@ export default function ProductImageWithFallback({
   const showGraphic = hasNamedGraphic && (!ready || failed || !imgSrc);
   const showPulse = !hasNamedGraphic && !ready;
 
+  const handleError = () => {
+    if (hasNamedGraphic) {
+      setFailed(true);
+      markReady();
+      return;
+    }
+    setImgSrc(PRODUCT_IMAGE_PLACEHOLDER);
+    markReady();
+  };
+
   return (
-    <div className={fill ? 'relative w-full h-full' : 'relative'}>
+    <div
+      data-fit={fill ? fit : undefined}
+      className={
+        fill
+          ? `product-image-fill relative h-full min-h-0 min-w-0 w-full ${
+              fit === 'contain'
+                ? 'flex items-center justify-center'
+                : ''
+            }`
+          : 'relative'
+      }
+    >
       {showGraphic ? (
         <div className={`absolute inset-0 z-[1] ${fill ? '' : 'rounded-[inherit] overflow-hidden'}`}>
           <ProductPlaceholderGraphic
@@ -87,24 +107,37 @@ export default function ProductImageWithFallback({
       ) : null}
       {imgSrc && !failed ? (
         fill ? (
-          <Image
+          // Native img: next/image `fill` is position:absolute + 100% size and gets cropped
+          // by overflow + global `img { height: auto }`.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={imgSrc}
             alt={alt}
-            fill
             className={`${className} ${ready ? 'opacity-100' : 'opacity-0'} transition-opacity duration-200`}
-            sizes={sizes}
-            priority={priority}
+            style={
+              fit === 'cover'
+                ? {
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    maxWidth: 'none',
+                    maxHeight: 'none',
+                    objectFit: 'cover',
+                    objectPosition: 'center',
+                  }
+                : {
+                    position: 'static',
+                    width: 'auto',
+                    height: 'auto',
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    objectFit: 'contain',
+                    objectPosition: 'center',
+                  }
+            }
             onLoad={markReady}
-            onLoadingComplete={markReady}
-            onError={() => {
-              if (hasNamedGraphic) {
-                setFailed(true);
-                markReady();
-                return;
-              }
-              setImgSrc(PRODUCT_IMAGE_PLACEHOLDER);
-              markReady();
-            }}
+            onError={handleError}
           />
         ) : (
           <Image
@@ -117,15 +150,7 @@ export default function ProductImageWithFallback({
             priority={priority}
             onLoad={markReady}
             onLoadingComplete={markReady}
-            onError={() => {
-              if (hasNamedGraphic) {
-                setFailed(true);
-                markReady();
-                return;
-              }
-              setImgSrc(PRODUCT_IMAGE_PLACEHOLDER);
-              markReady();
-            }}
+            onError={handleError}
           />
         )
       ) : null}

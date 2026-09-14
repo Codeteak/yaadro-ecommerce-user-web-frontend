@@ -32,6 +32,7 @@ export {
   Share2Regular,
   ShoppingCart1Regular,
   TagRegular,
+  TimeRegular,
   User1Regular,
   SearchRegular as IconSearch,
   CloseRegular as IconClose,

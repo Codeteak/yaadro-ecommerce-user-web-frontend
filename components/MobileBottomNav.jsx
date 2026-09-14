@@ -21,9 +21,9 @@ function NavIcon({ IconRegular, IconFilled, active }) {
 
   return (
     <Icon
-      size={20}
+      size={22}
       color="currentColor"
-      className={`shrink-0 transition-transform duration-200 ${active ? 'scale-105' : ''}`}
+      className="shrink-0"
       aria-hidden
     />
   );
@@ -82,19 +82,19 @@ export default function MobileBottomNav() {
   return (
     <div
       ref={navRef}
-      className={`fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-black/10 bg-white/95 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] transition-transform duration-300 ease-out ${
+      className={`fixed bottom-0 left-0 right-0 z-50 md:hidden px-3 transition-transform duration-300 ease-out ${
         isVisible ? 'translate-y-0' : 'translate-y-full'
       }`}
       style={{
-        paddingTop: '8px',
         paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
         willChange: 'transform',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
       }}
       aria-hidden={!isVisible}
     >
-      <nav className="flex w-full items-center justify-around gap-1 px-2">
+      <nav
+        className="flex w-full items-center justify-around gap-1 rounded-[28px] bg-white px-2 py-2 shadow-[0_8px_28px_rgba(15,23,42,0.14)]"
+        aria-label="Primary"
+      >
         {navItems.map(({ href, label, IconRegular, IconFilled }) => {
           const isActive =
             pathname === href || (href !== '/' && pathname?.startsWith(href));
@@ -104,20 +104,20 @@ export default function MobileBottomNav() {
               key={href}
               href={href}
               prefetch
-              className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-3 py-2 transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 ${
-                isActive ? 'text-violet-800' : 'text-gray-500 hover:bg-black/[0.04] active:scale-[0.98]'
+              className={`relative flex items-center justify-center transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 active:scale-[0.98] ${
+                isActive
+                  ? 'gap-2 rounded-full bg-[#902bf5] px-4 py-2 text-white shadow-[0_4px_12px_rgba(144,43,245,0.35)]'
+                  : 'rounded-full p-2.5 text-gray-500 hover:bg-black/[0.04]'
               }`}
               aria-current={isActive ? 'page' : undefined}
+              aria-label={label}
             >
               <NavIcon IconRegular={IconRegular} IconFilled={IconFilled} active={isActive} />
-
-              <span
-                className={`text-[10px] font-semibold tracking-wide transition-colors duration-200 ${
-                  isActive ? 'text-violet-800' : 'text-gray-500'
-                }`}
-              >
-                {label}
-              </span>
+              {isActive ? (
+                <span className="text-[14px] font-semibold tracking-wide whitespace-nowrap">
+                  {label}
+                </span>
+              ) : null}
             </Link>
           );
         })}

@@ -4,28 +4,32 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { productKeys, useCategoriesTree, useProducts } from '../hooks/useProducts';
+import { productKeys, useCategoriesTree, useProducts, useRootCategories } from '../hooks/useProducts';
 import { homeSectionKeys } from '../hooks/useHomeSections';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useAlert } from '../context/AlertContext';
 import { useLocationService } from '../context/LocationServiceContext';
 import { useAuth } from '../context/AuthContext';
 import { useShopBranding } from '../context/ShopBrandingContext';
+import { useAddress } from '../context/AddressContext';
 import ProductCard from '../components/ProductCard';
+import ProductGrid from '../components/ProductGrid';
 import Container from '../components/Container';
 import FloatingViewCartPill from '../components/FloatingViewCartPill';
 import BannerCarousel from '../components/BannerCarousel';
 import HomeSections from '../components/home/HomeSections';
 import HomeClientShelves from '../components/home/HomeClientShelves';
+import HomeCategoryRail from '../components/home/HomeCategoryRail';
+import HomeSearchHints from '../components/home/HomeSearchHints';
 import { dedupeProductsByVariantGroup } from '../utils/productUtils';
 import { getProducts } from '../utils/productApi';
-import { ProductCarouselRowSkeleton } from '../components/skeletons/primitives';
+import { ProductCarouselRowSkeleton, ProductGridSkeleton } from '../components/skeletons/primitives';
 import {
   ArrowRightRegular as ArrowRight,
-  ClassifyRegular as Classify,
+  DownRegular as ChevronDown,
   MapPinRegular as MapPin,
-  SearchFilled,
-  User1Filled as User,
+  SearchRegular as Search,
+  User1Regular as User,
 } from '../components/icons';
 
 /** Exact admin category names for Fresh Zone (fixed tab order). */
@@ -43,6 +47,14 @@ function flattenCategoryNodes(node) {
 function flattenCategoryForest(nodes) {
   if (!Array.isArray(nodes)) return [];
   return nodes.flatMap((n) => flattenCategoryNodes(n));
+}
+
+function formatHomeAddressLine(address) {
+  if (!address) return '';
+  return [address.street || address.line1, address.city, address.state]
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .join(', ');
 }
 
 /** Depth-first exact name match (`name.trim() === expected`). Skips inactive nodes. */
@@ -87,60 +99,6 @@ function collectDescendantCategoryIds(flat, rootId) {
   return out;
 }
 
-/** Full-width Browse Categories CTA — hero (on purple) or sticky (after scroll). */
-function BrowseCategoriesCta({ variant = 'hero' }) {
-  if (variant === 'sticky') {
-    return (
-      <Link
-        href="/categories"
-        className="mx-3 mt-1 flex items-center justify-between gap-3 rounded-full px-4 py-2.5 text-gray-900 shadow-[0_12px_32px_rgba(109,40,217,0.28)] ring-2 ring-violet-300/80 backdrop-blur-md transition hover:brightness-105 active:scale-[0.98]"
-        style={{ background: 'rgba(167, 139, 250, 0.78)' }}
-        aria-label="Browse categories"
-      >
-        <span className="inline-flex items-center gap-2.5 min-w-0">
-          <span
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-violet-400/40"
-            style={{ background: 'rgba(196, 181, 253, 0.9)' }}
-          >
-            <Classify size={20} color="#111827" className="h-5 w-5" aria-hidden />
-          </span>
-          <span className="truncate text-[14px] font-extrabold tracking-wide text-gray-900">
-            Browse Categories
-          </span>
-        </span>
-        <ArrowRight size={18} color="#111827" className="h-[18px] w-[18px] shrink-0" aria-hidden />
-      </Link>
-    );
-  }
-
-  return (
-    <div className="relative z-20 mt-5 px-3 sm:px-6 md:px-8 pb-2">
-      <Link
-        href="/categories"
-        className="group flex w-full items-center justify-between gap-3 rounded-full bg-violet-200/50 px-4 py-3.5 sm:px-5 sm:py-4 shadow-[0_12px_40px_rgba(109,40,217,0.22)] ring-1 ring-violet-300/70 backdrop-blur-md transition hover:bg-violet-200/65 active:scale-[0.98]"
-        aria-label="Browse categories"
-      >
-        <span className="inline-flex items-center gap-3 min-w-0">
-          <span className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-100/90 ring-1 ring-violet-300/60">
-            <Classify size={24} color="#111827" className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden />
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate text-[15px] sm:text-base font-extrabold tracking-wide text-gray-900">
-              Browse Categories
-            </span>
-            <span className="mt-0.5 block truncate text-[12px] font-medium text-gray-700">
-              See everything we stock
-            </span>
-          </span>
-        </span>
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/95 shadow-[0_8px_20px_rgba(15,23,42,0.12)] ring-1 ring-violet-100 transition group-hover:bg-violet-50">
-          <ArrowRight size={18} color="#111827" className="h-[18px] w-[18px]" aria-hidden />
-        </span>
-      </Link>
-    </div>
-  );
-}
-
 export default function Home() {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
@@ -154,7 +112,8 @@ export default function Home() {
     recheckLocation,
     openServiceAreaSheet,
   } = useLocationService();
-  const { shopName, shopImage, bannerEnabled, bannerImages } = useShopBranding();
+  const { shopName, bannerEnabled, bannerImages } = useShopBranding();
+  const { getDefaultAddress, addresses } = useAddress();
 
   const isLocalDev = process.env.NODE_ENV !== 'production';
 
@@ -206,6 +165,7 @@ export default function Home() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: productKeys.lists() }),
         queryClient.invalidateQueries({ queryKey: [...productKeys.categories(), 'tree'] }),
+        queryClient.invalidateQueries({ queryKey: productKeys.categoryRoots() }),
         queryClient.invalidateQueries({ queryKey: [...productKeys.all, 'fresh-zone'] }),
         queryClient.invalidateQueries({ queryKey: homeSectionKeys.all }),
       ]);
@@ -218,9 +178,6 @@ export default function Home() {
     }
   };
 
-  const heroSectionRef = useRef(null);
-  const [stickyCategoryNavVisible, setStickyCategoryNavVisible] = useState(false);
-
   // Catalog for home shelves; Fresh Zone loads from exact Vegetables / Fruits / Dairy categories.
   const { data: categoryTree, isLoading: categoryTreeLoading } = useCategoriesTree();
   const { data: catalogData } = useProducts({
@@ -232,6 +189,53 @@ export default function Home() {
   const catalogProducts = useMemo(
     () => dedupeProductsByVariantGroup(catalogData?.products || []),
     [catalogData?.products]
+  );
+  const searchHintNames = useMemo(
+    () => catalogProducts.map((product) => product?.name).filter(Boolean),
+    [catalogProducts]
+  );
+
+  const { data: rootCategoriesData, isLoading: rootCategoriesLoading } = useRootCategories();
+  const rootCategories = useMemo(
+    () => (rootCategoriesData || []).filter((c) => c && c.isActive !== false),
+    [rootCategoriesData]
+  );
+  const [homeCategoryId, setHomeCategoryId] = useState(null);
+
+  useEffect(() => {
+    if (!rootCategories.length) return;
+    const stillExists = rootCategories.some(
+      (c) => String(c.id ?? c._id) === String(homeCategoryId)
+    );
+    if (homeCategoryId == null || !stillExists) {
+      setHomeCategoryId(String(rootCategories[0].id ?? rootCategories[0]._id));
+    }
+  }, [rootCategories, homeCategoryId]);
+
+  const selectedHomeCategory = useMemo(
+    () =>
+      rootCategories.find((c) => String(c.id ?? c._id) === String(homeCategoryId)) || null,
+    [rootCategories, homeCategoryId]
+  );
+
+  const homeCategoryHref = selectedHomeCategory
+    ? `/categories/${encodeURIComponent(
+        selectedHomeCategory.slug || selectedHomeCategory.id || selectedHomeCategory._id
+      )}`
+    : '/categories';
+
+  const { data: homeCategoryProductsData, isLoading: homeCategoryProductsLoading } = useProducts({
+    category_id: homeCategoryId || undefined,
+    include_descendants: true,
+    limit: 4,
+    sort_by: 'created_at',
+    sort_order: 'desc',
+    enabled: Boolean(homeCategoryId),
+  });
+
+  const homeCategoryProducts = useMemo(
+    () => dedupeProductsByVariantGroup(homeCategoryProductsData?.products || []).slice(0, 4),
+    [homeCategoryProductsData?.products]
   );
 
   // Fresh Zone category tabs
@@ -353,26 +357,13 @@ export default function Home() {
     return row?.products || [];
   }, [freshZoneCategoryId, freshZoneByCategory, freshZoneDisplayProductsBase]);
 
-  useEffect(() => {
-    const hero = heroSectionRef.current;
-    if (!hero) {
-      setStickyCategoryNavVisible(false);
-      return undefined;
-    }
-
-    const update = () => {
-      const rect = hero.getBoundingClientRect();
-      setStickyCategoryNavVisible(rect.bottom <= 2);
-    };
-
-    update();
-    window.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', update);
-      window.removeEventListener('resize', update);
-    };
-  }, []);
+  const locationSubtitle = useMemo(() => {
+    if (isLocationChecking) return 'Checking your area…';
+    const fromAddress = formatHomeAddressLine(getDefaultAddress());
+    if (fromAddress) return fromAddress;
+    if (isServiceable === false) return 'Not available in your area';
+    return 'Select delivery location';
+  }, [addresses, getDefaultAddress, isLocationChecking, isServiceable]);
 
   const handleNewsletterSubmit = (e) => {
     e.preventDefault();
@@ -442,177 +433,112 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Sticky Browse Categories — button only (no full-width card chrome) */}
-      <div
-        className={`fixed inset-x-0 top-0 z-[65] transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none ${
-          stickyCategoryNavVisible
-            ? 'translate-y-0 opacity-100 pointer-events-none'
-            : 'pointer-events-none -translate-y-[calc(100%+8px)] opacity-0'
-        }`}
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-        aria-hidden={!stickyCategoryNavVisible}
-      >
-        <div className={`px-0 ${stickyCategoryNavVisible ? 'pointer-events-auto' : 'pointer-events-none'}`}>
-          <BrowseCategoriesCta variant="sticky" />
-        </div>
-      </div>
+      {/* Home top: location + search + banner */}
+      <section className="w-full bg-white pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
+        <div className="flex items-start justify-between gap-3 px-4 sm:px-5">
+          <button
+            type="button"
+            onClick={() => openServiceAreaSheet()}
+            className="flex min-w-0 flex-1 items-start gap-1.5 text-left"
+            aria-label="Change delivery location"
+          >
+            <MapPin size={18} color="#902bf5" className="mt-0.5 h-[18px] w-[18px] shrink-0" />
+            <span className="min-w-0 flex-1">
+              <span className="inline-flex max-w-full items-center gap-0.5">
+                <span className="truncate text-[16px] font-extrabold leading-tight text-gray-900">
+                  {shopName || 'Yaadro'}
+                </span>
+                <ChevronDown size={16} color="#111827" className="h-4 w-4 shrink-0" aria-hidden />
+              </span>
+              <span className="mt-0.5 block truncate text-[12px] leading-snug text-gray-500">
+                {locationSubtitle}
+              </span>
+            </span>
+          </button>
 
-      {/* Hero section (purple grocery) */}
-      <section
-        ref={heroSectionRef}
-        className="home-hero-minh w-full relative overflow-hidden"
-      >
-        <div
-          className="pointer-events-none absolute inset-0 z-0"
-          style={{
-            background: 'linear-gradient(160deg, #7d24d6 0%, #902bf5 42%, #6d28d9 100%)',
-            WebkitMaskImage: 'linear-gradient(to bottom, #000 0%, #000 calc(100% - 7rem), rgba(0,0,0,0.4) calc(100% - 3.5rem), transparent 100%)',
-            maskImage: 'linear-gradient(to bottom, #000 0%, #000 calc(100% - 7rem), rgba(0,0,0,0.4) calc(100% - 3.5rem), transparent 100%)',
-          }}
-          aria-hidden
-        >
-          <div className="absolute inset-y-0 right-[-4%] w-[70%] sm:w-[58%] md:w-[50%]">
-            <Image
-              src="/banner/trolly.png"
-              alt=""
-              fill
-              className="object-contain object-right-bottom origin-bottom-right scale-[1.15]"
-              sizes="(max-width: 768px) 75vw, 50vw"
-              priority
-              unoptimized
-              style={{ mixBlendMode: 'lighten' }}
-            />
-          </div>
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                'linear-gradient(90deg, rgba(125,36,214,0.97) 0%, rgba(144,43,245,0.82) 42%, rgba(109,40,217,0.28) 72%, rgba(109,40,217,0.08) 100%)',
+          <button
+            type="button"
+            onClick={() => {
+              if (isAuthenticated) {
+                window.location.href = '/profile';
+              } else {
+                goToLogin();
+              }
             }}
-          />
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white ring-2 ring-[#902bf5]/45 ring-offset-2 ring-offset-white transition hover:bg-gray-50 hover:ring-[#902bf5]/70"
+            aria-label={isAuthenticated ? 'Profile' : 'Login'}
+          >
+            <User size={22} color="#111827" className="h-[22px] w-[22px]" />
+          </button>
         </div>
-        <Container className="px-0 sm:px-0 lg:px-0 xl:px-0 2xl:px-0">
-            <div className="relative text-white flex flex-col overflow-hidden pb-14 sm:pb-16">
-            {/* Header: shop branding + search + profile in one row */}
-            <div className="relative z-30 flex items-center gap-2 px-3 sm:px-4 min-h-[52px] pt-5 sm:pt-6 md:pt-8">
-              <div className="flex min-w-0 max-w-[38%] sm:max-w-[42%] shrink-0 items-center gap-2">
-                {shopImage ? (
-                  <img
-                    src={shopImage}
-                    alt={shopName || ''}
-                    className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-xl object-contain ring-1 ring-white/30 bg-white/15"
-                    width={44}
-                    height={44}
-                  />
-                ) : (
-                  <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30">
-                    <Image
-                      src="/trolley.png"
-                      alt=""
-                      width={28}
-                      height={28}
-                      className="h-7 w-7 object-contain"
-                    />
-                  </div>
-                )}
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <span className="truncate text-[14px] sm:text-[16px] font-extrabold text-white leading-tight">
-                    {shopName || 'Yaadro'}
-                  </span>
-                  {isLocationChecking ? (
-                    <button
-                      type="button"
-                      onClick={() => openServiceAreaSheet()}
-                      className="inline-flex max-w-full items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-white/90 hover:bg-white/30 transition-colors"
-                    >
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/80 animate-pulse" />
-                      <span className="truncate">Checking…</span>
-                    </button>
-                  ) : isServiceable === true ? (
-                    <button
-                      type="button"
-                      onClick={() => openServiceAreaSheet()}
-                      className="inline-flex max-w-full items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-violet-800 hover:bg-white transition-colors"
-                    >
-                      <MapPin size={12} className="h-3 w-3 shrink-0" />
-                      <span className="truncate">Available</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => openServiceAreaSheet()}
-                      className="inline-flex max-w-full items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-white hover:bg-red-600 transition-colors"
-                    >
-                      <MapPin size={12} className="h-3 w-3 shrink-0" />
-                      <span className="truncate">Not available</span>
-                    </button>
-                  )}
-                </div>
-              </div>
 
-              <Link
-                href="/search/"
-                className="min-w-0 flex-1 max-w-none flex items-center gap-2 px-3 h-11 rounded-full border border-gray-200 bg-white shadow-sm hover:bg-gray-50 transition"
-                aria-label="Search products"
-              >
-                <SearchFilled size={20} color="#111827" className="h-5 w-5 flex-shrink-0" />
-                <span className="truncate text-[14px] text-gray-500">Search products</span>
-              </Link>
+        <div className="mt-3 px-4 sm:px-5">
+          <Link
+            href="/search/"
+            className="flex h-11 items-center gap-2 rounded-full border border-gray-200 bg-white px-3.5 ring-2 ring-[#902bf5]/45 ring-offset-2 ring-offset-white transition hover:bg-gray-50 hover:ring-[#902bf5]/70"
+            aria-label="Search products"
+          >
+            <Search size={20} color="#6b7280" className="h-5 w-5 shrink-0" />
+            <HomeSearchHints productNames={searchHintNames} />
+          </Link>
+        </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (isAuthenticated) {
-                    window.location.href = '/profile';
-                  } else {
-                    goToLogin();
-                  }
-                }}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition shadow-sm"
-                aria-label={isAuthenticated ? 'Profile' : 'Login'}
-              >
-                <User size={22} color="#111827" className="w-[22px] h-[22px]" />
-              </button>
+        <div className="mt-5 px-4 sm:px-5">
+          <p className="text-left text-home-hero-headline font-headingnow font-extrabold leading-[0.95] tracking-tight text-gray-900">
+            Groceries to your <span className="text-[#902bf5]">doorstep ..</span>
+          </p>
+          <Link
+            href="/products"
+            className="mt-4 inline-flex items-center justify-center rounded-full bg-[#902bf5] px-6 py-3 text-[13px] font-extrabold tracking-wide text-white shadow-[0_12px_30px_rgba(144,43,245,0.28)] transition hover:bg-[#7d24d6] active:scale-[0.98]"
+          >
+            Shop Now
+          </Link>
+        </div>
+
+        {shopBanners.length > 0 ? (
+          <div className="mt-4 px-4 sm:px-5">
+            <div className="overflow-hidden rounded-2xl bg-white">
+              <BannerCarousel
+                banners={shopBanners}
+                fallbackToDefaults={false}
+                imageClassName="object-cover object-center"
+                className="bg-white"
+              />
             </div>
-
-            {/* Tagline */}
-            <div className="relative z-[9] mt-4 sm:mt-5 pl-4 sm:pl-5 max-w-[min(92vw,540px)]">
-              <p className="text-left text-home-hero-headline font-extrabold text-white drop-shadow-[0_8px_24px_rgba(76,29,149,0.35)]">
-                Groceries in Minutes ... 
-              </p>
-            </div>
-
-            {/* CTA below tagline */}
-            <div className="relative z-20 mt-5 pl-4 sm:pl-5">
-              <Link
-                href="/products"
-                className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-[13px] font-extrabold tracking-wide text-[#902bf5] shadow-[0_12px_30px_rgba(15,23,42,0.22)] hover:bg-violet-50 active:scale-[0.98] transition"
-              >
-                Shop Now
-              </Link>
-            </div>
-
-            {/* Banner carousel right below "Shop Now" */}
-            {shopBanners.length > 0 && (
-              <div className="relative z-20 mt-6 px-3 sm:px-6 md:px-8 pb-2">
-                <div className="overflow-hidden rounded-2xl shadow-[0_8px_28px_rgba(15,23,42,0.18)] ring-1 ring-white/25">
-                  <BannerCarousel
-                    banners={shopBanners}
-                    fallbackToDefaults={false}
-                    imageClassName="object-cover object-center"
-                    className="bg-white"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Single Browse Categories CTA (replaces category icon boxes) */}
-            <BrowseCategoriesCta variant="hero" />
           </div>
-        </Container>
+        ) : null}
+
+        <HomeCategoryRail
+          categories={rootCategories}
+          selectedId={homeCategoryId}
+          onSelect={(category) => {
+            const id = String(category?.id ?? category?._id ?? '');
+            if (id) setHomeCategoryId(id);
+          }}
+          isLoading={rootCategoriesLoading}
+        />
+
+        {homeCategoryId ? (
+          <div className="mt-5 px-4 sm:px-5 pb-2">
+            {homeCategoryProductsLoading && homeCategoryProducts.length === 0 ? (
+              <ProductGridSkeleton count={4} variant="browse" paddingClass="" />
+            ) : (
+              <ProductGrid products={homeCategoryProducts} />
+            )}
+            <div className="mt-4 flex justify-center">
+              <Link
+                href={homeCategoryHref}
+                className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#902bf5] transition hover:text-[#7d24d6]"
+              >
+                <span>Show all</span>
+                <ArrowRight size={16} className="h-4 w-4" aria-hidden />
+              </Link>
+            </div>
+          </div>
+        ) : null}
       </section>
 
-      <div className="relative z-10 [&>section:first-child]:!pt-1 [&>section:first-child]:sm:!pt-2 -mt-8 sm:-mt-10">
+      <div className="relative z-10 mt-2">
         <HomeSections />
       </div>
 
