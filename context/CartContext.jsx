@@ -382,7 +382,8 @@ export function CartProvider({ children }) {
     );
     if (!item) return;
 
-    const prevExpanded = cartItems;
+    const prevPaidQty = getCartLinePaidQty(item);
+    const prevExpanded = buildGuestDisplayCartItems(localCartItemsRef.current);
     const updated = localCartItemsRef.current
       .filter((row) => !isBundleRewardCartLine(row))
       .map((row) => (lineMatchesKey(row, idOrKey) ? { ...row, quantity } : row));
@@ -391,10 +392,12 @@ export function CartProvider({ children }) {
     localCartItemsRef.current = nextItems;
     setLastActivityTime(Date.now());
 
-    const nextExpanded = buildGuestDisplayCartItems(nextItems);
-    const freeName = findProductNameForNewFreeUnits(prevExpanded, nextExpanded);
-    if (freeName) {
-      showToast(`Nice! We added your free ${freeName} to the cart.`, 'success');
+    if (quantity > prevPaidQty) {
+      const nextExpanded = buildGuestDisplayCartItems(nextItems);
+      const freeName = findProductNameForNewFreeUnits(prevExpanded, nextExpanded);
+      if (freeName) {
+        showToast(`Nice! We added your free ${freeName} to the cart.`, 'success');
+      }
     }
   };
 

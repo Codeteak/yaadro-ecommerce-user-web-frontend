@@ -141,6 +141,36 @@ img, video, iframe {
   object-position: center !important;
 }
 
+/* Product photos — do not use next/image `fill` stretch. Contain keeps the
+   full bitmap; cover is only for thumbs that opt in via data-fit. */
+.product-image-fill {
+  max-width: none !important;
+}
+
+.product-image-fill[data-fit='contain'] img {
+  position: static !important;
+  inset: auto !important;
+  left: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+.product-image-fill[data-fit='cover'] img {
+  max-width: none !important;
+  max-height: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center !important;
+}
+
 /* Hide scrollbar for horizontal scroll on mobile */
 .scrollbar-hide {
   -ms-overflow-style: none;  /* IE and Edge */

@@ -392,6 +392,7 @@ function transformCategory(apiCategory) {
     slug: apiCategory.slug,
     description: apiCategory.description || '',
     image: mediaObjectToUrl(apiCategory.image) || apiCategory.image || null,
+    imageUrl: apiCategory.imageUrl ?? apiCategory.image_url ?? null,
     icon: apiCategory.icon || null,
     isActive: apiCategory.isActive !== undefined ? apiCategory.isActive : true,
     isFeatured: apiCategory.isFeatured || false,

@@ -12,7 +12,7 @@ const FEATURED_TITLE = 'Featured Products';
 const BEST_SELLERS_TITLE = 'Best Sellers';
 const BUY_AGAIN_TITLE = 'Buy Again';
 
-export default function HomeClientShelves({ products: productsProp } = {}) {
+export default function HomeClientShelves({ products: productsProp, hideFeatured = false } = {}) {
   const { isAuthenticated } = useAuth();
 
   const needsFallbackFetch = !Array.isArray(productsProp) || productsProp.length === 0;
@@ -74,17 +74,14 @@ export default function HomeClientShelves({ products: productsProp } = {}) {
     return getBuyAgainFavorites(pool, orders, { limit: 12 });
   }, [isAuthenticated, orders, recommendPoolData?.products, catalogProducts]);
 
-  if (
-    !featuredProducts.length &&
-    !bestSellerProducts.length &&
-    !buyAgainProducts.length
-  ) {
+  const showFeatured = !hideFeatured && featuredProducts.length > 0;
+  if (!showFeatured && !bestSellerProducts.length && !buyAgainProducts.length) {
     return null;
   }
 
   return (
     <div>
-      {featuredProducts.length > 0 ? (
+      {showFeatured ? (
         <HomeProductShelf
           title={FEATURED_TITLE}
           products={featuredProducts}
