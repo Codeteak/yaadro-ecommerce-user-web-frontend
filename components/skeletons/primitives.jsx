@@ -236,11 +236,11 @@ export function CheckoutStepBarSkeleton() {
 
 export function CategoryRailSkeleton({ count = 6 }) {
   return (
-    <aside className="w-[76px] shrink-0 border-r border-gray-200 bg-white py-2 sm:w-[80px]">
-      <div className="space-y-2 px-1.5">
+    <aside className="w-[76px] shrink-0 border-r border-gray-100 bg-transparent py-2 sm:w-[80px]">
+      <div className="space-y-1 px-1.5">
         {Array.from({ length: count }).map((_, i) => (
-          <div key={i} className="flex flex-col items-center gap-1.5 px-1 py-2">
-            <Bone className="h-12 w-12 rounded-lg" />
+          <div key={i} className="flex flex-col items-center gap-1 px-1 py-2">
+            <Bone className="h-11 w-11 rounded-full" />
             <Bone className="h-2 w-10 rounded" />
           </div>
         ))}

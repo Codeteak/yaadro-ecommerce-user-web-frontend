@@ -1,57 +1,18 @@
 'use client';
 
-import { Suspense, useMemo, useState, useEffect } from 'react';
+import { Suspense, useMemo, useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import ProductCard from '../../../components/ProductCard';
+import BrowsePageHeader from '../../../components/BrowsePageHeader';
 import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
+import { CategoryRailItem } from '../../../components/products/ProductsCategoryRail';
 import { useCategoriesTree, useInfiniteProducts } from '../../../hooks/useProducts';
 import InfiniteScrollSentinel from '../../../components/InfiniteScrollSentinel';
 import CategoryBrowseSkeleton from '../../../components/skeletons/CategoryBrowseSkeleton';
 import { ProductGridSkeleton } from '../../../components/skeletons/primitives';
-
-function categoryThumbUrl(cat) {
-  if (!cat || typeof cat.image !== 'string') return null;
-  const u = cat.image.trim();
-  return u.length > 0 ? u : null;
-}
-
-function SubcategoryRailItem({ active, label, imageUrl, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex w-full flex-col items-center gap-1.5 rounded-xl px-1 py-2 transition ${
-        active
-          ? 'bg-violet-100 shadow-[inset_0_0_0_1px_rgba(139,92,246,0.15)]'
-          : 'bg-transparent hover:bg-gray-50 active:bg-gray-100'
-      }`}
-    >
-      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-        {imageUrl ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={imageUrl}
-            alt=""
-            className="absolute inset-0 block h-full w-full object-contain object-center"
-            loading="lazy"
-          />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center text-[15px] font-bold text-gray-400">
-            {(label || '?').slice(0, 1).toUpperCase()}
-          </span>
-        )}
-      </div>
-      <span
-        className={`max-w-[4.5rem] text-center text-[10px] leading-tight ${
-          active ? 'font-bold text-violet-950' : 'font-medium text-gray-600'
-        }`}
-      >
-        {label}
-      </span>
-    </button>
-  );
-}
+import { useBottomNavVisibility } from '../../../context/BottomNavVisibilityContext';
+import { useLayoutHeights } from '../../../context/LayoutHeightsContext';
 
 function findCategoryInTree(nodes, id) {
   if (!id || !nodes?.length) return null;
@@ -68,6 +29,9 @@ function CategoryBrowseInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const categorySlugOrId = params?.categoryId ? decodeURIComponent(String(params.categoryId)) : '';
+  const { isVisible: bottomNavVisible } = useBottomNavVisibility();
+  const { bottomNavHeight } = useLayoutHeights();
+  const bottomInset = bottomNavVisible ? bottomNavHeight : 0;
 
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -160,6 +124,12 @@ function CategoryBrowseInner() {
 
   const displayProducts = brandFiltered;
 
+  const handleBack = useCallback(() => {
+    router.replace('/categories');
+  }, [router]);
+
+  const onSearchOpenToggle = useCallback(() => setSearchOpen((v) => !v), []);
+
   useEffect(() => {
     setBrandFilter('');
   }, [validSub, categorySlugOrId]);
@@ -199,11 +169,6 @@ function CategoryBrowseInner() {
     );
   }
 
-  const imageUrl =
-    typeof category.image === 'string' && category.image.trim().length > 0
-      ? category.image.trim()
-      : null;
-
   const typeSelectValue = validSub || '';
   const activeSubLabel = validSub
     ? subcategories.find((s) => s.id === validSub)?.name || 'Type'
@@ -211,31 +176,20 @@ function CategoryBrowseInner() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-28 pt-[env(safe-area-inset-top,0px)] w-full max-w-full overflow-x-clip">
-      <header className="sticky top-0 z-40 border-b border-gray-100 bg-white">
-        <div className="flex items-center gap-2 px-3 py-2.5 sm:px-4">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50"
-            aria-label="Back"
-          >
-            <svg className="h-3.5 w-3.5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h1 className="min-w-0 flex-1 truncate text-center text-[15px] font-bold text-gray-900 sm:text-[16px]">
-            {category.name}
-          </h1>
-          <button
-            type="button"
-            onClick={() => setSearchOpen((v) => !v)}
-            className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border bg-gray-50 ${
-              searchOpen ? 'border-violet-300 ring-1 ring-violet-200' : 'border-gray-200'
-            }`}
-            aria-expanded={searchOpen}
-            aria-label="Search products"
-          >
-            <svg className="h-[18px] w-[18px] text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <BrowsePageHeader
+        title={category.name}
+        searchOpen={searchOpen}
+        onBack={handleBack}
+        onSearchToggle={onSearchOpenToggle}
+        searchAriaLabel="Search products"
+        searchSlot={
+          <div className="relative">
+            <svg
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -243,58 +197,38 @@ function CategoryBrowseInner() {
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-          </button>
-        </div>
-        {searchOpen && (
-          <div className="border-t border-gray-50 px-3 pb-3 pt-0 sm:px-4">
-            <div className="relative">
-              <svg
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search products…"
-                className="h-10 w-full rounded-full border border-gray-200 bg-gray-50 pl-9 pr-4 text-[13px] text-gray-900 placeholder-gray-400 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-200"
-                autoFocus
-              />
-            </div>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search products…"
+              className="h-10 w-full rounded-full border border-gray-200 bg-white pl-9 pr-4 text-[13px] text-gray-900 placeholder-gray-400 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-200"
+              autoFocus
+            />
           </div>
-        )}
-      </header>
+        }
+      />
 
       <div className="flex w-full max-w-screen-2xl flex-row">
         <aside
-          className="sticky z-30 w-[76px] shrink-0 self-start border-r border-gray-200 bg-white py-2 sm:w-[80px] top-[calc(52px+env(safe-area-inset-top,0px))]"
+          className="sticky z-30 w-[76px] shrink-0 self-start border-r border-gray-100 bg-transparent py-2 sm:w-[80px] top-[calc(52px+env(safe-area-inset-top,0px))]"
           style={{
-            maxHeight:
-              'calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 52px)',
+            maxHeight: `calc(100dvh - env(safe-area-inset-top,0px) - 52px - ${bottomInset}px)`,
           }}
         >
-          <div className="flex max-h-[inherit] flex-col gap-0.5 overflow-y-auto overscroll-contain px-1.5 pb-4">
-            <SubcategoryRailItem
+          <div className="flex max-h-[inherit] flex-col gap-1 overflow-y-auto overscroll-contain scrollbar-hide px-1.5 pb-4">
+            <CategoryRailItem
               active={!validSub}
               label="All"
-              imageUrl={imageUrl}
+              category={category}
               onClick={() => setSubFilter(null)}
             />
             {subcategories.map((sub) => (
-              <SubcategoryRailItem
+              <CategoryRailItem
                 key={sub.id}
                 active={validSub === sub.id}
                 label={sub.name}
-                imageUrl={categoryThumbUrl(sub)}
+                category={sub}
                 onClick={() => setSubFilter(sub.id)}
               />
             ))}
@@ -302,173 +236,111 @@ function CategoryBrowseInner() {
         </aside>
 
         <main className="min-w-0 flex-1 bg-gray-50 px-2.5 py-3 sm:px-3">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowMoreFilters((v) => !v)}
-              className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border bg-white ${
-                showMoreFilters ? 'border-violet-300 bg-violet-50' : 'border-gray-200'
-              }`}
-              aria-label="More filters"
-            >
-              <svg className="h-[18px] w-[18px] text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.8}
-                  d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
-                />
-              </svg>
-            </button>
-
-            <div className="relative min-w-0 flex-1 sm:max-w-[140px]">
-              <label htmlFor="filter-type" className="sr-only">
-                Type
-              </label>
-              <select
-                id="filter-type"
-                value={typeSelectValue}
-                onChange={(e) => setSubFilter(e.target.value || null)}
-                disabled={subcategories.length === 0}
-                className="h-9 w-full appearance-none rounded-full border border-gray-200 bg-white py-1.5 pl-3 pr-8 text-[12px] font-semibold text-gray-800 shadow-sm disabled:opacity-50"
-              >
-                <option value="">{subcategories.length ? 'All types' : 'Type'}</option>
-                {subcategories.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <svg
-                className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-
-            <div className="relative min-w-0 flex-1 sm:max-w-[140px]">
-              <label htmlFor="filter-brand" className="sr-only">
-                Brand
-              </label>
-              <select
-                id="filter-brand"
-                value={brandFilter}
-                onChange={(e) => setBrandFilter(e.target.value)}
-                className="h-9 w-full appearance-none rounded-full border border-gray-200 bg-white py-1.5 pl-3 pr-8 text-[12px] font-semibold text-gray-800 shadow-sm"
-              >
-                <option value="">Brand</option>
-                {brandOptions.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
-              <svg
-                className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-
-          {showMoreFilters && (
-            <div className="mb-3 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Sort</p>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { key: 'default', label: 'Relevance' },
-                  { key: 'price-asc', label: 'Price: low' },
-                  { key: 'price-desc', label: 'Price: high' },
-                ].map(({ key, label }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => {
-                      setSortKey(key);
-                      setShowMoreFilters(false);
-                    }}
-                    className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold ${
-                      sortKey === key
-                        ? 'border-violet-400 bg-violet-50 text-violet-900'
-                        : 'border-gray-200 bg-gray-50 text-gray-600'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {subcategories.length > 0 && (
-            <div className="-mx-0.5 mb-3 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="sticky z-20 -mx-2.5 mb-2 bg-gray-50 px-2.5 py-1 sm:-mx-3 sm:px-3 top-[calc(52px+env(safe-area-inset-top,0px))]">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setSubFilter(null)}
-                className={`flex min-w-[100px] max-w-[130px] flex-shrink-0 flex-col items-center gap-1 rounded-xl border px-2 py-2 text-center transition ${
-                  !validSub
-                    ? 'border-violet-400 bg-violet-50 shadow-sm'
-                    : 'border-gray-200 bg-white'
+                onClick={() => setShowMoreFilters((v) => !v)}
+                className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border bg-white ${
+                  showMoreFilters ? 'border-violet-300 bg-violet-50' : 'border-gray-200'
                 }`}
+                aria-label="More filters"
               >
-                <div className="relative h-11 w-11 overflow-hidden rounded-lg bg-gray-100">
-                  {imageUrl ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={imageUrl} alt="" className="h-full w-full object-contain object-center" />
-                  ) : (
-                    <span className="flex h-full w-full items-center justify-center text-[12px] font-bold text-gray-400">
-                      All
-                    </span>
-                  )}
-                </div>
-                <span
-                  className={`line-clamp-2 w-full text-[10px] leading-tight ${
-                    !validSub ? 'font-bold text-violet-950' : 'font-medium text-gray-600'
-                  }`}
-                >
-                  All
-                </span>
+                <svg className="h-[18px] w-[18px] text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.8}
+                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+                  />
+                </svg>
               </button>
-              {subcategories.map((sub) => {
-                const thumb = categoryThumbUrl(sub);
-                const active = validSub === sub.id;
-                return (
-                  <button
-                    key={sub.id}
-                    type="button"
-                    onClick={() => setSubFilter(sub.id)}
-                    className={`flex min-w-[100px] max-w-[130px] flex-shrink-0 flex-col items-center gap-1 rounded-xl border px-2 py-2 text-center transition ${
-                      active ? 'border-violet-400 bg-violet-50 shadow-sm' : 'border-gray-200 bg-white'
-                    }`}
-                  >
-                    <div className="relative h-11 w-11 overflow-hidden rounded-lg bg-gray-100">
-                      {thumb ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={thumb} alt="" className="h-full w-full object-contain object-center" loading="lazy" />
-                      ) : (
-                        <span className="flex h-full w-full items-center justify-center text-[12px] font-bold text-gray-400">
-                          {sub.name.slice(0, 1).toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                    <span
-                      className={`line-clamp-2 w-full text-[10px] leading-tight ${
-                        active ? 'font-bold text-violet-950' : 'font-medium text-gray-600'
+
+              <div className="relative min-w-0 flex-1 sm:max-w-[140px]">
+                <label htmlFor="filter-type" className="sr-only">
+                  Type
+                </label>
+                <select
+                  id="filter-type"
+                  value={typeSelectValue}
+                  onChange={(e) => setSubFilter(e.target.value || null)}
+                  disabled={subcategories.length === 0}
+                  className="h-9 w-full appearance-none rounded-full border border-gray-200 bg-white py-1.5 pl-3 pr-8 text-[12px] font-semibold text-gray-800 shadow-sm disabled:opacity-50"
+                >
+                  <option value="">{subcategories.length ? 'All types' : 'Type'}</option>
+                  {subcategories.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <svg
+                  className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+
+              <div className="relative min-w-0 flex-1 sm:max-w-[140px]">
+                <label htmlFor="filter-brand" className="sr-only">
+                  Brand
+                </label>
+                <select
+                  id="filter-brand"
+                  value={brandFilter}
+                  onChange={(e) => setBrandFilter(e.target.value)}
+                  className="h-9 w-full appearance-none rounded-full border border-gray-200 bg-white py-1.5 pl-3 pr-8 text-[12px] font-semibold text-gray-800 shadow-sm"
+                >
+                  <option value="">Brand</option>
+                  {brandOptions.map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
+                </select>
+                <svg
+                  className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+
+            {showMoreFilters && (
+              <div className="mt-2 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Sort</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { key: 'default', label: 'Relevance' },
+                    { key: 'price-asc', label: 'Price: low' },
+                    { key: 'price-desc', label: 'Price: high' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        setSortKey(key);
+                        setShowMoreFilters(false);
+                      }}
+                      className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold ${
+                        sortKey === key
+                          ? 'border-violet-400 bg-violet-50 text-violet-900'
+                          : 'border-gray-200 bg-gray-50 text-gray-600'
                       }`}
                     >
-                      {sub.name}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           {!productsLoading && (
             <p className="mb-2 text-[11px] text-gray-400">
@@ -482,7 +354,7 @@ function CategoryBrowseInner() {
           )}
 
           {productsLoading ? (
-            <ProductGridSkeleton count={8} variant="browse" />
+            <ProductGridSkeleton count={8} variant="products" />
           ) : displayProducts.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white py-14 text-center">
               <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
@@ -525,26 +397,9 @@ function CategoryBrowseInner() {
   );
 }
 
-function CategoryBrowseFallback() {
-  return (
-    <div className="min-h-screen bg-gray-50 pb-28 pt-[env(safe-area-inset-top,0px)]">
-      <div className="sticky top-0 z-30 border-b border-gray-100 bg-white px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 animate-pulse rounded-full bg-gray-200" />
-          <div className="h-5 flex-1 animate-pulse rounded bg-gray-200" />
-        </div>
-      </div>
-      <div className="h-36 animate-pulse bg-gray-200 sm:h-40" />
-      <div className="px-4 py-4">
-        <ProductGridSkeleton count={8} variant="browse" />
-      </div>
-    </div>
-  );
-}
-
 export default function CategoryBrowseClient() {
   return (
-    <Suspense fallback={<CategoryBrowseFallback />}>
+    <Suspense fallback={<CategoryBrowseSkeleton />}>
       <CategoryBrowseInner />
     </Suspense>
   );

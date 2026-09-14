@@ -6,7 +6,7 @@ import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryI
 import { useBottomNavVisibility } from '../../context/BottomNavVisibilityContext';
 import { useLayoutHeights } from '../../context/LayoutHeightsContext';
 
-function CategoryRailItem({ active, label, category, onClick }) {
+export function CategoryRailItem({ active, label, category, onClick }) {
   const imageUrl = getCategoryImageUrl(category);
   const initialSrc = imageUrl || CATEGORY_DUMMY_IMAGE;
   const [imgSrc, setImgSrc] = useState(initialSrc);
