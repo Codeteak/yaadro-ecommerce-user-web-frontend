@@ -207,36 +207,8 @@ function CategoryBrowseInner() {
             />
           </div>
         }
-      />
-
-      <div className="flex w-full max-w-screen-2xl flex-row">
-        <aside
-          className="sticky z-30 w-[76px] shrink-0 self-start border-r border-gray-100 bg-transparent py-2 sm:w-[80px] top-[calc(52px+env(safe-area-inset-top,0px))]"
-          style={{
-            maxHeight: `calc(100dvh - env(safe-area-inset-top,0px) - 52px - ${bottomInset}px)`,
-          }}
-        >
-          <div className="flex max-h-[inherit] flex-col gap-1 overflow-y-auto overscroll-contain scrollbar-hide px-1.5 pb-4">
-            <CategoryRailItem
-              active={!validSub}
-              label="All"
-              category={category}
-              onClick={() => setSubFilter(null)}
-            />
-            {subcategories.map((sub) => (
-              <CategoryRailItem
-                key={sub.id}
-                active={validSub === sub.id}
-                label={sub.name}
-                category={sub}
-                onClick={() => setSubFilter(sub.id)}
-              />
-            ))}
-          </div>
-        </aside>
-
-        <main className="min-w-0 flex-1 bg-gray-50 px-2.5 py-3 sm:px-3">
-          <div className="sticky z-20 -mx-2.5 mb-2 bg-gray-50 px-2.5 py-1 sm:-mx-3 sm:px-3 top-[calc(52px+env(safe-area-inset-top,0px))]">
+        toolbar={
+          <>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -312,7 +284,7 @@ function CategoryBrowseInner() {
               </div>
             </div>
 
-            {showMoreFilters && (
+            {showMoreFilters ? (
               <div className="mt-2 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Sort</p>
                 <div className="flex flex-wrap gap-2">
@@ -339,9 +311,38 @@ function CategoryBrowseInner() {
                   ))}
                 </div>
               </div>
-            )}
-          </div>
+            ) : null}
+          </>
+        }
+      />
 
+      <div className="flex w-full max-w-screen-2xl flex-row">
+        <aside
+          className="sticky z-30 w-[76px] shrink-0 self-start border-r border-gray-100 bg-transparent py-2 sm:w-[80px] top-[calc(5.75rem+env(safe-area-inset-top,0px))]"
+          style={{
+            maxHeight: `calc(100dvh - env(safe-area-inset-top,0px) - 5.75rem - ${bottomInset}px)`,
+          }}
+        >
+          <div className="flex max-h-[inherit] flex-col gap-1 overflow-y-auto overscroll-contain scrollbar-hide px-1.5 pb-4">
+            <CategoryRailItem
+              active={!validSub}
+              label="All"
+              category={category}
+              onClick={() => setSubFilter(null)}
+            />
+            {subcategories.map((sub) => (
+              <CategoryRailItem
+                key={sub.id}
+                active={validSub === sub.id}
+                label={sub.name}
+                category={sub}
+                onClick={() => setSubFilter(sub.id)}
+              />
+            ))}
+          </div>
+        </aside>
+
+        <main className="min-w-0 flex-1 bg-gray-50 px-2.5 py-3 sm:px-3">
           {!productsLoading && (
             <p className="mb-2 text-[11px] text-gray-400">
               {activeSubLabel}

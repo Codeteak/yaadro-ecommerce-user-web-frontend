@@ -10,6 +10,7 @@ export default function BrowsePageHeader({
   onSearchToggle,
   searchAriaLabel = 'Search',
   searchSlot = null,
+  toolbar = null,
 }) {
   return (
     <header className="sticky top-0 z-40 bg-gray-50">
@@ -50,6 +51,11 @@ export default function BrowsePageHeader({
         </button>
       </div>
       {searchOpen && searchSlot ? <div className="px-3 pb-2.5 pt-0 sm:px-4">{searchSlot}</div> : null}
+      {toolbar ? (
+        <div className="px-2 pb-2 sm:px-3 pl-[calc(76px+0.625rem)] sm:pl-[calc(80px+0.75rem)]">
+          {toolbar}
+        </div>
+      ) : null}
     </header>
   );
 }

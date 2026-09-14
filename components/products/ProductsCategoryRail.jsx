@@ -61,9 +61,9 @@ function ProductsCategoryRailInner({ activeCategory, rootCategories, onCategoryS
 
   return (
     <aside
-      className="sticky z-30 w-[76px] shrink-0 self-start border-r border-gray-100 bg-transparent py-2 sm:w-[80px] top-[calc(52px+env(safe-area-inset-top,0px))]"
+      className="sticky z-30 w-[76px] shrink-0 self-start border-r border-gray-100 bg-transparent py-2 sm:w-[80px] top-[calc(5.75rem+env(safe-area-inset-top,0px))]"
       style={{
-        maxHeight: `calc(100dvh - env(safe-area-inset-top,0px) - 52px - ${bottomInset}px)`,
+            maxHeight: `calc(100dvh - env(safe-area-inset-top,0px) - 5.75rem - ${bottomInset}px)`,
       }}
     >
       <div className="flex max-h-[inherit] flex-col gap-1 overflow-y-auto overscroll-contain scrollbar-hide px-1.5 pb-4">
