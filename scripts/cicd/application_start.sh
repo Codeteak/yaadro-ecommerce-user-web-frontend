@@ -1,6 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Free Docker disk before pull/recreate (prevents "no space left on device").
+yaadro_free_deploy_disk() {
+  echo "[application_start] Disk before cleanup:"
+  df -h / || true
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "[application_start] docker not installed; skip disk cleanup"
+    return 0
+  fi
+  echo "[application_start] Cleaning unused Docker data..."
+  docker container prune -f || true
+  docker image prune -af || true
+  docker builder prune -af || true
+  docker network prune -f || true
+  docker volume prune -f || true
+  docker system prune -af || true
+  find /var/lib/docker/containers -type f -name '*-json.log' -size +50M \
+    -exec truncate -s 0 {} \; 2>/dev/null || true
+  echo "[application_start] Disk after cleanup:"
+  df -h / || true
+  docker system df || true
+}
+
 APP_DIR="/home/deploy/yaadro/customer-web"
 HOST_RUNTIME_CONF="/etc/yaadro/app-runtime.conf"
 
@@ -78,6 +100,8 @@ ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 export ECR_IMAGE_URI
 export APP_PORT
+
+yaadro_free_deploy_disk
 
 COMPOSE_FILE="${APP_DIR}/docker-compose.yml"
 if command -v docker-compose >/dev/null 2>&1; then
