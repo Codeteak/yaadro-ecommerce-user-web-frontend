@@ -6,10 +6,88 @@ import {
   formatSameSkuBxgyLabel,
 } from '../../utils/bxgyLabels';
 
-function withChrome(product, role, buyQty, getQty, offerMode, pairNames) {
-  if (!product) return null;
+/**
+ * Home deal chrome alone is not enough for cart — attach a real bundle rule
+ * onto the buy product when engine `bundleRules` are missing.
+ */
+function ensureDealCartBundleRules(product, {
+  role,
+  mode,
+  buyQty,
+  getQty,
+  buyProduct,
+  getProduct,
+}) {
+  if (!product || role !== 'buy') return product;
+  const existing = Array.isArray(product.bundleRules)
+    ? product.bundleRules
+    : Array.isArray(product.bundle_rules)
+      ? product.bundle_rules
+      : [];
+  if (existing.length > 0) return product;
+
+  const buyId = String(buyProduct?.id || product.id || '').trim();
+  if (!buyId) return product;
+  const getId = String(getProduct?.id || '').trim();
+  const safeBuyQty =
+    Number.isFinite(Number(buyQty)) && Number(buyQty) > 0 ? Number(buyQty) : 1;
+  const safeGetQty =
+    Number.isFinite(Number(getQty)) && Number(getQty) > 0 ? Number(getQty) : 1;
+
+  if (mode === 'cross_sku' && getId && getId !== buyId) {
+    return {
+      ...product,
+      bundleRules: [
+        {
+          scope: 'cross_shop_products',
+          buy_shop_product_id: buyId,
+          reward_shop_product_id: getId,
+          buy_qty: safeBuyQty,
+          get_qty: safeGetQty,
+          reward_type: 'free',
+          buy_product_name: buyProduct?.name || product.name || '',
+          reward_product_name: getProduct?.name || '',
+          reward_product_image:
+            getProduct?.imageUrl || getProduct?.image || '',
+        },
+      ],
+    };
+  }
+
   return {
     ...product,
+    bundleRules: [
+      {
+        scope: 'same_shop_product',
+        shop_product_id: buyId,
+        buy_qty: safeBuyQty,
+        get_qty: safeGetQty,
+        reward_type: 'free',
+      },
+    ],
+  };
+}
+
+function withChrome(
+  product,
+  role,
+  buyQty,
+  getQty,
+  offerMode,
+  pairNames,
+  pairProducts
+) {
+  if (!product) return null;
+  const withRules = ensureDealCartBundleRules(product, {
+    role,
+    mode: offerMode,
+    buyQty,
+    getQty,
+    buyProduct: pairProducts?.buy || product,
+    getProduct: pairProducts?.get || null,
+  });
+  return {
+    ...withRules,
     bxgyShelfRole: role,
     bxgyBuyQty: buyQty,
     bxgyGetQty: getQty,
@@ -41,10 +119,27 @@ export default function BxgyDealCard({ deal }) {
   const getName = getRaw?.name || getRaw?.shortName || '';
   const pairNames = { buyName, getName };
 
-  const buy = withChrome(buyRaw, 'buy', buyQty, getQty, mode, pairNames);
+  const pairProducts = { buy: buyRaw, get: getRaw };
+  const buy = withChrome(
+    buyRaw,
+    'buy',
+    buyQty,
+    getQty,
+    mode,
+    pairNames,
+    pairProducts
+  );
   const get =
     mode === 'cross_sku' && getRaw
-      ? withChrome(getRaw, 'get', buyQty, getQty, mode, pairNames)
+      ? withChrome(
+          getRaw,
+          'get',
+          buyQty,
+          getQty,
+          mode,
+          pairNames,
+          pairProducts
+        )
       : null;
 
   const headline =

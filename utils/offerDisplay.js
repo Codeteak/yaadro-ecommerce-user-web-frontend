@@ -488,6 +488,23 @@ export function findProductNameForNewFreeUnits(prevItems, nextItems) {
       return String(it.name || it.productName || "item");
     }
   }
+
+  // Cross BXGY free rows are separate `:bundle-reward` lines (not embedded free on paid).
+  const prevRewardQty = new Map();
+  for (const it of prevItems || []) {
+    if (!isBundleRewardCartLine(it)) continue;
+    const id = String(it.cartItemId ?? it.id ?? "");
+    prevRewardQty.set(id, Math.max(0, Number(it.quantity) || 0));
+  }
+  for (const it of nextItems || []) {
+    if (!isBundleRewardCartLine(it)) continue;
+    const id = String(it.cartItemId ?? it.id ?? "");
+    const nextQty = Math.max(0, Number(it.quantity) || 0);
+    const prevQty = prevRewardQty.get(id) || 0;
+    if (nextQty > prevQty) {
+      return String(it.name || it.productName || "item");
+    }
+  }
   return null;
 }
 

@@ -31,8 +31,8 @@ export default function PdpOfferPanel({ product }) {
       {display.offerType === 'buy_x_get_y' ? (
         <p className="mt-1 text-[11px] text-gray-500">
           {display.dealMode === 'cross_sku'
-            ? 'Add the buy item. Free item applies at checkout.'
-            : 'Free units apply when you qualify.'}
+            ? 'Add the buy item — free reward is added to your cart when you qualify.'
+            : 'Free units are added to your cart when you qualify.'}
         </p>
       ) : null}
     </div>
