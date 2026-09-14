@@ -326,9 +326,9 @@ export default function SearchPage() {
               <p className="text-[11px] text-gray-400 mb-3">
                 Showing {products.length} result{products.length !== 1 ? 's' : ''} for “{q}”
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 items-stretch gap-3">
                 {products.map((product, index) => (
-                  <FadeInWhenVisible key={product.id} delay={Math.min(index * 0.03, 0.24)}>
+                  <FadeInWhenVisible key={product.id} className="h-full" delay={Math.min(index * 0.03, 0.24)}>
                     <ProductCard product={product} />
                   </FadeInWhenVisible>
                 ))}
