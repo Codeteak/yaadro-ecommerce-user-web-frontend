@@ -52,9 +52,38 @@ export function getProductOfferDisplay(product) {
       secondaryText: null,
       bundleLabel: null,
       saveRupees: null,
+      buyQty: null,
+      getQty: null,
     };
   }
-  const rule = getPrimaryBundleRule(product);
+
+  const shelfRole = String(product.bxgyShelfRole || "").trim();
+  const shelfBuy = Number(product.bxgyBuyQty);
+  const shelfGet = Number(product.bxgyGetQty);
+  const shelfRule =
+    Number.isFinite(shelfBuy) &&
+    shelfBuy > 0 &&
+    Number.isFinite(shelfGet) &&
+    shelfGet > 0
+      ? { buy_qty: shelfBuy, get_qty: shelfGet, reward_type: "free" }
+      : { buy_qty: 1, get_qty: 1, reward_type: "free" };
+
+  // Home BXGY "Get free" row — always FREE chrome; do not show catalog SAVE.
+  if (shelfRole === "get") {
+    return {
+      offerType: OFFER_TYPES.BUY_X_GET_Y,
+      badges: ["FREE"],
+      secondaryText: "Free with this offer",
+      bundleLabel: "Free with this offer",
+      bundleRibbon: "FREE",
+      saveRupees: null,
+      buyQty: shelfRule.buy_qty,
+      getQty: shelfRule.get_qty,
+    };
+  }
+
+  const rule =
+    getPrimaryBundleRule(product) || (shelfRole === "buy" ? shelfRule : null);
   const bundleLabel = rule
     ? formatBundleRuleLabel(rule)
     : String(product.bundleLabel || "").trim() || null;
@@ -89,11 +118,16 @@ export function getProductOfferDisplay(product) {
         : listFromMrp;
 
   let saveRupees = null;
-  if (list > pay + 0.004) {
+  // On buy shelf, keep BOGO as the primary story — skip SAVE stacking.
+  if (shelfRole !== "buy" && list > pay + 0.004) {
     saveRupees = Math.round((list - pay) * 100) / 100;
     badges.push(`SAVE ₹${Math.round(saveRupees)}`);
     if (offerType === OFFER_TYPES.NONE) offerType = OFFER_TYPES.CATALOG_OFFER;
-  } else if (hasActiveOffer(product) && offerType === OFFER_TYPES.NONE) {
+  } else if (
+    shelfRole !== "buy" &&
+    hasActiveOffer(product) &&
+    offerType === OFFER_TYPES.NONE
+  ) {
     offerType = OFFER_TYPES.CATALOG_OFFER;
   }
 
@@ -107,20 +141,31 @@ export function getProductOfferDisplay(product) {
   }
 
   let secondaryText = null;
-  if (bundleLabel) secondaryText = bundleLabel;
+  if (shelfRole === "buy") {
+    secondaryText = bundleLabel || formatBundleRuleLabel(shelfRule);
+  } else if (bundleLabel) secondaryText = bundleLabel;
   else if (saveRupees != null && saveRupees > 0) secondaryText = "On sale";
+
+  const effectiveRule = rule || (shelfRole === "buy" ? shelfRule : null);
 
   return {
     offerType,
     badges,
     secondaryText,
-    bundleLabel,
-    bundleRibbon: rule
-      ? formatBundleRibbonLabel(rule, { compact: true })
+    bundleLabel:
+      shelfRole === "buy"
+        ? bundleLabel || formatBundleRuleLabel(shelfRule)
+        : bundleLabel,
+    bundleRibbon: effectiveRule
+      ? formatBundleRibbonLabel(effectiveRule, { compact: true })
       : null,
     saveRupees,
-    buyQty: rule ? Number(rule.buy_qty ?? rule.buyQty) || null : null,
-    getQty: rule ? Number(rule.get_qty ?? rule.getQty) || null : null,
+    buyQty: effectiveRule
+      ? Number(effectiveRule.buy_qty ?? effectiveRule.buyQty) || null
+      : null,
+    getQty: effectiveRule
+      ? Number(effectiveRule.get_qty ?? effectiveRule.getQty) || null
+      : null,
   };
 }
 

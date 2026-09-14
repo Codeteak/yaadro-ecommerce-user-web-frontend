@@ -108,10 +108,11 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   const bundleRule = useMemo(() => getPrimaryBundleRule(product), [product]);
   const offerDisplay = useMemo(() => getProductOfferDisplay(product), [product]);
   const bundleLabel = useMemo(() => {
+    if (offerDisplay.bundleLabel) return offerDisplay.bundleLabel;
     if (bundleRule) return formatBundleRuleLabel(bundleRule);
     const extra = String(product?.bundleLabel || '').trim();
     return extra || null;
-  }, [bundleRule, product?.bundleLabel]);
+  }, [offerDisplay.bundleLabel, bundleRule, product?.bundleLabel]);
 
   const productToAddPayload = useMemo(
     () => ({
@@ -254,9 +255,11 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   }, [queryClient, product]);
 
   const isShelf = variant === 'shelf';
-  const bundleRibbonText = bundleRule
-    ? formatBundleRibbonLabel(bundleRule, { compact: isCarousel || isShelf })
-    : bundleLabel;
+  const bundleRibbonText =
+    offerDisplay.bundleRibbon ||
+    (bundleRule
+      ? formatBundleRibbonLabel(bundleRule, { compact: isCarousel || isShelf })
+      : bundleLabel);
 
   const chromeClass =
     variant === 'flat'
@@ -348,7 +351,10 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     },
   };
 
-  const showSaveRibbon = saveRupees != null && saveRupees >= 0.005;
+  const showSaveRibbon =
+    !product?.bxgyShelfRole &&
+    saveRupees != null &&
+    saveRupees >= 0.005;
 
   const addRibbonSizeClass = isCarousel
     ? 'h-8 min-w-[52px] px-2.5 text-[10px]'
@@ -568,11 +574,26 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         )}
 
         <Link {...navLinkProps} className="block">
-          <PriceDisplay
-            amount={currentPrice}
-            listPrice={displayListPrice}
-            size={isCarousel || isShelf ? 'sm' : 'md'}
-          />
+          {product?.bxgyShelfRole === 'get' ? (
+            <div className={isCarousel || isShelf ? 'text-sm' : 'text-base'}>
+              <span className="font-bold text-violet-700">Free</span>
+              {displayListPrice != null && displayListPrice > 0 ? (
+                <span className="ml-1.5 text-xs text-gray-400 line-through tabular-nums">
+                  ₹{formatRupeeINR(displayListPrice)}
+                </span>
+              ) : currentPrice > 0 ? (
+                <span className="ml-1.5 text-xs text-gray-400 line-through tabular-nums">
+                  ₹{formatRupeeINR(currentPrice)}
+                </span>
+              ) : null}
+            </div>
+          ) : (
+            <PriceDisplay
+              amount={currentPrice}
+              listPrice={displayListPrice}
+              size={isCarousel || isShelf ? 'sm' : 'md'}
+            />
+          )}
         </Link>
         <div className="flex justify-end pointer-events-auto">{cartControls}</div>
       </div>
