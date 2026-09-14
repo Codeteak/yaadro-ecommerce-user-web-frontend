@@ -4,10 +4,12 @@
  */
 
 import {
+  bundleRuleRoleForProduct,
   formatBundleRibbonLabel,
   formatBundleRuleLabel,
   getPrimaryBundleRule,
   hasActiveOffer,
+  isCrossSkuBundleRule,
 } from "./productUtils";
 import {
   getBundleFreeExtraOnPaidLine,
@@ -31,9 +33,10 @@ function parseMoney(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-/** Compact BOGO badge: B1G1 / BOGO / B2G1 */
+/** Compact same-SKU badge: BOGO / B2G1 — never use for cross-SKU. */
 export function formatBogoBadge(rule) {
   if (!rule || typeof rule !== "object") return "BOGO";
+  if (isCrossSkuBundleRule(rule)) return "BUY";
   const buy = Number(rule.buy_qty ?? rule.buyQty);
   const get = Number(rule.get_qty ?? rule.getQty);
   if (Number.isFinite(buy) && buy > 0 && Number.isFinite(get) && get > 0) {
@@ -41,6 +44,39 @@ export function formatBogoBadge(rule) {
     return `B${buy}G${get}`;
   }
   return "BOGO";
+}
+
+function shelfOfferMode(product) {
+  const mode = String(product?.bxgyOfferMode || "").trim();
+  if (mode === "cross_sku" || mode === "same_sku") return mode;
+  return null;
+}
+
+/**
+ * Resolve whether this product card should read as same-SKU BOGO or cross unlock.
+ * @returns {'same' | 'buy' | 'get'}
+ */
+function resolveOfferRole(product, rule) {
+  const shelfRole = String(product?.bxgyShelfRole || "").trim();
+  if (shelfRole === "buy" || shelfRole === "get") return shelfRole;
+
+  const mode = shelfOfferMode(product);
+  if (mode === "cross_sku") return "buy";
+  if (mode === "same_sku") return "same";
+
+  if (rule) return bundleRuleRoleForProduct(rule, product?.id);
+  return "same";
+}
+
+function isCrossOffer(product, rule, role) {
+  const mode = shelfOfferMode(product);
+  if (mode === "cross_sku") return true;
+  if (mode === "same_sku") return false;
+  if (role === "buy" || role === "get") {
+    // Shelf role without mode: treat buy/get split as cross unless same_sku mode set.
+    if (String(product?.bxgyShelfRole || "").trim()) return true;
+  }
+  return isCrossSkuBundleRule(rule);
 }
 
 /** Catalog / PLP / PDP offer chips from a product. */
@@ -68,31 +104,81 @@ export function getProductOfferDisplay(product) {
       ? { buy_qty: shelfBuy, get_qty: shelfGet, reward_type: "free" }
       : { buy_qty: 1, get_qty: 1, reward_type: "free" };
 
-  // Home BXGY "Get free" row — always FREE chrome; do not show catalog SAVE.
-  if (shelfRole === "get") {
+  const engineRule = getPrimaryBundleRule(product);
+  const role = resolveOfferRole(product, engineRule);
+  const cross = isCrossOffer(product, engineRule, role);
+
+  // Prefer shelf qty chrome; for non-shelf, prefer engine rule when present.
+  const rule =
+    shelfRole === "buy" || shelfRole === "get"
+      ? {
+          ...shelfRule,
+          ...(cross ? { scope: "cross_shop_products" } : {}),
+        }
+      : engineRule || (cross ? { ...shelfRule, scope: "cross_shop_products" } : null);
+
+  // Home / PLP "Get free" chrome — never imply same-product BOGO.
+  if (role === "get") {
+    const buyName =
+      engineRule?.buy_product_name ||
+      engineRule?.buyProductName ||
+      product?.bxgyBuyProductName ||
+      "";
+    const getLabel = formatBundleRuleLabel(
+      rule || engineRule || shelfRule,
+      { role: "get", buyName },
+    );
     return {
       offerType: OFFER_TYPES.BUY_X_GET_Y,
       badges: ["FREE"],
-      secondaryText: "Free with this offer",
-      bundleLabel: "Free with this offer",
+      secondaryText: getLabel,
+      bundleLabel: getLabel,
       bundleRibbon: "FREE",
       saveRupees: null,
-      buyQty: shelfRule.buy_qty,
-      getQty: shelfRule.get_qty,
+      buyQty: Number(rule?.buy_qty ?? shelfRule.buy_qty) || null,
+      getQty: Number(rule?.get_qty ?? shelfRule.get_qty) || null,
+      dealMode: "cross_sku",
     };
   }
 
-  const rule =
-    getPrimaryBundleRule(product) || (shelfRole === "buy" ? shelfRule : null);
-  const bundleLabel = rule
-    ? formatBundleRuleLabel(rule)
+  // Cross-SKU buy card: name the free product when known.
+  if (role === "buy" && cross) {
+    const buy = Number(rule?.buy_qty ?? shelfRule.buy_qty) || 1;
+    const get = Number(rule?.get_qty ?? shelfRule.get_qty) || 1;
+    const buyName = product?.name || product?.shortName || "";
+    const getName =
+      engineRule?.reward_product_name ||
+      engineRule?.rewardProductName ||
+      product?.bxgyGetProductName ||
+      "";
+    const label = formatBundleRuleLabel(rule || engineRule || shelfRule, {
+      role: "buy",
+      buyName,
+      getName,
+    });
+    return {
+      offerType: OFFER_TYPES.BUY_X_GET_Y,
+      badges: ["BUY"],
+      secondaryText: label,
+      bundleLabel: label,
+      bundleRibbon: "BUY",
+      saveRupees: null,
+      buyQty: buy,
+      getQty: get,
+      dealMode: "cross_sku",
+    };
+  }
+
+  const effectiveRule = rule || (shelfRole === "buy" ? shelfRule : null);
+  const bundleLabel = effectiveRule
+    ? formatBundleRuleLabel(effectiveRule, { role: "same" })
     : String(product.bundleLabel || "").trim() || null;
   const badges = [];
   let offerType = OFFER_TYPES.NONE;
 
-  if (rule) {
+  if (effectiveRule) {
     offerType = OFFER_TYPES.BUY_X_GET_Y;
-    badges.push(formatBogoBadge(rule));
+    badges.push(formatBogoBadge(effectiveRule));
   }
 
   // Catalog shape: `price` = MRP/list, `offerPrice` = what customer pays when on sale.
@@ -118,7 +204,7 @@ export function getProductOfferDisplay(product) {
         : listFromMrp;
 
   let saveRupees = null;
-  // On buy shelf, keep BOGO as the primary story — skip SAVE stacking.
+  // On buy shelf, keep deal as the primary story — skip SAVE stacking.
   if (shelfRole !== "buy" && list > pay + 0.004) {
     saveRupees = Math.round((list - pay) * 100) / 100;
     badges.push(`SAVE ₹${Math.round(saveRupees)}`);
@@ -142,11 +228,9 @@ export function getProductOfferDisplay(product) {
 
   let secondaryText = null;
   if (shelfRole === "buy") {
-    secondaryText = bundleLabel || formatBundleRuleLabel(shelfRule);
+    secondaryText = bundleLabel || formatBundleRuleLabel(shelfRule, { role: "same" });
   } else if (bundleLabel) secondaryText = bundleLabel;
   else if (saveRupees != null && saveRupees > 0) secondaryText = "On sale";
-
-  const effectiveRule = rule || (shelfRole === "buy" ? shelfRule : null);
 
   return {
     offerType,
@@ -154,10 +238,10 @@ export function getProductOfferDisplay(product) {
     secondaryText,
     bundleLabel:
       shelfRole === "buy"
-        ? bundleLabel || formatBundleRuleLabel(shelfRule)
+        ? bundleLabel || formatBundleRuleLabel(shelfRule, { role: "same" })
         : bundleLabel,
     bundleRibbon: effectiveRule
-      ? formatBundleRibbonLabel(effectiveRule, { compact: true })
+      ? formatBundleRibbonLabel(effectiveRule, { compact: true, role: "same" })
       : null,
     saveRupees,
     buyQty: effectiveRule
@@ -166,6 +250,7 @@ export function getProductOfferDisplay(product) {
     getQty: effectiveRule
       ? Number(effectiveRule.get_qty ?? effectiveRule.getQty) || null
       : null,
+    dealMode: "same_sku",
   };
 }
 
@@ -220,11 +305,26 @@ export function buildCartOfferGroups(items) {
     const rule = getCartLineBundleRule(it);
     const badges = [];
     let offerType = OFFER_TYPES.NONE;
+    const cross = isCrossSkuBundleRule(rule);
+    const parentProductId = String(it.productId ?? it.product?.id ?? it.id ?? "");
+    const freeIsDifferentSku = children.some((c) => {
+      const childProductId = String(c.productId ?? c.product?.id ?? "");
+      if (childProductId && parentProductId) {
+        return childProductId !== parentProductId;
+      }
+      // Fallback: synthetic reward without productId still counts as cross when rule says so.
+      return cross;
+    });
 
     if (children.length > 0 || freeExtra > 0) {
       offerType = OFFER_TYPES.BUY_X_GET_Y;
-      badges.push(formatBogoBadge(rule));
-      badges.push("FREE");
+      if (cross || freeIsDifferentSku) {
+        badges.push("BUY");
+        badges.push("FREE");
+      } else {
+        badges.push(formatBogoBadge(rule));
+        badges.push("FREE");
+      }
     }
 
     const unit = lineUnitPrice(it);
@@ -256,7 +356,20 @@ export function buildCartOfferGroups(items) {
       children,
       badges: [...new Set(badges)],
       savingsMinor: Math.round(savingsMajor * 100),
-      bundleLabel: getCartLineBundleLabel(it),
+      bundleLabel: (() => {
+        if (!rule) return getCartLineBundleLabel(it);
+        const buyName = it?.name || it?.productName || "";
+        const getName =
+          children.find((c) => c?.name)?.name ||
+          rule.reward_product_name ||
+          rule.rewardProductName ||
+          "";
+        return formatBundleRuleLabel(rule, {
+          role: cross ? "buy" : "same",
+          buyName,
+          getName,
+        });
+      })(),
       paidQuantity: paidQty,
       freeQuantity:
         freeExtra ||
@@ -292,8 +405,8 @@ export function getCouponThresholdHint(
         code,
         remainingMinor: remaining,
         message: code
-          ? `₹${(remaining / 100).toLocaleString("en-IN")} more to unlock ${code}`
-          : `₹${(remaining / 100).toLocaleString("en-IN")} more to unlock a coupon`,
+          ? `₹${(remaining / 100).toLocaleString("en-IN")} more for ${code}`
+          : `₹${(remaining / 100).toLocaleString("en-IN")} more for a coupon`,
       };
     }
   }
@@ -313,7 +426,7 @@ export function getCouponThresholdHint(
       message:
         coupon.reasonMessage ||
         coupon.reason_message ||
-        `Add more items to unlock ${String(coupon.code).toUpperCase()}`,
+        `Add more items for ${String(coupon.code).toUpperCase()}`,
     };
   }
 
@@ -327,7 +440,7 @@ export function getCouponThresholdHint(
       return {
         code: String(row.code).toUpperCase(),
         remainingMinor: 0,
-        message: `Add more items to unlock ${String(row.code).toUpperCase()}`,
+        message: `Add more items for ${String(row.code).toUpperCase()}`,
       };
     }
   }
@@ -372,6 +485,23 @@ export function findProductNameForNewFreeUnits(prevItems, nextItems) {
     const nextFree = getBundleFreeExtraOnPaidLine(it);
     const prevFree = prevMap.get(id) || 0;
     if (nextFree > prevFree) {
+      return String(it.name || it.productName || "item");
+    }
+  }
+
+  // Cross BXGY free rows are separate `:bundle-reward` lines (not embedded free on paid).
+  const prevRewardQty = new Map();
+  for (const it of prevItems || []) {
+    if (!isBundleRewardCartLine(it)) continue;
+    const id = String(it.cartItemId ?? it.id ?? "");
+    prevRewardQty.set(id, Math.max(0, Number(it.quantity) || 0));
+  }
+  for (const it of nextItems || []) {
+    if (!isBundleRewardCartLine(it)) continue;
+    const id = String(it.cartItemId ?? it.id ?? "");
+    const nextQty = Math.max(0, Number(it.quantity) || 0);
+    const prevQty = prevRewardQty.get(id) || 0;
+    if (nextQty > prevQty) {
       return String(it.name || it.productName || "item");
     }
   }

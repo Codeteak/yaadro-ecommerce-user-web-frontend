@@ -763,15 +763,26 @@ export default function CheckoutPage() {
         setIsSubmitting(false);
         return;
       }
-      const checkoutLines = cartItems
-        .filter((it) => !isBundleRewardCartLine(it))
-        .map((it) => ({
-          productId: String(
+      const checkoutLines = (() => {
+        /** @type {Map<string, number>} */
+        const byProduct = new Map();
+        for (const it of cartItems) {
+          const productId = String(
             it.productId ?? it.product_id ?? it.product?.id ?? "",
-          ).trim(),
-          quantity: Number(it.quantity) || 1,
-        }))
-        .filter((it) => it.productId && it.quantity > 0);
+          ).trim();
+          if (!productId) continue;
+          if (isBundleRewardCartLine(it)) {
+            const qty = Math.max(1, Number(it.quantity) || 1);
+            byProduct.set(productId, (byProduct.get(productId) || 0) + qty);
+            continue;
+          }
+          const qty = Math.max(1, Number(it.quantity) || 1);
+          byProduct.set(productId, (byProduct.get(productId) || 0) + qty);
+        }
+        return [...byProduct.entries()]
+          .map(([productId, quantity]) => ({ productId, quantity }))
+          .filter((it) => it.productId && it.quantity > 0);
+      })();
       if (!checkoutLines.length) {
         showAlert(
           "Your cart is empty. Add items before placing an order.",

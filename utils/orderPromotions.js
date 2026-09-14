@@ -77,6 +77,44 @@ function shopActorFromItem(item) {
   return SHOP_ACTOR_ROLES.has(String(raw).trim().toLowerCase());
 }
 
+function shopEditOriginalQuantityRaw(item) {
+  // Prefer explicit "what customer ordered" fields. Do NOT use ordered_quantity /
+  // orderedQuantity here — storefront checkout stores those as BXGY *paid* units.
+  return (
+    item.originalQuantity ??
+    item.original_quantity ??
+    item.placedQuantity ??
+    item.placed_quantity ??
+    item.requestedQuantity ??
+    item.requested_quantity ??
+    item.customerQuantity ??
+    item.customer_quantity ??
+    null
+  );
+}
+
+function shopEditOriginalQuantityRawWithOrderedFallback(item) {
+  const preferred = shopEditOriginalQuantityRaw(item);
+  if (preferred != null && preferred !== "") return preferred;
+  // Shop API qty edits: orderedQuantity is pre-edit qty when free split is absent.
+  const freeQty = parseOptionalQty(
+    item.offer_quantity ??
+      item.offerQuantity ??
+      item.free_quantity ??
+      item.freeQuantity,
+  );
+  const paidQty = parseOptionalQty(
+    item.paid_quantity ?? item.paidQuantity,
+  );
+  if ((freeQty != null && freeQty > 0) || (paidQty != null && paidQty === 0)) {
+    return null;
+  }
+  if (truthyFlag(item.quantityAdjusted) || truthyFlag(item.quantity_adjusted)) {
+    return item.orderedQuantity ?? item.ordered_quantity ?? null;
+  }
+  return null;
+}
+
 /**
  * Shop added this line after the customer placed, or changed qty.
  * @returns {{ shopAdded: boolean, shopEdited: boolean }}
@@ -109,18 +147,7 @@ export function detectShopLineEdit(item, opts = {}) {
     truthyFlag(item.shop_updated);
 
   const rawOriginal =
-    opts.originalQuantity ??
-    item.originalQuantity ??
-    item.original_quantity ??
-    item.orderedQuantity ??
-    item.ordered_quantity ??
-    item.placedQuantity ??
-    item.placed_quantity ??
-    item.requestedQuantity ??
-    item.requested_quantity ??
-    item.customerQuantity ??
-    item.customer_quantity ??
-    null;
+    opts.originalQuantity ?? shopEditOriginalQuantityRawWithOrderedFallback(item);
   const parsedOriginal = parseOptionalQty(rawOriginal);
   const originalZero = parsedOriginal === 0;
   const originalPositive = parsedOriginal != null && parsedOriginal > 0;
@@ -133,6 +160,20 @@ export function detectShopLineEdit(item, opts = {}) {
 
   const confirmedFree = isConfirmedFreeRewardLine(item);
   if (confirmedFree && !shopAdded && !explicitAdjust) {
+    return { shopAdded: false, shopEdited: false };
+  }
+
+  // BXGY paid/free split is not a shop edit.
+  const paid = parseOptionalQty(item.paid_quantity ?? item.paidQuantity);
+  const free = parseOptionalQty(
+    item.free_quantity ?? item.freeQuantity ?? item.offer_quantity ?? item.offerQuantity,
+  );
+  if (
+    !shopAdded &&
+    !explicitAdjust &&
+    ((paid != null && free != null && free > 0) ||
+      (paid != null && paid < currentQty && paid >= 0))
+  ) {
     return { shopAdded: false, shopEdited: false };
   }
 
@@ -227,15 +268,46 @@ export function isConfirmedFreeRewardLine(item) {
 export function inferOrderLinePaidQuantity(item) {
   if (isConfirmedFreeRewardLine(item)) return 0;
   const qty = parseOrderQuantity(item?.quantity);
-  const freeQty = parseOptionalQty(
+
+  const paidExplicit = parseOptionalQty(
+    item?.paid_quantity ??
+      item?.paidQuantity ??
+      item?.billable_quantity ??
+      item?.billableQuantity,
+  );
+  if (paidExplicit != null && paidExplicit >= 0 && paidExplicit <= qty + 1e-9) {
+    return paidExplicit;
+  }
+
+  // Storefront checkout: ordered_quantity = paid units (not shop-edit original).
+  const orderedAsPaid = parseOptionalQty(
+    item?.ordered_quantity ?? item?.orderedQuantity,
+  );
+  const freeHint = parseOptionalQty(
     item?.offer_quantity ??
       item?.offerQuantity ??
       item?.free_quantity ??
       item?.freeQuantity,
   );
-  if (freeQty != null && freeQty > 0 && freeQty < qty) {
-    return Math.max(0, qty - freeQty);
+  if (
+    orderedAsPaid != null &&
+    orderedAsPaid >= 0 &&
+    orderedAsPaid <= qty + 1e-9 &&
+    (freeHint != null ||
+      orderedAsPaid < qty ||
+      truthyFlag(item?.is_bundle_reward) ||
+      truthyFlag(item?.isBundleReward))
+  ) {
+    // Only trust ordered as paid when free split is indicated or qty > ordered.
+    if (freeHint != null || orderedAsPaid < qty) {
+      return orderedAsPaid;
+    }
   }
+
+  if (freeHint != null && freeHint > 0 && freeHint < qty) {
+    return Math.max(0, qty - freeHint);
+  }
+
   let unitMinor = parseMinorInt(
     item?.unit_price_minor_snapshot ??
       item?.unitPriceMinorSnapshot ??
@@ -248,9 +320,19 @@ export function inferOrderLinePaidQuantity(item) {
   if (lineMinor <= 0 && item?.totalPrice != null) {
     lineMinor = Math.round(Number(item.totalPrice) * 100);
   }
+  // Fully free cross reward: ₹0 line with catalog unit price.
+  if (qty > 0 && lineMinor <= 0 && unitMinor > 0) {
+    const listMinor = parseMinorInt(item?.list_price_minor ?? item?.listPriceMinor);
+    if (listMinor > 0 || truthyFlag(item?.is_bundle_reward) || truthyFlag(item?.isBundleReward)) {
+      return 0;
+    }
+  }
   if (unitMinor > 0 && lineMinor > 0) {
     const paid = Math.round(lineMinor / unitMinor);
     if (paid >= 1 && paid <= qty) return paid;
+  }
+  if (qty > 0 && lineMinor <= 0 && (unitMinor > 0 || parseMinorInt(item?.list_price_minor ?? item?.listPriceMinor) > 0)) {
+    return 0;
   }
   return qty;
 }
@@ -268,12 +350,25 @@ export function getOrderLineOfferLabel(item) {
         );
   const total = Number(item?.totalPrice ?? 0);
 
-  if (freeReward || (paid > 0 && displayQty > paid)) {
-    return displayQty > paid && paid > 0 ? "BOGO" : "FREE";
+  if (freeReward || (paid === 0 && displayQty > 0 && total < 0.01)) {
+    return "FREE";
+  }
+  if (paid > 0 && displayQty > paid) {
+    return "BOGO";
+  }
+  // Cross buy line: payable qty with companion free reward promo — short BUY badge.
+  if (
+    paid > 0 &&
+    paid === displayQty &&
+    Array.isArray(item?.appliedPromotionIds ?? item?.applied_promotion_ids) &&
+    (item.appliedPromotionIds ?? item.applied_promotion_ids).length > 0 &&
+    (truthyFlag(item?.isBxgyBuyLine) || truthyFlag(item?.is_bxgy_buy_line))
+  ) {
+    return "BUY";
   }
   // Real partial discount on a still-payable line — not a full wipe disguised as an offer.
   if (lineDiscMajor > 0.009 && total > 0.009) {
-    return "Offer applied";
+    return "Offer";
   }
   return null;
 }
@@ -313,6 +408,10 @@ export function getOrderLineOfferSavingsMajor(item) {
     return unit * (displayQty - paid);
   }
   if (freeReward && !(paid > 0)) {
+    // Cross free line: savings = catalog unit × qty (shown on FREE row only).
+    const list = Number(item.listPrice ?? item.list_price ?? 0);
+    const catalog = list > 0 ? list : unit;
+    if (catalog > 0 && displayQty > 0) return catalog * displayQty;
     return 0;
   }
 
@@ -410,18 +509,7 @@ export function isOrderLineUnavailable(item, opts = {}) {
 
   let originalQty = opts.originalQuantity;
   if (originalQty == null) {
-    const rawOriginal =
-      item.originalQuantity ??
-      item.original_quantity ??
-      item.orderedQuantity ??
-      item.ordered_quantity ??
-      item.placedQuantity ??
-      item.placed_quantity ??
-      item.requestedQuantity ??
-      item.requested_quantity ??
-      item.customerQuantity ??
-      item.customer_quantity ??
-      null;
+    const rawOriginal = shopEditOriginalQuantityRawWithOrderedFallback(item);
     if (rawOriginal != null && rawOriginal !== "") {
       const n = parseFloat(String(rawOriginal));
       if (Number.isFinite(n) && n > 0) originalQty = n;
@@ -496,18 +584,7 @@ export function getShopLineFulfillmentMeta(item) {
 
   const currentQty = parseOrderQuantity(item.quantity);
 
-  const rawOriginal =
-    item.originalQuantity ??
-    item.original_quantity ??
-    item.orderedQuantity ??
-    item.ordered_quantity ??
-    item.placedQuantity ??
-    item.placed_quantity ??
-    item.requestedQuantity ??
-    item.requested_quantity ??
-    item.customerQuantity ??
-    item.customer_quantity ??
-    null;
+  const rawOriginal = shopEditOriginalQuantityRawWithOrderedFallback(item);
   let originalQty = null;
   if (rawOriginal != null && rawOriginal !== "") {
     const n = parseFloat(String(rawOriginal));

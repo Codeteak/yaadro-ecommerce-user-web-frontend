@@ -8,9 +8,14 @@ import { useShopBranding } from '../../context/ShopBrandingContext';
 import { useOrderDetail } from '../../hooks/useOrders';
 import { clearCheckoutDraft } from '../../utils/checkoutSession';
 import { downloadBillHtml, printBillPdf } from '../../utils/orderInvoice';
-import { orderHasBxgyOffer } from '../../utils/orderPromotions';
+import {
+  getOrderLineOfferLabel,
+  getOrderPromotionSummary,
+  inferOrderLinePaidQuantity,
+  orderHasBxgyOffer,
+  parseOrderQuantity,
+} from '../../utils/orderPromotions';
 import BillPreviewSheet from '../../components/BillPreviewSheet';
-import { getOrderPromotionSummary } from '../../utils/orderPromotions';
 import { hasOrderDisplayAddress, savedAddressToOrderAddress } from '../../utils/orderApi';
 import { useAddress } from '../../context/AddressContext';
 
@@ -170,11 +175,19 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
         <div style={styles.itemsList}>
           {items.slice(0, 3).map((item, idx) => {
             const name  = safe(item.productName || item.name || item.product?.name || 'Item');
-            const qty   = item.quantity ?? 1;
+            const qty   = parseOrderQuantity(item.quantity);
+            const paid  = inferOrderLinePaidQuantity(item);
+            const offerLabel = getOrderLineOfferLabel(item);
+            const qtyText =
+              paid > 0 && qty > paid
+                ? `${paid} paid + ${qty - paid} free`
+                : offerLabel === 'FREE'
+                  ? `Qty ${qty} · free`
+                  : `Qty ${qty}`;
             const unit  = Number(item.unitPrice ?? item.price ?? 0) || 0;
             const list  = Number(item.listPrice ?? item.originalPrice ?? 0) || 0;
             const total = item.totalPrice != null ? Number(item.totalPrice) : unit * qty;
-            const listLine = list > unit + 1e-9 ? list * qty : null;
+            const listLine = list > unit + 1e-9 ? list * (paid > 0 ? paid : qty) : null;
             const imgSrc =
               item?.product?.images?.[0] ||
               (typeof item?.image === 'string' ? item.image : item?.image?.url) ||
@@ -188,8 +201,27 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
                   }
                 </div>
                 <div style={styles.itemInfo}>
-                  <div style={styles.itemName}>{name}</div>
-                  <div style={styles.itemQty}>Qty {qty}</div>
+                  <div style={styles.itemName}>
+                    {name}
+                    {offerLabel ? (
+                      <span
+                        style={{
+                          marginLeft: 6,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
+                          color: '#5b21b6',
+                          background: '#f3e8ff',
+                          borderRadius: 4,
+                          padding: '1px 5px',
+                          verticalAlign: 'middle',
+                        }}
+                      >
+                        {offerLabel}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div style={styles.itemQty}>{qtyText}</div>
                 </div>
                 <div style={{ ...styles.itemPrice, textAlign: 'right' }}>
                   {listLine != null && (
@@ -197,7 +229,7 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
                       {money(listLine)}
                     </div>
                   )}
-                  <div>{money(total)}</div>
+                  <div>{offerLabel === 'FREE' ? money(0) : money(total)}</div>
                 </div>
               </div>
             );
@@ -230,6 +262,12 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
             <span>Tax</span><span>{money(order.tax)}</span>
           </div>
         )}
+        {hasBxgy && orderPromo.autoPromotionDiscountMajor > 0.009 ? (
+          <div style={{ ...styles.totalLine, color: '#7d24d6' }}>
+            <span>Buy X get Y savings</span>
+            <span>−{money(orderPromo.autoPromotionDiscountMajor)}</span>
+          </div>
+        ) : null}
         {!hasBxgy && showSplit ? (
           <>
             {saleSavings > 0.009 && (

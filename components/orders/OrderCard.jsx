@@ -218,6 +218,15 @@ function OrderCard({ order, reorderLoading, onOpenDetails, onReorder, onCancel, 
             </span>
             <span className="text-[11px] text-gray-500">
               {itemCount} item{itemCount !== 1 ? 's' : ''}
+              {(Number(order.promotionDiscountMajor) > 0.009 ||
+                Number(order.promotion_discount_total_minor) > 0 ||
+                orderItems.some(
+                  (it) =>
+                    it?.isConfirmedFreeReward ||
+                    it?.hasOffer ||
+                    Number(it?.free_quantity ?? it?.freeQuantity) > 0,
+                )) &&
+                ' · Offer applied'}
             </span>
           </div>
 

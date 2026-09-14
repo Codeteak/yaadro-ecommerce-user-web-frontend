@@ -1,24 +1,97 @@
 'use client';
 
-import ProductCarousel from '../ProductCarousel';
+import BxgyDealCard from './BxgyDealCard';
+import {
+  formatCrossBxgyLabel,
+  formatSameSkuBxgyLabel,
+} from '../../utils/bxgyLabels';
 
 /**
- * Annotate products so every card in a Damaka / BXGY shelf shows the same deal chrome
- * (not only products that already have engine bundleRules attached).
+ * Build customer-facing deal cards when API did not send `deals`.
  */
-function withBxgyShelfChrome(products, role, buyQty, getQty) {
-  const buy = Number.isFinite(Number(buyQty)) && Number(buyQty) > 0 ? Number(buyQty) : 1;
-  const get = Number.isFinite(Number(getQty)) && Number(getQty) > 0 ? Number(getQty) : 1;
-  return (Array.isArray(products) ? products : []).map((product) => ({
-    ...product,
-    bxgyShelfRole: role,
-    bxgyBuyQty: buy,
-    bxgyGetQty: get,
-  }));
+function buildDealsFallback({
+  buyProducts,
+  getProducts,
+  buyQty,
+  getQty,
+  dealMode,
+}) {
+  const buyRaw = Array.isArray(buyProducts) ? buyProducts : [];
+  const getRaw = Array.isArray(getProducts) ? getProducts : [];
+  if (!buyRaw.length && !getRaw.length) return [];
+
+  const bq =
+    Number.isFinite(Number(buyQty)) && Number(buyQty) > 0 ? Number(buyQty) : 1;
+  const gq =
+    Number.isFinite(Number(getQty)) && Number(getQty) > 0 ? Number(getQty) : 1;
+
+  const buyIds = new Set(buyRaw.map((p) => String(p.id)));
+  const getIds = new Set(getRaw.map((p) => String(p.id)));
+  const sameSet =
+    buyRaw.length > 0 &&
+    getRaw.length === buyRaw.length &&
+    [...buyIds].every((id) => getIds.has(id));
+
+  let mode =
+    dealMode === 'same_sku' || dealMode === 'cross_sku'
+      ? dealMode
+      : sameSet || (buyRaw.length > 0 && getRaw.length === 0)
+        ? 'same_sku'
+        : 'cross_sku';
+
+  const deals = [];
+  if (mode === 'same_sku') {
+    const list = buyRaw.length ? buyRaw : getRaw;
+    for (const p of list) {
+      deals.push({
+        id: `same-${p.id}`,
+        dealMode: 'same_sku',
+        buyQty: bq,
+        getQty: gq,
+        buyProducts: [p],
+        getProducts: [p],
+        headline: formatSameSkuBxgyLabel(bq, gq),
+      });
+    }
+    return deals;
+  }
+
+  if (!buyRaw.length || !getRaw.length) return [];
+
+  const pushCross = (b, g) => {
+    deals.push({
+      id: `cross-${b.id}-${g.id}`,
+      dealMode: 'cross_sku',
+      buyQty: bq,
+      getQty: gq,
+      buyProducts: [b],
+      getProducts: [g],
+      headline: formatCrossBxgyLabel({
+        buyQty: bq,
+        getQty: gq,
+        buyName: b.name || b.shortName,
+        getName: g.name || g.shortName,
+      }),
+    });
+  };
+
+  if (buyRaw.length === getRaw.length) {
+    buyRaw.forEach((b, i) => pushCross(b, getRaw[i]));
+    return deals;
+  }
+
+  const cap = 12;
+  for (const b of buyRaw) {
+    for (const g of getRaw) {
+      if (deals.length >= cap) break;
+      pushCross(b, g);
+    }
+  }
+  return deals;
 }
 
 /**
- * Buy X get Y home shelf: separate Buy and Get rows so cross-SKU deals are clear.
+ * Offer Damaka / BXGY home shelf — one card per deal.
  */
 export default function HomeBxgyShelf({
   title,
@@ -27,81 +100,46 @@ export default function HomeBxgyShelf({
   getProducts = [],
   buyQty,
   getQty,
+  dealMode,
+  deals: dealsProp,
 }) {
-  const buyRaw = Array.isArray(buyProducts) ? buyProducts : [];
-  const getRaw = Array.isArray(getProducts) ? getProducts : [];
-  if (!buyRaw.length && !getRaw.length) return null;
+  const deals =
+    Array.isArray(dealsProp) && dealsProp.length > 0
+      ? dealsProp
+      : buildDealsFallback({
+          buyProducts,
+          getProducts,
+          buyQty,
+          getQty,
+          dealMode,
+        });
 
-  const buy = withBxgyShelfChrome(buyRaw, 'buy', buyQty, getQty);
-  const get = withBxgyShelfChrome(getRaw, 'get', buyQty, getQty);
+  if (!deals.length) return null;
 
-  const buyIds = new Set(buy.map((p) => String(p.id)));
-  const getIds = new Set(get.map((p) => String(p.id)));
-  const sameSet =
-    buy.length > 0 &&
-    get.length === buy.length &&
-    [...buyIds].every((id) => getIds.has(id));
+  const hasCross = deals.some((d) => d.dealMode === 'cross_sku');
+  const hasSame = deals.some((d) => d.dealMode !== 'cross_sku');
 
-  const qtyLabel =
-    Number.isFinite(Number(buyQty)) && Number.isFinite(Number(getQty))
-      ? `Buy ${buyQty} get ${getQty}`
-      : subtitle || '';
-
-  // Same SKU BOGO: one carousel with buy chrome on every card.
-  if (sameSet || (buy.length > 0 && get.length === 0)) {
-    return (
-      <section className="py-6 sm:py-8 md:py-10 [@media(max-height:720px)]:py-5">
-        <div className="mb-4 md:mb-5 px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
-            {title}
-          </h2>
-          {qtyLabel ? (
-            <p className="mt-2 text-[13px] md:text-sm text-gray-500">{qtyLabel}</p>
-          ) : null}
-        </div>
-        <ProductCarousel
-          products={buy.length ? buy : get}
-          cardVariant="shelf"
-          compact
-        />
-      </section>
-    );
+  let sectionHint = subtitle || '';
+  if (!sectionHint) {
+    if (hasCross && hasSame) sectionHint = 'Each card is one offer';
+    else if (hasCross) sectionHint = 'Buy left → get right free';
+    else sectionHint = 'Buy more — get free units';
   }
 
   return (
-    <section className="py-6 sm:py-8 md:py-10 [@media(max-height:720px)]:py-5 space-y-6">
-      <div className="px-4 sm:px-6 lg:px-8">
+    <section className="py-6 sm:py-8 md:py-10 [@media(max-height:720px)]:py-5">
+      <div className="mb-4 md:mb-5 px-4 sm:px-6 lg:px-8">
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
           {title}
         </h2>
-        {qtyLabel ? (
-          <p className="mt-2 text-[13px] md:text-sm text-gray-500">
-            {qtyLabel} — pick from Buy these, unlock Get free at checkout
-          </p>
-        ) : (
-          <p className="mt-2 text-[13px] md:text-sm text-gray-500">
-            Pick from Buy these, unlock Get free at checkout
-          </p>
-        )}
+        <p className="mt-2 text-[13px] md:text-sm text-gray-500">{sectionHint}</p>
       </div>
 
-      {buy.length > 0 ? (
-        <div>
-          <p className="mb-3 px-4 sm:px-6 lg:px-8 text-sm font-semibold text-gray-700">
-            Buy these
-          </p>
-          <ProductCarousel products={buy} cardVariant="shelf" compact />
-        </div>
-      ) : null}
-
-      {get.length > 0 ? (
-        <div>
-          <p className="mb-3 px-4 sm:px-6 lg:px-8 text-sm font-semibold text-gray-700">
-            Get free
-          </p>
-          <ProductCarousel products={get} cardVariant="shelf" compact />
-        </div>
-      ) : null}
+      <div className="flex flex-col gap-4 px-4 sm:px-6 lg:px-8">
+        {deals.map((deal, index) => (
+          <BxgyDealCard key={deal.id || `deal-${index}`} deal={deal} />
+        ))}
+      </div>
     </section>
   );
 }

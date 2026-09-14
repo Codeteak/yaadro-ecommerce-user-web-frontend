@@ -154,16 +154,73 @@ export function normalizeHomeSection(raw) {
       : mapProductList(raw.products);
 
   if (type === 'buy_x_get_y') {
+    // Need at least one complete sellable deal (buy side in stock; cross also needs free SKU).
     if (buyProducts.length === 0 && getProducts.length === 0 && products.length === 0) {
       return null;
     }
-  } else if (type !== 'event_shelf' && products.length === 0) {
+  } else if (products.length === 0) {
+    // product_shelf + event_shelf: hide when no products (Festive empty → don't show).
     return null;
   }
 
   const coverSource =
     products[0] || buyProducts[0] || getProducts[0] || null;
   const coverImageUrl = coverSource?.imageUrl || firstImageUrl(raw) || '';
+
+  let dealMode = null;
+  if (type === 'buy_x_get_y') {
+    const apiMode = String(raw.dealMode ?? raw.deal_mode ?? '').trim();
+    if (apiMode === 'same_sku' || apiMode === 'cross_sku') {
+      dealMode = apiMode;
+    } else {
+      const buyIds = new Set(buyProducts.map((p) => p.id));
+      const getIds = new Set(getProducts.map((p) => p.id));
+      dealMode =
+        getProducts.length === 0 ||
+        (buyProducts.length > 0 &&
+          getProducts.length === buyProducts.length &&
+          [...buyIds].every((id) => getIds.has(id)))
+          ? 'same_sku'
+          : 'cross_sku';
+    }
+  }
+
+  // Prefer API deal pairs; drop incomplete client-side.
+  let deals = null;
+  if (type === 'buy_x_get_y' && Array.isArray(raw.deals)) {
+    deals = raw.deals
+      .map((d, i) => {
+        if (!d || typeof d !== 'object') return null;
+        const dBuy = mapProductList(d.buyProducts ?? d.buy_products);
+        const dGet = mapProductList(d.getProducts ?? d.get_products);
+        if (!dBuy.length) return null;
+        const mode =
+          String(d.dealMode ?? d.deal_mode ?? '').trim() === 'cross_sku'
+            ? 'cross_sku'
+            : 'same_sku';
+        if (mode === 'cross_sku' && !dGet.length) return null;
+        return {
+          id: d.id != null ? String(d.id) : `deal-${i}`,
+          dealMode: mode,
+          buyQty: d.buyQty ?? d.buy_qty ?? raw.buyQty ?? raw.buy_qty ?? 1,
+          getQty: d.getQty ?? d.get_qty ?? raw.getQty ?? raw.get_qty ?? 1,
+          buyProducts: dBuy,
+          getProducts: mode === 'same_sku' ? dBuy : dGet,
+          headline: typeof d.headline === 'string' ? d.headline : undefined,
+          hint: typeof d.hint === 'string' ? d.hint : undefined,
+        };
+      })
+      .filter(Boolean);
+    if (deals.length === 0) return null;
+  } else if (type === 'buy_x_get_y') {
+    // Cross without get side, or buy-only empty → hide broken Damaka.
+    if (dealMode === 'cross_sku' && (buyProducts.length === 0 || getProducts.length === 0)) {
+      return null;
+    }
+    if (dealMode === 'same_sku' && buyProducts.length === 0 && getProducts.length === 0) {
+      return null;
+    }
+  }
 
   return {
     id,
@@ -186,6 +243,8 @@ export function normalizeHomeSection(raw) {
     getProducts: type === 'buy_x_get_y' ? getProducts : [],
     buyQty: raw.buyQty ?? raw.buy_qty ?? null,
     getQty: raw.getQty ?? raw.get_qty ?? null,
+    dealMode,
+    deals,
     coverImageUrl,
   };
 }

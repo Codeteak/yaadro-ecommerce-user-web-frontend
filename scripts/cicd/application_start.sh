@@ -1,6 +1,55 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Free disk only when root is critically full. Aggressive prune-before-pull was
+# deleting the previous image every deploy, forcing a full ECR re-download and
+# making ApplicationStart take many minutes.
+yaadro_free_deploy_disk_if_needed() {
+  echo "[application_start] Disk before cleanup:"
+  df -h / || true
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "[application_start] docker not installed; skip disk cleanup"
+    return 0
+  fi
+
+  local used_pct
+  used_pct="$(df -P / | awk 'NR==2 {gsub(/%/,"",$5); print $5}')"
+  if [[ -z "${used_pct}" ]] || ! [[ "${used_pct}" =~ ^[0-9]+$ ]]; then
+    echo "[application_start] Could not read disk usage; skip cleanup"
+    return 0
+  fi
+
+  # Keep layer cache for fast pulls unless disk is nearly full.
+  if (( used_pct < 85 )); then
+    echo "[application_start] Disk ${used_pct}% used (<85%); skip aggressive prune"
+    # Cheap: stopped containers + dangling images only (keeps tagged layers).
+    docker container prune -f || true
+    docker image prune -f || true
+    return 0
+  fi
+
+  echo "[application_start] Disk ${used_pct}% used — pruning unused Docker data..."
+  docker container prune -f || true
+  # Drop unused images older than 48h so recent layers can still be reused.
+  docker image prune -af --filter "until=48h" || true
+  docker builder prune -af --filter "until=48h" || true
+  docker network prune -f || true
+  find /var/lib/docker/containers -type f -name '*-json.log' -size +50M \
+    -exec truncate -s 0 {} \; 2>/dev/null || true
+  echo "[application_start] Disk after cleanup:"
+  df -h / || true
+  docker system df || true
+}
+
+# After the new container is running, drop only dangling (untagged) images.
+yaadro_prune_dangling_after_start() {
+  if ! command -v docker >/dev/null 2>&1; then
+    return 0
+  fi
+  docker image prune -f || true
+  docker container prune -f || true
+}
+
 APP_DIR="/home/deploy/yaadro/customer-web"
 HOST_RUNTIME_CONF="/etc/yaadro/app-runtime.conf"
 
@@ -79,15 +128,22 @@ aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AW
 export ECR_IMAGE_URI
 export APP_PORT
 
+# Light/conditional cleanup BEFORE pull — never wipe all images on every deploy.
+yaadro_free_deploy_disk_if_needed
+
 COMPOSE_FILE="${APP_DIR}/docker-compose.yml"
 if command -v docker-compose >/dev/null 2>&1; then
+  echo "[application_start] Pulling ${ECR_IMAGE_URI}..."
   docker-compose -f "${COMPOSE_FILE}" pull
   docker-compose -f "${COMPOSE_FILE}" down --remove-orphans
   docker-compose -f "${COMPOSE_FILE}" up -d --force-recreate
 else
+  echo "[application_start] Pulling ${ECR_IMAGE_URI}..."
   docker compose -f "${COMPOSE_FILE}" pull
   docker compose -f "${COMPOSE_FILE}" down --remove-orphans
   docker compose -f "${COMPOSE_FILE}" up -d --force-recreate
 fi
+
+yaadro_prune_dangling_after_start
 
 echo "[application_start] customer-web deployment complete."

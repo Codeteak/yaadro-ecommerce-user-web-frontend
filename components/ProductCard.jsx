@@ -6,8 +6,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCart } from '../context/CartContext';
 import {
   getEffectivePrice,
+  formatBundleRuleLabel,
+  formatBundleRibbonLabel,
   formatWeightUnitLabel,
   formatRupeeINR,
+  getPrimaryBundleRule,
+  bundleRuleRoleForProduct,
   resolveProductWeightAndUnit,
 } from '../utils/productUtils';
 import { getProductOfferDisplay } from '../utils/offerDisplay';
@@ -15,6 +19,7 @@ import { buildAvailableSizes, resolveSelectedSize, sizePackCount } from '../util
 import { tapFeedback } from '../utils/haptics';
 import PriceDisplay from './ui/PriceDisplay';
 import OfferRibbon from './ui/OfferRibbon';
+import BundleOfferRibbon from './ui/BundleOfferRibbon';
 import { DietIcon, resolveProductDiet } from './ui/DietIcon';
 import { getResolvedProductImageUrls } from '../utils/productImages';
 import { getCartLinePaidQty } from '../utils/cartPromotions';
@@ -100,7 +105,14 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     (product.soldByWeight === true || product.sold_by_weight === true) &&
     availableSizes.length > 1;
 
+  const bundleRule = useMemo(() => getPrimaryBundleRule(product), [product]);
   const offerDisplay = useMemo(() => getProductOfferDisplay(product), [product]);
+  const bundleLabel = useMemo(() => {
+    if (offerDisplay.bundleLabel) return offerDisplay.bundleLabel;
+    if (bundleRule) return formatBundleRuleLabel(bundleRule);
+    const extra = String(product?.bundleLabel || '').trim();
+    return extra || null;
+  }, [offerDisplay.bundleLabel, bundleRule, product?.bundleLabel]);
 
   const productToAddPayload = useMemo(
     () => ({
@@ -246,6 +258,28 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   }, [queryClient, product]);
 
   const isShelf = variant === 'shelf';
+  const shelfRole = String(product?.bxgyShelfRole || '').trim();
+  const shelfMode = String(product?.bxgyOfferMode || '').trim();
+  // Prefer engine role for cross BUY/FREE ribbons on PLP (not only Damaka shelf).
+  const engineRole = bundleRule
+    ? bundleRuleRoleForProduct(bundleRule, product?.id)
+    : 'same';
+  const ribbonRole =
+    shelfMode === 'cross_sku' && (shelfRole === 'buy' || shelfRole === 'get')
+      ? shelfRole
+      : shelfRole === 'get' || engineRole === 'get'
+        ? 'get'
+        : shelfRole === 'buy' || engineRole === 'buy'
+          ? 'buy'
+          : 'same';
+  const bundleRibbonText =
+    offerDisplay.bundleRibbon ||
+    (bundleRule
+      ? formatBundleRibbonLabel(bundleRule, {
+          compact: isCarousel || isShelf,
+          role: ribbonRole,
+        })
+      : bundleLabel);
 
   const chromeClass =
     variant === 'flat'
@@ -453,6 +487,13 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
             ) : null}
 
             {showSaveRibbon ? <OfferRibbon saveRupees={saveRupees} compact={isCarousel} /> : null}
+            {bundleRibbonText ? (
+              <BundleOfferRibbon
+                label={bundleRibbonText}
+                compact={isCarousel || isShelf}
+                offset={showSaveRibbon}
+              />
+            ) : null}
 
             {productImages.length > 1 ? (
               <div

@@ -11,12 +11,7 @@ export default function PdpOfferPanel({ product }) {
   const display = getProductOfferDisplay(product);
   if (!(hasActiveOffer(product) || display.badges.length > 0)) return null;
 
-  const buy = display.buyQty;
-  const get = display.getQty;
-  let detail = display.secondaryText;
-  if (buy && get && display.offerType === 'buy_x_get_y') {
-    detail = `Add ${buy}, get ${get} free of the same item`;
-  }
+  const detail = display.secondaryText || display.bundleLabel;
 
   return (
     <div className="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5">
@@ -35,7 +30,9 @@ export default function PdpOfferPanel({ product }) {
       ) : null}
       {display.offerType === 'buy_x_get_y' ? (
         <p className="mt-1 text-[11px] text-gray-500">
-          Free units are added automatically when you qualify.
+          {display.dealMode === 'cross_sku'
+            ? 'Add the buy item — free reward is added to your cart when you qualify.'
+            : 'Free units are added to your cart when you qualify.'}
         </p>
       ) : null}
     </div>

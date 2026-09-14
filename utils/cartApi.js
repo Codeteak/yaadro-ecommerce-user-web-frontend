@@ -104,7 +104,9 @@ function normalizeStorefrontCartItemRaw(apiItem) {
     line_total_minor: pricing?.line_total_minor ?? apiItem.line_total_minor,
     list_price_minor: pricing?.list_minor ?? apiItem.list_price_minor,
     unit_price_minor: pricing?.list_minor ?? apiItem.unit_price_minor,
-    is_bundle_reward: apiItem.is_bundle_reward ?? apiItem.isBundleReward ?? false,
+    is_bundle_reward:
+      Boolean(apiItem.is_bundle_reward ?? apiItem.isBundleReward) ||
+      isBundleRewardCartLine(apiItem),
     bundle_source_cart_item_id:
       apiItem.bundle_source_item_id ??
       apiItem.bundle_source_cart_item_id ??

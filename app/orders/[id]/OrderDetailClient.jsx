@@ -412,10 +412,12 @@ function OrderItemRow({ item }) {
   const paidQty = inferOrderLinePaidQuantity(item);
   const offerLabel = getOrderLineOfferLabel(item);
   const unavailable = meta.showRemoved;
-  const isBogo =
+  const isSameSkuBogo =
+    !unavailable && paidQty > 0 && displayQty > paidQty;
+  const isFreeLine =
     !unavailable &&
-    ((paidQty > 0 && displayQty > paidQty) || !!item.isConfirmedFreeReward);
-  const freeQty = isBogo && paidQty > 0 ? Math.max(0, displayQty - paidQty) : 0;
+    (!!item.isConfirmedFreeReward || (paidQty <= 0 && displayQty > 0 && Number(item.totalPrice) < 0.01));
+  const freeQty = isSameSkuBogo ? Math.max(0, displayQty - paidQty) : 0;
   const offerSavings = getOrderLineOfferSavingsMajor(item);
   const packSuffix = (() => {
     const pack = item.packLabel ? String(item.packLabel).trim() : "";
@@ -498,9 +500,10 @@ function OrderItemRow({ item }) {
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {unavailable && <UnavailableBadge />}
           {!unavailable && meta.shopEdited && <EditedByShopBadge />}
-          {!unavailable && isBogo && <OfferBadge>BOGO</OfferBadge>}
-          {!unavailable && freeQty > 0 && <OfferBadge>FREE</OfferBadge>}
-          {!unavailable && offerLabel && !isBogo && (
+          {!unavailable && isSameSkuBogo && <OfferBadge>BOGO</OfferBadge>}
+          {!unavailable && isFreeLine && <OfferBadge>FREE</OfferBadge>}
+          {!unavailable && freeQty > 0 && !isFreeLine && <OfferBadge>FREE</OfferBadge>}
+          {!unavailable && offerLabel && !isSameSkuBogo && !isFreeLine && (
             <OfferBadge>{offerLabel}</OfferBadge>
           )}
           {!unavailable && offerSavings > 0.009 && (
@@ -509,7 +512,7 @@ function OrderItemRow({ item }) {
             </span>
           )}
         </div>
-        {isBogo && freeQty > 0 ? (
+        {isSameSkuBogo && freeQty > 0 ? (
           <div className="relative mt-2 ml-1 border-l border-dashed border-gray-300 pl-3">
             <span
               className="absolute -left-[1px] top-1 text-gray-400"
@@ -531,7 +534,7 @@ function OrderItemRow({ item }) {
     </>
   );
 
-  if (isBogo) {
+  if (isSameSkuBogo) {
     return (
       <div className="flex w-full items-start gap-3 rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3">
         {content}
