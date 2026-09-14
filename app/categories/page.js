@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -12,6 +12,7 @@ import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryI
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import { CategoryCardSkeleton } from '../../components/skeletons/primitives';
 import ProductImageWithFallback from '../../components/ProductImageWithFallback';
+import BrowsePageHeader from '../../components/BrowsePageHeader';
 
 /** Rotating hint (same UX as header search). */
 const FALLBACK_HINT_WORDS = [
@@ -216,6 +217,17 @@ export default function CategoriesPage() {
   const router = useRouter();
   const { data: categoryTree = [], isLoading } = useCategoriesTree();
   const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const handleBack = useCallback(() => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.replace('/');
+  }, [router]);
+
+  const onSearchOpenToggle = useCallback(() => setSearchOpen((v) => !v), []);
 
   const { data: newArrivalsData } = useProducts({
     limit: 14,
@@ -268,46 +280,44 @@ export default function CategoriesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden pb-28 pt-[env(safe-area-inset-top,0px)]">
-
-      {/* Hero heading — matches section title typography (`font-headingnow`) */}
-      <div className="px-4 pt-4 pb-2">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1] mb-1.5">
-          Browse categories
-        </h1>
-        <p className="text-[13px] text-gray-500">Tap any category to explore products</p>
-      </div>
-
-      {/* Search bar */}
-      <div className="px-4 pb-3 relative">
-        <div className="flex items-center gap-2 px-3 h-10 rounded-full border border-gray-200 bg-gray-50 focus-within:bg-white focus-within:border-violet-500 transition">
-          <svg
-            className="h-4 w-4 text-gray-400 flex-shrink-0"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+      <BrowsePageHeader
+        title="Categories"
+        searchOpen={searchOpen}
+        onBack={handleBack}
+        onSearchToggle={onSearchOpenToggle}
+        searchAriaLabel="Search categories"
+        searchSlot={
+          <div className="flex items-center gap-2 px-3 h-10 rounded-full border border-gray-200 bg-white focus-within:border-violet-400 focus-within:ring-1 focus-within:ring-violet-200 transition">
+            <svg
+              className="h-4 w-4 text-gray-400 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <RotatingHintInput
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              hintWords={hintWords}
+              inputProps={{
+                type: 'search',
+                'aria-label': 'Search categories',
+                autoFocus: true,
+              }}
             />
-          </svg>
-          <RotatingHintInput
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            hintWords={hintWords}
-            inputProps={{
-              type: 'text',
-              'aria-label': 'Search categories',
-            }}
-          />
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {/* Category grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 px-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 px-4 pt-3">
         {isLoading
           ? Array.from({ length: 6 }).map((_, i) => <CategoryCardSkeleton key={i} />)
           : filtered.length === 0

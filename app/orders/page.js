@@ -10,7 +10,7 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { cartKeys } from '../../hooks/useCart';
 import { useAlert } from '../../context/AlertContext';
-import PageTopBar from '../../components/PageTopBar';
+import BrowsePageHeader from '../../components/BrowsePageHeader';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
 import GuestAuthPrompt from '../../components/GuestAuthPrompt';
 import ProductCarousel from '../../components/ProductCarousel';
@@ -20,6 +20,28 @@ import OrderCard from '../../components/orders/OrderCard';
 import { PackageRegular as Package } from '../../components/icons';
 import OrdersPageSkeleton from '../../components/skeletons/OrdersPageSkeleton';
 import { OrderListCardSkeleton } from '../../components/skeletons/primitives';
+
+function orderMatchesQuery(order, query) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return true;
+  const idBits = [
+    order?.id,
+    order?.orderNumber,
+    order?.order_number,
+    order?.displayId,
+    order?.display_id,
+  ]
+    .map((v) => String(v || '').toLowerCase())
+    .filter(Boolean);
+  if (idBits.some((bit) => bit.includes(q))) return true;
+  const items = Array.isArray(order?.items) ? order.items : [];
+  return items.some((item) => {
+    const name = String(
+      item?.name || item?.productName || item?.product?.name || ''
+    ).toLowerCase();
+    return name.includes(q);
+  });
+}
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -37,6 +59,8 @@ export default function OrdersPage() {
   const { addToCart } = useCart();
   const { showAlert } = useAlert();
   const [reorderLoadingId, setReorderLoadingId] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [orderSearch, setOrderSearch] = useState('');
   const reorderLoadingIdRef = useRef(null);
   reorderLoadingIdRef.current = reorderLoadingId;
 
@@ -63,11 +87,15 @@ export default function OrdersPage() {
     () => (ordersInfinite?.pages || []).flatMap((p) => p?.orders || []),
     [ordersInfinite?.pages]
   );
+  const visibleOrders = useMemo(
+    () => orders.filter((order) => orderMatchesQuery(order, orderSearch)),
+    [orders, orderSearch]
+  );
   const allOrderedItems = useMemo(
     () => orders.flatMap((o) => (Array.isArray(o.items) ? o.items : [])),
     [orders]
   );
-  const prefetchIndex = Math.max(0, orders.length - 5);
+  const prefetchIndex = Math.max(0, visibleOrders.length - 5);
 
   const { data: recommendPoolData } = useProducts({
     limit: 60,
@@ -278,6 +306,16 @@ export default function OrdersPage() {
     showAlert('Order link copied to clipboard!', 'Success', 'success');
   }, [showAlert]);
 
+  const handleBack = useCallback(() => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.replace('/');
+  }, [router]);
+
+  const onSearchOpenToggle = useCallback(() => setSearchOpen((v) => !v), []);
+
   if (!ready) {
     return <OrdersPageSkeleton />;
   }
@@ -293,10 +331,39 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      <div className="sticky top-0 z-20 shrink-0">
-        <PageTopBar title="Your Orders" fallbackHref="/profile" />
-      </div>
+    <div className="flex min-h-screen flex-col bg-gray-50 pt-[env(safe-area-inset-top,0px)]">
+      <BrowsePageHeader
+        title="Your Orders"
+        searchOpen={searchOpen}
+        onBack={handleBack}
+        onSearchToggle={onSearchOpenToggle}
+        searchAriaLabel="Search orders"
+        searchSlot={
+          <div className="relative">
+            <svg
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              type="search"
+              value={orderSearch}
+              onChange={(e) => setOrderSearch(e.target.value)}
+              placeholder="Search orders…"
+              className="h-10 w-full rounded-full border border-gray-200 bg-white pl-9 pr-4 text-[13px] text-gray-900 placeholder-gray-400 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-200"
+              autoFocus
+            />
+          </div>
+        }
+      />
 
       <div className="mx-auto w-full max-w-lg flex-1 space-y-4 px-4 pb-24 pt-4">
         {isLoading ? (
@@ -318,9 +385,14 @@ export default function OrdersPage() {
               Start shopping
             </Link>
           </div>
+        ) : visibleOrders.length === 0 ? (
+          <div className="rounded-2xl bg-white py-16 text-center shadow-sm">
+            <p className="mb-1 font-medium text-gray-800">No matching orders</p>
+            <p className="text-sm text-gray-500">Try a different name or order id.</p>
+          </div>
         ) : (
           <>
-            {orders.map((order, index) => (
+            {visibleOrders.map((order, index) => (
               <div key={order.id}>
                 {index === prefetchIndex && hasNextPage ? (
                   <EarlyPrefetchSentinel
@@ -345,7 +417,7 @@ export default function OrdersPage() {
               fetchNextPage={fetchNextPage}
               showSkeleton={false}
               endLabel="No more orders"
-              showEndLabel={orders.length > 0 && !hasNextPage}
+              showEndLabel={visibleOrders.length > 0 && !hasNextPage}
               rootMargin="280px 0px"
             />
             {isFetchingNextPage && (
