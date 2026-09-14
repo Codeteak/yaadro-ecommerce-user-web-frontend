@@ -331,7 +331,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     setTouchEnd(null);
   };
 
-  const cardShellClass = `flex flex-col self-start rounded-2xl overflow-hidden touch-manipulation transition-all duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/45 ${chromeClass} ${
+  const cardShellClass = `flex h-full flex-col rounded-2xl overflow-hidden touch-manipulation transition-all duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/45 ${chromeClass} ${
     isShelf ? 'w-[156px]' : isCarousel ? 'w-[140px]' : 'w-full'
   }`;
 
@@ -514,18 +514,21 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           </span>
         ) : null}
 
-        {offerDisplay.badges.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {offerDisplay.badges.slice(0, isCarousel || isShelf ? 1 : 2).map((b) => (
-              <OfferBadgePill
-                key={b}
-                tone={String(b).startsWith('SAVE') ? 'red' : 'violet'}
-              >
-                {b}
-              </OfferBadgePill>
-            ))}
-          </div>
-        ) : null}
+        <div
+          className={`flex min-h-[1.375rem] flex-wrap items-center gap-1 ${
+            offerDisplay.badges.length === 0 ? 'invisible' : ''
+          }`}
+          aria-hidden={offerDisplay.badges.length === 0}
+        >
+          {offerDisplay.badges.slice(0, isCarousel || isShelf ? 1 : 2).map((b) => (
+            <OfferBadgePill
+              key={b}
+              tone={String(b).startsWith('SAVE') ? 'red' : 'violet'}
+            >
+              {b}
+            </OfferBadgePill>
+          ))}
+        </div>
 
         <Link {...navLinkProps} className={`block min-w-0 ${isShelf ? '' : 'min-h-[2.5rem]'}`}>
           <h3 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 tracking-tight sm:text-[15px]">
@@ -533,11 +536,13 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           </h3>
         </Link>
 
-        {offerDisplay.secondaryText ? (
-          <p className="text-[11px] font-medium text-violet-700 line-clamp-1">
-            {offerDisplay.secondaryText}
-          </p>
-        ) : null}
+        <p
+          className={`min-h-[1.125rem] text-[11px] font-medium line-clamp-1 ${
+            offerDisplay.secondaryText ? 'text-violet-700' : 'invisible'
+          }`}
+        >
+          {offerDisplay.secondaryText || '\u00a0'}
+        </p>
 
         {showPackChips ? (
           <div className="flex flex-wrap gap-1" onPointerDown={stopCartBubble}>
@@ -571,29 +576,31 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           </Link>
         )}
 
-        <Link {...navLinkProps} className="block">
-          {product?.bxgyShelfRole === 'get' ? (
-            <div className={isCarousel || isShelf ? 'text-sm' : 'text-base'}>
-              <span className="font-bold text-violet-700">Free</span>
-              {displayListPrice != null && displayListPrice > 0 ? (
-                <span className="ml-1.5 text-xs text-gray-400 line-through tabular-nums">
-                  ₹{formatRupeeINR(displayListPrice)}
-                </span>
-              ) : currentPrice > 0 ? (
-                <span className="ml-1.5 text-xs text-gray-400 line-through tabular-nums">
-                  ₹{formatRupeeINR(currentPrice)}
-                </span>
-              ) : null}
-            </div>
-          ) : (
-            <PriceDisplay
-              amount={currentPrice}
-              listPrice={displayListPrice}
-              size={isCarousel || isShelf ? 'sm' : 'md'}
-            />
-          )}
-        </Link>
-        <div className="flex justify-end pointer-events-auto">{cartControls}</div>
+        <div className={`mt-auto flex flex-col ${isShelf ? 'gap-1.5' : 'gap-2'}`}>
+          <Link {...navLinkProps} className="block">
+            {product?.bxgyShelfRole === 'get' ? (
+              <div className={isCarousel || isShelf ? 'text-sm' : 'text-base'}>
+                <span className="font-bold text-violet-700">Free</span>
+                {displayListPrice != null && displayListPrice > 0 ? (
+                  <span className="ml-1.5 text-xs text-gray-400 line-through tabular-nums">
+                    ₹{formatRupeeINR(displayListPrice)}
+                  </span>
+                ) : currentPrice > 0 ? (
+                  <span className="ml-1.5 text-xs text-gray-400 line-through tabular-nums">
+                    ₹{formatRupeeINR(currentPrice)}
+                  </span>
+                ) : null}
+              </div>
+            ) : (
+              <PriceDisplay
+                amount={currentPrice}
+                listPrice={displayListPrice}
+                size={isCarousel || isShelf ? 'sm' : 'md'}
+              />
+            )}
+          </Link>
+          <div className="flex justify-end pointer-events-auto">{cartControls}</div>
+        </div>
       </div>
     </div>
   );

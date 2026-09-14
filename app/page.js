@@ -712,9 +712,9 @@ export default function Home() {
             {/* Products (carousel) */}
             <div className="w-screen relative left-1/2 -translate-x-1/2">
               <div className="overflow-x-auto scrollbar-hide pb-3 snap-x snap-mandatory">
-                <div className="flex w-max gap-3 px-4 mx-auto">
+                <div className="flex w-max items-stretch gap-3 px-4 mx-auto">
                   {freshZoneDisplayProducts.slice(0, 12).map((product) => (
-                    <div key={product.id} className="snap-start flex-shrink-0">
+                    <div key={product.id} className="flex h-full flex-shrink-0 snap-start">
                       <ProductCard product={product} isCarousel />
                     </div>
                   ))}
