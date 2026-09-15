@@ -1,7 +1,15 @@
 import { mediaObjectToUrl } from './mediaUrl';
 
 /** Neutral placeholder when no valid image references exist or load fails. */
-export const PRODUCT_IMAGE_PLACEHOLDER = '/images/dummy.png';
+export const PRODUCT_IMAGE_PLACEHOLDER = '/images/default_product.jpg';
+
+/** Older placeholder path — treat as missing image so UI shows the current default. */
+export const LEGACY_PRODUCT_IMAGE_PLACEHOLDER = '/images/dummy.png';
+
+export function isProductImagePlaceholder(src) {
+  const u = String(src || '').trim();
+  return !u || u === PRODUCT_IMAGE_PLACEHOLDER || u === LEGACY_PRODUCT_IMAGE_PLACEHOLDER;
+}
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -228,7 +236,7 @@ export function getCartLinePreviewImageSrc(item) {
   const merged = { ...productObj, ...item };
 
   const urls = getResolvedProductImageUrls(merged);
-  const best = urls.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER);
+  const best = urls.find((u) => u && !isProductImagePlaceholder(u));
   if (best) return best;
 
   const fromApiLine = resolveCartLineImageUrls(item);
@@ -281,7 +289,7 @@ export function getCartLinePreviewImageSrc(item) {
   if (imgField && imgField.trim()) {
     const cleaned = sanitizeCartImageReference(imgField.trim());
     const u = toImageSrcString(cleaned);
-    if (isValidImageReference(u) && u !== PRODUCT_IMAGE_PLACEHOLDER) return u;
+    if (isValidImageReference(u) && !isProductImagePlaceholder(u)) return u;
   }
 
   return PRODUCT_IMAGE_PLACEHOLDER;

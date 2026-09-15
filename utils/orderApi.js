@@ -47,7 +47,7 @@ function resolveOrderItemImage(item = {}) {
     item?.product?.images?.[0] ||
     firstImageUrl(item?.product?.imageUrl) ||
     firstImageUrl(item?.product?.image) ||
-    "/images/dummy.png"
+    "/images/default_product.jpg"
   );
 }
 

@@ -4,7 +4,7 @@ import { memo, useCallback, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { CheckRegular as Check, More2Regular as MoreVertical } from '../icons';
-import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../utils/productImages';
+import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER, isProductImagePlaceholder } from '../../utils/productImages';
 import ProductImageWithFallback from '../ProductImageWithFallback';
 
 function getOrderStatusTone(status = '') {
@@ -20,8 +20,8 @@ function getOrderItemImage(item) {
   const fromProduct = getResolvedProductImageUrls(item?.product || {});
   const fromItem = getResolvedProductImageUrls(item || {});
   return (
-    fromProduct.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER) ||
-    fromItem.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER) ||
+    fromProduct.find((u) => u && !isProductImagePlaceholder(u)) ||
+    fromItem.find((u) => u && !isProductImagePlaceholder(u)) ||
     (typeof item?.image === 'string' ? item.image : item?.image?.url) ||
     PRODUCT_IMAGE_PLACEHOLDER
   );

@@ -5,6 +5,15 @@ import { ProductCarouselRowSkeleton } from '../skeletons/primitives';
 import HomeBxgyShelf from './HomeBxgyShelf';
 import HomeEventCard from './HomeEventCard';
 import HomeProductShelf from './HomeProductShelf';
+import HomeDailyDiary from './HomeDailyDiary';
+
+function isDailyDairySection(title) {
+  const key = String(title || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+  return key === 'daily dairy' || key === 'daily diary';
+}
 
 export default function HomeSections() {
   const { sections, isLoading } = useHomeSections();
@@ -42,6 +51,9 @@ export default function HomeSections() {
               deals={section.deals}
             />
           );
+        }
+        if (section.type === 'product_shelf' && isDailyDairySection(section.title)) {
+          return <HomeDailyDiary key={section.id} products={section.products} />;
         }
         if (section.type === 'product_shelf') {
           return (

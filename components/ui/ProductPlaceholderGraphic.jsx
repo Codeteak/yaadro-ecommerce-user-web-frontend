@@ -5,11 +5,11 @@ import {
   getProductPlaceholderTint,
 } from '../../utils/productPlaceholderGraphic';
 
-/** Soft filled multi-item compositions (~60% of box). */
+/** Fill the card image well. */
 
 function IconOil() {
   return (
-    <svg viewBox="0 0 64 64" className="h-[62%] w-[62%]" aria-hidden>
+    <svg viewBox="0 0 64 64" className="h-[92%] w-[92%]" aria-hidden>
       {/* back bottles */}
       <g opacity="0.55">
         <path
@@ -45,7 +45,7 @@ function IconOil() {
 
 function IconDairy() {
   return (
-    <svg viewBox="0 0 64 64" className="h-[62%] w-[62%]" aria-hidden>
+    <svg viewBox="0 0 64 64" className="h-[92%] w-[92%]" aria-hidden>
       {/* carton */}
       <path
         d="M12 16h18l2 4v30a3 3 0 01-3 3H13a3 3 0 01-3-3V20l2-4z"
@@ -72,7 +72,7 @@ function IconDairy() {
 
 function IconBiscuit() {
   return (
-    <svg viewBox="0 0 64 64" className="h-[62%] w-[62%]" aria-hidden>
+    <svg viewBox="0 0 64 64" className="h-[92%] w-[92%]" aria-hidden>
       {/* pack behind */}
       <rect
         x="10"
@@ -99,7 +99,7 @@ function IconBiscuit() {
 
 function IconStaple() {
   return (
-    <svg viewBox="0 0 64 64" className="h-[62%] w-[62%]" aria-hidden>
+    <svg viewBox="0 0 64 64" className="h-[92%] w-[92%]" aria-hidden>
       {/* back bag */}
       <path
         d="M28 14h22l-3 36H31L28 14z"
@@ -126,7 +126,7 @@ function IconStaple() {
 
 function IconProduce() {
   return (
-    <svg viewBox="0 0 64 64" className="h-[62%] w-[62%]" aria-hidden>
+    <svg viewBox="0 0 64 64" className="h-[92%] w-[92%]" aria-hidden>
       {/* apple */}
       <path
         d="M22 44c7 0 12-5 12-12 0-8-6-13-12-14-6 1-12 6-12 14 0 7 5 12 12 12z"
@@ -156,7 +156,7 @@ function IconProduce() {
 
 function IconDefault() {
   return (
-    <svg viewBox="0 0 64 64" className="h-[62%] w-[62%]" aria-hidden>
+    <svg viewBox="0 0 64 64" className="h-[92%] w-[92%]" aria-hidden>
       {/* stacked boxes */}
       <rect x="22" y="10" width="26" height="16" rx="2" fill="#e9d5ff" stroke="#7c3aed" strokeWidth="1.2" opacity="0.7" />
       <rect x="16" y="22" width="28" height="18" rx="2" fill="#ddd6fe" stroke="#6d28d9" strokeWidth="1.3" />

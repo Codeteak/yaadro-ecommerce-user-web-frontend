@@ -10,7 +10,7 @@ export default function ProductGrid({ products, cardVariant }) {
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 items-stretch gap-2.5 sm:gap-3 lg:gap-4 w-full max-w-full overflow-x-hidden">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 items-stretch justify-items-stretch gap-x-3 gap-y-4 w-full max-w-full overflow-x-hidden">
       {products.map((product) => (
         <ProductCard key={product.id} product={product} variant={cardVariant} />
       ))}
