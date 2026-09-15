@@ -232,6 +232,10 @@ function transformProduct(apiProduct) {
           : apiProduct.unitSize != null
             ? String(apiProduct.unitSize).trim()
             : '1',
+      soldByWeight:
+        apiProduct.sold_by_weight === true ||
+        apiProduct.soldByWeight === true ||
+        false,
       packSize: apiProduct.pack_size ?? apiProduct.packSize ?? '',
       brand: apiProduct.brand || '',
       ingredients: apiProduct.ingredients || '',
@@ -319,6 +323,10 @@ function transformProduct(apiProduct) {
         : apiProduct.unitSize != null
           ? String(apiProduct.unitSize).trim()
           : undefined,
+    soldByWeight:
+      apiProduct.sold_by_weight === true ||
+      apiProduct.soldByWeight === true ||
+      false,
     packSize: apiProduct.packSize || '',
     brand: apiProduct.brand || '',
     sku: apiProduct.sku || '',
@@ -715,7 +723,7 @@ export async function getCategories() {
     return flattenCategoryTree(tree);
   } catch (error) {
     console.error('Error fetching categories:', error);
-    return [];
+    throw error;
   }
 }
 
@@ -808,10 +816,10 @@ export async function getCategoriesTree() {
   } catch (error) {
     if (process.env.NEXT_PHASE === 'phase-production-build') {
       // generateStaticParams logs a single build warning; avoid duplicate stack traces.
-    } else {
-      console.error('Error fetching category tree:', error);
+      return [];
     }
-    return [];
+    console.error('Error fetching category tree:', error);
+    throw error;
   }
 }
 

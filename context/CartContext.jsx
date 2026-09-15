@@ -253,7 +253,15 @@ export function CartProvider({ children }) {
   }, [isClient, lastActivityTime, localCartItems.length]);
 
   const addToCart = async (product, quantity = 1) => {
-    const addQty = Math.max(1, Number(quantity) || 1);
+    const soldByWeight = product?.soldByWeight === true || product?.sold_by_weight === true;
+    const rawQty = Number(quantity);
+    const addQty = soldByWeight
+      ? Math.max(0.0001, Math.round((Number.isFinite(rawQty) ? rawQty : 0) * 10000) / 10000)
+      : Math.max(1, Math.trunc(Number.isFinite(rawQty) ? rawQty : 1) || 1);
+    if (!(addQty > 0)) {
+      showAlert('Could not add this product to the cart.', 'Error', 'error');
+      return;
+    }
     const persistable = buildPersistableCartLineFromProduct(product);
     if (!persistable) {
       showAlert('Could not add this product to the cart.', 'Error', 'error');

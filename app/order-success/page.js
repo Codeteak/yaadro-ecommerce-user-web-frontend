@@ -10,6 +10,12 @@ import { clearCheckoutDraft } from '../../utils/checkoutSession';
 import { downloadBillHtml, printBillPdf } from '../../utils/orderInvoice';
 import BillPreviewSheet from '../../components/BillPreviewSheet';
 import { getOrderPromotionSummary } from '../../utils/orderPromotions';
+import {
+  hasOpenedTrackingThisSession,
+  inAppTrackingHref,
+  isHttpTrackingUrl,
+  markTrackingOpenedThisSession,
+} from '../../utils/deliveryTracking';
 
 /* ─────────────────────────────────────────────────────────────
    Tiny inline helpers – no extra deps
@@ -321,17 +327,37 @@ function OrderSuccessContent() {
     [order, orderId, rawOrderId, paymentStatus, shopName, shopImage]
   );
 
-  /* Auto-redirect */
+  /* Auto-redirect: prefer in-app tracking when ready, else order details */
   useEffect(() => {
     if (!isSuccess || !orderId) return;
     const timer = setInterval(() => {
       setCountdown((prev) => {
-        if (prev <= 1) { clearInterval(timer); router.push(`/order?id=${encodeURIComponent(orderId)}`); return 0; }
+        if (prev <= 1) {
+          clearInterval(timer);
+          const trackReady = isHttpTrackingUrl(order?.deliveryTrackingUrl);
+          if (trackReady) {
+            markTrackingOpenedThisSession(orderId);
+            router.push(inAppTrackingHref(orderId));
+          } else {
+            router.push(`/order?id=${encodeURIComponent(orderId)}`);
+          }
+          return 0;
+        }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isSuccess, orderId, router]);
+  }, [isSuccess, orderId, order?.deliveryTrackingUrl, router]);
+
+  /* If tracking URL appears before countdown ends, open in-app tracking once. */
+  useEffect(() => {
+    if (!isSuccess || !orderId) return;
+    const url = order?.deliveryTrackingUrl;
+    if (!isHttpTrackingUrl(url)) return;
+    if (hasOpenedTrackingThisSession(orderId)) return;
+    markTrackingOpenedThisSession(orderId);
+    router.push(inAppTrackingHref(orderId));
+  }, [isSuccess, orderId, order?.deliveryTrackingUrl, router]);
 
   useEffect(() => {
     if (!openBillWhenReady) return;
@@ -447,10 +473,34 @@ function OrderSuccessContent() {
 
           {/* Actions */}
           <div style={styles.actions}>
-            <Link href={orderId ? `/order?id=${encodeURIComponent(orderId)}` : '/orders'} style={styles.btnPrimary}>
-              <ArrowIcon />
-              {isRejected ? 'View order & retry payment' : 'Track my order'}
-            </Link>
+            {isRejected ? (
+              <Link href={orderId ? `/order?id=${encodeURIComponent(orderId)}` : '/orders'} style={styles.btnPrimary}>
+                <ArrowIcon />
+                View order & retry payment
+              </Link>
+            ) : isHttpTrackingUrl(order?.deliveryTrackingUrl) ? (
+              <Link
+                href={inAppTrackingHref(orderId)}
+                style={styles.btnPrimary}
+                onClick={() => {
+                  if (orderId) markTrackingOpenedThisSession(orderId);
+                }}
+              >
+                <ArrowIcon />
+                Track live delivery
+              </Link>
+            ) : (
+              <Link href={orderId ? `/order?id=${encodeURIComponent(orderId)}` : '/orders'} style={styles.btnPrimary}>
+                <ArrowIcon />
+                Track my order
+              </Link>
+            )}
+
+            {isHttpTrackingUrl(order?.deliveryTrackingUrl) && orderId && (
+              <Link href={`/order?id=${encodeURIComponent(orderId)}`} style={styles.btnSecondary}>
+                View order details
+              </Link>
+            )}
 
             <button type="button" onClick={handleOpenInvoice} style={styles.btnSecondary}>
               <DownloadIcon />
@@ -465,7 +515,10 @@ function OrderSuccessContent() {
           {/* Countdown */}
           {isSuccess && countdown > 0 && orderId && (
             <p style={styles.countdown}>
-              Opening order details in&nbsp;
+              {isHttpTrackingUrl(order?.deliveryTrackingUrl)
+                ? 'Opening live tracking in'
+                : 'Opening order details in'}
+              &nbsp;
               <span style={styles.countdownBadge}>{countdown}</span>s
             </p>
           )}

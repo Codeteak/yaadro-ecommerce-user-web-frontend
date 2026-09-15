@@ -31,6 +31,12 @@ import {
 import { printBillPdf, downloadBillHtml } from "../../../utils/orderInvoice";
 import { useShopBranding } from "../../../context/ShopBrandingContext";
 import BillPreviewSheet from "../../../components/BillPreviewSheet";
+import {
+  hasOpenedTrackingThisSession,
+  inAppTrackingHref,
+  isHttpTrackingUrl,
+  markTrackingOpenedThisSession,
+} from "../../../utils/deliveryTracking";
 
 function IconBack() {
   return (
@@ -793,6 +799,16 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   const [showReturn, setShowReturn] = useState(false);
   const [billOpen, setBillOpen] = useState(false);
 
+  // Once shop accepts and DMS returns a link, open in-app tracking once per session.
+  useEffect(() => {
+    const url = order?.deliveryTrackingUrl;
+    const id = order?.id;
+    if (!id || !isHttpTrackingUrl(url)) return;
+    if (hasOpenedTrackingThisSession(id)) return;
+    markTrackingOpenedThisSession(id);
+    router.push(inAppTrackingHref(id));
+  }, [order?.id, order?.deliveryTrackingUrl, router]);
+
   const visibleOrderItems = order ? getOrderItems(order) : [];
   const activeOrderItems = order ? getActiveOrderItems(order) : [];
   const firstVisibleItem = activeOrderItems[0] || visibleOrderItems[0];
@@ -1012,16 +1028,17 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                 right={fmtDate(order.createdAt)?.day}
               />
               <Timeline order={order} />
-              {order.deliveryTrackingUrl && (
+              {isHttpTrackingUrl(order.deliveryTrackingUrl) && (
                 <div className="px-4 pb-3.5">
-                  <a
-                    href={order.deliveryTrackingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex w-full cursor-pointer items-center justify-center rounded-xl border border-violet-200 bg-violet-50 py-3 text-[13px] font-semibold text-violet-900 hover:bg-violet-100/80"
+                  <Link
+                    href={inAppTrackingHref(order.id)}
+                    onClick={() => {
+                      if (order.id) markTrackingOpenedThisSession(order.id);
+                    }}
+                    className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#902bf5] py-3 text-[13px] font-semibold text-white shadow-[0_8px_20px_rgba(144,43,245,0.28)] hover:bg-[#7d24d6]"
                   >
-                    Track delivery
-                  </a>
+                    Track live delivery
+                  </Link>
                 </div>
               )}
               {order.status === "delivered" && (

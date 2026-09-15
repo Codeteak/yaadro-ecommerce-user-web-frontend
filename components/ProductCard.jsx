@@ -94,9 +94,18 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     return null;
   }, [strikeList, currentPrice, basePrice]);
   const productPack = useMemo(() => resolveProductWeightAndUnit(product), [product]);
-  const displayWeight = activeSize
-    ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
-    : formatWeightUnitLabel(productPack.weight, productPack.unit);
+  const soldByWeight =
+    product?.soldByWeight === true || product?.sold_by_weight === true;
+  const WEIGHT_ORDER_PRESETS_G = [250, 500, 750, 1000];
+  const [orderWeightGrams, setOrderWeightGrams] = useState(500);
+  const orderQtyKg = soldByWeight
+    ? Math.round((orderWeightGrams / 1000) * 10000) / 10000
+    : 1;
+  const displayWeight = soldByWeight
+    ? formatWeightUnitLabel(orderWeightGrams >= 1000 ? orderWeightGrams / 1000 : orderWeightGrams, orderWeightGrams >= 1000 ? 'kg' : 'g')
+    : activeSize
+      ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
+      : formatWeightUnitLabel(productPack.weight, productPack.unit);
 
   const bundleRule = useMemo(() => getPrimaryBundleRule(product), [product]);
   const offerDisplay = useMemo(() => getProductOfferDisplay(product), [product]);
@@ -133,14 +142,14 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     cartLine?.cartItemKey ?? cartLine?.cartItemId ?? cartLine?.id ?? null;
 
   const handleAddToCart = useCallback(async () => {
-    if (availableSizes.length > 1 && !selectedSize) {
+    if (!soldByWeight && availableSizes.length > 1 && !selectedSize) {
       setShowSizeSelector(true);
       return;
     }
     setCartActionLoading(true);
-    setPendingCartQty(1);
+    setPendingCartQty(soldByWeight ? orderQtyKg : 1);
     try {
-      await addToCart(productToAddPayload, 1);
+      await addToCart(productToAddPayload, soldByWeight ? orderQtyKg : 1);
       tapFeedback();
     } catch {
       setPendingCartQty(0);
@@ -148,44 +157,56 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     } finally {
       setCartActionLoading(false);
     }
-  }, [availableSizes.length, selectedSize, addToCart, productToAddPayload]);
+  }, [
+    soldByWeight,
+    orderQtyKg,
+    availableSizes.length,
+    selectedSize,
+    addToCart,
+    productToAddPayload,
+  ]);
 
   const handleIncrement = useCallback(
     async (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (cartActionLoading) return;
-      if (availableSizes.length > 1 && !selectedSize) {
+      if (!soldByWeight && availableSizes.length > 1 && !selectedSize) {
         setShowSizeSelector(true);
         return;
       }
+      const step = soldByWeight ? orderQtyKg : 1;
       if (paidCartQty === 0 && pendingCartQty === 0) {
         setCartActionLoading(true);
-        setPendingCartQty(1);
+        setPendingCartQty(step);
         try {
-          await addToCart(productToAddPayload, 1);
+          await addToCart(productToAddPayload, step);
           tapFeedback();
         } catch {
           setPendingCartQty(0);
-          /* CartContext already alerts */
         } finally {
           setCartActionLoading(false);
         }
         return;
       }
       if (cartUpdateKey != null && paidCartQty > 0) {
-        updateQuantity(cartUpdateKey, paidCartQty + 1);
+        const next = soldByWeight
+          ? Math.round((paidCartQty + step) * 10000) / 10000
+          : paidCartQty + 1;
+        updateQuantity(cartUpdateKey, next);
         tapFeedback();
         return;
       }
       if (pendingCartQty > 0) {
-        setPendingCartQty((q) => q + 1);
+        setPendingCartQty((q) =>
+          soldByWeight ? Math.round((q + step) * 10000) / 10000 : q + 1
+        );
         setCartActionLoading(true);
         try {
-          await addToCart(productToAddPayload, 1);
+          await addToCart(productToAddPayload, step);
           tapFeedback();
         } catch {
-          setPendingCartQty((q) => Math.max(0, q - 1));
+          setPendingCartQty((q) => Math.max(0, soldByWeight ? q - step : q - 1));
         } finally {
           setCartActionLoading(false);
         }
@@ -193,6 +214,8 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     },
     [
       cartActionLoading,
+      soldByWeight,
+      orderQtyKg,
       availableSizes.length,
       selectedSize,
       paidCartQty,
@@ -215,10 +238,13 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       if (cartActionLoading) return;
 
       if (cartUpdateKey != null) {
-        if (paidCartQty <= 1) {
+        if (paidCartQty <= (soldByWeight ? orderQtyKg : 1) + 1e-9) {
           removeFromCart(cartUpdateKey);
         } else {
-          updateQuantity(cartUpdateKey, paidCartQty - 1);
+          const next = soldByWeight
+            ? Math.round((paidCartQty - orderQtyKg) * 10000) / 10000
+            : paidCartQty - 1;
+          updateQuantity(cartUpdateKey, next);
         }
         tapFeedback();
         setPendingCartQty(0);
@@ -231,6 +257,8 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     },
     [
       cartActionLoading,
+      soldByWeight,
+      orderQtyKg,
       paidCartQty,
       pendingCartQty,
       cartUpdateKey,
@@ -531,11 +559,31 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           <WeightLabel label={displayWeight} placeholder />
         </Link>
 
+        {soldByWeight ? (
+          <div className="flex flex-wrap gap-1" onClick={stopCartBubble}>
+            {WEIGHT_ORDER_PRESETS_G.map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setOrderWeightGrams(g)}
+                className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                  orderWeightGrams === g
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-700'
+                }`}
+              >
+                {g >= 1000 ? '1 kg' : `${g} g`}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
         <Link {...navLinkProps} className="block">
           <PriceDisplay
             amount={currentPrice}
             listPrice={displayListPrice}
             size={isCarousel || isShelf ? 'sm' : 'md'}
+            suffix={soldByWeight ? ' / kg' : undefined}
           />
         </Link>
         <div className="flex justify-end pointer-events-auto">{cartControls}</div>

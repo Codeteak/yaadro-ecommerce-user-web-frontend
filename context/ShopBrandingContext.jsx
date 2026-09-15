@@ -35,6 +35,7 @@ const ROUTE_PAGE_TITLES = {
   '/products': 'Products',
   '/categories': 'Categories',
   '/order-success': 'Order placed',
+  '/order/track': 'Live tracking',
   '/product': 'Product',
 };
 

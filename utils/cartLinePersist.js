@@ -203,6 +203,8 @@ export function buildPersistableCartLineFromProduct(product) {
   const { weight, unit } = resolveProductWeightAndUnit(product);
   const packLabel = formatWeightUnitLabel(weight, unit);
   const unitSize = product.unit_size ?? product.unitSize;
+  const soldByWeight =
+    product.soldByWeight === true || product.sold_by_weight === true;
 
   const leanProduct = {
     id: productId ?? id,
@@ -212,6 +214,7 @@ export function buildPersistableCartLineFromProduct(product) {
     imageUrl: product.imageUrl ?? product.image_url ?? undefined,
     image: typeof product.image === 'string' ? product.image : undefined,
     ...(Array.isArray(bundleRules) && bundleRules.length ? { bundleRules } : {}),
+    ...(soldByWeight ? { soldByWeight: true } : {}),
   };
 
   return {
@@ -226,9 +229,10 @@ export function buildPersistableCartLineFromProduct(product) {
     image_snapshot: primary !== PRODUCT_IMAGE_PLACEHOLDER ? primary : undefined,
     selectedSize,
     sizeDisplay: product.sizeDisplay || packLabel || undefined,
-    unit,
-    weight,
-    ...(unitSize != null ? { unit_size: unitSize } : {}),
+    unit: soldByWeight ? product.unit || unit || 'kg' : unit,
+    weight: soldByWeight ? null : weight,
+    ...(unitSize != null ? { unit_size: soldByWeight ? '1' : unitSize } : {}),
+    ...(soldByWeight ? { soldByWeight: true, sold_by_weight: true } : {}),
     brand: product.brand,
     category,
     product: leanProduct,
@@ -238,7 +242,13 @@ export function buildPersistableCartLineFromProduct(product) {
 }
 
 export function addOrMergeCartLine(prevItems, persistableLine, addQty) {
-  const safeAdd = Math.max(1, Number(addQty) || 1);
+  const soldByWeight =
+    persistableLine?.soldByWeight === true ||
+    persistableLine?.sold_by_weight === true;
+  const raw = Number(addQty);
+  const safeAdd = soldByWeight
+    ? Math.max(0.0001, Math.round((Number.isFinite(raw) ? raw : 0) * 10000) / 10000)
+    : Math.max(1, Math.trunc(Number.isFinite(raw) ? raw : 1) || 1);
   const paidOnly = (Array.isArray(prevItems) ? prevItems : []).filter(
     (it) => !isBundleRewardCartLine(it)
   );

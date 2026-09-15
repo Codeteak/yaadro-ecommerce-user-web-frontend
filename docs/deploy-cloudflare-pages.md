@@ -25,7 +25,7 @@ This doc is only for a leftover Pages project or a manual `npm run pages:deploy`
 4. **Avoid duplicate deploys (important):** This repo deploys via **GitHub Actions** only. If you connected the same repo in Cloudflare Pages, **disconnect** it:
    - Pages → **yaadro-ecommerce-user-web-frontend** → **Settings** → **Builds**
    - **Disconnect** Git repository (or delete the Pages project and recreate as **Direct Upload** / empty project without Git)
-   - Otherwise every push runs **two** builds: Cloudflare’s built-in CI **and** `.github/workflows/deploy-cloudflare-pages.yml`
+   - Otherwise every push can run **two** builds: Cloudflare’s built-in Git CI **and** a manual/`pages:deploy` upload.
 
 ## 2) API token and GitHub secrets
 
