@@ -13,6 +13,7 @@ import { useLayoutHeights } from '../context/LayoutHeightsContext';
 import { getCartLinePreviewImageSrc } from '../utils/productImages';
 import { computeCartSavings } from '../utils/cartSavings';
 import ProductImageWithFallback from './ProductImageWithFallback';
+import CartSavingsCelebration from './CartSavingsCelebration';
 import { getAppShellEl } from '../lib/pwa/appShell';
 
 /** Keep in sync with `LayoutHeightsProvider` initial `bottomNavHeight` — used when measurement lags or is 0. */
