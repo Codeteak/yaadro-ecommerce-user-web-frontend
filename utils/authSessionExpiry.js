@@ -53,11 +53,12 @@ export function shouldSkipSessionExpiryForApiPath(path) {
   return (
     normalized.startsWith('auth/login') ||
     normalized.startsWith('auth/otp') ||
+    normalized.startsWith('auth/email-otp') ||
     normalized.startsWith('auth/register') ||
     normalized.startsWith('auth/verify') ||
     normalized.startsWith('auth/refresh') ||
-    normalized.startsWith('auth/oauth') ||
-    normalized.startsWith('storefront/')
+    normalized.startsWith('auth/logout') ||
+    normalized.startsWith('auth/oauth')
   );
 }
 

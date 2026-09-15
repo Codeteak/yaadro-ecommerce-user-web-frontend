@@ -302,7 +302,7 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  // Proactive refresh before 7-day access JWT expires (does not extend refresh session).
+  // Proactive refresh before access JWT expires (~15m). Rotation slides the refresh session clock.
   useEffect(() => {
     if (!token || typeof window === 'undefined') return undefined;
 

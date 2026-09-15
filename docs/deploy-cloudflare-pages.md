@@ -72,7 +72,8 @@ Same as before — baked into the client bundle at build time:
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Maps on address/checkout |
 | `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID` | Optional Maps map ID |
 | `NEXT_PUBLIC_MEDIA_BASE_URL` | Product/media CDN base |
-| `NEXT_PUBLIC_AUTH_SESSION_DAYS` | Optional session length |
+| `NEXT_PUBLIC_AUTH_REFRESH_TOKEN_DAYS` | Optional; default 30 — match API `JWT_REFRESH_EXPIRES_IN` |
+| `NEXT_PUBLIC_AUTH_SESSION_DAYS` | Legacy alias for refresh session days |
 
 Production resolves **shop by domain** (`utils/authApi.js`). Ensure the backend registers:
 

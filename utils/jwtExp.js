@@ -1,9 +1,9 @@
 /**
- * Read JWT `exp` (seconds since epoch) without verifying the signature.
+ * Read JWT payload without verifying the signature (client scheduling / session clock only).
  * @param {string} jwt
- * @returns {number|null} expiry in milliseconds, or null if missing/invalid
+ * @returns {Record<string, unknown>|null}
  */
-export function getJwtExpiresAtMs(jwt) {
+export function getJwtPayload(jwt) {
   if (jwt == null || typeof jwt !== 'string') return null;
   const parts = jwt.split('.');
   if (parts.length < 2) return null;
@@ -19,21 +19,45 @@ export function getJwtExpiresAtMs(jwt) {
           : null;
     if (json == null) return null;
     const payload = JSON.parse(json);
-    if (payload == null || typeof payload.exp !== 'number') return null;
-    return payload.exp * 1000;
+    return payload != null && typeof payload === 'object' ? payload : null;
   } catch {
     return null;
   }
 }
 
+/**
+ * Read JWT `exp` (seconds since epoch) without verifying the signature.
+ * @param {string} jwt
+ * @returns {number|null} expiry in milliseconds, or null if missing/invalid
+ */
+export function getJwtExpiresAtMs(jwt) {
+  const payload = getJwtPayload(jwt);
+  if (payload == null || typeof payload.exp !== 'number') return null;
+  return payload.exp * 1000;
+}
+
+/**
+ * True when the token looks like a backend refresh JWT (`typ: "refresh"` or long-lived `exp`).
+ * Used so a short-lived access JWT stored under `refreshToken` does not drive the session clock.
+ */
+export function isLikelyRefreshTokenJwt(jwt) {
+  const payload = getJwtPayload(jwt);
+  if (!payload) return false;
+  if (payload.typ === 'refresh') return true;
+  const expMs = typeof payload.exp === 'number' ? payload.exp * 1000 : null;
+  if (expMs == null) return false;
+  return expMs - Date.now() > 12 * 60 * 60 * 1000;
+}
+
 /** Fallback when JWT has no `exp` — matches backend default access TTL (~15m). */
-const ACCESS_TOKEN_LIFETIME_MS = 15 * 60 * 1000;
+export const ACCESS_TOKEN_LIFETIME_MS = 15 * 60 * 1000;
 
 /** Milliseconds until proactive access-token refresh (before JWT `exp`). */
 export function getMsUntilAccessTokenRefresh(accessToken, opts = {}) {
   const skewMs = opts.skewMs ?? 60 * 1000;
   const fallbackMs = opts.fallbackMs ?? ACCESS_TOKEN_LIFETIME_MS - skewMs;
   const minDelayMs = opts.minDelayMs ?? 5 * 1000;
+  // Cap matches default access TTL; longer access JWTs still refresh within the first 15m window.
   const maxDelayMs = opts.maxDelayMs ?? ACCESS_TOKEN_LIFETIME_MS;
   const expMs = getJwtExpiresAtMs(accessToken);
   if (expMs == null) return fallbackMs;

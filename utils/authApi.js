@@ -3,7 +3,7 @@
  * Uses the multi-tenant backend API
  */
 
-import { api, apiFetchRoot } from './apiClient';
+import { api, apiFetchRoot, refreshSessionSingleFlight } from './apiClient';
 import {
   normalizeOtpPhone,
   normalizePhoneForApi,
@@ -420,38 +420,15 @@ export async function verifyPhoneChangeOtp({ newPhone, code }) {
 }
 
 /**
- * Normalize POST /api/auth/refresh payload (`accessToken`, `refreshToken`, optional `data` envelope).
- * @param {object} response — already unwrapped `data` when API uses `{ status, data }`
+ * Rotate access (+ refresh) via the shared single-flight path in apiClient.
+ * Always prefers the latest `refreshToken` in localStorage to avoid reuse after rotation.
+ *
+ * @param {string} [refreshToken] — fallback only if localStorage has none
+ * @returns {Promise<{ token: string, refreshToken: string }>}
  */
-function normalizeRefreshResponse(response, previousRefreshToken) {
-  if (!response || typeof response !== 'object') {
-    return { token: null, refreshToken: previousRefreshToken || null };
-  }
-  const layer =
-    response.data != null && typeof response.data === 'object'
-      ? response.data
-      : response;
-  const token =
-    layer.accessToken ||
-    layer.token ||
-    response.accessToken ||
-    response.token ||
-    null;
-  const nextRefresh =
-    layer.refreshToken ||
-    response.refreshToken ||
-    previousRefreshToken ||
-    null;
-  return { token, refreshToken: nextRefresh };
-}
-
 export async function refreshAccessToken(refreshToken) {
   try {
-    const response = await api.post('/auth/refresh', { refreshToken }, {
-      omitAuthHeader: true,
-      omitTenantHeader: true,
-    });
-    return normalizeRefreshResponse(response, refreshToken);
+    return await refreshSessionSingleFlight(refreshToken);
   } catch (error) {
     console.error('Error refreshing token:', error);
     throw error;
@@ -459,14 +436,15 @@ export async function refreshAccessToken(refreshToken) {
 }
 
 /**
- * Logout user
+ * Logout user — always sends current refresh token so the API can revoke
+ * even when the access JWT has already expired.
  * @returns {Promise<object>}
  */
 export async function logoutUser() {
   try {
     const refreshToken =
       typeof window !== 'undefined' ? window.localStorage.getItem('refreshToken') || '' : '';
-    const body = refreshToken ? { refreshToken } : undefined;
+    const body = refreshToken ? { refreshToken } : {};
     return await api.post('/auth/logout', body);
   } catch (error) {
     console.error('Error logging out:', error);

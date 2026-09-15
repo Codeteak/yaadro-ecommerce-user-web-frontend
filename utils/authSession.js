@@ -1,20 +1,24 @@
 /**
- * Client-side auth session window — aligned with backend token lifetimes:
- * - Refresh token: 50 days (max logged-in window)
- * - Access token: ~15m (refreshed proactively via JWT `exp` in AuthContext)
+ * Client-side auth session window — aligned with ecom-client-backend defaults:
+ * - Access JWT: ~15m (`JWT_ACCESS_EXPIRES_IN`) — refreshed via JWT `exp` in AuthContext / apiClient
+ * - Refresh JWT: ~30d (`JWT_REFRESH_EXPIRES_IN`) — source of truth for "stay logged in"
  *
- * The stored expiry is the refresh-token deadline (JWT `exp` when present, else
- * login time + 50 days). Access-token refresh and profile fetches do NOT extend it.
+ * On each successful refresh rotation the backend issues a new refresh JWT (~30d from now).
+ * `syncSessionExpiryFromRefreshToken` slides the client clock to that JWT `exp`.
+ *
+ * Override fallback only (when refresh JWT has no usable `exp`) with
+ * `NEXT_PUBLIC_AUTH_REFRESH_TOKEN_DAYS` (or legacy `NEXT_PUBLIC_AUTH_SESSION_DAYS`).
+ * Keep that value equal to the API's `JWT_REFRESH_EXPIRES_IN` days.
  */
 
-import { getJwtExpiresAtMs } from './jwtExp';
+import { getJwtExpiresAtMs, isLikelyRefreshTokenJwt } from './jwtExp.js';
 
 export const AUTH_SESSION_EXPIRES_KEY = 'yaadro_auth_session_expires_at';
 
 export const POST_LOGIN_REDIRECT_KEY = 'yaadro_post_login_redirect';
 
-/** Backend refresh-token lifetime (days). */
-export const REFRESH_TOKEN_LIFETIME_DAYS = 50;
+/** Matches backend default `JWT_REFRESH_EXPIRES_IN=30d`. */
+export const REFRESH_TOKEN_LIFETIME_DAYS = 30;
 
 /**
  * Fallback only when JWT `exp` is missing — access tokens are typically 15m.
@@ -34,7 +38,7 @@ const refreshTokenDays =
     ? Math.min(parsedRefreshDays, 730)
     : REFRESH_TOKEN_LIFETIME_DAYS;
 
-/** Max client session length from login when refresh JWT has no `exp`. */
+/** Max client session length from login when refresh JWT has no usable `exp`. */
 export const REFRESH_SESSION_DURATION_MS = refreshTokenDays * 24 * 60 * 60 * 1000;
 
 /** @deprecated Use REFRESH_SESSION_DURATION_MS */
@@ -81,17 +85,18 @@ export function readSessionExpiresAtMs() {
 
 /**
  * Compute refresh-session expiry (ms since epoch).
- * Uses the later of JWT `exp` and configured refresh lifetime so a short JWT `exp`
- * (e.g. access token mistakenly stored as refresh) does not force logout after one day
- * while the product policy is 50 days — backend refresh API remains authoritative.
+ * Prefer the refresh JWT `exp` (backend is authoritative). Fall back to configured days
+ * only when the token is missing, not decodeable, or looks like an access JWT.
  *
  * @param {{ refreshToken?: string|null, loginAtMs?: number }} params
  */
 export function computeSessionExpiresAtMs({ refreshToken, loginAtMs = Date.now() } = {}) {
   const wallClockExp = loginAtMs + REFRESH_SESSION_DURATION_MS;
-  const jwtExp = refreshToken ? getJwtExpiresAtMs(refreshToken) : null;
+  if (!refreshToken) return wallClockExp;
+  const jwtExp = getJwtExpiresAtMs(refreshToken);
   if (jwtExp == null) return wallClockExp;
-  return Math.max(jwtExp, wallClockExp);
+  if (isLikelyRefreshTokenJwt(refreshToken)) return jwtExp;
+  return wallClockExp;
 }
 
 /**
@@ -108,7 +113,7 @@ export function hasStoredAuthCredentials() {
 }
 
 /**
- * Start or reset the client session window (call on login / refresh-token rotation only).
+ * Start or reset the client session window (call on login / full re-auth only).
  */
 export function establishClientSession({ refreshToken, loginAtMs = Date.now() } = {}) {
   if (typeof window === 'undefined') return;
@@ -117,15 +122,13 @@ export function establishClientSession({ refreshToken, loginAtMs = Date.now() } 
 }
 
 /**
- * Update session deadline from a new refresh token JWT (after token rotation).
- * Does not extend the window beyond the new JWT `exp`.
+ * Update session deadline from the current refresh JWT (after rotation).
+ * Sets the clock to that JWT's `exp` — sliding window matches backend rotation.
  */
 export function syncSessionExpiryFromRefreshToken(refreshToken) {
   if (typeof window === 'undefined' || !refreshToken) return;
   const computed = computeSessionExpiresAtMs({ refreshToken, loginAtMs: Date.now() });
-  const existing = readSessionExpiresAtMs();
-  const next = existing != null ? Math.max(existing, computed) : computed;
-  window.localStorage.setItem(AUTH_SESSION_EXPIRES_KEY, String(next));
+  window.localStorage.setItem(AUTH_SESSION_EXPIRES_KEY, String(computed));
 }
 
 /** @deprecated Prefer establishClientSession — kept for existing imports. */
@@ -157,7 +160,8 @@ export function shouldAttemptSessionRecovery() {
 }
 
 /**
- * Legacy sessions without expiry: derive deadline from refresh JWT or 50-day default.
+ * Legacy / misaligned sessions: derive deadline from refresh JWT or 30-day default.
+ * Also corrects old clients that stored a 50-day clock while the refresh JWT is 30d.
  */
 export function ensureSessionExpiryForExistingLogin() {
   if (typeof window === 'undefined') return;
@@ -169,16 +173,15 @@ export function ensureSessionExpiryForExistingLogin() {
   if (!refreshToken && !access) return;
 
   const stored = readSessionExpiresAtMs();
-  if (stored == null) {
-    establishClientSession({ refreshToken: refreshToken || undefined });
+  if (refreshToken) {
+    const corrected = computeSessionExpiresAtMs({ refreshToken });
+    if (stored == null || Math.abs(stored - corrected) > 60 * 1000) {
+      window.localStorage.setItem(AUTH_SESSION_EXPIRES_KEY, String(corrected));
+    }
     return;
   }
 
-  // Correct sessions saved with a short JWT `exp` before policy-aware expiry.
-  if (refreshToken) {
-    const corrected = computeSessionExpiresAtMs({ refreshToken });
-    if (corrected > stored) {
-      window.localStorage.setItem(AUTH_SESSION_EXPIRES_KEY, String(corrected));
-    }
+  if (stored == null) {
+    establishClientSession({ refreshToken: undefined });
   }
 }

@@ -2,6 +2,7 @@ import {
   notifyAuthSessionEnded,
   shouldInvalidateSessionOnApiError,
 } from './authSessionExpiry';
+import { syncSessionExpiryFromRefreshToken } from './authSession';
 
 /**
  * API client for the Customer API.
@@ -124,55 +125,113 @@ function isAuthRefreshRequestPath(path) {
   return normalized === 'auth/refresh' || normalized.startsWith('auth/refresh?');
 }
 
+function makeAuthError(message, status) {
+  const err = new Error(message);
+  err.status = status;
+  return err;
+}
+
 /**
- * Transparently refresh the access token when a 401 is received.
- * Deduplicates concurrent refresh attempts so only one POST /api/auth/refresh flies at a time.
- * Returns the new access token or null on failure.
+ * Single-flight access+refresh rotation via POST /api/auth/refresh.
+ * Shared by 401 retry and AuthContext proactive refresh so concurrent callers
+ * never replay a consumed refresh JWT (backend revoke-all on reuse).
+ *
+ * @param {string} [preferredRefreshToken] — used only if localStorage has none
+ * @returns {Promise<{ token: string, refreshToken: string }>}
  */
-async function autoRefreshAccessToken() {
-  if (!isBrowser()) return null;
+export async function refreshSessionSingleFlight(preferredRefreshToken) {
+  if (!isBrowser()) {
+    throw makeAuthError('Refresh requires a browser session', 401);
+  }
   if (_refreshPromise) return _refreshPromise;
 
   _refreshPromise = (async () => {
-    const rt = window.localStorage.getItem('refreshToken');
-    if (!rt) return null;
+    const rt =
+      window.localStorage.getItem('refreshToken') ||
+      (typeof preferredRefreshToken === 'string' && preferredRefreshToken.trim()
+        ? preferredRefreshToken.trim()
+        : '');
+    if (!rt) {
+      throw makeAuthError('No refresh token', 401);
+    }
+
+    const base = getConfiguredBaseUrl();
+    let res;
     try {
-      const base = getConfiguredBaseUrl();
-      const res = await fetch(`${base}/auth/refresh`, {
+      res = await fetch(`${base}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ refreshToken: rt }),
       });
-      if (!res.ok) {
-        if (res.status === 401 || res.status === 403) {
-          notifyAuthSessionEnded();
-        } else if (res.status === 404) {
-          // eslint-disable-next-line no-console
-          console.error(
-            '[auth] POST /api/auth/refresh returned 404 — wrong refresh path (use /auth/refresh, not /auth/refresh-token)'
-          );
-        }
-        return null;
-      }
-      const json = await res.json();
-      const layer = json?.data && typeof json.data === 'object' ? json.data : json;
-      const newToken = layer?.accessToken || layer?.token || json?.accessToken || json?.token || null;
-      const newRt = layer?.refreshToken || json?.refreshToken || null;
-      if (!newToken) return null;
-      persistAccessToken(newToken);
-      if (newRt) window.localStorage.setItem('refreshToken', newRt);
-      for (const cb of _refreshListeners) {
-        try { cb({ token: newToken, refreshToken: newRt }); } catch { /* ignore */ }
-      }
-      return newToken;
-    } catch {
-      return null;
-    } finally {
-      _refreshPromise = null;
+    } catch (networkErr) {
+      const err = makeAuthError(
+        networkErr?.message || 'Network error while refreshing session',
+        0,
+      );
+      err.cause = networkErr;
+      throw err;
     }
-  })();
+
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        notifyAuthSessionEnded();
+      } else if (res.status === 404) {
+        // eslint-disable-next-line no-console
+        console.error(
+          '[auth] POST /api/auth/refresh returned 404 — wrong refresh path (use /auth/refresh, not /auth/refresh-token)',
+        );
+      }
+      let message = 'Session refresh failed';
+      try {
+        const body = await res.json();
+        message = body?.message || body?.error?.message || message;
+      } catch {
+        /* ignore */
+      }
+      throw makeAuthError(message, res.status);
+    }
+
+    const json = await res.json();
+    const layer = json?.data && typeof json.data === 'object' ? json.data : json;
+    const newToken =
+      layer?.accessToken || layer?.token || json?.accessToken || json?.token || null;
+    const newRt = layer?.refreshToken || json?.refreshToken || null;
+    if (!newToken) {
+      throw makeAuthError('Refresh response missing access token', 401);
+    }
+
+    persistAccessToken(newToken);
+    const nextRefresh = newRt || rt;
+    if (newRt) window.localStorage.setItem('refreshToken', newRt);
+    syncSessionExpiryFromRefreshToken(nextRefresh);
+
+    for (const cb of _refreshListeners) {
+      try {
+        cb({ token: newToken, refreshToken: newRt || null });
+      } catch {
+        /* ignore */
+      }
+    }
+
+    return { token: newToken, refreshToken: nextRefresh };
+  })().finally(() => {
+    _refreshPromise = null;
+  });
 
   return _refreshPromise;
+}
+
+/**
+ * Transparently refresh the access token when a 401 is received.
+ * Returns the new access token or null on failure (does not throw).
+ */
+async function autoRefreshAccessToken() {
+  try {
+    const result = await refreshSessionSingleFlight();
+    return result?.token || null;
+  } catch {
+    return null;
+  }
 }
 
 export function getTenantId() {
