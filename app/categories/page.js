@@ -151,7 +151,9 @@ function CategoryCard({ category, featured = false }) {
   const { bg, stroke } = getCategoryColor(category.name);
   const categorySlugOrId = category.slug || category.id;
   const imageUrl = getCategoryImageUrl(category);
-  const onImage = !!imageUrl;
+  const [imgSrc, setImgSrc] = useState(imageUrl || null);
+  const isDummy = imgSrc === CATEGORY_DUMMY_IMAGE;
+  const onImage = Boolean(imgSrc);
 
   return (
     <Link
@@ -161,19 +163,23 @@ function CategoryCard({ category, featured = false }) {
       }`}
     >
       <div
-        className={`relative w-full overflow-hidden rounded-2xl ${
+        className={`category-page-tile relative w-full overflow-hidden rounded-2xl ${
           featured ? 'aspect-[2/1.05]' : 'aspect-square'
         }`}
-        style={{ background: onImage ? '#F2F3F5' : bg }}
+        style={{ background: onImage && !isDummy ? '#F2F3F5' : bg }}
       >
         {onImage ? (
           <img
-            src={imageUrl}
+            src={imgSrc}
             alt=""
             loading="lazy"
-            className="absolute inset-0 h-full w-full object-contain object-center p-2 sm:p-2.5"
-            onError={(e) => {
-              e.currentTarget.src = CATEGORY_DUMMY_IMAGE;
+            className={
+              isDummy
+                ? 'category-page-tile-contain absolute inset-0 h-full w-full object-contain object-center p-2 sm:p-2.5'
+                : 'category-page-tile-cover absolute inset-0 h-full w-full object-cover object-center'
+            }
+            onError={() => {
+              if (!isDummy) setImgSrc(CATEGORY_DUMMY_IMAGE);
             }}
           />
         ) : (
@@ -446,17 +452,17 @@ export default function CategoriesPage() {
 
       {/* View all products CTA */}
       {!isLoading && filtered.length > 0 && (
-        <div className="px-4 mt-4">
+        <div className="px-4 mt-6 mb-2">
           <Link
             href="/products"
-            className="flex items-center justify-center gap-2 py-3 rounded-2xl border border-gray-200 bg-white text-[13px] font-medium text-violet-700 hover:bg-violet-50 hover:border-violet-200 transition"
+            className="flex h-12 items-center justify-center gap-2 rounded-full border border-[#902bf5]/30 bg-[#902bf5]/12 px-5 text-[14px] font-extrabold tracking-wide text-[#902bf5] shadow-[0_8px_20px_rgba(144,43,245,0.12)] transition hover:bg-[#902bf5]/18 hover:border-[#902bf5]/45 active:scale-[0.98]"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
             </svg>
             View all products
-            <svg className="w-4 h-4 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
         </div>
