@@ -5,9 +5,16 @@ import {
   warnBuildApiUnavailable,
 } from '../../../utils/buildTimeApi';
 
+/** Cloudflare Pages static export only — EC2/`next start` resolves any slug at runtime. */
+const useStaticExport = process.env.NEXT_STATIC_EXPORT === 'true';
+
+// Server builds: allow /categories/beauty (etc.) without rebuilding when admin adds a category.
+// Static export: only pre-rendered paths exist.
+export const dynamicParams = !useStaticExport;
+
 export async function generateStaticParams() {
-  // Keep export builds working even if API isn't reachable at build time.
-  if (process.env.NODE_ENV !== 'production') return [];
+  // Live Node deploy: skip prebuild; CategoryBrowseClient loads the tree from DB/API.
+  if (!useStaticExport) return [];
 
   try {
     const slugs = await fetchCategorySlugsAtBuildTime();
@@ -18,8 +25,6 @@ export async function generateStaticParams() {
     return BUILD_FALLBACK_CATEGORY_SLUGS.map((categoryId) => ({ categoryId }));
   }
 }
-
-export const dynamicParams = process.env.NODE_ENV !== 'production';
 
 export default function CategoryBrowsePage() {
   return <CategoryBrowseClient />;

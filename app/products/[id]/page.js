@@ -2,8 +2,10 @@ import ProductDetailClient from './ProductDetailClient';
 import { generateProductMetadataForId } from '../../../utils/productMetadata';
 import { generateProductDetailStaticParams } from '../../../utils/productStaticParams';
 
-// Production static export: only pre-rendered `/products/[id]/` paths exist. Dev stays fully dynamic.
-export const dynamicParams = process.env.NODE_ENV !== 'production';
+/** Cloudflare Pages static export only — EC2/`next start` loads any product id at runtime. */
+const useStaticExport = process.env.NEXT_STATIC_EXPORT === 'true';
+
+export const dynamicParams = !useStaticExport;
 
 export async function generateMetadata({ params }) {
   const id = params?.id != null ? String(params.id).trim() : '';
@@ -11,6 +13,7 @@ export async function generateMetadata({ params }) {
 }
 
 export async function generateStaticParams() {
+  if (!useStaticExport) return [];
   return generateProductDetailStaticParams();
 }
 
