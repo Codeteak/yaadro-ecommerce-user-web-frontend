@@ -91,25 +91,17 @@ export APP_PORT
 
 COMPOSE_FILE="${APP_DIR}/docker-compose.yml"
 
-# Stop the running container first so its image becomes unused and can be pruned,
-# then free disk hard before extracting the new ~230MB+ Next.js layers.
-echo "[application_start] Stopping previous customer-web containers..."
-if command -v docker-compose >/dev/null 2>&1; then
-  docker-compose -f "${COMPOSE_FILE}" down --remove-orphans || true
-else
-  docker compose -f "${COMPOSE_FILE}" down --remove-orphans || true
-fi
-
+# Light/conditional cleanup only. Heavy prune already ran in BeforeInstall when disk
+# was full; wiping images again here forces a full multi-GB ECR download.
 yaadro_cleanup pre_pull
 
+echo "[application_start] Pulling ${ECR_IMAGE_URI}..."
 if command -v docker-compose >/dev/null 2>&1; then
-  echo "[application_start] Pulling ${ECR_IMAGE_URI}..."
   docker-compose -f "${COMPOSE_FILE}" pull
-  docker-compose -f "${COMPOSE_FILE}" up -d --force-recreate
+  docker-compose -f "${COMPOSE_FILE}" up -d --force-recreate --remove-orphans
 else
-  echo "[application_start] Pulling ${ECR_IMAGE_URI}..."
   docker compose -f "${COMPOSE_FILE}" pull
-  docker compose -f "${COMPOSE_FILE}" up -d --force-recreate
+  docker compose -f "${COMPOSE_FILE}" up -d --force-recreate --remove-orphans
 fi
 
 yaadro_cleanup post_start
