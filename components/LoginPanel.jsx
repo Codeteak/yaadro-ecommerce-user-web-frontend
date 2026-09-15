@@ -24,7 +24,7 @@ import { otpSchema, validateLoginPhone, firstZodIssueMessage } from '../lib/vali
 import { BRAND_PRIMARY_BTN_FULL } from './ui/brandButton';
 
 const fieldClass =
-  'h-[52px] w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 text-[16px] text-gray-900 transition placeholder:text-gray-400 focus:border-violet-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20';
+  'h-[52px] w-full rounded-2xl border border-[#902bf5]/25 bg-white px-4 text-[16px] text-gray-900 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition placeholder:text-gray-400 focus:border-[#902bf5] focus:outline-none focus:ring-2 focus:ring-[#902bf5]/20';
 
 const OTP_RATE_LIMIT_COOLDOWN_SEC = 5 * 60;
 
@@ -92,7 +92,7 @@ function PrimaryButton({
       isDisabled={disabled || loading}
       isLoading={loading}
       onPress={onClick}
-      className={BRAND_PRIMARY_BTN_FULL}
+      className={`${BRAND_PRIMARY_BTN_FULL} active:scale-[0.98] transition-transform`}
     >
       {loading ? loadingText : children}
     </Button>
@@ -128,7 +128,7 @@ function PhoneStep({ phone, setPhone, onSubmit, isSubmitting, inputRef, otpCoold
 
   return (
     <form onSubmit={onSubmit} className="space-y-0">
-      <label htmlFor="login-phone" className="mb-2 block text-[13px] font-medium text-gray-800">
+      <label htmlFor="login-phone" className="mb-2 block text-[13px] font-semibold text-gray-900">
         Mobile number
       </label>
       <IndianPhoneInput
@@ -140,6 +140,7 @@ function PhoneStep({ phone, setPhone, onSubmit, isSubmitting, inputRef, otpCoold
         showValidHint={false}
         className="mb-6"
         inputClassName={fieldClass}
+        successHintClassName="mt-1.5 text-[12px] text-[#902bf5]"
       />
       <PrimaryButton
         type="submit"
@@ -148,7 +149,7 @@ function PhoneStep({ phone, setPhone, onSubmit, isSubmitting, inputRef, otpCoold
         disabled={otpCooldownSecondsLeft > 0}
       >
         {otpCooldownSecondsLeft > 0 ? `Send OTP in ${otpCooldownSecondsLeft}s` : 'Send OTP'}
-        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
       </PrimaryButton>
@@ -171,21 +172,21 @@ function OtpStep({
   const resendDisabled = isSubmitting || resendSecondsLeft > 0 || otpCooldownSecondsLeft > 0;
   return (
     <form onSubmit={onSubmit} className="space-y-0">
-      <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1 text-[11px] font-semibold text-violet-800">
-        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-[#902bf5]/10 px-3 py-1 text-[11px] font-semibold text-[#902bf5]">
+        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
         </svg>
         OTP sent
       </div>
 
       <div className="mb-2 flex items-center justify-between gap-2">
-        <label htmlFor="login-otp" className="text-[13px] font-medium text-gray-800">
+        <label htmlFor="login-otp" className="text-[13px] font-semibold text-gray-900">
           Code sent to <span className="font-semibold text-gray-900">{phone}</span>
         </label>
         <button
           type="button"
           onClick={onChangePhone}
-          className="shrink-0 text-[12px] font-semibold text-violet-600 hover:text-violet-800"
+          className="shrink-0 text-[12px] font-semibold text-[#902bf5] transition hover:text-[#7d24d6]"
         >
           Change
         </button>
@@ -472,66 +473,72 @@ export default function LoginPanel({ className = '' }) {
 
   return (
     <div className={className}>
-      <div className="mb-5 flex justify-center px-2">
+      <div className="relative mb-5 flex justify-center px-2">
+        <div
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[200px] w-[220px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(144,43,245,0.16)_0%,rgba(144,43,245,0.05)_45%,transparent_70%)] blur-md"
+          aria-hidden
+        />
         <Image
           src="/images/login-image.png"
           alt=""
           width={320}
           height={320}
-          className="h-auto w-[min(78vw,240px)] max-h-[200px] object-contain select-none sm:w-[280px] sm:max-h-[230px] md:max-h-[250px]"
+          className="animate-slide-up relative z-[1] h-auto w-[min(78vw,240px)] max-h-[200px] object-contain select-none sm:w-[280px] sm:max-h-[230px] md:max-h-[250px]"
           priority
           unoptimized
         />
       </div>
 
-      <div className="mb-6 text-center">
-        <h2 className="font-headingnow text-[2.25rem] font-extrabold leading-[0.95] text-gray-900 sm:text-5xl md:text-6xl">
+      <div className="mb-6 text-center animate-slide-up" style={{ animationDelay: '60ms' }}>
+        <h2 className="font-headingnow text-[2rem] font-extrabold leading-[0.95] text-gray-900 sm:text-[2.5rem]">
           Welcome back
         </h2>
-        <p className="mx-auto mt-3 max-w-[340px] text-[14px] leading-relaxed text-gray-500 sm:text-[15px]">
+        <p className="mx-auto mt-2.5 max-w-[320px] text-[14px] leading-snug text-gray-500">
           {step === 'phone'
-            ? 'Sign in to grab your basket and continue shopping fresh, fast, and hassle-free.'
-            : 'Enter the code we sent to your phone to unlock your basket.'}
+            ? 'Sign in to continue shopping fresh and fast.'
+            : 'Enter the code we sent to unlock your basket.'}
         </p>
       </div>
 
       <ErrorBox message={error} />
 
-      {step === 'phone' ? (
-        <PhoneStep
-          phone={phone}
-          setPhone={(v) => {
-            setPhone(v);
-            clearError();
-          }}
-          onSubmit={handleRequestOtp}
-          isSubmitting={isSubmitting}
-          inputRef={phoneInputRef}
-          otpCooldownSecondsLeft={otpCooldownSecondsLeft}
-        />
-      ) : (
-        <OtpStep
-          phone={displayPhone()}
-          code={code}
-          setCode={(v) => {
-            setCode(v);
-            clearError();
-          }}
-          onSubmit={handleVerifyOtp}
-          onResend={handleResend}
-          onChangePhone={() => {
-            cancelWebOtp();
-            setStep('phone');
-            setCode('');
-            setResendSecondsLeft(0);
-            clearError();
-          }}
-          isSubmitting={isSubmitting}
-          inputRef={otpInputRef}
-          resendSecondsLeft={resendSecondsLeft}
-          otpCooldownSecondsLeft={otpCooldownSecondsLeft}
-        />
-      )}
+      <div key={step} className="animate-slide-up">
+        {step === 'phone' ? (
+          <PhoneStep
+            phone={phone}
+            setPhone={(v) => {
+              setPhone(v);
+              clearError();
+            }}
+            onSubmit={handleRequestOtp}
+            isSubmitting={isSubmitting}
+            inputRef={phoneInputRef}
+            otpCooldownSecondsLeft={otpCooldownSecondsLeft}
+          />
+        ) : (
+          <OtpStep
+            phone={displayPhone()}
+            code={code}
+            setCode={(v) => {
+              setCode(v);
+              clearError();
+            }}
+            onSubmit={handleVerifyOtp}
+            onResend={handleResend}
+            onChangePhone={() => {
+              cancelWebOtp();
+              setStep('phone');
+              setCode('');
+              setResendSecondsLeft(0);
+              clearError();
+            }}
+            isSubmitting={isSubmitting}
+            inputRef={otpInputRef}
+            resendSecondsLeft={resendSecondsLeft}
+            otpCooldownSecondsLeft={otpCooldownSecondsLeft}
+          />
+        )}
+      </div>
     </div>
   );
 }
