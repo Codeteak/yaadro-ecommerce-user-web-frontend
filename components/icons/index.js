@@ -46,6 +46,7 @@ export {
   ClassifyFilled,
   EmptyBoxFilled,
   Home1Filled,
+  LocationFilled,
   Refresh1Filled,
   SearchFilled,
   ShoppingCart1Filled,

@@ -27,7 +27,7 @@ import { ProductCarouselRowSkeleton, ProductGridSkeleton } from '../components/s
 import {
   ArrowRightRegular as ArrowRight,
   DownRegular as ChevronDown,
-  MapPinRegular as MapPin,
+  LocationFilled as MapPin,
   SearchRegular as Search,
   User1Regular as User,
 } from '../components/icons';
