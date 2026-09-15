@@ -27,7 +27,7 @@ import { Bone, ProductCarouselRowSkeleton } from '../components/skeletons/primit
 import {
   ArrowRightRegular as ArrowRight,
   DownRegular as ChevronDown,
-  LocationFilled as MapPin,
+  ShopFilled as Shop,
   SearchRegular as Search,
   User1Regular as User,
 } from '../components/icons';
@@ -109,10 +109,11 @@ export default function Home() {
   const {
     isChecking: isLocationChecking,
     serviceable: isServiceable,
+    placeLabel: checkedPlaceLabel,
     recheckLocation,
     openServiceAreaSheet,
   } = useLocationService();
-  const { shopName, bannerEnabled, bannerImages } = useShopBranding();
+  const { shopName, shopImage, bannerEnabled, bannerImages } = useShopBranding();
   const { getDefaultAddress, addresses } = useAddress();
 
   const isLocalDev = process.env.NODE_ENV !== 'production';
@@ -349,9 +350,18 @@ export default function Home() {
     if (isLocationChecking) return 'Checking your area…';
     const fromAddress = formatHomeAddressLine(getDefaultAddress());
     if (fromAddress) return fromAddress;
+    const fromCheck = String(checkedPlaceLabel || '').trim();
+    if (fromCheck) return fromCheck;
+    if (isServiceable === true) return 'We deliver to your area';
     if (isServiceable === false) return 'Not available in your area';
     return 'Select delivery location';
-  }, [addresses, getDefaultAddress, isLocationChecking, isServiceable]);
+  }, [
+    addresses,
+    checkedPlaceLabel,
+    getDefaultAddress,
+    isLocationChecking,
+    isServiceable,
+  ]);
 
   const handleNewsletterSubmit = (e) => {
     e.preventDefault();
@@ -430,7 +440,17 @@ export default function Home() {
             className="flex min-w-0 flex-1 items-start gap-1.5 text-left"
             aria-label="Change delivery location"
           >
-            <MapPin size={18} color="#902bf5" className="mt-0.5 h-[18px] w-[18px] shrink-0" />
+            {shopImage ? (
+              <span className="mt-0.5 flex h-[18px] w-[18px] shrink-0 overflow-hidden rounded-md bg-[#902bf5]/10 ring-1 ring-[#902bf5]/25">
+                <img
+                  src={shopImage}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              </span>
+            ) : (
+              <Shop size={18} color="#902bf5" className="mt-0.5 h-[18px] w-[18px] shrink-0" />
+            )}
             <span className="min-w-0 flex-1">
               <span className="inline-flex max-w-full items-center gap-0.5">
                 <span className="truncate text-[16px] font-extrabold leading-tight text-gray-900">

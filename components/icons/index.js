@@ -30,6 +30,7 @@ export {
   RightRegular,
   SearchRegular,
   Share2Regular,
+  ShopRegular,
   ShoppingCart1Regular,
   TagRegular,
   TimeRegular,
@@ -49,6 +50,7 @@ export {
   LocationFilled,
   Refresh1Filled,
   SearchFilled,
+  ShopFilled,
   ShoppingCart1Filled,
   User1Filled,
 } from '@mingcute/react/core-filled';
