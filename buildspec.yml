@@ -20,6 +20,9 @@ phases:
       - ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
       - ECR_URI="${ECR_REPOSITORY_URI}"
       - IMAGE_TAG="$(echo "${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}" | cut -c1-12)"
+      - chmod +x scripts/cicd/cleanup_disk.sh
+      - echo "=== Disk cleanup before Docker build ==="
+      - bash scripts/cicd/cleanup_disk.sh codebuild
       - aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
       - echo "Building ${ECR_URI}:${IMAGE_TAG}"
       - |
@@ -60,6 +63,9 @@ phases:
           .
       - docker push "${ECR_URI}:${IMAGE_TAG}"
       - docker push "${ECR_URI}:latest"
+      - echo "=== Post-push Docker prune (free CodeBuild ephemeral disk) ==="
+      - docker builder prune -af || true
+      - docker image prune -f || true
 
   post_build:
     commands:

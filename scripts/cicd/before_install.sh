@@ -2,6 +2,24 @@
 set -euo pipefail
 
 APP_DIR="/home/deploy/yaadro/customer-web"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Free disk before CodeDeploy overwrites files / before ApplicationStart pulls.
+if [[ -f "${SCRIPT_DIR}/cleanup_disk.sh" ]]; then
+  bash "${SCRIPT_DIR}/cleanup_disk.sh" pre_pull || true
+elif [[ -f "${APP_DIR}/scripts/cicd/cleanup_disk.sh" ]]; then
+  bash "${APP_DIR}/scripts/cicd/cleanup_disk.sh" pre_pull || true
+else
+  echo "[before_install] cleanup_disk.sh not present yet; light fallback prune"
+  if command -v docker >/dev/null 2>&1; then
+    docker container prune -f || true
+    docker image prune -af || true
+    docker builder prune -af || true
+    find /var/lib/docker/containers -type f -name '*-json.log' -size +20M \
+      -exec truncate -s 0 {} \; 2>/dev/null || true
+  fi
+  df -h / || true
+fi
 
 install_pkg() {
   if command -v dnf >/dev/null 2>&1; then
