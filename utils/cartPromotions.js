@@ -444,6 +444,15 @@ export function expandCartItemsWithBundleRewards(items) {
       const apiReward = rewardLines.find((r) => bundleRewardMatchesParent(r, parentId));
       if (apiReward) {
         const productId = cartLineProductId(apiReward) || rewardPid;
+        const snap = rewardSnapshotFromRule(rule, matchingRewardPaid);
+        const snapImage =
+          snap?.imageUrl || snap?.image || (Array.isArray(snap?.images) ? snap.images[0] : null);
+        const apiImage =
+          apiReward.imageUrl ||
+          apiReward.image_url ||
+          apiReward.image ||
+          (Array.isArray(apiReward.images) ? apiReward.images[0] : null);
+        const image = (typeof apiImage === 'string' && apiImage.trim()) || snapImage || undefined;
         out.push({
           ...apiReward,
           productId: productId || apiReward.productId,
@@ -453,6 +462,15 @@ export function expandCartItemsWithBundleRewards(items) {
           price: 0,
           lineTotal: 0,
           total: 0,
+          ...(image
+            ? {
+                image,
+                imageUrl: image,
+                images: Array.isArray(apiReward.images) && apiReward.images.length
+                  ? apiReward.images
+                  : [image],
+              }
+            : {}),
         });
       } else {
         const synthetic = buildSyntheticBundleRewardLine(paid, freeQty, parentId, {

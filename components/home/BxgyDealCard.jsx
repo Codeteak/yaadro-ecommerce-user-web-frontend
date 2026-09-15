@@ -6,6 +6,57 @@ import {
   formatSameSkuBxgyLabel,
 } from '../../utils/bxgyLabels';
 
+function firstProductImage(product) {
+  if (!product || typeof product !== 'object') return '';
+  const candidates = [
+    product.imageUrl,
+    product.image_url,
+    product.image,
+    Array.isArray(product.images) ? product.images[0] : null,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim()) return c.trim();
+  }
+  return '';
+}
+
+/**
+ * Engine rules often omit reward_product_image when the free SKU only has a
+ * gallery thumb. Shelf cards still show it — copy that URL onto the buy rule
+ * so guest cart free lines can render the same image.
+ */
+function enrichCrossRulesWithRewardMedia(rules, getProduct) {
+  const getImage = firstProductImage(getProduct);
+  const getName = String(getProduct?.name || getProduct?.shortName || '').trim();
+  if (!getImage && !getName) return rules;
+
+  let changed = false;
+  const next = rules.map((r) => {
+    if (!r || typeof r !== 'object') return r;
+    const isCross =
+      r.scope === 'cross_shop_products' ||
+      (r.buy_shop_product_id && r.reward_shop_product_id) ||
+      (r.buyShopProductId && r.rewardShopProductId);
+    if (!isCross) return r;
+
+    const existingImg = String(
+      r.reward_product_image || r.rewardProductImage || r.get_product_image || '',
+    ).trim();
+    const existingName = String(
+      r.reward_product_name || r.rewardProductName || '',
+    ).trim();
+    if (existingImg && existingName) return r;
+
+    changed = true;
+    return {
+      ...r,
+      ...(existingName || !getName ? {} : { reward_product_name: getName }),
+      ...(existingImg || !getImage ? {} : { reward_product_image: getImage }),
+    };
+  });
+  return changed ? next : rules;
+}
+
 /**
  * Home deal chrome alone is not enough for cart — attach a real bundle rule
  * onto the buy product when engine `bundleRules` are missing.
@@ -24,7 +75,11 @@ function ensureDealCartBundleRules(product, {
     : Array.isArray(product.bundle_rules)
       ? product.bundle_rules
       : [];
-  if (existing.length > 0) return product;
+  if (existing.length > 0) {
+    const enriched = enrichCrossRulesWithRewardMedia(existing, getProduct);
+    if (enriched === existing) return product;
+    return { ...product, bundleRules: enriched, bundle_rules: enriched };
+  }
 
   const buyId = String(buyProduct?.id || product.id || '').trim();
   if (!buyId) return product;
@@ -47,8 +102,7 @@ function ensureDealCartBundleRules(product, {
           reward_type: 'free',
           buy_product_name: buyProduct?.name || product.name || '',
           reward_product_name: getProduct?.name || '',
-          reward_product_image:
-            getProduct?.imageUrl || getProduct?.image || '',
+          reward_product_image: firstProductImage(getProduct),
         },
       ],
     };
