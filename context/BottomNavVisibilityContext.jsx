@@ -26,6 +26,7 @@ export function BottomNavVisibilityProvider({ children }) {
     path === '/cart' ||
     path === '/add/address' ||
     path === '/order' ||
+    path.startsWith('/order/') ||
     path.startsWith('/orders/') ||
     path === '/product' ||
     (pathname?.startsWith('/products/') && path !== '/products');

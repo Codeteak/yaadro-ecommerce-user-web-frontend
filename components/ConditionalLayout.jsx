@@ -27,6 +27,7 @@ export default function ConditionalLayout({ children }) {
     path === '/orders' ||
     path.startsWith('/orders/') ||
     path === '/order' ||
+    path.startsWith('/order/') ||
     path === '/product' ||
     (pathname?.startsWith('/products/') && path !== '/products');
 

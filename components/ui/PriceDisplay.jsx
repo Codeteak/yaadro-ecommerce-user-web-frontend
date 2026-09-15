@@ -21,13 +21,14 @@ const SIZE_CLASS = {
 };
 
 /**
- * @param {{ amount: number, listPrice?: number|null, size?: 'sm'|'md'|'lg', className?: string }} props
+ * @param {{ amount: number, listPrice?: number|null, size?: 'sm'|'md'|'lg', className?: string, suffix?: string }} props
  */
 export default function PriceDisplay({
   amount,
   listPrice = null,
   size = 'md',
   className = '',
+  suffix,
 }) {
   const sizes = SIZE_CLASS[size] ?? SIZE_CLASS.md;
   const showMrp =
@@ -38,6 +39,9 @@ export default function PriceDisplay({
       <span className={`inline-flex items-baseline gap-0.5 ${sizes.amount}`}>
         <span className={`leading-none ${sizes.symbol}`}>₹</span>
         <span>{formatRupeeINR(amount)}</span>
+        {suffix ? (
+          <span className={`ml-0.5 font-semibold text-gray-600 ${sizes.mrp}`}>{suffix}</span>
+        ) : null}
       </span>
       {showMrp && (
         <span className={`inline-flex items-baseline gap-0.5 font-medium text-gray-400 line-through ${sizes.mrp}`}>
