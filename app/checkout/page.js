@@ -30,6 +30,7 @@ import { useLoginNavigation } from "../../hooks/useLoginNavigation";
 import CheckoutCouponsSection from "../../components/CheckoutCouponsSection";
 import { getCartBottomBarPricing } from "../../utils/cartSavings";
 import {
+  BXGY_COUPON_BLOCKED_MESSAGE,
   sumCartPaidUnits,
   isBundleRewardCartLine,
 } from "../../utils/cartPromotions";
@@ -481,6 +482,7 @@ export default function CheckoutPage() {
     setSelectedCouponCode,
     selectedCouponCodes,
     setSelectedCouponCodes,
+    bxgyBlocksCoupons,
     hasHydratedLocalCart,
     loading: cartQueryLoading,
     cartData,
@@ -761,15 +763,26 @@ export default function CheckoutPage() {
         setIsSubmitting(false);
         return;
       }
-      const checkoutLines = cartItems
-        .filter((it) => !isBundleRewardCartLine(it))
-        .map((it) => ({
-          productId: String(
+      const checkoutLines = (() => {
+        /** @type {Map<string, number>} */
+        const byProduct = new Map();
+        for (const it of cartItems) {
+          const productId = String(
             it.productId ?? it.product_id ?? it.product?.id ?? "",
-          ).trim(),
-          quantity: Number(it.quantity) || 1,
-        }))
-        .filter((it) => it.productId && it.quantity > 0);
+          ).trim();
+          if (!productId) continue;
+          if (isBundleRewardCartLine(it)) {
+            const qty = Math.max(1, Number(it.quantity) || 1);
+            byProduct.set(productId, (byProduct.get(productId) || 0) + qty);
+            continue;
+          }
+          const qty = Math.max(1, Number(it.quantity) || 1);
+          byProduct.set(productId, (byProduct.get(productId) || 0) + qty);
+        }
+        return [...byProduct.entries()]
+          .map(([productId, quantity]) => ({ productId, quantity }))
+          .filter((it) => it.productId && it.quantity > 0);
+      })();
       if (!checkoutLines.length) {
         showAlert(
           "Your cart is empty. Add items before placing an order.",
@@ -781,11 +794,14 @@ export default function CheckoutPage() {
       }
       const orderResponse = await placeStorefrontOrder({
         notes: notes.trim() || undefined,
-        couponCode: (selectedCouponCode || "").trim() || undefined,
+        couponCode: bxgyBlocksCoupons
+          ? undefined
+          : (selectedCouponCode || "").trim() || undefined,
         couponCodes:
-          Array.isArray(selectedCouponCodes) && selectedCouponCodes.length > 1
-            ? selectedCouponCodes
-            : undefined,
+          bxgyBlocksCoupons ||
+          !(Array.isArray(selectedCouponCodes) && selectedCouponCodes.length > 1)
+            ? undefined
+            : selectedCouponCodes,
         lat: selectedAddressCoords.lat,
         lng: selectedAddressCoords.lng,
         items: checkoutLines,
@@ -1053,11 +1069,15 @@ export default function CheckoutPage() {
         {/* ── Coupons (applied at checkout via POST /storefront/checkout) ── */}
         <div className="px-4 pt-5 pb-1 space-y-2.5">
           <CouponThresholdBanner
-            hint={getCouponThresholdHint(
-              couponPreviewTrusted ? cartData?.promotions : null,
-              cartSubtotalMinor,
-              [],
-            )}
+            hint={
+              bxgyBlocksCoupons
+                ? null
+                : getCouponThresholdHint(
+                    couponPreviewTrusted ? cartData?.promotions : null,
+                    cartSubtotalMinor,
+                    [],
+                  )
+            }
           />
           <CheckoutCouponsSection
             cartSubtotalMinor={cartSubtotalMinor}
@@ -1075,6 +1095,8 @@ export default function CheckoutPage() {
             promotionsPaused={
               couponPreviewTrusted ? cartData?.promotions?.paused : false
             }
+            couponsBlocked={!!bxgyBlocksCoupons}
+            couponsBlockedMessage={BXGY_COUPON_BLOCKED_MESSAGE}
             enabled={!!isAuthenticated && cartItems.length > 0}
           />
         </div>

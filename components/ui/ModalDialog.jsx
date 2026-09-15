@@ -6,7 +6,7 @@ import { CloseRegular as X } from '../icons';
 export function ModalDialogOverlay({ className = 'z-50', ...props }) {
   return (
     <Dialog.Overlay
-      className={`fixed inset-0 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out ${className}`}
+      className={`bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out ${className}`}
       {...props}
     />
   );
@@ -22,24 +22,26 @@ export function ModalDialogContent({
 }) {
   return (
     <Dialog.Portal>
-      <ModalDialogOverlay className={overlayClassName} />
-      <Dialog.Content
-        className={`fixed left-1/2 top-1/2 z-[51] w-[min(100vw-2rem,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white shadow-2xl outline-none ${className}`}
-        onPointerDownOutside={onClose}
-        onEscapeKeyDown={onClose}
-        {...props}
-      >
-        {showClose ? (
-          <Dialog.Close
-            className="absolute right-4 top-4 rounded-full p-1 text-gray-500 hover:bg-gray-100"
-            aria-label="Close"
-            onClick={onClose}
-          >
-            <X size={20} className="h-5 w-5" />
-          </Dialog.Close>
-        ) : null}
-        {children}
-      </Dialog.Content>
+      <div className={`fixed inset-0 ${overlayClassName}`}>
+        <ModalDialogOverlay className="absolute inset-0" />
+        <Dialog.Content
+          className={`fixed left-1/2 top-1/2 z-10 w-[min(100vw-2rem,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white shadow-2xl outline-none ${className}`}
+          onPointerDownOutside={onClose}
+          onEscapeKeyDown={onClose}
+          {...props}
+        >
+          {showClose ? (
+            <Dialog.Close
+              className="absolute right-4 top-4 rounded-full p-1 text-gray-500 hover:bg-gray-100"
+              aria-label="Close"
+              onClick={onClose}
+            >
+              <X size={20} className="h-5 w-5" />
+            </Dialog.Close>
+          ) : null}
+          {children}
+        </Dialog.Content>
+      </div>
     </Dialog.Portal>
   );
 }

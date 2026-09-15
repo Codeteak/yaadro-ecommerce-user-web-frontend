@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -12,6 +12,7 @@ import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryI
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import { CategoryCardSkeleton } from '../../components/skeletons/primitives';
 import ProductImageWithFallback from '../../components/ProductImageWithFallback';
+import BrowsePageHeader from '../../components/BrowsePageHeader';
 
 /** Rotating hint (same UX as header search). */
 const FALLBACK_HINT_WORDS = [
@@ -144,67 +145,55 @@ function CategoryIcon({ name, strokeColor }) {
 
 /* ─────────────────────────────────────────────
    Category card → dedicated category browse page
+   Blinkit-style: light tile + label below (no section grouping)
 ───────────────────────────────────────────── */
-function CategoryCard({ category }) {
+function CategoryCard({ category, featured = false }) {
   const { bg, stroke } = getCategoryColor(category.name);
-  const productCount = category.productCount ?? category._count?.products ?? 0;
   const categorySlugOrId = category.slug || category.id;
-
   const imageUrl = getCategoryImageUrl(category);
   const onImage = !!imageUrl;
 
   return (
     <Link
       href={`/categories/${encodeURIComponent(categorySlugOrId)}`}
-      className="block bg-white rounded-[18px] overflow-hidden border border-gray-100 hover:border-gray-200 active:scale-[0.98] transition-all select-none"
+      className={`flex flex-col items-center gap-1.5 select-none active:scale-[0.97] transition-transform ${
+        featured ? 'col-span-2' : ''
+      }`}
     >
-      <div className="relative min-h-[168px] w-full overflow-hidden">
+      <div
+        className={`relative w-full overflow-hidden rounded-2xl ${
+          featured ? 'aspect-[2/1.05]' : 'aspect-square'
+        }`}
+        style={{ background: onImage ? '#F2F3F5' : bg }}
+      >
         {onImage ? (
           <img
             src={imageUrl}
             alt=""
             loading="lazy"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              objectPosition: 'center',
-              display: 'block',
-            }}
+            className="absolute inset-0 h-full w-full object-contain object-center p-2 sm:p-2.5"
             onError={(e) => {
               e.currentTarget.src = CATEGORY_DUMMY_IMAGE;
             }}
           />
         ) : (
-          <>
-            <div className="absolute inset-0" style={{ background: bg }} aria-hidden />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/85 shadow-sm"
-                aria-hidden
-              >
-                <CategoryIcon name={category.name} strokeColor={stroke} />
-              </div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/85 shadow-sm sm:h-11 sm:w-11"
+              aria-hidden
+            >
+              <CategoryIcon name={category.name} strokeColor={stroke} />
             </div>
-          </>
-        )}
-
-        {/* Bottom name strip — readable regardless of image position */}
-        <div className="absolute inset-x-0 bottom-0 z-10 border-t border-black/5 bg-white/90 px-3 py-2 backdrop-blur-sm">
-          <div className="flex items-center justify-between gap-2">
-            <p className="min-w-0 truncate text-[13px] font-bold leading-snug text-gray-900">
-              {category.name}
-            </p>
-            {productCount > 0 && (
-              <span className="flex-shrink-0 rounded-full bg-gray-900/10 px-2 py-0.5 text-[10px] font-semibold text-gray-800">
-                {productCount} items
-              </span>
-            )}
           </div>
-        </div>
+        )}
       </div>
+      <p
+        className={`w-full px-0.5 text-center text-[11px] font-bold leading-snug text-gray-900 sm:text-[12px] ${
+          featured ? 'line-clamp-2' : 'line-clamp-2'
+        }`}
+      >
+        {category.name}
+      </p>
     </Link>
   );
 }
@@ -216,6 +205,17 @@ export default function CategoriesPage() {
   const router = useRouter();
   const { data: categoryTree = [], isLoading } = useCategoriesTree();
   const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const handleBack = useCallback(() => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.replace('/');
+  }, [router]);
+
+  const onSearchOpenToggle = useCallback(() => setSearchOpen((v) => !v), []);
 
   const { data: newArrivalsData } = useProducts({
     limit: 14,
@@ -267,52 +267,52 @@ export default function CategoriesPage() {
     : rootCategories;
 
   return (
-    <div className="min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden pb-28 pt-[env(safe-area-inset-top,0px)]">
-
-      {/* Hero heading — matches section title typography (`font-headingnow`) */}
-      <div className="px-4 pt-4 pb-2">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1] mb-1.5">
-          Browse categories
-        </h1>
-        <p className="text-[13px] text-gray-500">Tap any category to explore products</p>
-      </div>
-
-      {/* Search bar */}
-      <div className="px-4 pb-3 relative">
-        <div className="flex items-center gap-2 px-3 h-10 rounded-full border border-gray-200 bg-gray-50 focus-within:bg-white focus-within:border-violet-500 transition">
-          <svg
-            className="h-4 w-4 text-gray-400 flex-shrink-0"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+    <div className="min-h-screen bg-white w-full max-w-full overflow-x-hidden pb-28 pt-[env(safe-area-inset-top,0px)]">
+      <BrowsePageHeader
+        title="Categories"
+        searchOpen={searchOpen}
+        onBack={handleBack}
+        onSearchToggle={onSearchOpenToggle}
+        searchAriaLabel="Search categories"
+        searchSlot={
+          <div className="flex items-center gap-2 px-3 h-10 rounded-full border border-gray-200 bg-white focus-within:border-violet-400 focus-within:ring-1 focus-within:ring-violet-200 transition">
+            <svg
+              className="h-4 w-4 text-gray-400 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <RotatingHintInput
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              hintWords={hintWords}
+              inputProps={{
+                type: 'search',
+                'aria-label': 'Search categories',
+                autoFocus: true,
+              }}
             />
-          </svg>
-          <RotatingHintInput
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            hintWords={hintWords}
-            inputProps={{
-              type: 'text',
-              'aria-label': 'Search categories',
-            }}
-          />
-        </div>
-      </div>
+          </div>
+        }
+      />
 
-      {/* Category grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 px-4">
+      {/* Continuous category grid (no section headers) */}
+      <div className="grid grid-cols-4 gap-x-2.5 gap-y-4 px-4 pt-4 sm:gap-x-3 sm:gap-y-5">
         {isLoading
-          ? Array.from({ length: 6 }).map((_, i) => <CategoryCardSkeleton key={i} />)
+          ? Array.from({ length: 8 }).map((_, i) => (
+              <CategoryCardSkeleton key={i} featured={i === 0} />
+            ))
           : filtered.length === 0
           ? (
-            <div className="col-span-2 sm:col-span-3 lg:col-span-4 flex flex-col items-center justify-center py-16 text-center">
+            <div className="col-span-4 flex flex-col items-center justify-center py-16 text-center">
               <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
                 <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -327,8 +327,12 @@ export default function CategoriesPage() {
               </button>
             </div>
           )
-          : filtered.map((category) => (
-              <CategoryCard key={category.id} category={category} />
+          : filtered.map((category, index) => (
+              <CategoryCard
+                key={category.id}
+                category={category}
+                featured={index === 0 && !search.trim()}
+              />
             ))
         }
       </div>

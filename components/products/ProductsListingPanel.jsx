@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, memo, useEffect, useRef } from 'react';
+import { useMemo, memo, useEffect, useRef } from 'react';
 import { useInfiniteProducts } from '../../hooks/useProducts';
 import { getProductRating, getProductDiscount } from '../../utils/productUtils';
 import ProductCard from '../ProductCard';
@@ -11,7 +11,7 @@ import EmptyState from '../ui/EmptyState';
 
 const PRODUCTS_SCROLL_KEY = 'yaadro_products_scroll_v1';
 
-function FilterBar({ filters, onFilterToggle, sortKey, onSortChange, disabled }) {
+export function FilterBar({ filters, onFilterToggle, sortKey, onSortChange, disabled }) {
   const sortLabel = SORT_OPTIONS.find((s) => s.key === sortKey)?.label || 'Sort';
   const sortIdx = SORT_OPTIONS.findIndex((s) => s.key === sortKey);
 
@@ -116,13 +116,12 @@ function ProductsListingPanelInner({
   localInResultsSearch,
   onResetBrowse,
   isPending,
+  filters,
+  onFilterToggle,
+  sortKey,
+  onSortChange,
+  onClearFilters,
 }) {
-  const [filters, setFilters] = useState({
-    organic: false,
-    inStock: false,
-    onSale: false,
-  });
-  const [sortKey, setSortKey] = useState('default');
   const restoredScrollRef = useRef(false);
 
   const infiniteParams = useMemo(() => {
@@ -133,6 +132,10 @@ function ProductsListingPanelInner({
       search: combined || undefined,
       availability: filters.inStock ? 'in_stock' : undefined,
     };
+    // Root rail categories (e.g. Dairy) must include children like Ghee.
+    if (categoryId) {
+      q.include_descendants = true;
+    }
     if (sortKey === 'price-asc') {
       q.sort_by = 'price';
       q.sort_order = 'asc';
@@ -235,13 +238,8 @@ function ProductsListingPanelInner({
     return () => document.removeEventListener('click', onClick, true);
   }, [categoryId, urlSearch]);
 
-  const handleFilterToggle = (key) => {
-    setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
   const handleReset = () => {
-    setFilters({ organic: false, inStock: false, onSale: false });
-    setSortKey('default');
+    onClearFilters?.();
     onResetBrowse();
   };
 
@@ -252,16 +250,6 @@ function ProductsListingPanelInner({
       }`}
       aria-busy={isPending || isLoading}
     >
-      <div className="mb-3">
-        <FilterBar
-          filters={filters}
-          onFilterToggle={handleFilterToggle}
-          sortKey={sortKey}
-          onSortChange={setSortKey}
-          disabled={isLoading}
-        />
-      </div>
-
       {!isLoading && (
         <p className="mb-2 text-[11px] text-gray-400">
           {activeCategoryLabel}

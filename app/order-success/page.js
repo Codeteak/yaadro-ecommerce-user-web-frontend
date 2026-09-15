@@ -8,14 +8,22 @@ import { useShopBranding } from '../../context/ShopBrandingContext';
 import { useOrderDetail } from '../../hooks/useOrders';
 import { clearCheckoutDraft } from '../../utils/checkoutSession';
 import { downloadBillHtml, printBillPdf } from '../../utils/orderInvoice';
+import {
+  getOrderLineOfferLabel,
+  getOrderPromotionSummary,
+  inferOrderLinePaidQuantity,
+  orderHasBxgyOffer,
+  parseOrderQuantity,
+} from '../../utils/orderPromotions';
 import BillPreviewSheet from '../../components/BillPreviewSheet';
-import { getOrderPromotionSummary } from '../../utils/orderPromotions';
 import {
   hasOpenedTrackingThisSession,
   inAppTrackingHref,
   isHttpTrackingUrl,
   markTrackingOpenedThisSession,
 } from '../../utils/deliveryTracking';
+import { hasOrderDisplayAddress, savedAddressToOrderAddress } from '../../utils/orderApi';
+import { useAddress } from '../../context/AddressContext';
 
 /* ─────────────────────────────────────────────────────────────
    Tiny inline helpers – no extra deps
@@ -92,6 +100,7 @@ function CheckIcon({ rejected }) {
 
 function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
   const items   = order?.items || [];
+  const hasBxgy = orderHasBxgyOffer(items.filter((it) => !it?.isDeleted));
   const addr    = order?.deliveryAddress || order?.address || {};
   const rawMethod = order?.paymentMethod || paymentStatus;
   const method =
@@ -172,11 +181,19 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
         <div style={styles.itemsList}>
           {items.slice(0, 3).map((item, idx) => {
             const name  = safe(item.productName || item.name || item.product?.name || 'Item');
-            const qty   = item.quantity ?? 1;
+            const qty   = parseOrderQuantity(item.quantity);
+            const paid  = inferOrderLinePaidQuantity(item);
+            const offerLabel = getOrderLineOfferLabel(item);
+            const qtyText =
+              paid > 0 && qty > paid
+                ? `${paid} paid + ${qty - paid} free`
+                : offerLabel === 'FREE'
+                  ? `Qty ${qty} · free`
+                  : `Qty ${qty}`;
             const unit  = Number(item.unitPrice ?? item.price ?? 0) || 0;
             const list  = Number(item.listPrice ?? item.originalPrice ?? 0) || 0;
             const total = item.totalPrice != null ? Number(item.totalPrice) : unit * qty;
-            const listLine = list > unit + 1e-9 ? list * qty : null;
+            const listLine = list > unit + 1e-9 ? list * (paid > 0 ? paid : qty) : null;
             const imgSrc =
               item?.product?.images?.[0] ||
               (typeof item?.image === 'string' ? item.image : item?.image?.url) ||
@@ -190,8 +207,27 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
                   }
                 </div>
                 <div style={styles.itemInfo}>
-                  <div style={styles.itemName}>{name}</div>
-                  <div style={styles.itemQty}>Qty {qty}</div>
+                  <div style={styles.itemName}>
+                    {name}
+                    {offerLabel ? (
+                      <span
+                        style={{
+                          marginLeft: 6,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
+                          color: '#5b21b6',
+                          background: '#f3e8ff',
+                          borderRadius: 4,
+                          padding: '1px 5px',
+                          verticalAlign: 'middle',
+                        }}
+                      >
+                        {offerLabel}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div style={styles.itemQty}>{qtyText}</div>
                 </div>
                 <div style={{ ...styles.itemPrice, textAlign: 'right' }}>
                   {listLine != null && (
@@ -199,7 +235,7 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
                       {money(listLine)}
                     </div>
                   )}
-                  <div>{money(total)}</div>
+                  <div>{offerLabel === 'FREE' ? money(0) : money(total)}</div>
                 </div>
               </div>
             );
@@ -232,7 +268,13 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
             <span>Tax</span><span>{money(order.tax)}</span>
           </div>
         )}
-        {showSplit ? (
+        {hasBxgy && orderPromo.autoPromotionDiscountMajor > 0.009 ? (
+          <div style={{ ...styles.totalLine, color: '#7d24d6' }}>
+            <span>Buy X get Y savings</span>
+            <span>−{money(orderPromo.autoPromotionDiscountMajor)}</span>
+          </div>
+        ) : null}
+        {!hasBxgy && showSplit ? (
           <>
             {saleSavings > 0.009 && (
               <div style={{ ...styles.totalLine, color: '#7d24d6' }}>
@@ -252,6 +294,7 @@ function OrderCard({ order, orderId, paymentStatus, isLoading, isError }) {
             )}
           </>
         ) : (
+          !hasBxgy &&
           order?.discount != null &&
           Number(order.discount) > 0 && (
             <div style={{ ...styles.totalLine, color: '#7d24d6' }}>
@@ -298,6 +341,7 @@ function OrderSuccessContent() {
   const router        = useRouter();
   const { getOrderById } = useOrder();
   const { shopName, shopImage } = useShopBranding();
+  const { getDefaultAddress } = useAddress();
 
   useEffect(() => {
     clearCheckoutDraft();
@@ -307,7 +351,16 @@ function OrderSuccessContent() {
   const orderId       = rawOrderId && rawOrderId !== 'ORD-PENDING' ? rawOrderId : '';
   const paymentStatus = searchParams?.get('payment');
   const { data: apiOrder, isLoading: orderLoading, isError: orderError } = useOrderDetail(orderId);
-  const order         = apiOrder || getOrderById(orderId);
+  const rawOrder = apiOrder || getOrderById(orderId);
+  const order = useMemo(() => {
+    if (!rawOrder) return rawOrder;
+    if (hasOrderDisplayAddress(rawOrder.deliveryAddress) || hasOrderDisplayAddress(rawOrder.address)) {
+      return rawOrder;
+    }
+    const fallback = savedAddressToOrderAddress(getDefaultAddress());
+    if (!hasOrderDisplayAddress(fallback)) return rawOrder;
+    return { ...rawOrder, deliveryAddress: fallback, address: fallback };
+  }, [rawOrder, getDefaultAddress]);
 
   const [countdown, setCountdown] = useState(10);
   const [billOpen, setBillOpen] = useState(false);

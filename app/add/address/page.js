@@ -27,6 +27,7 @@ import { haversineKm, formatDistanceKm } from '../../../utils/geoDistance';
 import { getStoreCoordinates } from '../../../utils/storeLocation';
 import { checkDeliveryLocation } from '../../../utils/storefrontLocationApi';
 import { useLocationService } from '../../../context/LocationServiceContext';
+import { sanitizeAddressNotes } from '../../../utils/addressApi';
 
 /** Map circle + UI when API has not returned a max radius yet (meters). */
 const DELIVERY_RADIUS_FALLBACK_M = Number(process.env.NEXT_PUBLIC_DELIVERY_RADIUS_FALLBACK_M) || 8000;
@@ -44,14 +45,8 @@ const ALLOWED_RETURN_ROUTES = new Set(['/checkout', '/addresses', '/']);
 
 function buildAddressFromExisting(addr) {
   if (!addr) return null;
-  const line1 = String(
-    addr.building ||
-      addr.apartment ||
-      addr.flat ||
-      addr.line1 ||
-      (typeof addr.street === 'string' ? addr.street.split(',')[0] : '') ||
-      ''
-  ).trim();
+  // Apartment / building is customer-typed — do not seed from street/geocode.
+  const line1 = String(addr.line1 || addr.apartment || addr.flat || addr.building || '').trim();
   return {
     label: addr.label || 'Home',
     line1,
@@ -72,7 +67,7 @@ function buildAddressFromExisting(addr) {
     state: addr.state || '',
     postalCode: addr.postalCode || addr.zipCode || '',
     country: addr.country || 'India',
-    raw: addr.raw != null ? String(addr.raw) : '',
+    raw: sanitizeAddressNotes(addr.raw),
   };
 }
 
@@ -536,16 +531,7 @@ export default function AddAddressPage() {
     if (!resolved) return;
     setForm((prev) => {
       const next = { ...prev };
-      const line1FromMap =
-        String(resolved.line1 || '').trim() ||
-        String(resolved.displayName || '').trim() ||
-        [resolved.landmark, resolved.line2].filter(Boolean).join(', ').trim();
-
-      if (overwriteLine1 && line1FromMap) {
-        next.line1 = line1FromMap;
-      } else if (!String(prev.line1 || '').trim() && line1FromMap) {
-        next.line1 = line1FromMap;
-      }
+      // Building / apartment stays customer-typed — never copy geocode into line1.
 
       const fullMapAddress =
         String(resolved.displayName || '').trim() ||
@@ -607,7 +593,7 @@ export default function AddAddressPage() {
       country: form.country || 'India',
       lat: coords?.lat ?? null,
       lng: coords?.lng ?? null,
-      raw: form.raw.trim() || null,
+      raw: sanitizeAddressNotes(form.raw) || null,
       street: combinedStreet,
       address: combinedStreet || line1,
       zipCode: form.postalCode.replace(/\s/g, '').trim(),
@@ -632,11 +618,12 @@ export default function AddAddressPage() {
       navigateBackWith(lastSavedAddressIdRef.current);
       return;
     }
-    if (!isEdit) {
+    // Map step is not persisted until Confirm + Save — always leave immediately.
+    if (!isEdit || step === 1) {
       router.replace(returnTo);
       return;
     }
-    if (!isDraftDirty && step === 1) {
+    if (!isDraftDirty) {
       router.replace(returnTo);
       return;
     }
@@ -969,7 +956,7 @@ export default function AddAddressPage() {
                         ? prev.postalCode
                         : existing.postalCode,
                       country: prev.country || existing.country,
-                      raw: String(prev.raw || '').trim() ? prev.raw : existing.raw,
+                      raw: sanitizeAddressNotes(prev.raw) || sanitizeAddressNotes(existing.raw),
                     }));
                   }
                 }
@@ -1217,7 +1204,7 @@ export default function AddAddressPage() {
 
       <ConfirmModal
         isOpen={showLeaveModal}
-        overlayClassName="z-[250]"
+        overlayClassName="z-[1200]"
         onClose={() => setShowLeaveModal(false)}
         onConfirm={confirmLeaveIncompleteEdit}
         title="Leave without finishing?"

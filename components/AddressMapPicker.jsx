@@ -29,6 +29,70 @@ function scaleForZoom(zoom) {
 function clampLat(v) { return Math.max(-85, Math.min(85, v)); }
 function clampLng(v) { return ((v + 540) % 360) - 180; }
 
+function offsetEast(lat, lng, eastMeters) {
+  const latRad = (lat * Math.PI) / 180;
+  const metersPerDegLng = Math.max(1e-6, 111_320 * Math.cos(latRad));
+  return { lat, lng: lng + eastMeters / metersPerDegLng };
+}
+
+/**
+ * DOM circle via OverlayView — classic Circle/Polygon do not paint on vector mapId maps.
+ */
+function createDeliveryZoneOverlayClass(google) {
+  return class DeliveryZoneOverlay extends google.maps.OverlayView {
+    constructor(center, radiusM) {
+      super();
+      this.center = center;
+      this.radiusM = radiusM;
+      this.el = null;
+    }
+
+    onAdd() {
+      const el = document.createElement('div');
+      el.setAttribute('aria-hidden', 'true');
+      el.style.position = 'absolute';
+      el.style.boxSizing = 'border-box';
+      el.style.border = '3px solid #7d24d6';
+      el.style.background = 'rgba(52, 211, 153, 0.22)';
+      el.style.borderRadius = '50%';
+      el.style.pointerEvents = 'none';
+      el.style.zIndex = '1';
+      this.el = el;
+      const panes = this.getPanes();
+      const pane = panes?.overlayLayer || panes?.mapPane || panes?.overlayMouseTarget;
+      pane?.appendChild(el);
+    }
+
+    draw() {
+      if (!this.el) return;
+      const proj = this.getProjection();
+      if (!proj) return;
+      const centerLl = new google.maps.LatLng(this.center.lat, this.center.lng);
+      const centerPx = proj.fromLatLngToDivPixel(centerLl);
+      if (!centerPx) return;
+      const edge = offsetEast(this.center.lat, this.center.lng, this.radiusM);
+      const edgePx = proj.fromLatLngToDivPixel(new google.maps.LatLng(edge.lat, edge.lng));
+      if (!edgePx) return;
+      const r = Math.max(2, Math.abs(edgePx.x - centerPx.x));
+      this.el.style.left = `${centerPx.x - r}px`;
+      this.el.style.top = `${centerPx.y - r}px`;
+      this.el.style.width = `${r * 2}px`;
+      this.el.style.height = `${r * 2}px`;
+    }
+
+    onRemove() {
+      this.el?.parentNode?.removeChild(this.el);
+      this.el = null;
+    }
+  };
+}
+
+function clearMapOverlay(ref) {
+  if (!ref?.current) return;
+  ref.current.setMap(null);
+  ref.current = null;
+}
+
 function parseGoogleAddress(result) {
   if (!result) return null;
   const comps = Array.isArray(result.address_components) ? result.address_components : [];
@@ -96,6 +160,12 @@ export default function AddressMapPicker({
 
   const [point, setPoint] = useState(initialPoint);
   const [liveZoom, setLiveZoom] = useState(value?.lat ? 16 : 12);
+  // Controlled center/zoom fight fitBounds + user pan. Keep the first camera
+  // for GoogleMap props only; later moves go through the map instance.
+  const initialCameraRef = useRef({
+    center: initialPoint,
+    zoom: fitDeliveryZone ? 12 : value?.lat ? 16 : 12,
+  });
   const [reverseStatus, setReverseStatus] = useState('idle'); // idle | loading | error
   const [locating, setLocating] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -147,13 +217,6 @@ export default function AddressMapPicker({
     markerRef.current = null;
   };
 
-  useEffect(() => {
-    if (!value) return;
-    if (!Number.isFinite(value.lat) || !Number.isFinite(value.lng)) return;
-    if (value.lat === point.lat && value.lng === point.lng) return;
-    setPoint({ lat: value.lat, lng: value.lng });
-  }, [value?.lat, value?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const recenterMap = useCallback((lat, lng, targetZoom) => {
     const inst = mapRef.current;
     if (!inst) return;
@@ -165,6 +228,16 @@ export default function AddressMapPicker({
       setLiveZoom(z);
     }
   }, [liveZoom]);
+
+  useEffect(() => {
+    if (!value) return;
+    if (!Number.isFinite(value.lat) || !Number.isFinite(value.lng)) return;
+    if (value.lat === point.lat && value.lng === point.lng) return;
+    setPoint({ lat: value.lat, lng: value.lng });
+    if (mapRef.current && !centerPinMode) {
+      recenterMap(value.lat, value.lng);
+    }
+  }, [value?.lat, value?.lng, centerPinMode, recenterMap]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Parent can request an imperative recenter (e.g. "focus store"/"focus me" buttons).
   useEffect(() => {
@@ -290,7 +363,7 @@ export default function AddressMapPicker({
 
   useEffect(() => () => setMapInstance(null), []);
 
-  // Service radius from shop (circle) — helps users align the pin with deliverable area.
+  // Service radius from shop — OverlayView DOM circle (visible on vector / mapId maps).
   useEffect(() => {
     if (!mapInstance || !isLoaded || typeof window === 'undefined' || !window.google?.maps) {
       return undefined;
@@ -299,41 +372,23 @@ export default function AddressMapPicker({
     const lng = Number(storeLocation?.lng);
     const r = Number(deliveryRadiusM);
     if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(r) || r <= 0) {
-      if (deliveryCircleRef.current) {
-        deliveryCircleRef.current.setMap(null);
-        deliveryCircleRef.current = null;
-      }
+      clearMapOverlay(deliveryCircleRef);
       return undefined;
     }
-    if (deliveryCircleRef.current) {
-      deliveryCircleRef.current.setMap(null);
-      deliveryCircleRef.current = null;
-    }
-    deliveryCircleRef.current = new window.google.maps.Circle({
-      map: mapInstance,
-      center: { lat, lng },
-      radius: r,
-      strokeColor: '#7d24d6',
-      strokeOpacity: 0.95,
-      strokeWeight: 2,
-      fillColor: '#34d399',
-      fillOpacity: 0.14,
-      clickable: false,
-      zIndex: 0,
-    });
+    clearMapOverlay(deliveryCircleRef);
+    const Overlay = createDeliveryZoneOverlayClass(window.google);
+    const overlay = new Overlay({ lat, lng }, r);
+    overlay.setMap(mapInstance);
+    deliveryCircleRef.current = overlay;
     return () => {
-      if (deliveryCircleRef.current) {
-        deliveryCircleRef.current.setMap(null);
-        deliveryCircleRef.current = null;
-      }
+      clearMapOverlay(deliveryCircleRef);
     };
   }, [mapInstance, isLoaded, storeLocation?.lat, storeLocation?.lng, deliveryRadiusM]);
 
-  // Fit map to the delivery circle so the shop hub + radius are visible (e.g. bottom sheet).
+  // Fit map to the delivery zone so the shop hub + radius are visible.
   useEffect(() => {
     if (
       !fitDeliveryZone ||
-      !centerPinMode ||
       !mapInstance ||
       !isLoaded ||
       typeof window === 'undefined' ||
@@ -363,7 +418,6 @@ export default function AddressMapPicker({
     return undefined;
   }, [
     fitDeliveryZone,
-    centerPinMode,
     mapInstance,
     isLoaded,
     storeLocation?.lat,
@@ -577,8 +631,8 @@ export default function AddressMapPicker({
           <GoogleMap
             onLoad={onMapLoad}
             onIdle={handleIdle}
-            center={point}
-            zoom={liveZoom}
+            center={initialCameraRef.current.center}
+            zoom={initialCameraRef.current.zoom}
             options={{
               disableDefaultUI: false,
               zoomControl: !isFullscreen,

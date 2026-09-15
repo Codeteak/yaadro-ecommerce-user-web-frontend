@@ -5,6 +5,10 @@ import { formatEventDateRange } from '../../utils/homeSectionsApi';
 
 export default function HomeEventCard({ section }) {
   if (!section?.id) return null;
+  // Only show Festive / event banner when there are products to shop.
+  if (!Array.isArray(section.products) || section.products.length === 0) {
+    return null;
+  }
 
   const dateLabel = formatEventDateRange(section.startsAt, section.endsAt);
   const cover = section.coverImageUrl || '';

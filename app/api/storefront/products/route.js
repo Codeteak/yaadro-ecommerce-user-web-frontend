@@ -26,9 +26,16 @@ export async function GET(request) {
           ? (page - 1) * Number(limit)
           : 0;
 
+    const includeDescendantsRaw = searchParams.get('include_descendants');
+    const includeDescendants =
+      includeDescendantsRaw === '1' ||
+      includeDescendantsRaw === 'true' ||
+      includeDescendantsRaw === 'yes';
+
     const result = await listProductsFromDb({
       shopId: shopId || undefined,
       categoryId: searchParams.get('category_id') || undefined,
+      includeDescendants,
       search: searchParams.get('search') || searchParams.get('q') || undefined,
       availability: searchParams.get('availability') || undefined,
       limit: Number(limit),

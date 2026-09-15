@@ -156,13 +156,13 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
         onPress={() => {
           if (!authHydrated) return;
           if (isAuthenticated) {
-            router.push('/checkout');
+            router.push('/cart');
             return;
           }
-          goToLogin('/checkout');
+          goToLogin('/cart');
         }}
         className="pointer-events-auto group relative flex h-auto w-full max-w-[420px] items-center gap-3 overflow-hidden rounded-full border border-gray-200/90 bg-white/95 px-3 py-2.5 shadow-[0_8px_32px_rgba(15,23,42,0.1)] backdrop-blur-md transition-all duration-200 hover:border-violet-200 hover:bg-white hover:shadow-[0_14px_40px_rgba(144,43,245,0.12)] active:scale-[0.98]"
-        aria-label={`Go to checkout, ${cartCount} ${cartCount === 1 ? 'item' : 'items'}${savingsRounded > 0 ? `, saving ₹${savingsRounded}` : ''}`}
+        aria-label={`Go to cart, ${cartCount} ${cartCount === 1 ? 'item' : 'items'}${savingsRounded > 0 ? `, saving ₹${savingsRounded}` : ''}`}
       >
         {celebrationBurst > 0 && (
           <>
@@ -217,7 +217,7 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
             <p className="text-[11px] font-medium leading-none text-gray-500">
               {cartCount} {cartCount === 1 ? 'item' : 'items'} in cart
             </p>
-            <p className="mt-1 text-sm font-bold leading-none text-gray-900">Go to checkout</p>
+            <p className="mt-1 text-sm font-bold leading-none text-gray-900">Go to cart</p>
             {savingsRounded > 0 && (
               <p className="mt-1 text-[11px] font-semibold leading-snug text-violet-700">
                 Saving ₹{savingsRounded.toLocaleString('en-IN')}

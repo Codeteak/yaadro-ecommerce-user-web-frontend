@@ -12,6 +12,8 @@ import {
   isOrderLineUnavailable,
   isConfirmedFreeRewardLine,
   inferOrderLinePaidQuantity,
+  orderHasBxgyOffer,
+  detectShopLineEdit,
 } from "./orderPromotions";
 import {
   formatWeightUnitLabel,
@@ -45,7 +47,7 @@ function resolveOrderItemImage(item = {}) {
     item?.product?.images?.[0] ||
     firstImageUrl(item?.product?.imageUrl) ||
     firstImageUrl(item?.product?.image) ||
-    "/images/dummy.png"
+    "/images/default_product.jpg"
   );
 }
 
@@ -112,14 +114,35 @@ function transformOrderItem(item) {
     const raw =
       item.originalQuantity ??
       item.original_quantity ??
-      item.orderedQuantity ??
-      item.ordered_quantity ??
       item.placedQuantity ??
       item.placed_quantity ??
       item.requestedQuantity ??
       item.requested_quantity ??
       null;
-    if (raw == null || raw === "") return null;
+    if (raw == null || raw === "") {
+      // Shop qty-edit only: orderedQuantity is pre-edit when not a BXGY paid split.
+      const freeQ = item.free_quantity ?? item.freeQuantity ?? item.offer_quantity;
+      const paidQ = item.paid_quantity ?? item.paidQuantity;
+      const freeN = freeQ != null && freeQ !== "" ? parseFloat(String(freeQ)) : null;
+      const paidN = paidQ != null && paidQ !== "" ? parseFloat(String(paidQ)) : null;
+      const looksBxgy =
+        (Number.isFinite(freeN) && freeN > 0) ||
+        (Number.isFinite(paidN) && paidN === 0) ||
+        item.is_bundle_reward === true ||
+        item.isBundleReward === true ||
+        item.is_confirmed_free_reward === true;
+      if (
+        !looksBxgy &&
+        (item.quantityAdjusted === true || item.quantity_adjusted === true)
+      ) {
+        const ord = item.orderedQuantity ?? item.ordered_quantity;
+        if (ord != null && ord !== "") {
+          const n = parseFloat(String(ord));
+          return Number.isFinite(n) && n > 0 ? n : null;
+        }
+      }
+      return null;
+    }
     const n = parseFloat(String(raw));
     return Number.isFinite(n) && n > 0 ? n : null;
   })();
@@ -144,13 +167,11 @@ function transformOrderItem(item) {
     isConfirmedFreeReward,
   });
 
-  const shopQuantityAdjusted =
-    item.quantityAdjusted === true ||
-    item.quantity_adjusted === true ||
-    item.shopQuantityUpdated === true ||
-    item.shop_quantity_updated === true ||
-    item.shopUpdated === true ||
-    item.shop_updated === true;
+  const { shopAdded, shopEdited } = detectShopLineEdit(item, {
+    quantity,
+    originalQuantity,
+  });
+  const shopQuantityAdjusted = shopEdited && !shopAdded;
 
   const draftForPaid = {
     ...item,
@@ -158,27 +179,42 @@ function transformOrderItem(item) {
     unitPrice,
     totalPrice,
     isConfirmedFreeReward,
-    offer_quantity: item.offer_quantity ?? item.offerQuantity,
+    offer_quantity: item.offer_quantity ?? item.offerQuantity ?? item.free_quantity ?? item.freeQuantity,
     free_quantity: item.free_quantity ?? item.freeQuantity,
+    paid_quantity: item.paid_quantity ?? item.paidQuantity,
+    ordered_quantity: item.ordered_quantity ?? item.orderedQuantity,
   };
   const paidQty = inferOrderLinePaidQuantity(draftForPaid);
+  const freeQtyResolved = Math.max(0, quantity - paidQty);
   const mixedPaidFree = paidQty > 0 && quantity > paidQty;
-  const hasOffer =
-    !isDeleted &&
-    (isConfirmedFreeReward ||
-      mixedPaidFree ||
-      (lineDiscountMajor > 0.009 && totalPrice > 0.009));
+  const isBxgyPaidLine = !isConfirmedFreeReward && (mixedPaidFree || paidQty > 0 && (
+    Number(item.offer_quantity ?? item.offerQuantity ?? item.free_quantity ?? item.freeQuantity) > 0
+  ));
 
-  // Rebuild payable total when API zeroed a still-active paid line incorrectly.
-  if (
+  // Buy X Get Y never stacks with coupons. Prefer list/catalog × paid qty so a
+  // coupon-wiped unit_price (e.g. ₹40) cannot replace the product price (₹60).
+  let displayUnitPrice = unitPrice;
+  if (!isDeleted && isBxgyPaidLine && listPrice != null && listPrice > 0 && paidQty > 0) {
+    displayUnitPrice = listPrice;
+    totalPrice = listPrice * paidQty;
+  } else if (
     !isDeleted &&
     !isConfirmedFreeReward &&
     catalogPrice > 0 &&
     paidQty > 0 &&
     totalPrice < 0.009
   ) {
-    totalPrice = catalogPrice * paidQty;
+    // Rebuild payable total when API zeroed a still-active paid line incorrectly.
+    const sellUnit = listPrice != null && listPrice > 0 ? listPrice : catalogPrice;
+    displayUnitPrice = sellUnit;
+    totalPrice = sellUnit * paidQty;
   }
+
+  const hasOffer =
+    !isDeleted &&
+    (isConfirmedFreeReward ||
+      mixedPaidFree ||
+      (lineDiscountMajor > 0.009 && totalPrice > 0.009));
 
   const { weight, unit } = resolveProductWeightAndUnit({
     unit_size: item.unit_size ?? item.unit_size_snapshot ?? item.unitSize,
@@ -202,7 +238,7 @@ function transformOrderItem(item) {
     unit,
     packLabel,
     quantity,
-    unitPrice,
+    unitPrice: displayUnitPrice,
     listPrice,
     lineDiscountMinor,
     lineDiscount: lineDiscountMajor,
@@ -213,13 +249,22 @@ function transformOrderItem(item) {
     isDeleted,
     originalQuantity,
     shopQuantityAdjusted,
+    shopAdded,
+    shopEdited,
     product: item.product || {},
     name: productName,
     image: resolveOrderItemImage(item),
-    price: unitPrice,
+    price: displayUnitPrice,
     discount: parseFloat(item.discount || 0),
-    offer_quantity: item.offer_quantity ?? item.offerQuantity ?? null,
-    free_quantity: item.free_quantity ?? item.freeQuantity ?? null,
+    offer_quantity:
+      item.offer_quantity ??
+      item.offerQuantity ??
+      (freeQtyResolved > 0 ? freeQtyResolved : null),
+    free_quantity:
+      item.free_quantity ?? item.freeQuantity ?? (freeQtyResolved > 0 ? freeQtyResolved : null),
+    paid_quantity: paidQty,
+    paidQuantity: paidQty,
+    ordered_quantity: item.ordered_quantity ?? item.orderedQuantity ?? paidQty,
   };
 }
 
@@ -279,9 +324,36 @@ function collectRawOrderItems(apiOrder, extraItems = []) {
 }
 
 function mapOrderItems(apiOrder, extraItems = []) {
-  return collectRawOrderItems(apiOrder, extraItems)
+  const items = collectRawOrderItems(apiOrder, extraItems)
     .map(transformOrderItem)
     .filter(Boolean);
+
+  const freePromoIds = new Set();
+  for (const it of items) {
+    if (!it || it.isDeleted) continue;
+    const free =
+      it.isConfirmedFreeReward === true ||
+      (Number(it.paid_quantity ?? it.paidQuantity) <= 0 &&
+        Number(it.totalPrice) < 0.01 &&
+        Number(it.quantity) > 0);
+    if (!free) continue;
+    for (const id of it.appliedPromotionIds || []) {
+      if (id) freePromoIds.add(String(id));
+    }
+  }
+  if (!freePromoIds.size) return items;
+
+  return items.map((it) => {
+    if (!it || it.isDeleted || it.isConfirmedFreeReward) return it;
+    const paid = Number(it.paid_quantity ?? it.paidQuantity);
+    const qty = Number(it.quantity);
+    if (!(paid > 0 && Math.abs(paid - qty) < 1e-6)) return it;
+    const shares = (it.appliedPromotionIds || []).some((id) =>
+      freePromoIds.has(String(id)),
+    );
+    if (!shares) return it;
+    return { ...it, isBxgyBuyLine: true, is_bxgy_buy_line: true };
+  });
 }
 
 /**
@@ -295,6 +367,9 @@ function markUnavailableExcludedFromSubtotal(items, subtotalMajor) {
   if (!Array.isArray(items) || !items.length) return items;
   const subtotal = Number(subtotalMajor);
   if (!Number.isFinite(subtotal)) return items;
+  // Zero/negative subtotal is usually promo/API math (or rejected wipe), not a
+  // picker removing a subset of lines — don't invent UNAVAILABLE from the gap.
+  if (!(subtotal > 0.009)) return items;
 
   const sumAll = items.reduce(
     (acc, it) => acc + (Number(it.totalPrice) || 0),
@@ -520,11 +595,64 @@ export function pickFurthestFulfillmentStatus(rawCandidates) {
   return best;
 }
 
+function tryParseJsonObject(value) {
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  if (!text.startsWith("{") && !text.startsWith("[")) return null;
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function asAddressRecord(value) {
+  if (value == null || value === "") return null;
+  const fromJson = tryParseJsonObject(value);
+  if (fromJson) return fromJson;
+  if (typeof value === "string" && value.trim()) {
+    return { street: value.trim(), address: value.trim() };
+  }
+  if (typeof value !== "object" || Array.isArray(value)) return null;
+  const nested =
+    (value.address && typeof value.address === "object" && value.address) ||
+    (value.deliveryAddress &&
+      typeof value.deliveryAddress === "object" &&
+      value.deliveryAddress) ||
+    (value.delivery_address &&
+      typeof value.delivery_address === "object" &&
+      value.delivery_address) ||
+    (value.location &&
+      typeof value.location === "object" &&
+      (value.location.line1 || value.location.city || value.location.street) &&
+      value.location) ||
+    null;
+  if (nested && Object.keys(nested).length) return nested;
+  return Object.keys(value).length ? value : null;
+}
+
 /**
  * Normalize delivery address from common storefront / snapshot field shapes.
  */
 function normalizeDeliveryAddress(apiOrder) {
   if (!apiOrder || typeof apiOrder !== "object") return {};
+
+  const customer =
+    apiOrder.customer && typeof apiOrder.customer === "object"
+      ? apiOrder.customer
+      : null;
+  const user =
+    apiOrder.user && typeof apiOrder.user === "object" ? apiOrder.user : null;
+  const meta =
+    (apiOrder.meta && typeof apiOrder.meta === "object" && apiOrder.meta) ||
+    (apiOrder.metadata &&
+      typeof apiOrder.metadata === "object" &&
+      apiOrder.metadata) ||
+    null;
 
   const candidates = [
     apiOrder.deliveryAddress,
@@ -539,23 +667,39 @@ function normalizeDeliveryAddress(apiOrder) {
     apiOrder.customerAddress,
     apiOrder.shipping_address_snapshot,
     apiOrder.shippingAddressSnapshot,
+    apiOrder.address,
+    apiOrder.drop_location,
+    apiOrder.dropLocation,
+    apiOrder.fulfillment_address,
+    apiOrder.fulfillmentAddress,
+    customer?.address,
+    customer?.deliveryAddress,
+    customer?.delivery_address,
+    user?.address,
+    user?.deliveryAddress,
+    meta?.deliveryAddress,
+    meta?.delivery_address,
+    meta?.address,
   ];
 
   let raw = null;
+  let stringFallback = null;
   for (const c of candidates) {
-    if (
-      c &&
-      typeof c === "object" &&
-      !Array.isArray(c) &&
-      Object.keys(c).length
-    ) {
-      raw = c;
-      break;
+    const record = asAddressRecord(c);
+    if (!record) continue;
+    const keys = Object.keys(record);
+    const looksLikePlainString =
+      typeof c === "string" &&
+      !tryParseJsonObject(c) &&
+      keys.every((k) => k === "street" || k === "address");
+    if (looksLikePlainString) {
+      if (!stringFallback) stringFallback = record;
+      continue;
     }
-    if (typeof c === "string" && c.trim()) {
-      return { street: c.trim(), address: c.trim() };
-    }
+    raw = record;
+    break;
   }
+  if (!raw) raw = stringFallback;
 
   const pick = (...keys) => {
     for (const k of keys) {
@@ -575,12 +719,20 @@ function normalizeDeliveryAddress(apiOrder) {
       "address_line_1",
       "full_address",
       "fullAddress",
+      "formatted_address",
+      "formattedAddress",
+      "display_address",
+      "displayAddress",
+      "building",
+      "apartment",
+      "house",
     ) || "";
   const line2 = pick(
     "line2",
     "address_line2",
     "addressLine2",
     "address_line_2",
+    "landmark",
   );
   const fullName = pick(
     "fullName",
@@ -588,8 +740,10 @@ function normalizeDeliveryAddress(apiOrder) {
     "name",
     "recipient_name",
     "recipientName",
+    "customer_name",
+    "customerName",
   );
-  const city = pick("city", "town", "district");
+  const city = pick("city", "town", "district", "area", "locality");
   const state = pick("state", "province", "region");
   const zipCode = pick(
     "zipCode",
@@ -598,11 +752,25 @@ function normalizeDeliveryAddress(apiOrder) {
     "zip",
     "pincode",
     "pin_code",
+    "pinCode",
   );
   const country = pick("country");
   const phone = pick("phone", "mobile", "contact_phone", "contactPhone");
+  const area = pick("area", "locality", "suburb");
+  const landmark = pick("landmark", "nearby", "near");
 
-  if (!street && !fullName && !city && !phone && !raw) return {};
+  if (
+    !street &&
+    !fullName &&
+    !city &&
+    !phone &&
+    !zipCode &&
+    !area &&
+    !landmark &&
+    !raw
+  ) {
+    return {};
+  }
 
   return {
     ...(raw && typeof raw === "object" ? raw : {}),
@@ -612,12 +780,56 @@ function normalizeDeliveryAddress(apiOrder) {
     address: street || raw?.address || street,
     line1: street || raw?.line1 || "",
     line2: line2 || raw?.line2 || "",
-    city: city || raw?.city || "",
+    city: city || raw?.city || area || "",
+    area: area || raw?.area || "",
     state: state || raw?.state || "",
     zipCode: zipCode || raw?.zipCode || raw?.postalCode || "",
     postalCode: zipCode || raw?.postalCode || raw?.zipCode || "",
     country: country || raw?.country || "",
     phone: phone || raw?.phone || "",
+    landmark: landmark || raw?.landmark || "",
+  };
+}
+
+export function hasOrderDisplayAddress(addr) {
+  if (!addr || typeof addr !== "object") return false;
+  return [
+    "fullName",
+    "name",
+    "street",
+    "address",
+    "line1",
+    "line2",
+    "city",
+    "area",
+    "phone",
+    "zipCode",
+    "postalCode",
+    "landmark",
+    "formattedAddress",
+  ].some((key) => String(addr[key] || "").trim());
+}
+
+export function savedAddressToOrderAddress(saved) {
+  if (!saved || typeof saved !== "object") return {};
+  const line1 = String(saved.line1 || saved.street || saved.address || "").trim();
+  const line2 = String(saved.line2 || "").trim();
+  const street = [line1, line2].filter(Boolean).join(", ");
+  return {
+    fullName: String(saved.fullName || saved.name || "").trim(),
+    name: String(saved.fullName || saved.name || "").trim(),
+    street,
+    address: street || line1,
+    line1,
+    line2,
+    city: String(saved.city || saved.area || "").trim(),
+    area: String(saved.area || "").trim(),
+    state: String(saved.state || "").trim(),
+    zipCode: String(saved.zipCode || saved.postalCode || "").trim(),
+    postalCode: String(saved.postalCode || saved.zipCode || "").trim(),
+    country: String(saved.country || "").trim(),
+    phone: String(saved.phone || "").trim(),
+    landmark: String(saved.landmark || "").trim(),
   };
 }
 
@@ -672,11 +884,79 @@ function transformOrder(apiOrder) {
     : [];
   const mappedItems = mapOrderItems(apiOrder);
   const promotionDiscountMajor = minorToMajor(promotionDiscountMinor);
-  const subtotal =
+  let subtotal =
     apiOrder.subtotal_minor != null
       ? minorToMajor(apiOrder.subtotal_minor)
       : parseFloat(apiOrder.subtotal || 0);
-  const items = applyUnavailableLinePasses(mappedItems, subtotal, status);
+  const itemsRaw = applyUnavailableLinePasses(mappedItems, subtotal, status);
+
+  // Coupons must not stack with BXGY. Restore every active paid line to list × paid qty
+  // when the order has BXGY (covers paid rows that lack free_qty while a free sibling exists).
+  const hasBxgy = orderHasBxgyOffer(itemsRaw);
+  const items = hasBxgy
+    ? itemsRaw.map((it) => {
+        if (!it || it.isDeleted || it.isConfirmedFreeReward) return it;
+        const list = Number(it.listPrice);
+        if (!(list > 0)) return it;
+        const paidQty = inferOrderLinePaidQuantity(it);
+        if (!(paidQty > 0)) return it;
+        const nextTotal = list * paidQty;
+        if (
+          Math.abs(Number(it.unitPrice) - list) < 0.009 &&
+          Math.abs(Number(it.totalPrice) - nextTotal) < 0.009
+        ) {
+          return it;
+        }
+        return {
+          ...it,
+          unitPrice: list,
+          price: list,
+          totalPrice: nextTotal,
+        };
+      })
+    : itemsRaw;
+
+  // When reject/promo wipe zeroes order-level money but lines still have payable
+  // totals (Items header), reconcile so Price summary matches Items / admin.
+  const activeSum = items
+    .filter((it) => !it?.isDeleted && !it?.isConfirmedFreeReward)
+    .reduce((sum, it) => sum + (Number(it.totalPrice) || 0), 0);
+
+  // Coupons must not stack with BXGY — drop coupon ledger and use line payables.
+  let resolvedCouponCode = couponCode ? String(couponCode).trim() : null;
+  let resolvedDiscount =
+    promotionDiscountMajor > 0
+      ? promotionDiscountMajor
+      : parseFloat(apiOrder.discount || 0);
+  let resolvedPromoMinor = promotionDiscountMinor;
+  let resolvedPromoMajor = promotionDiscountMajor;
+  let resolvedCouponDiscountMinor = couponDiscountMinor;
+  let resolvedAutoPromoMinor = autoPromotionDiscountMinor;
+  let resolvedCouponCodes = couponCodes;
+  if (hasBxgy) {
+    resolvedCouponCode = null;
+    resolvedDiscount = 0;
+    resolvedPromoMinor = 0;
+    resolvedPromoMajor = 0;
+    resolvedCouponDiscountMinor = 0;
+    resolvedAutoPromoMinor = 0;
+    resolvedCouponCodes = [];
+  }
+
+  if (hasBxgy && activeSum > 0.009) {
+    subtotal = activeSum;
+  } else if (!(Number(subtotal) > 0.009) && activeSum > 0.009) {
+    subtotal = activeSum;
+  }
+  let total =
+    apiOrder.total_minor != null
+      ? minorToMajor(apiOrder.total_minor)
+      : parseFloat(apiOrder.total || 0);
+  if (hasBxgy && activeSum > 0.009) {
+    total = activeSum;
+  } else if (!(Number(total) > 0.009) && activeSum > 0.009) {
+    total = activeSum;
+  }
 
   return {
     id: apiOrder.id,
@@ -697,22 +977,16 @@ function transformOrder(apiOrder) {
       apiOrder.delivery_fee_minor != null
         ? minorToMajor(apiOrder.delivery_fee_minor)
         : parseFloat(apiOrder.shipping || 0),
-    discount:
-      promotionDiscountMajor > 0
-        ? promotionDiscountMajor
-        : parseFloat(apiOrder.discount || 0),
-    total:
-      apiOrder.total_minor != null
-        ? minorToMajor(apiOrder.total_minor)
-        : parseFloat(apiOrder.total || 0),
-    promotionDiscountMinor,
-    promotionDiscountMajor,
-    couponDiscountMinor,
-    couponDiscountMajor: minorToMajor(couponDiscountMinor),
-    autoPromotionDiscountMinor,
-    autoPromotionDiscountMajor: minorToMajor(autoPromotionDiscountMinor),
-    couponCode: couponCode ? String(couponCode).trim() : null,
-    couponCodes,
+    discount: resolvedDiscount,
+    total,
+    promotionDiscountMinor: resolvedPromoMinor,
+    promotionDiscountMajor: resolvedPromoMajor,
+    couponDiscountMinor: resolvedCouponDiscountMinor,
+    couponDiscountMajor: minorToMajor(resolvedCouponDiscountMinor),
+    autoPromotionDiscountMinor: resolvedAutoPromoMinor,
+    autoPromotionDiscountMajor: minorToMajor(resolvedAutoPromoMinor),
+    couponCode: resolvedCouponCode,
+    couponCodes: resolvedCouponCodes,
     appliedPromotionIds,
     deliveryTrackingUrl:
       (typeof apiOrder.deliveryTrackingUrl === "string" &&
@@ -727,7 +1001,7 @@ function transformOrder(apiOrder) {
           ? String(apiOrder.yadro_order_id)
           : null,
     offerId: apiOrder.offerId || null,
-    offerCode: apiOrder.offerCode || couponCode || null,
+    offerCode: apiOrder.offerCode || resolvedCouponCode || null,
     offerDetails: apiOrder.offerDetails || null,
     deliveryAddress: normalizeDeliveryAddress(apiOrder),
     notes: apiOrder.notes || null,
@@ -885,6 +1159,15 @@ export async function getOrder(orderId) {
 
     const apiOrder = response?.order || null;
     const topLevelItems = Array.isArray(response?.items) ? response.items : [];
+    const topLevelAddress =
+      response?.deliveryAddress ||
+      response?.delivery_address ||
+      response?.shippingAddress ||
+      response?.shipping_address ||
+      response?.address_snapshot ||
+      response?.addressSnapshot ||
+      response?.address ||
+      null;
     const topLevelUnavailable = [
       ...(Array.isArray(response?.unavailable_items)
         ? response.unavailable_items
@@ -901,10 +1184,19 @@ export async function getOrder(orderId) {
     ];
     const mergedSource = apiOrder
       ? {
+          ...response,
           ...apiOrder,
           items: topLevelItems.length ? topLevelItems : apiOrder.items,
+          deliveryAddress:
+            asAddressRecord(apiOrder.deliveryAddress) ||
+            asAddressRecord(apiOrder.delivery_address) ||
+            asAddressRecord(topLevelAddress) ||
+            asAddressRecord(apiOrder.address) ||
+            apiOrder.deliveryAddress,
         }
-      : null;
+      : response && typeof response === "object"
+        ? response
+        : null;
     const order = transformOrder(mergedSource);
     if (order) {
       const remapped = applyUnavailableLinePasses(

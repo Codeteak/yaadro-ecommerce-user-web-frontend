@@ -2,27 +2,90 @@
  * Storefront cart promotion helpers (SKU campaigns, bundle BOGO reward lines).
  */
 
-import { formatBundleRuleLabel, getPrimaryBundleRule } from './productUtils';
+import {
+  bundleRuleRoleForProduct,
+  formatBundleRuleLabel,
+  getPrimaryBundleRule,
+  isCrossSkuBundleRule,
+} from './productUtils';
+import { rewardProductIdFromRule } from './bxgyLabels';
 
 export function stripPaidCartLinesOnly(items) {
   return (Array.isArray(items) ? items : []).filter((it) => !isBundleRewardCartLine(it));
 }
 
+export function cartLineProductId(item) {
+  if (!item) return '';
+  return String(
+    item.productId ?? item.product_id ?? item.product?.id ?? item.id ?? '',
+  ).trim();
+}
+
 export function getCartLineBundleRule(item) {
   if (!item || isBundleRewardCartLine(item)) return null;
-  return (
-    getPrimaryBundleRule(item?.product) ||
-    getPrimaryBundleRule({
-      bundleRules: item?.bundleRules,
-      bundle_rules: item?.bundle_rules,
-    })
-  );
+  const pid = cartLineProductId(item);
+  const fromProduct = getPrimaryBundleRule({
+    id: pid,
+    bundleRules: item?.product?.bundleRules ?? item?.product?.bundle_rules,
+    bundle_rules: item?.product?.bundle_rules ?? item?.product?.bundleRules,
+  });
+  if (fromProduct) return fromProduct;
+  return getPrimaryBundleRule({
+    id: pid,
+    bundleRules: item?.bundleRules,
+    bundle_rules: item?.bundle_rules,
+  });
 }
 
 export function getCartLineBundleLabel(item) {
   const rule = getCartLineBundleRule(item);
-  return rule ? formatBundleRuleLabel(rule) : null;
+  if (!rule) return null;
+  const pid = cartLineProductId(item);
+  const role = bundleRuleRoleForProduct(rule, pid);
+  const buyName =
+    role === 'buy'
+      ? item?.name || item?.productName || ''
+      : rule.buy_product_name || rule.buyProductName || '';
+  const getName =
+    rule.reward_product_name ||
+    rule.rewardProductName ||
+    rule.get_product_name ||
+    (role === 'get' ? item?.name || item?.productName || '' : '');
+  return formatBundleRuleLabel(rule, { role, buyName, getName });
 }
+
+/** True when a qualified BXGY free unit is actually applied (not merely rule attached). */
+export function cartHasQualifiedBxgyOffer(items) {
+  const list = Array.isArray(items) ? items : [];
+  for (const it of list) {
+    if (isBundleRewardCartLine(it)) return true;
+    if (getBundleFreeExtraOnPaidLine(it) > 0) return true;
+    const rule = getCartLineBundleRule(it);
+    if (!rule) continue;
+    const pid = cartLineProductId(it);
+    const role = bundleRuleRoleForProduct(rule, pid);
+    if (role === 'get') continue;
+    if (isCrossSkuBundleRule(rule)) {
+      const paid = getCartLinePaidQty(it);
+      const buy = Number(rule.buy_qty ?? rule.buyQty);
+      if (Number.isFinite(buy) && buy > 0 && paid >= buy) return true;
+      continue;
+    }
+    const free = inferSameSkuFreeFromRule(it, rule);
+    if (free > 0) return true;
+  }
+  return false;
+}
+
+/**
+ * Coupons must not stack when a BXGY deal is actively qualifying.
+ */
+export function cartHasBxgyOffer(items) {
+  return cartHasQualifiedBxgyOffer(items);
+}
+
+export const BXGY_COUPON_BLOCKED_MESSAGE =
+  'Coupons cannot be used with Buy X Get Y offers.';
 
 export function bundleRewardMatchesParent(rewardLine, parentId) {
   const pid = String(parentId || '');
@@ -45,7 +108,8 @@ export function isBundleRewardCartLine(apiItem) {
   return (
     apiItem.is_bundle_reward === true ||
     apiItem.isBundleReward === true ||
-    id.endsWith(':bundle-reward')
+    id.endsWith(':bundle-reward') ||
+    id.startsWith('inject:')
   );
 }
 
@@ -98,21 +162,40 @@ export function readLineFreeQuantity(line) {
 }
 
 /** Infer free units from product `bundle_rules` when the cart API omits `free_quantity`. */
-function inferBundleFreeFromProductRules(item) {
-  const product = item?.product;
-  const rules =
-    product?.bundleRules ??
-    product?.bundle_rules ??
-    item?.bundleRules ??
-    item?.bundle_rules;
-  if (!Array.isArray(rules) || !rules.length) return 0;
-  const rule = rules[0];
+function inferSameSkuFreeFromRule(item, rule) {
+  if (!rule || isCrossSkuBundleRule(rule)) return 0;
   const buy = Number(rule.buy_qty ?? rule.buyQty);
   const get = Number(rule.get_qty ?? rule.getQty);
   const reward = rule.reward_type ?? rule.rewardType;
-  if (!Number.isFinite(buy) || buy <= 0 || !Number.isFinite(get) || get <= 0 || reward !== 'free') {
-    return 0;
-  }
+  if (!Number.isFinite(buy) || buy <= 0 || !Number.isFinite(get) || get <= 0) return 0;
+  if (reward && reward !== 'free') return 0;
+  const paid = getCartLinePaidQty(item);
+  if (paid < buy) return 0;
+  return Math.floor(paid / buy) * get;
+}
+
+function inferBundleFreeFromProductRules(item) {
+  const rule = getCartLineBundleRule(item);
+  if (!rule) return 0;
+  const pid = cartLineProductId(item);
+  const role = bundleRuleRoleForProduct(rule, pid);
+  // Cross reward SKU alone never invents free units of itself.
+  if (role === 'get') return 0;
+  // Cross buy SKU: free units are a different product — not embedded on this line.
+  if (isCrossSkuBundleRule(rule)) return 0;
+  return inferSameSkuFreeFromRule(item, rule);
+}
+
+/** How many free reward units a buy line unlocks for a cross rule. */
+export function getCrossFreeQtyFromBuyLine(item, rule) {
+  if (!item || !rule || !isCrossSkuBundleRule(rule)) return 0;
+  const pid = cartLineProductId(item);
+  if (bundleRuleRoleForProduct(rule, pid) !== 'buy') return 0;
+  const buy = Number(rule.buy_qty ?? rule.buyQty);
+  const get = Number(rule.get_qty ?? rule.getQty);
+  const reward = rule.reward_type ?? rule.rewardType;
+  if (!Number.isFinite(buy) || buy <= 0 || !Number.isFinite(get) || get <= 0) return 0;
+  if (reward && reward !== 'free') return 0;
   const paid = getCartLinePaidQty(item);
   if (paid < buy) return 0;
   return Math.floor(paid / buy) * get;
@@ -170,6 +253,14 @@ export function sumCartPaidUnits(items) {
 /** Free units on a paid line (from API `offer_quantity` / `free_quantity` or bundle rules). */
 export function getBundleFreeExtraOnPaidLine(item) {
   if (!item || isBundleRewardCartLine(item)) return 0;
+
+  // Cross buy SKU never carries free units of itself (even if legacy offer_quantity is set).
+  const rule = getCartLineBundleRule(item);
+  if (rule && isCrossSkuBundleRule(rule)) {
+    const role = bundleRuleRoleForProduct(rule, cartLineProductId(item));
+    if (role === 'buy') return 0;
+  }
+
   const nested = readQuantityFields(item);
   if (nested.hasExplicitOffer) return Math.max(0, nested.free);
   if (item.offer_quantity != null || item.offerQuantity != null) {
@@ -184,12 +275,57 @@ export function getBundleFreeExtraOnPaidLine(item) {
   return inferBundleFreeFromProductRules(item);
 }
 
-/** UI-only free line when API encodes bundle on the paid row but omits `:bundle-reward`. */
-export function buildSyntheticBundleRewardLine(paidLine, freeQty, parentId) {
-  const label = paidLine.unitLabel ?? paidLine.unit ?? '';
+/**
+ * UI-only free line.
+ * Same-SKU: clone paid line.
+ * Cross: always use reward SKU — never clone the buy product.
+ */
+export function buildSyntheticBundleRewardLine(paidLine, freeQty, parentId, options = {}) {
   const qty = Math.max(1, Math.floor(Number(freeQty) || 1));
   const rewardId = `${parentId}:bundle-reward`;
+  const rule = options.rule || getCartLineBundleRule(paidLine);
+  const cross = rule && isCrossSkuBundleRule(rule);
+  const rewardProduct =
+    options.rewardProduct ||
+    (cross ? rewardSnapshotFromRule(rule, null) : null);
 
+  if (cross) {
+    const rewardPid =
+      String(rewardProduct?.productId ?? rewardProduct?.id ?? '').trim() ||
+      rewardProductIdFromRule(rule);
+    if (!rewardPid) {
+      // Incomplete rule — skip fake free line rather than cloning buy SKU.
+      return null;
+    }
+    const label = rewardProduct?.unitLabel ?? rewardProduct?.unit ?? '';
+    const name =
+      rewardProduct?.name || rewardProduct?.productName || 'Free item';
+    return {
+      ...(rewardProduct && typeof rewardProduct === 'object' ? rewardProduct : {}),
+      id: rewardId,
+      cartItemId: rewardId,
+      cartItemKey: rewardId,
+      productId: rewardPid,
+      name,
+      paidCartItemId: parentId,
+      isBundleReward: true,
+      bundleSourceCartItemId: parentId,
+      quantity: qty,
+      displayQuantity: qty,
+      freeQuantity: qty,
+      price: 0,
+      originalPrice: null,
+      lineTotal: 0,
+      total: 0,
+      promoDiscountMinor: 0,
+      totalDiscountMinor: 0,
+      sizeDisplay: label ? `${qty} ${label} · Free` : 'Free',
+      bundleRules: undefined,
+      bundle_rules: undefined,
+    };
+  }
+
+  const label = paidLine.unitLabel ?? paidLine.unit ?? '';
   return {
     ...paidLine,
     id: rewardId,
@@ -207,14 +343,41 @@ export function buildSyntheticBundleRewardLine(paidLine, freeQty, parentId) {
     total: 0,
     promoDiscountMinor: 0,
     totalDiscountMinor: 0,
-    sizeDisplay: label ? `${qty} ${label} · Free` : 'Free item',
+    sizeDisplay: label ? `${qty} ${label} · Free` : 'Free',
   };
 }
 
-function hasBundleRewardForParent(items, parentId) {
-  const pid = String(parentId || '');
-  if (!pid) return false;
-  return items.some((it) => bundleRewardMatchesParent(it, pid));
+function rewardSnapshotFromRule(rule, fallbackLine) {
+  if (!rule || !isCrossSkuBundleRule(rule)) return null;
+  const rewardId = rewardProductIdFromRule(rule);
+  if (!rewardId) return null;
+  const name =
+    rule.reward_product_name ||
+    rule.rewardProductName ||
+    rule.get_product_name ||
+    rule.getProductName ||
+    '';
+  const image =
+    rule.reward_product_image ||
+    rule.rewardProductImage ||
+    rule.get_product_image ||
+    '';
+  if (fallbackLine && cartLineProductId(fallbackLine) === rewardId) {
+    return {
+      ...fallbackLine,
+      id: rewardId,
+      productId: rewardId,
+      name: fallbackLine.name || name || 'Free item',
+    };
+  }
+  return {
+    id: rewardId,
+    productId: rewardId,
+    name: name || 'Free item',
+    image: image || undefined,
+    imageUrl: image || undefined,
+    price: 0,
+  };
 }
 
 /** Apply buy-X-get-Y free/display quantities on guest (localStorage) cart lines. */
@@ -244,23 +407,70 @@ export function applyGuestCartBundleQuantities(items) {
 }
 
 /**
- * Ensures buy-X-get-Y free units appear as their own cart row in the UI.
- * Recomputes free-line qty when paid qty changes (API or guest cart).
+ * Ensures buy-X-get-Y free units appear as their own cart row.
+ * Same-SKU: free clone of paid product.
+ * Cross: free row is the reward SKU (cart match or rule snapshot).
  */
 export function expandCartItemsWithBundleRewards(items) {
   if (!Array.isArray(items) || !items.length) return [];
 
   const paidLines = stripPaidCartLinesOnly(items);
   const rewardLines = items.filter((it) => isBundleRewardCartLine(it));
-  const out = [...paidLines];
+  /** @type {Map<string, number>} free units claimed from reward product lines */
+  const claimedFreeByRewardPid = new Map();
+  const out = [];
 
   for (const paid of paidLines) {
     const parentId = String(paid.cartItemId ?? paid.id ?? paid.productId ?? '');
     if (!parentId) continue;
+    const rule = getCartLineBundleRule(paid);
+    const pid = cartLineProductId(paid);
+
+    if (rule && isCrossSkuBundleRule(rule) && bundleRuleRoleForProduct(rule, pid) === 'get') {
+      // Handled after buy parents (residual paid qty).
+      continue;
+    }
+
+    out.push(paid);
+
+    if (rule && isCrossSkuBundleRule(rule) && bundleRuleRoleForProduct(rule, pid) === 'buy') {
+      const freeQty = getCrossFreeQtyFromBuyLine(paid, rule);
+      if (freeQty <= 0) continue;
+      const rewardPid = rewardProductIdFromRule(rule);
+      const matchingRewardPaid = paidLines.find(
+        (l) => cartLineProductId(l) === rewardPid && !isBundleRewardCartLine(l),
+      );
+      const apiReward = rewardLines.find((r) => bundleRewardMatchesParent(r, parentId));
+      if (apiReward) {
+        const productId = cartLineProductId(apiReward) || rewardPid;
+        out.push({
+          ...apiReward,
+          productId: productId || apiReward.productId,
+          quantity: Math.max(1, Number(apiReward.quantity) || freeQty),
+          displayQuantity: Math.max(1, Number(apiReward.displayQuantity) || freeQty),
+          freeQuantity: Math.max(1, Number(apiReward.freeQuantity) || freeQty),
+          price: 0,
+          lineTotal: 0,
+          total: 0,
+        });
+      } else {
+        const synthetic = buildSyntheticBundleRewardLine(paid, freeQty, parentId, {
+            rule,
+            rewardProduct: rewardSnapshotFromRule(rule, matchingRewardPaid),
+          });
+        if (synthetic) out.push(synthetic);
+      }
+      if (rewardPid) {
+        claimedFreeByRewardPid.set(
+          rewardPid,
+          (claimedFreeByRewardPid.get(rewardPid) || 0) + freeQty,
+        );
+      }
+      continue;
+    }
 
     const freeQty = getBundleFreeExtraOnPaidLine(paid);
     if (freeQty <= 0) continue;
-
     const apiReward = rewardLines.find((r) => bundleRewardMatchesParent(r, parentId));
     if (apiReward) {
       out.push({
@@ -270,8 +480,39 @@ export function expandCartItemsWithBundleRewards(items) {
         freeQuantity: Math.max(1, Number(apiReward.freeQuantity) || freeQty),
       });
     } else {
-      out.push(buildSyntheticBundleRewardLine(paid, freeQty, parentId));
+      const synthetic = buildSyntheticBundleRewardLine(paid, freeQty, parentId, { rule });
+      if (synthetic) out.push(synthetic);
     }
+  }
+
+  // Reward SKUs: keep residual paid qty after free claim; if none claimed, show as paid.
+  for (const paid of paidLines) {
+    const pid = cartLineProductId(paid);
+    if (!pid) continue;
+    const rule = getCartLineBundleRule(paid);
+    if (!(rule && isCrossSkuBundleRule(rule) && bundleRuleRoleForProduct(rule, pid) === 'get')) {
+      continue;
+    }
+    const paidQty = getCartLinePaidQty(paid);
+    const claimed = claimedFreeByRewardPid.get(pid) || 0;
+    const residual = Math.max(0, paidQty - claimed);
+    if (residual <= 0) continue;
+    out.push({
+      ...paid,
+      quantity: residual,
+      paid_quantity: residual,
+      paidQuantity: residual,
+      offer_quantity: 0,
+      offerQuantity: 0,
+      free_quantity: 0,
+      freeQuantity: 0,
+      displayQuantity: residual,
+      display_quantity: residual,
+      lineTotal:
+        Number.isFinite(Number(paid.price)) && Number(paid.price) > 0
+          ? Number(paid.price) * residual
+          : paid.lineTotal,
+    });
   }
 
   return out;
@@ -432,10 +673,21 @@ export function isTrustedCartCouponPreview(previewCart, localItems) {
 /**
  * Overlay server preview unit/MRP/line totals onto local display cart lines.
  * Matches paid lines by productId; leaves qty and cart keys from local.
+ * @param {object} [options]
+ * @param {boolean} [options.ignoreCouponPricing] — BXGY carts: never take coupon-reduced
+ *   payable; keep list/catalog × paid qty so coupons cannot stack with offers.
  */
-export function mergePreviewPricingOntoLocalLines(localDisplayItems, previewItems) {
+export function mergePreviewPricingOntoLocalLines(
+  localDisplayItems,
+  previewItems,
+  options = {}
+) {
   if (!Array.isArray(localDisplayItems) || !localDisplayItems.length) return localDisplayItems || [];
   if (!Array.isArray(previewItems) || !previewItems.length) return localDisplayItems;
+
+  const ignoreCouponPricing = options.ignoreCouponPricing === true;
+  const cartIsBxgy =
+    ignoreCouponPricing || cartHasBxgyOffer(localDisplayItems);
 
   const byProductId = new Map();
   for (const preview of previewItems) {
@@ -452,6 +704,51 @@ export function mergePreviewPricingOntoLocalLines(localDisplayItems, previewItem
     if (!preview) return local;
 
     const next = { ...local };
+    const isBxgyLine =
+      cartIsBxgy &&
+      (getCartLineBundleRule(local) ||
+        getBundleFreeExtraOnPaidLine(local) > 0 ||
+        Boolean(preview.free_quantity || preview.freeQuantity));
+
+    if (isBxgyLine) {
+      const listUnit = Number(
+        preview.originalPrice ??
+          local.originalPrice ??
+          (Number(local.originalPrice) > 0 ? local.originalPrice : null) ??
+          preview.price ??
+          local.price
+      );
+      const paid = getCartLinePaidQty(local);
+      // Prefer local catalog list when preview unit looks coupon-reduced.
+      const localList = Number(local.originalPrice);
+      const localPay = Number(local.price);
+      const sellUnit =
+        Number.isFinite(localList) && localList > 0
+          ? localList
+          : Number.isFinite(listUnit) && listUnit > 0
+            ? listUnit
+            : Number.isFinite(localPay) && localPay > 0
+              ? localPay
+              : null;
+      if (sellUnit != null && sellUnit > 0 && paid > 0) {
+        next.price = sellUnit;
+        next.originalPrice = null;
+        next.lineTotal = sellUnit * paid;
+        next.total = next.lineTotal;
+      }
+      if (preview.free_quantity != null || preview.freeQuantity != null) {
+        const free = Number(preview.free_quantity ?? preview.freeQuantity) || 0;
+        next.free_quantity = free;
+        next.freeQuantity = free;
+        next.offer_quantity = free;
+        next.offerQuantity = free;
+      }
+      if (preview.displayQuantity != null) {
+        next.displayQuantity = Number(preview.displayQuantity) || next.displayQuantity;
+      }
+      return next;
+    }
+
     if (preview.price != null && Number.isFinite(Number(preview.price))) {
       next.price = Number(preview.price);
     }

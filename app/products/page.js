@@ -5,9 +5,10 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useCategoriesTree } from '../../hooks/useProducts';
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import ProductsCategoryRail from '../../components/products/ProductsCategoryRail';
-import ProductsListingPanel from '../../components/products/ProductsListingPanel';
+import ProductsListingPanel, { FilterBar } from '../../components/products/ProductsListingPanel';
 import { CATEGORY_ID_UUID } from '../../components/products/productsBrowseConstants';
 import ProductsPageSkeleton from '../../components/skeletons/ProductsPageSkeleton';
+import BrowsePageHeader from '../../components/BrowsePageHeader';
 
 function findCategoryNameInTree(nodes, idOrSlug) {
   if (!idOrSlug || idOrSlug === 'all' || !nodes?.length) return '';
@@ -41,6 +42,12 @@ function ProductsContent() {
   );
   const [searchOpen, setSearchOpen] = useState(false);
   const [localSearch, setLocalSearch] = useState('');
+  const [filters, setFilters] = useState({
+    organic: false,
+    inStock: false,
+    onSale: false,
+  });
+  const [sortKey, setSortKey] = useState('default');
 
   const { data: categoryTree = [], isLoading: treeLoading } = useCategoriesTree();
   const categoriesData = useMemo(() => flattenCategoryTree(categoryTree), [categoryTree]);
@@ -113,6 +120,13 @@ function ProductsContent() {
 
   const onBack = useCallback(() => router.back(), [router]);
   const onSearchOpenToggle = useCallback(() => setSearchOpen((v) => !v), []);
+  const onFilterToggle = useCallback((key) => {
+    setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+  const onClearFilters = useCallback(() => {
+    setFilters({ organic: false, inStock: false, onSale: false });
+    setSortKey('default');
+  }, []);
 
   if (showRailSkeleton) {
     return (
@@ -125,30 +139,16 @@ function ProductsContent() {
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-clip bg-gray-50 pb-28 pt-[env(safe-area-inset-top,0px)]">
-      <header className="sticky top-0 z-40 bg-gray-50">
-        <div className="flex items-center gap-1 px-2 py-2 sm:px-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center border-0 bg-transparent p-0"
-            aria-label="Back"
-          >
-            <svg className="h-4 w-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h1 className="min-w-0 flex-1 truncate text-center text-[15px] font-bold text-gray-900 sm:text-[16px]">
-            Products
-          </h1>
-          <button
-            type="button"
-            onClick={onSearchOpenToggle}
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center border-0 bg-transparent p-0"
-            aria-expanded={searchOpen}
-            aria-label="Search products"
-          >
+      <BrowsePageHeader
+        title="Products"
+        searchOpen={searchOpen}
+        onBack={onBack}
+        onSearchToggle={onSearchOpenToggle}
+        searchAriaLabel="Search products"
+        searchSlot={
+          <div className="relative">
             <svg
-              className={`h-[18px] w-[18px] ${searchOpen ? 'text-violet-700' : 'text-gray-800'}`}
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -160,36 +160,25 @@ function ProductsContent() {
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-          </button>
-        </div>
-        {searchOpen && (
-          <div className="px-3 pb-2.5 pt-0 sm:px-4">
-            <div className="relative">
-              <svg
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              <input
-                type="search"
-                value={localSearch}
-                onChange={(e) => setLocalSearch(e.target.value)}
-                placeholder="Search in results…"
-                className="h-10 w-full rounded-full border border-gray-200 bg-white pl-9 pr-4 text-[13px] text-gray-900 placeholder-gray-400 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-200"
-                autoFocus
-              />
-            </div>
+            <input
+              type="search"
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              placeholder="Search in results…"
+              className="h-10 w-full rounded-full border border-gray-200 bg-white pl-9 pr-4 text-[13px] text-gray-900 placeholder-gray-400 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-200"
+              autoFocus
+            />
           </div>
-        )}
-      </header>
+        }
+        toolbar={
+          <FilterBar
+            filters={filters}
+            onFilterToggle={onFilterToggle}
+            sortKey={sortKey}
+            onSortChange={setSortKey}
+          />
+        }
+      />
 
       <div className="mx-auto flex w-full max-w-screen-2xl flex-row">
         <ProductsCategoryRail
@@ -205,6 +194,11 @@ function ProductsContent() {
           localInResultsSearch={localSearch}
           onResetBrowse={onResetBrowse}
           isPending={isCategoryPending}
+          filters={filters}
+          onFilterToggle={onFilterToggle}
+          sortKey={sortKey}
+          onSortChange={setSortKey}
+          onClearFilters={onClearFilters}
         />
       </div>
 
