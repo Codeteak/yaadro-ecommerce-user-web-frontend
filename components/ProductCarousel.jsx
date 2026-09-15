@@ -1,6 +1,7 @@
 'use client';
 
 import ProductCard from './ProductCard';
+import SmoothDragRail from './motion/SmoothDragRail';
 
 export default function ProductCarousel({ products, title, showMoreLink, cardVariant, compact = false }) {
   if (!products || products.length === 0) {
@@ -39,33 +40,24 @@ export default function ProductCarousel({ products, title, showMoreLink, cardVar
           )}
         </div>
       )}
-      
-      {/* Scrollable Container - Left padding, no right padding */}
-      <div
-        className={
+
+      <SmoothDragRail
+        className={compact ? 'pb-1' : 'pb-4'}
+        trackClassName={
           compact
-            ? 'flex items-stretch gap-2.5 overflow-x-auto scrollbar-hide scroll-smooth pb-1 w-full [scroll-padding-inline:1rem] sm:[scroll-padding-inline:1.5rem] lg:[scroll-padding-inline:2rem]'
-            : 'flex items-stretch gap-1.5 md:gap-4 overflow-x-auto scrollbar-hide scroll-smooth pb-4 w-full pl-4 sm:pl-6 lg:pl-8 pr-0'
+            ? 'items-stretch gap-2.5'
+            : 'items-stretch gap-1.5 md:gap-4 pl-4 sm:pl-6 lg:pl-8 pr-4'
         }
-        style={{
-          scrollSnapType: 'x mandatory',
-          WebkitOverflowScrolling: 'touch',
-          scrollBehavior: 'smooth'
-        }}
+        ariaLabel={title ? `${title} products` : 'Products'}
       >
         {compact ? <div className="w-4 sm:w-6 lg:w-8 shrink-0" aria-hidden /> : null}
         {products.map((product) => (
-          <div
-            key={product.id}
-            className="flex h-full flex-shrink-0"
-            style={{ scrollSnapAlign: 'start' }}
-          >
+          <div key={product.id} className="flex h-full flex-shrink-0">
             <ProductCard product={product} isCarousel={true} variant={cardVariant} />
           </div>
         ))}
         {compact ? <div className="w-4 sm:w-6 lg:w-8 shrink-0" aria-hidden /> : null}
-      </div>
+      </SmoothDragRail>
     </div>
   );
 }
-

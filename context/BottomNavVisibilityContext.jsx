@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useUiStore } from '../stores/uiStore';
+import { getAppScrollY, subscribeAppScroll } from '../lib/pwa/appShell';
 
 const BottomNavVisibilityContext = createContext({ isVisible: true });
 
@@ -32,7 +33,7 @@ export function BottomNavVisibilityProvider({ children }) {
     (pathname?.startsWith('/products/') && path !== '/products');
 
   useEffect(() => {
-    lastYRef.current = typeof window !== 'undefined' ? window.scrollY : 0;
+    lastYRef.current = typeof window !== 'undefined' ? getAppScrollY() : 0;
     setScrollNavVisible(true);
   }, [pathname, setScrollNavVisible]);
 
@@ -42,7 +43,7 @@ export function BottomNavVisibilityProvider({ children }) {
 
     const threshold = 12;
     const onScroll = () => {
-      const currentY = window.scrollY || 0;
+      const currentY = getAppScrollY();
       const lastY = lastYRef.current || 0;
       const delta = currentY - lastY;
       lastYRef.current = currentY;
@@ -63,9 +64,9 @@ export function BottomNavVisibilityProvider({ children }) {
       });
     };
 
-    window.addEventListener('scroll', onScrollRaf, { passive: true });
+    const unsub = subscribeAppScroll(onScrollRaf);
     return () => {
-      window.removeEventListener('scroll', onScrollRaf);
+      unsub();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };

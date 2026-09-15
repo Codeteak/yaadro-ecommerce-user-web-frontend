@@ -1,7 +1,8 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { createPortal } from 'react-dom';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useOrderDetail } from '../../../hooks/useOrders';
 import { useRequireAuth } from '../../../hooks/useRequireAuth';
@@ -9,68 +10,42 @@ import {
   isHttpTrackingUrl,
   markTrackingOpenedThisSession,
 } from '../../../utils/deliveryTracking';
+import { getAppScrollEl, getAppShellEl } from '../../../lib/pwa/appShell';
+import PageTopBar from '../../../components/PageTopBar';
+import { Share2Regular as Share2 } from '../../../components/icons';
 
-function IconBack() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path
-        d="M10 4L6 8l4 4"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconExternal() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path
-        d="M6 3H3v10h10V10M9 2h5v5M8 8l6-6"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-/** Full-viewport shell so layout chrome cannot shrink the tracking iframe. */
 function TrackShell({ children }) {
+  const [host, setHost] = useState(null);
+
   useEffect(() => {
-    const prevHtml = document.documentElement.style.overflow;
-    const prevBody = document.body.style.overflow;
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.overflow = 'hidden';
+    const shell = getAppShellEl();
+    const scroller = getAppScrollEl();
+    setHost(shell || document.body);
+    shell?.classList.add('app-shell-tracking');
+    document.documentElement.classList.add('app-scroll-locked');
+    const prevOverflow = scroller?.style.overflow || '';
+    if (scroller) scroller.style.overflow = 'hidden';
     return () => {
-      document.documentElement.style.overflow = prevHtml;
-      document.body.style.overflow = prevBody;
+      shell?.classList.remove('app-shell-tracking');
+      document.documentElement.classList.remove('app-scroll-locked');
+      if (scroller) scroller.style.overflow = prevOverflow;
     };
   }, []);
 
-  return (
-    <div
-      className="fixed inset-0 z-[80] flex flex-col bg-white"
-      style={{
-        height: '100dvh',
-        maxHeight: '100dvh',
-        width: '100%',
-        paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
-      }}
-    >
+  const tree = (
+    <div className="absolute inset-0 z-[80] flex h-full min-h-0 w-full flex-col bg-white">
       {children}
     </div>
   );
+
+  if (!host) return tree;
+  return createPortal(tree, host);
 }
 
 function TrackPageSkeleton() {
   return (
     <TrackShell>
-      <div className="h-14 shrink-0 border-b border-gray-200 bg-white" />
+      <PageTopBar title="Live tracking" backHref="/orders" fallbackHref="/orders" />
       <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-gray-500">
         Loading live tracking…
       </div>
@@ -79,7 +54,6 @@ function TrackPageSkeleton() {
 }
 
 function OrderTrackContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const orderId = String(searchParams?.get('id') || '').trim();
   const { ok, ready } = useRequireAuth();
@@ -114,6 +88,7 @@ function OrderTrackContent() {
   if (!ok) {
     return (
       <TrackShell>
+        <PageTopBar title="Live tracking" backHref="/login" fallbackHref="/login" />
         <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center text-sm text-gray-600">
           Sign in to view live tracking.
         </div>
@@ -124,6 +99,7 @@ function OrderTrackContent() {
   if (!orderId) {
     return (
       <TrackShell>
+        <PageTopBar title="Live tracking" backHref="/orders" fallbackHref="/orders" />
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
           <p className="m-0 text-sm text-gray-600">Missing order id.</p>
           <Link href="/orders" className="text-sm font-semibold text-[#902bf5]">
@@ -136,38 +112,28 @@ function OrderTrackContent() {
 
   return (
     <TrackShell>
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-3">
-        <button
-          type="button"
-          onClick={() => router.push(orderHref)}
-          className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700"
-          aria-label="Back to order"
-        >
-          <IconBack />
-        </button>
-        <div className="min-w-0 flex-1">
-          <p className="m-0 truncate text-[14px] font-semibold leading-tight text-gray-900">
-            Live tracking
-          </p>
-          <p className="m-0 truncate font-mono text-[11px] leading-tight text-gray-500">
-            {order?.orderNumber || orderId}
-          </p>
-        </div>
-        {trackingUrl ? (
-          <a
-            href={trackingUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-gray-200 px-3 text-[11px] font-semibold text-gray-700"
-            title="Open in browser"
-          >
-            <IconExternal />
-            Open
-          </a>
-        ) : null}
-      </header>
+      <PageTopBar
+        title="Live tracking"
+        subtitle={order?.orderNumber || orderId}
+        backHref={orderHref}
+        fallbackHref={orderHref}
+        right={
+          trackingUrl ? (
+            <a
+              href={trackingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-gray-700 hover:bg-gray-100"
+              title="Open in browser"
+              aria-label="Open tracking in browser"
+            >
+              <Share2 size={20} className="h-5 w-5" />
+            </a>
+          ) : null
+        }
+      />
 
-      <main className="relative min-h-0 flex-1 overflow-hidden bg-white">
+      <div className="order-tracking-frame relative min-h-0 flex-1 bg-white">
         {isLoading && !order ? (
           <div className="flex h-full items-center justify-center text-sm text-gray-500">
             Loading live tracking…
@@ -217,16 +183,17 @@ function OrderTrackContent() {
           </div>
         ) : (
           <iframe
+            key={trackingUrl}
             title="Live delivery tracking"
             src={trackingUrl}
-            className="order-tracking-embed absolute inset-0"
-            style={{ display: 'block', width: '100%', height: '100%' }}
+            className="order-tracking-embed absolute inset-0 h-full w-full"
+            scrolling="yes"
             referrerPolicy="no-referrer-when-downgrade"
             allow="geolocation; clipboard-read; clipboard-write"
             onError={() => setIframeFailed(true)}
           />
         )}
-      </main>
+      </div>
     </TrackShell>
   );
 }

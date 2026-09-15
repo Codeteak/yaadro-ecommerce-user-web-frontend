@@ -20,6 +20,7 @@ import {
   parseProductUnitSize,
   resolveProductWeightAndUnit,
 } from "./productUtils";
+import { PRODUCT_IMAGE_PLACEHOLDER } from "./productImages";
 
 function firstImageUrl(value) {
   if (value == null || value === "") return null;
@@ -47,7 +48,7 @@ function resolveOrderItemImage(item = {}) {
     item?.product?.images?.[0] ||
     firstImageUrl(item?.product?.imageUrl) ||
     firstImageUrl(item?.product?.image) ||
-    "/images/default_product.jpg"
+    PRODUCT_IMAGE_PLACEHOLDER
   );
 }
 

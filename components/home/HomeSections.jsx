@@ -53,7 +53,13 @@ export default function HomeSections() {
           );
         }
         if (section.type === 'product_shelf' && isDailyDairySection(section.title)) {
-          return <HomeDailyDiary key={section.id} products={section.products} />;
+          return (
+            <HomeDailyDiary
+              key={section.id}
+              products={section.products}
+              subtitle={section.subtitle}
+            />
+          );
         }
         if (section.type === 'product_shelf') {
           return (

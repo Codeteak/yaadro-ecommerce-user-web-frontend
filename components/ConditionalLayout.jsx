@@ -1,7 +1,6 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import Footer from './Footer';
 import { useLayoutHeights } from '../context/LayoutHeightsContext';
 import { useBottomNavVisibility } from '../context/BottomNavVisibilityContext';
 
@@ -50,17 +49,11 @@ export default function ConditionalLayout({ children }) {
         className="flex-grow w-full max-w-full overflow-x-clip transition-[padding] duration-300 ease-out"
         style={{
           overflowX: 'clip',
-          maxWidth: '100vw',
           paddingBottom: mainPaddingBottom,
         }}
       >
         {children}
       </main>
-      {!hideFooter && (
-        <div className="hidden md:block">
-          <Footer />
-        </div>
-      )}
     </>
   );
 }

@@ -1,6 +1,19 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 
+/*
+  Desktop is a centered 430px phone column (PWA + browser). Viewport sm/md/lg
+  still exist so HeroUI utilities compile, but they only fire on huge screens
+  that will never wrap this column.
+*/
+@theme {
+  --breakpoint-sm: 200rem;
+  --breakpoint-md: 200rem;
+  --breakpoint-lg: 200rem;
+  --breakpoint-xl: 200rem;
+  --breakpoint-2xl: 200rem;
+}
+
 /* Untitled UI–style design tokens */
 :root {
   --ui-radius-sm: 0.5rem;
@@ -15,6 +28,7 @@
   --color-brand-dark: #7d24d6;
   --space-page-x: 1rem;
   --space-section-y: 1.5rem;
+  --app-shell-max: 26.875rem; /* 430px phone column */
 }
 
 @font-face {
@@ -67,6 +81,79 @@ body {
   position: relative;
 }
 
+/* Mobile: full device width, document scroll, viewport-fixed tab bar. */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 100dvh;
+  background: #fff;
+}
+
+.app-scroll {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+}
+
+/*
+  Desktop / mouse pointer only — never phones (coarse pointer), including
+  landscape handsets. Centered 430px column; only .app-scroll moves so the
+  tab bar stays pinned. Scrollbar is hidden.
+*/
+@media (hover: hover) and (pointer: fine) and (min-width: 48rem) {
+  html,
+  body {
+    height: 100%;
+    background:
+      radial-gradient(ellipse 80% 42% at 50% -18%, rgb(144 43 245 / 0.1), transparent 58%),
+      #f3f0f8 !important;
+    overflow: hidden !important;
+  }
+
+  .app-shell {
+    container-type: inline-size;
+    container-name: app;
+    width: var(--app-shell-max);
+    max-width: var(--app-shell-max);
+    height: 100dvh;
+    max-height: 100dvh;
+    min-height: 0;
+    margin-inline: auto;
+    overflow: hidden;
+    transform: translateZ(0);
+    box-shadow:
+      0 0 0 1px rgb(15 23 42 / 0.06),
+      0 24px 64px rgb(15 23 42 / 0.12);
+  }
+
+  .app-scroll {
+    min-height: 0;
+    overflow-x: clip;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .app-scroll::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  html.app-scroll-locked .app-scroll {
+    overflow: hidden;
+  }
+
+  /* Tracking iframe cannot scroll inside a transformed ancestor. */
+  .app-shell.app-shell-tracking {
+    transform: none;
+  }
+}
+
 /* Prevent any element from causing horizontal overflow */
 * {
   max-width: 100%;
@@ -77,14 +164,38 @@ img, video, iframe {
   height: auto;
 }
 
-/* In-app order tracking: override global iframe height:auto so embed fills the shell */
+/* In-app order tracking: fill the remaining column and keep iframe scroll usable. */
+.order-tracking-frame {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184) transparent;
+}
+
+.order-tracking-frame::-webkit-scrollbar {
+  display: block;
+  width: 8px;
+  height: 8px;
+}
+
+.order-tracking-frame::-webkit-scrollbar-thumb {
+  background: rgb(148 163 184);
+  border-radius: 999px;
+}
+
 iframe.order-tracking-embed {
   width: 100% !important;
   height: 100% !important;
+  min-height: 100%;
   max-width: none !important;
   max-height: none !important;
   border: 0;
   display: block;
+  overflow: auto !important;
+  pointer-events: auto;
+  touch-action: pan-x pan-y;
 }
 
 @keyframes slide-down {
@@ -200,6 +311,29 @@ iframe.order-tracking-embed {
   height: 100% !important;
   object-fit: cover !important;
   object-position: center !important;
+}
+
+/* Drag rails must size to their items, not the viewport (overrides `* { max-width: 100% }`). */
+.drag-rail-track {
+  max-width: none !important;
+  width: max-content;
+}
+
+.drag-rail-track > * {
+  max-width: none;
+}
+
+/* Expanding-label tab bar: keep items inside the 430px shell. */
+.mobile-bottom-nav {
+  max-width: 100%;
+}
+
+.mobile-bottom-nav-track {
+  max-width: 100%;
+}
+
+.mobile-bottom-nav-track > * {
+  max-width: none;
 }
 
 /* Hide scrollbar for horizontal scroll on mobile */
@@ -364,18 +498,21 @@ iframe.order-tracking-embed {
 @layer components {
   .text-home-hero-headline {
     font-size: clamp(1.75rem, 11vw + 0.35rem, 4.5rem);
+    font-size: clamp(1.75rem, 11cqi + 0.35rem, 4.5rem);
     line-height: 0.95;
     letter-spacing: 0.03em;
   }
 
   .text-footer-brand-wordmark {
     font-size: clamp(3rem, 19vw + 0.75rem, 12.5rem);
+    font-size: clamp(3rem, 19cqi + 0.75rem, 12.5rem);
     line-height: 1;
     letter-spacing: 0.07em;
   }
 
   .text-fresh-zone-heading {
     font-size: clamp(2.25rem, 9.5vw + 0.65rem, 3.75rem);
+    font-size: clamp(2.25rem, 9.5cqi + 0.65rem, 3.75rem);
     line-height: 1.05;
   }
 }

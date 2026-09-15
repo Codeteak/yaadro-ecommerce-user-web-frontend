@@ -63,11 +63,9 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="overflow-x-clip w-full max-w-full" style={{ overflowX: 'clip' }}>
-      <body
-        className="flex min-h-screen w-full max-w-full flex-col overflow-x-clip bg-white"
-        style={{ overflowX: 'clip', maxWidth: '100vw' }}
-      >
-        <ClientOnly fallback={<div className="min-h-screen w-full bg-white" />}>
+      <body className="flex min-h-screen w-full max-w-full flex-col overflow-x-clip bg-white">
+        <div id="app-shell" className="app-shell">
+          <ClientOnly fallback={<div className="min-h-screen w-full bg-white" />}>
           <ShopBrandingProvider>
             <ToastProvider>
             <QueryProvider>
@@ -83,7 +81,9 @@ export default function RootLayout({ children }) {
                               <BottomNavVisibilityProvider>
                                 <LayoutHeightsProvider>
                                   <LocationServiceProvider>
-                                    <ConditionalLayout>{children}</ConditionalLayout>
+                                    <div id="app-scroll" className="app-scroll">
+                                      <ConditionalLayout>{children}</ConditionalLayout>
+                                    </div>
                                     <MobileBottomNav />
                                     <ToastHost />
                                     <CartSidebar />
@@ -105,7 +105,8 @@ export default function RootLayout({ children }) {
             </QueryProvider>
             </ToastProvider>
           </ShopBrandingProvider>
-        </ClientOnly>
+          </ClientOnly>
+        </div>
       </body>
     </html>
   );

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryImage';
 import { Bone } from '../skeletons/primitives';
+import SmoothDragRail from '../motion/SmoothDragRail';
 
 function categoryKey(category) {
   return String(category?.id ?? category?._id ?? '');
@@ -20,7 +21,7 @@ function CategoryChip({ category, selected, onSelect }) {
     <button
       type="button"
       onClick={() => onSelect(category)}
-      className="flex w-[76px] shrink-0 snap-start flex-col items-center gap-1.5"
+      className="flex w-[76px] shrink-0 flex-col items-center gap-1.5"
       aria-pressed={selected}
       aria-label={name}
     >
@@ -66,36 +67,40 @@ export default function HomeCategoryRail({
 }) {
   if (isLoading && categories.length === 0) {
     return (
-      <div className="mt-5 overflow-x-auto scrollbar-hide px-5 py-1.5 sm:px-6 scroll-px-5 sm:scroll-px-6">
-        <div className="flex w-max gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex w-[76px] shrink-0 flex-col items-center gap-2">
-              <Bone className="h-[72px] w-[72px] rounded-[20px]" />
-              <Bone className="h-3 w-12 rounded" />
-            </div>
-          ))}
-        </div>
-      </div>
+      <SmoothDragRail
+        className="mt-5 py-1.5"
+        trackClassName="items-start gap-4 px-5 sm:px-6"
+        ariaLabel="Loading categories"
+      >
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex w-[76px] shrink-0 flex-col items-center gap-2">
+            <Bone className="h-[72px] w-[72px] rounded-[20px]" />
+            <Bone className="h-3 w-12 rounded" />
+          </div>
+        ))}
+      </SmoothDragRail>
     );
   }
 
   if (!categories.length) return null;
 
   return (
-    <div className="mt-5 overflow-x-auto scrollbar-hide snap-x snap-mandatory px-5 py-1.5 sm:px-6 scroll-px-5 sm:scroll-px-6">
-      <div className="flex w-max items-start gap-4">
-        {categories.map((category) => {
-          const id = categoryKey(category);
-          return (
-            <CategoryChip
-              key={id || category.name}
-              category={category}
-              selected={selectedId != null && String(selectedId) === id}
-              onSelect={onSelect}
-            />
-          );
-        })}
-      </div>
-    </div>
+    <SmoothDragRail
+      className="mt-5 py-1.5"
+      trackClassName="items-start gap-4 px-5 sm:px-6"
+      ariaLabel="Categories"
+    >
+      {categories.map((category) => {
+        const id = categoryKey(category);
+        return (
+          <CategoryChip
+            key={id || category.name}
+            category={category}
+            selected={selectedId != null && String(selectedId) === id}
+            onSelect={onSelect}
+          />
+        );
+      })}
+    </SmoothDragRail>
   );
 }

@@ -20,12 +20,15 @@ import HomeSections from '../components/home/HomeSections';
 import HomeClientShelves from '../components/home/HomeClientShelves';
 import HomeCategoryRail from '../components/home/HomeCategoryRail';
 import HomeSearchHints from '../components/home/HomeSearchHints';
+import SmoothDragRail from '../components/motion/SmoothDragRail';
 import { dedupeProductsByVariantGroup } from '../utils/productUtils';
 import { getProducts } from '../utils/productApi';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../utils/categoryImage';
 import { Bone, ProductCarouselRowSkeleton } from '../components/skeletons/primitives';
+import { getAppScrollY } from '../lib/pwa/appShell';
 import {
   ArrowRightRegular as ArrowRight,
+  ClassifyFilled as Classify,
   DownRegular as ChevronDown,
   ShopFilled as Shop,
   SearchRegular as Search,
@@ -372,10 +375,9 @@ export default function Home() {
   return (
     <div
       className="w-full max-w-full"
-      style={{ maxWidth: '100vw' }}
       onTouchStart={(e) => {
         if (typeof window === 'undefined') return;
-        if (window.scrollY > 0) return;
+        if (getAppScrollY() > 0) return;
         const y = e.touches?.[0]?.clientY;
         if (!Number.isFinite(y)) return;
         ptrRef.current.startY = y;
@@ -384,7 +386,7 @@ export default function Home() {
       onTouchMove={(e) => {
         if (!ptrRef.current.pulling) return;
         if (typeof window === 'undefined') return;
-        if (window.scrollY > 0) return;
+        if (getAppScrollY() > 0) return;
         const y = e.touches?.[0]?.clientY;
         if (!Number.isFinite(y)) return;
         const raw = y - ptrRef.current.startY;
@@ -531,28 +533,32 @@ export default function Home() {
         {homeCategoryId ? (
           <div className="mt-5 pb-2">
             {homeCategoryProductsLoading && homeCategoryProducts.length === 0 ? (
-              <div className="overflow-x-hidden px-4 sm:px-5 pb-3">
-                <div className="flex w-max items-stretch gap-3">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="flex w-[173px] shrink-0 flex-col gap-2">
-                      <Bone className="aspect-square w-full rounded-2xl" />
-                      <Bone className="h-2.5 w-16 rounded" />
-                      <Bone className="h-4 w-full rounded" />
-                      <Bone className="h-4 w-12 rounded" />
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <SmoothDragRail
+                className="pb-3"
+                trackClassName="items-stretch gap-3 px-4 sm:px-5"
+                ariaLabel="Loading category products"
+              >
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex w-[173px] shrink-0 flex-col gap-2">
+                    <Bone className="aspect-square w-full rounded-2xl" />
+                    <Bone className="h-2.5 w-16 rounded" />
+                    <Bone className="h-4 w-full rounded" />
+                    <Bone className="h-4 w-12 rounded" />
+                  </div>
+                ))}
+              </SmoothDragRail>
             ) : homeCategoryProducts.length > 0 ? (
-              <div className="overflow-x-auto scrollbar-hide px-4 sm:px-5 pb-3 snap-x snap-mandatory">
-                <div className="flex w-max items-stretch gap-3">
-                  {homeCategoryProducts.map((product) => (
-                    <div key={product.id} className="flex h-full flex-shrink-0 snap-start">
-                      <ProductCard product={product} isCarousel />
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <SmoothDragRail
+                className="pb-3"
+                trackClassName="items-stretch gap-3 px-4 sm:px-5"
+                ariaLabel="Category products"
+              >
+                {homeCategoryProducts.map((product) => (
+                  <div key={product.id} className="flex h-full flex-shrink-0">
+                    <ProductCard product={product} isCarousel />
+                  </div>
+                ))}
+              </SmoothDragRail>
             ) : null}
             <div className="mt-4 flex justify-center px-4 sm:px-5">
               <Link
@@ -616,65 +622,72 @@ export default function Home() {
             </div>
             {/* Category tabs (carousel) */}
             {freshZoneDisplayCategories.length > 0 && (
-              <div className="w-screen relative left-1/2 -translate-x-1/2 mb-10">
-                <div className="overflow-x-auto scrollbar-hide pb-1 snap-x snap-mandatory">
-                  <div className="flex w-max gap-2 px-4 mx-auto">
-                    <button
-                      type="button"
-                      onClick={() => setFreshZoneCategoryId(null)}
-                      className={`snap-start flex-shrink-0 inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition whitespace-nowrap ${
-                        freshZoneCategoryId == null
-                          ? 'border-violet-600 bg-violet-50 text-violet-800'
-                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      <span>All</span>
-                    </button>
+              <div className="w-full mb-10">
+                <SmoothDragRail
+                  className="pb-1"
+                  trackClassName="items-center gap-2 px-4"
+                  ariaLabel="Fresh zone categories"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setFreshZoneCategoryId(null)}
+                    className={`h-11 flex-shrink-0 inline-flex items-center gap-2 rounded-full border px-3 text-sm font-semibold transition whitespace-nowrap ${
+                      freshZoneCategoryId == null
+                        ? 'border-violet-600 bg-violet-50 text-violet-800'
+                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <span className="relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-gray-100">
+                      <Classify size={16} className="text-violet-700" aria-hidden />
+                    </span>
+                    <span>All</span>
+                  </button>
 
-                    {freshZoneDisplayCategories.map((cat) => {
-                      const active = freshZoneCategoryId != null && String(freshZoneCategoryId) === String(cat.id);
-                      const src = getCategoryImageUrl(cat) || CATEGORY_DUMMY_IMAGE;
-                      return (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          onClick={() => setFreshZoneCategoryId(cat.id)}
-                          className={`snap-start flex-shrink-0 inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition whitespace-nowrap ${
-                            active
-                              ? 'border-violet-600 bg-violet-50 text-violet-800'
-                              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          <span className="relative h-7 w-7 overflow-hidden rounded-full bg-gray-100 border border-gray-200">
-                            <img
-                              src={src}
-                              alt=""
-                              className="h-full w-full object-contain"
-                              onError={(e) => {
-                                e.currentTarget.src = CATEGORY_DUMMY_IMAGE;
-                              }}
-                            />
-                          </span>
-                          <span className="max-w-[9.5rem] truncate">{cat.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                  {freshZoneDisplayCategories.map((cat) => {
+                    const active = freshZoneCategoryId != null && String(freshZoneCategoryId) === String(cat.id);
+                    const src = getCategoryImageUrl(cat) || CATEGORY_DUMMY_IMAGE;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setFreshZoneCategoryId(cat.id)}
+                        className={`h-11 flex-shrink-0 inline-flex items-center gap-2 rounded-full border px-3 text-sm font-semibold transition whitespace-nowrap ${
+                          active
+                            ? 'border-violet-600 bg-violet-50 text-violet-800'
+                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="relative h-7 w-7 overflow-hidden rounded-full bg-gray-100 border border-gray-200">
+                          <img
+                            src={src}
+                            alt=""
+                            className="h-full w-full object-contain"
+                            onError={(e) => {
+                              e.currentTarget.src = CATEGORY_DUMMY_IMAGE;
+                            }}
+                          />
+                        </span>
+                        <span className="max-w-[9.5rem] truncate">{cat.name}</span>
+                      </button>
+                    );
+                  })}
+                </SmoothDragRail>
               </div>
             )}
 
             {/* Products (carousel) */}
-            <div className="w-screen relative left-1/2 -translate-x-1/2">
-              <div className="overflow-x-auto scrollbar-hide pb-3 snap-x snap-mandatory">
-                <div className="flex w-max items-stretch gap-3 px-4 mx-auto">
+            <div className="w-full">
+              <SmoothDragRail
+                className="pb-3"
+                trackClassName="items-stretch gap-3 px-4"
+                ariaLabel="Fresh zone products"
+              >
                   {freshZoneDisplayProducts.slice(0, 12).map((product) => (
-                    <div key={product.id} className="flex h-full flex-shrink-0 snap-start">
+                    <div key={product.id} className="flex h-full flex-shrink-0">
                       <ProductCard product={product} isCarousel />
                     </div>
                   ))}
-                </div>
-              </div>
+              </SmoothDragRail>
               {freshZoneSelectedCategory && freshZoneDisplayProducts.length === 0 && (
                 <div className="px-4 pb-2 text-sm text-gray-500">
                   No products found for <span className="font-semibold text-gray-800">{freshZoneSelectedCategory.name}</span>.

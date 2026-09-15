@@ -1,14 +1,22 @@
 import { mediaObjectToUrl } from './mediaUrl';
 
-/** Neutral placeholder when no valid image references exist or load fails. */
-export const PRODUCT_IMAGE_PLACEHOLDER = '/images/default_product.jpg';
+/** Default art when a product or category has no usable photo. */
+export const PRODUCT_IMAGE_PLACEHOLDER = '/images/default-category-product-image.png';
 
-/** Older placeholder path — treat as missing image so UI shows the current default. */
+/** Older placeholder paths — treat as missing so UI shows the current default. */
+const LEGACY_PRODUCT_IMAGE_PLACEHOLDERS = [
+  '/images/dummy.png',
+  '/images/default_product.jpg',
+  '/icons/dummy-category-card-icon.png',
+];
+
 export const LEGACY_PRODUCT_IMAGE_PLACEHOLDER = '/images/dummy.png';
 
 export function isProductImagePlaceholder(src) {
   const u = String(src || '').trim();
-  return !u || u === PRODUCT_IMAGE_PLACEHOLDER || u === LEGACY_PRODUCT_IMAGE_PLACEHOLDER;
+  if (!u) return true;
+  if (u === PRODUCT_IMAGE_PLACEHOLDER) return true;
+  return LEGACY_PRODUCT_IMAGE_PLACEHOLDERS.includes(u);
 }
 
 const UUID_RE =
@@ -206,18 +214,21 @@ export function normalizeProductImages(input = {}) {
  */
 export function getResolvedProductImageUrls(product) {
   if (!product || typeof product !== 'object') return [PRODUCT_IMAGE_PLACEHOLDER];
+  let list = [];
   if (Array.isArray(product.imageUrls) && product.imageUrls.length > 0) {
-    const mapped = product.imageUrls.map((u) => toImageSrcString(u)).filter(Boolean);
-    if (mapped.length > 0) return mapped;
+    list = product.imageUrls.map((u) => toImageSrcString(u)).filter(Boolean);
   }
-  const list = normalizeProductImages({
-    imageUrl: product.imageUrl ?? product.image_url,
-    images: product.images,
-    thumbnail: product.thumbnail,
-    thumbnailUrl: product.thumbnailUrl,
-    image: product.image,
-  });
-  return list.length > 0 ? list : [PRODUCT_IMAGE_PLACEHOLDER];
+  if (list.length === 0) {
+    list = normalizeProductImages({
+      imageUrl: product.imageUrl ?? product.image_url,
+      images: product.images,
+      thumbnail: product.thumbnail,
+      thumbnailUrl: product.thumbnailUrl,
+      image: product.image,
+    });
+  }
+  const real = list.filter((u) => u && !isProductImagePlaceholder(u));
+  return real.length > 0 ? real : [PRODUCT_IMAGE_PLACEHOLDER];
 }
 
 /**

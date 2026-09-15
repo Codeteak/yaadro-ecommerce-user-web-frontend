@@ -13,7 +13,7 @@ import { useLayoutHeights } from '../context/LayoutHeightsContext';
 import { getCartLinePreviewImageSrc } from '../utils/productImages';
 import { computeCartSavings } from '../utils/cartSavings';
 import ProductImageWithFallback from './ProductImageWithFallback';
-import CartSavingsCelebration from './CartSavingsCelebration';
+import { getAppShellEl } from '../lib/pwa/appShell';
 
 /** Keep in sync with `LayoutHeightsProvider` initial `bottomNavHeight` — used when measurement lags or is 0. */
 const MOBILE_BOTTOM_NAV_FALLBACK_PX = 72;
@@ -27,6 +27,7 @@ const GAP_ABOVE_BOTTOM_NAV_PX = 14;
 export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [portalTarget, setPortalTarget] = useState(null);
   const { cartItems, cartCount, cartTotal, loading } = useCart();
   const { isAuthenticated, authHydrated } = useAuth();
   const { goToLogin } = useLoginNavigation();
@@ -44,7 +45,10 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
   const [celebrationBurst, setCelebrationBurst] = useState(0);
   const celebrationClearRef = useRef(null);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    setPortalTarget(getAppShellEl() || document.body);
+  }, []);
 
   useEffect(() => {
     if (cartItems.length === 0) {
@@ -123,7 +127,7 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
     };
   }, []);
 
-  if (!mounted || cartItems.length === 0) return null;
+  if (!mounted || !portalTarget || cartItems.length === 0) return null;
 
   const navShowing = !bottomNavHidden && bottomNavVisible;
   /** Always reserve at least one tab-bar height when the bar is on-screen (avoids pill sitting flush to viewport bottom while nav slides in / before RO fires). */
@@ -233,5 +237,5 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
     </div>
   );
 
-  return createPortal(pill, document.body);
+  return createPortal(pill, portalTarget);
 }

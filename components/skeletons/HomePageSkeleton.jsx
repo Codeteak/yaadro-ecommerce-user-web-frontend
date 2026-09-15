@@ -35,7 +35,7 @@ function SectionHeading({ titleWidth = 280, subtitleWidth = 0, showMore = false,
 /** Carousel product card ~140px wide (ProductCard isCarousel) */
 function ProductCarouselRowSkeleton({ count = 6, gapClass = 'gap-2' }) {
   return (
-    <div className="w-screen relative left-1/2 -translate-x-1/2">
+    <div className="w-full">
       <div className="overflow-x-hidden scrollbar-hide pb-3">
         <div className={`flex w-max ${gapClass} px-4`}>
           {Array.from({ length: count }).map((_, i) => (
@@ -74,7 +74,7 @@ function HomeTopSkeleton() {
         <Bone className="w-full aspect-[2.4/1] max-h-[200px] rounded-2xl" />
       </div>
 
-      <div className="mt-5 w-screen relative left-1/2 -translate-x-1/2">
+      <div className="mt-5 w-full">
         <div className="overflow-x-hidden px-4 sm:px-5">
           <div className="flex w-max gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -111,12 +111,14 @@ function DailyDiarySkeleton() {
         style={{ backgroundImage: "url('/daily-diary-bg.png')" }}
         aria-hidden
       />
-      <div className="relative z-[1] px-4 pb-20 pt-8 sm:px-5 sm:pb-24 sm:pt-10">
-        <Bone className="mx-auto mb-6 h-10 w-48 rounded-lg bg-white/25 sm:mb-8 sm:h-12 sm:w-64" />
+      <div className="relative z-[1] px-4 pb-8 pt-8 sm:px-5 sm:pb-10 sm:pt-10">
+        <Bone className="mx-auto mb-3 h-10 w-48 rounded-lg bg-white/25 sm:h-12 sm:w-64" />
+        <Bone className="mx-auto mb-6 h-4 w-64 max-w-[80%] rounded bg-white/20 sm:mb-8" />
         <div className="-mx-4 flex gap-3 overflow-hidden px-4 sm:-mx-5 sm:px-5">
           <Bone className="h-[236px] w-[173px] shrink-0 rounded-[20px] bg-white/90" />
           <Bone className="h-[236px] w-[173px] shrink-0 rounded-[20px] bg-white/90" />
         </div>
+        <Bone className="mx-auto mt-8 h-10 w-28 rounded-full bg-white/25" />
       </div>
     </section>
   );

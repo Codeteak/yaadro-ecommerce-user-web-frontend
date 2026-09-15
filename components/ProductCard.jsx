@@ -480,10 +480,10 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
-            onMouseDown={onMouseDown}
-            onMouseMove={onMouseMove}
-            onMouseUp={onMouseUp}
-            onMouseLeave={onMouseUp}
+            onMouseDown={isCarousel ? undefined : onMouseDown}
+            onMouseMove={isCarousel ? undefined : onMouseMove}
+            onMouseUp={isCarousel ? undefined : onMouseUp}
+            onMouseLeave={isCarousel ? undefined : onMouseUp}
           >
             <div
               className="relative z-0 flex h-full min-h-0 w-full transition-transform duration-500 ease-in-out"

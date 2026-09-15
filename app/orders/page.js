@@ -20,6 +20,7 @@ import OrderCard from '../../components/orders/OrderCard';
 import { PackageRegular as Package } from '../../components/icons';
 import OrdersPageSkeleton from '../../components/skeletons/OrdersPageSkeleton';
 import { OrderListCardSkeleton } from '../../components/skeletons/primitives';
+import { PRODUCT_IMAGE_PLACEHOLDER } from '../../utils/productImages';
 
 function orderMatchesQuery(order, query) {
   const q = String(query || '').trim().toLowerCase();
@@ -237,7 +238,7 @@ export default function OrdersPage() {
     const image =
       item?.product?.images?.[0] ||
       (typeof item?.image === 'string' ? item.image : item?.image?.url) ||
-      '/images/default_product.jpg';
+      PRODUCT_IMAGE_PLACEHOLDER;
 
     const selectedSize =
       item?.selectedSize ||

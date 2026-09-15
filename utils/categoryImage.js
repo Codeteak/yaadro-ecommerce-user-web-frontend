@@ -1,9 +1,14 @@
 import { mediaObjectToUrl } from './mediaUrl';
+import {
+  PRODUCT_IMAGE_PLACEHOLDER,
+  isProductImagePlaceholder,
+} from './productImages';
 
-const DUMMY_CATEGORY_IMAGE = '/icons/dummy-category-card-icon.png';
+export const CATEGORY_DUMMY_IMAGE = PRODUCT_IMAGE_PLACEHOLDER;
 
 function isUsableUrl(value) {
   if (!value || typeof value !== 'string') return false;
+  if (isProductImagePlaceholder(value)) return false;
   return (
     value.startsWith('http://') ||
     value.startsWith('https://') ||
@@ -60,4 +65,3 @@ export function getCategoryImageUrl(category) {
   return null;
 }
 
-export const CATEGORY_DUMMY_IMAGE = DUMMY_CATEGORY_IMAGE;

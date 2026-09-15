@@ -102,58 +102,14 @@ function RotatingHintInput({ value, onChange, hintWords, inputProps }) {
 }
 
 /* ─────────────────────────────────────────────
-   Color map — matched by category name keywords
-───────────────────────────────────────────── */
-const COLOR_MAP = [
-  { keywords: ['oil', 'fat'],                                         bg: '#EAF3DE', stroke: '#3B6D11' },
-  { keywords: ['dairy', 'ghee', 'milk', 'butter', 'cheese', 'paneer'], bg: '#E6F1FB', stroke: '#185FA5' },
-  { keywords: ['grain', 'flour', 'rice', 'wheat', 'millet', 'cereal'], bg: '#FAEEDA', stroke: '#854F0B' },
-  { keywords: ['spice', 'herb', 'masala', 'salt', 'pepper', 'turmeric'], bg: '#FCEBEB', stroke: '#A32D2D' },
-  { keywords: ['snack', 'muesli', 'granola', 'biscuit', 'chip'],      bg: '#EEEDFE', stroke: '#534AB7' },
-  { keywords: ['beverage', 'tea', 'coffee', 'juice', 'drink'],        bg: '#E1F5EE', stroke: '#0F6E56' },
-  { keywords: ['fruit', 'vegetable', 'fresh', 'organic'],             bg: '#EAF3DE', stroke: '#3B6D11' },
-  { keywords: ['sweet', 'candy', 'chocolate', 'dessert'],             bg: '#FBEAF0', stroke: '#993556' },
-];
-
-function getCategoryColor(name = '') {
-  const lower = name.toLowerCase();
-  const match = COLOR_MAP.find((c) => c.keywords.some((k) => lower.includes(k)));
-  return match || { bg: '#F1EFE8', stroke: '#5F5E5A' };
-}
-
-/* ─────────────────────────────────────────────
-   Category icon (SVG matched by name)
-───────────────────────────────────────────── */
-function CategoryIcon({ name, strokeColor }) {
-  const lower = (name || '').toLowerCase();
-  const p = { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 1.8 };
-
-  if (lower.includes('oil') || lower.includes('fat'))
-    return <svg className="w-[22px] h-[22px]" fill="none" stroke={strokeColor} viewBox="0 0 24 24"><path {...p} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>;
-  if (lower.includes('dairy') || lower.includes('ghee') || lower.includes('milk'))
-    return <svg className="w-[22px] h-[22px]" fill="none" stroke={strokeColor} viewBox="0 0 24 24"><path {...p} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>;
-  if (lower.includes('grain') || lower.includes('flour') || lower.includes('rice') || lower.includes('wheat'))
-    return <svg className="w-[22px] h-[22px]" fill="none" stroke={strokeColor} viewBox="0 0 24 24"><path {...p} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>;
-  if (lower.includes('spice') || lower.includes('herb') || lower.includes('masala'))
-    return <svg className="w-[22px] h-[22px]" fill="none" stroke={strokeColor} viewBox="0 0 24 24"><path {...p} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>;
-  if (lower.includes('snack') || lower.includes('muesli') || lower.includes('granola'))
-    return <svg className="w-[22px] h-[22px]" fill="none" stroke={strokeColor} viewBox="0 0 24 24"><path {...p} d="M21 15.546c-.523 0-1.046.151-1.5.454a2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.701 2.701 0 00-1.5-.454M9 6v2m3-2v2m3-2v2M9 3h.01M12 3h.01M15 3h.01M21 21l-3-9H6l-3 9"/></svg>;
-  if (lower.includes('beverage') || lower.includes('tea') || lower.includes('coffee') || lower.includes('drink'))
-    return <svg className="w-[22px] h-[22px]" fill="none" stroke={strokeColor} viewBox="0 0 24 24"><path {...p} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>;
-  return <svg className="w-[22px] h-[22px]" fill="none" stroke={strokeColor} viewBox="0 0 24 24"><path {...p} d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>;
-}
-
-/* ─────────────────────────────────────────────
    Category card → dedicated category browse page
    Blinkit-style: light tile + label below (no section grouping)
 ───────────────────────────────────────────── */
 function CategoryCard({ category, featured = false }) {
-  const { bg, stroke } = getCategoryColor(category.name);
   const categorySlugOrId = category.slug || category.id;
   const imageUrl = getCategoryImageUrl(category);
-  const [imgSrc, setImgSrc] = useState(imageUrl || null);
+  const [imgSrc, setImgSrc] = useState(imageUrl || CATEGORY_DUMMY_IMAGE);
   const isDummy = imgSrc === CATEGORY_DUMMY_IMAGE;
-  const onImage = Boolean(imgSrc);
 
   return (
     <Link
@@ -163,35 +119,23 @@ function CategoryCard({ category, featured = false }) {
       }`}
     >
       <div
-        className={`category-page-tile relative w-full overflow-hidden rounded-2xl ${
+        className={`category-page-tile relative w-full overflow-hidden rounded-2xl bg-[#F2F3F5] ${
           featured ? 'aspect-[2/1.05]' : 'aspect-square'
         }`}
-        style={{ background: onImage && !isDummy ? '#F2F3F5' : bg }}
       >
-        {onImage ? (
-          <img
-            src={imgSrc}
-            alt=""
-            loading="lazy"
-            className={
-              isDummy
-                ? 'category-page-tile-contain absolute inset-0 h-full w-full object-contain object-center p-2 sm:p-2.5'
-                : 'category-page-tile-cover absolute inset-0 h-full w-full object-cover object-center'
-            }
-            onError={() => {
-              if (!isDummy) setImgSrc(CATEGORY_DUMMY_IMAGE);
-            }}
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/85 shadow-sm sm:h-11 sm:w-11"
-              aria-hidden
-            >
-              <CategoryIcon name={category.name} strokeColor={stroke} />
-            </div>
-          </div>
-        )}
+        <img
+          src={imgSrc}
+          alt=""
+          loading="lazy"
+          className={
+            isDummy
+              ? 'category-page-tile-contain absolute inset-0 h-full w-full object-contain object-center p-2 sm:p-2.5'
+              : 'category-page-tile-cover absolute inset-0 h-full w-full object-cover object-center'
+          }
+          onError={() => {
+            if (!isDummy) setImgSrc(CATEGORY_DUMMY_IMAGE);
+          }}
+        />
       </div>
       <p
         className={`w-full px-0.5 text-center text-[11px] font-bold leading-snug text-gray-900 sm:text-[12px] ${

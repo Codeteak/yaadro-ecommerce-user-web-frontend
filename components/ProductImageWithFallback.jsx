@@ -9,9 +9,9 @@ import {
 
 /**
  * Next/Image with skeleton first paint, lazy-friendly loading, and broken-URL fallback.
- * Missing/broken images use `/images/default_product.jpg` with object-cover so the
- * padded default art fills the card/PDP well. Real photos: contain unless caller
- * passes `object-cover`.
+ * Missing/broken images use `/images/default-category-product-image.png`.
+ * The default art is contained so the icon stays fully visible. Real photos:
+ * contain unless caller passes `object-cover`.
  * `fill` avoids next/image absolute stretch (global `img { height: auto }` crops that).
  */
 export default function ProductImageWithFallback({
@@ -34,11 +34,10 @@ export default function ProductImageWithFallback({
   const [ready, setReady] = useState(false);
   const hasEverLoadedRef = useRef(false);
   const prevSrcRef = useRef(null);
-  // Default art has baked-in whitespace — cover so it fills the well.
-  // Real photos: contain unless the caller passes object-cover.
+  // Default art is a centered glyph — contain so it is not cropped.
   const isPlaceholder = isProductImagePlaceholder(imgSrc);
   const fit = isPlaceholder
-    ? 'cover'
+    ? 'contain'
     : /\bobject-cover\b/.test(className)
       ? 'cover'
       : 'contain';

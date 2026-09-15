@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import { mediaObjectToUrl } from '../utils/mediaUrl';
+import { CATEGORY_DUMMY_IMAGE, getCategoryImageUrl } from '../utils/categoryImage';
 
 export function isImageUrl(str) {
   if (!str || typeof str !== 'string') return false;
@@ -22,16 +24,40 @@ export function categoryShowsPhoto(category) {
   return false;
 }
 
+function CategoryPhoto({ src, name, photoWrap, imageSizes }) {
+  const [failed, setFailed] = useState(false);
+  const showSrc = !failed && src ? src : CATEGORY_DUMMY_IMAGE;
+  const isDummy = showSrc === CATEGORY_DUMMY_IMAGE;
+
+  return (
+    <span className={photoWrap}>
+      <Image
+        src={showSrc}
+        alt={name}
+        fill
+        className={
+          isDummy
+            ? 'object-contain object-center p-1.5'
+            : 'object-contain object-center p-0.5'
+        }
+        sizes={imageSizes}
+        onError={() => setFailed(true)}
+        unoptimized
+      />
+    </span>
+  );
+}
+
 /**
  * Renders category icon for navbar/cards.
  * Priority: 1) Icon (emoji, text, or image URL), 2) Category image only if no icon.
+ * Missing/broken photos use the default category/product image.
  * @param {boolean} [frameless] — no gray plate behind photos; fill parent (use with sized wrapper).
  */
 export default function CategoryIcon({ category, className = '', size = 'md', frameless = false }) {
   const name = typeof category === 'object' ? category?.name : 'Category';
   const icon = typeof category === 'object' ? category?.icon : null;
-  const image = typeof category === 'object' ? category?.image : null;
-  const imageUrl = typeof image === 'string' ? image : mediaObjectToUrl(image);
+  const imageUrl = getCategoryImageUrl(typeof category === 'object' ? category : null);
 
   const sizeClasses = {
     xs: 'w-6 h-6 text-base',
@@ -47,16 +73,12 @@ export default function CategoryIcon({ category, className = '', size = 'md', fr
 
   const imageSizes = frameless ? '(max-width: 768px) 96px, 112px' : '48px';
 
-  // 1) Icon as image URL -> show icon image
   if (icon && isImageUrl(icon)) {
     return (
-      <span className={photoWrap}>
-        <Image src={icon} alt={name} fill className="object-contain object-center p-0.5" sizes={imageSizes} />
-      </span>
+      <CategoryPhoto src={icon} name={name} photoWrap={photoWrap} imageSizes={imageSizes} />
     );
   }
 
-  // 2) Icon as emoji/text -> show icon (no category image)
   if (icon) {
     return (
       <span
@@ -68,32 +90,12 @@ export default function CategoryIcon({ category, className = '', size = 'md', fr
     );
   }
 
-  // 3) No icon -> show category image only
-  if (image && isImageUrl(image)) {
-    return (
-      <span className={photoWrap}>
-        <Image src={image} alt={name} fill className="object-contain object-center p-0.5" sizes={imageSizes} />
-      </span>
-    );
-  }
-
-  // 3b) Image object with storageKey (new backend shape)
-  if (imageUrl && isImageUrl(imageUrl)) {
-    return (
-      <span className={photoWrap}>
-        <Image src={imageUrl} alt={name} fill className="object-contain object-center p-0.5" sizes={imageSizes} />
-      </span>
-    );
-  }
-
   return (
-    <span
-      className={`inline-flex flex-shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-400 ${s} ${className}`}
-      aria-hidden
-    >
-      <svg className="w-1/2 h-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7a1.994 1.994 0 01-.586-1.414V7a4 4 0 014-4z" />
-      </svg>
-    </span>
+    <CategoryPhoto
+      src={imageUrl}
+      name={name}
+      photoWrap={photoWrap}
+      imageSizes={imageSizes}
+    />
   );
 }

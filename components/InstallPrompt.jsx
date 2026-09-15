@@ -49,7 +49,7 @@ export default function InstallPrompt() {
   };
 
   return (
-    <div className="fixed bottom-20 left-1/2 z-[100] w-[min(92vw,22rem)] -translate-x-1/2 rounded-2xl border border-violet-200 bg-white p-4 shadow-xl md:bottom-24">
+    <div className="fixed bottom-20 left-1/2 z-[100] w-[min(92%,22rem)] -translate-x-1/2 rounded-2xl border border-violet-200 bg-white p-4 shadow-xl">
       <p className="text-sm font-semibold text-gray-900">Install app</p>
       <p className="mt-1 text-xs text-gray-600">
         Add this store to your home screen or desktop for faster access.

@@ -8,6 +8,7 @@ import InfiniteScrollSentinel from '../InfiniteScrollSentinel';
 import { CATEGORY_ID_UUID, SORT_OPTIONS } from './productsBrowseConstants';
 import { ProductGridSkeleton } from '../skeletons/primitives';
 import EmptyState from '../ui/EmptyState';
+import { getAppScrollY, setAppScrollY } from '../../lib/pwa/appShell';
 
 const PRODUCTS_SCROLL_KEY = 'yaadro_products_scroll_v1';
 
@@ -210,7 +211,7 @@ function ProductsListingPanelInner({
       restoredScrollRef.current = true;
       sessionStorage.removeItem(PRODUCTS_SCROLL_KEY);
       requestAnimationFrame(() => {
-        window.scrollTo(0, Number(saved.y) || 0);
+        setAppScrollY(Number(saved.y) || 0);
       });
     } catch {
       // ignore
@@ -227,7 +228,7 @@ function ProductsListingPanelInner({
           PRODUCTS_SCROLL_KEY,
           JSON.stringify({
             browseKey: `${categoryId || 'all'}|${urlSearch || ''}`,
-            y: window.scrollY || 0,
+            y: getAppScrollY(),
           })
         );
       } catch {

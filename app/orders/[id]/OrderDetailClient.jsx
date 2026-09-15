@@ -916,7 +916,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
     const image =
       item?.product?.images?.[0] ||
       (typeof item?.image === "string" ? item.image : item?.image?.url) ||
-      "/images/default_product.jpg";
+      PRODUCT_IMAGE_PLACEHOLDER;
 
     const selectedSize =
       item?.selectedSize ||

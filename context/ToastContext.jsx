@@ -51,7 +51,7 @@ export function ToastHost() {
 
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 z-[70] flex flex-col items-center gap-2 px-4 md:bottom-6 md:top-auto md:items-end md:px-6"
+      className="pointer-events-none fixed inset-x-0 z-[70] flex flex-col items-center gap-2 px-4"
       style={{
         bottom:
           liftPx != null
@@ -101,7 +101,7 @@ function Toast({ toast, removeToast }) {
 
   return (
     <div
-      className={`${bgColor} pointer-events-auto flex w-full max-w-xs items-center gap-2 rounded-2xl border border-white/15 px-4 py-2.5 text-white backdrop-blur-sm animate-slide-up md:max-w-sm`}
+      className={`${bgColor} pointer-events-auto flex w-full max-w-xs items-center gap-2 rounded-2xl border border-white/15 px-4 py-2.5 text-white backdrop-blur-sm animate-slide-up`}
       role="status"
       aria-live="polite"
     >

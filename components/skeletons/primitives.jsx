@@ -42,7 +42,7 @@ export function ProductGridSkeleton({
 
 export function ProductCarouselRowSkeleton({ count = 6, gapClass = 'gap-2' }) {
   return (
-    <div className="w-screen relative left-1/2 -translate-x-1/2">
+    <div className="w-full">
       <div className="overflow-x-hidden scrollbar-hide pb-3">
         <div className={`flex w-max ${gapClass} px-4`}>
           {Array.from({ length: count }).map((_, i) => (

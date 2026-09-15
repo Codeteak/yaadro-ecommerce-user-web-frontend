@@ -31,7 +31,7 @@ import PdpOfferPanel from '../../../components/promotions/PdpOfferPanel';
 import Link from 'next/link';
 import ProductCarousel from '../../../components/ProductCarousel';
 import { SHOW_PRODUCT_EXTENDED_SECTIONS } from './productDetailFlags';
-import { getResolvedProductImageUrls } from '../../../utils/productImages';
+import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../../utils/productImages';
 import ProductImageWithFallback from '../../../components/ProductImageWithFallback';
 import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
 import { getCartLinePaidQty, getBundleFreeExtraOnPaidLine } from '../../../utils/cartPromotions';
@@ -747,7 +747,7 @@ export default function ProductDetailClient({ productId = null }) {
                           resolveProductWeightAndUnit(p).weight,
                           resolveProductWeightAndUnit(p).unit
                         );
-                      const img = getResolvedProductImageUrls(p)[0] || '/images/default_product.jpg';
+                      const img = getResolvedProductImageUrls(p)[0] || PRODUCT_IMAGE_PLACEHOLDER;
                       const active = product?.id && String(product.id) === String(p.id);
                       const priceValue = getEffectivePrice(p, Number(p.price ?? 0) || 0);
                       return (

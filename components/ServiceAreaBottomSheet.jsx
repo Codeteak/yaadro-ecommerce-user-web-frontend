@@ -166,9 +166,6 @@ export default function ServiceAreaBottomSheet() {
 
   const [mapMode, setMapMode] = useState(false);
   const [draftPin, setDraftPin] = useState(null);
-  const [isDesktop, setIsDesktop] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
-  );
   const [pinPreview, setPinPreview] = useState({
     loading: false,
     serviceable: null,
@@ -177,19 +174,6 @@ export default function ServiceAreaBottomSheet() {
     shopLocation: null,
     error: null,
   });
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
-    const mq = window.matchMedia('(min-width: 768px)');
-    const sync = () => setIsDesktop(mq.matches);
-    sync();
-    if (mq.addEventListener) mq.addEventListener('change', sync);
-    else mq.addListener(sync);
-    return () => {
-      if (mq.removeEventListener) mq.removeEventListener('change', sync);
-      else mq.removeListener(sync);
-    };
-  }, []);
 
   useEffect(() => {
     document.body.style.overflow = showServiceAreaSheet ? 'hidden' : 'unset';
@@ -329,36 +313,20 @@ export default function ServiceAreaBottomSheet() {
         aria-hidden="true"
       />
 
-      {isDesktop ? (
-        <div className="fixed inset-0 z-[69] flex items-center justify-center px-4 pointer-events-none">
-          <div
-            className="bg-white rounded-3xl w-full max-w-[420px] overflow-hidden shadow-2xl pointer-events-auto"
-            style={{ animation: 'serviceAreaScaleIn 0.25s cubic-bezier(0.32, 0.72, 0, 1) both' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <SheetBody {...sheetProps} />
-          </div>
+      <AnimatedSheet
+        className="fixed bottom-0 left-0 right-0 z-[69] bg-white rounded-t-3xl overflow-hidden shadow-2xl"
+        style={{ maxHeight: '92vh' }}
+      >
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
         </div>
-      ) : (
-        <AnimatedSheet
-          className="fixed bottom-0 left-0 right-0 z-[69] bg-white rounded-t-3xl overflow-hidden shadow-2xl"
-          style={{ maxHeight: '92vh' }}
-        >
-          <div className="flex justify-center pt-3 pb-1">
-            <div className="w-10 h-1 bg-gray-200 rounded-full" />
-          </div>
-          <SheetBody {...sheetProps} />
-        </AnimatedSheet>
-      )}
+        <SheetBody {...sheetProps} />
+      </AnimatedSheet>
 
       <style>{`
         @keyframes serviceAreaSlideUp {
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
-        }
-        @keyframes serviceAreaScaleIn {
-          from { opacity: 0; transform: scale(0.96); }
-          to { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </>

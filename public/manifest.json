@@ -6,10 +6,15 @@
   "scope": "/",
   "id": "/",
   "display": "standalone",
-  "display_override": ["standalone", "browser"],
-  "background_color": "#ffffff",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "background_color": "#f3f0f8",
   "theme_color": "#902bf5",
   "orientation": "any",
+  "prefer_related_applications": false,
+  "handle_links": "preferred",
+  "launch_handler": {
+    "client_mode": ["navigate-existing", "auto"]
+  },
   "categories": ["shopping", "food"],
   "icons": [
     {
