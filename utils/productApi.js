@@ -394,13 +394,22 @@ function transformCategory(apiCategory) {
         ? apiCategory.parent_id
         : null;
 
+  const imageUrl =
+    apiCategory.imageUrl ??
+    apiCategory.image_url ??
+    (typeof apiCategory.image === 'string' ? apiCategory.image : null) ??
+    (apiCategory.image && typeof apiCategory.image === 'object'
+      ? apiCategory.image.url || mediaObjectToUrl(apiCategory.image)
+      : null) ??
+    null;
+
   return {
     id: apiCategory.id,
     name: apiCategory.name,
     slug: apiCategory.slug,
     description: apiCategory.description || '',
-    image: mediaObjectToUrl(apiCategory.image) || apiCategory.image || null,
-    imageUrl: apiCategory.imageUrl ?? apiCategory.image_url ?? null,
+    image: mediaObjectToUrl(apiCategory.image) || imageUrl || apiCategory.image || null,
+    imageUrl,
     icon: apiCategory.icon || null,
     isActive: apiCategory.isActive !== undefined ? apiCategory.isActive : true,
     isFeatured: apiCategory.isFeatured || false,
@@ -772,13 +781,14 @@ export async function getRootCategories() {
     const res = await apiFetchRoot('/storefront/categories', {
       method: 'GET',
       headers,
+      // Prefer shop-scoped DB roots; server falls back to customer API if empty.
       omitTenantHeader: true,
     });
     const list = res?.categories || [];
     return list
       .map(transformCategory)
       .filter(Boolean)
-      .filter((c) => c.parentId == null);
+      .filter((c) => c.parentId == null && c.isActive !== false);
   } catch (error) {
     console.error('Error fetching root categories:', error);
     throw error;

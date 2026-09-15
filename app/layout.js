@@ -34,6 +34,19 @@ export const metadata = {
   },
   description: 'Order groceries online from your local store.',
   manifest: '/manifest.json',
+  applicationName: 'Online Grocery',
+  appleWebApp: {
+    capable: true,
+    title: 'Online Grocery',
+    statusBarStyle: 'default',
+  },
+  icons: {
+    icon: [
+      { url: '/icons/pwa-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/pwa-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/icons/pwa-192.png', sizes: '192x192', type: 'image/png' }],
+  },
   openGraph: {
     type: 'website',
     locale: 'en_IN',
@@ -42,6 +55,9 @@ export const metadata = {
 
 export const viewport = {
   themeColor: '#902bf5',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }) {

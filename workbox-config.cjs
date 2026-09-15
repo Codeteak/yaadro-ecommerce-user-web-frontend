@@ -4,7 +4,7 @@ module.exports = {
   swDest: 'out/sw.js',
   skipWaiting: true,
   clientsClaim: true,
-  mode: 'development',
+  mode: 'production',
   runtimeCaching: [
     {
       urlPattern: ({ url }) => url.pathname.startsWith('/api/storefront'),
