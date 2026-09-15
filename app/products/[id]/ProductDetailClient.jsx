@@ -503,27 +503,27 @@ export default function ProductDetailClient({ productId = null }) {
 
   return (
     <div className="w-full max-w-full overflow-x-hidden bg-gray-50 pb-28">
-      <section className="relative w-full bg-white overflow-hidden pb-6">
+      <section className="relative w-full overflow-hidden bg-gray-100">
         <div
-          className="relative"
+          className="relative h-[min(62vh,68svh)] sm:h-[66vh] md:h-[72vh]"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
           <div
-            className="flex transition-transform duration-500 ease-in-out"
+            className="flex h-full transition-transform duration-500 ease-in-out"
             style={{ transform: `translateX(-${currentImageIndex * 100}%)` }}
           >
             {galleryUrls.map((img, idx) => (
               <div
                 key={`${idx}-${img}`}
-                className="relative flex w-full flex-shrink-0 items-center justify-center bg-white min-h-[min(58vh,62svh)] sm:min-h-[64vh] md:min-h-[70vh]"
+                className="relative h-full w-full flex-shrink-0 bg-gray-100"
               >
                 <ProductImageWithFallback
                   src={img}
                   alt={`${product.name} – image ${idx + 1}`}
                   fill
-                  className="object-contain object-center p-4 sm:p-6"
+                  className="object-cover object-center"
                   sizes="100vw"
                   priority={idx === 0}
                   placeholderName={product.name}
@@ -538,6 +538,7 @@ export default function ProductDetailClient({ productId = null }) {
               </div>
             ))}
           </div>
+
         </div>
 
         <div className="absolute top-0 left-0 right-0 z-20 p-3 flex items-center justify-between">
@@ -557,18 +558,18 @@ export default function ProductDetailClient({ productId = null }) {
 
         {galleryUrls.length > 1 && (
           <>
-            <button onClick={goToPrevious} className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 backdrop-blur flex items-center justify-center shadow-sm z-20" aria-label="Previous">
+            <button onClick={goToPrevious} className="absolute left-3 top-[42%] -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 backdrop-blur flex items-center justify-center shadow-sm z-20" aria-label="Previous">
               <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <button onClick={goToNext} className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 backdrop-blur flex items-center justify-center shadow-sm z-20" aria-label="Next">
+            <button onClick={goToNext} className="absolute right-3 top-[42%] -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 backdrop-blur flex items-center justify-center shadow-sm z-20" aria-label="Next">
               <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
             </button>
           </>
         )}
 
         {galleryUrls.length > 1 && (
-          <div className="mt-2 flex justify-center px-3">
-            <div className="flex max-w-full gap-2 overflow-x-auto py-1" role="tablist" aria-label="Product images">
+          <div className="absolute bottom-16 left-0 right-0 z-20 flex justify-center px-3 sm:bottom-20">
+            <div className="flex max-w-full gap-2 overflow-x-auto rounded-2xl bg-white/70 px-2 py-1.5 shadow-sm backdrop-blur-md" role="tablist" aria-label="Product images">
               {galleryUrls.map((u, idx) => (
                 <button
                   key={`thumb-${idx}-${u}`}
@@ -577,16 +578,16 @@ export default function ProductDetailClient({ productId = null }) {
                   aria-selected={idx === currentImageIndex}
                   aria-label={`Show image ${idx + 1}`}
                   onClick={() => setCurrentImageIndex(idx)}
-                  className={`relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${
-                    idx === currentImageIndex ? 'border-violet-600 ring-2 ring-violet-500/30' : 'border-gray-200 opacity-80 hover:opacity-100'
+                  className={`relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${
+                    idx === currentImageIndex ? 'border-violet-600 ring-2 ring-violet-500/30' : 'border-white/80 opacity-90 hover:opacity-100'
                   }`}
                 >
                   <ProductImageWithFallback
                     src={u}
                     alt={`${product.name} – thumbnail ${idx + 1}`}
                     fill
-                    className="object-contain"
-                    sizes="56px"
+                    className="object-cover"
+                    sizes="48px"
                     placeholderName={product.name}
                     placeholderCategory={
                       product.categoryName ||
@@ -603,7 +604,7 @@ export default function ProductDetailClient({ productId = null }) {
         )}
       </section>
 
-      <div className="relative z-10 bg-white rounded-t-3xl pt-6 pb-2">
+      <div className="relative z-10 -mt-24 bg-white rounded-t-3xl pt-5 pb-2 sm:-mt-28 sm:pt-6">
         <Container>
           <div className="max-w-2xl mx-auto">
             <section
@@ -686,7 +687,7 @@ export default function ProductDetailClient({ productId = null }) {
                     <button
                       type="button"
                       onClick={() => void handleShare()}
-                      className="inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border border-yellow-500 bg-yellow-100 px-3 text-[13px] font-semibold text-gray-900 shadow-sm transition hover:bg-yellow-200 sm:flex-initial sm:min-w-[7.5rem]"
+                      className="inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#902bf5]/40 bg-[#902bf5]/10 px-3 text-[13px] font-semibold text-[#902bf5] shadow-sm transition hover:bg-[#902bf5]/15 sm:flex-initial sm:min-w-[7.5rem]"
                       aria-label="Share product"
                     >
                       <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -746,7 +747,7 @@ export default function ProductDetailClient({ productId = null }) {
                           resolveProductWeightAndUnit(p).weight,
                           resolveProductWeightAndUnit(p).unit
                         );
-                      const img = getResolvedProductImageUrls(p)[0] || '/images/dummy.png';
+                      const img = getResolvedProductImageUrls(p)[0] || '/images/default_product.jpg';
                       const active = product?.id && String(product.id) === String(p.id);
                       const priceValue = getEffectivePrice(p, Number(p.price ?? 0) || 0);
                       return (

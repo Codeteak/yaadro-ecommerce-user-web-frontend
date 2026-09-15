@@ -8,6 +8,7 @@ import { resolveShopId } from './authApi';
 import {
   getResolvedProductImageUrls,
   PRODUCT_IMAGE_PLACEHOLDER,
+  isProductImagePlaceholder,
   resolveCartLineImageUrls,
 } from './productImages';
 import { minorToMajor, parseMinorInt } from './currencyMinor';
@@ -237,7 +238,7 @@ function transformCartItem(apiItem, product = null) {
   const lineImageUrls = resolveCartLineImageUrls(normalized);
   const fromNestedGallery =
     nestedProduct != null
-      ? getResolvedProductImageUrls(nestedProduct).filter((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER)
+      ? getResolvedProductImageUrls(nestedProduct).filter((u) => u && !isProductImagePlaceholder(u))
       : [];
 
   const imagesList = [...new Set([...lineImageUrls, ...fromNestedGallery])];

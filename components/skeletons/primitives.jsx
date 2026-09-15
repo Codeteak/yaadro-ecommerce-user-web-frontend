@@ -73,12 +73,19 @@ export function DiscoverSectionSkeleton({ light = false }) {
   );
 }
 
-export function CategoryCardSkeleton() {
+export function CategoryCardSkeleton({ featured = false }) {
   return (
-    <div className="overflow-hidden rounded-[18px] border border-gray-100 bg-white animate-pulse">
-      <div className="relative min-h-[168px] bg-gray-200">
-        <Bone className="absolute left-3.5 top-3.5 h-4 w-[70%] rounded-md bg-gray-300/80" />
-      </div>
+    <div
+      className={`flex flex-col items-center gap-1.5 animate-pulse ${
+        featured ? 'col-span-2' : ''
+      }`}
+    >
+      <Bone
+        className={`w-full rounded-2xl ${
+          featured ? 'aspect-[2/1.05]' : 'aspect-square'
+        }`}
+      />
+      <Bone className="h-3 w-[70%] rounded" />
     </div>
   );
 }

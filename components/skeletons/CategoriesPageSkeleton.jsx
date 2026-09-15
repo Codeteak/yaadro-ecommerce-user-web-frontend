@@ -7,10 +7,12 @@ import {
 /** Category grid only (heading + search already rendered). */
 export function CategoriesGridSkeleton({ count = 8 }) {
   return (
-    <div className="grid grid-cols-2 gap-3 px-4 sm:grid-cols-3 lg:grid-cols-4">
-      {Array.from({ length: count }).map((_, i) => (
-        <CategoryCardSkeleton key={i} />
-      ))}
+    <div className="px-4 pt-4">
+      <div className="grid grid-cols-4 gap-x-2.5 gap-y-4 sm:gap-x-3 sm:gap-y-5">
+        {Array.from({ length: count }).map((_, i) => (
+          <CategoryCardSkeleton key={i} featured={i === 0} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -19,7 +21,7 @@ export function CategoriesGridSkeleton({ count = 8 }) {
 export default function CategoriesPageSkeleton() {
   return (
     <div
-      className="min-h-screen w-full max-w-full overflow-x-hidden bg-gray-50 pb-28 pt-[env(safe-area-inset-top,0px)]"
+      className="min-h-screen w-full max-w-full overflow-x-hidden bg-white pb-28 pt-[env(safe-area-inset-top,0px)]"
       aria-busy="true"
       aria-label="Loading categories"
     >
@@ -32,11 +34,7 @@ export default function CategoriesPageSkeleton() {
         <Bone className="h-10 w-full rounded-full" />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 px-4 sm:grid-cols-3 lg:grid-cols-4">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <CategoryCardSkeleton key={i} />
-        ))}
-      </div>
+      <CategoriesGridSkeleton count={8} />
 
       <div className="mt-8 space-y-8 px-4">
         <DiscoverSectionSkeleton />
