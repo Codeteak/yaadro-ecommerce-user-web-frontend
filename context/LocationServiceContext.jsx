@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { resolveShopId } from '../utils/authApi';
 import { checkDeliveryLocation } from '../utils/storefrontLocationApi';
+import { reverseGeocode } from '../utils/geocoding';
 import { useAuth } from './AuthContext';
 import { useAddress } from './AddressContext';
 
@@ -28,6 +29,50 @@ function coordsApproxEqual(a, b) {
   const mb = Number(b.lng);
   if (![la, ln, lb, mb].every((n) => Number.isFinite(n))) return false;
   return Math.abs(la - lb) < COORD_MATCH_EPS && Math.abs(ln - mb) < COORD_MATCH_EPS;
+}
+
+function formatCoordsLabel(point) {
+  if (!point) return null;
+  const lat = Number(point.lat);
+  const lng = Number(point.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+}
+
+function formatCompactGeocodeLabel(result) {
+  if (!result) return null;
+  const compact = [result.line1, result.line2, result.city]
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .join(', ');
+  if (compact) return compact;
+  const display = String(result.displayName || '').trim();
+  return display || null;
+}
+
+function formatSavedAddressLabel(address) {
+  if (!address) return null;
+  const line = [address.street || address.line1, address.city, address.state]
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .join(', ');
+  return line || null;
+}
+
+async function resolvePlaceLabel(lat, lng) {
+  const fallback = formatCoordsLabel({ lat, lng });
+  try {
+    const result = await reverseGeocode(lat, lng);
+    return formatCompactGeocodeLabel(result) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function patchDeliveryCache(partial) {
+  const cached = loadDeliveryCache();
+  if (!cached) return;
+  saveDeliveryCache({ ...cached, ...partial });
 }
 
 /** Avoid duplicate geolocation prompts under React Strict Mode (dev). */
@@ -98,6 +143,7 @@ export function LocationServiceProvider({ children }) {
   const [distanceM, setDistanceM] = useState(null);
   const [maxRadiusM, setMaxRadiusM] = useState(null);
   const [coords, setCoords] = useState(null);
+  const [placeLabel, setPlaceLabel] = useState(null);
   const [shopLocation, setShopLocation] = useState(null);
   /** How the active delivery check coords were chosen. */
   const [locationSourceKind, setLocationSourceKind] = useState('gps');
@@ -137,7 +183,7 @@ export function LocationServiceProvider({ children }) {
   }, []);
 
   const applyDeliveryResult = useCallback(
-    (data, point, shopId, linkedAddressId = null, sourceKind = 'gps') => {
+    (data, point, shopId, linkedAddressId = null, sourceKind = 'gps', placeLabelHint = null) => {
       setCoords(point);
       setServiceable(data.serviceable);
       setDistanceM(data.distanceM);
@@ -147,6 +193,10 @@ export function LocationServiceProvider({ children }) {
         setShopLocation(data.shopLocation);
       }
       setPhase('done');
+
+      const hint = String(placeLabelHint || '').trim() || null;
+      setPlaceLabel(hint);
+
       saveDeliveryCache({
         serviceable: data.serviceable,
         distanceM: data.distanceM,
@@ -155,6 +205,7 @@ export function LocationServiceProvider({ children }) {
         shopId,
         sourceKind,
         savedAt: Date.now(),
+        ...(hint ? { placeLabel: hint } : {}),
         ...(data.shopLocation?.lat != null && data.shopLocation?.lng != null
           ? { shopLocation: data.shopLocation }
           : {}),
@@ -163,12 +214,23 @@ export function LocationServiceProvider({ children }) {
           : {}),
       });
       maybeWarnOutsideZone(data.serviceable);
+
+      if (!hint && point?.lat != null && point?.lng != null) {
+        const lat = Number(point.lat);
+        const lng = Number(point.lng);
+        void resolvePlaceLabel(lat, lng).then((label) => {
+          const next = String(label || '').trim();
+          if (!next) return;
+          setPlaceLabel((prev) => prev || next);
+          patchDeliveryCache({ placeLabel: next });
+        });
+      }
     },
     [maybeWarnOutsideZone]
   );
 
   const runCheckAtLatLng = useCallback(
-    async (lat, lng, linkedAddressId = null) => {
+    async (lat, lng, linkedAddressId = null, placeLabelHint = null) => {
       const shopId = await resolveShopId();
       if (!shopId) {
         setPhase('done');
@@ -186,7 +248,8 @@ export function LocationServiceProvider({ children }) {
           { lat, lng },
           shopId,
           linkedAddressId,
-          linkedAddressId != null && linkedAddressId !== '' ? 'address' : 'gps'
+          linkedAddressId != null && linkedAddressId !== '' ? 'address' : 'gps',
+          placeLabelHint
         );
       } catch (e) {
         const msg = e?.message || 'Could not verify delivery area.';
@@ -289,6 +352,11 @@ export function LocationServiceProvider({ children }) {
         setDistanceM(cached.distanceM ?? null);
         setMaxRadiusM(cached.maxRadiusM ?? null);
         setCoords(addressCheckCoords);
+        setPlaceLabel(
+          String(cached.placeLabel || '').trim() ||
+            formatSavedAddressLabel(defaultAddress) ||
+            null
+        );
         if (cached.shopLocation?.lat != null && cached.shopLocation?.lng != null) {
           setShopLocation(cached.shopLocation);
         }
@@ -300,7 +368,12 @@ export function LocationServiceProvider({ children }) {
       }
 
       if (cancelled) return;
-      await runCheckAtLatLng(addressCheckCoords.lat, addressCheckCoords.lng, defaultAddress?.id ?? null);
+      await runCheckAtLatLng(
+        addressCheckCoords.lat,
+        addressCheckCoords.lng,
+        defaultAddress?.id ?? null,
+        formatSavedAddressLabel(defaultAddress)
+      );
     })();
 
     return () => {
@@ -330,6 +403,7 @@ export function LocationServiceProvider({ children }) {
       gpsLocationCheckInitStarted = false;
       // Old cache was for the saved pin — do not treat it as the user’s current GPS check.
       clearDeliveryCache();
+      setPlaceLabel(null);
     }
 
     if (gpsLocationCheckInitStarted) return;
@@ -341,11 +415,25 @@ export function LocationServiceProvider({ children }) {
       setDistanceM(cached.distanceM ?? null);
       setMaxRadiusM(cached.maxRadiusM ?? null);
       setCoords(cached.coords ?? null);
+      const cachedLabel = String(cached.placeLabel || '').trim() || null;
+      setPlaceLabel(cachedLabel);
       if (cached.shopLocation?.lat != null && cached.shopLocation?.lng != null) {
         setShopLocation(cached.shopLocation);
       }
       setLocationSourceKind(inferSourceKindFromCache(cached));
       setPhase('done');
+      if (
+        !cachedLabel &&
+        cached.coords?.lat != null &&
+        cached.coords?.lng != null
+      ) {
+        void resolvePlaceLabel(cached.coords.lat, cached.coords.lng).then((label) => {
+          const next = String(label || '').trim();
+          if (!next) return;
+          setPlaceLabel(next);
+          patchDeliveryCache({ placeLabel: next });
+        });
+      }
       return;
     }
 
@@ -423,14 +511,19 @@ export function LocationServiceProvider({ children }) {
     gpsLocationCheckInitStarted = false;
     if (addressCheckCoords) {
       setPhase('fetching');
-      return runCheckAtLatLng(addressCheckCoords.lat, addressCheckCoords.lng, defaultAddress?.id ?? null);
+      return runCheckAtLatLng(
+        addressCheckCoords.lat,
+        addressCheckCoords.lng,
+        defaultAddress?.id ?? null,
+        formatSavedAddressLabel(defaultAddress)
+      );
     }
     return runGpsCheck();
   }, [
     sheetPin,
     runSheetPinCheck,
     addressCheckCoords,
-    defaultAddress?.id,
+    defaultAddress,
     runCheckAtLatLng,
     runGpsCheck,
   ]);
@@ -447,10 +540,15 @@ export function LocationServiceProvider({ children }) {
     gpsLocationCheckInitStarted = false;
     if (addressCheckCoords) {
       setPhase('fetching');
-      return runCheckAtLatLng(addressCheckCoords.lat, addressCheckCoords.lng, defaultAddress?.id ?? null);
+      return runCheckAtLatLng(
+        addressCheckCoords.lat,
+        addressCheckCoords.lng,
+        defaultAddress?.id ?? null,
+        formatSavedAddressLabel(defaultAddress)
+      );
     }
     return runGpsCheck();
-  }, [addressCheckCoords, defaultAddress?.id, runCheckAtLatLng, runGpsCheck]);
+  }, [addressCheckCoords, defaultAddress, runCheckAtLatLng, runGpsCheck]);
 
   /** Check delivery at a user-pinned map location and persist the result. */
   const confirmLocationAtPin = useCallback(
@@ -512,6 +610,7 @@ export function LocationServiceProvider({ children }) {
     setDistanceM(null);
     setMaxRadiusM(null);
     setCoords(null);
+    setPlaceLabel(null);
     setShopLocation(null);
     setLocationSourceKind('gps');
     setPhase('idle');
@@ -555,6 +654,7 @@ export function LocationServiceProvider({ children }) {
       distanceM: displayDistanceM,
       maxRadiusM: displayMaxRadiusM,
       coords: displayCoords,
+      placeLabel,
       locationSourceKind,
       shopLocation,
       geoDenied: displayGeoDenied,
@@ -580,6 +680,7 @@ export function LocationServiceProvider({ children }) {
       displayDistanceM,
       displayMaxRadiusM,
       displayCoords,
+      placeLabel,
       locationSourceKind,
       shopLocation,
       displayGeoDenied,
