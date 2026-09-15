@@ -376,6 +376,7 @@ function rewardSnapshotFromRule(rule, fallbackLine) {
     name: name || 'Free item',
     image: image || undefined,
     imageUrl: image || undefined,
+    images: image ? [image] : undefined,
     price: 0,
   };
 }

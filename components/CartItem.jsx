@@ -9,6 +9,7 @@ import {
 import { useWishlist } from '../context/WishlistContext';
 import { formatRupeeINR, getCartLineVariantLabel } from '../utils/productUtils';
 import ProductImageWithFallback from './ProductImageWithFallback';
+import { getCartLinePreviewImageSrc } from '../utils/productImages';
 
 export default function CartItem({ item }) {
   const { updateQuantity, removeFromCart, updateCartItemNote } = useCart();
@@ -61,7 +62,7 @@ export default function CartItem({ item }) {
   const isBundleReward = !!item.isBundleReward;
   const paidQty = isBundleReward ? Number(item.quantity) || 1 : getCartLinePaidQty(item);
   const bundleFreeExtra = isBundleReward ? 0 : getBundleFreeExtraOnPaidLine(item);
-  const imageSrc = item.image || item.product?.images?.[0] || '';
+  const imageSrc = getCartLinePreviewImageSrc(item);
   const unitPrice = parseFloat(item.price);
   const lineTotal =
     Number.isFinite(Number(item.lineTotal)) && item.lineTotal >= 0

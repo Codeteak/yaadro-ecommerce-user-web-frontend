@@ -142,14 +142,22 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
 
   const handleAddToCart = useCallback(async () => {
     if (product?.inStock === false) return;
+    if (String(product?.bxgyShelfRole || '').trim() === 'get') return;
     if (availableSizes.length > 1 && !selectedSize) {
       setShowSizeSelector(true);
       return;
     }
+    const shelfBuy = Math.floor(Number(product?.bxgyBuyQty));
+    const qtyToAdd =
+      String(product?.bxgyShelfRole || '').trim() === 'buy' &&
+      Number.isFinite(shelfBuy) &&
+      shelfBuy > 1
+        ? Math.max(addQty, shelfBuy)
+        : addQty;
     setCartActionLoading(true);
-    setPendingCartQty(addQty);
+    setPendingCartQty(qtyToAdd);
     try {
-      await addToCart(productToAddPayload, addQty);
+      await addToCart(productToAddPayload, qtyToAdd);
       tapFeedback();
     } catch {
       setPendingCartQty(0);
@@ -157,13 +165,23 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     } finally {
       setCartActionLoading(false);
     }
-  }, [availableSizes.length, selectedSize, addToCart, productToAddPayload, addQty, product?.inStock]);
+  }, [
+    availableSizes.length,
+    selectedSize,
+    addToCart,
+    productToAddPayload,
+    addQty,
+    product?.inStock,
+    product?.bxgyShelfRole,
+    product?.bxgyBuyQty,
+  ]);
 
   const handleIncrement = useCallback(
     async (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (cartActionLoading) return;
+      if (String(product?.bxgyShelfRole || '').trim() === 'get') return;
       if (product?.inStock === false) return;
       if (availableSizes.length > 1 && !selectedSize) {
         setShowSizeSelector(true);
@@ -381,7 +399,21 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     saveRupees != null &&
     saveRupees >= 0.005;
 
-  const cartControls = cartActionLoading ? (
+  // Offer Damaka free reward: show only — do not allow separate add-to-cart.
+  const isDamakaFreeReward = shelfRole === 'get';
+  const damakaBuyQty =
+    Number.isFinite(Number(product?.bxgyBuyQty)) && Number(product.bxgyBuyQty) > 0
+      ? Math.floor(Number(product.bxgyBuyQty))
+      : 1;
+
+  const cartControls = isDamakaFreeReward ? (
+    <div
+      className="flex h-9 min-w-[68px] items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-emerald-600 px-3 text-[11px] font-bold uppercase tracking-[0.08em] text-white shadow-sm"
+      aria-label="Free with offer — added when you buy the paired product"
+    >
+      Free
+    </div>
+  ) : cartActionLoading ? (
     <div
       className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
       aria-busy="true"
@@ -427,10 +459,14 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         void handleAddToCart();
       }}
       onPointerDown={stopCartBubble}
-      aria-label="Add to cart"
+      aria-label={
+        shelfRole === 'buy' && damakaBuyQty > 1
+          ? `Add ${damakaBuyQty} to cart for this offer`
+          : 'Add to cart'
+      }
       className="flex h-9 min-w-[68px] items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-[#902bf5] px-4 text-[12px] font-bold uppercase leading-none tracking-[0.14em] text-white shadow-[0_8px_20px_rgba(144,43,245,0.4)] transition hover:bg-[#7d24d6] active:scale-[0.97]"
     >
-      ADD
+      {shelfRole === 'buy' && damakaBuyQty > 1 ? `ADD ${damakaBuyQty}` : 'ADD'}
     </button>
   );
 

@@ -202,8 +202,26 @@ export function normalizeHomeSection(raw) {
         return {
           id: d.id != null ? String(d.id) : `deal-${i}`,
           dealMode: mode,
-          buyQty: d.buyQty ?? d.buy_qty ?? raw.buyQty ?? raw.buy_qty ?? 1,
-          getQty: d.getQty ?? d.get_qty ?? raw.getQty ?? raw.get_qty ?? 1,
+          buyQty: (() => {
+            const fromDeal = Number(d.buyQty ?? d.buy_qty);
+            const fromSection = Number(raw.buyQty ?? raw.buy_qty);
+            const rules = dBuy[0]?.bundleRules || dBuy[0]?.bundle_rules || [];
+            const ruleBuy = Number(rules[0]?.buy_qty ?? rules[0]?.buyQty);
+            if (Number.isFinite(ruleBuy) && ruleBuy > 0) return Math.floor(ruleBuy);
+            if (Number.isFinite(fromDeal) && fromDeal > 0) return Math.floor(fromDeal);
+            if (Number.isFinite(fromSection) && fromSection > 0) return Math.floor(fromSection);
+            return 1;
+          })(),
+          getQty: (() => {
+            const fromDeal = Number(d.getQty ?? d.get_qty);
+            const fromSection = Number(raw.getQty ?? raw.get_qty);
+            const rules = dBuy[0]?.bundleRules || dBuy[0]?.bundle_rules || [];
+            const ruleGet = Number(rules[0]?.get_qty ?? rules[0]?.getQty);
+            if (Number.isFinite(ruleGet) && ruleGet > 0) return Math.floor(ruleGet);
+            if (Number.isFinite(fromDeal) && fromDeal > 0) return Math.floor(fromDeal);
+            if (Number.isFinite(fromSection) && fromSection > 0) return Math.floor(fromSection);
+            return 1;
+          })(),
           buyProducts: dBuy,
           getProducts: mode === 'same_sku' ? dBuy : dGet,
           headline: typeof d.headline === 'string' ? d.headline : undefined,

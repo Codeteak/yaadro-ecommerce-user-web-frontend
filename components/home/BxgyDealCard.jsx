@@ -98,23 +98,69 @@ function withChrome(
 }
 
 /**
+ * Prefer engine rule buy/get qty over section defaults (fixes Damaka showing 1/1 when rule is 2/1).
+ */
+function resolveDealQtys(deal, buyProduct) {
+  let buyQty =
+    Number.isFinite(Number(deal?.buyQty)) && Number(deal.buyQty) > 0
+      ? Math.floor(Number(deal.buyQty))
+      : 0;
+  let getQty =
+    Number.isFinite(Number(deal?.getQty)) && Number(deal.getQty) > 0
+      ? Math.floor(Number(deal.getQty))
+      : 0;
+
+  const rules = Array.isArray(buyProduct?.bundleRules)
+    ? buyProduct.bundleRules
+    : Array.isArray(buyProduct?.bundle_rules)
+      ? buyProduct.bundle_rules
+      : [];
+  const buyId = String(buyProduct?.id || '').trim();
+  const getId = String(
+    (Array.isArray(deal?.getProducts) && deal.getProducts[0]?.id) || ''
+  ).trim();
+
+  const matching =
+    rules.find((r) => {
+      if (!r || typeof r !== 'object') return false;
+      const scope = String(r.scope || '');
+      if (scope === 'cross_shop_products' || (r.buy_shop_product_id && r.reward_shop_product_id)) {
+        const rb = String(r.buy_shop_product_id ?? r.buyShopProductId ?? '');
+        const rg = String(r.reward_shop_product_id ?? r.rewardShopProductId ?? '');
+        if (buyId && rb && rb !== buyId) return false;
+        if (getId && rg && rg !== getId) return false;
+        return true;
+      }
+      if (scope === 'same_shop_product' || r.shop_product_id) {
+        return String(r.shop_product_id ?? r.shopProductId ?? '') === buyId;
+      }
+      return false;
+    }) || rules[0];
+
+  if (matching) {
+    const rb = Number(matching.buy_qty ?? matching.buyQty);
+    const rg = Number(matching.get_qty ?? matching.getQty);
+    if (Number.isFinite(rb) && rb > 0) buyQty = Math.floor(rb);
+    if (Number.isFinite(rg) && rg > 0) getQty = Math.floor(rg);
+  }
+
+  return {
+    buyQty: buyQty > 0 ? buyQty : 1,
+    getQty: getQty > 0 ? getQty : 1,
+  };
+}
+
+/**
  * One clear deal: BOGO (same product) or Buy → Get free (different products).
  */
 export default function BxgyDealCard({ deal }) {
   if (!deal) return null;
-  const buyQty =
-    Number.isFinite(Number(deal.buyQty)) && Number(deal.buyQty) > 0
-      ? Number(deal.buyQty)
-      : 1;
-  const getQty =
-    Number.isFinite(Number(deal.getQty)) && Number(deal.getQty) > 0
-      ? Number(deal.getQty)
-      : 1;
   const mode = deal.dealMode === 'cross_sku' ? 'cross_sku' : 'same_sku';
   const buyRaw = Array.isArray(deal.buyProducts) ? deal.buyProducts[0] : null;
   const getRaw = Array.isArray(deal.getProducts) ? deal.getProducts[0] : null;
   if (!buyRaw) return null;
 
+  const { buyQty, getQty } = resolveDealQtys(deal, buyRaw);
   const buyName = buyRaw.name || buyRaw.shortName || '';
   const getName = getRaw?.name || getRaw?.shortName || '';
   const pairNames = { buyName, getName };
@@ -142,11 +188,17 @@ export default function BxgyDealCard({ deal }) {
         )
       : null;
 
-  const headline =
-    deal.headline ||
-    (mode === 'same_sku'
-      ? formatSameSkuBxgyLabel(buyQty, getQty)
-      : formatCrossBxgyLabel({ buyQty, getQty, buyName, getName }));
+  const displayHeadline =
+    Number(deal.buyQty) === 1 &&
+    Number(deal.getQty) === 1 &&
+    (buyQty !== 1 || getQty !== 1)
+      ? mode === 'same_sku'
+        ? formatSameSkuBxgyLabel(buyQty, getQty)
+        : formatCrossBxgyLabel({ buyQty, getQty, buyName, getName })
+      : deal.headline ||
+        (mode === 'same_sku'
+          ? formatSameSkuBxgyLabel(buyQty, getQty)
+          : formatCrossBxgyLabel({ buyQty, getQty, buyName, getName }));
 
   if (mode === 'same_sku') {
     return (
@@ -155,7 +207,7 @@ export default function BxgyDealCard({ deal }) {
           <span className="inline-flex rounded-full bg-violet-700 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
             {buyQty === 1 && getQty === 1 ? 'BOGO' : `B${buyQty}G${getQty}`}
           </span>
-          <p className="text-sm font-bold text-gray-900">{headline}</p>
+          <p className="text-sm font-bold text-gray-900">{displayHeadline}</p>
         </div>
         <div className="max-w-[220px]">
           <ProductCard product={buy} isCarousel variant="shelf" />
@@ -169,7 +221,7 @@ export default function BxgyDealCard({ deal }) {
   return (
     <article className="rounded-2xl border border-violet-200/80 bg-gradient-to-b from-violet-50/80 to-white p-3 sm:p-4 shadow-sm">
       <div className="mb-2">
-        <p className="text-sm font-bold text-gray-900">{headline}</p>
+        <p className="text-sm font-bold text-gray-900">{displayHeadline}</p>
       </div>
 
       <div className="flex items-stretch gap-2 sm:gap-3">

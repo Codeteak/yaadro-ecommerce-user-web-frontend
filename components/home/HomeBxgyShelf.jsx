@@ -7,6 +7,51 @@ import {
 } from '../../utils/bxgyLabels';
 
 /**
+ * Prefer product bundleRules qty over section buyQty/getQty defaults.
+ */
+function resolveQtysFromProductRules(buyProduct, rewardProductId, fallbackBuy, fallbackGet) {
+  let buyQty = fallbackBuy;
+  let getQty = fallbackGet;
+  const rules = Array.isArray(buyProduct?.bundleRules)
+    ? buyProduct.bundleRules
+    : Array.isArray(buyProduct?.bundle_rules)
+      ? buyProduct.bundle_rules
+      : [];
+  const buyId = String(buyProduct?.id || '').trim();
+  const getId = String(rewardProductId || '').trim();
+  const matching =
+    rules.find((r) => {
+      if (!r || typeof r !== 'object') return false;
+      const scope = String(r.scope || '');
+      if (
+        scope === 'cross_shop_products' ||
+        (r.buy_shop_product_id && r.reward_shop_product_id)
+      ) {
+        const rb = String(r.buy_shop_product_id ?? r.buyShopProductId ?? '');
+        const rg = String(r.reward_shop_product_id ?? r.rewardShopProductId ?? '');
+        if (buyId && rb && rb !== buyId) return false;
+        if (getId && rg && rg !== getId) return false;
+        return true;
+      }
+      if (scope === 'same_shop_product' || r.shop_product_id) {
+        return String(r.shop_product_id ?? r.shopProductId ?? '') === buyId;
+      }
+      return false;
+    }) || rules[0];
+
+  if (matching) {
+    const rb = Number(matching.buy_qty ?? matching.buyQty);
+    const rg = Number(matching.get_qty ?? matching.getQty);
+    if (Number.isFinite(rb) && rb > 0) buyQty = Math.floor(rb);
+    if (Number.isFinite(rg) && rg > 0) getQty = Math.floor(rg);
+  }
+  return {
+    buyQty: buyQty > 0 ? buyQty : 1,
+    getQty: getQty > 0 ? getQty : 1,
+  };
+}
+
+/**
  * Build customer-facing deal cards when API did not send `deals`.
  */
 function buildDealsFallback({
@@ -40,40 +85,43 @@ function buildDealsFallback({
         : 'cross_sku';
 
   const deals = [];
+
+  const pushCross = (b, g) => {
+    const fromRule = resolveQtysFromProductRules(b, g?.id, bq, gq);
+    deals.push({
+      id: `cross-${b.id}-${g.id}`,
+      dealMode: 'cross_sku',
+      buyQty: fromRule.buyQty,
+      getQty: fromRule.getQty,
+      buyProducts: [b],
+      getProducts: [g],
+      headline: formatCrossBxgyLabel({
+        buyQty: fromRule.buyQty,
+        getQty: fromRule.getQty,
+        buyName: b.name || b.shortName,
+        getName: g.name || g.shortName,
+      }),
+    });
+  };
+
   if (mode === 'same_sku') {
     const list = buyRaw.length ? buyRaw : getRaw;
     for (const p of list) {
+      const fromRule = resolveQtysFromProductRules(p, p.id, bq, gq);
       deals.push({
         id: `same-${p.id}`,
         dealMode: 'same_sku',
-        buyQty: bq,
-        getQty: gq,
+        buyQty: fromRule.buyQty,
+        getQty: fromRule.getQty,
         buyProducts: [p],
         getProducts: [p],
-        headline: formatSameSkuBxgyLabel(bq, gq),
+        headline: formatSameSkuBxgyLabel(fromRule.buyQty, fromRule.getQty),
       });
     }
     return deals;
   }
 
   if (!buyRaw.length || !getRaw.length) return [];
-
-  const pushCross = (b, g) => {
-    deals.push({
-      id: `cross-${b.id}-${g.id}`,
-      dealMode: 'cross_sku',
-      buyQty: bq,
-      getQty: gq,
-      buyProducts: [b],
-      getProducts: [g],
-      headline: formatCrossBxgyLabel({
-        buyQty: bq,
-        getQty: gq,
-        buyName: b.name || b.shortName,
-        getName: g.name || g.shortName,
-      }),
-    });
-  };
 
   if (buyRaw.length === getRaw.length) {
     buyRaw.forEach((b, i) => pushCross(b, getRaw[i]));
