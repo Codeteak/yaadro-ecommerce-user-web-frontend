@@ -433,15 +433,15 @@ export default function Home() {
 
       {/* Home top: location + search + banner */}
       <section className="w-full bg-white pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
-        <div className="flex items-start justify-between gap-3 px-4 sm:px-5">
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-5">
           <button
             type="button"
             onClick={() => openServiceAreaSheet()}
-            className="flex min-w-0 flex-1 items-start gap-1.5 text-left"
+            className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
             aria-label="Change delivery location"
           >
             {shopImage ? (
-              <span className="mt-0.5 flex h-[18px] w-[18px] shrink-0 overflow-hidden rounded-md bg-[#902bf5]/10 ring-1 ring-[#902bf5]/25">
+              <span className="flex h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[#902bf5]/10 ring-2 ring-[#902bf5]/35">
                 <img
                   src={shopImage}
                   alt=""
@@ -449,7 +449,9 @@ export default function Home() {
                 />
               </span>
             ) : (
-              <Shop size={18} color="#902bf5" className="mt-0.5 h-[18px] w-[18px] shrink-0" />
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#902bf5]/10 ring-2 ring-[#902bf5]/35">
+                <Shop size={22} color="#902bf5" className="h-[22px] w-[22px]" />
+              </span>
             )}
             <span className="min-w-0 flex-1">
               <span className="inline-flex max-w-full items-center gap-0.5">
