@@ -151,6 +151,27 @@ iframe.order-tracking-embed {
   object-position: center !important;
 }
 
+/* Categories page tiles — same override so uploaded photos fill the rounded card */
+.category-page-tile {
+  max-width: none !important;
+}
+
+.category-page-tile img {
+  max-width: none !important;
+  max-height: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-position: center !important;
+}
+
+.category-page-tile img.category-page-tile-cover {
+  object-fit: cover !important;
+}
+
+.category-page-tile img.category-page-tile-contain {
+  object-fit: contain !important;
+}
+
 /* Product photos — do not use next/image `fill` stretch. Contain keeps the
    full bitmap; cover is only for thumbs that opt in via data-fit. */
 .product-image-fill {
