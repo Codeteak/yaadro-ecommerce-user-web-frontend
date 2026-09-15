@@ -87,15 +87,17 @@ function HomeTopSkeleton() {
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-2.5 px-4 sm:px-5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 pb-2">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="flex flex-col gap-2">
-            <Bone className="aspect-square w-full rounded-2xl" />
-            <Bone className="h-2.5 w-16 rounded" />
-            <Bone className="h-4 w-full rounded" />
-            <Bone className="h-4 w-12 rounded" />
-          </div>
-        ))}
+      <div className="mt-5 overflow-x-hidden px-4 sm:px-5 pb-2">
+        <div className="flex w-max items-stretch gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex w-[173px] shrink-0 flex-col gap-2">
+              <Bone className="aspect-square w-full rounded-2xl" />
+              <Bone className="h-2.5 w-16 rounded" />
+              <Bone className="h-4 w-full rounded" />
+              <Bone className="h-4 w-12 rounded" />
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

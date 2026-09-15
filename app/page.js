@@ -13,7 +13,6 @@ import { useAuth } from '../context/AuthContext';
 import { useShopBranding } from '../context/ShopBrandingContext';
 import { useAddress } from '../context/AddressContext';
 import ProductCard from '../components/ProductCard';
-import ProductGrid from '../components/ProductGrid';
 import Container from '../components/Container';
 import FloatingViewCartPill from '../components/FloatingViewCartPill';
 import BannerCarousel from '../components/BannerCarousel';
@@ -23,7 +22,7 @@ import HomeCategoryRail from '../components/home/HomeCategoryRail';
 import HomeSearchHints from '../components/home/HomeSearchHints';
 import { dedupeProductsByVariantGroup } from '../utils/productUtils';
 import { getProducts } from '../utils/productApi';
-import { ProductCarouselRowSkeleton, ProductGridSkeleton } from '../components/skeletons/primitives';
+import { Bone, ProductCarouselRowSkeleton } from '../components/skeletons/primitives';
 import {
   ArrowRightRegular as ArrowRight,
   DownRegular as ChevronDown,
@@ -519,13 +518,32 @@ export default function Home() {
         />
 
         {homeCategoryId ? (
-          <div className="mt-5 px-4 sm:px-5 pb-2">
+          <div className="mt-5 pb-2">
             {homeCategoryProductsLoading && homeCategoryProducts.length === 0 ? (
-              <ProductGridSkeleton count={4} variant="browse" paddingClass="" />
-            ) : (
-              <ProductGrid products={homeCategoryProducts} />
-            )}
-            <div className="mt-4 flex justify-center">
+              <div className="overflow-x-hidden px-4 sm:px-5 pb-3">
+                <div className="flex w-max items-stretch gap-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex w-[173px] shrink-0 flex-col gap-2">
+                      <Bone className="aspect-square w-full rounded-2xl" />
+                      <Bone className="h-2.5 w-16 rounded" />
+                      <Bone className="h-4 w-full rounded" />
+                      <Bone className="h-4 w-12 rounded" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : homeCategoryProducts.length > 0 ? (
+              <div className="overflow-x-auto scrollbar-hide px-4 sm:px-5 pb-3 snap-x snap-mandatory">
+                <div className="flex w-max items-stretch gap-3">
+                  {homeCategoryProducts.map((product) => (
+                    <div key={product.id} className="flex h-full flex-shrink-0 snap-start">
+                      <ProductCard product={product} isCarousel />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <div className="mt-4 flex justify-center px-4 sm:px-5">
               <Link
                 href={homeCategoryHref}
                 className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#902bf5] transition hover:text-[#7d24d6]"
