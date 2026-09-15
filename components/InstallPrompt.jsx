@@ -49,9 +49,11 @@ export default function InstallPrompt() {
   };
 
   return (
-    <div className="fixed bottom-20 left-1/2 z-[100] w-[min(92vw,22rem)] -translate-x-1/2 rounded-2xl border border-violet-200 bg-white p-4 shadow-xl md:bottom-6">
+    <div className="fixed bottom-20 left-1/2 z-[100] w-[min(92vw,22rem)] -translate-x-1/2 rounded-2xl border border-violet-200 bg-white p-4 shadow-xl md:bottom-24">
       <p className="text-sm font-semibold text-gray-900">Install app</p>
-      <p className="mt-1 text-xs text-gray-600">Add this store to your home screen for faster access.</p>
+      <p className="mt-1 text-xs text-gray-600">
+        Add this store to your home screen or desktop for faster access.
+      </p>
       <div className="mt-3 flex gap-2">
         <Button size="sm" variant="primary" className={`flex-1 ${BRAND_PRIMARY_BTN}`} onPress={handleInstall}>
           Install

@@ -8,6 +8,13 @@
 /
   Cache-Control: public, max-age=0, must-revalidate
 
+# Always revalidate service worker + manifest so installs pick up updates
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+  Content-Type: application/javascript; charset=utf-8
+/manifest.json
+  Cache-Control: public, max-age=0, must-revalidate
+
 # Security headers (all responses)
 /*
   X-Frame-Options: DENY

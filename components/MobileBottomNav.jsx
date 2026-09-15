@@ -16,12 +16,12 @@ import {
   Refresh1Regular,
 } from './icons';
 
-function NavIcon({ IconRegular, IconFilled, active }) {
+function NavIcon({ IconRegular, IconFilled, active, size = 22 }) {
   const Icon = active ? IconFilled : IconRegular;
 
   return (
     <Icon
-      size={22}
+      size={size}
       color="currentColor"
       className="shrink-0"
       aria-hidden
@@ -82,7 +82,7 @@ export default function MobileBottomNav() {
   return (
     <div
       ref={navRef}
-      className={`fixed bottom-0 left-0 right-0 z-50 md:hidden px-3 transition-transform duration-300 ease-out ${
+      className={`pointer-events-none fixed bottom-0 left-0 right-0 z-50 flex justify-center px-3 transition-transform duration-300 ease-out md:bottom-4 md:px-0 ${
         isVisible ? 'translate-y-0' : 'translate-y-full'
       }`}
       style={{
@@ -92,7 +92,7 @@ export default function MobileBottomNav() {
       aria-hidden={!isVisible}
     >
       <nav
-        className="flex w-full items-center justify-around gap-1 rounded-[28px] bg-white px-2 py-2 shadow-[0_8px_28px_rgba(15,23,42,0.14)]"
+        className="pointer-events-auto flex w-full max-w-lg items-center justify-around gap-0.5 rounded-[28px] bg-white px-2 py-2 shadow-[0_8px_28px_rgba(15,23,42,0.14)] md:w-auto md:max-w-none md:gap-1 md:rounded-full md:px-2.5 md:py-1.5 md:shadow-[0_10px_32px_rgba(15,23,42,0.16)]"
         aria-label="Primary"
       >
         {navItems.map(({ href, label, IconRegular, IconFilled }) => {
@@ -106,15 +106,20 @@ export default function MobileBottomNav() {
               prefetch
               className={`relative flex items-center justify-center transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 active:scale-[0.98] ${
                 isActive
-                  ? 'gap-2 rounded-full bg-[#902bf5] px-4 py-2 text-white shadow-[0_4px_12px_rgba(144,43,245,0.35)]'
-                  : 'rounded-full p-2.5 text-gray-500 hover:bg-black/[0.04]'
+                  ? 'gap-1.5 rounded-full bg-[#902bf5] px-3.5 py-2 text-white shadow-[0_4px_12px_rgba(144,43,245,0.35)] md:gap-1.5 md:px-3 md:py-1.5'
+                  : 'rounded-full p-2.5 text-gray-500 hover:bg-black/[0.04] md:p-2'
               }`}
               aria-current={isActive ? 'page' : undefined}
               aria-label={label}
             >
-              <NavIcon IconRegular={IconRegular} IconFilled={IconFilled} active={isActive} />
+              <span className="md:hidden">
+                <NavIcon IconRegular={IconRegular} IconFilled={IconFilled} active={isActive} size={22} />
+              </span>
+              <span className="hidden md:inline-flex">
+                <NavIcon IconRegular={IconRegular} IconFilled={IconFilled} active={isActive} size={18} />
+              </span>
               {isActive ? (
-                <span className="text-[14px] font-semibold tracking-wide whitespace-nowrap">
+                <span className="whitespace-nowrap text-[14px] font-semibold tracking-wide md:text-[12px]">
                   {label}
                 </span>
               ) : null}
