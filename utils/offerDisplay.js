@@ -254,6 +254,109 @@ export function getProductOfferDisplay(product) {
   };
 }
 
+/**
+ * Full list of product-related offers for PDP (every BXGY rule + sale savings).
+ * Compact PLP/cards still use {@link getProductOfferDisplay}.
+ */
+export function getProductOfferList(product) {
+  if (!product) return [];
+
+  const rows = [];
+  const rules = Array.isArray(product.bundleRules)
+    ? product.bundleRules
+    : Array.isArray(product.bundle_rules)
+      ? product.bundle_rules
+      : [];
+  const pid = String(product.id ?? product.productId ?? "");
+
+  for (let i = 0; i < rules.length; i++) {
+    const rule = rules[i];
+    if (!rule || typeof rule !== "object") continue;
+    const role = bundleRuleRoleForProduct(rule, pid);
+    const cross = isCrossSkuBundleRule(rule);
+    const buyName =
+      role === "buy"
+        ? product.name || product.shortName || ""
+        : rule.buy_product_name || rule.buyProductName || "";
+    const getName =
+      rule.reward_product_name ||
+      rule.rewardProductName ||
+      rule.get_product_name ||
+      (role === "get" ? product.name || product.shortName || "" : "");
+    const title = formatBundleRuleLabel(rule, { role, buyName, getName });
+    const badge = cross
+      ? role === "get"
+        ? "FREE"
+        : "BUY"
+      : formatBogoBadge(rule);
+    rows.push({
+      id: `bxgy-${rule.promotion_id || rule.promotionId || i}-${role}`,
+      kind: OFFER_TYPES.BUY_X_GET_Y,
+      badges: [badge],
+      title,
+      hint: cross
+        ? role === "get"
+          ? "Free when you buy the paired product (added in cart when you qualify)."
+          : "Add this product — free reward is added to your cart when you qualify."
+        : "Free units are added to your cart when you qualify.",
+      dealMode: cross ? "cross_sku" : "same_sku",
+    });
+  }
+
+  const listFromMrp = parseMoney(product.price);
+  const original = parseMoney(
+    product.originalPrice ?? product.actualPrice ?? product.listPrice,
+  );
+  const list =
+    original > listFromMrp + 0.004
+      ? original
+      : listFromMrp > 0
+        ? listFromMrp
+        : original;
+  const payFromOffer = parseMoney(
+    product.offerPrice ?? product.offerPriceEffective,
+  );
+  const pay =
+    payFromOffer > 0 && list > 0 && payFromOffer < list - 0.004
+      ? payFromOffer
+      : original > listFromMrp + 0.004
+        ? listFromMrp
+        : listFromMrp;
+  if (list > pay + 0.004) {
+    const saveRupees = Math.round((list - pay) * 100) / 100;
+    rows.push({
+      id: "price-save",
+      kind: OFFER_TYPES.CATALOG_OFFER,
+      badges: [`SAVE ₹${Math.round(saveRupees)}`],
+      title: `Sale price ₹${pay.toFixed(pay % 1 ? 2 : 0)} (was ₹${list.toFixed(list % 1 ? 2 : 0)})`,
+      hint: "Discount already shown in the price above.",
+      dealMode: null,
+    });
+  }
+
+  // Shelf chrome with no engine rules still needs at least the compact story.
+  if (!rows.length) {
+    const compact = getProductOfferDisplay(product);
+    if (compact.badges?.length || compact.secondaryText) {
+      rows.push({
+        id: "primary",
+        kind: compact.offerType || OFFER_TYPES.NONE,
+        badges: compact.badges || [],
+        title: compact.secondaryText || compact.bundleLabel || "",
+        hint:
+          compact.offerType === OFFER_TYPES.BUY_X_GET_Y
+            ? compact.dealMode === "cross_sku"
+              ? "Add the buy item — free reward is added to your cart when you qualify."
+              : "Free units are added to your cart when you qualify."
+            : null,
+        dealMode: compact.dealMode || null,
+      });
+    }
+  }
+
+  return rows;
+}
+
 function lineUnitPrice(item) {
   if (isBundleRewardCartLine(item)) return 0;
   const fromSize = item?.selectedSize?.price;
