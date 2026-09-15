@@ -237,7 +237,7 @@ export default function OrdersPage() {
     const image =
       item?.product?.images?.[0] ||
       (typeof item?.image === 'string' ? item.image : item?.image?.url) ||
-      '/images/dummy.png';
+      '/images/default_product.jpg';
 
     const selectedSize =
       item?.selectedSize ||

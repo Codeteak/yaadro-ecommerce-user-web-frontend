@@ -19,6 +19,7 @@ import OrderDetailPageSkeleton from "../../../components/skeletons/OrderDetailPa
 import {
   getResolvedProductImageUrls,
   PRODUCT_IMAGE_PLACEHOLDER,
+  isProductImagePlaceholder,
 } from "../../../utils/productImages";
 import {
   formatInrMajor,
@@ -168,8 +169,8 @@ function getOrderItemImage(item) {
   const fromProduct = getResolvedProductImageUrls(item?.product || {});
   const fromItem = getResolvedProductImageUrls(item || {});
   return (
-    fromProduct.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER) ||
-    fromItem.find((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER) ||
+    fromProduct.find((u) => u && !isProductImagePlaceholder(u)) ||
+    fromItem.find((u) => u && !isProductImagePlaceholder(u)) ||
     (typeof item?.image === "string" ? item.image : item?.image?.url) ||
     PRODUCT_IMAGE_PLACEHOLDER
   );
@@ -899,7 +900,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
     const image =
       item?.product?.images?.[0] ||
       (typeof item?.image === "string" ? item.image : item?.image?.url) ||
-      "/images/dummy.png";
+      "/images/default_product.jpg";
 
     const selectedSize =
       item?.selectedSize ||
