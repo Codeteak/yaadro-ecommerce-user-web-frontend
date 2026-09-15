@@ -22,6 +22,7 @@ import HomeCategoryRail from '../components/home/HomeCategoryRail';
 import HomeSearchHints from '../components/home/HomeSearchHints';
 import { dedupeProductsByVariantGroup } from '../utils/productUtils';
 import { getProducts } from '../utils/productApi';
+import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../utils/categoryImage';
 import { Bone, ProductCarouselRowSkeleton } from '../components/skeletons/primitives';
 import {
   ArrowRightRegular as ArrowRight,
@@ -239,18 +240,6 @@ export default function Home() {
 
   // Fresh Zone category tabs
   const [freshZoneCategoryId, setFreshZoneCategoryId] = useState(null);
-
-  const getCategoryImageSrc = (cat) =>
-    cat?.image?.url ||
-    cat?.imageUrl ||
-    cat?.image_url ||
-    cat?.photo?.url ||
-    cat?.photoUrl ||
-    cat?.photo_url ||
-    cat?.icon?.url ||
-    cat?.iconUrl ||
-    cat?.icon_url ||
-    null;
 
   const freshZoneResolved = useMemo(() => {
     const tree = categoryTree || [];
@@ -622,7 +611,7 @@ export default function Home() {
 
                     {freshZoneDisplayCategories.map((cat) => {
                       const active = freshZoneCategoryId != null && String(freshZoneCategoryId) === String(cat.id);
-                      const src = getCategoryImageSrc(cat);
+                      const src = getCategoryImageUrl(cat) || CATEGORY_DUMMY_IMAGE;
                       return (
                         <button
                           key={cat.id}
@@ -636,11 +625,11 @@ export default function Home() {
                         >
                           <span className="relative h-7 w-7 overflow-hidden rounded-full bg-gray-100 border border-gray-200">
                             <img
-                              src={src || '/icons/dummy-category-card-icon.png'}
+                              src={src}
                               alt=""
                               className="h-full w-full object-contain"
                               onError={(e) => {
-                                e.currentTarget.src = '/icons/dummy-category-card-icon.png';
+                                e.currentTarget.src = CATEGORY_DUMMY_IMAGE;
                               }}
                             />
                           </span>
