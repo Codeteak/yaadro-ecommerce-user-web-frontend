@@ -173,6 +173,9 @@ export function buildPersistableCartLineFromProduct(product) {
     Number(
       product.originalPrice ??
         product.compareAtPrice ??
+        product.listPrice ??
+        product.mrp ??
+        product.actualPrice ??
         (hasBxgyRules ? product.price : null) ??
         product.price ??
         0
@@ -181,14 +184,15 @@ export function buildPersistableCartLineFromProduct(product) {
   const offerNum = offerRaw != null ? Number(offerRaw) : null;
   const priceAlreadyPayable =
     !hasBxgyRules &&
-    product.originalPrice != null &&
-    Number.isFinite(Number(product.price)) &&
-    Number(product.originalPrice) > Number(product.price) + 1e-9;
+    Number(
+      product.originalPrice ?? product.compareAtPrice ?? product.listPrice ?? product.mrp
+    ) > Number(product.price) + 1e-9;
   let price;
   let originalPrice;
   if (hasBxgyRules && listed > 0) {
     price = listed;
-    originalPrice = undefined;
+    // Keep list for display context; UI treats BXGY paid lines without strike when equal.
+    originalPrice = listed;
   } else {
     price = priceAlreadyPayable
       ? Number(product.price)
@@ -202,9 +206,7 @@ export function buildPersistableCartLineFromProduct(product) {
     originalPrice =
       listed > price + 1e-9
         ? listed
-        : product.originalPrice != null && Number.isFinite(Number(product.originalPrice))
-          ? Number(product.originalPrice)
-          : undefined;
+        : undefined;
   }
 
   const category =
