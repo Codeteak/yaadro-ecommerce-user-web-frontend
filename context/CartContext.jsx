@@ -15,6 +15,7 @@ import {
   isBundleRewardCartLine,
   isTrustedCartCouponPreview,
   mergePreviewPricingOntoLocalLines,
+  allocateCartPayableOntoLines,
   stripPaidCartLinesOnly,
   sumCartPaidUnits,
 } from '../utils/cartPromotions';
@@ -219,11 +220,28 @@ export function CartProvider({ children }) {
 
   const cartItems = useMemo(() => {
     const base = buildGuestDisplayCartItems(localCartItems);
-    if (!cartPreviewTrusted || !cartPreviewData?.items?.length) return base;
-    return mergePreviewPricingOntoLocalLines(base, cartPreviewData.items, {
-      ignoreCouponPricing: bxgyBlocksCoupons,
-    });
-  }, [localCartItems, cartPreviewTrusted, cartPreviewData?.items, bxgyBlocksCoupons]);
+    const merged =
+      cartPreviewTrusted && cartPreviewData?.items?.length
+        ? mergePreviewPricingOntoLocalLines(base, cartPreviewData.items, {
+            ignoreCouponPricing: bxgyBlocksCoupons,
+          })
+        : base;
+    if (
+      !bxgyBlocksCoupons &&
+      cartPreviewTrusted &&
+      cartPreviewData?.total != null &&
+      Number.isFinite(Number(cartPreviewData.total))
+    ) {
+      return allocateCartPayableOntoLines(merged, Number(cartPreviewData.total));
+    }
+    return merged;
+  }, [
+    localCartItems,
+    cartPreviewTrusted,
+    cartPreviewData?.items,
+    cartPreviewData?.total,
+    bxgyBlocksCoupons,
+  ]);
 
   const cartDataForUi = useMemo(() => {
     if (!cartPreviewTrusted || !cartPreviewData) return undefined;

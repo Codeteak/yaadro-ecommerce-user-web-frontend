@@ -164,11 +164,10 @@ export function buildPersistableCartLineFromProduct(product) {
     product.bundle_rules ??
     (Array.isArray(product.product?.bundleRules) ? product.product.bundleRules : null);
 
-  const hasBxgyRules = Array.isArray(bundleRules) && bundleRules.length > 0;
-
-  // Prefer payable = offer when catalog still has list on `price` + offerPrice.
+  // Prefer payable = offer when catalog has list/MRP above offer.
   // ProductCard may already set price=payable and originalPrice=list.
-  // BXGY / BOGO: coupons never stack — lock cart payable to list/MRP (product price).
+  // BXGY free units are separate; catalog sale still applies on the paid line.
+  // Order-level coupons are blocked from stacking with BXGY elsewhere.
   const listed =
     Number(
       product.originalPrice ??
@@ -176,38 +175,26 @@ export function buildPersistableCartLineFromProduct(product) {
         product.listPrice ??
         product.mrp ??
         product.actualPrice ??
-        (hasBxgyRules ? product.price : null) ??
         product.price ??
         0
     ) || 0;
   const offerRaw = product.offerPrice ?? product.offerPriceEffective;
   const offerNum = offerRaw != null ? Number(offerRaw) : null;
   const priceAlreadyPayable =
-    !hasBxgyRules &&
     Number(
       product.originalPrice ?? product.compareAtPrice ?? product.listPrice ?? product.mrp
     ) > Number(product.price) + 1e-9;
-  let price;
-  let originalPrice;
-  if (hasBxgyRules && listed > 0) {
-    price = listed;
-    // Keep list for display context; UI treats BXGY paid lines without strike when equal.
-    originalPrice = listed;
-  } else {
-    price = priceAlreadyPayable
-      ? Number(product.price)
-      : offerNum != null &&
-          Number.isFinite(offerNum) &&
-          offerNum > 0 &&
-          listed > 0 &&
-          offerNum < listed - 1e-9
-        ? offerNum
-        : Number(product.price ?? product.offerPriceEffective ?? product.offerPrice ?? 0) || 0;
-    originalPrice =
-      listed > price + 1e-9
-        ? listed
-        : undefined;
-  }
+
+  const price = priceAlreadyPayable
+    ? Number(product.price)
+    : offerNum != null &&
+        Number.isFinite(offerNum) &&
+        offerNum > 0 &&
+        listed > 0 &&
+        offerNum < listed - 1e-9
+      ? offerNum
+      : Number(product.price ?? product.offerPriceEffective ?? product.offerPrice ?? 0) || 0;
+  const originalPrice = listed > price + 1e-9 ? listed : undefined;
 
   const category =
     typeof product.category === 'string'

@@ -357,17 +357,35 @@ export function getProductOfferList(product) {
   return rows;
 }
 
-function lineUnitPrice(item) {
+/** Shelf / catalog unit before cart-level payable allocation. */
+function lineCatalogUnit(item) {
   if (isBundleRewardCartLine(item)) return 0;
   const fromSize = item?.selectedSize?.price;
-  if (fromSize != null && Number.isFinite(Number(fromSize)))
+  if (fromSize != null && Number.isFinite(Number(fromSize))) {
     return Number(fromSize);
+  }
   return parseMoney(item?.price);
+}
+
+/**
+ * Payable unit for cart rows. Prefer lineTotal / paidQty when the line has been
+ * priced (preview merge or cart-total allocation); otherwise catalog unit.
+ */
+function lineUnitPrice(item) {
+  if (isBundleRewardCartLine(item)) return 0;
+  const paidQty = Math.max(1, getCartLinePaidQty(item));
+  const line = Number(item?.lineTotal);
+  if (Number.isFinite(line) && line >= 0) {
+    return line / paidQty;
+  }
+  return lineCatalogUnit(item);
 }
 
 /** MRP / list unit for strike + SAVE on cart lines. */
 function lineListUnit(item) {
   if (isBundleRewardCartLine(item)) return null;
+  const pay = lineUnitPrice(item);
+  const catalog = lineCatalogUnit(item);
   const candidates = [
     item?.originalPrice,
     item?.compareAtPrice,
@@ -381,6 +399,8 @@ function lineListUnit(item) {
     item?.selectedSize?.originalPrice,
     item?.selectedSize?.compareAtPrice,
     item?.selectedSize?.mrp,
+    // Sticky selectedSize / price when payable was lowered by cart-level discount.
+    Number.isFinite(catalog) && catalog > pay + 0.004 ? catalog : null,
   ];
   let best = null;
   for (const raw of candidates) {
@@ -389,16 +409,17 @@ function lineListUnit(item) {
     if (!Number.isFinite(n) || n <= 0) continue;
     if (best == null || n > best) best = n;
   }
-  const pay = lineUnitPrice(item);
   if (best != null && best > pay + 0.004) return best;
   return null;
 }
 
 function linePayTotal(item) {
   if (isBundleRewardCartLine(item)) return 0;
-  if (Number.isFinite(Number(item.lineTotal)) && item.lineTotal >= 0)
+  if (Number.isFinite(Number(item.lineTotal)) && item.lineTotal >= 0) {
     return Number(item.lineTotal);
-  return lineUnitPrice(item) * (Number(item.quantity) || 1);
+  }
+  const paidQty = Math.max(1, getCartLinePaidQty(item));
+  return lineUnitPrice(item) * paidQty;
 }
 
 /**

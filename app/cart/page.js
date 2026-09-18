@@ -19,7 +19,10 @@ import {
 import { minorToMajor } from "../../utils/currencyMinor";
 import {
   BXGY_COUPON_BLOCKED_MESSAGE,
+  allocateCartPayableOntoLines,
+  resetCartLinesToShelfPayable,
   sumCartPaidUnits,
+  sumCartShelfPayable,
 } from "../../utils/cartPromotions";
 import {
   buildCartOfferGroups,
@@ -412,6 +415,36 @@ function CartPageContent() {
     cartData?.promotions?.coupon,
   ]);
 
+  const autoCartDiscountMajor = useMemo(() => {
+    if (!couponPreviewTrusted) return 0;
+    if (cartData?.autoCartDiscountMinor > 0) {
+      return minorToMajor(cartData.autoCartDiscountMinor);
+    }
+    if (cartData?.promotions?.auto?.autoCartDiscountMinor > 0) {
+      return minorToMajor(cartData.promotions.auto.autoCartDiscountMinor);
+    }
+    return 0;
+  }, [
+    couponPreviewTrusted,
+    cartData?.autoCartDiscountMinor,
+    cartData?.promotions?.auto?.autoCartDiscountMinor,
+  ]);
+
+  const bundleDiscountMajor = useMemo(() => {
+    if (!couponPreviewTrusted) return 0;
+    if (cartData?.bundleDiscountMinor > 0) {
+      return minorToMajor(cartData.bundleDiscountMinor);
+    }
+    if (cartData?.promotions?.auto?.bundleDiscountMinor > 0) {
+      return minorToMajor(cartData.promotions.auto.bundleDiscountMinor);
+    }
+    return 0;
+  }, [
+    couponPreviewTrusted,
+    cartData?.bundleDiscountMinor,
+    cartData?.promotions?.auto?.bundleDiscountMinor,
+  ]);
+
   useEffect(() => {
     const shared = searchParams?.get("shared");
     if (shared) loadSharedCart(shared);
@@ -420,9 +453,41 @@ function CartPageContent() {
 
   const totalQty = cartCount > 0 ? cartCount : sumCartPaidUnits(cartItems);
 
+  /**
+   * Payable for line OFF UI: lower of trusted total vs shelf − ledger discounts.
+   * Covers total already net of auto, or total still at shelf with auto only in ledger.
+   */
+  const effectivePayable = useMemo(() => {
+    const shelfSum = sumCartShelfPayable(cartItems);
+    const ledger =
+      autoCartDiscountMajor + couponDiscountMajor + bundleDiscountMajor;
+    const afterLedger = Math.max(0, shelfSum - ledger);
+    const trusted = Number(displayCartTotal);
+    if (Number.isFinite(trusted) && trusted >= 0) {
+      return Math.min(trusted, afterLedger);
+    }
+    return afterLedger;
+  }, [
+    cartItems,
+    displayCartTotal,
+    autoCartDiscountMajor,
+    couponDiscountMajor,
+    bundleDiscountMajor,
+  ]);
+
+  /** Reset to shelf then scale to effectivePayable so OFF matches footer savings. */
+  const displayCartItems = useMemo(
+    () =>
+      allocateCartPayableOntoLines(
+        resetCartLinesToShelfPayable(cartItems),
+        effectivePayable,
+      ),
+    [cartItems, effectivePayable],
+  );
+
   const offerGroups = useMemo(
-    () => buildCartOfferGroups(cartItems),
-    [cartItems],
+    () => buildCartOfferGroups(displayCartItems),
+    [displayCartItems],
   );
 
   const couponThresholdHint = useMemo(
@@ -702,22 +767,8 @@ function CartPageContent() {
             cartTotal={displayCartTotal}
             totalQty={totalQty}
             couponDiscount={couponDiscountMajor}
-            autoCartDiscount={
-              couponPreviewTrusted && cartData?.autoCartDiscountMinor > 0
-                ? minorToMajor(cartData.autoCartDiscountMinor)
-                : couponPreviewTrusted &&
-                    cartData?.promotions?.auto?.autoCartDiscountMinor > 0
-                  ? minorToMajor(cartData.promotions.auto.autoCartDiscountMinor)
-                  : 0
-            }
-            bundleDiscount={
-              couponPreviewTrusted && cartData?.bundleDiscountMinor > 0
-                ? minorToMajor(cartData.bundleDiscountMinor)
-                : couponPreviewTrusted &&
-                    cartData?.promotions?.auto?.bundleDiscountMinor > 0
-                  ? minorToMajor(cartData.promotions.auto.bundleDiscountMinor)
-                  : 0
-            }
+            autoCartDiscount={autoCartDiscountMajor}
+            bundleDiscount={bundleDiscountMajor}
             linePromoDiscount={
               couponPreviewTrusted && cartData?.linePromoDiscountMinor > 0
                 ? minorToMajor(cartData.linePromoDiscountMinor)

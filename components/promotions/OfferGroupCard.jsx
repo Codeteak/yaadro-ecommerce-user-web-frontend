@@ -42,11 +42,16 @@ function LineRow({
   const listUnit = lineListUnit(item);
   const linePay = isFree ? 0 : linePayTotal(item);
   const cartItemRef = item.cartItemKey ?? item.cartItemId ?? item.id;
+  // Compare list vs payable (linePay / qty), not sticky selectedSize.price.
+  const payableUnit =
+    !isFree && paidQty > 0 ? linePay / paidQty : unit;
   const showStrike =
-    !isFree && listUnit != null && listUnit > unit + 0.004;
+    !isFree && listUnit != null && listUnit > payableUnit + 0.004;
   const listLine = showStrike ? listUnit * paidQty : null;
   const saveLine =
-    showStrike && listLine != null ? Math.round((listLine - linePay) * 100) / 100 : null;
+    showStrike && listLine != null
+      ? Math.round((listLine - linePay) * 100) / 100
+      : null;
 
   return (
     <div className={`flex gap-3 ${compact ? 'py-1.5' : 'py-2'}`}>
