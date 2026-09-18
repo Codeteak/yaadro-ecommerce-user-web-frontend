@@ -375,8 +375,18 @@ function lineUnitPrice(item) {
   if (isBundleRewardCartLine(item)) return 0;
   const paidQty = Math.max(1, getCartLinePaidQty(item));
   const line = Number(item?.lineTotal);
-  if (Number.isFinite(line) && line >= 0) {
-    return line / paidQty;
+  const priceUnit = parseMoney(item?.price);
+  if (Number.isFinite(line) && line > 0) {
+    const fromLine = line / paidQty;
+    // Prefer unit price when lineTotal looks like a bad allocate remnant.
+    if (
+      Number.isFinite(priceUnit) &&
+      priceUnit > 0 &&
+      fromLine < priceUnit * 0.5 - 1e-9
+    ) {
+      return priceUnit;
+    }
+    return fromLine;
   }
   return lineCatalogUnit(item);
 }
@@ -415,10 +425,19 @@ function lineListUnit(item) {
 
 function linePayTotal(item) {
   if (isBundleRewardCartLine(item)) return 0;
-  if (Number.isFinite(Number(item.lineTotal)) && item.lineTotal >= 0) {
-    return Number(item.lineTotal);
-  }
   const paidQty = Math.max(1, getCartLinePaidQty(item));
+  const priceUnit = parseMoney(item?.price);
+  const line = Number(item.lineTotal);
+  if (Number.isFinite(line) && line > 0) {
+    if (
+      Number.isFinite(priceUnit) &&
+      priceUnit > 0 &&
+      line / paidQty < priceUnit * 0.5 - 1e-9
+    ) {
+      return Math.round(priceUnit * paidQty * 100) / 100;
+    }
+    return line;
+  }
   return lineUnitPrice(item) * paidQty;
 }
 

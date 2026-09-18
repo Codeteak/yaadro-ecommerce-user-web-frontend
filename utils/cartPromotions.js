@@ -731,8 +731,15 @@ export function mergePreviewPricingOntoLocalLines(
 
     if (isBxgyLine) {
       const paid = getCartLinePaidQty(local);
+      const sizeList = Number(local.selectedSize?.price);
       const localList = Number(
-        local.originalPrice ?? local.compareAtPrice ?? local.listPrice ?? local.mrp
+        local.originalPrice ??
+          local.compareAtPrice ??
+          local.listPrice ??
+          local.mrp ??
+          (Number.isFinite(sizeList) && sizeList > Number(local.price) + 1e-9
+            ? sizeList
+            : NaN)
       );
       const localPay = Number(local.price);
       const previewList = Number(
@@ -740,44 +747,43 @@ export function mergePreviewPricingOntoLocalLines(
       );
       const previewPay = Number(preview.price);
 
-      // Catalog sale under BXGY: keep local pay < list (do not bump pay up to MRP).
-      const hasCatalogSale =
-        Number.isFinite(localList) &&
-        localList > 0 &&
-        Number.isFinite(localPay) &&
-        localPay > 0 &&
-        localList > localPay + 1e-9;
+      const listUnit = [localList, previewList, sizeList]
+        .filter((n) => Number.isFinite(n) && n > 0)
+        .reduce((a, b) => (a == null || b > a ? b : a), null);
 
-      let sellUnit;
-      let listForDisplay = null;
-      if (hasCatalogSale) {
-        sellUnit = localPay;
-        listForDisplay = localList;
-      } else {
-        // No catalog sale: payable = list/MRP (ignore coupon-reduced preview when BXGY).
-        const listUnit = Number.isFinite(localList) && localList > 0
-          ? localList
-          : Number.isFinite(previewList) && previewList > 0
-            ? previewList
-            : Number.isFinite(previewPay) && previewPay > 0
-              ? previewPay
-              : Number.isFinite(localPay) && localPay > 0
-                ? localPay
-                : null;
-        sellUnit = listUnit;
-        listForDisplay =
-          Number.isFinite(localList) && localList > sellUnit + 1e-9
-            ? localList
-            : Number.isFinite(previewList) && previewList > sellUnit + 1e-9
-              ? previewList
-              : null;
-      }
+      const underList = (n) =>
+        Number.isFinite(n) &&
+        n > 0 &&
+        (listUnit == null || n <= listUnit + 1e-9);
+
+      // Prefer preview sell (avoids sticky local totals crushed by bad allocate).
+      let sellUnit = null;
+      if (underList(previewPay)) sellUnit = previewPay;
+      else if (underList(localPay)) sellUnit = localPay;
+      else if (listUnit != null) sellUnit = listUnit;
+
+      const listForDisplay =
+        listUnit != null && sellUnit != null && listUnit > sellUnit + 1e-9
+          ? listUnit
+          : null;
 
       if (sellUnit != null && sellUnit > 0 && paid > 0) {
         next.price = sellUnit;
         next.originalPrice = listForDisplay;
         next.lineTotal = sellUnit * paid;
         next.total = next.lineTotal;
+        if (local.selectedSize && typeof local.selectedSize === 'object') {
+          next.selectedSize = {
+            ...local.selectedSize,
+            price:
+              listForDisplay != null
+                ? listForDisplay
+                : Number(local.selectedSize.price) > 0
+                  ? Number(local.selectedSize.price)
+                  : sellUnit,
+            ...(listForDisplay != null ? { originalPrice: listForDisplay } : {}),
+          };
+        }
       }
       if (preview.free_quantity != null || preview.freeQuantity != null) {
         const free = Number(preview.free_quantity ?? preview.freeQuantity) || 0;
@@ -842,6 +848,93 @@ function linePayableMajor(item) {
   return unit * getCartLinePaidQty(item);
 }
 
+/**
+ * Ensure each paid line carries catalog list vs offer for OFF UI.
+ * List = max(MRP/original/selectedSize when above pay); pay stays the sell unit.
+ * Does not invent discounts — only surfaces fields already on the line.
+ */
+export function normalizeCartLineCatalogPricing(item) {
+  if (!item || isBundleRewardCartLine(item)) return item;
+  const paidQty = Math.max(1, getCartLinePaidQty(item));
+  const line = Number(item.lineTotal);
+  const priceUnit = Number(item.price) || 0;
+  const fromLine =
+    Number.isFinite(line) && line > 0 ? line / paidQty : 0;
+  // Prefer item.price when lineTotal was crushed by a bad cart-level allocate.
+  let payUnit = priceUnit > 0 ? priceUnit : fromLine;
+  if (
+    priceUnit > 0 &&
+    fromLine > 0 &&
+    fromLine < priceUnit * 0.5 - 1e-9
+  ) {
+    payUnit = priceUnit;
+  }
+  if (!(payUnit > 0)) {
+    payUnit = Number(item.offerPrice ?? item.offerPriceEffective) || 0;
+  }
+  if (!(payUnit > 0)) return item;
+
+  const listCandidates = [
+    item.originalPrice,
+    item.compareAtPrice,
+    item.listPrice,
+    item.mrp,
+    item.actualPrice,
+    item.selectedSize?.originalPrice,
+    item.selectedSize?.compareAtPrice,
+    item.selectedSize?.mrp,
+    // ProductCard sizes store list/tag on selectedSize.price while item.price is offer.
+    item.selectedSize?.price,
+    item.product?.originalPrice,
+    item.product?.compareAtPrice,
+    item.product?.listPrice,
+    item.product?.mrp,
+  ];
+  let listUnit = null;
+  for (const raw of listCandidates) {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) continue;
+    if (listUnit == null || n > listUnit) listUnit = n;
+  }
+  if (listUnit == null || !(listUnit > payUnit + 1e-9)) {
+    // No catalog gap — still keep lineTotal in sync with pay × qty.
+    const lineTotal = Math.round(payUnit * paidQty * 100) / 100;
+    if (Number(item.lineTotal) === lineTotal && Number(item.price) === payUnit) {
+      return item;
+    }
+    return { ...item, price: payUnit, lineTotal, total: lineTotal };
+  }
+
+  const lineTotal = Math.round(payUnit * paidQty * 100) / 100;
+  const next = {
+    ...item,
+    price: payUnit,
+    lineTotal,
+    total: lineTotal,
+    originalPrice: listUnit,
+  };
+  if (item.selectedSize && typeof item.selectedSize === 'object') {
+    next.selectedSize = {
+      ...item.selectedSize,
+      // Keep size.price as list/tag for footer MRP helpers.
+      price:
+        Number(item.selectedSize.price) > payUnit + 1e-9
+          ? Number(item.selectedSize.price)
+          : listUnit,
+      originalPrice:
+        Number(item.selectedSize.originalPrice) > payUnit + 1e-9
+          ? Number(item.selectedSize.originalPrice)
+          : listUnit,
+    };
+  }
+  return next;
+}
+
+export function normalizeCartLinesCatalogPricing(items) {
+  if (!Array.isArray(items) || !items.length) return items || [];
+  return items.map(normalizeCartLineCatalogPricing);
+}
+
 /** Catalog / shelf unit for a paid cart line (list preferred over sell). */
 export function cartLineShelfUnit(item) {
   if (!item || isBundleRewardCartLine(item)) return 0;
@@ -879,6 +972,7 @@ export function sumCartShelfPayable(items) {
 /**
  * Reset paid lines to shelf (catalog) payable so allocate's linesSum is the
  * real pre-discount total, not a sticky reduced lineTotal.
+ * @deprecated Prefer normalizeCartLinesCatalogPricing + allocate to displayCartTotal.
  */
 export function resetCartLinesToShelfPayable(items) {
   if (!Array.isArray(items) || !items.length) return items || [];

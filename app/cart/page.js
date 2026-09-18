@@ -20,9 +20,8 @@ import { minorToMajor } from "../../utils/currencyMinor";
 import {
   BXGY_COUPON_BLOCKED_MESSAGE,
   allocateCartPayableOntoLines,
-  resetCartLinesToShelfPayable,
+  normalizeCartLinesCatalogPricing,
   sumCartPaidUnits,
-  sumCartShelfPayable,
 } from "../../utils/cartPromotions";
 import {
   buildCartOfferGroups,
@@ -454,36 +453,16 @@ function CartPageContent() {
   const totalQty = cartCount > 0 ? cartCount : sumCartPaidUnits(cartItems);
 
   /**
-   * Payable for line OFF UI: lower of trusted total vs shelf − ledger discounts.
-   * Covers total already net of auto, or total still at shelf with auto only in ledger.
+   * Scale lines only to the trusted payable total (auto/coupon already in total).
+   * Never subtract bundle/BXGY free-gift ledger — that double-counts FREE lines and
+   * crushed paid-line prices (e.g. ₹15 / ₹26 with fake ₹50+ OFF while footer Save ₹5).
    */
-  const effectivePayable = useMemo(() => {
-    const shelfSum = sumCartShelfPayable(cartItems);
-    const ledger =
-      autoCartDiscountMajor + couponDiscountMajor + bundleDiscountMajor;
-    const afterLedger = Math.max(0, shelfSum - ledger);
-    const trusted = Number(displayCartTotal);
-    if (Number.isFinite(trusted) && trusted >= 0) {
-      return Math.min(trusted, afterLedger);
-    }
-    return afterLedger;
-  }, [
-    cartItems,
-    displayCartTotal,
-    autoCartDiscountMajor,
-    couponDiscountMajor,
-    bundleDiscountMajor,
-  ]);
-
-  /** Reset to shelf then scale to effectivePayable so OFF matches footer savings. */
-  const displayCartItems = useMemo(
-    () =>
-      allocateCartPayableOntoLines(
-        resetCartLinesToShelfPayable(cartItems),
-        effectivePayable,
-      ),
-    [cartItems, effectivePayable],
-  );
+  const displayCartItems = useMemo(() => {
+    const normalized = normalizeCartLinesCatalogPricing(cartItems);
+    const target = Number(displayCartTotal);
+    if (!Number.isFinite(target) || target < 0) return normalized;
+    return allocateCartPayableOntoLines(normalized, target);
+  }, [cartItems, displayCartTotal]);
 
   const offerGroups = useMemo(
     () => buildCartOfferGroups(displayCartItems),
