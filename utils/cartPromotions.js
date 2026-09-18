@@ -733,13 +733,17 @@ export function mergePreviewPricingOntoLocalLines(
       const listUnit = Number(
         preview.originalPrice ??
           local.originalPrice ??
-          (Number(local.originalPrice) > 0 ? local.originalPrice : null) ??
+          local.compareAtPrice ??
+          local.listPrice ??
+          local.mrp ??
           preview.price ??
           local.price
       );
       const paid = getCartLinePaidQty(local);
       // Prefer local catalog list when preview unit looks coupon-reduced.
-      const localList = Number(local.originalPrice);
+      const localList = Number(
+        local.originalPrice ?? local.compareAtPrice ?? local.listPrice ?? local.mrp
+      );
       const localPay = Number(local.price);
       const sellUnit =
         Number.isFinite(localList) && localList > 0
@@ -751,7 +755,8 @@ export function mergePreviewPricingOntoLocalLines(
               : null;
       if (sellUnit != null && sellUnit > 0 && paid > 0) {
         next.price = sellUnit;
-        next.originalPrice = null;
+        next.originalPrice =
+          Number.isFinite(localList) && localList > sellUnit + 1e-9 ? localList : null;
         next.lineTotal = sellUnit * paid;
         next.total = next.lineTotal;
       }
@@ -771,14 +776,25 @@ export function mergePreviewPricingOntoLocalLines(
     if (preview.price != null && Number.isFinite(Number(preview.price))) {
       next.price = Number(preview.price);
     }
-    if (preview.originalPrice != null && Number.isFinite(Number(preview.originalPrice))) {
-      next.originalPrice = Number(preview.originalPrice);
+    const previewList = Number(
+      preview.originalPrice ?? preview.compareAtPrice ?? preview.listPrice ?? preview.mrp
+    );
+    const localListKeep = Number(
+      local.originalPrice ?? local.compareAtPrice ?? local.listPrice ?? local.mrp
+    );
+    const pay = Number(next.price);
+    const bestList = [previewList, localListKeep]
+      .filter((n) => Number.isFinite(n) && n > 0)
+      .reduce((a, b) => (a == null || b > a ? b : a), null);
+    if (bestList != null && Number.isFinite(pay) && bestList > pay + 1e-9) {
+      next.originalPrice = bestList;
     } else if (
       next.originalPrice == null &&
-      preview.price != null &&
-      Number(local.originalPrice) > Number(preview.price)
+      Number.isFinite(localListKeep) &&
+      Number.isFinite(pay) &&
+      localListKeep > pay + 1e-9
     ) {
-      next.originalPrice = Number(local.originalPrice);
+      next.originalPrice = localListKeep;
     }
     if (preview.lineTotal != null && Number.isFinite(Number(preview.lineTotal))) {
       next.lineTotal = Number(preview.lineTotal);

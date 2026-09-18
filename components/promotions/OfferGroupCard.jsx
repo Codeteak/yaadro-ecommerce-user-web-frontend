@@ -45,6 +45,8 @@ function LineRow({
   const showStrike =
     !isFree && listUnit != null && listUnit > unit + 0.004;
   const listLine = showStrike ? listUnit * paidQty : null;
+  const saveLine =
+    showStrike && listLine != null ? Math.round((listLine - linePay) * 100) / 100 : null;
 
   return (
     <div className={`flex gap-3 ${compact ? 'py-1.5' : 'py-2'}`}>
@@ -78,13 +80,19 @@ function LineRow({
                   {b}
                 </OfferBadgePill>
               ))}
+          {!isFree &&
+            saveLine != null &&
+            saveLine >= 0.005 &&
+            !(badges || []).some((b) => String(b).startsWith('SAVE')) && (
+              <OfferBadgePill tone="red">SAVE ₹{Math.round(saveLine)}</OfferBadgePill>
+            )}
         </div>
         <p className="mt-0.5 text-[11px] text-gray-400">
           {[getCartLineVariantLabel(item), item.brand].filter(Boolean).join(' · ') || ' '}
         </p>
 
         <div className="mt-2 flex items-center justify-between gap-2">
-          <div className="flex items-baseline gap-1.5">
+          <div className="flex flex-wrap items-baseline gap-1.5">
             <span className="text-[15px] font-semibold tabular-nums text-gray-900">
               {isFree ? '₹0' : `₹${linePay.toLocaleString('en-IN')}`}
             </span>
@@ -93,6 +101,11 @@ function LineRow({
                 ₹{listLine.toLocaleString('en-IN')}
               </span>
             )}
+            {saveLine != null && saveLine >= 0.005 ? (
+              <span className="text-[11px] font-semibold tabular-nums text-violet-700">
+                ₹{saveLine.toLocaleString('en-IN')} OFF
+              </span>
+            ) : null}
           </div>
 
           {isFree || !showStepper ? (

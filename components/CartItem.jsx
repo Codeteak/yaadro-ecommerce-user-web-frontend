@@ -70,8 +70,21 @@ export default function CartItem({ item }) {
       : Number.isFinite(unitPrice)
         ? unitPrice * item.quantity
         : 0;
+  const originalPriceCandidates = [
+    item.originalPrice,
+    item.compareAtPrice,
+    item.listPrice,
+    item.mrp,
+    item.actualPrice,
+    item.product?.originalPrice,
+    item.product?.compareAtPrice,
+    item.product?.listPrice,
+    item.product?.mrp,
+  ]
+    .map((v) => (v != null ? parseFloat(v) : NaN))
+    .filter((n) => Number.isFinite(n) && n > 0);
   const originalPrice =
-    item.originalPrice != null ? parseFloat(item.originalPrice) : null;
+    originalPriceCandidates.length > 0 ? Math.max(...originalPriceCandidates) : null;
   const hasDiscount =
     originalPrice != null && Number.isFinite(originalPrice) && originalPrice > unitPrice + 1e-9;
   const discountValue = hasDiscount ? originalPrice - unitPrice : null;

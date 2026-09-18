@@ -365,13 +365,32 @@ function lineUnitPrice(item) {
   return parseMoney(item?.price);
 }
 
+/** MRP / list unit for strike + SAVE on cart lines. */
 function lineListUnit(item) {
-  if (
-    item?.originalPrice != null &&
-    Number.isFinite(Number(item.originalPrice))
-  ) {
-    return Number(item.originalPrice);
+  if (isBundleRewardCartLine(item)) return null;
+  const candidates = [
+    item?.originalPrice,
+    item?.compareAtPrice,
+    item?.listPrice,
+    item?.mrp,
+    item?.actualPrice,
+    item?.product?.originalPrice,
+    item?.product?.compareAtPrice,
+    item?.product?.listPrice,
+    item?.product?.mrp,
+    item?.selectedSize?.originalPrice,
+    item?.selectedSize?.compareAtPrice,
+    item?.selectedSize?.mrp,
+  ];
+  let best = null;
+  for (const raw of candidates) {
+    if (raw == null) continue;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) continue;
+    if (best == null || n > best) best = n;
   }
+  const pay = lineUnitPrice(item);
+  if (best != null && best > pay + 0.004) return best;
   return null;
 }
 
@@ -434,6 +453,12 @@ export function buildCartOfferGroups(items) {
     const listUnit = lineListUnit(it);
     const paidQty = getCartLinePaidQty(it);
     let savingsMajor = 0;
+    const parentWithList =
+      listUnit != null &&
+      listUnit > unit + 0.004 &&
+      !(Number(it.originalPrice) > unit + 0.004)
+        ? { ...it, originalPrice: listUnit }
+        : it;
     if (listUnit != null && listUnit > unit + 0.004) {
       savingsMajor += (listUnit - unit) * paidQty;
       badges.push(`SAVE ₹${Math.round((listUnit - unit) * paidQty)}`);
@@ -455,7 +480,7 @@ export function buildCartOfferGroups(items) {
     groups.push({
       parentLineItemId: parentId,
       offerType,
-      parent: it,
+      parent: parentWithList,
       children,
       badges: [...new Set(badges)],
       savingsMinor: Math.round(savingsMajor * 100),

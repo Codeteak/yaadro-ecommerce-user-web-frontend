@@ -835,6 +835,35 @@ export function savedAddressToOrderAddress(saved) {
 }
 
 /**
+ * Payable sum for Price summary / Items header (excludes removed + confirmed free rewards).
+ */
+function sumActiveOrderLinePayables(items) {
+  return (items || [])
+    .filter((it) => !it?.isDeleted && !it?.isConfirmedFreeReward)
+    .reduce((sum, it) => sum + (Number(it.totalPrice) || 0), 0);
+}
+
+/**
+ * Align order subtotal/total with line payables.
+ * Preserves API total−subtotal gap (order-level coupon / delivery / tax delta).
+ */
+function reconcileOrderMoneyFromActiveLines(subtotal, total, activeSum) {
+  if (!(activeSum > 0.009)) {
+    return {
+      subtotal: Number(subtotal) || 0,
+      total: Number(total) || 0,
+    };
+  }
+  const prevSub = Number(subtotal) || 0;
+  const prevTot = Number(total) || 0;
+  const gap = prevTot - prevSub;
+  const nextSub = activeSum;
+  const nextTot =
+    Math.abs(gap) > 0.009 ? Math.max(0, activeSum + gap) : activeSum;
+  return { subtotal: nextSub, total: nextTot };
+}
+
+/**
  * Transform API order to frontend format
  */
 function transformOrder(apiOrder) {
@@ -891,8 +920,9 @@ function transformOrder(apiOrder) {
       : parseFloat(apiOrder.subtotal || 0);
   const itemsRaw = applyUnavailableLinePasses(mappedItems, subtotal, status);
 
-  // Coupons must not stack with BXGY. Restore every active paid line to list × paid qty
-  // when the order has BXGY (covers paid rows that lack free_qty while a free sibling exists).
+  // Coupons must not stack with BXGY. Normalize paid-line catalog (list) unit when BXGY
+  // is present, but keep discounted line payables (sale on paid lines) — do not force
+  // totalPrice up to list × paid qty when an explicit lower payable already exists.
   const hasBxgy = orderHasBxgyOffer(itemsRaw);
   const items = hasBxgy
     ? itemsRaw.map((it) => {
@@ -901,27 +931,33 @@ function transformOrder(apiOrder) {
         if (!(list > 0)) return it;
         const paidQty = inferOrderLinePaidQuantity(it);
         if (!(paidQty > 0)) return it;
-        const nextTotal = list * paidQty;
-        if (
-          Math.abs(Number(it.unitPrice) - list) < 0.009 &&
-          Math.abs(Number(it.totalPrice) - nextTotal) < 0.009
-        ) {
+        const listTimesPaid = list * paidQty;
+        const currentTotal = Number(it.totalPrice);
+        const hasDiscountedPayable =
+          Number.isFinite(currentTotal) &&
+          currentTotal > 0.009 &&
+          currentTotal < listTimesPaid - 0.009;
+        const unitNeedsList = Math.abs(Number(it.unitPrice) - list) >= 0.009;
+        const totalAlreadyList =
+          Number.isFinite(currentTotal) &&
+          Math.abs(currentTotal - listTimesPaid) < 0.009;
+
+        if (!unitNeedsList && (hasDiscountedPayable || totalAlreadyList)) {
           return it;
         }
+
         return {
           ...it,
-          unitPrice: list,
-          price: list,
-          totalPrice: nextTotal,
+          ...(unitNeedsList ? { unitPrice: list, price: list } : {}),
+          // Restore wiped/missing payables to list×paid; keep sale discounts as-is.
+          totalPrice: hasDiscountedPayable ? currentTotal : listTimesPaid,
         };
       })
     : itemsRaw;
 
   // When reject/promo wipe zeroes order-level money but lines still have payable
-  // totals (Items header), reconcile so Price summary matches Items / admin.
-  const activeSum = items
-    .filter((it) => !it?.isDeleted && !it?.isConfirmedFreeReward)
-    .reduce((sum, it) => sum + (Number(it.totalPrice) || 0), 0);
+  // totals (Items header), reconcile so Price summary matches Items.
+  const activeSum = sumActiveOrderLinePayables(items);
 
   // Coupons must not stack with BXGY — drop coupon ledger and use line payables.
   let resolvedCouponCode = couponCode ? String(couponCode).trim() : null;
@@ -944,20 +980,15 @@ function transformOrder(apiOrder) {
     resolvedCouponCodes = [];
   }
 
-  if (hasBxgy && activeSum > 0.009) {
-    subtotal = activeSum;
-  } else if (!(Number(subtotal) > 0.009) && activeSum > 0.009) {
-    subtotal = activeSum;
-  }
   let total =
     apiOrder.total_minor != null
       ? minorToMajor(apiOrder.total_minor)
       : parseFloat(apiOrder.total || 0);
-  if (hasBxgy && activeSum > 0.009) {
-    total = activeSum;
-  } else if (!(Number(total) > 0.009) && activeSum > 0.009) {
-    total = activeSum;
-  }
+  ({ subtotal, total } = reconcileOrderMoneyFromActiveLines(
+    subtotal,
+    total,
+    activeSum,
+  ));
 
   return {
     id: apiOrder.id,
@@ -1207,6 +1238,13 @@ export async function getOrder(orderId) {
       );
       order.items = remapped;
       order.itemCount = remapped.length;
+      const money = reconcileOrderMoneyFromActiveLines(
+        order.subtotal,
+        order.total,
+        sumActiveOrderLinePayables(remapped),
+      );
+      order.subtotal = money.subtotal;
+      order.total = money.total;
     }
     return order;
   } catch (error) {
