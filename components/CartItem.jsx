@@ -68,7 +68,14 @@ export default function CartItem({ item }) {
     Number.isFinite(Number(item.lineTotal)) && item.lineTotal >= 0
       ? Number(item.lineTotal)
       : Number.isFinite(unitPrice)
-        ? unitPrice * item.quantity
+        ? unitPrice * (paidQty > 0 ? paidQty : item.quantity || 1)
+        : 0;
+  const qtyForUnit = Math.max(1, paidQty > 0 ? paidQty : Number(item.quantity) || 1);
+  const payableUnit =
+    Number.isFinite(lineTotal) && lineTotal >= 0
+      ? lineTotal / qtyForUnit
+      : Number.isFinite(unitPrice)
+        ? unitPrice
         : 0;
   const originalPriceCandidates = [
     item.originalPrice,
@@ -80,14 +87,16 @@ export default function CartItem({ item }) {
     item.product?.compareAtPrice,
     item.product?.listPrice,
     item.product?.mrp,
+    // When line payable is below catalog unit, treat unit price as list for OFF UI.
+    Number.isFinite(unitPrice) && unitPrice > payableUnit + 1e-9 ? unitPrice : null,
   ]
     .map((v) => (v != null ? parseFloat(v) : NaN))
     .filter((n) => Number.isFinite(n) && n > 0);
-  const originalPrice =
+  const listUnit =
     originalPriceCandidates.length > 0 ? Math.max(...originalPriceCandidates) : null;
   const hasDiscount =
-    originalPrice != null && Number.isFinite(originalPrice) && originalPrice > unitPrice + 1e-9;
-  const discountValue = hasDiscount ? originalPrice - unitPrice : null;
+    listUnit != null && Number.isFinite(payableUnit) && listUnit > payableUnit + 1e-9;
+  const discountValue = hasDiscount ? listUnit - payableUnit : null;
   const variantLabel = getCartLineVariantLabel(item);
 
   return (
@@ -151,13 +160,13 @@ export default function CartItem({ item }) {
             </span>
           ) : (
             <span className="rounded-md bg-violet-600 px-2 py-1 text-xs font-semibold text-white">
-              ₹{formatRupeeINR(unitPrice)}
+              ₹{formatRupeeINR(payableUnit)}
             </span>
           )}
           {!isBundleReward && hasDiscount && (
             <>
               <span className="text-[11px] text-gray-500 line-through">
-                ₹{formatRupeeINR(originalPrice)}
+                ₹{formatRupeeINR(listUnit)}
               </span>
               <span className="text-[11px] text-violet-700 font-semibold">
                 ₹{formatRupeeINR(discountValue)} OFF

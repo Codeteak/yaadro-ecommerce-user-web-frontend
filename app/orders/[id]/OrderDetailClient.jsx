@@ -31,7 +31,7 @@ import {
   orderHasBxgyOffer,
   parseOrderQuantity,
 } from "../../../utils/orderPromotions";
-import { printBillPdf, downloadBillHtml } from "../../../utils/orderInvoice";
+import { downloadBillPdf } from "../../../utils/orderInvoice";
 import {
   hasOrderDisplayAddress,
   savedAddressToOrderAddress,
@@ -1361,16 +1361,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
         shopName={shopName || "Yaadro"}
         shopImage={shopImage || null}
         onDownloadPdf={() =>
-          printBillPdf({
-            order: orderWithAddress,
-            orderId: order.id,
-            paymentStatus: order.paymentStatus,
-            shopName: shopName || "Yaadro",
-            shopImage: shopImage || null,
-          })
-        }
-        onDownloadHtml={() =>
-          downloadBillHtml({
+          downloadBillPdf({
             order: orderWithAddress,
             orderId: order.id,
             paymentStatus: order.paymentStatus,

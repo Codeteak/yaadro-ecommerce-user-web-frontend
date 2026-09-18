@@ -730,33 +730,52 @@ export function mergePreviewPricingOntoLocalLines(
         Boolean(preview.free_quantity || preview.freeQuantity));
 
     if (isBxgyLine) {
-      const listUnit = Number(
-        preview.originalPrice ??
-          local.originalPrice ??
-          local.compareAtPrice ??
-          local.listPrice ??
-          local.mrp ??
-          preview.price ??
-          local.price
-      );
       const paid = getCartLinePaidQty(local);
-      // Prefer local catalog list when preview unit looks coupon-reduced.
       const localList = Number(
         local.originalPrice ?? local.compareAtPrice ?? local.listPrice ?? local.mrp
       );
       const localPay = Number(local.price);
-      const sellUnit =
-        Number.isFinite(localList) && localList > 0
+      const previewList = Number(
+        preview.originalPrice ?? preview.compareAtPrice ?? preview.listPrice ?? preview.mrp
+      );
+      const previewPay = Number(preview.price);
+
+      // Catalog sale under BXGY: keep local pay < list (do not bump pay up to MRP).
+      const hasCatalogSale =
+        Number.isFinite(localList) &&
+        localList > 0 &&
+        Number.isFinite(localPay) &&
+        localPay > 0 &&
+        localList > localPay + 1e-9;
+
+      let sellUnit;
+      let listForDisplay = null;
+      if (hasCatalogSale) {
+        sellUnit = localPay;
+        listForDisplay = localList;
+      } else {
+        // No catalog sale: payable = list/MRP (ignore coupon-reduced preview when BXGY).
+        const listUnit = Number.isFinite(localList) && localList > 0
           ? localList
-          : Number.isFinite(listUnit) && listUnit > 0
-            ? listUnit
-            : Number.isFinite(localPay) && localPay > 0
-              ? localPay
+          : Number.isFinite(previewList) && previewList > 0
+            ? previewList
+            : Number.isFinite(previewPay) && previewPay > 0
+              ? previewPay
+              : Number.isFinite(localPay) && localPay > 0
+                ? localPay
+                : null;
+        sellUnit = listUnit;
+        listForDisplay =
+          Number.isFinite(localList) && localList > sellUnit + 1e-9
+            ? localList
+            : Number.isFinite(previewList) && previewList > sellUnit + 1e-9
+              ? previewList
               : null;
+      }
+
       if (sellUnit != null && sellUnit > 0 && paid > 0) {
         next.price = sellUnit;
-        next.originalPrice =
-          Number.isFinite(localList) && localList > sellUnit + 1e-9 ? localList : null;
+        next.originalPrice = listForDisplay;
         next.lineTotal = sellUnit * paid;
         next.total = next.lineTotal;
       }
@@ -813,3 +832,168 @@ export function mergePreviewPricingOntoLocalLines(
     return next;
   });
 }
+
+function linePayableMajor(item) {
+  if (isBundleRewardCartLine(item)) return 0;
+  const line = Number(item?.lineTotal);
+  // Treat missing/null/0 lineTotal as unset so allocate uses catalog × qty.
+  if (Number.isFinite(line) && line > 0) return line;
+  const unit = Number(item?.price) || 0;
+  return unit * getCartLinePaidQty(item);
+}
+
+/** Catalog / shelf unit for a paid cart line (list preferred over sell). */
+export function cartLineShelfUnit(item) {
+  if (!item || isBundleRewardCartLine(item)) return 0;
+  const candidates = [
+    item.originalPrice,
+    item.compareAtPrice,
+    item.listPrice,
+    item.mrp,
+    item.selectedSize?.originalPrice,
+    item.selectedSize?.compareAtPrice,
+    item.selectedSize?.mrp,
+    item.selectedSize?.price,
+    item.price,
+  ];
+  let best = 0;
+  for (const raw of candidates) {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) continue;
+    if (n > best) best = n;
+  }
+  return best;
+}
+
+/** Sum of shelf unit × paid qty across paid lines. */
+export function sumCartShelfPayable(items) {
+  if (!Array.isArray(items) || !items.length) return 0;
+  return items.reduce((sum, it) => {
+    if (isBundleRewardCartLine(it)) return sum;
+    const unit = cartLineShelfUnit(it);
+    if (!(unit > 0)) return sum;
+    return sum + unit * Math.max(1, getCartLinePaidQty(it));
+  }, 0);
+}
+
+/**
+ * Reset paid lines to shelf (catalog) payable so allocate's linesSum is the
+ * real pre-discount total, not a sticky reduced lineTotal.
+ */
+export function resetCartLinesToShelfPayable(items) {
+  if (!Array.isArray(items) || !items.length) return items || [];
+  return items.map((it) => {
+    if (isBundleRewardCartLine(it)) return it;
+    const shelfUnit = cartLineShelfUnit(it);
+    if (!(shelfUnit > 0)) return it;
+    const paidQty = Math.max(1, getCartLinePaidQty(it));
+    const shelfLine = Math.round(shelfUnit * paidQty * 100) / 100;
+    const next = {
+      ...it,
+      price: shelfUnit,
+      lineTotal: shelfLine,
+      total: shelfLine,
+      originalPrice:
+        Number(it.originalPrice) > shelfUnit + 1e-9
+          ? Number(it.originalPrice)
+          : shelfUnit,
+    };
+    if (it.selectedSize && typeof it.selectedSize === 'object') {
+      const sizeList =
+        Number(it.selectedSize.originalPrice) > shelfUnit + 1e-9
+          ? Number(it.selectedSize.originalPrice)
+          : shelfUnit;
+      next.selectedSize = {
+        ...it.selectedSize,
+        price: shelfUnit,
+        originalPrice: sizeList,
+      };
+    }
+    return next;
+  });
+}
+
+/**
+ * When the trusted cart grand total is below the sum of line payables (auto cart /
+ * category discount not written onto lines), spread that payable onto lines for UI
+ * so CartItem can show list vs OFF the same way as the footer.
+ */
+export function allocateCartPayableOntoLines(items, payableTotal) {
+  if (!Array.isArray(items) || !items.length) return items || [];
+  const target = Number(payableTotal);
+  if (!Number.isFinite(target) || target < 0) return items;
+
+  const paidIdx = [];
+  let linesSum = 0;
+  items.forEach((it, idx) => {
+    if (isBundleRewardCartLine(it)) return;
+    const pay = linePayableMajor(it);
+    if (!(pay > 0.009)) return;
+    paidIdx.push(idx);
+    linesSum += pay;
+  });
+
+  if (!paidIdx.length || !(linesSum > target + 0.009)) return items;
+
+  const factor = target / linesSum;
+  const out = items.map((it) => ({ ...it }));
+  let allocated = 0;
+
+  paidIdx.forEach((idx, i) => {
+    const it = out[idx];
+    const prevLine = linePayableMajor(it);
+    const paidQty = Math.max(1, getCartLinePaidQty(it));
+    let nextLine =
+      i === paidIdx.length - 1
+        ? Math.max(0, Math.round((target - allocated) * 100) / 100)
+        : Math.max(0, Math.round(prevLine * factor * 100) / 100);
+    allocated += nextLine;
+
+    const prevUnit = Number(it.price);
+    const sizeUnit = Number(it.selectedSize?.price);
+    const listCandidates = [
+      it.originalPrice,
+      it.compareAtPrice,
+      it.listPrice,
+      it.mrp,
+      it.selectedSize?.originalPrice,
+      Number.isFinite(sizeUnit) && sizeUnit > 0 ? sizeUnit : null,
+      Number.isFinite(prevUnit) && prevUnit > 0 ? prevUnit : null,
+    ]
+      .map((v) => (v != null ? Number(v) : NaN))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    const listUnit = listCandidates.length ? Math.max(...listCandidates) : prevUnit;
+    const nextUnit = nextLine / paidQty;
+
+    const listUnitResolved =
+      Number.isFinite(listUnit) && listUnit > nextUnit + 1e-9
+        ? listUnit
+        : it.originalPrice;
+    const next = {
+      ...it,
+      lineTotal: nextLine,
+      total: nextLine,
+      price: nextUnit,
+      originalPrice: listUnitResolved,
+    };
+    if (it.selectedSize && typeof it.selectedSize === 'object') {
+      const sizeList =
+        Number.isFinite(listUnit) && listUnit > nextUnit + 1e-9
+          ? listUnit
+          : Number(it.selectedSize.originalPrice) > nextUnit + 1e-9
+            ? Number(it.selectedSize.originalPrice)
+            : it.selectedSize.originalPrice;
+      next.selectedSize = {
+        ...it.selectedSize,
+        price: nextUnit,
+        ...(sizeList != null && Number(sizeList) > nextUnit + 1e-9
+          ? { originalPrice: Number(sizeList) }
+          : {}),
+      };
+    }
+    out[idx] = next;
+  });
+
+  return out;
+}
+

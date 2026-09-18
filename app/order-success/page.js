@@ -7,7 +7,7 @@ import { useOrder } from '../../context/OrderContext';
 import { useShopBranding } from '../../context/ShopBrandingContext';
 import { useOrderDetail } from '../../hooks/useOrders';
 import { clearCheckoutDraft } from '../../utils/checkoutSession';
-import { downloadBillHtml, printBillPdf } from '../../utils/orderInvoice';
+import { downloadBillPdf } from '../../utils/orderInvoice';
 import {
   getOrderLineOfferLabel,
   getOrderPromotionSummary,
@@ -586,8 +586,7 @@ function OrderSuccessContent() {
         order={order}
         shopName={shopName || 'Yaadro'}
         shopImage={shopImage || null}
-        onDownloadPdf={() => printBillPdf(invoiceOpts)}
-        onDownloadHtml={() => downloadBillHtml(invoiceOpts)}
+        onDownloadPdf={() => downloadBillPdf(invoiceOpts)}
       />
     </>
   );
