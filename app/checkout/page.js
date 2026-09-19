@@ -885,9 +885,9 @@ export default function CheckoutPage() {
       }
       const alertTitle =
         code === "PRICE_CHANGED"
-          ? "Cart updated"
+          ? "Price or Quantity updated"
           : code === "PRODUCT_UNAVAILABLE"
-            ? "Item unavailable"
+            ? "Item or Quantity unavailable"
             : "Error";
       const alertTone =
         code === "PRICE_CHANGED" || code === "PRODUCT_UNAVAILABLE"
@@ -1373,8 +1373,8 @@ export default function CheckoutPage() {
         onConfirm={() => {
           void executePlaceOrder();
         }}
-        title="Price may vary"
-        message="Totals shown at checkout are estimates. The final amount may change based on availability, offers, or pricing at fulfilment. Do you want to continue and place this order?"
+        title="Price & Quantity may vary"
+        message="Totals shown at checkout are estimates. The final amount may change based on availability, offers, or pricing at fulfilment. Quantity may also vary for custom products. Do you want to continue and place this order?"
         confirmText="Place order"
         cancelText="Cancel"
       />

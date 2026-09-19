@@ -6,6 +6,7 @@ import {
   getPrimaryBundleRule,
   isCrossSkuBundleRule,
 } from "./productUtils";
+import { catalogOfferSavingsMajor } from "./catalogOfferPricing";
 
 export function parseOrderQuantity(raw) {
   const n = parseFloat(String(raw ?? "1"));
@@ -474,18 +475,13 @@ export function getOrderLineOfferSavingsMajor(item) {
   const freeReward = item.isConfirmedFreeReward === true || isConfirmedFreeRewardLine(item);
   const unit = Number(item.unitPrice ?? item.price ?? item.listPrice ?? 0);
   const list = Number(item.listPrice ?? item.list_price ?? 0);
-  if (!Number.isFinite(unit) || unit <= 0) {
-    if (!(Number.isFinite(list) && list > 0)) return 0;
-  }
 
-  // B1G1 / same-SKU BOGO: Saved = (product list − offer/pay) × paid qty only.
+  // Permanent contract: OFF = (list − pay) × paid qty.
   if (paid > 0 && displayQty > paid) {
     const pay = Number.isFinite(unit) && unit > 0 ? unit : 0;
-    if (list > pay + 0.009 && paid > 0) return (list - pay) * paid;
-    return 0;
+    return catalogOfferSavingsMajor(list, pay, paid);
   }
   if (freeReward && !(paid > 0)) {
-    // Cross free line: savings = catalog unit × qty (shown on FREE row only).
     const catalog = list > 0 ? list : unit;
     if (catalog > 0 && displayQty > 0) return catalog * displayQty;
     return 0;
@@ -493,31 +489,11 @@ export function getOrderLineOfferSavingsMajor(item) {
 
   if (!(Number.isFinite(unit) && unit > 0)) return 0;
 
-  const lineDisc =
-    item.lineDiscount != null
-      ? Number(item.lineDiscount)
-      : minorToMajor(parseMinorInt(item.line_discount_minor ?? item.lineDiscountMinor));
   const total = Number(item.totalPrice ?? 0);
   const paidForGap = paid > 0 ? paid : displayQty;
-  let catalogGap = 0;
-  if (
-    list > 0 &&
-    paidForGap > 0 &&
-    total > 0.009 &&
-    list * paidForGap > total + 0.009
-  ) {
-    catalogGap = list * paidForGap - total;
-  } else if (list > unit + 0.009 && paidForGap > 0) {
-    catalogGap = (list - unit) * paidForGap;
-  }
-
-  const discOk = Number.isFinite(lineDisc) && lineDisc > 0.009 && total > 0.009;
-  if (discOk && catalogGap > 0.009) {
-    return Math.max(lineDisc, catalogGap);
-  }
-  if (catalogGap > 0.009) return catalogGap;
-  if (discOk) return lineDisc;
-  return 0;
+  const payFromTotal =
+    paidForGap > 0 && total > 0.009 ? total / paidForGap : unit;
+  return catalogOfferSavingsMajor(list, payFromTotal, paidForGap);
 }
 
 /**

@@ -16,8 +16,9 @@ const CHECKOUT_ERROR_MESSAGES = {
   CART_EMPTY: 'Your cart is empty.',
   CART_NOT_FOUND: 'Your cart could not be found. Please refresh and try again.',
   PRODUCT_UNAVAILABLE:
-    'An item in your cart is no longer available. Open your cart, remove unavailable items (or clear the cart), add products again, then retry checkout.',
-  PRICE_CHANGED: 'Prices have changed. Please review your cart and try again.',
+    'An item in your cart is no longer available, or the Quantity you selected cannot be fulfilled. Open your cart, remove unavailable items (or clear the cart), add products again, then retry checkout.',
+  PRICE_CHANGED:
+    'Prices or Quantities have changed. Please review your cart and try again.',
   ADDRESS_REQUIRED: 'Please add a delivery address before checkout.',
   ADDRESS_COORDINATES_REQUIRED: 'Your delivery address needs a map pin. Please update the address.',
   ADDRESS_NOT_SERVICEABLE: 'Delivery is not available for this address.',

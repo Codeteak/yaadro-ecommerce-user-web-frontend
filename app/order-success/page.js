@@ -17,7 +17,6 @@ import {
 } from '../../utils/orderPromotions';
 import BillPreviewSheet from '../../components/BillPreviewSheet';
 import {
-  hasOpenedTrackingThisSession,
   inAppTrackingHref,
   isHttpTrackingUrl,
   markTrackingOpenedThisSession,
@@ -362,7 +361,7 @@ function OrderSuccessContent() {
     return { ...rawOrder, deliveryAddress: fallback, address: fallback };
   }, [rawOrder, getDefaultAddress]);
 
-  const [countdown, setCountdown] = useState(10);
+  const [countdown, setCountdown] = useState(5);
   const [billOpen, setBillOpen] = useState(false);
   const [openBillWhenReady, setOpenBillWhenReady] = useState(false);
 
@@ -380,7 +379,7 @@ function OrderSuccessContent() {
     [order, orderId, rawOrderId, paymentStatus, shopName, shopImage]
   );
 
-  /* Auto-redirect: prefer in-app tracking when ready, else order details */
+  /* Auto-redirect after countdown: prefer in-app tracking when ready, else order details */
   useEffect(() => {
     if (!isSuccess || !orderId) return;
     const timer = setInterval(() => {
@@ -400,16 +399,6 @@ function OrderSuccessContent() {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isSuccess, orderId, order?.deliveryTrackingUrl, router]);
-
-  /* If tracking URL appears before countdown ends, open in-app tracking once. */
-  useEffect(() => {
-    if (!isSuccess || !orderId) return;
-    const url = order?.deliveryTrackingUrl;
-    if (!isHttpTrackingUrl(url)) return;
-    if (hasOpenedTrackingThisSession(orderId)) return;
-    markTrackingOpenedThisSession(orderId);
-    router.push(inAppTrackingHref(orderId));
   }, [isSuccess, orderId, order?.deliveryTrackingUrl, router]);
 
   useEffect(() => {

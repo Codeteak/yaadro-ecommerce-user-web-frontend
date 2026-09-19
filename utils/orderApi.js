@@ -19,6 +19,11 @@ import {
   getOrderLineOfferSavingsMajor,
 } from "./orderPromotions";
 import {
+  hasMeaningfulCatalogOfferOnRaw,
+  resolveCatalogListAndPay,
+  parseMajorMoney,
+} from "./catalogOfferPricing";
+import {
   formatWeightUnitLabel,
   parseProductUnitSize,
   resolveProductWeightAndUnit,
@@ -57,9 +62,7 @@ function resolveOrderItemImage(item = {}) {
 }
 
 function parseOrderMajorMoney(raw) {
-  if (raw == null || raw === "") return null;
-  const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? n : null;
+  return parseMajorMoney(raw);
 }
 
 /** Case-insensitive id compare (UUID / product ids). */
@@ -84,76 +87,29 @@ function orderLineProductPricingTrusted(item) {
   return orderProductIdsMatch(lineId, prodId);
 }
 
-/** Catalog list/MRP for strike (max of line + nested product candidates). */
+/** Catalog list/MRP for strike — shared sane-list picker. */
 function resolveOrderLineListMajor(item, listPriceMinor, unitPriceRaw) {
-  const trustProduct = orderLineProductPricingTrusted(item);
-  const candidates = [
-    listPriceMinor > 0 ? minorToMajor(listPriceMinor) : null,
-    parseOrderMajorMoney(item.listPrice ?? item.list_price),
-    parseOrderMajorMoney(item.mrp),
-    parseOrderMajorMoney(item.originalPrice ?? item.original_price),
-    parseOrderMajorMoney(item.compareAtPrice ?? item.compare_at_price),
-    trustProduct
-      ? parseOrderMajorMoney(item.product?.listPrice ?? item.product?.list_price)
-      : null,
-    trustProduct ? parseOrderMajorMoney(item.product?.mrp) : null,
-    trustProduct ? parseOrderMajorMoney(item.product?.originalPrice) : null,
-    trustProduct ? parseOrderMajorMoney(item.product?.compareAtPrice) : null,
-    // Catalog shape: product.price is often MRP/list.
-    trustProduct ? parseOrderMajorMoney(item.product?.price) : null,
-    unitPriceRaw > 0 ? unitPriceRaw : null,
-  ];
-  let best = null;
-  for (const n of candidates) {
-    if (n == null || !(n > 0)) continue;
-    if (best == null || n > best) best = n;
-  }
-  return best;
+  const { listUnit } = resolveCatalogListAndPay(item, {
+    trustProduct: orderLineProductPricingTrusted(item),
+    listPriceMinor,
+    unitPriceRaw: unitPriceRaw > 0 ? unitPriceRaw : null,
+  });
+  return listUnit;
 }
 
 /**
- * Catalog offer / payable unit (cart-aligned). Prefer an explicit discounted
- * line_total when already below list; otherwise offer minors / majors /
- * nested product.offerPrice whenever offer < list (trusted product id only).
+ * Catalog offer pay — shared helper. Live product.offerPrice beats list-as-offer.
  */
 function resolveOrderLineOfferUnit(item, listUnit, paidQty, lineTotal) {
-  const offerMinor = parseMinorInt(
-    item.offer_price_minor_per_unit ??
-      item.offerPriceMinorPerUnit ??
-      item.offer_price_minor ??
-      item.offerPriceMinor ??
-      item.pricing?.offer_minor,
-  );
-  const fromOfferMinor = offerMinor > 0 ? minorToMajor(offerMinor) : null;
-  const finalMinor = parseMinorInt(
-    item.final_price_minor ??
-      item.finalPriceMinor ??
-      item.pricing?.final_minor,
-  );
-  const fromFinal = finalMinor > 0 ? minorToMajor(finalMinor) : null;
-  const trustProduct = orderLineProductPricingTrusted(item);
-  const fromFields = parseOrderMajorMoney(
-    item.offerPrice ??
-      item.offer_price ??
-      item.offerPriceEffective ??
-      (trustProduct
-        ? item.product?.offerPrice ??
-          item.product?.offerPriceEffective ??
-          item.product?.offer_price
-        : null),
-  );
-
-  const belowList = (n) =>
-    n != null &&
-    n > 0 &&
-    (listUnit == null || !(listUnit > 0) || n < listUnit - 0.004);
-
-  if (paidQty > 0 && lineTotal > 0.009 && belowList(lineTotal / paidQty)) {
-    return lineTotal / paidQty;
+  const { payUnit } = resolveCatalogListAndPay(item, {
+    trustProduct: orderLineProductPricingTrusted(item),
+    paidQty,
+    lineTotal: paidQty > 0 && lineTotal > 0.009 ? lineTotal : null,
+  });
+  if (payUnit != null) {
+    if (listUnit != null && !(payUnit < listUnit - 0.004)) return null;
+    return payUnit;
   }
-  if (belowList(fromFinal)) return fromFinal;
-  if (belowList(fromOfferMinor)) return fromOfferMinor;
-  if (belowList(fromFields)) return fromFields;
   return null;
 }
 
@@ -513,6 +469,18 @@ function transformOrderItem(item) {
     ordered_quantity: item.ordered_quantity ?? item.orderedQuantity ?? paidQty,
     isBxgyBuyLine: mixedPaidFree || isBxgyPaidLine,
     is_bxgy_buy_line: mixedPaidFree || isBxgyPaidLine,
+    bundleRules:
+      item.bundleRules ??
+      item.bundle_rules ??
+      item.product?.bundleRules ??
+      item.product?.bundle_rules ??
+      null,
+    bundle_rules:
+      item.bundle_rules ??
+      item.bundleRules ??
+      item.product?.bundle_rules ??
+      item.product?.bundleRules ??
+      null,
     bundleSourceCartItemId:
       item.bundle_source_cart_item_id ??
       item.bundleSourceCartItemId ??
@@ -1135,8 +1103,9 @@ function sumActiveOrderLinePayables(items) {
 }
 
 /**
- * When order snapshots omit catalog offerPrice / bundleRules, merge live product
- * pricing and B1G1 rules onto raw lines so transform can apply correct payables.
+ * When order snapshots omit a real catalog offer (pay < list) or bundleRules,
+ * merge live product pricing onto raw lines. Snapshot "offer" equal to list
+ * (215/180) must not block enrich — that left customers paying list on details.
  */
 async function enrichOrderRawItemsWithCatalogOffers(rawItems) {
   const list = Array.isArray(rawItems) ? rawItems.filter(Boolean) : [];
@@ -1151,29 +1120,11 @@ async function enrichOrderRawItemsWithCatalogOffers(rawItems) {
     return Array.isArray(rules) && rules.length > 0;
   };
 
-  const hasCatalogOffer = (raw) => {
-    const offer = parseOrderMajorMoney(
-      raw.offerPrice ??
-        raw.offer_price ??
-        raw.offerPriceEffective ??
-        raw.product?.offerPrice ??
-        raw.product?.offerPriceEffective ??
-        raw.product?.offer_price,
-    );
-    const offerMinor = parseMinorInt(
-      raw.offer_price_minor_per_unit ??
-        raw.offerPriceMinorPerUnit ??
-        raw.offer_price_minor ??
-        raw.offerPriceMinor,
-    );
-    return (offer != null && offer > 0) || offerMinor > 0;
-  };
-
   const needsEnrich = (raw) => {
     if (isConfirmedFreeRewardLine(raw)) return false;
     const pid = raw.product_id ?? raw.productId ?? raw.product?.id;
     if (pid == null || String(pid).trim() === "") return false;
-    return !hasCatalogOffer(raw) || !hasBundleRules(raw);
+    return !hasMeaningfulCatalogOfferOnRaw(raw) || !hasBundleRules(raw);
   };
 
   const ids = [
@@ -1197,7 +1148,6 @@ async function enrichOrderRawItemsWithCatalogOffers(rawItems) {
   const byId = new Map();
   for (const [id, p] of fetched) {
     if (!p) continue;
-    // Hard-reject wrong SKU (same-name Oils etc.).
     if (p.id != null && !orderProductIdsMatch(id, p.id)) continue;
     byId.set(String(id).trim().toLowerCase(), p);
   }
@@ -1213,34 +1163,24 @@ async function enrichOrderRawItemsWithCatalogOffers(rawItems) {
       return raw;
     }
 
-    const offer =
-      parseOrderMajorMoney(
-        product.offerPrice ?? product.offerPriceEffective,
-      ) ??
-      (Number(product.offerPriceMinor) > 0
-        ? Number(product.offerPriceMinor) / 100
-        : Number(product.finalPriceMinor) > 0 &&
-            Number(product.actualPriceMinor) >
-              Number(product.finalPriceMinor) + 0.5
-          ? Number(product.finalPriceMinor) / 100
-          : null);
-    const listUnit =
-      parseOrderMajorMoney(
-        product.originalPrice ??
+    const priced = resolveCatalogListAndPay(
+      {
+        ...product,
+        product,
+        offerPrice: product.offerPrice ?? product.offerPriceEffective,
+        listPrice:
+          product.originalPrice ??
           product.listPrice ??
           product.mrp ??
-          product.compareAtPrice ??
           product.price,
-      ) ??
-      (Number(product.actualPriceMinor) > 0
-        ? Number(product.actualPriceMinor) / 100
-        : null);
+      },
+      { trustProduct: true },
+    );
+    const listUnit = priced.listUnit;
+    const offer = priced.payUnit;
     const bundleRules =
       product.bundleRules ?? product.bundle_rules ?? null;
-    const hasOfferBelowList =
-      offer != null &&
-      offer > 0 &&
-      (listUnit == null || listUnit > offer + 0.004);
+    const hasOfferBelowList = priced.hasOffer;
 
     const prevProduct =
       raw.product && typeof raw.product === "object" ? raw.product : {};
@@ -1255,6 +1195,10 @@ async function enrichOrderRawItemsWithCatalogOffers(rawItems) {
         (typeof raw.image === "string" && firstImageUrl(raw.image)),
     );
 
+    const offerMinor = hasOfferBelowList ? Math.round(offer * 100) : null;
+    const listMinor =
+      listUnit != null && listUnit > 0 ? Math.round(listUnit * 100) : null;
+
     const nextProduct = {
       ...prevProduct,
       id: product.id ?? pid,
@@ -1262,17 +1206,18 @@ async function enrichOrderRawItemsWithCatalogOffers(rawItems) {
         ? {
             offerPrice: offer,
             offerPriceEffective: offer,
+            finalPriceMinor: offerMinor,
             price: listUnit ?? product.price,
             listPrice: listUnit ?? product.listPrice,
             originalPrice: listUnit ?? product.originalPrice,
-            mrp: product.mrp,
+            mrp: product.mrp ?? listUnit,
+            actualPriceMinor: listMinor ?? product.actualPriceMinor,
           }
         : {}),
       ...(Array.isArray(bundleRules) && bundleRules.length
         ? { bundleRules, bundle_rules: bundleRules }
         : {}),
     };
-    // Keep order snapshot image — do not pull another same-name SKU's media.
     if (lineHasImage) {
       delete nextProduct.image;
       delete nextProduct.imageUrl;
@@ -1285,7 +1230,22 @@ async function enrichOrderRawItemsWithCatalogOffers(rawItems) {
     return {
       ...raw,
       ...(hasOfferBelowList
-        ? { offerPrice: offer, offerPriceEffective: offer }
+        ? {
+            offerPrice: offer,
+            offerPriceEffective: offer,
+            offer_price_minor_per_unit: offerMinor,
+            offerPriceMinorPerUnit: offerMinor,
+            final_price_minor: offerMinor,
+            finalPriceMinor: offerMinor,
+            ...(listMinor != null
+              ? {
+                  list_price_minor: listMinor,
+                  listPriceMinor: listMinor,
+                  listPrice: listUnit,
+                  originalPrice: listUnit,
+                }
+              : {}),
+          }
         : {}),
       ...(Array.isArray(bundleRules) && bundleRules.length
         ? { bundleRules, bundle_rules: bundleRules }
@@ -1333,15 +1293,14 @@ function normalizeBxgyPaidLineCatalog(items) {
     if (!(paidQty > 0)) return it;
     const listTimesPaid = listPrice * paidQty;
     const currentTotal = Number(it.totalPrice);
+    const unit = Number(it.unitPrice);
     const hasDiscountedPayable =
       Number.isFinite(currentTotal) &&
       currentTotal > 0.009 &&
       currentTotal < listTimesPaid - 0.009;
-    const unitNeedsList = Math.abs(Number(it.unitPrice) - listPrice) >= 0.009;
-    const totalAlreadyList =
-      Number.isFinite(currentTotal) &&
-      Math.abs(currentTotal - listTimesPaid) < 0.009;
 
+    // Keep catalog offer / discounted payable — never force unit/total up to list
+    // (that wiped offer pay and inflated totals to list×paid).
     if (hasDiscountedPayable) {
       const payUnit = currentTotal / paidQty;
       return {
@@ -1351,16 +1310,22 @@ function normalizeBxgyPaidLineCatalog(items) {
         totalPrice: currentTotal,
       };
     }
-
-    if (!unitNeedsList && totalAlreadyList) {
-      return it;
+    if (
+      Number.isFinite(unit) &&
+      unit > 0 &&
+      unit < listPrice - 0.009
+    ) {
+      return {
+        ...it,
+        unitPrice: unit,
+        price: unit,
+        totalPrice:
+          Number.isFinite(currentTotal) && currentTotal > 0.009
+            ? currentTotal
+            : unit * paidQty,
+      };
     }
-
-    return {
-      ...it,
-      ...(unitNeedsList ? { unitPrice: listPrice, price: listPrice } : {}),
-      totalPrice: listTimesPaid,
-    };
+    return it;
   });
 }
 
