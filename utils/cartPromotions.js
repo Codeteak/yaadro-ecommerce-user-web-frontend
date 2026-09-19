@@ -9,6 +9,10 @@ import {
   isCrossSkuBundleRule,
 } from './productUtils';
 import { rewardProductIdFromRule } from './bxgyLabels';
+import {
+  pickMergedSellUnderList,
+  pickSaneListUnit,
+} from './catalogOfferPricing';
 
 export function stripPaidCartLinesOnly(items) {
   return (Array.isArray(items) ? items : []).filter((it) => !isBundleRewardCartLine(it));
@@ -748,38 +752,15 @@ export function mergePreviewPricingOntoLocalLines(
       );
       const previewPay = Number(preview.price);
 
-      // Trusted catalog list from local + preview only; include selectedSize only if
-      // it is within 2× that baseline (blocks runaway MRP like ₹1023).
-      const baseLists = [localList, previewList, sizeOrig].filter(
-        (n) => Number.isFinite(n) && n > 0,
-      );
-      let listBaseline = null;
-      for (const n of baseLists) {
-        if (listBaseline == null || n > listBaseline) listBaseline = n;
-      }
-      const sizeOk =
-        Number.isFinite(sizeList) &&
-        sizeList > 0 &&
-        listBaseline != null &&
-        sizeList <= listBaseline * 2 + 1e-9;
-      const listUnit = [listBaseline, sizeOk ? sizeList : null]
-        .filter((n) => Number.isFinite(n) && n > 0)
-        .reduce((a, b) => (a == null || b > a ? b : a), null);
+      const listUnit = pickSaneListUnit([
+        localList,
+        previewList,
+        sizeOrig,
+        sizeList,
+      ]);
 
-      const underList = (n) =>
-        Number.isFinite(n) &&
-        n > 0 &&
-        (listUnit == null || n <= listUnit + 1e-9);
-
-      // Prefer lower sell under list so local catalog offer (₹20/₹160) wins over
-      // preview list-as-pay (₹215/₹180) after reload.
-      let sellUnit = null;
-      const localOk = underList(localPay);
-      const previewOk = underList(previewPay);
-      if (localOk && previewOk) sellUnit = Math.min(localPay, previewPay);
-      else if (localOk) sellUnit = localPay;
-      else if (previewOk) sellUnit = previewPay;
-      else if (listUnit != null) sellUnit = listUnit;
+      // Permanent: catalog offer wins over preview list-as-pay.
+      const sellUnit = pickMergedSellUnderList(localPay, previewPay, listUnit);
 
       const listForDisplay =
         listUnit != null && sellUnit != null && listUnit > sellUnit + 1e-9
