@@ -732,22 +732,37 @@ export function mergePreviewPricingOntoLocalLines(
     if (isBxgyLine) {
       const paid = getCartLinePaidQty(local);
       const sizeList = Number(local.selectedSize?.price);
+      const sizeOrig = Number(local.selectedSize?.originalPrice);
       const localList = Number(
         local.originalPrice ??
           local.compareAtPrice ??
           local.listPrice ??
           local.mrp ??
-          (Number.isFinite(sizeList) && sizeList > Number(local.price) + 1e-9
-            ? sizeList
-            : NaN)
+          NaN,
       );
-      const localPay = Number(local.price);
+      const localPay = Number(
+        local.price ?? local.offerPrice ?? local.offerPriceEffective,
+      );
       const previewList = Number(
         preview.originalPrice ?? preview.compareAtPrice ?? preview.listPrice ?? preview.mrp
       );
       const previewPay = Number(preview.price);
 
-      const listUnit = [localList, previewList, sizeList]
+      // Trusted catalog list from local + preview only; include selectedSize only if
+      // it is within 2× that baseline (blocks runaway MRP like ₹1023).
+      const baseLists = [localList, previewList, sizeOrig].filter(
+        (n) => Number.isFinite(n) && n > 0,
+      );
+      let listBaseline = null;
+      for (const n of baseLists) {
+        if (listBaseline == null || n > listBaseline) listBaseline = n;
+      }
+      const sizeOk =
+        Number.isFinite(sizeList) &&
+        sizeList > 0 &&
+        listBaseline != null &&
+        sizeList <= listBaseline * 2 + 1e-9;
+      const listUnit = [listBaseline, sizeOk ? sizeList : null]
         .filter((n) => Number.isFinite(n) && n > 0)
         .reduce((a, b) => (a == null || b > a ? b : a), null);
 
@@ -756,10 +771,14 @@ export function mergePreviewPricingOntoLocalLines(
         n > 0 &&
         (listUnit == null || n <= listUnit + 1e-9);
 
-      // Prefer preview sell (avoids sticky local totals crushed by bad allocate).
+      // Prefer lower sell under list so local catalog offer (₹20/₹160) wins over
+      // preview list-as-pay (₹215/₹180) after reload.
       let sellUnit = null;
-      if (underList(previewPay)) sellUnit = previewPay;
-      else if (underList(localPay)) sellUnit = localPay;
+      const localOk = underList(localPay);
+      const previewOk = underList(previewPay);
+      if (localOk && previewOk) sellUnit = Math.min(localPay, previewPay);
+      else if (localOk) sellUnit = localPay;
+      else if (previewOk) sellUnit = previewPay;
       else if (listUnit != null) sellUnit = listUnit;
 
       const listForDisplay =
@@ -778,7 +797,9 @@ export function mergePreviewPricingOntoLocalLines(
             price:
               listForDisplay != null
                 ? listForDisplay
-                : Number(local.selectedSize.price) > 0
+                : Number(local.selectedSize.price) > 0 &&
+                    (listForDisplay == null ||
+                      Number(local.selectedSize.price) <= listForDisplay * 2 + 1e-9)
                   ? Number(local.selectedSize.price)
                   : sellUnit,
             ...(listForDisplay != null ? { originalPrice: listForDisplay } : {}),

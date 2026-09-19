@@ -1622,6 +1622,74 @@ export async function verifyPayment(orderId, paymentData) {
 }
 
 /**
+ * Enrich catalog offers, normalize BXGY lines, and reconcile subtotal/total
+ * so list + detail share the same payable money.
+ * @param {object|null} apiOrderOrMerged
+ * @param {array} [extraUnavailableItems]
+ * @returns {Promise<object|null>}
+ */
+async function finalizeStorefrontOrder(
+  apiOrderOrMerged,
+  extraUnavailableItems = [],
+) {
+  if (!apiOrderOrMerged || typeof apiOrderOrMerged !== "object") return null;
+
+  const rawItems = Array.isArray(apiOrderOrMerged.items)
+    ? apiOrderOrMerged.items
+    : [];
+  const enrichedItems = await enrichOrderRawItemsWithCatalogOffers(rawItems);
+  const enrichedUnavailable = await enrichOrderRawItemsWithCatalogOffers(
+    Array.isArray(extraUnavailableItems) ? extraUnavailableItems : [],
+  );
+
+  const mergedSource = {
+    ...apiOrderOrMerged,
+    items: enrichedItems.length ? enrichedItems : apiOrderOrMerged.items,
+  };
+
+  const order = transformOrder(mergedSource);
+  if (!order) return null;
+
+  let remapped = applyUnavailableLinePasses(
+    mapOrderItems(mergedSource || {}, enrichedUnavailable),
+    order.subtotal,
+    order.status,
+  );
+  remapped = normalizeBxgyPaidLineCatalog(remapped);
+  order.items = remapped;
+  order.itemCount = remapped.length;
+  const hasBxgy = orderHasBxgyOffer(remapped);
+  if (hasBxgy) {
+    order.couponCode = null;
+    order.couponCodes = [];
+    order.discount = 0;
+    order.promotionDiscountMinor = 0;
+    order.promotionDiscountMajor = 0;
+    order.couponDiscountMinor = 0;
+    order.couponDiscountMajor = 0;
+    order.autoPromotionDiscountMinor = 0;
+    order.autoPromotionDiscountMajor = 0;
+  }
+  const money = reconcileOrderMoneyFromActiveLines(
+    order.subtotal,
+    order.total,
+    sumActiveOrderLinePayables(remapped),
+  );
+  order.subtotal = money.subtotal;
+  order.total = money.total;
+  if (!hasBxgy) {
+    const lineSavings = sumLineOfferSavingsMajor(remapped);
+    if (
+      lineSavings > Number(order.autoPromotionDiscountMajor || 0) + 0.009
+    ) {
+      order.autoPromotionDiscountMajor = lineSavings;
+      order.autoPromotionDiscountMinor = Math.round(lineSavings * 100);
+    }
+  }
+  return order;
+}
+
+/**
  * Get orders for current user. API supports `limit` only (1–100), newest first.
  * @param {object} params
  * @returns {Promise<{orders: array, pagination: object}>}
@@ -1647,9 +1715,11 @@ export async function listOrders(params = {}) {
       query: { limit },
     });
 
-    const orders = (response?.orders || [])
-      .map((o) => transformOrder(o))
-      .filter(Boolean);
+    const orders = (
+      await Promise.all(
+        (response?.orders || []).map((o) => finalizeStorefrontOrder(o)),
+      )
+    ).filter(Boolean);
 
     return {
       orders,
@@ -1715,23 +1785,19 @@ export async function getOrder(orderId) {
       ...(Array.isArray(response?.rejectedItems) ? response.rejectedItems : []),
     ];
 
-    const rawItemsForEnrich = topLevelItems.length
+    const rawItems = topLevelItems.length
       ? topLevelItems
       : Array.isArray(apiOrder?.items)
         ? apiOrder.items
         : Array.isArray(response?.items)
           ? response.items
           : [];
-    const enrichedItems =
-      await enrichOrderRawItemsWithCatalogOffers(rawItemsForEnrich);
-    const enrichedUnavailable =
-      await enrichOrderRawItemsWithCatalogOffers(topLevelUnavailable);
 
     const mergedSource = apiOrder
       ? {
           ...response,
           ...apiOrder,
-          items: enrichedItems.length ? enrichedItems : apiOrder.items,
+          items: rawItems,
           deliveryAddress:
             asAddressRecord(apiOrder.deliveryAddress) ||
             asAddressRecord(apiOrder.delivery_address) ||
@@ -1740,49 +1806,10 @@ export async function getOrder(orderId) {
             apiOrder.deliveryAddress,
         }
       : response && typeof response === "object"
-        ? { ...response, items: enrichedItems.length ? enrichedItems : response.items }
+        ? { ...response, items: rawItems }
         : null;
-    const order = transformOrder(mergedSource);
-    if (order) {
-      let remapped = applyUnavailableLinePasses(
-        mapOrderItems(mergedSource || {}, enrichedUnavailable),
-        order.subtotal,
-        order.status,
-      );
-      remapped = normalizeBxgyPaidLineCatalog(remapped);
-      order.items = remapped;
-      order.itemCount = remapped.length;
-      const hasBxgy = orderHasBxgyOffer(remapped);
-      if (hasBxgy) {
-        order.couponCode = null;
-        order.couponCodes = [];
-        order.discount = 0;
-        order.promotionDiscountMinor = 0;
-        order.promotionDiscountMajor = 0;
-        order.couponDiscountMinor = 0;
-        order.couponDiscountMajor = 0;
-        order.autoPromotionDiscountMinor = 0;
-        order.autoPromotionDiscountMajor = 0;
-      }
-      const money = reconcileOrderMoneyFromActiveLines(
-        order.subtotal,
-        order.total,
-        sumActiveOrderLinePayables(remapped),
-      );
-      order.subtotal = money.subtotal;
-      order.total = money.total;
-      if (!hasBxgy) {
-        const lineSavings = sumLineOfferSavingsMajor(remapped);
-        if (
-          lineSavings >
-          Number(order.autoPromotionDiscountMajor || 0) + 0.009
-        ) {
-          order.autoPromotionDiscountMajor = lineSavings;
-          order.autoPromotionDiscountMinor = Math.round(lineSavings * 100);
-        }
-      }
-    }
-    return order;
+
+    return finalizeStorefrontOrder(mergedSource, topLevelUnavailable);
   } catch (error) {
     console.error("Error getting order:", error);
     throw error;
