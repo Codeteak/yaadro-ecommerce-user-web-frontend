@@ -116,7 +116,7 @@ export default function Home() {
     recheckLocation,
     openServiceAreaSheet,
   } = useLocationService();
-  const { shopName, shopImage, bannerEnabled, bannerImages } = useShopBranding();
+  const { shopId, shopName, shopImage, bannerEnabled, bannerImages } = useShopBranding();
   const { getDefaultAddress, addresses } = useAddress();
 
   const isLocalDev = process.env.NODE_ENV !== 'production';
@@ -167,10 +167,14 @@ export default function Home() {
     try {
       recheckLocation?.();
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: productKeys.lists() }),
-        queryClient.invalidateQueries({ queryKey: [...productKeys.categories(), 'tree'] }),
-        queryClient.invalidateQueries({ queryKey: productKeys.categoryRoots() }),
-        queryClient.invalidateQueries({ queryKey: [...productKeys.all, 'fresh-zone'] }),
+        queryClient.invalidateQueries({ queryKey: productKeys.lists(shopId) }),
+        queryClient.invalidateQueries({
+          queryKey: [...productKeys.categories(shopId), 'tree'],
+        }),
+        queryClient.invalidateQueries({ queryKey: productKeys.categoryRoots(shopId) }),
+        queryClient.invalidateQueries({
+          queryKey: [...productKeys.shop(shopId), 'fresh-zone'],
+        }),
         queryClient.invalidateQueries({ queryKey: homeSectionKeys.all }),
       ]);
     } finally {
@@ -278,8 +282,8 @@ export default function Home() {
     data: freshZoneByCategory,
     isLoading: freshZoneProductsLoading,
   } = useQuery({
-    queryKey: [...productKeys.all, 'fresh-zone', freshZoneFetchKey],
-    enabled: freshZoneResolved.length > 0,
+    queryKey: [...productKeys.shop(shopId), 'fresh-zone', freshZoneFetchKey],
+    enabled: freshZoneResolved.length > 0 && !!shopId,
     staleTime: 1000 * 45,
     refetchOnWindowFocus: true,
     queryFn: async () => {

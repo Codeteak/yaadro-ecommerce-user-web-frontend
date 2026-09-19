@@ -668,9 +668,10 @@ export async function resolveShopBranding(options = {}) {
   }
 
   const cached = readCachedBranding(domain);
-  if (forceRefresh) {
-    clearResolvedShopCache();
-  } else if (cached) {
+  // Serve sticky cache immediately unless caller asked to revalidate.
+  // Do not clear localStorage up front — a transient resolve failure would
+  // otherwise wipe a good shopId and blank the catalog until a hard reload.
+  if (!forceRefresh && cached) {
     return { ...cached, fromCache: true, notFound: false };
   }
 
@@ -711,6 +712,7 @@ export async function resolveShopBranding(options = {}) {
     shopImage: null,
     bannerEnabled: false,
     bannerImages: [],
+    seo: null,
     fromCache: false,
     notFound: !!fetched.notFound,
   };

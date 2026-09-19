@@ -1,4 +1,5 @@
 import { listProductsFromDb } from '../../../../lib/storefrontDbCatalog';
+import { proxyUpstreamGet } from '../../../../lib/proxyUpstreamApi';
 import {
   jsonOk,
   readStorefrontShopId,
@@ -10,7 +11,7 @@ export const runtime = 'nodejs';
 
 /**
  * GET /api/storefront/products
- * Postgres first (shop_products); customer API fallback.
+ * Postgres first (shop_products); customer API fallback on error or empty.
  */
 export async function GET(request) {
   return tryDbThenUpstream(request, '/api/storefront/products', async () => {
@@ -44,10 +45,20 @@ export async function GET(request) {
       sortOrder: searchParams.get('sort_order') || undefined,
     });
 
+    const products = Array.isArray(result?.products) ? result.products : [];
+
+    // Same as categories: empty DB success used to blank the home catalog in prod.
+    if (products.length === 0 && shopId) {
+      console.warn(
+        '[storefront/products] DB returned 0 products for shop; falling back to customer API'
+      );
+      return proxyUpstreamGet(request, '/api/storefront/products');
+    }
+
     return jsonOk({
       status: 'success',
       data: {
-        products: result.products,
+        products,
         nextCursor: result.nextCursor,
       },
     });
