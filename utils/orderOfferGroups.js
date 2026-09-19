@@ -148,6 +148,55 @@ export function buildOrderOfferGroups(items) {
     orphanFrees.push(free);
   }
 
+  // Production orders often omit parent id / shared promo / bundleRules on the
+  // Buy line. If there is exactly one paid line, nest every orphan FREE under it
+  // (Ghee buy → Upma FREE). Safe: only one possible parent.
+  if (orphanFrees.length > 0 && paidLines.length === 1) {
+    const onlyPaid = paidLines[0];
+    const buyId =
+      onlyPaid.id != null && String(onlyPaid.id).trim()
+        ? String(onlyPaid.id).trim()
+        : "__solo_paid__";
+    onlyPaid._offerGroupParentKey = buyId;
+    for (const free of orphanFrees) {
+      attach(buyId, free);
+    }
+    orphanFrees.length = 0;
+  } else if (orphanFrees.length === 1 && paidLines.length > 1) {
+    // One FREE + several paid: prefer the unique cross-SKU buy whose reward
+    // matches; else the unique line flagged as BXGY buy.
+    const free = orphanFrees[0];
+    const freePid = orderLineProductIdKey(free);
+    let parent = null;
+    if (freePid) {
+      const byReward = paidLines.filter((buy) => {
+        const rule = getPrimaryBundleRule(buy.product || buy);
+        if (!rule || !isCrossSkuBundleRule(rule)) return false;
+        const rewardId = rewardProductIdFromRule(rule);
+        return (
+          rewardId && String(rewardId).trim().toLowerCase() === freePid
+        );
+      });
+      if (byReward.length === 1) parent = byReward[0];
+    }
+    if (!parent) {
+      const bxgyBuys = paidLines.filter(
+        (buy) =>
+          buy.isBxgyBuyLine === true || buy.is_bxgy_buy_line === true,
+      );
+      if (bxgyBuys.length === 1) parent = bxgyBuys[0];
+    }
+    if (parent) {
+      const buyId =
+        parent.id != null && String(parent.id).trim()
+          ? String(parent.id).trim()
+          : "__bxgy_buy__";
+      parent._offerGroupParentKey = buyId;
+      attach(buyId, free);
+      orphanFrees.length = 0;
+    }
+  }
+
   // Cross-SKU: nest a paid Get line under its Buy parent (display hierarchy).
   for (const buy of paidLines) {
     const buyId = buy.id != null ? String(buy.id).trim() : "";
@@ -183,7 +232,10 @@ export function buildOrderOfferGroups(items) {
 
   const groups = [];
   for (const it of paidLines) {
-    const parentId = it.id != null ? String(it.id).trim() : "";
+    const parentId =
+      (it.id != null && String(it.id).trim()) ||
+      (it._offerGroupParentKey ? String(it._offerGroupParentKey) : "") ||
+      "";
     if (parentId && nestedPaidIds.has(parentId)) continue;
 
     const existing = parentId ? rewardsByParent.get(parentId) || [] : [];
