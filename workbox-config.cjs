@@ -1,6 +1,7 @@
 module.exports = {
   globDirectory: 'out/',
-  globPatterns: ['**/*.{html,js,css,png,jpg,jpeg,svg,webp,woff2,json}'],
+  // Do not precache HTML — sticky index.html references deleted chunks after deploy.
+  globPatterns: ['**/*.{js,css,png,jpg,jpeg,svg,webp,woff2,json}'],
   swDest: 'out/sw.js',
   skipWaiting: true,
   clientsClaim: true,

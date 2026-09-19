@@ -412,13 +412,26 @@ function lineListUnit(item) {
     // Sticky selectedSize / price when payable was lowered by cart-level discount.
     Number.isFinite(catalog) && catalog > pay + 0.004 ? catalog : null,
   ];
-  let best = null;
+  const values = [];
   for (const raw of candidates) {
     if (raw == null) continue;
     const n = Number(raw);
     if (!Number.isFinite(n) || n <= 0) continue;
+    values.push(n);
+  }
+  if (values.length === 0) return null;
+
+  // Drop runaway MRP (e.g. sticky selectedSize ₹1023 when real list is ~185).
+  const sorted = [...values].sort((a, b) => a - b);
+  const floor = sorted[0];
+  const mid = sorted[Math.floor((sorted.length - 1) / 2)];
+  const saneCap = Math.max(floor, mid) * 2;
+  let best = null;
+  for (const n of values) {
+    if (n > saneCap + 1e-9) continue;
     if (best == null || n > best) best = n;
   }
+  if (best == null) best = mid;
   if (best != null && best > pay + 0.004) return best;
   return null;
 }
