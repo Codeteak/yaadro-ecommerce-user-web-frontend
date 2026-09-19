@@ -33,6 +33,7 @@ import {
   BXGY_COUPON_BLOCKED_MESSAGE,
   sumCartPaidUnits,
   isBundleRewardCartLine,
+  getCartLinePaidQty,
 } from "../../utils/cartPromotions";
 import {
   buildCartOfferGroups,
@@ -767,16 +768,13 @@ export default function CheckoutPage() {
         /** @type {Map<string, number>} */
         const byProduct = new Map();
         for (const it of cartItems) {
+          // Same-SKU B1G1 free units must not inflate quantity — backend grants free.
+          if (isBundleRewardCartLine(it)) continue;
           const productId = String(
             it.productId ?? it.product_id ?? it.product?.id ?? "",
           ).trim();
           if (!productId) continue;
-          if (isBundleRewardCartLine(it)) {
-            const qty = Math.max(1, Number(it.quantity) || 1);
-            byProduct.set(productId, (byProduct.get(productId) || 0) + qty);
-            continue;
-          }
-          const qty = Math.max(1, Number(it.quantity) || 1);
+          const qty = Math.max(1, Number(getCartLinePaidQty(it)) || 1);
           byProduct.set(productId, (byProduct.get(productId) || 0) + qty);
         }
         return [...byProduct.entries()]

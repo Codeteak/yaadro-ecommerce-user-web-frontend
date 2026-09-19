@@ -168,21 +168,44 @@ export function buildPersistableCartLineFromProduct(product) {
   // ProductCard may already set price=payable and originalPrice=list.
   // BXGY free units are separate; catalog sale still applies on the paid line.
   // Order-level coupons are blocked from stacking with BXGY elsewhere.
-  const listed =
+  const sizeOfferRaw =
+    selectedSize?.offerPrice ?? selectedSize?.offerPriceEffective ?? null;
+  const sizeList = Number(
+    selectedSize?.originalPrice ??
+      selectedSize?.compareAtPrice ??
+      selectedSize?.mrp ??
+      selectedSize?.listPrice ??
+      0,
+  );
+  const sizeTag = Number(selectedSize?.price) || 0;
+
+  const listedCandidates = [
+    product.originalPrice,
+    product.compareAtPrice,
+    product.listPrice,
+    product.mrp,
+    product.actualPrice,
+    sizeList > 0 ? sizeList : null,
+    // Size.price is often the shelf/list tag when offer lives on offerPrice.
+    sizeOfferRaw != null && sizeTag > 0 ? sizeTag : null,
+    product.price,
+  ];
+  let listed = 0;
+  for (const raw of listedCandidates) {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) continue;
+    if (n > listed) listed = n;
+  }
+
+  const offerRaw =
+    product.offerPrice ?? product.offerPriceEffective ?? sizeOfferRaw;
+  const offerNum = offerRaw != null ? Number(offerRaw) : null;
+  const priceAlreadyPayable =
     Number(
       product.originalPrice ??
         product.compareAtPrice ??
         product.listPrice ??
-        product.mrp ??
-        product.actualPrice ??
-        product.price ??
-        0
-    ) || 0;
-  const offerRaw = product.offerPrice ?? product.offerPriceEffective;
-  const offerNum = offerRaw != null ? Number(offerRaw) : null;
-  const priceAlreadyPayable =
-    Number(
-      product.originalPrice ?? product.compareAtPrice ?? product.listPrice ?? product.mrp
+        product.mrp,
     ) > Number(product.price) + 1e-9;
 
   const price = priceAlreadyPayable
@@ -195,6 +218,15 @@ export function buildPersistableCartLineFromProduct(product) {
       ? offerNum
       : Number(product.price ?? product.offerPriceEffective ?? product.offerPrice ?? 0) || 0;
   const originalPrice = listed > price + 1e-9 ? listed : undefined;
+  const offerPrice =
+    offerNum != null &&
+    Number.isFinite(offerNum) &&
+    offerNum > 0 &&
+    (originalPrice == null || offerNum <= originalPrice + 1e-9)
+      ? offerNum
+      : price > 0 && originalPrice != null && price < originalPrice - 1e-9
+        ? price
+        : undefined;
 
   const category =
     typeof product.category === 'string'
@@ -216,6 +248,8 @@ export function buildPersistableCartLineFromProduct(product) {
     image: typeof product.image === 'string' ? product.image : undefined,
     ...(Array.isArray(bundleRules) && bundleRules.length ? { bundleRules } : {}),
     ...(soldByWeight ? { soldByWeight: true } : {}),
+    ...(offerPrice != null ? { offerPrice, offerPriceEffective: offerPrice } : {}),
+    ...(originalPrice != null ? { listPrice: originalPrice, originalPrice } : {}),
   };
 
   return {
@@ -225,6 +259,8 @@ export function buildPersistableCartLineFromProduct(product) {
     slug: product.slug || undefined,
     price,
     originalPrice,
+    ...(offerPrice != null ? { offerPrice, offerPriceEffective: offerPrice } : {}),
+    ...(originalPrice != null ? { listPrice: originalPrice } : {}),
     image: primary,
     ...(realUrls.length > 1 ? { imageUrls: realUrls } : {}),
     image_snapshot: primary !== PRODUCT_IMAGE_PLACEHOLDER ? primary : undefined,

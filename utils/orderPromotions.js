@@ -2,6 +2,11 @@
  * Order-level and line-level promotion display helpers (storefront orders API).
  */
 
+import {
+  getPrimaryBundleRule,
+  isCrossSkuBundleRule,
+} from "./productUtils";
+
 export function parseOrderQuantity(raw) {
   const n = parseFloat(String(raw ?? "1"));
   if (!Number.isFinite(n)) return 1;
@@ -337,6 +342,69 @@ export function inferOrderLinePaidQuantity(item) {
   return qty;
 }
 
+/**
+ * When checkout collapses same-SKU B1G1 into quantity = paid+free with no split,
+ * invert bundleRules to recover { paid, free }.
+ * Returns null when rules are missing / cross-SKU / no match.
+ */
+export function inferSameSkuBxgyPaidFree(displayQty, productOrItem) {
+  const qty = Number(displayQty);
+  if (!Number.isFinite(qty) || qty < 1) return null;
+
+  const product =
+    productOrItem?.product && typeof productOrItem.product === "object"
+      ? {
+          ...productOrItem.product,
+          id:
+            productOrItem.product.id ??
+            productOrItem.productId ??
+            productOrItem.product_id ??
+            productOrItem.id,
+          bundleRules:
+            productOrItem.product.bundleRules ??
+            productOrItem.product.bundle_rules ??
+            productOrItem.bundleRules ??
+            productOrItem.bundle_rules,
+        }
+      : {
+          id:
+            productOrItem?.productId ??
+            productOrItem?.product_id ??
+            productOrItem?.id,
+          bundleRules:
+            productOrItem?.bundleRules ?? productOrItem?.bundle_rules,
+          bundle_rules:
+            productOrItem?.bundle_rules ?? productOrItem?.bundleRules,
+        };
+
+  const rule = getPrimaryBundleRule(product);
+  if (!rule || isCrossSkuBundleRule(rule)) return null;
+
+  const buy = Number(rule.buy_qty ?? rule.buyQty);
+  const get = Number(rule.get_qty ?? rule.getQty);
+  const reward = rule.reward_type ?? rule.rewardType;
+  if (!Number.isFinite(buy) || buy <= 0 || !Number.isFinite(get) || get <= 0) {
+    return null;
+  }
+  if (reward && String(reward).toLowerCase() !== "free") return null;
+
+  // Prefer exact inverse: paid + floor(paid/buy)*get === displayQty
+  for (let paid = Math.floor(qty); paid >= 1; paid -= 1) {
+    const free = Math.floor(paid / buy) * get;
+    if (Math.abs(paid + free - qty) < 1e-9 && free > 0) {
+      return { paid, free };
+    }
+  }
+
+  // B1G1 even-qty shortcut when floating qty rounding interfered
+  if (buy === 1 && get === 1 && Math.abs(qty % 2) < 1e-9 && qty >= 2) {
+    const paid = qty / 2;
+    return { paid, free: paid };
+  }
+
+  return null;
+}
+
 export function getOrderLineOfferLabel(item) {
   if (!item || item.isDeleted === true) return null;
   const paid = inferOrderLinePaidQuantity(item);
@@ -349,6 +417,8 @@ export function getOrderLineOfferLabel(item) {
           parseMinorInt(item?.line_discount_minor ?? item?.lineDiscountMinor),
         );
   const total = Number(item?.totalPrice ?? 0);
+  const unit = Number(item?.unitPrice ?? item?.price ?? 0);
+  const list = Number(item?.listPrice ?? item?.list_price ?? 0);
 
   if (freeReward || (paid === 0 && displayQty > 0 && total < 0.01)) {
     return "FREE";
@@ -366,7 +436,10 @@ export function getOrderLineOfferLabel(item) {
   ) {
     return "BUY";
   }
-  // Real partial discount on a still-payable line — not a full wipe disguised as an offer.
+  // Catalog sale: list above pay (or explicit line discount on a payable line).
+  if (list > 0 && unit > 0 && list > unit + 0.009 && total > 0.009) {
+    return "Offer";
+  }
   if (lineDiscMajor > 0.009 && total > 0.009) {
     return "Offer";
   }
@@ -419,9 +492,27 @@ export function getOrderLineOfferSavingsMajor(item) {
     item.lineDiscount != null
       ? Number(item.lineDiscount)
       : minorToMajor(parseMinorInt(item.line_discount_minor ?? item.lineDiscountMinor));
-  if (Number.isFinite(lineDisc) && lineDisc > 0.009 && Number(item.totalPrice) > 0.009) {
-    return lineDisc;
+  const list = Number(item.listPrice ?? item.list_price ?? 0);
+  const total = Number(item.totalPrice ?? 0);
+  const paidForGap = paid > 0 ? paid : displayQty;
+  let catalogGap = 0;
+  if (
+    list > 0 &&
+    paidForGap > 0 &&
+    total > 0.009 &&
+    list * paidForGap > total + 0.009
+  ) {
+    catalogGap = list * paidForGap - total;
+  } else if (list > unit + 0.009 && paidForGap > 0) {
+    catalogGap = (list - unit) * paidForGap;
   }
+
+  const discOk = Number.isFinite(lineDisc) && lineDisc > 0.009 && total > 0.009;
+  if (discOk && catalogGap > 0.009) {
+    return Math.max(lineDisc, catalogGap);
+  }
+  if (catalogGap > 0.009) return catalogGap;
+  if (discOk) return lineDisc;
   return 0;
 }
 
@@ -625,6 +716,25 @@ export function getShopLineFulfillmentMeta(item) {
     shopAdded: !isDeleted && shopAdded,
     shopEdited: showShopQtyUpdate,
   };
+}
+
+/**
+ * Parent paid line id for a free/reward order line (BXGY / bundle).
+ */
+export function getOrderFreeRewardParentId(item) {
+  if (!item || typeof item !== "object") return "";
+  const raw =
+    item.bundleSourceCartItemId ??
+    item.bundle_source_cart_item_id ??
+    item.bundleSourceItemId ??
+    item.bundle_source_item_id ??
+    item.paidCartItemId ??
+    item.paid_cart_item_id ??
+    null;
+  if (raw != null && String(raw).trim()) return String(raw).trim();
+  const id = String(item.id ?? item.cartItemId ?? "");
+  if (id.endsWith(":bundle-reward")) return id.replace(/:bundle-reward$/, "");
+  return "";
 }
 
 export function getOrderPromotionSummary(order) {
