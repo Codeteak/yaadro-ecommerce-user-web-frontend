@@ -31,6 +31,7 @@ import {
   orderHasBxgyOffer,
   parseOrderQuantity,
 } from "../../../utils/orderPromotions";
+import { buildOrderOfferGroups } from "../../../utils/orderOfferGroups";
 import { downloadBillPdf } from "../../../utils/orderInvoice";
 import {
   hasOrderDisplayAddress,
@@ -550,6 +551,87 @@ function OrderItemRow({ item }) {
   }
 
   return <div className="flex w-full items-start gap-3">{content}</div>;
+}
+
+function OrderLineThumb({ item, dimmed }) {
+  return (
+    <div
+      className={`relative mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-white ${
+        dimmed ? "opacity-50 grayscale" : ""
+      }`}
+    >
+      <ProductImageWithFallback
+        src={getOrderItemImage(item)}
+        alt={item.productName || item.name || "Item"}
+        fill
+        className="object-contain"
+        sizes="48px"
+        placeholderName={
+          item.productName || item.name || item.product?.name || ""
+        }
+        placeholderCategory={
+          item.categoryName ||
+          item.category?.name ||
+          (typeof item.category === "string" ? item.category : "") ||
+          item.product?.categoryName ||
+          (typeof item.product?.category === "string"
+            ? item.product.category
+            : "") ||
+          ""
+        }
+      />
+    </div>
+  );
+}
+
+/** One order line with thumbnail (used for parents and nested FREE children). */
+function OrderLineBlock({ item, nested = false }) {
+  const meta = getShopLineFulfillmentMeta(item);
+  return (
+    <div
+      className={`flex items-start gap-3 ${
+        nested ? "relative ml-2 border-l border-dashed border-gray-300 pl-3" : ""
+      }`}
+    >
+      {nested ? (
+        <span
+          className="absolute -left-[1px] top-4 text-gray-400"
+          aria-hidden
+        >
+          ⌞
+        </span>
+      ) : null}
+      <OrderLineThumb item={item} dimmed={meta.showRemoved} />
+      <div className="min-w-0 flex-1">
+        <OrderItemRow item={item} />
+      </div>
+    </div>
+  );
+}
+
+/** Paid parent + nested free/reward children (cart-style BXGY). */
+function OrderOfferGroupBlock({ group }) {
+  const children = Array.isArray(group?.children) ? group.children : [];
+  const hasKids = children.length > 0;
+
+  return (
+    <div
+      className={
+        hasKids
+          ? "rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3"
+          : undefined
+      }
+    >
+      <OrderLineBlock item={group.parent} />
+      {hasKids
+        ? children.map((child, i) => (
+            <div key={child.id || `child-${i}`} className="mt-2">
+              <OrderLineBlock item={child} nested />
+            </div>
+          ))
+        : null}
+    </div>
+  );
 }
 
 function pickStepDate(order, status) {
@@ -1094,49 +1176,21 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                   <span className="font-semibold">Edited by shop</span>.
                 </div>
               )}
-              {getOrderItems(order).map((item, idx) => {
-                const lineMeta = getShopLineFulfillmentMeta(item);
+              {buildOrderOfferGroups(getOrderItems(order)).map((group, idx) => {
+                const lineMeta = getShopLineFulfillmentMeta(group.parent);
+                const childRemoved = (group.children || []).some(
+                  (c) => getShopLineFulfillmentMeta(c).showRemoved,
+                );
                 return (
                   <div
-                    key={item.id || idx}
-                    className={`flex items-start gap-3 px-4 py-3 ${idx > 0 ? "border-t border-gray-100" : ""} ${
-                      lineMeta.showRemoved ? "bg-gray-50/80" : ""
-                    }`}
+                    key={group.parentLineItemId || idx}
+                    className={`px-4 py-3 ${idx > 0 ? "border-t border-gray-100" : ""} ${
+                      lineMeta.showRemoved && !group.children?.length
+                        ? "bg-gray-50/80"
+                        : ""
+                    } ${childRemoved ? "bg-gray-50/40" : ""}`}
                   >
-                    <div
-                      className={`relative mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-white ${
-                        lineMeta.showRemoved ? "opacity-50 grayscale" : ""
-                      }`}
-                    >
-                      <ProductImageWithFallback
-                        src={getOrderItemImage(item)}
-                        alt={item.productName || item.name || "Item"}
-                        fill
-                        className="object-contain"
-                        sizes="48px"
-                        placeholderName={
-                          item.productName ||
-                          item.name ||
-                          item.product?.name ||
-                          ""
-                        }
-                        placeholderCategory={
-                          item.categoryName ||
-                          item.category?.name ||
-                          (typeof item.category === "string"
-                            ? item.category
-                            : "") ||
-                          item.product?.categoryName ||
-                          (typeof item.product?.category === "string"
-                            ? item.product.category
-                            : "") ||
-                          ""
-                        }
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <OrderItemRow item={item} />
-                    </div>
+                    <OrderOfferGroupBlock group={group} />
                   </div>
                 );
               })}
@@ -1163,6 +1217,19 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                 ))}
               {!orderHasBxgy &&
                 (() => {
+                  const activeLines = getActiveOrderItems(order);
+                  const linePayableSum = activeLines.reduce(
+                    (s, it) => s + (Number(it.totalPrice) || 0),
+                    0,
+                  );
+                  const subtotalMajor = Number(order.subtotal) || 0;
+                  // Subtotal already equals discounted line payables — do not show
+                  // −savings that look like they should reduce Total again.
+                  const subtotalAlreadyNet =
+                    activeLines.length > 0 &&
+                    subtotalMajor > 0.009 &&
+                    Math.abs(subtotalMajor - linePayableSum) < 0.51;
+
                   const saleSavings =
                     orderPromo.autoPromotionDiscountMajor > 0.009
                       ? orderPromo.autoPromotionDiscountMajor
@@ -1181,18 +1248,22 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                     orderPromo.couponCodes?.length > 0
                       ? orderPromo.couponCodes.join(", ")
                       : orderPromo.couponCode;
-                  const showSplit = saleSavings > 0.009 || couponSavings > 0.009;
+                  const showSplit =
+                    (!subtotalAlreadyNet && saleSavings > 0.009) ||
+                    couponSavings > 0.009;
                   const showLegacyDiscount =
                     !showSplit &&
+                    !subtotalAlreadyNet &&
                     order.discount > 0 &&
-                    Number(order.subtotal) > 0.009 &&
-                    getActiveOrderItems(order).length > 0;
+                    subtotalMajor > 0.009 &&
+                    activeLines.length > 0;
 
                   return (
                     <>
-                      {saleSavings > 0.009 &&
-                        Number(order.subtotal) > 0.009 &&
-                        getActiveOrderItems(order).length > 0 && (
+                      {!subtotalAlreadyNet &&
+                        saleSavings > 0.009 &&
+                        subtotalMajor > 0.009 &&
+                        activeLines.length > 0 && (
                           <div className="flex justify-between border-t border-gray-100 px-4 py-2.5 text-[13px]">
                             <span className="text-gray-500">
                               Sale & free-item savings
@@ -1203,8 +1274,8 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                           </div>
                         )}
                       {couponSavings > 0.009 &&
-                        Number(order.subtotal) > 0.009 &&
-                        getActiveOrderItems(order).length > 0 && (
+                        subtotalMajor > 0.009 &&
+                        activeLines.length > 0 && (
                           <div className="flex justify-between border-t border-gray-100 px-4 py-2.5 text-[13px]">
                             <span className="text-gray-500">
                               {couponLabelCodes

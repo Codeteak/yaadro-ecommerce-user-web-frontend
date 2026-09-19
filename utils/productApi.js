@@ -653,9 +653,10 @@ export async function getProductById(productId, options = {}) {
     const lookup = normalizeProductRouteParam(productId);
     if (!lookup) return null;
 
-    const path = UUID_RE.test(lookup)
-      ? `/storefront/products/id/${encodeURIComponent(lookup)}`
-      : `/storefront/products/${encodeURIComponent(lookup)}`;
+    // Prefer `/storefront/products/:idOrSlug` (local DB catalog + rewrites).
+    // The `/storefront/products/id/:uuid` customer-API shape bypasses Postgres and
+    // often returns empty bundle_rules / wrong offer prices in local/dev.
+    const path = `/storefront/products/${encodeURIComponent(lookup)}`;
 
     const response = await apiFetchRoot(path, {
       method: 'GET',

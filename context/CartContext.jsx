@@ -16,6 +16,7 @@ import {
   isTrustedCartCouponPreview,
   mergePreviewPricingOntoLocalLines,
   allocateCartPayableOntoLines,
+  normalizeCartLineCatalogPricing,
   stripPaidCartLinesOnly,
   sumCartPaidUnits,
 } from '../utils/cartPromotions';
@@ -35,7 +36,9 @@ import { RESOLVED_SHOP_ID_STORAGE_KEY } from '../utils/shopResolver';
 
 function buildGuestDisplayCartItems(localLines) {
   const withBundle = applyGuestCartBundleQuantities(stripPaidCartLinesOnly(localLines));
-  return sortCartItemsForDisplay(expandCartItemsWithBundleRewards(withBundle));
+  return sortCartItemsForDisplay(
+    expandCartItemsWithBundleRewards(withBundle).map(normalizeCartLineCatalogPricing),
+  );
 }
 
 const CartContext = createContext();
@@ -346,11 +349,12 @@ export function CartProvider({ children }) {
       showAlert('Could not add this product to the cart.', 'Error', 'error');
       return;
     }
-    const persistable = buildPersistableCartLineFromProduct(product);
-    if (!persistable) {
+    const persistableRaw = buildPersistableCartLineFromProduct(product);
+    if (!persistableRaw) {
       showAlert('Could not add this product to the cart.', 'Error', 'error');
       return;
     }
+    const persistable = normalizeCartLineCatalogPricing(persistableRaw);
 
     const prevExpanded = buildGuestDisplayCartItems(localCartItemsRef.current);
     const merged = addOrMergeCartLine(localCartItemsRef.current, persistable, addQty);
