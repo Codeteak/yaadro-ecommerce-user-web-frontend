@@ -62,20 +62,45 @@ function parseOrderMajorMoney(raw) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/** Case-insensitive id compare (UUID / product ids). */
+function orderProductIdsMatch(a, b) {
+  const left = a != null ? String(a).trim().toLowerCase() : "";
+  const right = b != null ? String(b).trim().toLowerCase() : "";
+  return Boolean(left && right && left === right);
+}
+
+function orderLineProductId(item) {
+  if (!item || typeof item !== "object") return "";
+  const raw =
+    item.product_id ?? item.productId ?? item.product?.id ?? null;
+  return raw != null ? String(raw).trim() : "";
+}
+
+/** Only use nested product pricing when product.id matches the order line SKU. */
+function orderLineProductPricingTrusted(item) {
+  const lineId = orderLineProductId(item);
+  const prodId = item?.product?.id;
+  if (!lineId || prodId == null || !String(prodId).trim()) return false;
+  return orderProductIdsMatch(lineId, prodId);
+}
+
 /** Catalog list/MRP for strike (max of line + nested product candidates). */
 function resolveOrderLineListMajor(item, listPriceMinor, unitPriceRaw) {
+  const trustProduct = orderLineProductPricingTrusted(item);
   const candidates = [
     listPriceMinor > 0 ? minorToMajor(listPriceMinor) : null,
     parseOrderMajorMoney(item.listPrice ?? item.list_price),
     parseOrderMajorMoney(item.mrp),
     parseOrderMajorMoney(item.originalPrice ?? item.original_price),
     parseOrderMajorMoney(item.compareAtPrice ?? item.compare_at_price),
-    parseOrderMajorMoney(item.product?.listPrice ?? item.product?.list_price),
-    parseOrderMajorMoney(item.product?.mrp),
-    parseOrderMajorMoney(item.product?.originalPrice),
-    parseOrderMajorMoney(item.product?.compareAtPrice),
+    trustProduct
+      ? parseOrderMajorMoney(item.product?.listPrice ?? item.product?.list_price)
+      : null,
+    trustProduct ? parseOrderMajorMoney(item.product?.mrp) : null,
+    trustProduct ? parseOrderMajorMoney(item.product?.originalPrice) : null,
+    trustProduct ? parseOrderMajorMoney(item.product?.compareAtPrice) : null,
     // Catalog shape: product.price is often MRP/list.
-    parseOrderMajorMoney(item.product?.price),
+    trustProduct ? parseOrderMajorMoney(item.product?.price) : null,
     unitPriceRaw > 0 ? unitPriceRaw : null,
   ];
   let best = null;
@@ -89,7 +114,7 @@ function resolveOrderLineListMajor(item, listPriceMinor, unitPriceRaw) {
 /**
  * Catalog offer / payable unit (cart-aligned). Prefer an explicit discounted
  * line_total when already below list; otherwise offer minors / majors /
- * nested product.offerPrice whenever offer < list.
+ * nested product.offerPrice whenever offer < list (trusted product id only).
  */
 function resolveOrderLineOfferUnit(item, listUnit, paidQty, lineTotal) {
   const offerMinor = parseMinorInt(
@@ -106,13 +131,16 @@ function resolveOrderLineOfferUnit(item, listUnit, paidQty, lineTotal) {
       item.pricing?.final_minor,
   );
   const fromFinal = finalMinor > 0 ? minorToMajor(finalMinor) : null;
+  const trustProduct = orderLineProductPricingTrusted(item);
   const fromFields = parseOrderMajorMoney(
     item.offerPrice ??
       item.offer_price ??
       item.offerPriceEffective ??
-      item.product?.offerPrice ??
-      item.product?.offerPriceEffective ??
-      item.product?.offer_price,
+      (trustProduct
+        ? item.product?.offerPrice ??
+          item.product?.offerPriceEffective ??
+          item.product?.offer_price
+        : null),
   );
 
   const belowList = (n) =>
@@ -1166,15 +1194,24 @@ async function enrichOrderRawItemsWithCatalogOffers(rawItems) {
       return [id, product];
     }),
   );
-  const byId = new Map(fetched.filter(([, p]) => p));
+  const byId = new Map();
+  for (const [id, p] of fetched) {
+    if (!p) continue;
+    // Hard-reject wrong SKU (same-name Oils etc.).
+    if (p.id != null && !orderProductIdsMatch(id, p.id)) continue;
+    byId.set(String(id).trim().toLowerCase(), p);
+  }
 
   return list.map((raw) => {
     if (!needsEnrich(raw)) return raw;
     const pid = String(
       raw.product_id ?? raw.productId ?? raw.product?.id,
     ).trim();
-    const product = byId.get(pid);
+    const product = byId.get(pid.toLowerCase());
     if (!product) return raw;
+    if (product.id != null && !orderProductIdsMatch(pid, product.id)) {
+      return raw;
+    }
 
     const offer =
       parseOrderMajorMoney(
@@ -1205,8 +1242,21 @@ async function enrichOrderRawItemsWithCatalogOffers(rawItems) {
       offer > 0 &&
       (listUnit == null || listUnit > offer + 0.004);
 
+    const prevProduct =
+      raw.product && typeof raw.product === "object" ? raw.product : {};
+    const lineHasImage = Boolean(
+      firstImageUrl(raw.product_image_snapshot) ||
+        firstImageUrl(raw.productImage) ||
+        firstImageUrl(raw.product_image) ||
+        firstImageUrl(raw.image_url) ||
+        firstImageUrl(raw.imageUrl) ||
+        firstImageUrl(raw.thumbnail_url) ||
+        firstImageUrl(raw.thumbnailUrl) ||
+        (typeof raw.image === "string" && firstImageUrl(raw.image)),
+    );
+
     const nextProduct = {
-      ...(raw.product && typeof raw.product === "object" ? raw.product : {}),
+      ...prevProduct,
       id: product.id ?? pid,
       ...(hasOfferBelowList
         ? {
@@ -1222,6 +1272,15 @@ async function enrichOrderRawItemsWithCatalogOffers(rawItems) {
         ? { bundleRules, bundle_rules: bundleRules }
         : {}),
     };
+    // Keep order snapshot image — do not pull another same-name SKU's media.
+    if (lineHasImage) {
+      delete nextProduct.image;
+      delete nextProduct.imageUrl;
+      delete nextProduct.image_url;
+      delete nextProduct.images;
+      delete nextProduct.thumbnail;
+      delete nextProduct.thumbnailUrl;
+    }
 
     return {
       ...raw,

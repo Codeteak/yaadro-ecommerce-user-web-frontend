@@ -464,7 +464,7 @@ export function orderHasBxgyOffer(items) {
 }
 
 /**
- * Display savings for a line. BXGY/BOGO uses product price × free qty — never
+ * Display savings for a line. BXGY/BOGO uses list − offer on paid qty — never
  * raw `lineDiscount` (that field often includes leftover coupon / list stacking).
  */
 export function getOrderLineOfferSavingsMajor(item) {
@@ -473,26 +473,30 @@ export function getOrderLineOfferSavingsMajor(item) {
   const displayQty = parseOrderQuantity(item.quantity);
   const freeReward = item.isConfirmedFreeReward === true || isConfirmedFreeRewardLine(item);
   const unit = Number(item.unitPrice ?? item.price ?? item.listPrice ?? 0);
-  if (!Number.isFinite(unit) || unit <= 0) return 0;
+  const list = Number(item.listPrice ?? item.list_price ?? 0);
+  if (!Number.isFinite(unit) || unit <= 0) {
+    if (!(Number.isFinite(list) && list > 0)) return 0;
+  }
 
-  // Savings live on the paid/mixed row (unit × free). Do not also count a
-  // separate FREE sibling — that would double the BOGO amount.
+  // B1G1 / same-SKU BOGO: Saved = (product list − offer/pay) × paid qty only.
   if (paid > 0 && displayQty > paid) {
-    return unit * (displayQty - paid);
+    const pay = Number.isFinite(unit) && unit > 0 ? unit : 0;
+    if (list > pay + 0.009 && paid > 0) return (list - pay) * paid;
+    return 0;
   }
   if (freeReward && !(paid > 0)) {
     // Cross free line: savings = catalog unit × qty (shown on FREE row only).
-    const list = Number(item.listPrice ?? item.list_price ?? 0);
     const catalog = list > 0 ? list : unit;
     if (catalog > 0 && displayQty > 0) return catalog * displayQty;
     return 0;
   }
 
+  if (!(Number.isFinite(unit) && unit > 0)) return 0;
+
   const lineDisc =
     item.lineDiscount != null
       ? Number(item.lineDiscount)
       : minorToMajor(parseMinorInt(item.line_discount_minor ?? item.lineDiscountMinor));
-  const list = Number(item.listPrice ?? item.list_price ?? 0);
   const total = Number(item.totalPrice ?? 0);
   const paidForGap = paid > 0 ? paid : displayQty;
   let catalogGap = 0;
