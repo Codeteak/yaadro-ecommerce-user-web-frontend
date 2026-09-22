@@ -437,6 +437,7 @@ function transformCategory(apiCategory) {
  *
  * Supported filters (see OpenAPI / product search spec):
  * - `search` / `q` — partial match on name & slug, max 200 chars
+ * - `search_mode` — `prefix` (typeahead, `term%`) or `contains` (`%term%`)
  * - `category_id`, `brand_id` — UUIDs only (non-UUID values are ignored)
  * - `include_descendants` — when `1`/`true` with `category_id`, include child categories
  * - `availability` — `in_stock` | `out_of_stock` | `unknown`
@@ -460,6 +461,11 @@ export function buildStorefrontProductsQuery(raw = {}) {
   const searchSrc = raw.search ?? raw.q;
   if (searchSrc != null && String(searchSrc).trim()) {
     out.search = String(searchSrc).trim().slice(0, 200);
+  }
+
+  const searchModeRaw = raw.search_mode ?? raw.searchMode;
+  if (searchModeRaw === 'prefix' || searchModeRaw === 'contains') {
+    out.search_mode = searchModeRaw;
   }
 
   const cat = raw.category_id ?? raw.category;
@@ -702,7 +708,13 @@ export async function getProductWithRelated(productId) {
     const categoryId = product.categoryId || null;
     if (!categoryId) return { product, relatedProducts: [] };
 
-    const list = await getProducts({ per_page: 24, category_id: categoryId });
+    // Smaller page + flat layout = less payload / parsing on PDP.
+    const list = await getProducts({
+      per_page: 12,
+      limit: 12,
+      category_id: categoryId,
+      layout: 'flat',
+    });
     const relatedProducts = (list?.products || [])
       .filter((p) => p && p.id !== product.id)
       .slice(0, 12);
@@ -730,6 +742,7 @@ export async function searchProducts(params = {}) {
       offset,
       sort_by,
       sort_order,
+      search_mode,
     } = params;
 
     if (!q || String(q).trim().length < 2) {
@@ -737,6 +750,8 @@ export async function searchProducts(params = {}) {
     }
 
     const search = String(q).trim().slice(0, 200);
+    // Typeahead default: prefix (apple%). Pass search_mode: 'contains' for full substring.
+    const mode = search_mode === 'contains' ? 'contains' : 'prefix';
 
     const list = await getProducts({
       per_page,
@@ -747,6 +762,7 @@ export async function searchProducts(params = {}) {
       sort_by,
       sort_order,
       search,
+      search_mode: mode,
     });
 
     return { ...list, query: search };

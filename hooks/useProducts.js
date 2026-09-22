@@ -214,10 +214,11 @@ export function useSearchProducts(params = {}) {
   const q = params.q != null ? String(params.q).trim() : '';
   const page = params.page ?? 1;
   const perPage = params.per_page ?? params.perPage ?? 24;
+  const search_mode = params.search_mode === 'contains' ? 'contains' : 'prefix';
   const { ready } = useStorefrontShopGate();
   return useQuery({
-    queryKey: productKeys.search(shopId, { q, page, per_page: perPage }),
-    queryFn: () => searchProducts({ ...params, q, page, per_page: perPage }),
+    queryKey: productKeys.search(shopId, { q, page, per_page: perPage, search_mode }),
+    queryFn: () => searchProducts({ ...params, q, page, per_page: perPage, search_mode }),
     enabled: q.length >= 2 && ready,
     staleTime: 1000 * 60 * 2, // 2 minutes
   });
@@ -241,6 +242,7 @@ export function useInfiniteSearchProducts(params = {}) {
     category_id: params.category_id || undefined,
     sort_by: sort_by && sort_by !== 'default' ? sort_by : cursorMode ? 'created_at' : undefined,
     sort_order: sort_order || (cursorMode ? 'desc' : undefined),
+    search_mode: params.search_mode === 'contains' ? 'contains' : 'prefix',
     mode: cursorMode ? 'cursor' : 'offset',
   };
 
@@ -256,6 +258,7 @@ export function useInfiniteSearchProducts(params = {}) {
         category_id: filters.category_id,
         sort_by: filters.sort_by,
         sort_order: filters.sort_order,
+        search_mode: filters.search_mode,
       };
       if (cursorMode) {
         return searchProducts({ ...base, cursor: pageParam || undefined });

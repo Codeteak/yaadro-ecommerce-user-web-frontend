@@ -270,11 +270,7 @@ export default function Home() {
   }, [categoryTree]);
 
   const freshZoneFetchKey = useMemo(
-    () =>
-      freshZoneResolved.map((r) => ({
-        id: String(r.category.id ?? r.category._id),
-        ids: r.categoryIds,
-      })),
+    () => freshZoneResolved.map((r) => String(r.category.id ?? r.category._id)),
     [freshZoneResolved]
   );
 
@@ -284,28 +280,22 @@ export default function Home() {
   } = useQuery({
     queryKey: [...productKeys.shop(shopId), 'fresh-zone', freshZoneFetchKey],
     enabled: freshZoneResolved.length > 0 && !!shopId,
-    staleTime: 1000 * 45,
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
+      // One list call per Fresh Zone root (include all child categories).
+      // Avoids N+1 fetches for Dairy → Ghee / Milk / etc.
       const rows = await Promise.all(
         freshZoneResolved.map(async ({ category, categoryIds }) => {
           const rootId = String(category.id ?? category._id);
-          // Root + descendants (local DB CTE). Also fetch each known child id so
-          // upstream APIs that ignore include_descendants still return Ghee SKUs.
-          const lists = await Promise.all(
-            categoryIds.map((category_id) =>
-              getProducts({
-                category_id,
-                include_descendants: category_id === rootId,
-                limit: 24,
-                sort_by: 'created_at',
-                sort_order: 'desc',
-              })
-            )
-          );
-          const products = dedupeProductsByVariantGroup(
-            lists.flatMap((list) => list?.products || [])
-          );
+          const list = await getProducts({
+            category_id: rootId,
+            include_descendants: true,
+            limit: 24,
+            sort_by: 'created_at',
+            sort_order: 'desc',
+          });
+          const products = dedupeProductsByVariantGroup(list?.products || []);
           return { category, categoryIds, products };
         })
       );

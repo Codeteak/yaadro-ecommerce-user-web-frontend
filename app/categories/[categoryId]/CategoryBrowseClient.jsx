@@ -24,6 +24,9 @@ function findCategoryInTree(nodes, id) {
   return null;
 }
 
+const CATEGORY_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 function CategoryBrowseInner() {
   const params = useParams();
   const router = useRouter();
@@ -55,9 +58,14 @@ function CategoryBrowseInner() {
   const validSub =
     subFromUrl && subcategories.some((s) => s.id === subFromUrl) ? subFromUrl : null;
 
-  // Backend expects UUIDs for `category_id`. We accept slug in the URL, resolve it to the category,
-  // and then use the resolved UUID for fetching products.
-  const resolvedCategoryId = category?.id ? String(category.id) : '';
+  // Backend expects UUIDs for `category_id`. Prefer URL UUID immediately so products
+  // start loading without waiting for the full category tree (slug URLs still wait).
+  const urlIsUuid = CATEGORY_UUID_RE.test(categorySlugOrId);
+  const resolvedCategoryId = category?.id
+    ? String(category.id)
+    : urlIsUuid
+      ? categorySlugOrId
+      : '';
   const filterCategoryId = validSub || resolvedCategoryId;
 
   const infiniteParams = useMemo(() => {
@@ -90,7 +98,8 @@ function CategoryBrowseInner() {
     fetchNextPage,
   } = useInfiniteProducts({
     ...infiniteParams,
-    enabled: !!category && !!filterCategoryId,
+    // UUID in URL → fetch products right away; tree still loads for the side rail.
+    enabled: !!filterCategoryId && (!!category || urlIsUuid),
   });
 
   const products = useMemo(
@@ -150,11 +159,10 @@ function CategoryBrowseInner() {
     }
   };
 
-  if (treeLoading) {
-    return <CategoryBrowseSkeleton />;
-  }
-
-  if (!category) {
+  if (!category && !urlIsUuid) {
+    if (treeLoading) {
+      return <CategoryBrowseSkeleton />;
+    }
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-6 pb-28 pt-[env(safe-area-inset-top,0px)] text-center">
         <p className="text-[15px] font-medium text-gray-800">Category not found</p>
@@ -169,15 +177,16 @@ function CategoryBrowseInner() {
     );
   }
 
+  const categoryTitle = category?.name || 'Products';
   const typeSelectValue = validSub || '';
   const activeSubLabel = validSub
     ? subcategories.find((s) => s.id === validSub)?.name || 'Type'
-    : `All ${category.name}`;
+    : `All ${categoryTitle}`;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-28 pt-[env(safe-area-inset-top,0px)] w-full max-w-full overflow-x-clip">
       <BrowsePageHeader
-        title={category.name}
+        title={categoryTitle}
         searchOpen={searchOpen}
         onBack={handleBack}
         onSearchToggle={onSearchOpenToggle}
