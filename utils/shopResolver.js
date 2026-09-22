@@ -12,9 +12,12 @@ export const RESOLVED_SHOP_IMAGE_STORAGE_KEY = 'yaadro_resolved_shop_image';
 export const RESOLVED_SHOP_BANNER_ENABLED_KEY = 'yaadro_resolved_shop_banner_enabled';
 export const RESOLVED_SHOP_BANNER_IMAGES_KEY = 'yaadro_resolved_shop_banner_images';
 export const RESOLVED_SHOP_SEO_STORAGE_KEY = 'yaadro_resolved_shop_seo';
+/** Only 'domain' caches are trusted in production (rejects old env-fallback poison). */
+export const RESOLVED_SHOP_SOURCE_STORAGE_KEY = 'yaadro_resolved_shop_source';
 /** Bump when banner parsing changes — forces one refetch of resolve-by-domain. */
 export const RESOLVED_SHOP_BANNER_PARSE_VERSION_KEY = 'yaadro_resolved_shop_banner_parse_v';
 const CURRENT_BANNER_PARSE_VERSION = '2';
+const SHOP_SOURCE_DOMAIN = 'domain';
 
 const DEFAULT_SHOP_NAME = 'Yaadro';
 
@@ -222,6 +225,20 @@ function envShopImage() {
   return raw || null;
 }
 
+/** Local / tunnel hosts may use NEXT_PUBLIC_SHOP_ID; real tenant hosts must not. */
+export function isLocalDevShopHost(hostname = '') {
+  const host = String(hostname || '').toLowerCase().trim();
+  if (!host) return true;
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return true;
+  if (host.endsWith('.localhost')) return true;
+  return false;
+}
+
+export function shouldUseEnvShopFallback(hostname = '') {
+  if (process.env.NODE_ENV !== 'production') return true;
+  return isLocalDevShopHost(hostname);
+}
+
 /**
  * @returns {{
  *   shopId: string,
@@ -267,6 +284,11 @@ export function readCachedBranding(domain) {
   if (cachedHost !== domain) return null;
   const shopId = window.localStorage.getItem(RESOLVED_SHOP_ID_STORAGE_KEY) || '';
   if (!shopId) return null;
+  // Reject caches written by the old NEXT_PUBLIC_SHOP_ID fallback (greens→testshop).
+  if (!shouldUseEnvShopFallback(domain)) {
+    const source = window.localStorage.getItem(RESOLVED_SHOP_SOURCE_STORAGE_KEY) || '';
+    if (source !== SHOP_SOURCE_DOMAIN) return null;
+  }
   // Legacy cache from before banner fields — refetch resolve-by-domain once.
   if (window.localStorage.getItem(RESOLVED_SHOP_BANNER_ENABLED_KEY) == null) {
     return null;
@@ -323,6 +345,7 @@ export function persistResolvedShop(
   window.localStorage.setItem(RESOLVED_SHOP_HOST_STORAGE_KEY, domain);
   window.localStorage.setItem(RESOLVED_SHOP_ID_STORAGE_KEY, shopId);
   window.localStorage.setItem(RESOLVED_SHOP_NAME_STORAGE_KEY, shopName || DEFAULT_SHOP_NAME);
+  window.localStorage.setItem(RESOLVED_SHOP_SOURCE_STORAGE_KEY, SHOP_SOURCE_DOMAIN);
   if (shopImage) {
     window.localStorage.setItem(RESOLVED_SHOP_IMAGE_STORAGE_KEY, shopImage);
   } else {
@@ -359,6 +382,7 @@ export function clearResolvedShopCache() {
   window.localStorage.removeItem(RESOLVED_SHOP_BANNER_IMAGES_KEY);
   window.localStorage.removeItem(RESOLVED_SHOP_BANNER_PARSE_VERSION_KEY);
   window.localStorage.removeItem(RESOLVED_SHOP_SEO_STORAGE_KEY);
+  window.localStorage.removeItem(RESOLVED_SHOP_SOURCE_STORAGE_KEY);
 }
 
 /**
@@ -657,23 +681,28 @@ export async function resolveShopBranding(options = {}) {
     return { ...stamped, fromCache: false, notFound: false };
   }
 
-  if (cached) {
+  // Only reuse in-memory cache when we did not intentionally clear it.
+  if (cached && !forceRefresh) {
     return { ...cached, fromCache: true, notFound: false };
   }
 
-  const fallbackId = envShopId();
-  if (fallbackId) {
-    const fallback = {
-      shopId: fallbackId,
-      shopName: envShopName() || DEFAULT_SHOP_NAME,
-      shopImage: envShopImage(),
-      bannerEnabled: false,
-      bannerImages: [],
-      fromCache: false,
-      notFound: !!fetched.notFound,
-    };
-    persistResolvedShop(domain, fallback);
-    return fallback;
+  // Production tenant hosts: never fall back to baked-in NEXT_PUBLIC_SHOP_ID
+  // (that poisoned greens/marketfresh with testshop and persisted it).
+  if (shouldUseEnvShopFallback(domain)) {
+    const fallbackId = envShopId();
+    if (fallbackId) {
+      const fallback = {
+        shopId: fallbackId,
+        shopName: envShopName() || DEFAULT_SHOP_NAME,
+        shopImage: envShopImage(),
+        bannerEnabled: false,
+        bannerImages: [],
+        fromCache: false,
+        notFound: !!fetched.notFound,
+      };
+      // Dev-only convenience — do not persist as a domain resolve.
+      return fallback;
+    }
   }
 
   return {

@@ -14,6 +14,7 @@ import {
   getCategoryProducts,
   resolveProductDetailSegment,
 } from '../utils/productApi';
+import { useStorefrontShopGate } from './useStorefrontShopGate';
 
 // Query keys
 export const productKeys = {
@@ -43,10 +44,11 @@ export function usesCursorPagination(sortBy) {
  */
 export function useProducts(params = {}) {
   const { enabled = true, ...apiParams } = params;
+  const { ready } = useStorefrontShopGate();
   return useQuery({
     queryKey: productKeys.list(apiParams),
     queryFn: () => getProducts(apiParams),
-    enabled,
+    enabled: enabled && ready,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }
@@ -88,6 +90,8 @@ export function useInfiniteProducts(params = {}) {
     mode: cursorMode ? 'cursor' : 'offset',
   };
 
+  const { ready } = useStorefrontShopGate();
+
   return useInfiniteQuery({
     queryKey: productKeys.infinite(filters),
     initialPageParam: cursorMode ? undefined : 0,
@@ -122,7 +126,7 @@ export function useInfiniteProducts(params = {}) {
       const prev = typeof lastPageParam === 'number' ? lastPageParam : 0;
       return prev + pageSize;
     },
-    enabled,
+    enabled: enabled && ready,
     staleTime: 1000 * 60 * 5,
   });
 }
@@ -166,10 +170,11 @@ export function prefetchProductDetail(queryClient, productOrId) {
  * Get product by ID
  */
 export function useProduct(productId) {
+  const { ready } = useStorefrontShopGate();
   return useQuery({
     queryKey: productKeys.detail(productId),
     queryFn: () => getProductById(productId),
-    enabled: !!productId,
+    enabled: !!productId && ready,
     staleTime: DETAIL_STALE_MS,
   });
 }
@@ -178,10 +183,11 @@ export function useProduct(productId) {
  * Get product with related products
  */
 export function useProductWithRelated(productId) {
+  const { ready } = useStorefrontShopGate();
   return useQuery({
     queryKey: [...productKeys.detail(productId), 'with-related'],
     queryFn: () => getProductWithRelated(productId),
-    enabled: !!productId,
+    enabled: !!productId && ready,
     staleTime: DETAIL_STALE_MS,
   });
 }
@@ -193,10 +199,11 @@ export function useSearchProducts(params = {}) {
   const q = params.q != null ? String(params.q).trim() : '';
   const page = params.page ?? 1;
   const perPage = params.per_page ?? params.perPage ?? 24;
+  const { ready } = useStorefrontShopGate();
   return useQuery({
     queryKey: productKeys.search({ q, page, per_page: perPage }),
     queryFn: () => searchProducts({ ...params, q, page, per_page: perPage }),
-    enabled: q.length >= 2,
+    enabled: q.length >= 2 && ready,
     staleTime: 1000 * 60 * 2, // 2 minutes
   });
 }
@@ -220,6 +227,8 @@ export function useInfiniteSearchProducts(params = {}) {
     sort_order: sort_order || (cursorMode ? 'desc' : undefined),
     mode: cursorMode ? 'cursor' : 'offset',
   };
+
+  const { ready } = useStorefrontShopGate();
 
   return useInfiniteQuery({
     queryKey: productKeys.searchInfinite(filters),
@@ -247,7 +256,7 @@ export function useInfiniteSearchProducts(params = {}) {
       const prev = typeof lastPageParam === 'number' ? lastPageParam : 0;
       return prev + pageSize;
     },
-    enabled: q.length >= 2,
+    enabled: q.length >= 2 && ready,
     staleTime: 1000 * 60 * 2,
   });
 }
@@ -256,9 +265,11 @@ export function useInfiniteSearchProducts(params = {}) {
  * Get all categories (flat list)
  */
 export function useCategories() {
+  const { ready } = useStorefrontShopGate();
   return useQuery({
     queryKey: productKeys.categories(),
     queryFn: () => getCategories(),
+    enabled: ready,
     staleTime: 1000 * 60 * 10, // 10 minutes
   });
 }
@@ -267,9 +278,11 @@ export function useCategories() {
  * Root categories only (single HTTP call — no tree recursion).
  */
 export function useRootCategories() {
+  const { ready } = useStorefrontShopGate();
   return useQuery({
     queryKey: productKeys.categoryRoots(),
     queryFn: () => getRootCategories(),
+    enabled: ready,
     staleTime: 1000 * 60 * 10, // 10 minutes
   });
 }
@@ -278,9 +291,11 @@ export function useRootCategories() {
  * Get category tree (nested root categories with children)
  */
 export function useCategoriesTree() {
+  const { ready } = useStorefrontShopGate();
   return useQuery({
     queryKey: [...productKeys.categories(), 'tree'],
     queryFn: () => getCategoriesTree(),
+    enabled: ready,
     staleTime: 1000 * 60 * 10,
   });
 }
@@ -289,10 +304,11 @@ export function useCategoriesTree() {
  * Get products by category slug
  */
 export function useCategoryProducts(categorySlug, params = {}) {
+  const { ready } = useStorefrontShopGate();
   return useQuery({
     queryKey: productKeys.categoryProducts(categorySlug),
     queryFn: () => getCategoryProducts(categorySlug, params),
-    enabled: !!categorySlug,
+    enabled: !!categorySlug && ready,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }
