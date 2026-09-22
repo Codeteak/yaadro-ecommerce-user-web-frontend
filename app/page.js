@@ -736,7 +736,7 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Legal links */}
+            {/* Legal links (restore when pages are ready)
             <nav
               className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] font-medium text-gray-600"
               aria-label="Legal"
@@ -749,6 +749,7 @@ export default function Home() {
                 Terms &amp; Conditions
               </Link>
             </nav>
+            */}
 
             {/* Divider */}
             <div className="mx-auto mt-8 mb-6 h-px max-w-md bg-gray-100" />

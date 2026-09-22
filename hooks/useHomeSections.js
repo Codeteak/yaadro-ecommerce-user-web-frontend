@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getHomeSections } from '../utils/homeSectionsApi';
+import { useStorefrontShopGate } from './useStorefrontShopGate';
 
 export const homeSectionKeys = {
   all: ['home-sections'],
@@ -11,17 +12,18 @@ export const homeSectionKeys = {
  */
 export function useHomeSections(options = {}) {
   const { enabled = true } = options;
+  const { ready } = useStorefrontShopGate();
   const query = useQuery({
     queryKey: homeSectionKeys.list(),
     queryFn: getHomeSections,
-    enabled,
+    enabled: enabled && ready,
     staleTime: 2 * 60 * 1000,
     retry: 1,
   });
 
   return {
     sections: query.data?.sections ?? [],
-    isLoading: query.isLoading,
+    isLoading: query.isLoading || (!ready && enabled),
     error: query.error,
     refetch: query.refetch,
   };

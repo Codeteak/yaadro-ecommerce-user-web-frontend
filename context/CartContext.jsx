@@ -32,7 +32,11 @@ import {
   readSelectedCouponCodes,
   writeSelectedCouponCodes,
 } from '../utils/checkoutSession';
-import { RESOLVED_SHOP_ID_STORAGE_KEY } from '../utils/shopResolver';
+import {
+  RESOLVED_SHOP_HOST_STORAGE_KEY,
+  RESOLVED_SHOP_ID_STORAGE_KEY,
+  shouldUseEnvShopFallback,
+} from '../utils/shopResolver';
 
 function buildGuestDisplayCartItems(localLines) {
   const withBundle = applyGuestCartBundleQuantities(stripPaidCartLinesOnly(localLines));
@@ -48,11 +52,31 @@ const API_CART_CACHE_STORAGE_KEY = 'cartApiCache';
 function resolveShopIdForCartStorage() {
   if (typeof window !== 'undefined') {
     try {
+      const host = String(window.location.hostname || '')
+        .toLowerCase()
+        .trim();
+      const cachedHost =
+        window.localStorage.getItem(RESOLVED_SHOP_HOST_STORAGE_KEY) || '';
       const resolved = window.localStorage.getItem(RESOLVED_SHOP_ID_STORAGE_KEY);
-      if (resolved && String(resolved).trim()) return String(resolved).trim();
+      if (
+        resolved &&
+        String(resolved).trim() &&
+        cachedHost &&
+        cachedHost === host
+      ) {
+        return String(resolved).trim();
+      }
     } catch {
       // ignore storage errors
     }
+  }
+  if (typeof window !== 'undefined') {
+    const host = String(window.location.hostname || '')
+      .toLowerCase()
+      .trim();
+    if (!shouldUseEnvShopFallback(host)) return '';
+  } else if (process.env.NODE_ENV === 'production') {
+    return '';
   }
   const envShopId =
     typeof process.env.NEXT_PUBLIC_SHOP_ID === 'string'
@@ -69,11 +93,18 @@ function shopCartStorageKey() {
 /** Keys to try when hydrating — primary first, then pre-cutover / legacy keys. */
 function cartStorageFallbackKeys() {
   const keys = [shopCartStorageKey()];
-  const envShopId =
-    typeof process.env.NEXT_PUBLIC_SHOP_ID === 'string'
-      ? process.env.NEXT_PUBLIC_SHOP_ID.trim()
-      : '';
-  if (envShopId) keys.push(`yaadro_cart_${envShopId}`);
+  if (typeof window !== 'undefined') {
+    const host = String(window.location.hostname || '')
+      .toLowerCase()
+      .trim();
+    if (shouldUseEnvShopFallback(host)) {
+      const envShopId =
+        typeof process.env.NEXT_PUBLIC_SHOP_ID === 'string'
+          ? process.env.NEXT_PUBLIC_SHOP_ID.trim()
+          : '';
+      if (envShopId) keys.push(`yaadro_cart_${envShopId}`);
+    }
+  }
   keys.push(GUEST_CART_STORAGE_KEY, API_CART_CACHE_STORAGE_KEY);
   return [...new Set(keys.filter(Boolean))];
 }
