@@ -178,7 +178,10 @@ function ProductsListingPanelInner({
         const disc = getProductDiscount(p);
         if (!disc || disc <= 0) return false;
       }
-      if (activeCategory !== 'all' && !CATEGORY_ID_UUID.test(activeCategory)) {
+      if (
+        String(activeCategory || '').trim().toLowerCase() !== 'all' &&
+        !CATEGORY_ID_UUID.test(activeCategory)
+      ) {
         if (String(p.category || '') !== activeCategory) return false;
       }
       return true;

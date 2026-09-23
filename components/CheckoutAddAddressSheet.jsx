@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { CloseRegular as X } from './icons';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +9,7 @@ import { normalizePhoneForApi } from '../utils/otpVerifyPayload';
 import IndianPhoneInput from './IndianPhoneInput';
 import { validateAddressCheckoutForm } from '../lib/validations/address.schema';
 import { sanitizeAddressNotes } from '../utils/addressApi';
+import { buildMapStreetArea, sanitizeStoredStreetArea } from '../utils/formatAddress';
 import { checkDeliveryLocation } from '../utils/storefrontLocationApi';
 import { getStoreCoordinates } from '../utils/storeLocation';
 import { useLocationService } from '../context/LocationServiceContext';
@@ -47,7 +48,7 @@ function addressToForm(addr) {
   return {
     label: addr.label || 'Home',
     line1,
-    line2: addr.line2 || '',
+    line2: sanitizeStoredStreetArea(String(addr.line2 || '').trim(), addr),
     landmark: addr.landmark || '',
     city: addr.city || '',
     state: addr.state || '',
@@ -93,11 +94,6 @@ export default function CheckoutAddAddressSheet({
   const [form, setForm] = useState(() => emptyForm());
   const [touched, setTouched] = useState({});
 
-  const [pinLookupStatus, setPinLookupStatus] = useState('idle'); // idle | fetching | success | error
-  const [pinLookupMessage, setPinLookupMessage] = useState('');
-  const pinCacheRef = useRef(new Map()); // pin -> { city, state }
-  const pinAbortRef = useRef(null);
-  const lastLookedUpPinRef = useRef('');
   const [pinDeliveryCheck, setPinDeliveryCheck] = useState({
     loading: false,
     serviceable: null,
@@ -112,9 +108,6 @@ export default function CheckoutAddAddressSheet({
     setSubmitError('');
     setTouched({});
     setGeoStatus('idle');
-    setPinLookupStatus('idle');
-    setPinLookupMessage('');
-    lastLookedUpPinRef.current = '';
     if (isEdit && editingAddress) {
       setForm(addressToForm(editingAddress));
       setNameDraft(nameFromProfile ? '' : (nameFromAddress || ''));
@@ -211,89 +204,6 @@ export default function CheckoutAddAddressSheet({
     setForm((prev) => ({ ...prev, [key]: v }));
     setTouched((prev) => ({ ...prev, [key]: true }));
   };
-
-  const setPostalCode = (e) => {
-    const raw = e.target.value ?? '';
-    const digits = String(raw).replace(/\D/g, '').slice(0, 6);
-    setForm((prev) => ({ ...prev, postalCode: digits }));
-    setTouched((prev) => ({ ...prev, postalCode: true }));
-    setPinLookupStatus('idle');
-    setPinLookupMessage('');
-  };
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const pin = String(form.postalCode || '').replace(/\D/g, '').slice(0, 6);
-    const country = String(form.country || '').toLowerCase().trim();
-    const isIndia =
-      !country ||
-      country === 'india' ||
-      country === 'in' ||
-      country === 'bharat' ||
-      country === 'india (in)';
-
-    if (!/^\d{6}$/.test(pin) || !isIndia) return;
-    if (lastLookedUpPinRef.current === pin) return;
-
-    // Only auto-fill if user hasn't explicitly typed city/state.
-    const shouldFillCity = !touched.city && !String(form.city || '').trim();
-    const shouldFillState = !touched.state && !String(form.state || '').trim();
-    if (!shouldFillCity && !shouldFillState) return;
-
-    lastLookedUpPinRef.current = pin;
-    setPinLookupStatus('fetching');
-    setPinLookupMessage('Fetching city/state…');
-
-    // Cancel any in-flight lookup.
-    if (pinAbortRef.current) {
-      try { pinAbortRef.current.abort(); } catch { /* noop */ }
-    }
-    const controller = new AbortController();
-    pinAbortRef.current = controller;
-
-    const cached = pinCacheRef.current.get(pin);
-    if (cached?.city && cached?.state) {
-      setForm((prev) => ({
-        ...prev,
-        ...(shouldFillCity ? { city: cached.city } : {}),
-        ...(shouldFillState ? { state: cached.state } : {}),
-      }));
-      setPinLookupStatus('success');
-      setPinLookupMessage(`Auto-filled: ${cached.city}, ${cached.state}`);
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      fetch(`https://api.postalpincode.in/pincode/${pin}`, { signal: controller.signal })
-        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-        .then((json) => {
-          const postOffice = json?.[0]?.PostOffice?.[0];
-          const city = (postOffice?.District || postOffice?.Block || postOffice?.Name || '').trim();
-          const state = (postOffice?.State || '').trim();
-          if (!city || !state) throw new Error('No match');
-
-          pinCacheRef.current.set(pin, { city, state });
-          setForm((prev) => ({
-            ...prev,
-            ...(shouldFillCity ? { city } : {}),
-            ...(shouldFillState ? { state } : {}),
-          }));
-          setPinLookupStatus('success');
-          setPinLookupMessage(`Auto-filled: ${city}, ${state}`);
-        })
-        .catch((e) => {
-          if (e?.name === 'AbortError') return;
-          setPinLookupStatus('error');
-          setPinLookupMessage('Could not auto-fill city/state. Please enter manually.');
-        });
-    }, 350); // debounce
-
-    return () => {
-      clearTimeout(timer);
-      try { controller.abort(); } catch { /* noop */ }
-    };
-  }, [isOpen, form.postalCode, form.country, form.city, form.state, touched.city, touched.state]);
 
   const validation = useMemo(
     () =>
@@ -417,8 +327,6 @@ export default function CheckoutAddAddressSheet({
       phone: true,
       line1: true,
       city: true,
-      state: true,
-      postalCode: true,
     });
     if (!validation.ok) return;
 
@@ -528,9 +436,11 @@ export default function CheckoutAddAddressSheet({
                 onAddress={(resolved) => {
                   setForm((prev) => {
                     const next = { ...prev };
-                    if (!String(prev.line2 || '').trim() && resolved.line2) next.line2 = resolved.line2;
+                    const streetArea = buildMapStreetArea(resolved);
+                    if (!String(prev.line2 || '').trim() && streetArea) next.line2 = streetArea;
                     if (!String(prev.landmark || '').trim() && resolved.landmark) next.landmark = resolved.landmark;
                     if (!touched.city && !String(prev.city || '').trim() && resolved.city) next.city = resolved.city;
+                    // Keep state/PIN/country for API only — not shown in the form.
                     if (!touched.state && !String(prev.state || '').trim() && resolved.state) next.state = resolved.state;
                     if (!touched.postalCode && !String(prev.postalCode || '').trim() && /^\d{6}$/.test(resolved.postalCode || '')) {
                       next.postalCode = resolved.postalCode;
@@ -538,8 +448,6 @@ export default function CheckoutAddAddressSheet({
                     if (!String(prev.country || '').trim() && resolved.country) next.country = resolved.country;
                     return next;
                   });
-                  setPinLookupStatus('idle');
-                  setPinLookupMessage('');
                 }}
                 height={240}
                 storeLocation={effectiveStoreLocation}
@@ -638,7 +546,7 @@ export default function CheckoutAddAddressSheet({
                 <input
                   value={form.line1}
                   onChange={setField('line1')}
-                  placeholder="Flat, house, building, street"
+                  placeholder="Flat, house, building, room no."
                   className={inputCls('line1')}
                 />
                 {err('line1') && <p className="mt-1 text-xs text-red-600">{err('line1')}</p>}
@@ -649,7 +557,7 @@ export default function CheckoutAddAddressSheet({
                 <input
                   value={form.line2}
                   onChange={setField('line2')}
-                  placeholder="Area, colony (optional)"
+                  placeholder="Street, area (from map)"
                   className={inputCls('line2')}
                 />
               </div>
@@ -664,67 +572,16 @@ export default function CheckoutAddAddressSheet({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-gray-700">
-                    City <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    value={form.city}
-                    onChange={setField('city')}
-                    className={inputCls('city')}
-                  />
-                  {err('city') && <p className="mt-1 text-xs text-red-600">{err('city')}</p>}
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-700">
-                    State <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    value={form.state}
-                    onChange={setField('state')}
-                    className={inputCls('state')}
-                  />
-                  {err('state') && <p className="mt-1 text-xs text-red-600">{err('state')}</p>}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-gray-700">
-                    PIN code <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    value={form.postalCode}
-                    onChange={setPostalCode}
-                    inputMode="numeric"
-                    maxLength={6}
-                    placeholder="6-digit PIN"
-                    className={inputCls('postalCode')}
-                  />
-                  {pinLookupMessage && (
-                    <p
-                      className={`mt-1 text-[11px] ${
-                        pinLookupStatus === 'error'
-                          ? 'text-amber-700'
-                          : pinLookupStatus === 'success'
-                            ? 'text-violet-700'
-                            : 'text-gray-500'
-                      }`}
-                    >
-                      {pinLookupMessage}
-                    </p>
-                  )}
-                  {err('postalCode') && <p className="mt-1 text-xs text-red-600">{err('postalCode')}</p>}
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-700">Country</label>
-                  <input
-                    value={form.country}
-                    onChange={setField('country')}
-                    className={inputCls('country')}
-                  />
-                </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-700">
+                  City <span className="text-red-500">*</span>
+                </label>
+                <input
+                  value={form.city}
+                  onChange={setField('city')}
+                  className={inputCls('city')}
+                />
+                {err('city') && <p className="mt-1 text-xs text-red-600">{err('city')}</p>}
               </div>
 
               <div>

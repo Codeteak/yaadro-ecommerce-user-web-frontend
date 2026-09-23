@@ -21,6 +21,7 @@ import {
   RightRegular as ChevronRight,
   Share2Regular as Share2,
 } from '../../components/icons';
+import { formatAddressDisplay, formatAddressShareText } from '../../utils/formatAddress';
 
 export default function AddressesPage() {
   const router = useRouter();
@@ -33,42 +34,17 @@ export default function AddressesPage() {
 
   const handleShareAddress = (address) => {
     setMenuOpenId(null);
-    const streetLine =
-      [address.line1, address.line2].filter(Boolean).join(', ') ||
-      address.street ||
-      address.address;
-    const text = [
-      address.fullName || user?.name,
-      streetLine,
-      address.landmark,
-      [address.city, address.state, address.postalCode || address.zipCode].filter(Boolean).join(', '),
-      address.country,
-    ]
-      .filter(Boolean)
-      .join('\n');
-    const phoneLine = address.phone || user?.phone;
-    const textWithPhone = phoneLine ? `${text}\n${phoneLine}` : text;
+    const textWithPhone = formatAddressShareText(address, {
+      name: address.fullName || user?.name,
+      phone: address.phone || user?.phone,
+    });
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(textWithPhone);
       showAlert('Address copied to clipboard.', 'Copied', 'success');
     }
   };
 
-  const formatAddressLine = (address) => {
-    const streetLine =
-      [address.line1, address.line2].filter(Boolean).join(', ') ||
-      address.street ||
-      address.address;
-    const parts = [
-      streetLine,
-      address.landmark,
-      address.city,
-      address.state,
-      address.postalCode || address.zipCode,
-      address.country,
-    ].filter(Boolean);
-    return parts.join(', ');
-  };
+  const formatAddressLine = (address) => formatAddressDisplay(address);
 
   const addressLabel = (addr) => addr.label || addr.addressType || 'Address';
   const isHome = (addr) => (addressLabel(addr) || '').toLowerCase() === 'home';

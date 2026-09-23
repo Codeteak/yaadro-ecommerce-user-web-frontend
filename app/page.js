@@ -24,6 +24,7 @@ import SmoothDragRail from '../components/motion/SmoothDragRail';
 import { dedupeProductsByVariantGroup } from '../utils/productUtils';
 import { getProducts } from '../utils/productApi';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../utils/categoryImage';
+import { formatAddressDisplay } from '../utils/formatAddress';
 import { Bone, ProductCarouselRowSkeleton } from '../components/skeletons/primitives';
 import { getAppScrollY } from '../lib/pwa/appShell';
 import {
@@ -34,6 +35,11 @@ import {
   SearchRegular as Search,
   User1Regular as User,
 } from '../components/icons';
+import {
+  CATEGORY_ID_UUID,
+  isAllCategorySentinel,
+  isAllNamedCategory,
+} from '../components/products/productsBrowseConstants';
 
 /** Exact admin category names for Fresh Zone (fixed tab order). */
 const FRESH_ZONE_CATEGORY_NAMES = ['Vegetables', 'Fruits', 'Dairy'];
@@ -54,10 +60,7 @@ function flattenCategoryForest(nodes) {
 
 function formatHomeAddressLine(address) {
   if (!address) return '';
-  return [address.street || address.line1, address.city, address.state]
-    .map((part) => String(part || '').trim())
-    .filter(Boolean)
-    .join(', ');
+  return formatAddressDisplay(address);
 }
 
 /** Depth-first exact name match (`name.trim() === expected`). Skips inactive nodes. */
@@ -201,36 +204,54 @@ export default function Home() {
 
   const { data: rootCategoriesData, isLoading: rootCategoriesLoading } = useRootCategories();
   const rootCategories = useMemo(
-    () => (rootCategoriesData || []).filter((c) => c && c.isActive !== false),
+    () =>
+      (rootCategoriesData || []).filter(
+        (c) => c && c.isActive !== false && !isAllNamedCategory(c)
+      ),
     [rootCategoriesData]
   );
-  const [homeCategoryId, setHomeCategoryId] = useState(null);
+  const [homeCategoryId, setHomeCategoryId] = useState('all');
 
   useEffect(() => {
-    if (!rootCategories.length) return;
+    if (isAllCategorySentinel(homeCategoryId)) return;
+    if (!rootCategories.length) {
+      setHomeCategoryId('all');
+      return;
+    }
     const stillExists = rootCategories.some(
       (c) => String(c.id ?? c._id) === String(homeCategoryId)
     );
-    if (homeCategoryId == null || !stillExists) {
-      setHomeCategoryId(String(rootCategories[0].id ?? rootCategories[0]._id));
+    if (!stillExists) {
+      setHomeCategoryId('all');
     }
   }, [rootCategories, homeCategoryId]);
 
   const selectedHomeCategory = useMemo(
     () =>
-      rootCategories.find((c) => String(c.id ?? c._id) === String(homeCategoryId)) || null,
+      isAllCategorySentinel(homeCategoryId)
+        ? null
+        : rootCategories.find((c) => String(c.id ?? c._id) === String(homeCategoryId)) || null,
     [rootCategories, homeCategoryId]
   );
 
-  const homeCategoryHref = selectedHomeCategory
-    ? `/categories/${encodeURIComponent(
-        selectedHomeCategory.slug || selectedHomeCategory.id || selectedHomeCategory._id
-      )}`
-    : '/categories';
+  const homeCategoryHref = isAllCategorySentinel(homeCategoryId)
+    ? '/products'
+    : selectedHomeCategory
+      ? `/categories/${encodeURIComponent(
+          selectedHomeCategory.slug || selectedHomeCategory.id || selectedHomeCategory._id
+        )}`
+      : '/categories';
+
+  const homeShelfCategoryId =
+    homeCategoryId &&
+    !isAllCategorySentinel(homeCategoryId) &&
+    CATEGORY_ID_UUID.test(String(homeCategoryId))
+      ? String(homeCategoryId)
+      : '';
 
   const { data: homeCategoryProductsData, isLoading: homeCategoryProductsLoading } = useProducts({
-    category_id: homeCategoryId || undefined,
-    include_descendants: true,
+    category_id: homeShelfCategoryId || undefined,
+    include_descendants: Boolean(homeShelfCategoryId),
     limit: 4,
     sort_by: 'created_at',
     sort_order: 'desc',
@@ -524,6 +545,10 @@ export default function Home() {
           categories={rootCategories}
           selectedId={homeCategoryId}
           onSelect={(category) => {
+            if (isAllCategorySentinel(category?.id ?? category?._id ?? category)) {
+              setHomeCategoryId('all');
+              return;
+            }
             const id = String(category?.id ?? category?._id ?? '');
             if (id) setHomeCategoryId(id);
           }}

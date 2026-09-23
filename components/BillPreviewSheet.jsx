@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseRegular as X, DownloadRegular as Download } from './icons';
+import { formatAddressDisplay } from '../utils/formatAddress';
 
 function formatMoney(v) {
   const n = typeof v === 'string' ? parseFloat(v) : typeof v === 'number' ? v : NaN;
@@ -161,31 +162,21 @@ export default function BillPreviewSheet({
                     Shipping
                   </span>
                 </div>
-                {delivery ? (
-                  <div className="text-sm leading-relaxed text-gray-700">
-                    {[delivery.fullName || delivery.name, delivery.phone].filter(Boolean).length >
-                      0 && (
-                      <div className="font-semibold text-gray-900">
-                        {[delivery.fullName || delivery.name, delivery.phone]
-                          .filter(Boolean)
-                          .join(' • ')}
-                      </div>
-                    )}
-                    <div>
-                      {[
-                        delivery.street || delivery.address,
-                        delivery.city,
-                        delivery.state,
-                        delivery.zipCode || delivery.postalCode,
-                        delivery.country,
-                      ]
-                        .filter(Boolean)
-                        .join(', ')}
+                  {delivery ? (
+                    <div className="text-sm leading-relaxed text-gray-700">
+                      {[delivery.fullName || delivery.name, delivery.phone].filter(Boolean).length >
+                        0 && (
+                        <div className="font-semibold text-gray-900">
+                          {[delivery.fullName || delivery.name, delivery.phone]
+                            .filter(Boolean)
+                            .join(' • ')}
+                        </div>
+                      )}
+                      <div>{formatAddressDisplay(delivery) || '—'}</div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-sm text-gray-500">—</div>
-                )}
+                  ) : (
+                    <div className="text-sm text-gray-500">—</div>
+                  )}
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-gray-200">
