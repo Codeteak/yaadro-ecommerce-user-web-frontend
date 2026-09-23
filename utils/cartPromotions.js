@@ -1013,87 +1013,12 @@ export function resetCartLinesToShelfPayable(items) {
 }
 
 /**
- * When the trusted cart grand total is below the sum of line payables (auto cart /
- * category discount not written onto lines), spread that payable onto lines for UI
- * so CartItem can show list vs OFF the same way as the footer.
+ * @deprecated Do not use for UI. Cart-level auto/coupon discounts must stay in the
+ * bill summary — spreading payable onto lines invents fake catalog SAVE/OFF
+ * (e.g. ₹220 → ₹2.22 when a ~99.5% auto-cart rule applies).
+ * Kept as a no-op so older callers do not crush prices again.
  */
-export function allocateCartPayableOntoLines(items, payableTotal) {
-  if (!Array.isArray(items) || !items.length) return items || [];
-  const target = Number(payableTotal);
-  if (!Number.isFinite(target) || target < 0) return items;
-
-  const paidIdx = [];
-  let linesSum = 0;
-  items.forEach((it, idx) => {
-    if (isBundleRewardCartLine(it)) return;
-    const pay = linePayableMajor(it);
-    if (!(pay > 0.009)) return;
-    paidIdx.push(idx);
-    linesSum += pay;
-  });
-
-  if (!paidIdx.length || !(linesSum > target + 0.009)) return items;
-
-  const factor = target / linesSum;
-  const out = items.map((it) => ({ ...it }));
-  let allocated = 0;
-
-  paidIdx.forEach((idx, i) => {
-    const it = out[idx];
-    const prevLine = linePayableMajor(it);
-    const paidQty = getCartLinePaidQty(it);
-    if (!(paidQty > 0)) return;
-    let nextLine =
-      i === paidIdx.length - 1
-        ? Math.max(0, Math.round((target - allocated) * 100) / 100)
-        : Math.max(0, Math.round(prevLine * factor * 100) / 100);
-    allocated += nextLine;
-
-    const prevUnit = Number(it.price);
-    const sizeUnit = Number(it.selectedSize?.price);
-    const listCandidates = [
-      it.originalPrice,
-      it.compareAtPrice,
-      it.listPrice,
-      it.mrp,
-      it.selectedSize?.originalPrice,
-      Number.isFinite(sizeUnit) && sizeUnit > 0 ? sizeUnit : null,
-      Number.isFinite(prevUnit) && prevUnit > 0 ? prevUnit : null,
-    ]
-      .map((v) => (v != null ? Number(v) : NaN))
-      .filter((n) => Number.isFinite(n) && n > 0);
-    const listUnit = listCandidates.length ? Math.max(...listCandidates) : prevUnit;
-    const nextUnit = nextLine / paidQty;
-
-    const listUnitResolved =
-      Number.isFinite(listUnit) && listUnit > nextUnit + 1e-9
-        ? listUnit
-        : it.originalPrice;
-    const next = {
-      ...it,
-      lineTotal: nextLine,
-      total: nextLine,
-      price: nextUnit,
-      originalPrice: listUnitResolved,
-    };
-    if (it.selectedSize && typeof it.selectedSize === 'object') {
-      const sizeList =
-        Number.isFinite(listUnit) && listUnit > nextUnit + 1e-9
-          ? listUnit
-          : Number(it.selectedSize.originalPrice) > nextUnit + 1e-9
-            ? Number(it.selectedSize.originalPrice)
-            : it.selectedSize.originalPrice;
-      next.selectedSize = {
-        ...it.selectedSize,
-        price: nextUnit,
-        ...(sizeList != null && Number(sizeList) > nextUnit + 1e-9
-          ? { originalPrice: Number(sizeList) }
-          : {}),
-      };
-    }
-    out[idx] = next;
-  });
-
-  return out;
+export function allocateCartPayableOntoLines(items, _payableTotal) {
+  return Array.isArray(items) ? items : items || [];
 }
 

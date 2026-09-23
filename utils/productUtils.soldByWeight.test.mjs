@@ -4,11 +4,19 @@ import {
   getCartLineVariantLabel,
   sellableUnitFactor,
   lineTotalFromUnitPricing,
+  massAmountInKg,
 } from './productUtils.js';
 
 test('sellableUnitFactor is 1 for sold-by-weight even when unit_size is 0.25', () => {
   assert.equal(sellableUnitFactor({ soldByWeight: true, unit_size: 0.25 }), 1);
   assert.equal(sellableUnitFactor({ sold_by_weight: true, unitSize: 0.5 }), 1);
+});
+
+test('massAmountInKg converts gram packs that caused ₹119600 display', () => {
+  assert.equal(massAmountInKg(725, 'g'), 0.725);
+  assert.equal(massAmountInKg(725, 'kg'), 0.725);
+  assert.equal(massAmountInKg(0.25, 'kg'), 0.25);
+  assert.equal(lineTotalFromUnitPricing(165, 1, { unit: 'g', unit_size: 725 }), 119.625);
 });
 
 test('lineTotal for sold-by-weight is price × kg qty', () => {

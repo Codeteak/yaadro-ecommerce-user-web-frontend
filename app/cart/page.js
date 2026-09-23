@@ -19,7 +19,6 @@ import {
 import { minorToMajor } from "../../utils/currencyMinor";
 import {
   BXGY_COUPON_BLOCKED_MESSAGE,
-  allocateCartPayableOntoLines,
   normalizeCartLinesCatalogPricing,
   sumCartPaidUnits,
 } from "../../utils/cartPromotions";
@@ -453,16 +452,14 @@ function CartPageContent() {
   const totalQty = cartCount > 0 ? cartCount : sumCartPaidUnits(cartItems);
 
   /**
-   * Scale lines only to the trusted payable total (auto/coupon already in total).
-   * Never subtract bundle/BXGY free-gift ledger — that double-counts FREE lines and
-   * crushed paid-line prices (e.g. ₹15 / ₹26 with fake ₹50+ OFF while footer Save ₹5).
+   * Keep catalog line prices. Cart-level auto/coupon discounts belong in the bill
+   * summary only — never scale unit prices down to match payable (that invented
+   * fake per-line SAVE/OFF, e.g. ₹220 → ₹2.22).
    */
-  const displayCartItems = useMemo(() => {
-    const normalized = normalizeCartLinesCatalogPricing(cartItems);
-    const target = Number(displayCartTotal);
-    if (!Number.isFinite(target) || target < 0) return normalized;
-    return allocateCartPayableOntoLines(normalized, target);
-  }, [cartItems, displayCartTotal]);
+  const displayCartItems = useMemo(
+    () => normalizeCartLinesCatalogPricing(cartItems),
+    [cartItems]
+  );
 
   const offerGroups = useMemo(
     () => buildCartOfferGroups(displayCartItems),
