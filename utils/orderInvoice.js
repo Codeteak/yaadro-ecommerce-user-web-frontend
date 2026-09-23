@@ -261,9 +261,6 @@ async function buildTextPdf(opts) {
   y = wrapText(doc, nameLine, margin + 3, y + 6, contentW - 6, 4.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(55, 65, 81);
-  const addressLine = [addr.street || addr.address, addr.city]
-    .filter(Boolean)
-    .join(', ');
   y = wrapText(doc, addressLine || '—', margin + 3, y + 1, contentW - 6, 4.5);
   y += 8;
 

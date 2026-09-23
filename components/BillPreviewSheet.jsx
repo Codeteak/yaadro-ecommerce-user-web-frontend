@@ -177,9 +177,10 @@ export default function BillPreviewSheet({
                         .filter(Boolean)
                         .join(', ')}
                     </div>
-                  ) : (
-                    <div className="text-sm text-gray-500">—</div>
-                  )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500">—</div>
+                )}
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-gray-200">
