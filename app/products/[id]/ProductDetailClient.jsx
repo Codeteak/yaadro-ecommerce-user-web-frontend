@@ -802,16 +802,6 @@ export default function ProductDetailClient({ productId = null }) {
               </>
             ) : null}
 
-            {descriptionText ? (
-              <>
-                <DetailSectionTitle>Description</DetailSectionTitle>
-                <p className="mt-2 text-[13px] md:text-sm text-gray-600 leading-relaxed mb-5 whitespace-pre-wrap">
-                  {descriptionText}
-                </p>
-                <Divider />
-              </>
-            ) : null}
-
             {availableSizes.length > 1 && (
               <>
                 <DetailSectionTitle>Size / Variant</DetailSectionTitle>
@@ -844,6 +834,16 @@ export default function ProductDetailClient({ productId = null }) {
                 <Divider />
               </>
             )}
+
+            {descriptionText ? (
+              <>
+                <DetailSectionTitle>Description</DetailSectionTitle>
+                <p className="mt-2 text-[13px] md:text-sm text-gray-600 leading-relaxed mb-5 whitespace-pre-wrap">
+                  {descriptionText}
+                </p>
+                <Divider />
+              </>
+            ) : null}
 
             {SHOW_PRODUCT_EXTENDED_SECTIONS && (
               <>
