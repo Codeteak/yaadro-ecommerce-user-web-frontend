@@ -11,8 +11,8 @@ import {
   resolveProductWeightAndUnit,
 } from './productUtils.js';
 
-/** Customer can buy step × 1..N (e.g. 250 g → 250, 500, 750, 1 kg). */
-const WEIGHT_STEP_PACK_COUNTS = [1, 2, 3, 4];
+/** Customer can buy step × 1 or × 2 only (e.g. 250 g → 250 g, 500 g). */
+const WEIGHT_STEP_PACK_COUNTS = [1, 2];
 
 function isSoldByWeight(product) {
   return product?.soldByWeight === true || product?.sold_by_weight === true;
@@ -57,7 +57,7 @@ function isMassUnit(unit) {
 
 /**
  * kg/g sold in a step (250 g stored as 0.25 kg).
- * Returns chips for step × 1..4. Prices are amount × price per base unit.
+ * Returns chips for step × 1 and × 2. Prices are amount × price per base unit.
  * @param {object} product
  * @param {{ forceStep?: boolean }} [opts] — when true, also build for step === 1 (1 kg chips)
  */
@@ -96,7 +96,7 @@ function packCountOf(size) {
 }
 
 /**
- * Sold-by-weight: same step chips (250 g × 1..4). Qty added to cart is kg (`weight`).
+ * Sold-by-weight: same step chips (250 g × 1 and × 2). Qty added to cart is kg (`weight`).
  */
 function buildSoldByWeightSizes(product) {
   const stepped = buildWeightStepSizes(product, { forceStep: true });
