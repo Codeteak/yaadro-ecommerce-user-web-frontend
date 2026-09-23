@@ -11,9 +11,11 @@ import {
 } from './cartPromotions';
 import {
   formatWeightUnitLabel,
+  massAmountInKg,
   normalizeProductUnit,
   resolveProductWeightAndUnit,
 } from './productUtils';
+import { isSoldByWeightProduct } from './productSizeSelection';
 
 function formatSizeKeyWeight(weight) {
   if (weight == null || weight === '') return '';
@@ -27,12 +29,7 @@ function formatSizeKeyWeight(weight) {
 /** Stable variant key — same rules for card probe and persisted cart lines (g/gm/GM → gm). */
 export function cartLineSizeKey(item) {
   // Sold-by-weight: all chips merge into one kg line (qty accumulates).
-  if (
-    item?.soldByWeight === true ||
-    item?.sold_by_weight === true ||
-    item?.product?.soldByWeight === true ||
-    item?.product?.sold_by_weight === true
-  ) {
+  if (isSoldByWeightProduct(item)) {
     return 'sbw';
   }
   let weight = null;
@@ -165,8 +162,7 @@ export function buildPersistableCartLineFromProduct(product) {
   const primary = realUrls[0] || urls[0] || PRODUCT_IMAGE_PLACEHOLDER;
 
   const selectedSize = product.selectedSize ?? null;
-  const soldByWeightEarly =
-    product.soldByWeight === true || product.sold_by_weight === true;
+  const soldByWeightEarly = isSoldByWeightProduct(product);
   const sizeKey = cartLineSizeKey({
     selectedSize,
     soldByWeight: soldByWeightEarly,
@@ -251,8 +247,7 @@ export function buildPersistableCartLineFromProduct(product) {
   const { weight, unit } = resolveProductWeightAndUnit(product);
   const packLabel = formatWeightUnitLabel(weight, unit);
   const unitSize = product.unit_size ?? product.unitSize;
-  const soldByWeight =
-    product.soldByWeight === true || product.sold_by_weight === true;
+  const soldByWeight = isSoldByWeightProduct(product);
 
   const leanProduct = {
     id: productId ?? id,
@@ -291,7 +286,12 @@ export function buildPersistableCartLineFromProduct(product) {
           // Catalog showcasing step (0.25) for cart +/-; unit_size persist is "1".
           weightStepKg: (() => {
             const n = Number(unitSize);
-            return Number.isFinite(n) && n > 0 ? n : 1;
+            if (!Number.isFinite(n) || !(n > 0)) return 0.25;
+            const unitHint = product.unit || product.base_unit || product.baseUnit || 'kg';
+            const kg = massAmountInKg(n, unitHint);
+            if (kg != null && kg > 0) return kg;
+            if (n > 20) return Math.round((n / 1000) * 10000) / 10000;
+            return Math.round(n * 10000) / 10000;
           })(),
         }
       : {}),
@@ -304,9 +304,7 @@ export function buildPersistableCartLineFromProduct(product) {
 }
 
 export function addOrMergeCartLine(prevItems, persistableLine, addQty) {
-  const soldByWeight =
-    persistableLine?.soldByWeight === true ||
-    persistableLine?.sold_by_weight === true;
+  const soldByWeight = isSoldByWeightProduct(persistableLine);
   const raw = Number(addQty);
   const safeAdd = soldByWeight
     ? Math.max(0.0001, Math.round((Number.isFinite(raw) ? raw : 0) * 10000) / 10000)

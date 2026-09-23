@@ -16,6 +16,15 @@ import { normalizeStorefrontProductPricing } from './storefrontProductPricing';
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function coerceSoldByWeightFlag(value) {
+  if (value === true || value === 1) return true;
+  if (typeof value === 'string') {
+    const s = value.trim().toLowerCase();
+    return s === 'true' || s === 't' || s === 'yes' || s === '1';
+  }
+  return false;
+}
+
 const SLUG_MAP_KEY = 'yaadro_product_slug_by_id_v1';
 const inMemorySlugById = new Map();
 
@@ -233,9 +242,8 @@ function transformProduct(apiProduct) {
             ? String(apiProduct.unitSize).trim()
             : '1',
       soldByWeight:
-        apiProduct.sold_by_weight === true ||
-        apiProduct.soldByWeight === true ||
-        false,
+        coerceSoldByWeightFlag(apiProduct.sold_by_weight) ||
+        coerceSoldByWeightFlag(apiProduct.soldByWeight),
       packSize: apiProduct.pack_size ?? apiProduct.packSize ?? '',
       brand: apiProduct.brand || '',
       ingredients: apiProduct.ingredients || '',
@@ -250,8 +258,6 @@ function transformProduct(apiProduct) {
       thumbnail: apiProduct.thumbnail || null,
       categoryId: apiProduct.category_id || null,
       categoryObj: apiProduct.category || null,
-      soldByWeight:
-        apiProduct.soldByWeight === true || apiProduct.sold_by_weight === true,
       base_unit:
         apiProduct.base_unit != null
           ? String(apiProduct.base_unit).trim()
@@ -334,9 +340,8 @@ function transformProduct(apiProduct) {
           ? String(apiProduct.unitSize).trim()
           : undefined,
     soldByWeight:
-      apiProduct.sold_by_weight === true ||
-      apiProduct.soldByWeight === true ||
-      false,
+      coerceSoldByWeightFlag(apiProduct.sold_by_weight) ||
+      coerceSoldByWeightFlag(apiProduct.soldByWeight),
     packSize: apiProduct.packSize || '',
     brand: apiProduct.brand || '',
     sku: apiProduct.sku || '',
@@ -370,8 +375,6 @@ function transformProduct(apiProduct) {
     shop: apiProduct.shop || null,
     createdAt: apiProduct.createdAt || '',
     updatedAt: apiProduct.updatedAt || '',
-    soldByWeight:
-      apiProduct.soldByWeight === true || apiProduct.sold_by_weight === true,
     base_unit:
       apiProduct.base_unit != null
         ? String(apiProduct.base_unit).trim()

@@ -26,6 +26,7 @@ import {
   persistCartLinesImmediate,
   sortCartItemsForDisplay,
 } from '../utils/cartLinePersist';
+import { isSoldByWeightProduct } from '../utils/productSizeSelection';
 import {
   readSelectedCouponCode,
   readSelectedCouponCodes,
@@ -433,7 +434,7 @@ export function CartProvider({ children }) {
   }, [isClient, lastActivityTime, localCartItems.length]);
 
   const addToCart = async (product, quantity = 1) => {
-    const soldByWeight = product?.soldByWeight === true || product?.sold_by_weight === true;
+    const soldByWeight = isSoldByWeightProduct(product);
     const rawQty = Number(quantity);
     const addQty = soldByWeight
       ? Math.max(0.0001, Math.round((Number.isFinite(rawQty) ? rawQty : 0) * 10000) / 10000)
@@ -503,8 +504,7 @@ export function CartProvider({ children }) {
     );
     if (!item) return;
 
-    const soldByWeight =
-      item.soldByWeight === true || item.sold_by_weight === true;
+    const soldByWeight = isSoldByWeightProduct(item);
     const raw = Number(quantity);
     const nextQty = soldByWeight
       ? Math.round((Number.isFinite(raw) ? raw : 0) * 10000) / 10000

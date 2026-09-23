@@ -15,6 +15,7 @@ import {
   formatWeightUnitLabel,
   getEffectivePrice,
   getListPrice,
+  hasSoldByWeightFlag,
   massAmountInKg,
   parseProductUnitSize,
   resolveProductWeightAndUnit,
@@ -24,7 +25,7 @@ import {
 const WEIGHT_STEP_PACK_COUNTS = [1, 2];
 
 function isSoldByWeight(product) {
-  return product?.soldByWeight === true || product?.sold_by_weight === true;
+  return hasSoldByWeightFlag(product);
 }
 
 export function isSoldByWeightProduct(product) {
@@ -34,15 +35,33 @@ export function isSoldByWeightProduct(product) {
   return false;
 }
 
+/**
+ * Live pay/list for a weight-step chip (per-kg catalog × kg amount).
+ * Never show the full kg price for a 250 g chip.
+ */
+export function weightStepLinePrices(product, size) {
+  if (!product || !size?.weightStep) return null;
+  const kg = Number(size.weight);
+  if (!Number.isFinite(kg) || !(kg > 0)) return null;
+  const listKg = getListPrice(product) || Number(product.price) || 0;
+  const payKg = getEffectivePrice(product) || listKg;
+  if (!Number.isFinite(payKg) || !(payKg > 0)) return null;
+  return {
+    list: Math.round(listKg * kg * 100) / 100,
+    pay: Math.round(payKg * kg * 100) / 100,
+  };
+}
+
 function resolveCatalogStepKg(product) {
   const { weight, unit } = resolveProductWeightAndUnit(product);
+  // Prefer catalog unit_size (admin order step) over display weight fields.
   const raw = Number(
-    weight ??
-      parseProductUnitSize(product) ??
+    parseProductUnitSize(product) ??
       product?.weightStepKg ??
       product?.product?.weightStepKg ??
       product?.product?.unit_size ??
-      product?.product?.unitSize
+      product?.product?.unitSize ??
+      weight
   );
   if (!Number.isFinite(raw) || raw <= 0) return null;
   const fromMass = massAmountInKg(raw, unit || 'kg');

@@ -16,7 +16,7 @@ import {
   resolveProductWeightAndUnit,
 } from '../utils/productUtils';
 import { getProductOfferDisplay } from '../utils/offerDisplay';
-import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep } from '../utils/productSizeSelection';
+import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep, weightStepLinePrices, isSoldByWeightProduct } from '../utils/productSizeSelection';
 import { tapFeedback } from '../utils/haptics';
 import PriceDisplay from './ui/PriceDisplay';
 import OfferRibbon from './ui/OfferRibbon';
@@ -73,11 +73,23 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   /** Holds stepper visible until cart context catches up (API / size-key races on mobile). */
   const [pendingCartQty, setPendingCartQty] = useState(0);
 
-  // List (MRP) per unit for selected size; effective = offer/sale when present (keeps paise).
-  const basePrice = parseFloat(activeSize ? activeSize.price : product.price) || 0;
-  const currentPrice = getEffectivePrice(product, basePrice);
-  const strikeList =
-    currentPrice < basePrice - 1e-9
+  const stepLinePrices = useMemo(
+    () => weightStepLinePrices(product, activeSize),
+    [product, activeSize]
+  );
+
+  // Custom weight chips: show pay for the selected step (e.g. ₹11.25 for 250 g), never full ₹/kg.
+  const basePrice = stepLinePrices
+    ? stepLinePrices.list
+    : parseFloat(activeSize ? activeSize.price : product.price) || 0;
+  const currentPrice = stepLinePrices
+    ? stepLinePrices.pay
+    : getEffectivePrice(product, basePrice);
+  const strikeList = stepLinePrices
+    ? stepLinePrices.list > stepLinePrices.pay + 1e-9
+      ? stepLinePrices.list
+      : null
+    : currentPrice < basePrice - 1e-9
       ? basePrice
       : legacyOriginal != null && legacyOriginal > currentPrice
         ? legacyOriginal
@@ -108,9 +120,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     activeSize?.weightStep === true || availableSizes.some((size) => size.weightStep === true);
   const showPackChips =
     availableSizes.length > 1 &&
-    (weightStep ||
-      product.soldByWeight === true ||
-      product.sold_by_weight === true);
+    (weightStep || isSoldByWeightProduct(product));
 
   const bundleRule = useMemo(() => getPrimaryBundleRule(product), [product]);
   const offerDisplay = useMemo(() => getProductOfferDisplay(product), [product]);
@@ -639,7 +649,10 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           <div className="mt-1 flex flex-wrap gap-1" onPointerDown={stopCartBubble}>
             {availableSizes.map((size) => {
               const active = sizePackCount(activeSize) === sizePackCount(size);
-              const chipPay = getEffectivePrice(product, parseFloat(size.price));
+              const chipPrices = weightStepLinePrices(product, size);
+              const chipPay = chipPrices
+                ? chipPrices.pay
+                : getEffectivePrice(product, parseFloat(size.price));
               return (
                 <button
                   key={`${size.packCount}-${size.weight}-${size.unit}`}
