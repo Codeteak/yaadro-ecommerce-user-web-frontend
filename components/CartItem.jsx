@@ -6,7 +6,7 @@ import {
   getBundleFreeExtraOnPaidLine,
   getCartLinePaidQty,
 } from '../utils/cartPromotions';
-import { cartQuantityStep } from '../utils/productSizeSelection';
+import { cartQuantityStep, isSoldByWeightProduct } from '../utils/productSizeSelection';
 import { useWishlist } from '../context/WishlistContext';
 import { formatRupeeINR, getCartLineVariantLabel } from '../utils/productUtils';
 import ProductImageWithFallback from './ProductImageWithFallback';
@@ -84,6 +84,13 @@ export default function CartItem({ item }) {
       : Number.isFinite(unitPrice)
         ? unitPrice
         : 0;
+  // Sold-by-weight lines store ₹/kg; badge must show what the customer pays for this weight
+  // (e.g. ₹11.25 for 250 g), not the per-kg rate next to "250 g".
+  const soldByWeightLine = isSoldByWeightProduct(item);
+  const displayBadgePrice =
+    !isBundleReward && soldByWeightLine && Number.isFinite(lineTotal) && lineTotal >= 0
+      ? lineTotal
+      : payableUnit;
   const originalPriceCandidates = [
     item.originalPrice,
     item.compareAtPrice,
@@ -167,16 +174,25 @@ export default function CartItem({ item }) {
             </span>
           ) : (
             <span className="rounded-md bg-violet-600 px-2 py-1 text-xs font-semibold text-white">
-              ₹{formatRupeeINR(payableUnit)}
+              ₹{formatRupeeINR(displayBadgePrice)}
             </span>
           )}
           {!isBundleReward && hasDiscount && (
             <>
               <span className="text-[11px] text-gray-500 line-through">
-                ₹{formatRupeeINR(listUnit)}
+                ₹{formatRupeeINR(
+                  soldByWeightLine && listUnit != null && paidQty > 0
+                    ? listUnit * paidQty
+                    : listUnit
+                )}
               </span>
               <span className="text-[11px] text-violet-700 font-semibold">
-                ₹{formatRupeeINR(discountValue)} OFF
+                ₹{formatRupeeINR(
+                  soldByWeightLine && listUnit != null && paidQty > 0
+                    ? listUnit * paidQty - lineTotal
+                    : discountValue
+                )}{' '}
+                OFF
               </span>
             </>
           )}

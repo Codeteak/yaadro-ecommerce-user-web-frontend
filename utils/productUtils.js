@@ -4,6 +4,25 @@
  * Storefront catalog: `price` = MRP (list), `offerPrice` = what customer pays when on sale.
  * Legacy: `originalPrice` > `price` means `price` is already the sale price.
  */
+function coerceSoldByWeightFlag(value) {
+  if (value === true || value === 1) return true;
+  if (typeof value === 'string') {
+    const s = value.trim().toLowerCase();
+    return s === 'true' || s === 't' || s === 'yes' || s === '1';
+  }
+  return false;
+}
+
+export function hasSoldByWeightFlag(item) {
+  if (!item || typeof item !== 'object') return false;
+  return (
+    coerceSoldByWeightFlag(item.soldByWeight) ||
+    coerceSoldByWeightFlag(item.sold_by_weight) ||
+    coerceSoldByWeightFlag(item.product?.soldByWeight) ||
+    coerceSoldByWeightFlag(item.product?.sold_by_weight)
+  );
+}
+
 export function hasActiveOffer(product) {
   if (!product || typeof product !== 'object') return false;
   const list = parseFloat(product.price);
@@ -546,7 +565,7 @@ export function massAmountInKg(amount, unit) {
  */
 export function sellableUnitFactor(item) {
   if (!item || typeof item !== 'object') return 1;
-  if (item.soldByWeight === true || item.sold_by_weight === true) return 1;
+  if (hasSoldByWeightFlag(item)) return 1;
   const n = parseProductUnitSize(item);
   if (n == null || !(n > 0)) return 1;
   const unit = parseProductUnitFromFields(item);
@@ -668,8 +687,7 @@ export function formatWeightUnitLabel(weight, unit) {
 /** Subtitle under cart line name: pack (`unit_size` + `unit`) or API size label. */
 export function getCartLineVariantLabel(item) {
   if (!item || typeof item !== 'object') return '';
-  const soldByWeight =
-    item.soldByWeight === true || item.sold_by_weight === true;
+  const soldByWeight = hasSoldByWeightFlag(item);
   const qty = Number(item.quantity);
   const unitSize = Number(
     item.unit_size ?? item.unitSize ?? item.unit_size_snapshot ?? item.unitSizeSnapshot

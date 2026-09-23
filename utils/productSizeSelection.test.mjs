@@ -8,6 +8,7 @@ import {
   cartQuantityStep,
   isSoldByWeightProduct,
   hasCustomWeightStep,
+  weightStepLinePrices,
 } from './productSizeSelection.js';
 import {
   formatOrderLineWeight,
@@ -137,6 +138,39 @@ test('isSoldByWeightProduct reads camel and snake flags', () => {
   assert.equal(isSoldByWeightProduct({ sold_by_weight: true }), true);
   assert.equal(isSoldByWeightProduct({ product: { soldByWeight: true } }), true);
   assert.equal(isSoldByWeightProduct({ id: 'x' }), false);
+});
+
+test('banana ₹45/kg with 250 g custom step shows ₹11.25 and 500 g chip', () => {
+  const product = {
+    id: 'banana',
+    price: 45,
+    unit: 'kg',
+    unit_size: '0.25',
+    soldByWeight: true,
+  };
+  assert.equal(hasCustomWeightStep(product), true);
+  const sizes = buildAvailableSizes(product);
+  assert.equal(sizes.length, 2);
+  assert.equal(sizes[0].label, '250 g');
+  assert.equal(sizes[1].label, '500 g');
+  assert.equal(sizes[0].payPrice, 11.25);
+  assert.equal(sizes[1].payPrice, 22.5);
+  const step = weightStepLinePrices(product, sizes[0]);
+  assert.equal(step.pay, 11.25);
+  assert.equal(step.list, 11.25);
+  assert.equal(sizeAddQuantity(product, sizes[0]), 0.25);
+  assert.equal(sizeAddQuantity(product, sizes[1]), 0.5);
+});
+
+test('sold_by_weight string true still builds custom weight chips', () => {
+  const sizes = buildAvailableSizes({
+    price: 45,
+    unit: 'kg',
+    unit_size: 0.25,
+    sold_by_weight: 'true',
+  });
+  assert.equal(sizes.length, 2);
+  assert.equal(sizes[0].payPrice, 11.25);
 });
 
 test('gram-scale unit_size 725 with ₹165 does NOT show ₹119625 chips', () => {

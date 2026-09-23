@@ -30,7 +30,7 @@ import {
   resolveProductWeightAndUnit,
   stripPackFromProductName,
 } from '../../../utils/productUtils';
-import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep } from '../../../utils/productSizeSelection';
+import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep, weightStepLinePrices } from '../../../utils/productSizeSelection';
 import Container from '../../../components/Container';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
 import PdpOfferPanel from '../../../components/promotions/PdpOfferPanel';
@@ -247,6 +247,7 @@ export default function ProductDetailClient({ productId = null }) {
     : product
     ? parseFloat(product.price)
     : 0;
+  const stepLinePrices = weightStepLinePrices(product, activeSize);
   const resolvedPack = product ? resolveProductWeightAndUnit(product) : { weight: null, unit: '' };
   const displayWeight = activeSize?.label
     ? activeSize.label
@@ -312,9 +313,17 @@ export default function ProductDetailClient({ productId = null }) {
 
   const legacyOriginal =
     product?.originalPrice != null ? parseFloat(product.originalPrice) : null;
-  const effectivePrice = product ? getEffectivePrice(product, listUnit) : 0;
-  const mrpDisplay =
-    product && effectivePrice < listUnit - 1e-9
+  // Custom weight: show ₹ for the selected step (250 g), not the full ₹/kg.
+  const effectivePrice = stepLinePrices
+    ? stepLinePrices.pay
+    : product
+      ? getEffectivePrice(product, listUnit)
+      : 0;
+  const mrpDisplay = stepLinePrices
+    ? stepLinePrices.list > stepLinePrices.pay + 1e-9
+      ? stepLinePrices.list
+      : null
+    : product && effectivePrice < listUnit - 1e-9
       ? listUnit
       : legacyOriginal != null && legacyOriginal > effectivePrice
         ? legacyOriginal
@@ -825,7 +834,13 @@ export default function ProductDetailClient({ productId = null }) {
                       >
                         {chipLabel} — ₹
                         {formatRupeeINR(
-                          product ? getEffectivePrice(product, parseFloat(size.price)) : parseFloat(size.price)
+                          (() => {
+                            const step = weightStepLinePrices(product, size);
+                            if (step) return step.pay;
+                            return product
+                              ? getEffectivePrice(product, parseFloat(size.price))
+                              : parseFloat(size.price);
+                          })()
                         )}
                       </button>
                     );
