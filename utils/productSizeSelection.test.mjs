@@ -24,28 +24,24 @@ test('buildAvailableSizes derives single size from product price', () => {
   assert.equal(sizes[0].price, 99);
 });
 
-test('0.25 kg step exposes 250 g through 1 kg chips (×1…4)', () => {
+test('0.25 kg step exposes 250 g and 500 g chips only (×1…2)', () => {
   const sizes = buildAvailableSizes({
     id: 'apple',
     unit: 'kg',
     unit_size: 0.25,
     price: 100,
   });
-  assert.equal(sizes.length, 4);
+  assert.equal(sizes.length, 2);
   assert.equal(sizes[0].label, '250 g');
   assert.equal(sizes[0].price, 25);
   assert.equal(sizes[0].packCount, 1);
   assert.equal(sizes[1].label, '500 g');
   assert.equal(sizes[1].price, 50);
-  assert.equal(sizes[2].label, '750 g');
-  assert.equal(sizes[2].price, 75);
-  assert.equal(sizes[3].label, '1 kg');
-  assert.equal(sizes[3].price, 100);
-  assert.equal(sizes[3].packCount, 4);
+  assert.equal(sizes[1].packCount, 2);
   assert.equal(sizes[0].weightStep, true);
 });
 
-test('sold_by_weight with 250 g step uses kg qty chips', () => {
+test('sold_by_weight with 250 g step uses kg qty chips ×1 and ×2 only', () => {
   const sizes = buildAvailableSizes({
     id: 'orange',
     unit: 'kg',
@@ -53,12 +49,13 @@ test('sold_by_weight with 250 g step uses kg qty chips', () => {
     sold_by_weight: true,
     price: 80,
   });
-  assert.equal(sizes.length, 4);
+  assert.equal(sizes.length, 2);
   assert.equal(sizes[0].label, '250 g');
   assert.equal(sizes[0].weight, 0.25);
   assert.equal(sizes[0].payPrice, 20);
-  assert.equal(sizes[3].label, '1 kg');
-  assert.equal(sizes[3].weight, 1);
+  assert.equal(sizes[1].label, '500 g');
+  assert.equal(sizes[1].weight, 0.5);
+  assert.equal(sizes[1].payPrice, 40);
 });
 
 test('soldByWeight camelCase also builds step chips', () => {
@@ -69,12 +66,12 @@ test('soldByWeight camelCase also builds step chips', () => {
     soldByWeight: true,
     price: 40,
   });
-  assert.equal(sizes.length, 4);
+  assert.equal(sizes.length, 2);
   assert.equal(sizes[1].label, '500 g');
   assert.equal(sizes[1].payPrice, 20);
 });
 
-test('sold_by_weight with unit_size 1 exposes 1–4 kg chips', () => {
+test('sold_by_weight with unit_size 1 exposes 1 kg and 2 kg chips only', () => {
   const sizes = buildAvailableSizes({
     id: 'potato',
     unit: 'kg',
@@ -82,11 +79,11 @@ test('sold_by_weight with unit_size 1 exposes 1–4 kg chips', () => {
     sold_by_weight: true,
     price: 30,
   });
-  assert.equal(sizes.length, 4);
+  assert.equal(sizes.length, 2);
   assert.equal(sizes[0].label, '1 kg');
   assert.equal(sizes[0].weight, 1);
-  assert.equal(sizes[3].weight, 4);
-  assert.equal(sizes[3].payPrice, 120);
+  assert.equal(sizes[1].weight, 2);
+  assert.equal(sizes[1].payPrice, 60);
 });
 
 test('sizeAddQuantity uses kg amount for sold-by-weight chips', () => {
@@ -100,8 +97,7 @@ test('sizeAddQuantity uses kg amount for sold-by-weight chips', () => {
   const sizes = buildAvailableSizes(product);
   assert.equal(sizeAddQuantity(product, sizes[0]), 0.25);
   assert.equal(sizeAddQuantity(product, sizes[1]), 0.5);
-  assert.equal(sizeAddQuantity(product, sizes[3]), 1);
-  assert.equal(sizePackCount(sizes[3]), 4);
+  assert.equal(sizePackCount(sizes[1]), 2);
 });
 
 test('sizeAddQuantity uses pack count for packed weight-step products', () => {
