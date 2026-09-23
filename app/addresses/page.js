@@ -21,6 +21,7 @@ import {
   RightRegular as ChevronRight,
   Share2Regular as Share2,
 } from '../../components/icons';
+import { formatAddressDisplay, formatAddressShareText } from '../../utils/formatAddress';
 
 export default function AddressesPage() {
   const router = useRouter();

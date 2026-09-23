@@ -47,6 +47,7 @@ import CheckoutPageSkeleton from "../../components/skeletons/CheckoutPageSkeleto
 import OfferGroupCard from "../../components/promotions/OfferGroupCard";
 import CouponThresholdBanner from "../../components/promotions/CouponThresholdBanner";
 import { BRAND_PRIMARY_BTN } from "../../components/ui/brandButton";
+import { formatAddressDisplay } from "../../utils/formatAddress";
 import { AddressCardSkeleton } from "../../components/skeletons/primitives";
 
 function isAddressNotServiceableError(err) {
@@ -154,10 +155,7 @@ function AddressCard({ address, selected, onSelect, onEdit }) {
     Work: "bg-blue-100 text-blue-800",
   };
   const pill = labelColors[address.label] || "bg-gray-100 text-gray-600";
-  const streetLine =
-    [address.line1, address.line2].filter(Boolean).join(", ") ||
-    address.street ||
-    address.address;
+  const addressLine = formatAddressDisplay(address);
 
   return (
     <div

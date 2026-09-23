@@ -3,8 +3,14 @@
 import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryImage';
+import {
+  isAllCategorySentinel,
+  isAllNamedCategory,
+} from '../products/productsBrowseConstants';
 import { Bone } from '../skeletons/primitives';
 import SmoothDragRail from '../motion/SmoothDragRail';
+
+const ALL_SENTINEL = { id: 'all', name: 'All' };
 
 function categoryKey(category) {
   return String(category?.id ?? category?._id ?? '');
@@ -122,8 +128,6 @@ export default function HomeCategoryRail({
       </div>
     );
   }
-
-  if (!categories.length) return null;
 
   return (
     <div className="mt-5">

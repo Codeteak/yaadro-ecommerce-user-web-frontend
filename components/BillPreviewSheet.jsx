@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseRegular as X, DownloadRegular as Download } from './icons';
+import { formatAddressDisplay } from '../utils/formatAddress';
 
 function formatMoney(v) {
   const n = typeof v === 'string' ? parseFloat(v) : typeof v === 'number' ? v : NaN;
@@ -176,10 +177,9 @@ export default function BillPreviewSheet({
                         .filter(Boolean)
                         .join(', ')}
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-sm text-gray-500">—</div>
-                )}
+                  ) : (
+                    <div className="text-sm text-gray-500">—</div>
+                  )}
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-gray-200">

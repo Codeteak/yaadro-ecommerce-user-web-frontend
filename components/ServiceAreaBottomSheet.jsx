@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import {
   AlertRegular as AlertTriangle,
   ArrowLeftRegular as ArrowLeft,
@@ -9,11 +10,14 @@ import {
   Loading2Regular as Loader2,
   MapPinRegular as MapPin,
   NavigationRegular as Navigation,
+  PencilRegular as Pencil,
 } from './icons';
 import { useLocationService } from '../context/LocationServiceContext';
+import { useAddress } from '../context/AddressContext';
 import { checkDeliveryLocation } from '../utils/storefrontLocationApi';
 import { getDefaultMapCenter, reverseGeocode } from '../utils/geocoding';
 import { getStoreCoordinates } from '../utils/storeLocation';
+import { buildMapStreetArea } from '../utils/formatAddress';
 import AnimatedSheet from './motion/AnimatedSheet';
 
 const AddressMapPicker = dynamic(() => import('./AddressMapPicker'), {
@@ -43,8 +47,11 @@ function formatCoords(point) {
 
 function formatCompactAddress(result) {
   if (!result) return null;
-  const compact = [result.line1, result.line2, result.city].filter(Boolean).join(', ').trim();
-  if (compact) return compact;
+  const compact = buildMapStreetArea(result);
+  if (compact) {
+    const withCity = [compact, result.city].filter(Boolean).join(', ').trim();
+    return withCity || compact;
+  }
   const display = (result.displayName || '').trim();
   return display || null;
 }
@@ -144,6 +151,8 @@ function MapPinAddressLabel({ point }) {
 }
 
 export default function ServiceAreaBottomSheet() {
+  const router = useRouter();
+  const { addresses = [] } = useAddress();
   const {
     isChecking,
     serviceable,
@@ -268,6 +277,16 @@ export default function ServiceAreaBottomSheet() {
     setMapMode(false);
   }, [confirmLocationAtPin, draftPin]);
 
+  const handleEditAddress = useCallback(() => {
+    closeServiceAreaSheet();
+    const existing = addresses?.[0];
+    if (existing?.id) {
+      router.push(`/add/address?from=/&id=${encodeURIComponent(existing.id)}`);
+      return;
+    }
+    router.push('/add/address?from=/');
+  }, [addresses, closeServiceAreaSheet, router]);
+
   if (!showServiceAreaSheet) return null;
 
   const onClose = () => closeServiceAreaSheet();
@@ -293,6 +312,8 @@ export default function ServiceAreaBottomSheet() {
     effectiveStoreLocation,
     pinPreview,
     onConfirmPin: handleConfirmPin,
+    onEditAddress: handleEditAddress,
+    hasSavedAddress: Boolean(addresses?.[0]?.id),
   };
 
   return (
@@ -345,6 +366,8 @@ function SheetBody({
   effectiveStoreLocation,
   pinPreview,
   onConfirmPin,
+  onEditAddress,
+  hasSavedAddress,
 }) {
   const distLabel = formatKm(distanceM);
   const radiusLabel = formatKm(maxRadiusM);
@@ -583,6 +606,23 @@ function SheetBody({
             Pin on map manually
           </button>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-gray-100 bg-white p-3 mb-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">
+          Delivery details
+        </p>
+        <button
+          type="button"
+          onClick={onEditAddress}
+          className="inline-flex w-full items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold text-gray-800 hover:bg-gray-100"
+        >
+          <Pencil size={16} className="w-4 h-4" />
+          {hasSavedAddress ? 'Edit your address' : 'Add address details'}
+        </button>
+        <p className="mt-2 text-[11px] text-gray-500 leading-snug">
+          Add flat, room, or building number so delivery finds you easily.
+        </p>
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end mt-1">

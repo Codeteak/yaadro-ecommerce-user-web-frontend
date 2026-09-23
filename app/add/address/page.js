@@ -28,6 +28,7 @@ import { getStoreCoordinates } from '../../../utils/storeLocation';
 import { checkDeliveryLocation } from '../../../utils/storefrontLocationApi';
 import { useLocationService } from '../../../context/LocationServiceContext';
 import { sanitizeAddressNotes } from '../../../utils/addressApi';
+import { buildMapStreetArea, sanitizeStoredStreetArea } from '../../../utils/formatAddress';
 
 // Leaflet uses `window` at import time — load only on the client.
 const AddressMapPicker = dynamic(
@@ -44,6 +45,8 @@ function buildAddressFromExisting(addr) {
   if (!addr) return null;
   // Apartment / building is customer-typed — do not seed from street/geocode.
   const line1 = String(addr.line1 || addr.apartment || addr.flat || addr.building || '').trim();
+  // line2 is street/area only — strip leftover city/state/PIN from older saves.
+  const line2 = sanitizeStoredStreetArea(String(addr.line2 || '').trim(), addr);
   return {
     label: addr.label || 'Home',
     line1,
@@ -382,7 +385,7 @@ export default function AddAddressPage() {
     }
 
     return { errors, ok: Object.keys(errors).length === 0 };
-  }, [form, isEdit, needsName, needsPhone, nameDraft, phoneDraft]);
+  }, [form, needsName, needsPhone, nameDraft, phoneDraft]);
 
   const err = (key) => (touched[key] ? validation.errors[key] : '');
   const inputCls = (key) =>
@@ -570,8 +573,8 @@ export default function AddAddressPage() {
 
   // Resolved-address preview text (shown on step 1).
   const previewLine1 =
-    resolvedAddress?.line1 ||
-    [resolvedAddress?.landmark, resolvedAddress?.line2].filter(Boolean).join(', ') ||
+    buildMapStreetArea(resolvedAddress) ||
+    resolvedAddress?.landmark ||
     'Pinned location';
   const previewLine2 =
     resolvedAddress?.city ||

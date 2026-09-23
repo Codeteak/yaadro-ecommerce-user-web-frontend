@@ -2,6 +2,8 @@
  * Shared HTML invoice builder + download helpers for order-success / order details.
  */
 
+import { formatAddressDisplay } from './formatAddress';
+
 function money(v) {
   const n = typeof v === 'string' ? parseFloat(v) : Number(v);
   return Number.isFinite(n) ? `Rs.${n.toFixed(2)}` : '—';
@@ -49,6 +51,7 @@ export function buildBillHtml({
 } = {}) {
   const items = order?.items || [];
   const addr = order?.deliveryAddress || order?.address || {};
+  const addressLine = formatAddressDisplay(addr);
   const createdAt = order?.createdAt ? new Date(order.createdAt).toLocaleString() : '';
   const orderNumber = order?.orderNumber || '';
   const payment = paymentStatus || order?.paymentStatus || 'success';
@@ -178,6 +181,7 @@ async function buildTextPdf(opts) {
   const order = opts.order || {};
   const items = order.items || [];
   const addr = order.deliveryAddress || order.address || {};
+  const addressLine = formatAddressDisplay(addr);
   const brand = String(opts.shopName || 'Yaadro').trim() || 'Yaadro';
   const orderNumber = order.orderNumber || opts.orderId || '';
   const createdAt = order.createdAt ? new Date(order.createdAt).toLocaleString() : '—';

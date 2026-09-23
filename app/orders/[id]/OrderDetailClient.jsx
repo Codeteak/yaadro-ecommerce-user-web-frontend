@@ -34,6 +34,7 @@ import {
 import { buildOrderOfferGroups } from "../../../utils/orderOfferGroups";
 import { formatOrderLineWeight } from "../../../utils/productUtils";
 import { downloadBillPdf } from "../../../utils/orderInvoice";
+import { formatAddressDisplay } from "../../../utils/formatAddress";
 import {
   hasOrderDisplayAddress,
   savedAddressToOrderAddress,

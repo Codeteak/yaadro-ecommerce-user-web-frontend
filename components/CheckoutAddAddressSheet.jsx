@@ -9,6 +9,7 @@ import { normalizePhoneForApi } from '../utils/otpVerifyPayload';
 import IndianPhoneInput from './IndianPhoneInput';
 import { validateAddressCheckoutForm } from '../lib/validations/address.schema';
 import { sanitizeAddressNotes } from '../utils/addressApi';
+import { buildMapStreetArea, sanitizeStoredStreetArea } from '../utils/formatAddress';
 import { checkDeliveryLocation } from '../utils/storefrontLocationApi';
 import { getStoreCoordinates } from '../utils/storeLocation';
 import { useLocationService } from '../context/LocationServiceContext';
@@ -41,7 +42,7 @@ function addressToForm(addr) {
   return {
     label: addr.label || 'Home',
     line1,
-    line2: addr.line2 || '',
+    line2: sanitizeStoredStreetArea(String(addr.line2 || '').trim(), addr),
     landmark: addr.landmark || '',
     city: addr.city || '',
     lat: addr.lat ?? null,
@@ -504,7 +505,7 @@ export default function CheckoutAddAddressSheet({
                 <input
                   value={form.line1}
                   onChange={setField('line1')}
-                  placeholder="Flat, house, building, street"
+                  placeholder="Flat, house, building, room no."
                   className={inputCls('line1')}
                 />
                 {err('line1') && <p className="mt-1 text-xs text-red-600">{err('line1')}</p>}
@@ -515,7 +516,7 @@ export default function CheckoutAddAddressSheet({
                 <input
                   value={form.line2}
                   onChange={setField('line2')}
-                  placeholder="Area, colony (optional)"
+                  placeholder="Street, area (from map)"
                   className={inputCls('line2')}
                 />
               </div>

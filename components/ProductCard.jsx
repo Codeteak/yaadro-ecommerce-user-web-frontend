@@ -50,7 +50,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     suppressNavClickRef.current = true;
     window.setTimeout(() => {
       suppressNavClickRef.current = false;
-    }, 450);
+    }, 280);
   }, []);
   
   const imageSrc = productImages[currentImageIndex];

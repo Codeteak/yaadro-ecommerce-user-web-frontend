@@ -143,22 +143,23 @@ export default function SmoothDragRail({
         x.set(clampX(current));
         return;
       }
-      const target = clampX(current + velocityX * 0.18);
+      // Stronger flick throw + longer coast so rails feel less "tight".
+      const target = clampX(current + velocityX * 0.4);
       const distance = Math.abs(target - current);
       if (distance < 0.5) {
         x.set(target);
         return;
       }
       const duration = Math.min(
-        1.05,
-        Math.max(0.38, distance / 860 + Math.abs(velocityX) / 3800)
+        1.35,
+        Math.max(0.48, distance / 600 + Math.abs(velocityX) / 3200)
       );
       killTween();
       const proxy = { val: current };
       tweenRef.current = gsap.to(proxy, {
         val: target,
         duration,
-        ease: 'power3.out',
+        ease: 'power2.out',
         onUpdate: () => x.set(proxy.val),
         onComplete: () => {
           tweenRef.current = null;
@@ -221,7 +222,7 @@ export default function SmoothDragRail({
     pointer.lastT = now;
     const next = pointer.origin + totalDx;
     const min = minXRef.current;
-    const overshoot = next > 0 ? next * 0.18 : next < min ? min + (next - min) * 0.18 : next;
+    const overshoot = next > 0 ? next * 0.28 : next < min ? min + (next - min) * 0.28 : next;
     x.set(overshoot);
     if (shouldMarkAsDrag(totalDx, DRAG_CLICK_PX)) {
       didDragRef.current = true;

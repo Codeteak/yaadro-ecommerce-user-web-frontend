@@ -12,6 +12,7 @@ import {
 import { resolveShopId } from '../utils/authApi';
 import { checkDeliveryLocation } from '../utils/storefrontLocationApi';
 import { reverseGeocode } from '../utils/geocoding';
+import { formatAddressDisplay, buildMapStreetArea } from '../utils/formatAddress';
 import { useAuth } from './AuthContext';
 import { useAddress } from './AddressContext';
 
@@ -41,7 +42,8 @@ function formatCoordsLabel(point) {
 
 function formatCompactGeocodeLabel(result) {
   if (!result) return null;
-  const compact = [result.line1, result.line2, result.city]
+  const street = buildMapStreetArea(result);
+  const compact = [street, result.city]
     .map((part) => String(part || '').trim())
     .filter(Boolean)
     .join(', ');
