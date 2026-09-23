@@ -247,7 +247,8 @@ export function buildOrderOfferGroups(items) {
     const freeQty = freeOnParent > 0 ? freeOnParent : impliedFree;
 
     const children = [...existing];
-    if (freeQty > 0 && !children.some((c) => c._syntheticBxgyFree)) {
+    // API may already attach FREE reward rows — never synthesize another for the same parent.
+    if (freeQty > 0 && children.length === 0) {
       children.push(makeSyntheticFreeChild(it, freeQty));
     }
 

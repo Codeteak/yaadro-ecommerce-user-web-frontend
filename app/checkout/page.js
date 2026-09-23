@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
@@ -32,9 +32,8 @@ import { getCartBottomBarPricing } from "../../utils/cartSavings";
 import {
   BXGY_COUPON_BLOCKED_MESSAGE,
   sumCartPaidUnits,
-  isBundleRewardCartLine,
-  getCartLinePaidQty,
 } from "../../utils/cartPromotions";
+import { buildCheckoutLinesFromCartItems } from "../../utils/storefrontCheckoutLines";
 import {
   buildCartOfferGroups,
   getCouponThresholdHint,
@@ -195,12 +194,9 @@ function AddressCard({ address, selected, onSelect, onEdit }) {
             {address.fullName || user?.name || "—"}
           </p>
           <p className="text-[12px] text-gray-500 leading-relaxed">
-            {[streetLine, address.landmark, address.city, address.state]
+            {[streetLine, address.landmark, address.city]
               .filter(Boolean)
               .join(", ")}
-            {address.postalCode || address.zipCode
-              ? ` – ${address.postalCode || address.zipCode}`
-              : ""}
           </p>
           {(address.phone || user?.phone) && (
             <p className="text-[12px] text-gray-400 mt-1">
@@ -509,6 +505,9 @@ export default function CheckoutPage() {
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [showPriceVaryConfirm, setShowPriceVaryConfirm] = useState(false);
   const [checkoutDraftHydrated, setCheckoutDraftHydrated] = useState(false);
+  /** Stable across double-clicks of Place order (ConfirmModal + sticky CTA). */
+  const placeOrderLockRef = useRef(false);
+  const checkoutIdempotencyKeyRef = useRef(null);
 
   const selectedAddress = useMemo(() => {
     if (!selectedAddressId) return null;
@@ -748,7 +747,17 @@ export default function CheckoutPage() {
 
   /* ── Place order (runs after “price may vary” confirmation) ── */
   const executePlaceOrder = async () => {
+    if (placeOrderLockRef.current || isSubmitting) return;
+    placeOrderLockRef.current = true;
     setIsSubmitting(true);
+    setShowPriceVaryConfirm(false);
+
+    if (!checkoutIdempotencyKeyRef.current) {
+      checkoutIdempotencyKeyRef.current =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? `checkout-${crypto.randomUUID()}`
+          : `checkout-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+    }
 
     try {
       const line1 = String(
@@ -761,32 +770,20 @@ export default function CheckoutPage() {
           "warning",
         );
         showDeliveryAreaForSelectedAddress();
+        placeOrderLockRef.current = false;
+        checkoutIdempotencyKeyRef.current = null;
         setIsSubmitting(false);
         return;
       }
-      const checkoutLines = (() => {
-        /** @type {Map<string, number>} */
-        const byProduct = new Map();
-        for (const it of cartItems) {
-          // Same-SKU B1G1 free units must not inflate quantity — backend grants free.
-          if (isBundleRewardCartLine(it)) continue;
-          const productId = String(
-            it.productId ?? it.product_id ?? it.product?.id ?? "",
-          ).trim();
-          if (!productId) continue;
-          const qty = Math.max(1, Number(getCartLinePaidQty(it)) || 1);
-          byProduct.set(productId, (byProduct.get(productId) || 0) + qty);
-        }
-        return [...byProduct.entries()]
-          .map(([productId, quantity]) => ({ productId, quantity }))
-          .filter((it) => it.productId && it.quantity > 0);
-      })();
+      const checkoutLines = buildCheckoutLinesFromCartItems(cartItems);
       if (!checkoutLines.length) {
         showAlert(
           "Your cart is empty. Add items before placing an order.",
           "Cart empty",
           "warning",
         );
+        placeOrderLockRef.current = false;
+        checkoutIdempotencyKeyRef.current = null;
         setIsSubmitting(false);
         return;
       }
@@ -803,6 +800,7 @@ export default function CheckoutPage() {
         lat: selectedAddressCoords.lat,
         lng: selectedAddressCoords.lng,
         items: checkoutLines,
+        idempotencyKey: checkoutIdempotencyKeyRef.current,
       });
 
       if (!orderResponse?.orderId) throw new Error("Failed to create order");
@@ -818,6 +816,8 @@ export default function CheckoutPage() {
         )}&payment=cod`,
       );
     } catch (err) {
+      placeOrderLockRef.current = false;
+      checkoutIdempotencyKeyRef.current = null;
       const apiCode = getApiErrorCode(err) || err?.code;
       const locationNotVerified =
         /location not verified/i.test(String(err?.message || "")) ||
@@ -1369,10 +1369,15 @@ export default function CheckoutPage() {
 
       <ConfirmModal
         isOpen={showPriceVaryConfirm}
-        onClose={() => setShowPriceVaryConfirm(false)}
+        onClose={() => {
+          if (isSubmitting) return;
+          setShowPriceVaryConfirm(false);
+        }}
         onConfirm={() => {
           void executePlaceOrder();
         }}
+        isConfirming={isSubmitting}
+        closeOnConfirm={false}
         title="Price & Quantity may vary"
         message="Totals shown at checkout are estimates. The final amount may change based on availability, offers, or pricing at fulfilment. Quantity may also vary for custom products. Do you want to continue and place this order?"
         confirmText="Place order"

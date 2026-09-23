@@ -7,6 +7,7 @@ import {
   formatBundleRuleLabel,
   getPrimaryBundleRule,
   isCrossSkuBundleRule,
+  lineTotalFromUnitPricing,
 } from './productUtils';
 import { rewardProductIdFromRule } from './bxgyLabels';
 import {
@@ -770,7 +771,7 @@ export function mergePreviewPricingOntoLocalLines(
       if (sellUnit != null && sellUnit > 0 && paid > 0) {
         next.price = sellUnit;
         next.originalPrice = listForDisplay;
-        next.lineTotal = sellUnit * paid;
+        next.lineTotal = lineTotalFromUnitPricing(sellUnit, paid, local);
         next.total = next.lineTotal;
         if (local.selectedSize && typeof local.selectedSize === 'object') {
           next.selectedSize = {
@@ -847,7 +848,7 @@ function linePayableMajor(item) {
   // Treat missing/null/0 lineTotal as unset so allocate uses catalog × qty.
   if (Number.isFinite(line) && line > 0) return line;
   const unit = Number(item?.price) || 0;
-  return unit * getCartLinePaidQty(item);
+  return lineTotalFromUnitPricing(unit, getCartLinePaidQty(item), item);
 }
 
 /**
@@ -857,11 +858,11 @@ function linePayableMajor(item) {
  */
 export function normalizeCartLineCatalogPricing(item) {
   if (!item || isBundleRewardCartLine(item)) return item;
-  const paidQty = Math.max(1, getCartLinePaidQty(item));
+  const paidQty = getCartLinePaidQty(item);
   const line = Number(item.lineTotal);
   const priceUnit = Number(item.price) || 0;
   const fromLine =
-    Number.isFinite(line) && line > 0 ? line / paidQty : 0;
+    Number.isFinite(line) && line > 0 && paidQty > 0 ? line / paidQty : 0;
   // Prefer item.price when lineTotal was crushed by a bad cart-level allocate.
   let payUnit = priceUnit > 0 ? priceUnit : fromLine;
   if (
@@ -900,14 +901,14 @@ export function normalizeCartLineCatalogPricing(item) {
   }
   if (listUnit == null || !(listUnit > payUnit + 1e-9)) {
     // No catalog gap — still keep lineTotal in sync with pay × qty.
-    const lineTotal = Math.round(payUnit * paidQty * 100) / 100;
+    const lineTotal = Math.round(lineTotalFromUnitPricing(payUnit, paidQty, item) * 100) / 100;
     if (Number(item.lineTotal) === lineTotal && Number(item.price) === payUnit) {
       return item;
     }
     return { ...item, price: payUnit, lineTotal, total: lineTotal };
   }
 
-  const lineTotal = Math.round(payUnit * paidQty * 100) / 100;
+  const lineTotal = Math.round(lineTotalFromUnitPricing(payUnit, paidQty, item) * 100) / 100;
   const next = {
     ...item,
     price: payUnit,
@@ -966,8 +967,9 @@ export function sumCartShelfPayable(items) {
   return items.reduce((sum, it) => {
     if (isBundleRewardCartLine(it)) return sum;
     const unit = cartLineShelfUnit(it);
-    if (!(unit > 0)) return sum;
-    return sum + unit * Math.max(1, getCartLinePaidQty(it));
+    const paid = getCartLinePaidQty(it);
+    if (!(unit > 0) || !(paid > 0)) return sum;
+    return sum + unit * paid;
   }, 0);
 }
 
@@ -982,7 +984,8 @@ export function resetCartLinesToShelfPayable(items) {
     if (isBundleRewardCartLine(it)) return it;
     const shelfUnit = cartLineShelfUnit(it);
     if (!(shelfUnit > 0)) return it;
-    const paidQty = Math.max(1, getCartLinePaidQty(it));
+    const paidQty = getCartLinePaidQty(it);
+    if (!(paidQty > 0)) return it;
     const shelfLine = Math.round(shelfUnit * paidQty * 100) / 100;
     const next = {
       ...it,
@@ -1038,7 +1041,8 @@ export function allocateCartPayableOntoLines(items, payableTotal) {
   paidIdx.forEach((idx, i) => {
     const it = out[idx];
     const prevLine = linePayableMajor(it);
-    const paidQty = Math.max(1, getCartLinePaidQty(it));
+    const paidQty = getCartLinePaidQty(it);
+    if (!(paidQty > 0)) return;
     let nextLine =
       i === paidIdx.length - 1
         ? Math.max(0, Math.round((target - allocated) * 100) / 100)

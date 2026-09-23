@@ -499,6 +499,66 @@ function parseProductUnitFromFields(raw) {
   return u != null ? normalizeProductUnit(u) : '';
 }
 
+/**
+ * Amount of the base unit in one cart quantity.
+ * Sold-by-weight prices per kg/g already, so the factor stays 1.
+ */
+export function sellableUnitFactor(item) {
+  if (!item || typeof item !== 'object') return 1;
+  if (item.soldByWeight === true || item.sold_by_weight === true) return 1;
+  const n = parseProductUnitSize(item);
+  return n != null && n > 0 ? n : 1;
+}
+
+/** Line rupees: packs × unit size × price per base unit. */
+export function lineTotalFromUnitPricing(unitPrice, quantity, item) {
+  const price = Number(unitPrice);
+  const qty = Number(quantity);
+  if (!Number.isFinite(price) || !Number.isFinite(qty)) return 0;
+  return price * qty * sellableUnitFactor(item);
+}
+
+function isMassUnitLabel(unit) {
+  const u = String(unit || '').trim().toLowerCase();
+  return u === 'kg' || u === 'g' || u === 'gm' || u === 'gram' || u === 'grams';
+}
+
+/** Show under 1 kg as grams (0.25 kg → 250 g, 0.255 kg → 255 g). */
+export function formatMassAmountLabel(amount, unit) {
+  const n = Number(amount);
+  const u = String(unit || '').trim().toLowerCase();
+  if (!Number.isFinite(n) || n <= 0 || !isMassUnitLabel(u)) return '';
+  const grams = u === 'kg' ? n * 1000 : n;
+  if (grams < 1000) return `${Math.round(grams)} g`;
+  const kg = Math.round((grams / 1000) * 1000) / 1000;
+  return Number.isInteger(kg) ? `${kg} kg` : `${kg} kg`;
+}
+
+/**
+ * Customer order line: ordered weight, billed weight when the picker changed it.
+ * @returns {string}
+ */
+export function formatOrderLineWeight(item) {
+  if (!item || typeof item !== 'object') return '';
+  const unit = item.unitLabel || item.unit || item.unit_label_snapshot || '';
+  if (!isMassUnitLabel(unit)) return '';
+  const sizeRaw = item.unitSize ?? item.unit_size ?? item.unit_size_snapshot ?? 1;
+  const size = Number(sizeRaw);
+  const factor = Number.isFinite(size) && size > 0 ? size : 1;
+  const billedQty = Number(item.quantity);
+  if (!Number.isFinite(billedQty) || billedQty <= 0) return '';
+  const orderedRaw = item.ordered_quantity ?? item.orderedQuantity;
+  const orderedQty =
+    orderedRaw != null && orderedRaw !== '' && Number.isFinite(Number(orderedRaw))
+      ? Number(orderedRaw)
+      : billedQty;
+  const billed = formatMassAmountLabel(billedQty * factor, unit);
+  const ordered = formatMassAmountLabel(orderedQty * factor, unit);
+  if (!billed) return '';
+  if (ordered && ordered !== billed) return `Ordered ${ordered} · Billed ${billed}`;
+  return ordered || billed;
+}
+
 /** Catalog/cart/order pack size (string decimal from API, default `"1"` when absent). */
 export function parseProductUnitSize(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -565,6 +625,40 @@ export function formatWeightUnitLabel(weight, unit) {
 /** Subtitle under cart line name: pack (`unit_size` + `unit`) or API size label. */
 export function getCartLineVariantLabel(item) {
   if (!item || typeof item !== 'object') return '';
+  const soldByWeight =
+    item.soldByWeight === true || item.sold_by_weight === true;
+  const qty = Number(item.quantity);
+  const unitSize = Number(
+    item.unit_size ?? item.unitSize ?? item.unit_size_snapshot ?? item.unitSizeSnapshot
+  );
+  const unitRaw = item.unitLabel ?? item.unit ?? 'kg';
+
+  // Sold-by-weight: quantity is already kg — show total mass.
+  if (soldByWeight && Number.isFinite(qty) && qty > 0) {
+    const label =
+      formatMassAmountLabel(qty, 'kg') || formatWeightUnitLabel(qty, 'kg');
+    if (label) return label;
+  }
+
+  // Packed weight step: qty is pack count × catalog unit_size (e.g. 3 × 0.25 kg → 750 g).
+  if (
+    !soldByWeight &&
+    Number.isFinite(unitSize) &&
+    unitSize > 0 &&
+    unitSize < 1 - 1e-9 &&
+    Number.isFinite(qty) &&
+    qty > 0
+  ) {
+    const u = String(unitRaw || '').trim().toLowerCase();
+    if (u === 'kg' || u === 'g' || u === 'gm' || u === 'gram' || u === 'grams') {
+      const amount = Math.round(unitSize * qty * 10000) / 10000;
+      const label =
+        formatMassAmountLabel(amount, u === 'g' || u === 'gm' ? 'g' : 'kg') ||
+        formatWeightUnitLabel(amount, u === 'g' || u === 'gm' ? 'g' : 'kg');
+      if (label) return label;
+    }
+  }
+
   const { weight, unit } = resolveProductWeightAndUnit({
     weight: item.weight,
     unit: item.unit,

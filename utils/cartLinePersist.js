@@ -26,6 +26,15 @@ function formatSizeKeyWeight(weight) {
 
 /** Stable variant key — same rules for card probe and persisted cart lines (g/gm/GM → gm). */
 export function cartLineSizeKey(item) {
+  // Sold-by-weight: all chips merge into one kg line (qty accumulates).
+  if (
+    item?.soldByWeight === true ||
+    item?.sold_by_weight === true ||
+    item?.product?.soldByWeight === true ||
+    item?.product?.sold_by_weight === true
+  ) {
+    return 'sbw';
+  }
   let weight = null;
   let unit = '';
   if (item?.selectedSize && typeof item.selectedSize === 'object') {
@@ -156,7 +165,13 @@ export function buildPersistableCartLineFromProduct(product) {
   const primary = realUrls[0] || urls[0] || PRODUCT_IMAGE_PLACEHOLDER;
 
   const selectedSize = product.selectedSize ?? null;
-  const sizeKey = cartLineSizeKey({ selectedSize });
+  const soldByWeightEarly =
+    product.soldByWeight === true || product.sold_by_weight === true;
+  const sizeKey = cartLineSizeKey({
+    selectedSize,
+    soldByWeight: soldByWeightEarly,
+    sold_by_weight: soldByWeightEarly,
+  });
   const cartItemKey = `${id ?? productId}_${sizeKey}`;
 
   const bundleRules =
@@ -269,7 +284,17 @@ export function buildPersistableCartLineFromProduct(product) {
     unit: soldByWeight ? product.unit || unit || 'kg' : unit,
     weight: soldByWeight ? null : weight,
     ...(unitSize != null ? { unit_size: soldByWeight ? '1' : unitSize } : {}),
-    ...(soldByWeight ? { soldByWeight: true, sold_by_weight: true } : {}),
+    ...(soldByWeight
+      ? {
+          soldByWeight: true,
+          sold_by_weight: true,
+          // Catalog showcasing step (0.25) for cart +/-; unit_size persist is "1".
+          weightStepKg: (() => {
+            const n = Number(unitSize);
+            return Number.isFinite(n) && n > 0 ? n : 1;
+          })(),
+        }
+      : {}),
     brand: product.brand,
     category,
     product: leanProduct,

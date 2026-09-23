@@ -29,9 +29,6 @@ import { checkDeliveryLocation } from '../../../utils/storefrontLocationApi';
 import { useLocationService } from '../../../context/LocationServiceContext';
 import { sanitizeAddressNotes } from '../../../utils/addressApi';
 
-/** Map circle + UI when API has not returned a max radius yet (meters). */
-const DELIVERY_RADIUS_FALLBACK_M = Number(process.env.NEXT_PUBLIC_DELIVERY_RADIUS_FALLBACK_M) || 8000;
-
 // Leaflet uses `window` at import time — load only on the client.
 const AddressMapPicker = dynamic(
   () => import('../../../components/AddressMapPicker'),
@@ -53,20 +50,9 @@ function buildAddressFromExisting(addr) {
     line2:
       addr.line2 ||
       addr.displayName ||
-      [
-        addr.landmark,
-        addr.city,
-        addr.state,
-        addr.postalCode || addr.zipCode,
-        addr.country,
-      ]
-        .filter(Boolean)
-        .join(', '),
+      [addr.landmark, addr.city].filter(Boolean).join(', '),
     landmark: addr.landmark || '',
     city: addr.city || '',
-    state: addr.state || '',
-    postalCode: addr.postalCode || addr.zipCode || '',
-    country: addr.country || 'India',
     raw: sanitizeAddressNotes(addr.raw),
   };
 }
@@ -77,9 +63,6 @@ const EMPTY_FORM = {
   line2: '',
   landmark: '',
   city: '',
-  state: '',
-  postalCode: '',
-  country: 'India',
   raw: '',
 };
 
@@ -120,7 +103,7 @@ export default function AddAddressPage() {
   const { user, refreshUser } = useAuth();
   const { ok, ready } = useRequireAuth();
   const { addresses = [], addAddress, updateAddress, isCreating, isUpdating } = useAddress();
-  const { maxRadiusM: locationMaxRadiusM, shopLocation: contextShopLocation } = useLocationService();
+  const { shopLocation: contextShopLocation } = useLocationService();
 
   const editingAddress = useMemo(
     () => (editId ? addresses.find((a) => String(a.id) === String(editId)) : null),
@@ -156,13 +139,6 @@ export default function AddAddressPage() {
   const [nameDraft, setNameDraft] = useState('');
   const [phoneDraft, setPhoneDraft] = useState('');
   const [submitError, setSubmitError] = useState('');
-
-  // ── PIN code lookup (postalpincode.in) — same behaviour as the previous sheet ──
-  const [pinLookupStatus, setPinLookupStatus] = useState('idle');
-  const [pinLookupMessage, setPinLookupMessage] = useState('');
-  const pinCacheRef = useRef(new Map());
-  const pinAbortRef = useRef(null);
-  const lastPinRef = useRef('');
 
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [isDraftDirty, setIsDraftDirty] = useState(false);
@@ -208,7 +184,6 @@ export default function AddAddressPage() {
         setStep(1);
         setTouched({});
         setIsDraftDirty(false);
-        lastPinRef.current = '';
         sessionStorage.removeItem(abandonedKey);
         editInitForIdRef.current = editId;
         return;
@@ -242,7 +217,6 @@ export default function AddAddressPage() {
       if (!phoneFromProfile) setPhoneDraft('');
       setIsDraftDirty(false);
       saveCompletedRef.current = false;
-      lastPinRef.current = '';
       editInitForIdRef.current = editId;
     } catch (e) {
       console.warn('Address edit init backup failed', e);
@@ -263,81 +237,6 @@ export default function AddAddressPage() {
   useEffect(() => {
     if (!editId) editInitForIdRef.current = null;
   }, [editId]);
-
-  // ── PIN auto-fill effect (debounced) ──
-  useEffect(() => {
-    const pin = String(form.postalCode || '').replace(/\D/g, '').slice(0, 6);
-    const country = String(form.country || '').toLowerCase().trim();
-    const isIndia =
-      !country || country === 'india' || country === 'in' || country === 'bharat';
-
-    if (!/^\d{6}$/.test(pin) || !isIndia) return undefined;
-    if (lastPinRef.current === pin) return undefined;
-
-    const shouldFillCity = !touched.city && !String(form.city || '').trim();
-    const shouldFillState = !touched.state && !String(form.state || '').trim();
-    if (!shouldFillCity && !shouldFillState) return undefined;
-
-    lastPinRef.current = pin;
-    setPinLookupStatus('fetching');
-    setPinLookupMessage('Fetching city/state…');
-
-    if (pinAbortRef.current) {
-      try {
-        pinAbortRef.current.abort();
-      } catch {
-        /* noop */
-      }
-    }
-    const ctrl = new AbortController();
-    pinAbortRef.current = ctrl;
-
-    const cached = pinCacheRef.current.get(pin);
-    if (cached?.city && cached?.state) {
-      setForm((prev) => ({
-        ...prev,
-        ...(shouldFillCity ? { city: cached.city } : {}),
-        ...(shouldFillState ? { state: cached.state } : {}),
-      }));
-      setPinLookupStatus('success');
-      setPinLookupMessage(`Auto-filled: ${cached.city}, ${cached.state}`);
-      return undefined;
-    }
-
-    const t = setTimeout(() => {
-      fetch(`https://api.postalpincode.in/pincode/${pin}`, { signal: ctrl.signal })
-        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-        .then((json) => {
-          const po = json?.[0]?.PostOffice?.[0];
-          const city = (po?.District || po?.Block || po?.Name || '').trim();
-          const state = (po?.State || '').trim();
-          if (!city || !state) throw new Error('No match');
-
-          pinCacheRef.current.set(pin, { city, state });
-          setForm((prev) => ({
-            ...prev,
-            ...(shouldFillCity ? { city } : {}),
-            ...(shouldFillState ? { state } : {}),
-          }));
-          setPinLookupStatus('success');
-          setPinLookupMessage(`Auto-filled: ${city}, ${state}`);
-        })
-        .catch((e) => {
-          if (e?.name === 'AbortError') return;
-          setPinLookupStatus('error');
-          setPinLookupMessage('Could not auto-fill city/state. Enter manually.');
-        });
-    }, 350);
-
-    return () => {
-      clearTimeout(t);
-      try {
-        ctrl.abort();
-      } catch {
-        /* noop */
-      }
-    };
-  }, [form.postalCode, form.country, form.city, form.state, touched.city, touched.state]);
 
   // ── GPS: remember user position for distance UI + seed map centre when none saved. ──
   useEffect(() => {
@@ -377,7 +276,7 @@ export default function AddAddressPage() {
     return { userVsPinKm };
   }, [coords, userLocation]);
 
-  /** Live delivery check for the map pin (debounced). */
+  /** Live delivery check for the map pin (debounced). null = unknown (never treat as false). */
   const [pinDeliveryCheck, setPinDeliveryCheck] = useState({
     loading: false,
     serviceable: null,
@@ -397,32 +296,35 @@ export default function AddAddressPage() {
         shopLocation: null,
         error: null,
       });
-      return;
+      return undefined;
     }
+    const checkLat = Number(coords.lat);
+    const checkLng = Number(coords.lng);
+    if (!Number.isFinite(checkLat) || !Number.isFinite(checkLng)) return undefined;
+
     let cancelled = false;
     const t = window.setTimeout(async () => {
       setPinDeliveryCheck((prev) => ({ ...prev, loading: true, error: null }));
       try {
-        const data = await checkDeliveryLocation(coords.lat, coords.lng);
+        const data = await checkDeliveryLocation(checkLat, checkLng);
         if (cancelled) return;
         setPinDeliveryCheck({
           loading: false,
-          serviceable: !!data.serviceable,
-          distanceM: data.distanceM,
-          maxRadiusM: data.maxRadiusM,
+          serviceable:
+            data.serviceable === true ? true : data.serviceable === false ? false : null,
+          distanceM: data.distanceM ?? null,
+          maxRadiusM: data.maxRadiusM ?? null,
           shopLocation: data.shopLocation ?? null,
           error: null,
         });
       } catch (e) {
         if (cancelled) return;
-        setPinDeliveryCheck({
+        // Do not coerce API failure → unavailable; keep last known serviceable.
+        setPinDeliveryCheck((prev) => ({
+          ...prev,
           loading: false,
-          serviceable: null,
-          distanceM: null,
-          maxRadiusM: null,
-          shopLocation: null,
           error: e?.message || 'Could not verify delivery',
-        });
+        }));
       }
     }, 420);
     return () => {
@@ -430,13 +332,6 @@ export default function AddAddressPage() {
       window.clearTimeout(t);
     };
   }, [coords?.lat, coords?.lng]);
-
-  const mapDeliveryRadiusM =
-    pinDeliveryCheck.maxRadiusM ??
-    (typeof locationMaxRadiusM === 'number' && locationMaxRadiusM > 0
-      ? locationMaxRadiusM
-      : null) ??
-    DELIVERY_RADIUS_FALLBACK_M;
 
   const effectiveStoreLocation = useMemo(() => {
     if (pinDeliveryCheck.shopLocation?.lat != null && pinDeliveryCheck.shopLocation?.lng != null) {
@@ -472,15 +367,10 @@ export default function AddAddressPage() {
     };
   }, [coords?.lat, coords?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Validation (step 2) ──
+  // ── Validation (step 2) — only Address Line 1 required (matches backend) ──
   const validation = useMemo(() => {
     const errors = {};
-    if (!form.line1.trim()) errors.line1 = 'Building / Apartment No is required';
-    if (!form.city.trim()) errors.city = 'City is required';
-    if (!form.state.trim()) errors.state = 'State is required';
-    const pin = form.postalCode.replace(/\s/g, '').trim();
-    if (!pin) errors.postalCode = 'PIN code is required';
-    else if (!/^\d{6}$/.test(pin)) errors.postalCode = 'Enter a valid 6-digit PIN';
+    if (!form.line1.trim()) errors.line1 = 'Address line 1 is required';
 
     if (needsName) {
       const n = nameDraft.trim();
@@ -509,16 +399,7 @@ export default function AddAddressPage() {
     markDirty();
   };
 
-  const setPostalCode = (e) => {
-    const digits = String(e.target.value || '').replace(/\D/g, '').slice(0, 6);
-    setForm((prev) => ({ ...prev, postalCode: digits }));
-    setTouched((prev) => ({ ...prev, postalCode: true }));
-    setPinLookupStatus('idle');
-    setPinLookupMessage('');
-    markDirty();
-  };
-
-  // ── Map → form auto-fill (only blanks; never overwrites touched fields) ──
+  // ── Map → coordinates only (do not auto-fill address form / notes) ──
   const handleMapChange = useCallback(
     ({ lat, lng }) => {
       setCoords({ lat, lng });
@@ -527,53 +408,13 @@ export default function AddAddressPage() {
     [markDirty]
   );
 
-  const applyGeocodedAddressToForm = useCallback((resolved, { overwriteLine1 = false } = {}) => {
-    if (!resolved) return;
-    setForm((prev) => {
-      const next = { ...prev };
-      // Building / apartment stays customer-typed — never copy geocode into line1.
-
-      const fullMapAddress =
-        String(resolved.displayName || '').trim() ||
-        [
-          resolved.line1,
-          resolved.line2,
-          resolved.landmark,
-          resolved.city,
-          resolved.state,
-          resolved.postalCode,
-          resolved.country,
-        ]
-          .filter(Boolean)
-          .join(', ');
-
-      const shouldFillLine2 =
-        (((!touched.line2 && !String(prev.line2 || '').trim()) || !String(prev.line2 || '').trim()) &&
-          fullMapAddress) ||
-        (overwriteLine1 && fullMapAddress);
-      if (shouldFillLine2) {
-        next.line2 = fullMapAddress;
-      }
-
-      if (!String(prev.landmark || '').trim() && resolved.landmark) next.landmark = resolved.landmark;
-      if (!String(prev.city || '').trim() && resolved.city) next.city = resolved.city;
-      if (!String(prev.state || '').trim() && resolved.state) next.state = resolved.state;
-      if (!String(prev.postalCode || '').trim() && /^\d{6}$/.test(resolved.postalCode || '')) {
-        next.postalCode = resolved.postalCode;
-      }
-      if (!String(prev.country || '').trim() && resolved.country) next.country = resolved.country;
-      return next;
-    });
-  }, [touched.line2]);
-
   const handleMapAddress = useCallback(
     (resolved) => {
+      // Preview label only — never mutate Address Line 1/2, landmark, city, or notes.
       setResolvedAddress(resolved);
       setResolvingStatus('idle');
-      markDirty();
-      applyGeocodedAddressToForm(resolved, { overwriteLine1: step === 1 });
     },
-    [markDirty, step, applyGeocodedAddressToForm]
+    []
   );
 
   // ── Submit ──
@@ -588,15 +429,11 @@ export default function AddAddressPage() {
       line2,
       landmark: form.landmark.trim(),
       city: form.city.trim(),
-      state: form.state.trim(),
-      postalCode: form.postalCode.replace(/\s/g, '').trim(),
-      country: form.country || 'India',
       lat: coords?.lat ?? null,
       lng: coords?.lng ?? null,
       raw: sanitizeAddressNotes(form.raw) || null,
       street: combinedStreet,
       address: combinedStreet || line1,
-      zipCode: form.postalCode.replace(/\s/g, '').trim(),
       fullName: nameResolved,
       phone: normalizePhoneForApi(phoneResolved),
       isDefault: true,
@@ -644,9 +481,6 @@ export default function AddAddressPage() {
       name: true,
       phone: true,
       line1: true,
-      city: true,
-      state: true,
-      postalCode: true,
     });
     if (!validation.ok) return;
 
@@ -740,9 +574,8 @@ export default function AddAddressPage() {
     [resolvedAddress?.landmark, resolvedAddress?.line2].filter(Boolean).join(', ') ||
     'Pinned location';
   const previewLine2 =
-    [resolvedAddress?.city, resolvedAddress?.state, resolvedAddress?.postalCode]
-      .filter(Boolean)
-      .join(', ') || (resolvingStatus === 'loading' ? 'Resolving address…' : 'Pan the map to refine');
+    resolvedAddress?.city ||
+    (resolvingStatus === 'loading' ? 'Resolving address…' : 'Pan the map to refine');
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-white">
@@ -783,8 +616,6 @@ export default function AddAddressPage() {
               userLocation={userLocation}
               storeLocation={effectiveStoreLocation}
               showStoreMarker
-              deliveryRadiusM={mapDeliveryRadiusM}
-              fitDeliveryZone
               focusRequest={mapFocusRequest}
             />
 
@@ -935,9 +766,6 @@ export default function AddAddressPage() {
                 }
                 setSubmitError('');
                 if (isEdit) markDirty();
-                if (resolvedAddress) {
-                  applyGeocodedAddressToForm(resolvedAddress, { overwriteLine1: true });
-                }
                 if (isEdit && editingAddress) {
                   const existing = buildAddressFromExisting(editingAddress);
                   if (existing) {
@@ -951,11 +779,6 @@ export default function AddAddressPage() {
                         ? prev.landmark
                         : existing.landmark,
                       city: String(prev.city || '').trim() ? prev.city : existing.city,
-                      state: String(prev.state || '').trim() ? prev.state : existing.state,
-                      postalCode: /^\d{6}$/.test(String(prev.postalCode || '').replace(/\s/g, ''))
-                        ? prev.postalCode
-                        : existing.postalCode,
-                      country: prev.country || existing.country,
                       raw: sanitizeAddressNotes(prev.raw) || sanitizeAddressNotes(existing.raw),
                     }));
                   }
@@ -1066,12 +889,12 @@ export default function AddAddressPage() {
 
               <div>
                 <label className="text-xs font-semibold text-gray-700">
-                  Building / Apartment No <span className="text-red-500">*</span>
+                  Address line 1 <span className="text-red-500">*</span>
                 </label>
                 <input
                   value={form.line1}
                   onChange={setField('line1')}
-                  placeholder="e.g. Flat 402, Tower B"
+                  placeholder="House number, building, street"
                   className={inputCls('line1')}
                 />
                 {err('line1') && <p className="mt-1 text-xs text-red-600">{err('line1')}</p>}
@@ -1101,59 +924,17 @@ export default function AddAddressPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-gray-700">
-                    City <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    value={form.city}
-                    onChange={setField('city')}
-                    className={inputCls('city')}
-                  />
-                  {err('city') && <p className="mt-1 text-xs text-red-600">{err('city')}</p>}
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-700">
-                    State <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    value={form.state}
-                    onChange={setField('state')}
-                    className={inputCls('state')}
-                  />
-                  {err('state') && <p className="mt-1 text-xs text-red-600">{err('state')}</p>}
-                </div>
-              </div>
-
               <div>
                 <label className="text-xs font-semibold text-gray-700">
-                  PIN code <span className="text-red-500">*</span>
+                  City
                 </label>
                 <input
-                  value={form.postalCode}
-                  onChange={setPostalCode}
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="6-digit PIN"
-                  className={inputCls('postalCode')}
+                  value={form.city}
+                  onChange={setField('city')}
+                  placeholder="City (optional)"
+                  className={inputCls('city')}
                 />
-                {pinLookupMessage && (
-                  <p
-                    className={`mt-1 text-[11px] ${
-                      pinLookupStatus === 'error'
-                        ? 'text-amber-700'
-                        : pinLookupStatus === 'success'
-                          ? 'text-violet-700'
-                          : 'text-gray-500'
-                    }`}
-                  >
-                    {pinLookupMessage}
-                  </p>
-                )}
-                {err('postalCode') && (
-                  <p className="mt-1 text-xs text-red-600">{err('postalCode')}</p>
-                )}
+                {err('city') && <p className="mt-1 text-xs text-red-600">{err('city')}</p>}
               </div>
 
               <div>

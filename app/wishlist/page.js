@@ -9,13 +9,20 @@ import Breadcrumbs from '../../components/Breadcrumbs';
 import { getEffectivePrice, formatRupeeINR } from '../../utils/productUtils';
 import { getResolvedProductImageUrls } from '../../utils/productImages';
 import { getProductDetailPath } from '../../utils/productApi';
+import {
+  buildAvailableSizes,
+  sizeAddQuantity,
+} from '../../utils/productSizeSelection';
 
 export default function WishlistPage() {
   const { wishlistItems, removeFromWishlist, clearWishlist } = useWishlist();
   const { addToCart } = useCart();
 
   const handleAddToCart = (product) => {
-    addToCart(product, 1);
+    const sizes = buildAvailableSizes(product);
+    const size = sizes[0] || product?.selectedSize || null;
+    const payload = size ? { ...product, selectedSize: size } : product;
+    addToCart(payload, sizeAddQuantity(product, size));
   };
 
   if (wishlistItems.length === 0) {

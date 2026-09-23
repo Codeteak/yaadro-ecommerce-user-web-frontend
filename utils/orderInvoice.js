@@ -133,7 +133,7 @@ export function buildBillHtml({
         <div class="address">
           <div style="font-weight:700">${safe(addr.fullName || addr.name || '')}${addr.phone ? ' • ' + safe(addr.phone) : ''}</div>
           <div style="margin-top:4px;color:#374151">
-            ${[addr.street || addr.address, addr.city, addr.state, addr.zipCode || addr.postalCode, addr.country].filter(Boolean).map(safe).join(', ')}
+            ${[addr.street || addr.address, addr.city].filter(Boolean).map(safe).join(', ')}
           </div>
         </div>
       </div>
@@ -257,13 +257,7 @@ async function buildTextPdf(opts) {
   y = wrapText(doc, nameLine, margin + 3, y + 6, contentW - 6, 4.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(55, 65, 81);
-  const addressLine = [
-    addr.street || addr.address,
-    addr.city,
-    addr.state,
-    addr.zipCode || addr.postalCode,
-    addr.country,
-  ]
+  const addressLine = [addr.street || addr.address, addr.city]
     .filter(Boolean)
     .join(', ');
   y = wrapText(doc, addressLine || '—', margin + 3, y + 1, contentW - 6, 4.5);

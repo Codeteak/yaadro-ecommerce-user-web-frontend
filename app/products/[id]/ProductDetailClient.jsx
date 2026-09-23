@@ -1,8 +1,12 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useProductWithRelated, useProducts } from '../../../hooks/useProducts';
+import {
+  useProduct,
+  useProducts,
+  useRelatedProducts,
+} from '../../../hooks/useProducts';
 import { useCart } from '../../../context/CartContext';
 import { useRecentlyViewed } from '../../../context/RecentlyViewedContext';
 import { useAlert } from '../../../context/AlertContext';
@@ -13,10 +17,12 @@ import {
   fetchProductSeoMetadata,
   getProductSocialDescription,
 } from '../../../utils/productMetadata';
+import { filterRelatedProducts } from '../../../lib/storefrontProductDetail';
 import {
   getProductRating,
   getProductDiscount,
   getEffectivePrice,
+  getListPrice,
   formatRupeeINR,
   formatBundleRuleLabel,
   formatWeightUnitLabel,
@@ -24,12 +30,14 @@ import {
   resolveProductWeightAndUnit,
   stripPackFromProductName,
 } from '../../../utils/productUtils';
-import { buildAvailableSizes, resolveSelectedSize, sizePackCount } from '../../../utils/productSizeSelection';
+import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep } from '../../../utils/productSizeSelection';
 import Container from '../../../components/Container';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
 import PdpOfferPanel from '../../../components/promotions/PdpOfferPanel';
 import Link from 'next/link';
 import ProductCarousel from '../../../components/ProductCarousel';
+import Breadcrumbs from '../../../components/Breadcrumbs';
+import PriceDisplay from '../../../components/ui/PriceDisplay';
 import { SHOW_PRODUCT_EXTENDED_SECTIONS } from './productDetailFlags';
 import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../../utils/productImages';
 import ProductImageWithFallback from '../../../components/ProductImageWithFallback';
@@ -37,9 +45,6 @@ import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
 import { getCartLinePaidQty, getBundleFreeExtraOnPaidLine } from '../../../utils/cartPromotions';
 import { findPaidCartLine } from '../../../utils/cartLinePersist';
 import { getProductDetailPath, normalizeProductRouteParam, resolveProductDetailSegment } from '../../../utils/productApi';
-
-/** Gap between cart pill bottom and the top edge of the PDP fixed bottom bar. */
-const CART_PILL_GAP_ABOVE_PDP_BAR_PX = 12;
 
 function PillTag({ children, color = 'green' }) {
   const colorMap = {
@@ -130,7 +135,7 @@ function ReviewCard({ author, rating, text }) {
 export default function ProductDetailClient({ productId = null }) {
   const params = useParams();
   const router = useRouter();
-  const { addToCart, cartItems, cartTotal, cartCount, updateQuantity, removeFromCart } = useCart();
+  const { addToCart, cartItems, updateQuantity, removeFromCart } = useCart();
   const { addToRecentlyViewed } = useRecentlyViewed();
   const { showAlert } = useAlert();
   const { shopName } = useShopBranding();
@@ -141,9 +146,24 @@ export default function ProductDetailClient({ productId = null }) {
     productId != null
       ? normalizeProductRouteParam(productId)
       : normalizeProductRouteParam(params?.id ?? params?.slug);
-  const { data: productData, isLoading: loading } = useProductWithRelated(resolvedId);
-  const product = productData?.product || null;
-  const relatedProducts = productData?.relatedProducts || [];
+  // Product-only first (customer API). Related category list loads after paint.
+  const { data: product, isLoading: loading } = useProduct(resolvedId);
+  const relatedCategoryId =
+    product?.categoryId ||
+    product?.category_id ||
+    (product?.category && typeof product.category === 'object'
+      ? product.category.id
+      : null) ||
+    null;
+  const { data: relatedListData } = useRelatedProducts(
+    relatedCategoryId,
+    product?.id,
+    { enabled: !!relatedCategoryId, limit: 12 }
+  );
+  const relatedProducts = useMemo(
+    () => filterRelatedProducts(relatedListData?.products || [], product?.id, 12),
+    [relatedListData?.products, product?.id]
+  );
 
   useEffect(() => {
     if (!resolvedId) return undefined;
@@ -210,10 +230,6 @@ export default function ProductDetailClient({ productId = null }) {
   }, [product?.id, galleryUrls.join('|')]);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
-
-  const pdpBottomBarRef = useRef(null);
-  /** CSS `bottom` (px) so the cart pill sits above the PDP bar, from the bar's top edge + gap. */
-  const [cartPillStackBottomPx, setCartPillStackBottomPx] = useState(120);
 
   const availableSizes = useMemo(() => buildAvailableSizes(product), [product]);
   const [selectedSize, setSelectedSize] = useState(() => availableSizes[0] || null);
@@ -313,53 +329,34 @@ export default function ProductDetailClient({ productId = null }) {
     (product?.storageType
       ? `Store in ${String(product.storageType).replace('_', ' ')}.`
       : null);
-  // Pool of products used to fill Similar / FBT when the API returns nothing.
-  // Reuses the same cached query as the home page (limit 50, newest first) → no extra network on most navigations.
-  const { data: fallbackPoolData } = useProducts({
-    limit: 50,
-    sort_by: 'created_at',
-    sort_order: 'desc',
-  });
-  const fallbackPool = fallbackPoolData?.products || [];
-
-  const shuffleArray = (input) => {
-    const arr = Array.isArray(input) ? [...input] : [];
-    for (let i = arr.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  };
-
+  // Only show related/FBT when the API (or category-related query) provides real items.
+  // Do not invent "Similar" / "Frequently Bought" from a random newest-products pool.
   const similarItems = useMemo(() => {
     if (Array.isArray(relatedProducts) && relatedProducts.length > 0) return relatedProducts;
-    if (!product?.id || fallbackPool.length === 0) return [];
-    const exclude = new Set([String(product.id)]);
-    const candidates = fallbackPool.filter((p) => p?.id != null && !exclude.has(String(p.id)));
-    return shuffleArray(candidates).slice(0, 8);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [relatedProducts, fallbackPool, product?.id]);
+    return [];
+  }, [relatedProducts]);
 
   const fbtItems = useMemo(() => {
     const apiFBT = product?.frequentlyBoughtTogether;
     if (Array.isArray(apiFBT) && apiFBT.length > 0) return apiFBT;
-    if (!product?.id || fallbackPool.length === 0) return [];
-    const exclude = new Set([
-      String(product.id),
-      ...similarItems.map((p) => (p?.id != null ? String(p.id) : '')).filter(Boolean),
-    ]);
-    const candidates = fallbackPool.filter((p) => p?.id != null && !exclude.has(String(p.id)));
-    return shuffleArray(candidates).slice(0, 4);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product?.frequentlyBoughtTogether, fallbackPool, product?.id, similarItems]);
+    return [];
+  }, [product?.frequentlyBoughtTogether]);
 
   const productToAddPayload = useMemo(
     () =>
       product
         ? {
             ...product,
-            price: effectivePrice,
-            ...(mrpDisplay != null ? { originalPrice: mrpDisplay } : {}),
+            price: activeSize?.weightStep ? getEffectivePrice(product) : effectivePrice,
+            ...(activeSize?.weightStep
+              ? (() => {
+                  const list = getListPrice(product);
+                  const pay = getEffectivePrice(product);
+                  return list > pay + 1e-9 ? { originalPrice: list } : {};
+                })()
+              : mrpDisplay != null
+                ? { originalPrice: mrpDisplay }
+                : {}),
             selectedSize: activeSize,
             sizeDisplay: displayWeight,
           }
@@ -380,42 +377,11 @@ export default function ProductDetailClient({ productId = null }) {
     ? cartLine.cartItemKey ?? cartLine.cartItemId ?? cartLine.id
     : null;
 
-  const lineSubtotal = formatRupeeINR(effectivePrice * (cartQty || 0));
-
-  useLayoutEffect(() => {
-    const el = pdpBottomBarRef.current;
-    if (!el) return;
-
-    const measure = () => {
-      const rect = el.getBoundingClientRect();
-      const vv = window.visualViewport;
-      const visibleBottomY = vv ? vv.offsetTop + vv.height : window.innerHeight;
-      // CSS `bottom` on the pill: distance from viewport bottom to pill bottom — from bar top + gap.
-      const fromBarTop = Math.ceil(visibleBottomY - rect.top + CART_PILL_GAP_ABOVE_PDP_BAR_PX);
-      const fromBarHeight = Math.ceil(rect.height + CART_PILL_GAP_ABOVE_PDP_BAR_PX);
-      setCartPillStackBottomPx(Math.max(fromBarTop, fromBarHeight));
-    };
-
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    window.addEventListener('resize', measure);
-    const vv = window.visualViewport;
-    vv?.addEventListener('resize', measure);
-    vv?.addEventListener('scroll', measure);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener('resize', measure);
-      vv?.removeEventListener('resize', measure);
-      vv?.removeEventListener('scroll', measure);
-    };
-  }, [cartQty, cartCount, product?.id]);
-
   const handleAddToCart = useCallback(async () => {
     if (!productToAddPayload || !product?.inStock) return;
     setCartActionLoading(true);
     try {
-      await addToCart(productToAddPayload, sizePackCount(activeSize));
+      await addToCart(productToAddPayload, sizeAddQuantity(product, activeSize));
     } finally {
       setCartActionLoading(false);
     }
@@ -423,32 +389,19 @@ export default function ProductDetailClient({ productId = null }) {
 
   const handleStepperIncrement = useCallback(() => {
     if (cartActionLoading || !productToAddPayload || cartUpdateKey == null) return;
-    if (cartQty >= 10) return;
-    updateQuantity(cartUpdateKey, cartQty + 1);
-  }, [cartActionLoading, productToAddPayload, cartUpdateKey, cartQty, updateQuantity]);
+    const step = cartQuantityStep(product);
+    updateQuantity(cartUpdateKey, Math.round((cartQty + step) * 10000) / 10000);
+  }, [cartActionLoading, productToAddPayload, cartUpdateKey, cartQty, updateQuantity, product]);
 
   const handleStepperDecrement = useCallback(() => {
     if (cartActionLoading || cartUpdateKey == null || cartQty <= 0) return;
-    if (cartQty <= 1) {
+    const step = cartQuantityStep(product);
+    if (cartQty <= step + 1e-9) {
       removeFromCart(cartUpdateKey);
     } else {
-      updateQuantity(cartUpdateKey, cartQty - 1);
+      updateQuantity(cartUpdateKey, Math.round((cartQty - step) * 10000) / 10000);
     }
-  }, [cartActionLoading, cartUpdateKey, cartQty, removeFromCart, updateQuantity]);
-
-  const handleShare = async () => {
-    const url = buildProductShareUrl(product, resolvedId);
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: product?.name, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        showAlert('Link copied to clipboard.', 'Copied', 'success');
-      }
-    } catch (err) {
-      if (err?.name !== 'AbortError') showAlert('Could not share.', 'Error', 'error');
-    }
-  };
+  }, [cartActionLoading, cartUpdateKey, cartQty, removeFromCart, updateQuantity, product]);
 
   const goToPrevious = () =>
     setCurrentImageIndex((p) => {
@@ -502,10 +455,35 @@ export default function ProductDetailClient({ productId = null }) {
   }
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden bg-gray-50 pb-28">
-      <section className="relative w-full overflow-hidden bg-gray-100">
+    <div className="w-full max-w-full overflow-x-hidden bg-gray-50 pb-24">
+      <div className="border-b border-gray-100 bg-white px-4 sm:px-5">
+        <Breadcrumbs
+          items={[
+            { label: 'Home', href: '/' },
+            {
+              label:
+                product.categoryName ||
+                (typeof product.category === 'string' ? product.category : null) ||
+                product.primaryCategoryName ||
+                'Products',
+              href: product.categoryId
+                ? `/categories/${encodeURIComponent(product.categoryId)}`
+                : product.category
+                  ? `/products?category=${encodeURIComponent(
+                      typeof product.category === 'string'
+                        ? product.category
+                        : product.category?.name || ''
+                    )}`
+                  : '/products',
+            },
+            { label: product.name },
+          ]}
+        />
+      </div>
+
+      <section className="relative w-full overflow-hidden bg-gray-50">
         <div
-          className="relative h-[min(62vh,68svh)] sm:h-[66vh] md:h-[72vh]"
+          className="relative mx-auto w-full max-w-lg h-[min(36vh,280px)] sm:h-[min(40vh,320px)]"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
@@ -523,8 +501,8 @@ export default function ProductDetailClient({ productId = null }) {
                   src={img}
                   alt={`${product.name} – image ${idx + 1}`}
                   fill
-                  className="object-cover object-center"
-                  sizes="100vw"
+                  className="object-contain object-center p-3 sm:p-4"
+                  sizes="(max-width: 640px) 100vw, 512px"
                   priority={idx === 0}
                   placeholderName={product.name}
                   placeholderCategory={
@@ -545,31 +523,31 @@ export default function ProductDetailClient({ productId = null }) {
           <button
             type="button"
             onClick={() => router.back()}
-            className="w-10 h-10 rounded-full bg-white/80 backdrop-blur flex items-center justify-center shadow-sm"
+            className="w-9 h-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm border border-gray-100"
             aria-label="Back"
           >
-            <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
 
-          <div className="w-10" aria-hidden />
+          <div className="w-9" aria-hidden />
         </div>
 
         {galleryUrls.length > 1 && (
           <>
-            <button onClick={goToPrevious} className="absolute left-3 top-[42%] -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 backdrop-blur flex items-center justify-center shadow-sm z-20" aria-label="Previous">
-              <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            <button onClick={goToPrevious} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm z-20 border border-gray-100" aria-label="Previous">
+              <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <button onClick={goToNext} className="absolute right-3 top-[42%] -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 backdrop-blur flex items-center justify-center shadow-sm z-20" aria-label="Next">
-              <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <button onClick={goToNext} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm z-20 border border-gray-100" aria-label="Next">
+              <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
             </button>
           </>
         )}
 
         {galleryUrls.length > 1 && (
-          <div className="absolute bottom-16 left-0 right-0 z-20 flex justify-center px-3 sm:bottom-20">
-            <div className="flex max-w-full gap-2 overflow-x-auto rounded-2xl bg-white/70 px-2 py-1.5 shadow-sm backdrop-blur-md" role="tablist" aria-label="Product images">
+          <div className="absolute bottom-2 left-0 right-0 z-20 flex justify-center px-3">
+            <div className="flex max-w-full gap-1.5 overflow-x-auto rounded-xl bg-white/80 px-1.5 py-1 shadow-sm backdrop-blur-md" role="tablist" aria-label="Product images">
               {galleryUrls.map((u, idx) => (
                 <button
                   key={`thumb-${idx}-${u}`}
@@ -578,16 +556,16 @@ export default function ProductDetailClient({ productId = null }) {
                   aria-selected={idx === currentImageIndex}
                   aria-label={`Show image ${idx + 1}`}
                   onClick={() => setCurrentImageIndex(idx)}
-                  className={`relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${
-                    idx === currentImageIndex ? 'border-violet-600 ring-2 ring-violet-500/30' : 'border-white/80 opacity-90 hover:opacity-100'
+                  className={`relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-md border-2 transition-colors ${
+                    idx === currentImageIndex ? 'border-violet-600 ring-1 ring-violet-500/30' : 'border-white/80 opacity-90 hover:opacity-100'
                   }`}
                 >
                   <ProductImageWithFallback
                     src={u}
                     alt={`${product.name} – thumbnail ${idx + 1}`}
                     fill
-                    className="object-cover"
-                    sizes="48px"
+                    className="object-contain"
+                    sizes="36px"
                     placeholderName={product.name}
                     placeholderCategory={
                       product.categoryName ||
@@ -604,19 +582,19 @@ export default function ProductDetailClient({ productId = null }) {
         )}
       </section>
 
-      <div className="relative z-10 -mt-24 bg-white rounded-t-3xl pt-5 pb-2 sm:-mt-28 sm:pt-6">
+      <div className="relative z-10 bg-white rounded-t-2xl border-t border-gray-100 pt-4 pb-2">
         <Container>
           <div className="max-w-2xl mx-auto">
             <section
-              className="space-y-5 border-b border-gray-100 pb-6 mb-6"
+              className="space-y-3.5 border-b border-gray-100 pb-5 mb-5"
               aria-label="Product details"
             >
-              <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                 {product.organicTag && <PillTag color="green">Organic</PillTag>}
                 {product.vegNonVeg === 'veg' && <PillTag color="green">🟢 Veg</PillTag>}
                 {product.vegNonVeg === 'non_veg' && <PillTag color="red">🔴 Non-veg</PillTag>}
                 {discount > 0 && <PillTag color="discountGreen">{discount}% OFF</PillTag>}
-                {discountValue != null && discountValue > 0 && (
+                {!discount && discountValue != null && discountValue > 0 && (
                   <PillTag color="discountGreen">₹{formatRupeeINR(discountValue)} off</PillTag>
                 )}
                 {bundleLabel && <PillTag color="green">{bundleLabel}</PillTag>}
@@ -627,12 +605,17 @@ export default function ProductDetailClient({ productId = null }) {
                 )}
               </div>
 
-              <div className="space-y-3 sm:space-y-4">
-                <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-[28px] font-bold text-gray-900 leading-snug text-balance">
+              <div className="space-y-2.5 sm:space-y-3">
+                {String(product.brand || '').trim() ? (
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">
+                    {String(product.brand).trim()}
+                  </p>
+                ) : null}
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-snug text-balance">
                   {product.name}
                 </h1>
 
-                <div className="flex flex-wrap items-center gap-x-0 gap-y-2 text-[13px] sm:text-sm text-gray-600">
+                <div className="flex flex-wrap items-center gap-x-0 gap-y-1.5 text-[13px] sm:text-sm text-gray-600">
                   {displayWeight && (
                     <span className="font-medium text-gray-700 tabular-nums">{displayWeight}</span>
                   )}
@@ -666,70 +649,90 @@ export default function ProductDetailClient({ productId = null }) {
                   )}
                 </div>
 
-                <div className="space-y-3 pt-0.5">
-                  <PdpOfferPanel product={product} />
-                  <div className="flex flex-wrap items-end gap-3 sm:gap-4">
-                    <span className="text-2xl font-bold tabular-nums text-gray-900 sm:text-3xl md:text-[2rem]">
-                      ₹{formatRupeeINR(effectivePrice)}
-                    </span>
-                    {mrpDisplay != null && (
-                      <div className="flex flex-col justify-center pb-0.5">
-                        <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                          MRP
-                        </span>
-                        <span className="text-base font-medium text-gray-400 line-through tabular-nums">
+                <div className="space-y-2.5 pt-0.5">
+                  {product?.bxgyShelfRole === 'get' ? (
+                    <div className="text-2xl font-bold leading-none sm:text-3xl">
+                      <span className="text-violet-700">Free</span>
+                      {mrpDisplay != null && mrpDisplay > 0 ? (
+                        <span className="ml-2 text-base font-medium text-gray-400 line-through tabular-nums">
                           ₹{formatRupeeINR(mrpDisplay)}
                         </span>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <PriceDisplay
+                      amount={effectivePrice}
+                      listPrice={mrpDisplay}
+                      size="lg"
+                    />
+                  )}
+                  <PdpOfferPanel product={product} />
+                  <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
+                    {product?.bxgyShelfRole === 'get' ? (
+                      <div
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-3.5 text-[12px] font-semibold text-emerald-800"
+                        aria-label="Free with offer — added when you buy the paired product"
+                      >
+                        Free with offer
                       </div>
-                    )}
-                  </div>
-                  <div className="flex w-full flex-wrap gap-2 sm:gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => void handleShare()}
-                      className="inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#902bf5]/40 bg-[#902bf5]/10 px-3 text-[13px] font-semibold text-[#902bf5] shadow-sm transition hover:bg-[#902bf5]/15 sm:flex-initial sm:min-w-[7.5rem]"
-                      aria-label="Share product"
-                    >
-                      <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-                        />
-                      </svg>
-                      Share
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleAddToCart()}
-                      disabled={!product.inStock || cartActionLoading}
-                      className={`inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border px-3.5 text-[13px] font-semibold shadow-sm transition sm:flex-initial sm:min-w-[9.5rem] ${
-                        product.inStock
-                          ? 'border-violet-600 bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-70'
-                          : 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
-                      }`}
-                    >
-                      {cartActionLoading ? (
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden />
-                      ) : (
-                        <svg
-                          className={`h-4 w-4 shrink-0 ${product.inStock ? 'text-white' : 'text-gray-400'}`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          aria-hidden
+                    ) : cartQty > 0 ? (
+                      <>
+                        <div
+                          className="inline-flex h-9 items-stretch overflow-hidden rounded-full border border-violet-200 bg-white"
+                          role="group"
+                          aria-label="Quantity"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                          />
-                        </svg>
-                      )}
-                      {product.inStock ? 'Add to cart' : 'Unavailable'}
-                    </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleStepperDecrement()}
+                            disabled={cartActionLoading}
+                            className="flex w-9 items-center justify-center text-base font-medium text-violet-700 transition hover:bg-violet-50 disabled:opacity-50"
+                            aria-label="Decrease quantity"
+                          >
+                            −
+                          </button>
+                          <div className="flex min-w-[2rem] items-center justify-center border-x border-violet-100 px-2 text-[13px] font-bold tabular-nums text-violet-900">
+                            {cartQty}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void handleStepperIncrement()}
+                            disabled={cartActionLoading}
+                            className="flex w-9 items-center justify-center text-base font-medium text-violet-700 transition hover:bg-violet-50 disabled:opacity-50"
+                            aria-label="Increase quantity"
+                          >
+                            +
+                          </button>
+                        </div>
+                        {bundleFreeExtra > 0 ? (
+                          <span className="text-[12px] font-medium text-emerald-700 tabular-nums">
+                            +{bundleFreeExtra} free
+                          </span>
+                        ) : null}
+                        <Link
+                          href="/cart"
+                          className="inline-flex h-9 items-center justify-center rounded-full px-3.5 text-[12px] font-semibold text-violet-700 transition hover:bg-violet-50"
+                        >
+                          Go to cart
+                        </Link>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void handleAddToCart()}
+                        disabled={!product.inStock || cartActionLoading}
+                        className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-full px-4 text-[12px] font-bold uppercase tracking-wide transition active:scale-[0.97] ${
+                          product.inStock
+                            ? 'bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-70'
+                            : 'cursor-not-allowed bg-gray-100 text-gray-400'
+                        }`}
+                      >
+                        {cartActionLoading ? (
+                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden />
+                        ) : null}
+                        {product.inStock ? 'Add' : 'Unavailable'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1019,95 +1022,7 @@ export default function ProductDetailClient({ productId = null }) {
         </Container>
       </div>
 
-      {/* Same sticky bottom chrome as cart page; content row uses items-start when a second summary line appears so controls sit on the top edge of the bar. */}
-      <div
-        ref={pdpBottomBarRef}
-        id="yaadro-pdp-bottom-bar"
-        className={`fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-gray-100 px-4 py-3 flex w-full gap-3 ${
-          cartQty > 0 ? 'items-start' : 'items-center'
-        }`}
-        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
-      >
-        <div className={`flex-1 min-w-0 ${cartQty > 0 ? 'pt-0.5' : ''}`}>
-          <p className="text-[11px] text-gray-400">
-            {cartQty > 0 ? 'Total' : cartCount > 0 ? 'Cart total' : 'Price'}
-          </p>
-          <p className="text-lg font-medium text-gray-900 tabular-nums">
-            ₹{(cartQty > 0 || cartCount > 0 ? cartTotal : effectivePrice).toLocaleString('en-IN')}
-          </p>
-          {cartQty > 0 && (
-            <p className="mt-0.5 text-[11px] text-gray-400 tabular-nums">
-              This item: ₹{lineSubtotal} · Qty {cartQty}
-              {bundleFreeExtra > 0 ? ` (+${bundleFreeExtra} free)` : ''}
-            </p>
-          )}
-        </div>
-
-        {cartQty > 0 && (
-          <div className="flex h-11 shrink-0 items-stretch overflow-hidden rounded-full border border-gray-200 bg-white">
-            <button
-              type="button"
-              onClick={() => void handleStepperDecrement()}
-              disabled={cartActionLoading}
-              className="flex w-11 items-center justify-center bg-white text-lg font-medium text-gray-700 transition hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50"
-              aria-label="Decrease quantity"
-            >
-              −
-            </button>
-            <div className="flex min-w-[2.5rem] flex-col items-center justify-center border-x border-gray-100 bg-white px-2">
-              <span className="text-sm font-bold tabular-nums leading-none text-gray-900">{cartQty}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => void handleStepperIncrement()}
-              disabled={cartActionLoading || cartQty >= 10}
-              className="flex w-11 items-center justify-center bg-white text-lg font-medium text-gray-700 transition hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50"
-              aria-label="Increase quantity"
-            >
-              +
-            </button>
-          </div>
-        )}
-
-        {cartQty === 0 ? (
-          <button
-            type="button"
-            onClick={() => void handleAddToCart()}
-            disabled={!product.inStock || cartActionLoading}
-            className={`flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-sm font-medium transition whitespace-nowrap active:scale-[0.98] ${
-              product.inStock
-                ? 'bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-70'
-                : 'cursor-not-allowed bg-gray-200 text-gray-400'
-            }`}
-          >
-            {cartActionLoading ? (
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden />
-            ) : (
-              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-            )}
-            {product.inStock ? 'Add to cart' : 'Out of stock'}
-          </button>
-        ) : (
-          <Link
-            href="/checkout"
-            className="flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-sm font-medium transition bg-violet-600 text-white hover:bg-violet-700 active:scale-[0.98] whitespace-nowrap"
-          >
-            Go to checkout
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
-        )}
-      </div>
-
-      <FloatingViewCartPill stackAboveBottomPx={cartPillStackBottomPx} />
+      <FloatingViewCartPill />
     </div>
   );
 }

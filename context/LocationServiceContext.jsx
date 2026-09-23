@@ -52,7 +52,7 @@ function formatCompactGeocodeLabel(result) {
 
 function formatSavedAddressLabel(address) {
   if (!address) return null;
-  const line = [address.street || address.line1, address.city, address.state]
+  const line = [address.street || address.line1, address.city]
     .map((part) => String(part || '').trim())
     .filter(Boolean)
     .join(', ');
@@ -231,7 +231,9 @@ export function LocationServiceProvider({ children }) {
 
   const runCheckAtLatLng = useCallback(
     async (lat, lng, linkedAddressId = null, placeLabelHint = null) => {
+      const gen = ++deliveryCheckGenRef.current;
       const shopId = await resolveShopId();
+      if (gen !== deliveryCheckGenRef.current) return;
       if (!shopId) {
         setPhase('done');
         setServiceable(null);
@@ -243,6 +245,7 @@ export function LocationServiceProvider({ children }) {
       setGeoDenied(false);
       try {
         const data = await checkDeliveryLocation(lat, lng);
+        if (gen !== deliveryCheckGenRef.current) return;
         applyDeliveryResult(
           data,
           { lat, lng },
@@ -252,6 +255,7 @@ export function LocationServiceProvider({ children }) {
           placeLabelHint
         );
       } catch (e) {
+        if (gen !== deliveryCheckGenRef.current) return;
         const msg = e?.message || 'Could not verify delivery area.';
         setPhase('done');
         setServiceable(null);
@@ -268,7 +272,9 @@ export function LocationServiceProvider({ children }) {
   const runGpsCheck = useCallback(async () => {
     if (typeof window === 'undefined') return;
 
+    const gen = ++deliveryCheckGenRef.current;
     const shopId = await resolveShopId();
+    if (gen !== deliveryCheckGenRef.current) return;
     if (!shopId) {
       setPhase('done');
       setServiceable(null);
@@ -288,14 +294,17 @@ export function LocationServiceProvider({ children }) {
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
+        if (gen !== deliveryCheckGenRef.current) return;
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         setCoords({ lat, lng });
         setPhase('fetching');
         try {
           const data = await checkDeliveryLocation(lat, lng);
+          if (gen !== deliveryCheckGenRef.current) return;
           applyDeliveryResult(data, { lat, lng }, shopId);
         } catch (e) {
+          if (gen !== deliveryCheckGenRef.current) return;
           const msg = e?.message || 'Could not verify delivery area.';
           setPhase('done');
           setServiceable(null);
@@ -307,6 +316,7 @@ export function LocationServiceProvider({ children }) {
         }
       },
       (err) => {
+        if (gen !== deliveryCheckGenRef.current) return;
         setPhase('done');
         if (err?.code === 1) {
           setGeoDenied(true);
@@ -388,6 +398,8 @@ export function LocationServiceProvider({ children }) {
   ]);
 
   const hadSavedPinRef = useRef(false);
+  /** Monotonic id so late GPS callbacks cannot overwrite a newer address check. */
+  const deliveryCheckGenRef = useRef(0);
 
   /** GPS + cache path only when there is no saved address pin to check. */
   useEffect(() => {
@@ -538,17 +550,9 @@ export function LocationServiceProvider({ children }) {
     setSheetErrorMessage(null);
     clearDeliveryCache();
     gpsLocationCheckInitStarted = false;
-    if (addressCheckCoords) {
-      setPhase('fetching');
-      return runCheckAtLatLng(
-        addressCheckCoords.lat,
-        addressCheckCoords.lng,
-        defaultAddress?.id ?? null,
-        formatSavedAddressLabel(defaultAddress)
-      );
-    }
+    // Always GPS — do not reuse the saved address pin (that looked like "my location" failed).
     return runGpsCheck();
-  }, [addressCheckCoords, defaultAddress, runCheckAtLatLng, runGpsCheck]);
+  }, [runGpsCheck]);
 
   /** Check delivery at a user-pinned map location and persist the result. */
   const confirmLocationAtPin = useCallback(

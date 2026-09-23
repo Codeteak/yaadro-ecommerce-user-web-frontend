@@ -54,7 +54,7 @@ function flattenCategoryForest(nodes) {
 
 function formatHomeAddressLine(address) {
   if (!address) return '';
-  return [address.street || address.line1, address.city, address.state]
+  return [address.street || address.line1, address.city]
     .map((part) => String(part || '').trim())
     .filter(Boolean)
     .join(', ');
@@ -559,7 +559,11 @@ export default function Home() {
                 href={homeCategoryHref}
                 className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#902bf5] transition hover:text-[#7d24d6]"
               >
-                <span>Show all</span>
+                <span>
+                  {selectedHomeCategory?.name
+                    ? `Show all ${selectedHomeCategory.name}`
+                    : 'Show all'}
+                </span>
                 <ArrowRight size={16} className="h-4 w-4" aria-hidden />
               </Link>
             </div>

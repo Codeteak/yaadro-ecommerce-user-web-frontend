@@ -1004,17 +1004,6 @@ function normalizeDeliveryAddress(apiOrder) {
     "customerName",
   );
   const city = pick("city", "town", "district", "area", "locality");
-  const state = pick("state", "province", "region");
-  const zipCode = pick(
-    "zipCode",
-    "postalCode",
-    "postal_code",
-    "zip",
-    "pincode",
-    "pin_code",
-    "pinCode",
-  );
-  const country = pick("country");
   const phone = pick("phone", "mobile", "contact_phone", "contactPhone");
   const area = pick("area", "locality", "suburb");
   const landmark = pick("landmark", "nearby", "near");
@@ -1024,7 +1013,6 @@ function normalizeDeliveryAddress(apiOrder) {
     !fullName &&
     !city &&
     !phone &&
-    !zipCode &&
     !area &&
     !landmark &&
     !raw
@@ -1032,8 +1020,16 @@ function normalizeDeliveryAddress(apiOrder) {
     return {};
   }
 
+  const {
+    state: _state,
+    zipCode: _zipCode,
+    postalCode: _postalCode,
+    country: _country,
+    ...rawRest
+  } = raw && typeof raw === "object" ? raw : {};
+
   return {
-    ...(raw && typeof raw === "object" ? raw : {}),
+    ...rawRest,
     fullName: fullName || raw?.fullName || raw?.name || "",
     name: fullName || raw?.name || raw?.fullName || "",
     street: street || raw?.street || "",
@@ -1042,10 +1038,6 @@ function normalizeDeliveryAddress(apiOrder) {
     line2: line2 || raw?.line2 || "",
     city: city || raw?.city || area || "",
     area: area || raw?.area || "",
-    state: state || raw?.state || "",
-    zipCode: zipCode || raw?.zipCode || raw?.postalCode || "",
-    postalCode: zipCode || raw?.postalCode || raw?.zipCode || "",
-    country: country || raw?.country || "",
     phone: phone || raw?.phone || "",
     landmark: landmark || raw?.landmark || "",
   };
@@ -1063,8 +1055,6 @@ export function hasOrderDisplayAddress(addr) {
     "city",
     "area",
     "phone",
-    "zipCode",
-    "postalCode",
     "landmark",
     "formattedAddress",
   ].some((key) => String(addr[key] || "").trim());
@@ -1084,10 +1074,6 @@ export function savedAddressToOrderAddress(saved) {
     line2,
     city: String(saved.city || saved.area || "").trim(),
     area: String(saved.area || "").trim(),
-    state: String(saved.state || "").trim(),
-    zipCode: String(saved.zipCode || saved.postalCode || "").trim(),
-    postalCode: String(saved.postalCode || saved.zipCode || "").trim(),
-    country: String(saved.country || "").trim(),
     phone: String(saved.phone || "").trim(),
     landmark: String(saved.landmark || "").trim(),
   };

@@ -163,7 +163,7 @@ export function resolveProductDetailLookup(productOrId) {
 }
 
 /**
- * Warm PDP cache (with-related key used by ProductDetailClient).
+ * Warm PDP product cache (product-only — related loads after first paint).
  * Safe to call from hover / focus / touch; React Query dedupes in-flight requests.
  * @param {import('@tanstack/react-query').QueryClient} queryClient
  * @param {object|string|null|undefined} productOrId
@@ -174,14 +174,14 @@ export function prefetchProductDetail(queryClient, productOrId, shopId = '') {
   if (!lookup || !queryClient) return undefined;
 
   return queryClient.prefetchQuery({
-    queryKey: [...productKeys.detail(shopId, lookup), 'with-related'],
-    queryFn: () => getProductWithRelated(lookup),
+    queryKey: productKeys.detail(shopId, lookup),
+    queryFn: () => getProductById(lookup),
     staleTime: DETAIL_STALE_MS,
   });
 }
 
 /**
- * Get product by ID
+ * Get product by ID (critical path for PDP first paint).
  */
 export function useProduct(productId) {
   const { shopId, ready } = useStorefrontShopGate();
@@ -194,7 +194,22 @@ export function useProduct(productId) {
 }
 
 /**
- * Get product with related products
+ * Same-category related products — enable only after product (and category) is known.
+ */
+export function useRelatedProducts(categoryId, excludeProductId, options = {}) {
+  const { enabled = true, limit = 12 } = options;
+  const cat = categoryId != null ? String(categoryId).trim() : '';
+  return useProducts({
+    category_id: cat || undefined,
+    limit,
+    per_page: limit,
+    layout: 'flat',
+    enabled: enabled && !!cat,
+  });
+}
+
+/**
+ * Get product with related products (legacy combined helper — e.g. order page).
  */
 export function useProductWithRelated(productId) {
   const { shopId, ready } = useStorefrontShopGate();

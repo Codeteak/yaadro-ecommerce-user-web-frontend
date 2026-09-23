@@ -11,13 +11,13 @@ export default function PdpOfferPanel({ product }) {
   if (!offers.length) return null;
 
   return (
-    <div className="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-3.5 space-y-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+    <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-2.5 space-y-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
         Offers on this product
       </p>
-      <ul className="space-y-2.5">
+      <ul className="space-y-2">
         {offers.map((offer) => (
-          <li key={offer.id} className="space-y-1">
+          <li key={offer.id} className="space-y-0.5">
             <div className="flex flex-wrap items-center gap-1.5">
               {offer.badges.map((b) => (
                 <OfferBadgePill
@@ -29,10 +29,10 @@ export default function PdpOfferPanel({ product }) {
               ))}
             </div>
             {offer.title ? (
-              <p className="text-[13px] font-medium text-gray-900">{offer.title}</p>
+              <p className="text-[12px] font-medium text-gray-900">{offer.title}</p>
             ) : null}
             {offer.hint ? (
-              <p className="text-[11px] text-gray-500">{offer.hint}</p>
+              <p className="text-[11px] text-gray-500 leading-snug">{offer.hint}</p>
             ) : null}
           </li>
         ))}

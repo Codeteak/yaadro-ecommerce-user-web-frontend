@@ -7,6 +7,7 @@ import {
   getCartLinePaidQty,
   isBundleRewardCartLine,
 } from '../../utils/cartPromotions';
+import { cartQuantityStep } from '../../utils/productSizeSelection';
 import { lineListUnit, linePayTotal, lineUnitPrice } from '../../utils/offerDisplay';
 
 function OfferBadgePill({ children, tone = 'violet' }) {
@@ -119,9 +120,20 @@ function LineRow({
             <div className="flex items-center overflow-hidden rounded-full border border-gray-200 bg-white">
               <button
                 type="button"
-                onClick={() => onQuantityChange?.(cartItemRef, paidQty - 1)}
+                onClick={() => {
+                  const step = cartQuantityStep(item);
+                  const next =
+                    paidQty <= step + 1e-9
+                      ? 0
+                      : Math.round((paidQty - step) * 10000) / 10000;
+                  onQuantityChange?.(cartItemRef, next);
+                }}
                 className="flex h-7 w-8 items-center justify-center text-base text-gray-700 transition hover:bg-gray-50"
-                aria-label={paidQty <= 1 ? 'Remove item' : 'Decrease quantity'}
+                aria-label={
+                  paidQty <= cartQuantityStep(item) + 1e-9
+                    ? 'Remove item'
+                    : 'Decrease quantity'
+                }
               >
                 −
               </button>
@@ -130,7 +142,13 @@ function LineRow({
               </span>
               <button
                 type="button"
-                onClick={() => onQuantityChange?.(cartItemRef, paidQty + 1)}
+                onClick={() => {
+                  const step = cartQuantityStep(item);
+                  onQuantityChange?.(
+                    cartItemRef,
+                    Math.round((paidQty + step) * 10000) / 10000
+                  );
+                }}
                 disabled={paidQty >= 10}
                 className="flex h-7 w-8 items-center justify-center text-base text-gray-700 transition hover:bg-gray-50 disabled:text-gray-300"
                 aria-label="Increase quantity"

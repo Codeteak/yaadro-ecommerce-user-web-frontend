@@ -172,13 +172,7 @@ export default function BillPreviewSheet({
                       </div>
                     )}
                     <div>
-                      {[
-                        delivery.street || delivery.address,
-                        delivery.city,
-                        delivery.state,
-                        delivery.zipCode || delivery.postalCode,
-                        delivery.country,
-                      ]
+                      {[delivery.street || delivery.address, delivery.city]
                         .filter(Boolean)
                         .join(', ')}
                     </div>

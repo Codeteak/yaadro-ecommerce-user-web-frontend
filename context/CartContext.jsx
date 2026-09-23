@@ -90,23 +90,29 @@ function shopCartStorageKey() {
   return shopId ? `yaadro_cart_${shopId}` : GUEST_CART_STORAGE_KEY;
 }
 
-/** Keys to try when hydrating — primary first, then pre-cutover / legacy keys. */
+/** Keys to try when hydrating — shop-scoped only when shop is known (no cross-shop poison). */
 function cartStorageFallbackKeys() {
-  const keys = [shopCartStorageKey()];
-  if (typeof window !== 'undefined') {
-    const host = String(window.location.hostname || '')
-      .toLowerCase()
-      .trim();
-    if (shouldUseEnvShopFallback(host)) {
-      const envShopId =
-        typeof process.env.NEXT_PUBLIC_SHOP_ID === 'string'
-          ? process.env.NEXT_PUBLIC_SHOP_ID.trim()
-          : '';
-      if (envShopId) keys.push(`yaadro_cart_${envShopId}`);
+  const shopId = resolveShopIdForCartStorage();
+  if (shopId) {
+    const keys = [`yaadro_cart_${shopId}`];
+    if (typeof window !== 'undefined') {
+      const host = String(window.location.hostname || '')
+        .toLowerCase()
+        .trim();
+      if (shouldUseEnvShopFallback(host)) {
+        const envShopId =
+          typeof process.env.NEXT_PUBLIC_SHOP_ID === 'string'
+            ? process.env.NEXT_PUBLIC_SHOP_ID.trim()
+            : '';
+        if (envShopId && envShopId !== shopId) {
+          keys.push(`yaadro_cart_${envShopId}`);
+        }
+      }
     }
+    return keys;
   }
-  keys.push(GUEST_CART_STORAGE_KEY, API_CART_CACHE_STORAGE_KEY);
-  return [...new Set(keys.filter(Boolean))];
+  // No shop yet — only anonymous guest keys (never write these into a shop key later as primary source).
+  return [GUEST_CART_STORAGE_KEY];
 }
 
 function readPaidCartLinesFromStorage() {
@@ -216,6 +222,69 @@ export function CartProvider({ children }) {
       }
     }
   }, []);
+
+  // After shop id resolves, migrate anonymous `cart` → `yaadro_cart_${shopId}` once
+  // so a cold load does not wipe items added before domain resolve finished.
+  useEffect(() => {
+    if (!hasHydratedLocalCart || typeof window === 'undefined') return undefined;
+    let cancelled = false;
+
+    const migrateGuestCartToShopKey = () => {
+      if (cancelled) return;
+      const shopId = resolveShopIdForCartStorage();
+      if (!shopId) return;
+      const shopKey = `yaadro_cart_${shopId}`;
+      let guestRaw = null;
+      let shopRaw = null;
+      try {
+        guestRaw = localStorage.getItem(GUEST_CART_STORAGE_KEY);
+        shopRaw = localStorage.getItem(shopKey);
+      } catch {
+        return;
+      }
+      const shopEmpty =
+        !shopRaw || shopRaw === '[]' || shopRaw === 'null' || shopRaw === '';
+      const memory = localCartItemsRef.current;
+      if (Array.isArray(memory) && memory.length > 0) {
+        persistCartLinesImmediate(memory, shopKey);
+        try {
+          if (guestRaw) localStorage.removeItem(GUEST_CART_STORAGE_KEY);
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      if (!guestRaw || guestRaw === '[]' || !shopEmpty) return;
+      try {
+        const parsed = JSON.parse(guestRaw);
+        if (!Array.isArray(parsed) || parsed.length === 0) return;
+        localStorage.setItem(shopKey, guestRaw);
+        localStorage.removeItem(GUEST_CART_STORAGE_KEY);
+        const paidOnly = stripPaidCartLinesOnly(parsed);
+        const next = applyGuestCartBundleQuantities(paidOnly);
+        setLocalCartItems(next);
+        localCartItemsRef.current = next;
+      } catch {
+        /* ignore corrupt guest cart */
+      }
+    };
+
+    migrateGuestCartToShopKey();
+
+    (async () => {
+      try {
+        const { resolveShopId } = await import('../utils/authApi');
+        await resolveShopId();
+      } catch {
+        /* ignore */
+      }
+      migrateGuestCartToShopKey();
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasHydratedLocalCart]);
 
   const paidLocalCount = stripPaidCartLinesOnly(localCartItems).length;
   const {
@@ -416,44 +485,54 @@ export function CartProvider({ children }) {
     if (item.isBundleReward) return;
 
     const freeExtra = getBundleFreeExtraOnPaidLine(item);
-    setLocalCartItems((prevItems) =>
-      applyGuestCartBundleQuantities(
-        prevItems.filter(
-          (row) =>
-            !isBundleRewardCartLine(row) &&
-            row.cartItemKey !== idOrKey &&
-            row.id !== idOrKey &&
-            row.cartItemId !== idOrKey
-        )
+    const nextItems = applyGuestCartBundleQuantities(
+      localCartItemsRef.current.filter(
+        (row) =>
+          !isBundleRewardCartLine(row) &&
+          row.cartItemKey !== idOrKey &&
+          row.id !== idOrKey &&
+          row.cartItemId !== idOrKey
       )
     );
+    localCartItemsRef.current = nextItems;
+    setLocalCartItems(nextItems);
+    if (isClient && typeof window !== 'undefined') {
+      persistCartLinesImmediate(nextItems, shopCartStorageKey());
+    }
     if (freeExtra > 0) {
       showToast('Free offer items for this product were removed.', 'info');
     }
   };
 
   const updateQuantity = (idOrKey, quantity) => {
-    if (quantity <= 0) {
-      removeFromCart(idOrKey);
-      return;
-    }
-
     const item = cartItems.find(
       (row) => !isBundleRewardCartLine(row) && lineMatchesKey(row, idOrKey)
     );
     if (!item) return;
 
+    const soldByWeight =
+      item.soldByWeight === true || item.sold_by_weight === true;
+    const raw = Number(quantity);
+    const nextQty = soldByWeight
+      ? Math.round((Number.isFinite(raw) ? raw : 0) * 10000) / 10000
+      : Math.trunc(Number.isFinite(raw) ? raw : 0) || 0;
+
+    if (!(nextQty > 0)) {
+      removeFromCart(idOrKey);
+      return;
+    }
+
     const prevPaidQty = getCartLinePaidQty(item);
     const prevExpanded = buildGuestDisplayCartItems(localCartItemsRef.current);
     const updated = localCartItemsRef.current
       .filter((row) => !isBundleRewardCartLine(row))
-      .map((row) => (lineMatchesKey(row, idOrKey) ? { ...row, quantity } : row));
+      .map((row) => (lineMatchesKey(row, idOrKey) ? { ...row, quantity: nextQty } : row));
     const nextItems = applyGuestCartBundleQuantities(updated);
     setLocalCartItems(nextItems);
     localCartItemsRef.current = nextItems;
     setLastActivityTime(Date.now());
 
-    if (quantity > prevPaidQty) {
+    if (nextQty > prevPaidQty) {
       const nextExpanded = buildGuestDisplayCartItems(nextItems);
       const freeName = findProductNameForNewFreeUnits(prevExpanded, nextExpanded);
       if (freeName) {
@@ -616,13 +695,16 @@ export function CartProvider({ children }) {
           return total + (Number(item.price) || 0) * (Number(item.quantity) || 0);
         }, 0);
 
-  // Prefer server preview grand total (includes coupon) when available.
+  // Prefer UI cart total (BXGY strips coupon) when we have a trusted preview.
   const cartTotal =
-    cartPreviewTrusted &&
-    cartPreviewData?.total != null &&
-    Number.isFinite(Number(cartPreviewData.total))
-      ? Number(cartPreviewData.total)
-      : localLinesTotal;
+    cartDataForUi?.total != null && Number.isFinite(Number(cartDataForUi.total))
+      ? Number(cartDataForUi.total)
+      : cartPreviewTrusted &&
+          cartPreviewData?.total != null &&
+          Number.isFinite(Number(cartPreviewData.total)) &&
+          !bxgyBlocksCoupons
+        ? Number(cartPreviewData.total)
+        : localLinesTotal;
 
   const value = {
     cartItems,

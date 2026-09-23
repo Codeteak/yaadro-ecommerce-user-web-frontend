@@ -659,9 +659,8 @@ export async function getProductById(productId, options = {}) {
     const lookup = normalizeProductRouteParam(productId);
     if (!lookup) return null;
 
-    // Prefer `/storefront/products/:idOrSlug` (local DB catalog + rewrites).
-    // The `/storefront/products/id/:uuid` customer-API shape bypasses Postgres and
-    // often returns empty bundle_rules / wrong offer prices in local/dev.
+    // Always hit `/storefront/products/:idOrSlug` via Next proxy → customer API
+    // (same Redis/SWR path as listing; avoids slow Next Postgres PDP path).
     const path = `/storefront/products/${encodeURIComponent(lookup)}`;
 
     const response = await apiFetchRoot(path, {

@@ -4,6 +4,11 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import gsap from 'gsap';
+import {
+  DRAG_CLICK_PX,
+  shouldMarkAsDrag,
+  shouldSuppressClickAfterDrag,
+} from '../utils/pointerDragClick';
 
 const DEFAULT_BANNERS = [
   {
@@ -24,7 +29,6 @@ const DEFAULT_BANNERS = [
 
 const SWIPE_COMMIT_RATIO = 0.18;
 const SWIPE_VELOCITY_PX_MS = 0.35;
-const DRAG_CLICK_THRESHOLD_PX = 8;
 
 /**
  * @param {object} props
@@ -118,6 +122,16 @@ export default function BannerCarousel({
       const commitByDistance = Math.abs(delta) > width * SWIPE_COMMIT_RATIO;
       const commitByVelocity = Math.abs(velocity) > SWIPE_VELOCITY_PX_MS;
 
+      // Clear false-positive swipe so a wobble tap still activates banner links.
+      if (
+        !shouldSuppressClickAfterDrag({
+          didDrag: didSwipeRef.current,
+          totalDeltaX: delta,
+        })
+      ) {
+        didSwipeRef.current = false;
+      }
+
       if (commitByDistance || commitByVelocity) {
         if (delta < 0) goToNext();
         else goToPrevious();
@@ -146,7 +160,7 @@ export default function BannerCarousel({
   const onPointerMove = (e) => {
     if (!isDragging || activePointerIdRef.current !== e.pointerId) return;
     const delta = e.clientX - dragStartXRef.current;
-    if (Math.abs(delta) > DRAG_CLICK_THRESHOLD_PX) {
+    if (shouldMarkAsDrag(delta, DRAG_CLICK_PX)) {
       didSwipeRef.current = true;
     }
     const width = viewportRef.current?.offsetWidth || 1;
@@ -177,11 +191,11 @@ export default function BannerCarousel({
   };
 
   const blockClickAfterSwipe = (e) => {
-    if (didSwipeRef.current) {
-      e.preventDefault();
-      e.stopPropagation();
-      didSwipeRef.current = false;
-    }
+    // didSwipeRef is reconciled in finishDrag (wobble taps cleared).
+    if (!didSwipeRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    didSwipeRef.current = false;
   };
 
   const goToPreviousClick = (e) => {
