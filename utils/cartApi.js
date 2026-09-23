@@ -20,6 +20,7 @@ import {
 } from './cartPromotions';
 import {
   formatWeightUnitLabel,
+  lineTotalFromUnitPricing,
   resolveProductWeightAndUnit,
 } from './productUtils';
 
@@ -160,13 +161,13 @@ function resolveCartLinePricing(apiItem, quantity, isBundleReward) {
 
   let lineTotal = minorToMajor(lineTotalMinor);
   if (!(lineTotal > 0) && finalPerUnitMinor > 0) {
-    lineTotal = minorToMajor(finalPerUnitMinor) * paidQty;
+    lineTotal = lineTotalFromUnitPricing(minorToMajor(finalPerUnitMinor), paidQty, apiItem);
   }
   if (!(lineTotal > 0) && offerUnitPrice != null && offerUnitPrice > 0) {
-    lineTotal = offerUnitPrice * quantity;
+    lineTotal = lineTotalFromUnitPricing(offerUnitPrice, quantity, apiItem);
   }
   if (!(lineTotal > 0)) {
-    lineTotal = unitPrice * quantity;
+    lineTotal = lineTotalFromUnitPricing(unitPrice, quantity, apiItem);
   }
 
   let effectiveUnitPrice = paidQty > 0 ? lineTotal / paidQty : lineTotal / Math.max(1, quantity);

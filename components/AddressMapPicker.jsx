@@ -12,7 +12,6 @@ import {
 import { getDefaultMapCenter } from '../utils/geocoding';
 
 const GOOGLE_MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
-const GOOGLE_MAPS_MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID';
 const GOOGLE_LIBRARIES = ['places', 'marker'];
 const PIN_BASE_W = 40;
 const PIN_BASE_H = 54;
@@ -29,69 +28,6 @@ function scaleForZoom(zoom) {
 function clampLat(v) { return Math.max(-85, Math.min(85, v)); }
 function clampLng(v) { return ((v + 540) % 360) - 180; }
 
-function offsetEast(lat, lng, eastMeters) {
-  const latRad = (lat * Math.PI) / 180;
-  const metersPerDegLng = Math.max(1e-6, 111_320 * Math.cos(latRad));
-  return { lat, lng: lng + eastMeters / metersPerDegLng };
-}
-
-/**
- * DOM circle via OverlayView — classic Circle/Polygon do not paint on vector mapId maps.
- */
-function createDeliveryZoneOverlayClass(google) {
-  return class DeliveryZoneOverlay extends google.maps.OverlayView {
-    constructor(center, radiusM) {
-      super();
-      this.center = center;
-      this.radiusM = radiusM;
-      this.el = null;
-    }
-
-    onAdd() {
-      const el = document.createElement('div');
-      el.setAttribute('aria-hidden', 'true');
-      el.style.position = 'absolute';
-      el.style.boxSizing = 'border-box';
-      el.style.border = '3px solid #7d24d6';
-      el.style.background = 'rgba(52, 211, 153, 0.22)';
-      el.style.borderRadius = '50%';
-      el.style.pointerEvents = 'none';
-      el.style.zIndex = '1';
-      this.el = el;
-      const panes = this.getPanes();
-      const pane = panes?.overlayLayer || panes?.mapPane || panes?.overlayMouseTarget;
-      pane?.appendChild(el);
-    }
-
-    draw() {
-      if (!this.el) return;
-      const proj = this.getProjection();
-      if (!proj) return;
-      const centerLl = new google.maps.LatLng(this.center.lat, this.center.lng);
-      const centerPx = proj.fromLatLngToDivPixel(centerLl);
-      if (!centerPx) return;
-      const edge = offsetEast(this.center.lat, this.center.lng, this.radiusM);
-      const edgePx = proj.fromLatLngToDivPixel(new google.maps.LatLng(edge.lat, edge.lng));
-      if (!edgePx) return;
-      const r = Math.max(2, Math.abs(edgePx.x - centerPx.x));
-      this.el.style.left = `${centerPx.x - r}px`;
-      this.el.style.top = `${centerPx.y - r}px`;
-      this.el.style.width = `${r * 2}px`;
-      this.el.style.height = `${r * 2}px`;
-    }
-
-    onRemove() {
-      this.el?.parentNode?.removeChild(this.el);
-      this.el = null;
-    }
-  };
-}
-
-function clearMapOverlay(ref) {
-  if (!ref?.current) return;
-  ref.current.setMap(null);
-  ref.current = null;
-}
 
 function parseGoogleAddress(result) {
   if (!result) return null;
@@ -137,12 +73,8 @@ export default function AddressMapPicker({
   centerPinMode = false,
   userLocation = null,
   storeLocation = null,
-  /** When false, the shop pin is hidden (delivery circle can still use `storeLocation` as centre). */
+  /** When false, the shop pin is hidden. */
   showStoreMarker = true,
-  /** Delivery radius in metres, centred on `storeLocation` (e.g. API `maxRadiusM`). */
-  deliveryRadiusM = null,
-  /** When true with `centerPinMode`, fit the map to the delivery circle once on load. */
-  fitDeliveryZone = false,
   focusRequest = null,
 }) {
   const { isLoaded, loadError } = useJsApiLoader({
@@ -164,7 +96,7 @@ export default function AddressMapPicker({
   // for GoogleMap props only; later moves go through the map instance.
   const initialCameraRef = useRef({
     center: initialPoint,
-    zoom: fitDeliveryZone ? 12 : value?.lat ? 16 : 12,
+    zoom: value?.lat ? 16 : 12,
   });
   const [reverseStatus, setReverseStatus] = useState('idle'); // idle | loading | error
   const [locating, setLocating] = useState(false);
@@ -174,12 +106,9 @@ export default function AddressMapPicker({
   const [searchOpen, setSearchOpen] = useState(false);
 
   const mapRef = useRef(null);
-  /** Set when `GoogleMap` fires `onLoad` so delivery circle attaches after the map exists. */
   const [mapInstance, setMapInstance] = useState(null);
-  const deliveryCircleRef = useRef(null);
   const geocoderRef = useRef(null);
   const placesServiceRef = useRef(null);
-  const markerLibRef = useRef(null);
   const dragListenerRef = useRef(null);
   const userMarkerRef = useRef(null);
   const storeMarkerRef = useRef(null);
@@ -189,31 +118,19 @@ export default function AddressMapPicker({
   const lastCenterEmitKeyRef = useRef('');
   const lastReverseResolvedKeyRef = useRef('');
   const reverseReqIdRef = useRef(0);
-  const deliveryZoneFittedRef = useRef('');
-
+  /** True while programmatic camera moves run; idle must not emit pin updates. */
+  const ignoreIdlePinEmitRef = useRef(false);
+  const ignoreIdleClearRef = useRef(null);
   const iconScale = useMemo(() => scaleForZoom(liveZoom), [liveZoom]);
   const pinW = Math.round(PIN_BASE_W * iconScale);
   const pinH = Math.round(PIN_BASE_H * iconScale);
   const userIconSize = Math.round(HOME_BASE * iconScale);
-  const storeIconSize = Math.round(STORE_BASE * iconScale);
-
-  const buildMarkerContent = useCallback((url, width, height) => {
-    if (typeof document === 'undefined') return null;
-    const img = document.createElement('img');
-    img.src = url;
-    img.width = width;
-    img.height = height;
-    img.style.width = `${width}px`;
-    img.style.height = `${height}px`;
-    img.style.objectFit = 'contain';
-    img.style.display = 'block';
-    img.alt = '';
-    return img;
-  }, []);
 
   const clearMarker = (markerRef) => {
     if (!markerRef?.current) return;
-    markerRef.current.map = null;
+    const m = markerRef.current;
+    if (typeof m.setMap === 'function') m.setMap(null);
+    else m.map = null;
     markerRef.current = null;
   };
 
@@ -347,83 +264,14 @@ export default function AddressMapPicker({
     });
   }, [recenterMap, updatePoint]);
 
-  const onMapLoad = useCallback(async (map) => {
+  const onMapLoad = useCallback((map) => {
     mapRef.current = map;
     setMapInstance(map);
     if (window?.google?.maps) {
       geocoderRef.current = new window.google.maps.Geocoder();
       placesServiceRef.current = new window.google.maps.places.AutocompleteService();
-      try {
-        markerLibRef.current = await window.google.maps.importLibrary('marker');
-      } catch {
-        markerLibRef.current = null;
-      }
     }
   }, []);
-
-  useEffect(() => () => setMapInstance(null), []);
-
-  // Service radius from shop — OverlayView DOM circle (visible on vector / mapId maps).
-  useEffect(() => {
-    if (!mapInstance || !isLoaded || typeof window === 'undefined' || !window.google?.maps) {
-      return undefined;
-    }
-    const lat = Number(storeLocation?.lat);
-    const lng = Number(storeLocation?.lng);
-    const r = Number(deliveryRadiusM);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(r) || r <= 0) {
-      clearMapOverlay(deliveryCircleRef);
-      return undefined;
-    }
-    clearMapOverlay(deliveryCircleRef);
-    const Overlay = createDeliveryZoneOverlayClass(window.google);
-    const overlay = new Overlay({ lat, lng }, r);
-    overlay.setMap(mapInstance);
-    deliveryCircleRef.current = overlay;
-    return () => {
-      clearMapOverlay(deliveryCircleRef);
-    };
-  }, [mapInstance, isLoaded, storeLocation?.lat, storeLocation?.lng, deliveryRadiusM]);
-
-  // Fit map to the delivery zone so the shop hub + radius are visible.
-  useEffect(() => {
-    if (
-      !fitDeliveryZone ||
-      !mapInstance ||
-      !isLoaded ||
-      typeof window === 'undefined' ||
-      !window.google?.maps
-    ) {
-      return undefined;
-    }
-    const lat = Number(storeLocation?.lat);
-    const lng = Number(storeLocation?.lng);
-    const r = Number(deliveryRadiusM);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(r) || r <= 0) {
-      return undefined;
-    }
-
-    const fitKey = `${lat.toFixed(5)},${lng.toFixed(5)},${Math.round(r)}`;
-    if (deliveryZoneFittedRef.current === fitKey) return undefined;
-
-    const latDelta = r / 111_320;
-    const lngDelta = r / (111_320 * Math.cos((lat * Math.PI) / 180));
-    const bounds = new window.google.maps.LatLngBounds(
-      { lat: lat - latDelta, lng: lng - lngDelta },
-      { lat: lat + latDelta, lng: lng + lngDelta }
-    );
-    mapInstance.fitBounds(bounds, { top: 56, bottom: 56, left: 32, right: 32 });
-    deliveryZoneFittedRef.current = fitKey;
-
-    return undefined;
-  }, [
-    fitDeliveryZone,
-    mapInstance,
-    isLoaded,
-    storeLocation?.lat,
-    storeLocation?.lng,
-    deliveryRadiusM,
-  ]);
 
   const handleIdle = useCallback(() => {
     const map = mapRef.current;
@@ -431,10 +279,12 @@ export default function AddressMapPicker({
     const z = map.getZoom?.();
     if (Number.isFinite(z)) setLiveZoom(z);
     if (!centerPinMode) return;
+    if (ignoreIdlePinEmitRef.current) return;
     const c = map.getCenter?.();
     if (!c) return;
     if (centerDebounceRef.current) clearTimeout(centerDebounceRef.current);
     centerDebounceRef.current = setTimeout(() => {
+      if (ignoreIdlePinEmitRef.current) return;
       const lat = clampLat(c.lat());
       const lng = clampLng(c.lng());
       // Deduplicate idle emissions from the same center position.
@@ -445,50 +295,45 @@ export default function AddressMapPicker({
     }, 360);
   }, [centerPinMode, updatePoint]);
 
+  // Delivery pin + optional "you are here" — recreate when zoom scale / point changes.
   useEffect(() => {
     const map = mapRef.current;
-    const AdvancedMarkerElement = markerLibRef.current?.AdvancedMarkerElement;
-    if (!isLoaded || !map || !AdvancedMarkerElement) return undefined;
+    if (!isLoaded || !map || typeof window === 'undefined' || !window.google?.maps) return undefined;
 
     if (dragListenerRef.current) {
-      dragListenerRef.current.remove();
+      window.google.maps.event.removeListener(dragListenerRef.current);
       dragListenerRef.current = null;
     }
     clearMarker(userMarkerRef);
-    clearMarker(storeMarkerRef);
     clearMarker(pinMarkerRef);
 
     if (userLocation?.lat != null && userLocation?.lng != null) {
-      userMarkerRef.current = new AdvancedMarkerElement({
+      userMarkerRef.current = new window.google.maps.Marker({
         map,
-        position: { lat: userLocation.lat, lng: userLocation.lng },
-        content: buildMarkerContent('/home-icon.png', userIconSize, userIconSize),
-        gmpClickable: false,
+        position: { lat: Number(userLocation.lat), lng: Number(userLocation.lng) },
+        icon: {
+          url: '/home-icon.png',
+          scaledSize: new window.google.maps.Size(userIconSize, userIconSize),
+          anchor: new window.google.maps.Point(userIconSize / 2, userIconSize / 2),
+        },
+        clickable: false,
         zIndex: 10,
-      });
-    }
-
-    if (
-      showStoreMarker &&
-      storeLocation?.lat != null &&
-      storeLocation?.lng != null
-    ) {
-      storeMarkerRef.current = new AdvancedMarkerElement({
-        map,
-        position: { lat: storeLocation.lat, lng: storeLocation.lng },
-        content: buildMarkerContent('/store-icon.png', storeIconSize, storeIconSize),
-        gmpClickable: false,
-        zIndex: 20,
+        title: 'Your location',
       });
     }
 
     if (!centerPinMode) {
-      pinMarkerRef.current = new AdvancedMarkerElement({
+      pinMarkerRef.current = new window.google.maps.Marker({
         map,
         position: { lat: point.lat, lng: point.lng },
-        content: buildMarkerContent('/map-pin.png', pinW, pinH),
-        gmpDraggable: true,
+        icon: {
+          url: '/map-pin.png',
+          scaledSize: new window.google.maps.Size(pinW, pinH),
+          anchor: new window.google.maps.Point(pinW / 2, pinH),
+        },
+        draggable: true,
         zIndex: 100,
+        title: 'Delivery point',
       });
       dragListenerRef.current = pinMarkerRef.current.addListener('dragend', (e) => {
         const lat = e?.latLng?.lat?.();
@@ -500,29 +345,62 @@ export default function AddressMapPicker({
 
     return () => {
       if (dragListenerRef.current) {
-        dragListenerRef.current.remove();
+        window.google.maps.event.removeListener(dragListenerRef.current);
         dragListenerRef.current = null;
       }
       clearMarker(userMarkerRef);
-      clearMarker(storeMarkerRef);
       clearMarker(pinMarkerRef);
     };
   }, [
     isLoaded,
+    mapInstance,
     userLocation?.lat,
     userLocation?.lng,
-    storeLocation?.lat,
-    storeLocation?.lng,
-    showStoreMarker,
     centerPinMode,
     point.lat,
     point.lng,
     userIconSize,
-    storeIconSize,
     pinW,
     pinH,
-    buildMarkerContent,
     updatePoint,
+  ]);
+
+  // Shop marker — original /store-icon.png only; separate effect so zoom rescale never remounts a 2nd shop pin.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!isLoaded || !map || typeof window === 'undefined' || !window.google?.maps) return undefined;
+
+    clearMarker(storeMarkerRef);
+    if (
+      !showStoreMarker ||
+      storeLocation?.lat == null ||
+      storeLocation?.lng == null
+    ) {
+      return undefined;
+    }
+
+    const s = STORE_BASE;
+    storeMarkerRef.current = new window.google.maps.Marker({
+      map,
+      position: { lat: Number(storeLocation.lat), lng: Number(storeLocation.lng) },
+      icon: {
+        url: '/store-icon.png',
+        scaledSize: new window.google.maps.Size(s, s),
+        anchor: new window.google.maps.Point(s / 2, s / 2),
+      },
+      clickable: false,
+      optimized: true,
+      zIndex: 20,
+      title: 'Shop',
+    });
+
+    return () => clearMarker(storeMarkerRef);
+  }, [
+    isLoaded,
+    mapInstance,
+    showStoreMarker,
+    storeLocation?.lat,
+    storeLocation?.lng,
   ]);
 
   if (!GOOGLE_MAPS_KEY) {
@@ -630,6 +508,10 @@ export default function AddressMapPicker({
         {isLoaded && !loadError && (
           <GoogleMap
             onLoad={onMapLoad}
+            onUnmount={() => {
+              mapRef.current = null;
+              setMapInstance(null);
+            }}
             onIdle={handleIdle}
             center={initialCameraRef.current.center}
             zoom={initialCameraRef.current.zoom}
@@ -639,7 +521,6 @@ export default function AddressMapPicker({
               streetViewControl: false,
               mapTypeControl: false,
               fullscreenControl: false,
-              mapId: GOOGLE_MAPS_MAP_ID,
             }}
             mapContainerClassName="h-full w-full"
             onClick={(e) => {

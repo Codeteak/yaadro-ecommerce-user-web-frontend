@@ -20,6 +20,10 @@ export default function ConfirmModal({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   overlayClassName = 'z-50',
+  /** When true, confirm/cancel are disabled (in-flight async). */
+  isConfirming = false,
+  /** Close after confirm (default). Set false when parent keeps modal open while submitting. */
+  closeOnConfirm = true,
 }) {
   useEffect(() => {
     if (isOpen) {
@@ -33,16 +37,20 @@ export default function ConfirmModal({
   }, [isOpen]);
 
   const handleConfirm = () => {
+    if (isConfirming) return;
     onConfirm?.();
-    onClose?.();
+    if (closeOnConfirm) onClose?.();
   };
 
   return (
-    <ModalDialogRoot open={isOpen} onOpenChange={(open) => !open && onClose?.()}>
+    <ModalDialogRoot
+      open={isOpen}
+      onOpenChange={(open) => !open && !isConfirming && onClose?.()}
+    >
       <ModalDialogContent
         className="overflow-hidden border border-amber-200/80 bg-white p-0 shadow-xl"
         overlayClassName={overlayClassName}
-        onClose={onClose}
+        onClose={isConfirming ? undefined : onClose}
       >
         <div className="border-b border-amber-100/80 bg-gradient-to-b from-amber-50/90 to-white px-6 pb-4 pt-6 pr-12">
           <div className="flex items-start gap-3">
@@ -63,6 +71,7 @@ export default function ConfirmModal({
           <Button
             variant="ghost"
             onPress={onClose}
+            isDisabled={isConfirming}
             className="flex-1 rounded-xl bg-gray-100 py-3 font-semibold text-gray-800 hover:bg-gray-200"
           >
             {cancelText}
@@ -70,6 +79,8 @@ export default function ConfirmModal({
           <Button
             variant="primary"
             onPress={handleConfirm}
+            isDisabled={isConfirming}
+            isLoading={isConfirming}
             className={`flex-1 rounded-xl py-3 font-semibold ${BRAND_PRIMARY_BTN}`}
           >
             {confirmText}

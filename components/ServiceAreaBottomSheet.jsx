@@ -30,9 +30,6 @@ const AddressMapPicker = dynamic(() => import('./AddressMapPicker'), {
   ),
 });
 
-const DELIVERY_RADIUS_FALLBACK_M =
-  Number(process.env.NEXT_PUBLIC_DELIVERY_RADIUS_FALLBACK_M) || 8000;
-
 function formatKm(meters) {
   if (meters == null || Number.isNaN(meters)) return null;
   const km = meters / 1000;
@@ -259,11 +256,6 @@ export default function ServiceAreaBottomSheet() {
     return getDefaultMapCenter();
   }, [coords?.lat, coords?.lng]);
 
-  const mapDeliveryRadiusM =
-    pinPreview.maxRadiusM ??
-    (typeof maxRadiusM === 'number' && maxRadiusM > 0 ? maxRadiusM : null) ??
-    DELIVERY_RADIUS_FALLBACK_M;
-
   const effectiveStoreLocation = useMemo(() => {
     if (pinPreview.shopLocation?.lat != null && pinPreview.shopLocation?.lng != null) {
       return pinPreview.shopLocation;
@@ -318,7 +310,6 @@ export default function ServiceAreaBottomSheet() {
     onDraftPinChange: setDraftPin,
     initialMapPin,
     effectiveStoreLocation,
-    mapDeliveryRadiusM,
     pinPreview,
     onConfirmPin: handleConfirmPin,
     onEditAddress: handleEditAddress,
@@ -373,7 +364,6 @@ function SheetBody({
   onDraftPinChange,
   initialMapPin,
   effectiveStoreLocation,
-  mapDeliveryRadiusM,
   pinPreview,
   onConfirmPin,
   onEditAddress,
@@ -427,8 +417,6 @@ function SheetBody({
           centerPinMode
           storeLocation={effectiveStoreLocation}
           showStoreMarker
-          deliveryRadiusM={mapDeliveryRadiusM}
-          fitDeliveryZone
         />
 
         <div
@@ -461,7 +449,7 @@ function SheetBody({
           )}
           {!pinPreview.loading && !pinPreview.error && pinPreview.serviceable === false && (
             <p className="mt-1 text-[13px] font-semibold">
-              Outside delivery zone — move the map so the pin sits inside the green area.
+              Outside delivery zone — move the map to a spot we serve.
             </p>
           )}
           {!pinPreview.loading && !pinPreview.error && pinPreview.serviceable == null && (

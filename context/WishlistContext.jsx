@@ -2,15 +2,21 @@
 
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
+import { useShopBranding } from './ShopBrandingContext';
 
 const WishlistContext = createContext();
 
+function wishlistStorageKey(shopId) {
+  return shopId ? `yaadro_wishlist_${shopId}` : 'wishlist';
+}
+
 export function WishlistProvider({ children }) {
   const { isAuthenticated } = useAuth();
+  const { shopId } = useShopBranding();
   const wasAuthenticatedRef = useRef(false);
-  // Initialize wishlist state from localStorage if available (client-side only)
   const [wishlistItems, setWishlistItems] = useState([]);
   const [isClient, setIsClient] = useState(false);
+  const storageKey = wishlistStorageKey(shopId);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -22,72 +28,67 @@ export function WishlistProvider({ children }) {
     setWishlistItems([]);
   }, [isAuthenticated]);
 
-  // Ensure we're on the client before accessing localStorage
+  // Load wishlist when shop (or client) is ready — shop-scoped key.
   useEffect(() => {
     setIsClient(true);
-    if (typeof window !== 'undefined') {
-      const savedWishlist = localStorage.getItem('wishlist');
-      if (savedWishlist) {
-        try {
-          setWishlistItems(JSON.parse(savedWishlist));
-        } catch (error) {
-          console.error('Error parsing wishlist from localStorage:', error);
-        }
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) {
+        setWishlistItems([]);
+        return;
       }
+      const parsed = JSON.parse(raw);
+      setWishlistItems(Array.isArray(parsed) ? parsed : []);
+    } catch (error) {
+      console.error('Error parsing wishlist from localStorage:', error);
+      setWishlistItems([]);
     }
-  }, []);
+  }, [storageKey]);
 
-  // Save wishlist to localStorage whenever it changes (client-side only)
   useEffect(() => {
     if (isClient && typeof window !== 'undefined') {
-      localStorage.setItem('wishlist', JSON.stringify(wishlistItems));
+      localStorage.setItem(storageKey, JSON.stringify(wishlistItems));
     }
-  }, [wishlistItems, isClient]);
+  }, [wishlistItems, isClient, storageKey]);
 
-  // Add item to wishlist
   const addToWishlist = (product) => {
-    setWishlistItems(prevItems => {
-      // Check if item already exists in wishlist
-      const existingItem = prevItems.find(item => item.id === product.id);
-      if (existingItem) {
-        return prevItems; // Item already in wishlist
-      }
-      // Add new item to wishlist
+    setWishlistItems((prevItems) => {
+      const existingItem = prevItems.find((item) => item.id === product.id);
+      if (existingItem) return prevItems;
       return [...prevItems, product];
     });
   };
 
-  // Remove item from wishlist
   const removeFromWishlist = (id) => {
-    setWishlistItems(prevItems => prevItems.filter(item => item.id !== id));
+    setWishlistItems((prevItems) => prevItems.filter((item) => item.id !== id));
   };
 
-  // Check if product is in wishlist
-  const isInWishlist = (id) => {
-    return wishlistItems.some(item => item.id === id);
-  };
+  const isInWishlist = (id) => wishlistItems.some((item) => item.id === id);
 
-  // Clear entire wishlist
   const clearWishlist = () => {
     setWishlistItems([]);
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('wishlist');
+      localStorage.removeItem(storageKey);
     }
   };
 
-  // Get wishlist count
   const wishlistCount = wishlistItems.length;
 
-  const value = {
-    wishlistItems,
-    addToWishlist,
-    removeFromWishlist,
-    isInWishlist,
-    clearWishlist,
-    wishlistCount,
-  };
-
-  return <WishlistContext.Provider value={value}>{children}</WishlistContext.Provider>;
+  return (
+    <WishlistContext.Provider
+      value={{
+        wishlistItems,
+        addToWishlist,
+        removeFromWishlist,
+        isInWishlist,
+        clearWishlist,
+        wishlistCount,
+      }}
+    >
+      {children}
+    </WishlistContext.Provider>
+  );
 }
 
 export function useWishlist() {
@@ -97,6 +98,3 @@ export function useWishlist() {
   }
   return context;
 }
-
-
-

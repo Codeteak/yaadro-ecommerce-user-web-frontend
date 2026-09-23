@@ -162,17 +162,20 @@ export default function BillPreviewSheet({
                     Shipping
                   </span>
                 </div>
-                  {delivery ? (
-                    <div className="text-sm leading-relaxed text-gray-700">
-                      {[delivery.fullName || delivery.name, delivery.phone].filter(Boolean).length >
-                        0 && (
-                        <div className="font-semibold text-gray-900">
-                          {[delivery.fullName || delivery.name, delivery.phone]
-                            .filter(Boolean)
-                            .join(' • ')}
-                        </div>
-                      )}
-                      <div>{formatAddressDisplay(delivery) || '—'}</div>
+                {delivery ? (
+                  <div className="text-sm leading-relaxed text-gray-700">
+                    {[delivery.fullName || delivery.name, delivery.phone].filter(Boolean).length >
+                      0 && (
+                      <div className="font-semibold text-gray-900">
+                        {[delivery.fullName || delivery.name, delivery.phone]
+                          .filter(Boolean)
+                          .join(' • ')}
+                      </div>
+                    )}
+                    <div>
+                      {[delivery.street || delivery.address, delivery.city]
+                        .filter(Boolean)
+                        .join(', ')}
                     </div>
                   ) : (
                     <div className="text-sm text-gray-500">—</div>

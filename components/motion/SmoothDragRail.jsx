@@ -3,12 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, useMotionValue, useReducedMotion } from 'framer-motion';
 import gsap from 'gsap';
-
-const DRAG_CLICK_PX = 16;
+import {
+  AXIS_LOCK_PX,
+  DRAG_CLICK_PX,
+  resolvePointerAxis,
+  shouldMarkAsDrag,
+  shouldSuppressClickAfterDrag,
+} from '../../utils/pointerDragClick';
 
 /**
  * Horizontal rail with mouse and touch drag.
  * Framer Motion renders the transform; GSAP coasts after release.
+ *
+ * Tap safety: only suppress the following click when the rail actually moved
+ * past {@link DRAG_CLICK_PX} (finger wobble alone must not kill category chips).
  */
 export default function SmoothDragRail({
   children,
@@ -28,8 +36,10 @@ export default function SmoothDragRail({
     lastT: 0,
     velocity: 0,
     axis: null,
+    captured: false,
   });
   const didDragRef = useRef(false);
+  const lastDeltaXRef = useRef(0);
   const minXRef = useRef(0);
   const x = useMotionValue(0);
   const reduceMotion = useReducedMotion();
@@ -82,10 +92,15 @@ export default function SmoothDragRail({
     const viewport = viewportRef.current;
     if (!viewport) return undefined;
     const onClickCapture = (event) => {
-      if (!didDragRef.current) return;
+      const suppress = shouldSuppressClickAfterDrag({
+        didDrag: didDragRef.current,
+        totalDeltaX: lastDeltaXRef.current,
+      });
+      didDragRef.current = false;
+      lastDeltaXRef.current = 0;
+      if (!suppress) return;
       event.preventDefault();
       event.stopPropagation();
-      didDragRef.current = false;
     };
     viewport.addEventListener('click', onClickCapture, true);
     return () => viewport.removeEventListener('click', onClickCapture, true);
@@ -169,22 +184,35 @@ export default function SmoothDragRail({
       lastT: now,
       velocity: 0,
       axis: null,
+      captured: false,
     };
     didDragRef.current = false;
-    event.currentTarget.setPointerCapture?.(event.pointerId);
+    lastDeltaXRef.current = 0;
+    // Do not capture yet — early capture steals the click from child buttons.
   };
 
   const onPointerMove = (event) => {
     const pointer = pointerRef.current;
     if (pointer.id !== event.pointerId) return;
+
+    const totalDx = event.clientX - pointer.startX;
+    lastDeltaXRef.current = totalDx;
+
     if (!pointer.axis) {
-      const adx = Math.abs(event.clientX - pointer.startX);
+      const adx = Math.abs(totalDx);
       const ady = Math.abs(event.clientY - pointer.startY);
-      // Wait for a clearer gesture before locking axis (avoids stealing product taps).
-      if (adx < 10 && ady < 10) return;
-      pointer.axis = adx >= ady ? 'x' : 'y';
+      const axis = resolvePointerAxis(adx, ady, AXIS_LOCK_PX);
+      if (!axis) return;
+      pointer.axis = axis;
+      if (axis !== 'x') return;
     }
     if (pointer.axis !== 'x') return;
+
+    if (!pointer.captured) {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      pointer.captured = true;
+    }
+
     event.preventDefault();
     const now = performance.now();
     const dx = event.clientX - pointer.lastX;
@@ -192,11 +220,11 @@ export default function SmoothDragRail({
     pointer.velocity = dx / dt;
     pointer.lastX = event.clientX;
     pointer.lastT = now;
-    const next = pointer.origin + (event.clientX - pointer.startX);
+    const next = pointer.origin + totalDx;
     const min = minXRef.current;
     const overshoot = next > 0 ? next * 0.28 : next < min ? min + (next - min) * 0.28 : next;
     x.set(overshoot);
-    if (Math.abs(event.clientX - pointer.startX) > DRAG_CLICK_PX) {
+    if (shouldMarkAsDrag(totalDx, DRAG_CLICK_PX)) {
       didDragRef.current = true;
       setDragging(true);
     }
@@ -206,38 +234,35 @@ export default function SmoothDragRail({
     const pointer = pointerRef.current;
     if (pointer.id !== event.pointerId) return;
     const wasHorizontal = pointer.axis === 'x';
-    const movedX = Math.abs(event.clientX - pointer.startX);
-    const releaseX = x.get();
-    const velocityPxPerSec = pointer.velocity * 1000;
+    const totalDx = event.clientX - pointer.startX;
+    lastDeltaXRef.current = totalDx;
+
+    // Finger wobble mid-gesture then release near start → keep the click.
+    if (
+      !shouldSuppressClickAfterDrag({
+        didDrag: didDragRef.current,
+        totalDeltaX: totalDx,
+      })
+    ) {
+      didDragRef.current = false;
+    }
+
+    if (pointer.captured) {
+      try {
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+      } catch {
+        /* ignore */
+      }
+    }
+
     pointer.id = null;
     pointer.axis = null;
+    pointer.captured = false;
     setDragging(false);
-
-    // Tap / vertical scroll / tiny wobble — never steal the next product click.
-    if (!wasHorizontal || movedX <= DRAG_CLICK_PX) {
-      didDragRef.current = false;
-      return;
-    }
-
-    const min = minXRef.current;
-    const pastEdge = releaseX > 0 || releaseX < min;
-    if (pastEdge && !reduceMotion) {
-      killTween();
-      const proxy = { val: releaseX };
-      tweenRef.current = gsap.to(proxy, {
-        val: clampX(releaseX),
-        duration: 0.42,
-        ease: 'power2.out',
-        onUpdate: () => x.set(proxy.val),
-        onComplete: () => {
-          tweenRef.current = null;
-          coastTo(velocityPxPerSec);
-        },
-      });
-      return;
-    }
-
-    x.set(clampX(releaseX));
+    if (!wasHorizontal) return;
+    if (!shouldMarkAsDrag(totalDx, DRAG_CLICK_PX)) return;
+    const velocityPxPerSec = pointer.velocity * 1000;
+    x.set(clampX(x.get()));
     coastTo(velocityPxPerSec);
   };
 

@@ -32,6 +32,7 @@ import {
   parseOrderQuantity,
 } from "../../../utils/orderPromotions";
 import { buildOrderOfferGroups } from "../../../utils/orderOfferGroups";
+import { formatOrderLineWeight } from "../../../utils/productUtils";
 import { downloadBillPdf } from "../../../utils/orderInvoice";
 import { formatAddressDisplay } from "../../../utils/formatAddress";
 import {
@@ -441,7 +442,8 @@ function OrderItemRow({ item }) {
     Number.isFinite(listPrice) &&
     listPrice > (item.unitPrice || 0) + 0.009;
 
-  let qtyText = `Qty ${displayQty}${packSuffix}`;
+  const weightText = formatOrderLineWeight(item);
+  let qtyText = weightText || `Qty ${displayQty}${packSuffix}`;
 
   if (unavailable) {
     qtyText =
@@ -453,7 +455,7 @@ function OrderItemRow({ item }) {
     if (meta.showShopQtyUpdate && meta.originalQty != null) {
       qtyText += ` · you ordered ${meta.originalQty}`;
     }
-  } else if (meta.showShopQtyUpdate) {
+  } else if (!weightText && meta.showShopQtyUpdate) {
     if (
       meta.originalQty != null &&
       Math.abs(meta.originalQty - displayQty) > 1e-6
@@ -1026,6 +1028,20 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
       unit_size: item?.unitSize ?? item?.unit_size ?? undefined,
       brand: item?.brand || item?.product?.brand || undefined,
       category: item?.category || item?.product?.category || undefined,
+      soldByWeight:
+        item?.soldByWeight === true ||
+        item?.sold_by_weight === true ||
+        item?.product?.soldByWeight === true ||
+        item?.product?.sold_by_weight === true,
+      sold_by_weight:
+        item?.soldByWeight === true ||
+        item?.sold_by_weight === true ||
+        item?.product?.soldByWeight === true ||
+        item?.product?.sold_by_weight === true,
+      weightStepKg: (() => {
+        const n = Number(item?.weightStepKg ?? item?.catalogUnitSize);
+        return Number.isFinite(n) && n > 0 ? n : undefined;
+      })(),
     };
   };
 
@@ -1318,9 +1334,22 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                     {addr.phone ? ` · ${addr.phone}` : ""}
                   </p>
                 )}
-                {formatAddressDisplay(addr) ? (
-                  <p className="m-0 text-gray-500">{formatAddressDisplay(addr)}</p>
-                ) : null}
+                {(addr.street || addr.address || addr.line1) && (
+                  <p className="m-0 text-gray-500">
+                    {addr.street || addr.address || addr.line1}
+                  </p>
+                )}
+                {addr.line2 && (
+                  <p className="m-0 text-gray-500">{addr.line2}</p>
+                )}
+                {addr.city && (
+                  <p className="m-0 text-gray-500">{addr.city}</p>
+                )}
+                {addr.landmark && (
+                  <p className="mb-0 mt-1 text-[11px] text-gray-500">
+                    Near {addr.landmark}
+                  </p>
+                )}
                 {!hasAddress && (
                   <p className="m-0 italic text-gray-500">No address on file</p>
                 )}

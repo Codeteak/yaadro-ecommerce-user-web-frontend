@@ -9,28 +9,20 @@ function Shimmer({ className = '' }) {
 
 export default function ProductDetailSkeleton() {
   return (
-    <div className="w-full max-w-full overflow-x-hidden bg-gray-50 pb-28" aria-busy="true" aria-label="Loading product">
-      {/* ── Image gallery (matches detail hero) ── */}
-      <section className="relative w-full bg-white overflow-hidden pb-6">
+    <div className="w-full max-w-full overflow-x-hidden bg-gray-50 pb-24" aria-busy="true" aria-label="Loading product">
+      {/* ── Compact image gallery ── */}
+      <section className="relative w-full bg-gray-50 overflow-hidden">
         <div className="absolute top-0 left-0 right-0 z-20 p-3 flex items-center justify-between pointer-events-none">
-          <Shimmer className="w-10 h-10 rounded-full" />
-          <div className="flex gap-2">
-            <Shimmer className="w-10 h-10 rounded-full" />
-            <Shimmer className="w-10 h-10 rounded-full" />
-          </div>
+          <Shimmer className="w-9 h-9 rounded-full" />
+          <div className="w-9" aria-hidden />
         </div>
-        <div className="w-full min-h-[55vw] sm:min-h-[45vw] max-h-[120vw] sm:max-h-[90vw]">
-          <Shimmer className="w-full h-[min(85vw,520px)] max-h-[120vw] sm:max-h-[90vw] rounded-none" />
-        </div>
-        <div className="mt-2 flex justify-center gap-1.5">
-          <Shimmer className="h-2 w-7 rounded-full" />
-          <Shimmer className="h-2 w-2 rounded-full" />
-          <Shimmer className="h-2 w-2 rounded-full" />
+        <div className="relative mx-auto w-full max-w-lg h-[min(36vh,280px)]">
+          <Shimmer className="absolute inset-0 rounded-none" />
         </div>
       </section>
 
       {/* ── Content card ── */}
-      <div className="relative z-10 bg-white rounded-t-3xl pt-6 pb-2 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
+      <div className="relative z-10 bg-white rounded-t-2xl border-t border-gray-100 pt-4 pb-2">
         <Container>
           <div className="max-w-2xl mx-auto space-y-0">
             {/* Pills */}
@@ -169,19 +161,6 @@ export default function ProductDetailSkeleton() {
             </div>
           </div>
         </Container>
-      </div>
-
-      {/* Sticky bottom bar — matches cart / product detail chrome */}
-      <div
-        id="yaadro-pdp-bottom-bar"
-        className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur border-t border-gray-100 px-4 py-3 flex items-center gap-3"
-        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
-      >
-        <div className="flex-1 space-y-1.5">
-          <Shimmer className="h-3 w-10" />
-          <Shimmer className="h-6 w-24" />
-        </div>
-        <Shimmer className="flex-1 h-11 rounded-full max-w-[55%]" />
       </div>
     </div>
   );

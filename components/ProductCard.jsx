@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCart } from '../context/CartContext';
 import {
   getEffectivePrice,
+  getListPrice,
   formatBundleRuleLabel,
   formatBundleRibbonLabel,
   formatWeightUnitLabel,
@@ -15,7 +16,7 @@ import {
   resolveProductWeightAndUnit,
 } from '../utils/productUtils';
 import { getProductOfferDisplay } from '../utils/offerDisplay';
-import { buildAvailableSizes, resolveSelectedSize, sizePackCount } from '../utils/productSizeSelection';
+import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep } from '../utils/productSizeSelection';
 import { tapFeedback } from '../utils/haptics';
 import PriceDisplay from './ui/PriceDisplay';
 import OfferRibbon from './ui/OfferRibbon';
@@ -27,9 +28,11 @@ import { findPaidCartLine } from '../utils/cartLinePersist';
 import ProductImageWithFallback from './ProductImageWithFallback';
 import { getProductDetailPath } from '../utils/productApi';
 import { prefetchProductDetail } from '../hooks/useProducts';
+import { useShopBranding } from '../context/ShopBrandingContext';
 
 export default function ProductCard({ product, isCarousel = false, variant = 'default' }) {
   const queryClient = useQueryClient();
+  const { shopId } = useShopBranding();
   const { addToCart, cartItems, updateQuantity, removeFromCart } = useCart();
   const legacyOriginal =
     product.originalPrice != null ? parseFloat(product.originalPrice) : null;
@@ -100,10 +103,14 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     : activeSize
       ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
       : formatWeightUnitLabel(productPack.weight, productPack.unit);
-  const addQty = sizePackCount(activeSize);
+  const addQty = sizeAddQuantity(product, activeSize);
+  const weightStep =
+    activeSize?.weightStep === true || availableSizes.some((size) => size.weightStep === true);
   const showPackChips =
-    (product.soldByWeight === true || product.sold_by_weight === true) &&
-    availableSizes.length > 1;
+    availableSizes.length > 1 &&
+    (weightStep ||
+      product.soldByWeight === true ||
+      product.sold_by_weight === true);
 
   const bundleRule = useMemo(() => getPrimaryBundleRule(product), [product]);
   const offerDisplay = useMemo(() => getProductOfferDisplay(product), [product]);
@@ -117,8 +124,17 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   const productToAddPayload = useMemo(
     () => ({
       ...product,
-      price: currentPrice,
-      ...(displayListPrice != null ? { originalPrice: displayListPrice } : {}),
+      // Weight steps keep the per-kg price. The chip price is step × that price.
+      price: activeSize?.weightStep ? getEffectivePrice(product) : currentPrice,
+      ...(activeSize?.weightStep
+        ? (() => {
+            const list = getListPrice(product);
+            const pay = getEffectivePrice(product);
+            return list > pay + 1e-9 ? { originalPrice: list } : {};
+          })()
+        : displayListPrice != null
+          ? { originalPrice: displayListPrice }
+          : {}),
       selectedSize: activeSize,
       sizeDisplay: displayWeight,
     }),
@@ -202,18 +218,23 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         return;
       }
       if (cartUpdateKey != null && paidCartQty > 0) {
-        updateQuantity(cartUpdateKey, paidCartQty + 1);
+        const step = cartQuantityStep(product);
+        updateQuantity(
+          cartUpdateKey,
+          Math.round((paidCartQty + step) * 10000) / 10000
+        );
         tapFeedback();
         return;
       }
       if (pendingCartQty > 0) {
-        setPendingCartQty((q) => q + 1);
+        const step = cartQuantityStep(product);
+        setPendingCartQty((q) => Math.round((q + step) * 10000) / 10000);
         setCartActionLoading(true);
         try {
-          await addToCart(productToAddPayload, 1);
+          await addToCart(productToAddPayload, step);
           tapFeedback();
         } catch {
-          setPendingCartQty((q) => Math.max(0, q - 1));
+          setPendingCartQty((q) => Math.max(0, Math.round((q - step) * 10000) / 10000));
         } finally {
           setCartActionLoading(false);
         }
@@ -230,6 +251,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       productToAddPayload,
       updateQuantity,
       addQty,
+      product,
       product?.inStock,
     ]
   );
@@ -245,10 +267,14 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       if (cartActionLoading) return;
 
       if (cartUpdateKey != null) {
-        if (paidCartQty <= 1) {
+        const step = cartQuantityStep(product);
+        if (paidCartQty <= step + 1e-9) {
           removeFromCart(cartUpdateKey);
         } else {
-          updateQuantity(cartUpdateKey, paidCartQty - 1);
+          updateQuantity(
+            cartUpdateKey,
+            Math.round((paidCartQty - step) * 10000) / 10000
+          );
         }
         tapFeedback();
         setPendingCartQty(0);
@@ -266,14 +292,15 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       cartUpdateKey,
       removeFromCart,
       updateQuantity,
+      product,
     ]
   );
 
   const productDetailHref = getProductDetailPath(product);
 
   const warmProductDetail = useCallback(() => {
-    void prefetchProductDetail(queryClient, product);
-  }, [queryClient, product]);
+    void prefetchProductDetail(queryClient, product, shopId);
+  }, [queryClient, product, shopId]);
 
   const isShelf = variant === 'shelf';
   const shelfRole = String(product?.bxgyShelfRole || '').trim();
@@ -399,6 +426,15 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     saveRupees != null &&
     saveRupees >= 0.005;
 
+  const discountPct = Number(product?.discountPercentage);
+  const showPercentOff =
+    showSaveRibbon &&
+    Number.isFinite(discountPct) &&
+    discountPct >= 1 &&
+    discountPct <= 95;
+
+  const brandLabel = String(product?.brand || '').trim();
+
   // Offer Damaka free reward: show only — do not allow separate add-to-cart.
   const isDamakaFreeReward = shelfRole === 'get';
   const damakaBuyQty =
@@ -522,7 +558,21 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
               </div>
             ) : null}
 
-            {showSaveRibbon ? <OfferRibbon saveRupees={saveRupees} compact={isCarousel} /> : null}
+            {showSaveRibbon ? (
+              showPercentOff ? (
+                <div
+                  className={`pointer-events-none absolute left-0 top-2 z-30 ${
+                    isCarousel ? 'max-w-[85%]' : 'max-w-[90%]'
+                  }`}
+                >
+                  <span className="inline-flex items-center rounded-r-md bg-emerald-600 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-sm">
+                    {Math.round(discountPct)}% OFF
+                  </span>
+                </div>
+              ) : (
+                <OfferRibbon saveRupees={saveRupees} compact={isCarousel} />
+              )
+            ) : null}
             {bundleRibbonText ? (
               <BundleOfferRibbon
                 label={bundleRibbonText}
@@ -531,7 +581,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
               />
             ) : null}
 
-            {productImages.length > 1 ? (
+            {!isCarousel && productImages.length > 1 ? (
               <div
                 className="absolute right-2 top-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white"
                 aria-label={`Image ${currentImageIndex + 1} of ${productImages.length}`}
@@ -542,9 +592,11 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           </div>
         </Link>
 
-        {(dietKind || unitOverlayLabel) && !isUnavailable ? (
+        {(dietKind || unitOverlayLabel) ? (
           <div
-            className="absolute bottom-0 left-0 z-[1] flex items-center gap-1 bg-white py-1.5 pl-2 pr-2.5"
+            className={`absolute bottom-0 left-0 z-[1] flex items-center gap-1 bg-white py-1.5 pl-2 pr-2.5 ${
+              isUnavailable ? 'opacity-90' : ''
+            }`}
             style={{ borderTopRightRadius: 12 }}
           >
             {dietKind ? <DietIcon isVeg={dietKind === 'veg'} className="size-3.5 shrink-0" /> : null}
@@ -567,11 +619,16 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col px-3 pb-2 pt-1.5">
-        <Link {...navLinkProps} className="block min-w-0">
-          <h3 className="truncate text-[13px] font-bold leading-4 tracking-tight text-gray-900">
+        <Link {...navLinkProps} className="block min-w-0" title={product.name}>
+          {brandLabel ? (
+            <p className="mb-0.5 truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+              {brandLabel}
+            </p>
+          ) : null}
+          <h3 className="line-clamp-2 text-[13px] font-bold leading-4 tracking-tight text-gray-900">
             {product.name}
           </h3>
-          {offerDisplay.secondaryText ? (
+          {offerDisplay.secondaryText && !bundleRibbonText ? (
             <p className="mt-0.5 line-clamp-2 text-[11px] leading-tight text-violet-700">
               {offerDisplay.secondaryText}
             </p>

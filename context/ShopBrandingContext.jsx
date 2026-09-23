@@ -115,13 +115,17 @@ export function ShopBrandingProvider({ children }) {
   );
 
   const refreshShopBranding = useCallback(
-    async ({ withSeoFallback = false, markResolving = false } = {}) => {
+    async ({
+      withSeoFallback = false,
+      markResolving = false,
+      forceRefresh = false,
+    } = {}) => {
       if (brandingFetchInFlightRef.current) return;
       brandingFetchInFlightRef.current = true;
       let result = null;
       try {
         if (markResolving) setIsResolving(true);
-        result = await resolveShopBranding();
+        result = await resolveShopBranding({ forceRefresh });
         applyResolvedBranding(result);
       } finally {
         setIsResolving(false);
@@ -151,8 +155,22 @@ export function ShopBrandingProvider({ children }) {
   useEffect(() => {
     if (resolveStartedRef.current) return;
     resolveStartedRef.current = true;
-    void refreshShopBranding({ withSeoFallback: true, markResolving: !cachedBoot?.shopId });
-  }, [refreshShopBranding]);
+    // Paint from cache immediately, then revalidate once so a sticky wrong
+    // shopId cannot blank the catalog until a hard cache clear.
+    void (async () => {
+      await refreshShopBranding({
+        withSeoFallback: true,
+        markResolving: !cachedBoot?.shopId,
+      });
+      if (cachedBoot?.shopId) {
+        await refreshShopBranding({
+          withSeoFallback: false,
+          markResolving: false,
+          forceRefresh: true,
+        });
+      }
+    })();
+  }, [cachedBoot?.shopId, refreshShopBranding]);
 
   useEffect(() => {
     const onVisibility = () => {

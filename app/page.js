@@ -60,7 +60,10 @@ function flattenCategoryForest(nodes) {
 
 function formatHomeAddressLine(address) {
   if (!address) return '';
-  return formatAddressDisplay(address);
+  return [address.street || address.line1, address.city]
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .join(', ');
 }
 
 /** Depth-first exact name match (`name.trim() === expected`). Skips inactive nodes. */
@@ -119,7 +122,7 @@ export default function Home() {
     recheckLocation,
     openServiceAreaSheet,
   } = useLocationService();
-  const { shopName, shopImage, bannerEnabled, bannerImages } = useShopBranding();
+  const { shopId, shopName, shopImage, bannerEnabled, bannerImages } = useShopBranding();
   const { getDefaultAddress, addresses } = useAddress();
 
   const isLocalDev = process.env.NODE_ENV !== 'production';
@@ -170,10 +173,14 @@ export default function Home() {
     try {
       recheckLocation?.();
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: productKeys.lists() }),
-        queryClient.invalidateQueries({ queryKey: [...productKeys.categories(), 'tree'] }),
-        queryClient.invalidateQueries({ queryKey: productKeys.categoryRoots() }),
-        queryClient.invalidateQueries({ queryKey: [...productKeys.all, 'fresh-zone'] }),
+        queryClient.invalidateQueries({ queryKey: productKeys.lists(shopId) }),
+        queryClient.invalidateQueries({
+          queryKey: [...productKeys.categories(shopId), 'tree'],
+        }),
+        queryClient.invalidateQueries({ queryKey: productKeys.categoryRoots(shopId) }),
+        queryClient.invalidateQueries({
+          queryKey: [...productKeys.shop(shopId), 'fresh-zone'],
+        }),
         queryClient.invalidateQueries({ queryKey: homeSectionKeys.all }),
       ]);
     } finally {
@@ -287,11 +294,7 @@ export default function Home() {
   }, [categoryTree]);
 
   const freshZoneFetchKey = useMemo(
-    () =>
-      freshZoneResolved.map((r) => ({
-        id: String(r.category.id ?? r.category._id),
-        ids: r.categoryIds,
-      })),
+    () => freshZoneResolved.map((r) => String(r.category.id ?? r.category._id)),
     [freshZoneResolved]
   );
 
@@ -299,30 +302,24 @@ export default function Home() {
     data: freshZoneByCategory,
     isLoading: freshZoneProductsLoading,
   } = useQuery({
-    queryKey: [...productKeys.all, 'fresh-zone', freshZoneFetchKey],
-    enabled: freshZoneResolved.length > 0,
-    staleTime: 1000 * 45,
-    refetchOnWindowFocus: true,
+    queryKey: [...productKeys.shop(shopId), 'fresh-zone', freshZoneFetchKey],
+    enabled: freshZoneResolved.length > 0 && !!shopId,
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
+      // One list call per Fresh Zone root (include all child categories).
+      // Avoids N+1 fetches for Dairy → Ghee / Milk / etc.
       const rows = await Promise.all(
         freshZoneResolved.map(async ({ category, categoryIds }) => {
           const rootId = String(category.id ?? category._id);
-          // Root + descendants (local DB CTE). Also fetch each known child id so
-          // upstream APIs that ignore include_descendants still return Ghee SKUs.
-          const lists = await Promise.all(
-            categoryIds.map((category_id) =>
-              getProducts({
-                category_id,
-                include_descendants: category_id === rootId,
-                limit: 24,
-                sort_by: 'created_at',
-                sort_order: 'desc',
-              })
-            )
-          );
-          const products = dedupeProductsByVariantGroup(
-            lists.flatMap((list) => list?.products || [])
-          );
+          const list = await getProducts({
+            category_id: rootId,
+            include_descendants: true,
+            limit: 24,
+            sort_by: 'created_at',
+            sort_order: 'desc',
+          });
+          const products = dedupeProductsByVariantGroup(list?.products || []);
           return { category, categoryIds, products };
         })
       );
@@ -590,7 +587,11 @@ export default function Home() {
                 href={homeCategoryHref}
                 className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#902bf5] transition hover:text-[#7d24d6]"
               >
-                <span>Show all</span>
+                <span>
+                  {selectedHomeCategory?.name
+                    ? `Show all ${selectedHomeCategory.name}`
+                    : 'Show all'}
+                </span>
                 <ArrowRight size={16} className="h-4 w-4" aria-hidden />
               </Link>
             </div>

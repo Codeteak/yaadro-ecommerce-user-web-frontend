@@ -374,7 +374,8 @@ function lineCatalogUnit(item) {
  */
 function lineUnitPrice(item) {
   if (isBundleRewardCartLine(item)) return 0;
-  const paidQty = Math.max(1, getCartLinePaidQty(item));
+  const paidQty = getCartLinePaidQty(item);
+  if (!(paidQty > 0)) return 0;
   const line = Number(item?.lineTotal);
   const priceUnit = parseMoney(item?.price);
   if (Number.isFinite(line) && line > 0) {
@@ -418,7 +419,8 @@ function lineListUnit(item) {
 
 function linePayTotal(item) {
   if (isBundleRewardCartLine(item)) return 0;
-  const paidQty = Math.max(1, getCartLinePaidQty(item));
+  const paidQty = getCartLinePaidQty(item);
+  if (!(paidQty > 0)) return 0;
   const priceUnit = parseMoney(item?.price);
   const line = Number(item.lineTotal);
   if (Number.isFinite(line) && line > 0) {

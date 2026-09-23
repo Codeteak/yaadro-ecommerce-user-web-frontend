@@ -27,24 +27,41 @@ export default function AddressesPage() {
   const router = useRouter();
   const { ok, ready } = useRequireAuth();
   const { user } = useAuth();
-  const { addresses = [], isLoading } = useAddress();
+  const { addresses = [], isLoading, deleteAddress, isDeleting } = useAddress();
   const { showAlert } = useAlert();
 
   const [menuOpenId, setMenuOpenId] = useState(null);
 
   const handleShareAddress = (address) => {
     setMenuOpenId(null);
-    const textWithPhone = formatAddressShareText(address, {
-      name: address.fullName || user?.name,
-      phone: address.phone || user?.phone,
-    });
+    const streetLine =
+      [address.line1, address.line2].filter(Boolean).join(', ') ||
+      address.street ||
+      address.address;
+    const text = [
+      address.fullName || user?.name,
+      streetLine,
+      address.landmark,
+      address.city,
+    ]
+      .filter(Boolean)
+      .join('\n');
+    const phoneLine = address.phone || user?.phone;
+    const textWithPhone = phoneLine ? `${text}\n${phoneLine}` : text;
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(textWithPhone);
       showAlert('Address copied to clipboard.', 'Copied', 'success');
     }
   };
 
-  const formatAddressLine = (address) => formatAddressDisplay(address);
+  const formatAddressLine = (address) => {
+    const streetLine =
+      [address.line1, address.line2].filter(Boolean).join(', ') ||
+      address.street ||
+      address.address;
+    const parts = [streetLine, address.landmark, address.city].filter(Boolean);
+    return parts.join(', ');
+  };
 
   const addressLabel = (addr) => addr.label || addr.addressType || 'Address';
   const isHome = (addr) => (addressLabel(addr) || '').toLowerCase() === 'home';
@@ -61,6 +78,18 @@ export default function AddressesPage() {
   const openEdit = (addr) => {
     setMenuOpenId(null);
     router.push(`/add/address?from=/addresses&id=${encodeURIComponent(addr.id)}`);
+  };
+
+  const handleDeleteAddress = async (address) => {
+    setMenuOpenId(null);
+    const confirmed = window.confirm('Delete this address? This cannot be undone.');
+    if (!confirmed) return;
+    try {
+      await deleteAddress(address.id);
+      showAlert('Address deleted.', 'Deleted', 'success');
+    } catch (e) {
+      showAlert(e?.message || 'Could not delete address.', 'Error', 'error');
+    }
   };
 
   if (!ready) {
@@ -185,6 +214,14 @@ export default function AddressesPage() {
                               >
                                 <Pencil size={16} className="h-4 w-4" />
                                 Edit
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isDeleting}
+                                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                onClick={() => handleDeleteAddress(address)}
+                              >
+                                Delete
                               </button>
                             </div>
                           </>

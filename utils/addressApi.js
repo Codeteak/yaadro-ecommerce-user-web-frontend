@@ -5,20 +5,17 @@
 
 import { apiFetchRoot } from './apiClient';
 import { resolveShopId } from './authApi';
+import {
+  sanitizeAddressNotes,
+  toStorefrontAddressBody,
+  toStorefrontAddressPatch,
+} from './storefrontAddressPayload.mjs';
 
-/**
- * Delivery notes only — drop geocode objects / JSON dumps stored in `raw`.
- * @param {unknown} raw
- * @returns {string}
- */
-export function sanitizeAddressNotes(raw) {
-  if (raw == null) return '';
-  if (typeof raw === 'object') return '';
-  const text = String(raw).trim();
-  if (!text || text === '[object Object]') return '';
-  if (text.startsWith('{') || text.startsWith('[')) return '';
-  return text;
-}
+export {
+  sanitizeAddressNotes,
+  toStorefrontAddressBody,
+  toStorefrontAddressPatch,
+};
 
 /**
  * Transform API address to frontend format
@@ -26,7 +23,7 @@ export function sanitizeAddressNotes(raw) {
 function transformAddress(apiAddress) {
   if (!apiAddress) return null;
 
-  // Storefront address shape: { line1, line2, landmark, city, state, postalCode, country, lat, lng, raw }
+  // Storefront address shape: { line1, line2, landmark, city, lat, lng, raw }
   const line1 = apiAddress.line1 || '';
   const line2 = apiAddress.line2 || '';
   const street = [line1, line2].filter(Boolean).join(', ');
@@ -43,10 +40,6 @@ function transformAddress(apiAddress) {
     address: street,
     street,
     city: apiAddress.city || '',
-    state: apiAddress.state || '',
-    postalCode: apiAddress.postalCode || apiAddress.postal_code || apiAddress.zipCode || '',
-    zipCode: apiAddress.zipCode || apiAddress.postalCode || apiAddress.postal_code || '',
-    country: apiAddress.country || 'India',
     isDefault: true,
     landmark: apiAddress.landmark || '',
     addressType: apiAddress.addressType || apiAddress.address_type || 'other',
@@ -89,6 +82,7 @@ export async function listAddresses() {
 export async function getAddress(addressId) {
   try {
     // Storefront service exposes a single linked address; ignore addressId and return it.
+    void addressId;
     const list = await listAddresses();
     return list[0] || null;
   } catch (error) {
@@ -107,19 +101,7 @@ export async function createAddress(addressData) {
     const shopId = await resolveShopId();
     if (!shopId) throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for storefront address).');
 
-    const notes = sanitizeAddressNotes(addressData.raw);
-    const apiData = {
-      line1: addressData.line1 || addressData.street || addressData.address || '',
-      line2: addressData.line2 || '',
-      landmark: addressData.landmark || '',
-      city: addressData.city || '',
-      state: addressData.state || '',
-      postalCode: addressData.postalCode || addressData.zipCode || '',
-      country: addressData.country || 'India',
-      lat: addressData.lat ?? null,
-      lng: addressData.lng ?? null,
-      raw: notes || null,
-    };
+    const apiData = toStorefrontAddressBody(addressData);
 
     await apiFetchRoot('/storefront/address', {
       method: 'POST',
@@ -144,27 +126,11 @@ export async function createAddress(addressData) {
  */
 export async function updateAddress(addressId, addressData) {
   try {
+    void addressId;
     const shopId = await resolveShopId();
     if (!shopId) throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for storefront address).');
 
-    const apiData = {};
-    if (addressData.street !== undefined || addressData.address !== undefined) {
-      apiData.line1 = addressData.street || addressData.address || '';
-    }
-    if (addressData.line1 !== undefined) apiData.line1 = addressData.line1;
-    if (addressData.line2 !== undefined) apiData.line2 = addressData.line2;
-    if (addressData.city !== undefined) apiData.city = addressData.city;
-    if (addressData.state !== undefined) apiData.state = addressData.state;
-    if (addressData.postalCode !== undefined || addressData.zipCode !== undefined) {
-      apiData.postalCode = addressData.postalCode || addressData.zipCode || '';
-    }
-    if (addressData.country !== undefined) apiData.country = addressData.country;
-    if (addressData.landmark !== undefined) apiData.landmark = addressData.landmark;
-    if (addressData.lat !== undefined) apiData.lat = addressData.lat;
-    if (addressData.lng !== undefined) apiData.lng = addressData.lng;
-    if (addressData.raw !== undefined) {
-      apiData.raw = sanitizeAddressNotes(addressData.raw) || null;
-    }
+    const apiData = toStorefrontAddressPatch(addressData);
 
     await apiFetchRoot('/storefront/address', {
       method: 'PATCH',
@@ -182,12 +148,20 @@ export async function updateAddress(addressId, addressData) {
 }
 
 /**
- * Delete an address
- * @param {string} addressId - Address ID
- * @returns {Promise<object>}
+ * Delete the linked storefront address
+ * @param {string} [_addressId] - Ignored; storefront has a single linked address
+ * @returns {Promise<void>}
  */
-export async function deleteAddress(addressId) {
-  throw new Error('Delete address is not supported by this storefront API.');
+export async function deleteAddress(_addressId) {
+  void _addressId;
+  const shopId = await resolveShopId();
+  if (!shopId) throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for storefront address).');
+
+  await apiFetchRoot('/storefront/address', {
+    method: 'DELETE',
+    headers: { 'x-shop-id': shopId },
+    omitTenantHeader: true,
+  });
 }
 
 /**
@@ -197,6 +171,7 @@ export async function deleteAddress(addressId) {
  */
 export async function setDefaultAddress(addressId) {
   // Storefront API exposes a single linked address; treat it as default.
+  void addressId;
   const list = await listAddresses();
   return list[0] || null;
 }

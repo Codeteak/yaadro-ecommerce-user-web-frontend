@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { CheckRegular as Check, More2Regular as MoreVertical } from '../icons';
 import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER, isProductImagePlaceholder } from '../../utils/productImages';
 import ProductImageWithFallback from '../ProductImageWithFallback';
+import { formatOrderLineWeight, formatRupeeINR } from '../../utils/productUtils';
 
 function getOrderStatusTone(status = '') {
   const s = String(status || '').toLowerCase();
@@ -267,7 +268,14 @@ function OrderCard({ order, reorderLoading, onOpenDetails, onReorder, onCancel, 
               {orderItems.slice(0, 2).map((item, idx) => (
                 <p key={item.id || idx} className="truncate text-[12px] text-gray-700">
                   <span className="font-medium text-gray-900">{item.productName || item.name || 'Item'}</span>
-                  <span className="text-gray-500"> x{item.quantity || 1}</span>
+                  <span className="text-gray-500">
+                    {formatOrderLineWeight(item)
+                      ? ` · ${formatOrderLineWeight(item)}`
+                      : ` x${item.quantity || 1}`}
+                    {Number(item.totalPrice) > 0
+                      ? ` · ₹${formatRupeeINR(item.totalPrice)}`
+                      : ''}
+                  </span>
                 </p>
               ))}
               {itemCount > 2 && (

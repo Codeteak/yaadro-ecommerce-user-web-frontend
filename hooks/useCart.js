@@ -5,6 +5,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { previewCart } from '../utils/cartApi';
 import { stripPaidCartLinesOnly } from '../utils/cartPromotions';
+import { useShopBranding } from '../context/ShopBrandingContext';
 
 // Query keys
 export const cartKeys = {
@@ -13,10 +14,12 @@ export const cartKeys = {
    * @param {string|undefined} couponCode
    * @param {string} [itemsKey] Stable fingerprint of local paid lines
    * @param {string} [couponCodesKey]
+   * @param {string} [shopId]
    */
-  preview: (couponCode, itemsKey = '', couponCodesKey = '') => [
+  preview: (couponCode, itemsKey = '', couponCodesKey = '', shopId = '') => [
     ...cartKeys.all,
     'preview',
+    shopId || '',
     couponCode ? String(couponCode).trim().toUpperCase() : '',
     couponCodesKey,
     itemsKey,
@@ -75,6 +78,7 @@ function normalizeCodes(couponCode, couponCodes) {
  */
 export function useCartQuery(options = {}) {
   const { couponCode, couponCodes, items = [], ...queryOptions } = options;
+  const { shopId } = useShopBranding();
   const codes = normalizeCodes(couponCode, couponCodes);
   const normalizedCoupon = codes[0] || '';
   const codesKey = codes.join(',');
@@ -82,7 +86,12 @@ export function useCartQuery(options = {}) {
   const itemsKey = fingerprintPaidItems(items);
 
   return useQuery({
-    queryKey: cartKeys.preview(normalizedCoupon || undefined, itemsKey, codesKey),
+    queryKey: cartKeys.preview(
+      normalizedCoupon || undefined,
+      itemsKey,
+      codesKey,
+      shopId || ''
+    ),
     queryFn: () =>
       previewCart({
         items: payload,

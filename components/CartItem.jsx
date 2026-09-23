@@ -6,6 +6,7 @@ import {
   getBundleFreeExtraOnPaidLine,
   getCartLinePaidQty,
 } from '../utils/cartPromotions';
+import { cartQuantityStep } from '../utils/productSizeSelection';
 import { useWishlist } from '../context/WishlistContext';
 import { formatRupeeINR, getCartLineVariantLabel } from '../utils/productUtils';
 import ProductImageWithFallback from './ProductImageWithFallback';
@@ -22,9 +23,15 @@ export default function CartItem({ item }) {
     setMounted(true);
   }, []);
 
+  const step = cartQuantityStep(item);
+
   const handleQuantityChange = (newQuantity) => {
     const itemKey = item.cartItemKey || item.id;
-    updateQuantity(itemKey, newQuantity);
+    if (newQuantity <= 0) {
+      removeFromCart(itemKey);
+      return;
+    }
+    updateQuantity(itemKey, Math.round(Number(newQuantity) * 10000) / 10000);
   };
 
   const handleRemove = () => {
@@ -70,7 +77,7 @@ export default function CartItem({ item }) {
       : Number.isFinite(unitPrice)
         ? unitPrice * (paidQty > 0 ? paidQty : item.quantity || 1)
         : 0;
-  const qtyForUnit = Math.max(1, paidQty > 0 ? paidQty : Number(item.quantity) || 1);
+  const qtyForUnit = paidQty > 0 ? paidQty : Number(item.quantity) || 1;
   const payableUnit =
     Number.isFinite(lineTotal) && lineTotal >= 0
       ? lineTotal / qtyForUnit
@@ -181,7 +188,13 @@ export default function CartItem({ item }) {
           ) : (
           <div className="flex items-center gap-2">
             <button
-              onClick={() => handleQuantityChange(paidQty - 1)}
+              onClick={() =>
+                handleQuantityChange(
+                  paidQty <= step + 1e-9
+                    ? 0
+                    : Math.round((paidQty - step) * 10000) / 10000
+                )
+              }
               className="w-7 h-7 rounded-md bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-sm font-semibold"
             >
               -
@@ -195,7 +208,9 @@ export default function CartItem({ item }) {
               {paidQty}
             </span>
             <button
-              onClick={() => handleQuantityChange(paidQty + 1)}
+              onClick={() =>
+                handleQuantityChange(Math.round((paidQty + step) * 10000) / 10000)
+              }
               className="w-7 h-7 rounded-md bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-sm font-semibold"
             >
               +
