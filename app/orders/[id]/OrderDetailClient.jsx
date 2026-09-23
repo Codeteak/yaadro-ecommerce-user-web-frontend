@@ -33,6 +33,7 @@ import {
 } from "../../../utils/orderPromotions";
 import { buildOrderOfferGroups } from "../../../utils/orderOfferGroups";
 import { downloadBillPdf } from "../../../utils/orderInvoice";
+import { formatAddressDisplay } from "../../../utils/formatAddress";
 import {
   hasOrderDisplayAddress,
   savedAddressToOrderAddress,
@@ -1317,31 +1318,9 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                     {addr.phone ? ` · ${addr.phone}` : ""}
                   </p>
                 )}
-                {(addr.street || addr.address || addr.line1) && (
-                  <p className="m-0 text-gray-500">
-                    {addr.street || addr.address || addr.line1}
-                  </p>
-                )}
-                {addr.line2 && (
-                  <p className="m-0 text-gray-500">{addr.line2}</p>
-                )}
-                {(addr.city || addr.state) && (
-                  <p className="m-0 text-gray-500">
-                    {[addr.city, addr.state].filter(Boolean).join(", ")}
-                  </p>
-                )}
-                {(addr.zipCode || addr.postalCode || addr.country) && (
-                  <p className="m-0 text-gray-500">
-                    {[addr.zipCode || addr.postalCode, addr.country]
-                      .filter(Boolean)
-                      .join(", ")}
-                  </p>
-                )}
-                {addr.landmark && (
-                  <p className="mb-0 mt-1 text-[11px] text-gray-500">
-                    Near {addr.landmark}
-                  </p>
-                )}
+                {formatAddressDisplay(addr) ? (
+                  <p className="m-0 text-gray-500">{formatAddressDisplay(addr)}</p>
+                ) : null}
                 {!hasAddress && (
                   <p className="m-0 italic text-gray-500">No address on file</p>
                 )}

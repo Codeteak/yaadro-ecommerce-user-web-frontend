@@ -67,6 +67,12 @@ function ProductsCategoryRailInner({ activeCategory, rootCategories, onCategoryS
       }}
     >
       <div className="flex max-h-[inherit] flex-col gap-1 overflow-y-auto overscroll-contain scrollbar-hide px-1.5 pb-4">
+        <CategoryRailItem
+          active={activeCategory === 'all'}
+          label="All"
+          category={null}
+          onClick={() => onCategorySelect('all')}
+        />
         {rootCategories.map((cat) => {
           const id = String(cat.id || '').trim();
           if (!id) return null;

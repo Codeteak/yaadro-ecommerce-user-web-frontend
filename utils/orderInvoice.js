@@ -2,6 +2,8 @@
  * Shared HTML invoice builder + download helpers for order-success / order details.
  */
 
+import { formatAddressDisplay } from './formatAddress';
+
 function money(v) {
   const n = typeof v === 'string' ? parseFloat(v) : Number(v);
   return Number.isFinite(n) ? `Rs.${n.toFixed(2)}` : '—';
@@ -49,6 +51,7 @@ export function buildBillHtml({
 } = {}) {
   const items = order?.items || [];
   const addr = order?.deliveryAddress || order?.address || {};
+  const addressLine = formatAddressDisplay(addr);
   const createdAt = order?.createdAt ? new Date(order.createdAt).toLocaleString() : '';
   const orderNumber = order?.orderNumber || '';
   const payment = paymentStatus || order?.paymentStatus || 'success';
@@ -133,7 +136,7 @@ export function buildBillHtml({
         <div class="address">
           <div style="font-weight:700">${safe(addr.fullName || addr.name || '')}${addr.phone ? ' • ' + safe(addr.phone) : ''}</div>
           <div style="margin-top:4px;color:#374151">
-            ${[addr.street || addr.address, addr.city, addr.state, addr.zipCode || addr.postalCode, addr.country].filter(Boolean).map(safe).join(', ')}
+            ${safe(addressLine) || '—'}
           </div>
         </div>
       </div>
@@ -178,6 +181,7 @@ async function buildTextPdf(opts) {
   const order = opts.order || {};
   const items = order.items || [];
   const addr = order.deliveryAddress || order.address || {};
+  const addressLine = formatAddressDisplay(addr);
   const brand = String(opts.shopName || 'Yaadro').trim() || 'Yaadro';
   const orderNumber = order.orderNumber || opts.orderId || '';
   const createdAt = order.createdAt ? new Date(order.createdAt).toLocaleString() : '—';
@@ -257,15 +261,6 @@ async function buildTextPdf(opts) {
   y = wrapText(doc, nameLine, margin + 3, y + 6, contentW - 6, 4.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(55, 65, 81);
-  const addressLine = [
-    addr.street || addr.address,
-    addr.city,
-    addr.state,
-    addr.zipCode || addr.postalCode,
-    addr.country,
-  ]
-    .filter(Boolean)
-    .join(', ');
   y = wrapText(doc, addressLine || '—', margin + 3, y + 1, contentW - 6, 4.5);
   y += 8;
 

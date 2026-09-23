@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, useMotionValue, useReducedMotion } from 'framer-motion';
 import gsap from 'gsap';
 
-const DRAG_CLICK_PX = 8;
+const DRAG_CLICK_PX = 16;
 
 /**
  * Horizontal rail with mouse and touch drag.
@@ -128,22 +128,23 @@ export default function SmoothDragRail({
         x.set(clampX(current));
         return;
       }
-      const target = clampX(current + velocityX * 0.18);
+      // Stronger flick throw + longer coast so rails feel less "tight".
+      const target = clampX(current + velocityX * 0.4);
       const distance = Math.abs(target - current);
       if (distance < 0.5) {
         x.set(target);
         return;
       }
       const duration = Math.min(
-        1.05,
-        Math.max(0.38, distance / 860 + Math.abs(velocityX) / 3800)
+        1.35,
+        Math.max(0.48, distance / 600 + Math.abs(velocityX) / 3200)
       );
       killTween();
       const proxy = { val: current };
       tweenRef.current = gsap.to(proxy, {
         val: target,
         duration,
-        ease: 'power3.out',
+        ease: 'power2.out',
         onUpdate: () => x.set(proxy.val),
         onComplete: () => {
           tweenRef.current = null;
@@ -179,7 +180,8 @@ export default function SmoothDragRail({
     if (!pointer.axis) {
       const adx = Math.abs(event.clientX - pointer.startX);
       const ady = Math.abs(event.clientY - pointer.startY);
-      if (adx < 6 && ady < 6) return;
+      // Wait for a clearer gesture before locking axis (avoids stealing product taps).
+      if (adx < 10 && ady < 10) return;
       pointer.axis = adx >= ady ? 'x' : 'y';
     }
     if (pointer.axis !== 'x') return;
@@ -192,7 +194,7 @@ export default function SmoothDragRail({
     pointer.lastT = now;
     const next = pointer.origin + (event.clientX - pointer.startX);
     const min = minXRef.current;
-    const overshoot = next > 0 ? next * 0.18 : next < min ? min + (next - min) * 0.18 : next;
+    const overshoot = next > 0 ? next * 0.28 : next < min ? min + (next - min) * 0.28 : next;
     x.set(overshoot);
     if (Math.abs(event.clientX - pointer.startX) > DRAG_CLICK_PX) {
       didDragRef.current = true;
@@ -204,13 +206,38 @@ export default function SmoothDragRail({
     const pointer = pointerRef.current;
     if (pointer.id !== event.pointerId) return;
     const wasHorizontal = pointer.axis === 'x';
+    const movedX = Math.abs(event.clientX - pointer.startX);
+    const releaseX = x.get();
+    const velocityPxPerSec = pointer.velocity * 1000;
     pointer.id = null;
     pointer.axis = null;
     setDragging(false);
-    if (!wasHorizontal) return;
-    if (Math.abs(event.clientX - pointer.startX) <= DRAG_CLICK_PX) return;
-    const velocityPxPerSec = pointer.velocity * 1000;
-    x.set(clampX(x.get()));
+
+    // Tap / vertical scroll / tiny wobble — never steal the next product click.
+    if (!wasHorizontal || movedX <= DRAG_CLICK_PX) {
+      didDragRef.current = false;
+      return;
+    }
+
+    const min = minXRef.current;
+    const pastEdge = releaseX > 0 || releaseX < min;
+    if (pastEdge && !reduceMotion) {
+      killTween();
+      const proxy = { val: releaseX };
+      tweenRef.current = gsap.to(proxy, {
+        val: clampX(releaseX),
+        duration: 0.42,
+        ease: 'power2.out',
+        onUpdate: () => x.set(proxy.val),
+        onComplete: () => {
+          tweenRef.current = null;
+          coastTo(velocityPxPerSec);
+        },
+      });
+      return;
+    }
+
+    x.set(clampX(releaseX));
     coastTo(velocityPxPerSec);
   };
 

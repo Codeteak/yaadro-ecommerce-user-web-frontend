@@ -6,12 +6,16 @@ import { useCategoriesTree } from '../../hooks/useProducts';
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import ProductsCategoryRail from '../../components/products/ProductsCategoryRail';
 import ProductsListingPanel, { FilterBar } from '../../components/products/ProductsListingPanel';
-import { CATEGORY_ID_UUID } from '../../components/products/productsBrowseConstants';
+import {
+  CATEGORY_ID_UUID,
+  isAllCategorySentinel,
+  isAllNamedCategory,
+} from '../../components/products/productsBrowseConstants';
 import ProductsPageSkeleton from '../../components/skeletons/ProductsPageSkeleton';
 import BrowsePageHeader from '../../components/BrowsePageHeader';
 
 function findCategoryNameInTree(nodes, idOrSlug) {
-  if (!idOrSlug || idOrSlug === 'all' || !nodes?.length) return '';
+  if (!idOrSlug || isAllCategorySentinel(idOrSlug) || !nodes?.length) return '';
   for (const n of nodes) {
     if (String(n.id) === String(idOrSlug) || (n.slug && String(n.slug) === String(idOrSlug))) {
       return String(n.name || '').trim();
@@ -20,6 +24,11 @@ function findCategoryNameInTree(nodes, idOrSlug) {
     if (child) return child;
   }
   return '';
+}
+
+function normalizeCategoryParam(raw) {
+  if (!raw || isAllCategorySentinel(raw)) return 'all';
+  return String(raw);
 }
 
 function flattenCategoryTree(nodes) {
@@ -37,8 +46,8 @@ function ProductsContent() {
   const router = useRouter();
   const [isCategoryPending, startCategoryTransition] = useTransition();
 
-  const [activeCategory, setActiveCategory] = useState(
-    searchParams?.get('category') || 'all'
+  const [activeCategory, setActiveCategory] = useState(() =>
+    normalizeCategoryParam(searchParams?.get('category'))
   );
   const [searchOpen, setSearchOpen] = useState(false);
   const [localSearch, setLocalSearch] = useState('');
@@ -53,15 +62,20 @@ function ProductsContent() {
   const categoriesData = useMemo(() => flattenCategoryTree(categoryTree), [categoryTree]);
 
   const rootCategories = useMemo(() => {
-    const rootsFromTree = (categoryTree || []).filter((c) => c && c.isActive !== false);
+    const rootsFromTree = (categoryTree || []).filter(
+      (c) => c && c.isActive !== false && !isAllNamedCategory(c)
+    );
     if (rootsFromTree.length > 0) return rootsFromTree;
     return (categoriesData || [])
-      .filter((c) => c && c.isActive !== false && c.parentId == null)
+      .filter(
+        (c) =>
+          c && c.isActive !== false && c.parentId == null && !isAllNamedCategory(c)
+      )
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   }, [categoryTree, categoriesData]);
 
   const activeCategoryLabel = useMemo(() => {
-    if (activeCategory === 'all') return 'All products';
+    if (isAllCategorySentinel(activeCategory)) return 'All products';
     const fromTree = findCategoryNameInTree(categoryTree, activeCategory);
     if (fromTree) return fromTree;
     const flat = (categoriesData || []).find(
@@ -72,10 +86,17 @@ function ProductsContent() {
 
   useEffect(() => {
     const cat = searchParams?.get('category');
-    if (!cat) return;
-    if (!CATEGORY_ID_UUID.test(cat) && cat !== 'all') {
+    if (!cat || isAllCategorySentinel(cat)) {
+      setActiveCategory('all');
+      return;
+    }
+    if (!CATEGORY_ID_UUID.test(cat)) {
       const match = (categoriesData || []).find(
-        (c) => c && c.parentId == null && String(c.name || '') === String(cat)
+        (c) =>
+          c &&
+          c.parentId == null &&
+          !isAllNamedCategory(c) &&
+          String(c.name || '') === String(cat)
       );
       if (match?.id) {
         setActiveCategory(String(match.id));
@@ -88,7 +109,7 @@ function ProductsContent() {
   const urlSearch = searchParams?.get('search') || '';
 
   const activeCategoryId = useMemo(() => {
-    if (activeCategory === 'all') return '';
+    if (isAllCategorySentinel(activeCategory)) return '';
     if (!CATEGORY_ID_UUID.test(activeCategory)) return '';
     return String(activeCategory);
   }, [activeCategory]);
@@ -102,11 +123,12 @@ function ProductsContent() {
   const handleCategorySelect = useCallback(
     (cat) => {
       startCategoryTransition(() => {
-        setActiveCategory(cat);
-        if (cat === 'all') {
+        const next = isAllCategorySentinel(cat) ? 'all' : cat;
+        setActiveCategory(next);
+        if (next === 'all') {
           router.replace('/products', { scroll: false });
         } else {
-          router.replace(`/products?category=${encodeURIComponent(cat)}`, { scroll: false });
+          router.replace(`/products?category=${encodeURIComponent(next)}`, { scroll: false });
         }
       });
     },

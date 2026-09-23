@@ -3,8 +3,14 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryImage';
+import {
+  isAllCategorySentinel,
+  isAllNamedCategory,
+} from '../products/productsBrowseConstants';
 import { Bone } from '../skeletons/primitives';
 import SmoothDragRail from '../motion/SmoothDragRail';
+
+const ALL_SENTINEL = { id: 'all', name: 'All' };
 
 function categoryKey(category) {
   return String(category?.id ?? category?._id ?? '');
@@ -65,7 +71,11 @@ export default function HomeCategoryRail({
   onSelect,
   isLoading = false,
 }) {
-  if (isLoading && categories.length === 0) {
+  const visibleCategories = (categories || []).filter(
+    (c) => c && !isAllNamedCategory(c)
+  );
+
+  if (isLoading && visibleCategories.length === 0) {
     return (
       <SmoothDragRail
         className="mt-5 py-1.5"
@@ -82,15 +92,18 @@ export default function HomeCategoryRail({
     );
   }
 
-  if (!categories.length) return null;
-
   return (
     <SmoothDragRail
       className="mt-5 py-1.5"
       trackClassName="items-start gap-4 px-5 sm:px-6"
       ariaLabel="Categories"
     >
-      {categories.map((category) => {
+      <CategoryChip
+        category={ALL_SENTINEL}
+        selected={isAllCategorySentinel(selectedId)}
+        onSelect={onSelect}
+      />
+      {visibleCategories.map((category) => {
         const id = categoryKey(category);
         return (
           <CategoryChip
