@@ -2,7 +2,7 @@
 
 import { useMemo, memo, useEffect, useRef } from 'react';
 import { useInfiniteProducts } from '../../hooks/useProducts';
-import { getProductRating, getProductDiscount } from '../../utils/productUtils';
+import { getProductRating, getProductDiscount, dedupeProductsByVariantGroup } from '../../utils/productUtils';
 import ProductCard from '../ProductCard';
 import InfiniteScrollSentinel from '../InfiniteScrollSentinel';
 import { CATEGORY_ID_UUID, SORT_OPTIONS } from './productsBrowseConstants';
@@ -11,6 +11,13 @@ import EmptyState from '../ui/EmptyState';
 import { getAppScrollY, setAppScrollY } from '../../lib/pwa/appShell';
 
 const PRODUCTS_SCROLL_KEY = 'yaadro_products_scroll_v1';
+
+function isAllCategoryLabel(label) {
+  const s = String(label || '')
+    .trim()
+    .toLowerCase();
+  return !s || s === 'all' || s === 'all products' || s === 'category';
+}
 
 export function FilterBar({ filters, onFilterToggle, sortKey, onSortChange, disabled }) {
   const sortLabel = SORT_OPTIONS.find((s) => s.key === sortKey)?.label || 'Sort';
@@ -190,15 +197,18 @@ function ProductsListingPanelInner({
 
   const displayProducts = useMemo(() => {
     const q = localInResultsSearch.trim().toLowerCase();
-    if (!q) return filtered;
-    return filtered.filter(
-      (p) =>
-        p.name?.toLowerCase().includes(q) ||
-        p.brand?.toLowerCase().includes(q) ||
-        String(p.category || '')
-          .toLowerCase()
-          .includes(q)
-    );
+    const list = !q
+      ? filtered
+      : filtered.filter(
+          (p) =>
+            p.name?.toLowerCase().includes(q) ||
+            p.brand?.toLowerCase().includes(q) ||
+            String(p.category || '')
+              .toLowerCase()
+              .includes(q)
+        );
+    // Same as home/search: one card per pack family (avoid "Onion 250g" + "Onion 1kg").
+    return dedupeProductsByVariantGroup(list);
   }, [filtered, localInResultsSearch]);
 
   // Restore scroll after returning from PDP
@@ -247,6 +257,10 @@ function ProductsListingPanelInner({
     onResetBrowse();
   };
 
+  const browseTitle = String(activeCategoryLabel || '').trim() || 'All products';
+  const showBrowsingHero =
+    !isAllCategoryLabel(browseTitle) && String(categoryId || '').trim() !== '';
+
   return (
     <main
       className={`min-w-0 flex-1 bg-gray-50 px-2.5 py-3 transition-opacity duration-200 sm:px-3 ${
@@ -254,45 +268,74 @@ function ProductsListingPanelInner({
       }`}
       aria-busy={isPending || isLoading}
     >
-      {!isLoading && (
-        <p className="mb-2 text-[11px] text-gray-400">
-          {activeCategoryLabel}
-          {displayProducts.length > 0
-            ? ` · ${displayProducts.length} product${displayProducts.length !== 1 ? 's' : ''}`
-            : localInResultsSearch.trim()
-              ? ' · No matches'
-              : ' · No products'}
-        </p>
-      )}
-
-      {isLoading ? (
-        <ProductGridSkeleton count={8} variant="products" />
-      ) : displayProducts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white py-14 text-center">
-          <EmptyState
-            title="No products found"
-            description="Try adjusting your filters or search query"
-            actionLabel="Clear all filters"
-            onAction={handleReset}
-          />
+      {/* Same fade-in “Browsing {Category}” treatment as HomeCategoryRail */}
+      {showBrowsingHero ? (
+        <div
+          key={browseTitle}
+          className="mb-3 animate-fade-in px-0.5 text-left"
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#902bf5]/80">
+            Browsing
+          </p>
+          <h2 className="mt-0.5 font-headingnow text-[1.65rem] font-extrabold uppercase leading-none tracking-wide text-gray-900 sm:text-[2rem]">
+            {browseTitle}
+          </h2>
+          {!isLoading && (
+            <p className="mt-1.5 text-[11px] text-gray-400">
+              {displayProducts.length > 0
+                ? `${displayProducts.length} product${displayProducts.length !== 1 ? 's' : ''}`
+                : localInResultsSearch.trim()
+                  ? 'No matches'
+                  : 'No products'}
+            </p>
+          )}
         </div>
       ) : (
-        <>
-          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
-            {displayProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-          {!localInResultsSearch.trim() && (
-            <InfiniteScrollSentinel
-              hasNextPage={!!hasNextPage}
-              isFetchingNextPage={isFetchingNextPage}
-              fetchNextPage={fetchNextPage}
-              showEndLabel={displayProducts.length > 0 && !hasNextPage}
-            />
-          )}
-        </>
+        !isLoading && (
+          <p className="mb-2 text-[11px] text-gray-400">
+            {browseTitle}
+            {displayProducts.length > 0
+              ? ` · ${displayProducts.length} product${displayProducts.length !== 1 ? 's' : ''}`
+              : localInResultsSearch.trim()
+                ? ' · No matches'
+                : ' · No products'}
+          </p>
+        )
       )}
+
+      <div
+        key={`${categoryId || 'all'}|${urlSearch || ''}`}
+        className="animate-fade-in"
+      >
+        {isLoading ? (
+          <ProductGridSkeleton count={8} variant="products" />
+        ) : displayProducts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white py-14 text-center">
+            <EmptyState
+              title="No products found"
+              description="Try adjusting your filters or search query"
+              actionLabel="Clear all filters"
+              onAction={handleReset}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
+              {displayProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+            {!localInResultsSearch.trim() && (
+              <InfiniteScrollSentinel
+                hasNextPage={!!hasNextPage}
+                isFetchingNextPage={isFetchingNextPage}
+                fetchNextPage={fetchNextPage}
+                showEndLabel={displayProducts.length > 0 && !hasNextPage}
+              />
+            )}
+          </>
+        )}
+      </div>
     </main>
   );
 }

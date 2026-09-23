@@ -7,6 +7,8 @@ const apiProxyTarget = (
   process.env.NEXT_PUBLIC_API_URL ||
   'https://customer.yaadro.online'
 ).replace(/\/+$/, '');
+/** Customer API origin for Socket.IO (never under `/api`). */
+const apiSocketOrigin = apiProxyTarget.replace(/\/api\/?$/i, '');
 
 const baseConfig = {
   reactStrictMode: true,
@@ -99,7 +101,19 @@ const serverConfig = {
     // `fallback`: only proxy when no App Router handler matched.
     // Unauthenticated catalog GETs (products, categories, coupons, home-sections)
     // read DATABASE_URL first; cart/auth/checkout still proxy to customer API.
+    // Socket.IO must be proxied always (beforeFiles) so same-origin catalog
+    // realtime works when the shop and API share a host (customer.yaadro.online).
     return {
+      beforeFiles: [
+        {
+          source: '/socket.io',
+          destination: `${apiSocketOrigin}/socket.io`,
+        },
+        {
+          source: '/socket.io/:path*',
+          destination: `${apiSocketOrigin}/socket.io/:path*`,
+        },
+      ],
       fallback: [
         {
           source: '/api/:path*',

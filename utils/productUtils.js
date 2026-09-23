@@ -499,15 +499,62 @@ function parseProductUnitFromFields(raw) {
   return u != null ? normalizeProductUnit(u) : '';
 }
 
+function isMassUnitLabel(unit) {
+  const u = String(unit || '').trim().toLowerCase();
+  return (
+    u === 'kg' ||
+    u === 'kgs' ||
+    u === 'kilogram' ||
+    u === 'kilograms' ||
+    u === 'g' ||
+    u === 'gm' ||
+    u === 'gram' ||
+    u === 'grams'
+  );
+}
+
+/**
+ * Catalog mass amounts → kg for pricing (storefront prices are per kg).
+ * Fixes gram-scale `unit_size` (e.g. 725) × ₹165/kg → ₹119625 on listing/cart.
+ * @param {unknown} amount
+ * @param {unknown} unit
+ * @returns {number | null}
+ */
+export function massAmountInKg(amount, unit) {
+  const n = Number(amount);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const u = String(unit || '')
+    .trim()
+    .toLowerCase();
+  if (u === 'g' || u === 'gm' || u === 'gram' || u === 'grams') {
+    return Math.round((n / 1000) * 10000) / 10000;
+  }
+  if (u === 'kg' || u === 'kgs' || u === 'kilogram' || u === 'kilograms') {
+    // Gram counts mis-labeled as kg (250, 500, 725…) — convert to kg.
+    if (n > 20) return Math.round((n / 1000) * 10000) / 10000;
+    return Math.round(n * 10000) / 10000;
+  }
+  // No unit but clearly a gram pack size (not a normal kg pack).
+  if (!u && n > 20) return Math.round((n / 1000) * 10000) / 10000;
+  return null;
+}
+
 /**
  * Amount of the base unit in one cart quantity.
- * Sold-by-weight prices per kg/g already, so the factor stays 1.
+ * Sold-by-weight prices per kg already, so the factor stays 1.
+ * Packed mass: normalize gram-scale unit_size to kg before multiplying price.
  */
 export function sellableUnitFactor(item) {
   if (!item || typeof item !== 'object') return 1;
   if (item.soldByWeight === true || item.sold_by_weight === true) return 1;
   const n = parseProductUnitSize(item);
-  return n != null && n > 0 ? n : 1;
+  if (n == null || !(n > 0)) return 1;
+  const unit = parseProductUnitFromFields(item);
+  const kg = massAmountInKg(n, unit);
+  if (kg != null && (isMassUnitLabel(unit) || (!unit && n > 20))) {
+    return kg;
+  }
+  return n;
 }
 
 /** Line rupees: packs × unit size × price per base unit. */
@@ -518,17 +565,13 @@ export function lineTotalFromUnitPricing(unitPrice, quantity, item) {
   return price * qty * sellableUnitFactor(item);
 }
 
-function isMassUnitLabel(unit) {
-  const u = String(unit || '').trim().toLowerCase();
-  return u === 'kg' || u === 'g' || u === 'gm' || u === 'gram' || u === 'grams';
-}
-
 /** Show under 1 kg as grams (0.25 kg → 250 g, 0.255 kg → 255 g). */
 export function formatMassAmountLabel(amount, unit) {
   const n = Number(amount);
   const u = String(unit || '').trim().toLowerCase();
   if (!Number.isFinite(n) || n <= 0 || !isMassUnitLabel(u)) return '';
-  const grams = u === 'kg' ? n * 1000 : n;
+  const isKg = u === 'kg' || u === 'kgs' || u === 'kilogram' || u === 'kilograms';
+  const grams = isKg ? n * 1000 : n;
   if (grams < 1000) return `${Math.round(grams)} g`;
   const kg = Math.round((grams / 1000) * 1000) / 1000;
   return Number.isInteger(kg) ? `${kg} kg` : `${kg} kg`;

@@ -192,9 +192,7 @@ function AddressCard({ address, selected, onSelect, onEdit }) {
             {address.fullName || user?.name || "—"}
           </p>
           <p className="text-[12px] text-gray-500 leading-relaxed">
-            {[streetLine, address.landmark, address.city]
-              .filter(Boolean)
-              .join(", ")}
+            {addressLine || "—"}
           </p>
           {(address.phone || user?.phone) && (
             <p className="text-[12px] text-gray-400 mt-1">

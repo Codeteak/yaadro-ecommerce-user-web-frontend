@@ -646,63 +646,165 @@ export default function Home() {
                 <p className="text-gray-200 mt-1">Handpicked daily essentials</p>
               </div>
             </div>
-            {/* Category tabs (carousel) */}
+            {/* Category tabs — same chip selection effect as home / products rail */}
             {freshZoneDisplayCategories.length > 0 && (
-              <div className="w-full mb-10">
+              <div className="w-full mb-6 sm:mb-8">
                 <SmoothDragRail
                   className="pb-1"
-                  trackClassName="items-center gap-2 px-4"
+                  trackClassName="items-start gap-3 px-4 sm:px-5"
                   ariaLabel="Fresh zone categories"
                 >
                   <button
                     type="button"
                     onClick={() => setFreshZoneCategoryId(null)}
-                    className={`h-11 flex-shrink-0 inline-flex items-center gap-2 rounded-full border px-3 text-sm font-semibold transition whitespace-nowrap ${
-                      freshZoneCategoryId == null
-                        ? 'border-violet-600 bg-violet-50 text-violet-800'
-                        : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
+                    aria-pressed={freshZoneCategoryId == null}
+                    className={[
+                      'group flex w-[80px] shrink-0 flex-col items-center gap-2',
+                      'touch-manipulation transition-transform duration-200 ease-[cubic-bezier(0.33,1,0.68,1)]',
+                      'active:scale-[0.88]',
+                      freshZoneCategoryId == null ? 'scale-[1.02]' : 'scale-100',
+                    ].join(' ')}
                   >
-                    <span className="relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-gray-100">
-                      <Classify size={16} className="text-violet-700" aria-hidden />
+                    <span
+                      className={[
+                        'rounded-[24px] p-[3px] transition-all duration-200',
+                        freshZoneCategoryId == null
+                          ? 'bg-gradient-to-br from-[#902bf5] to-[#c084fc] shadow-[0_10px_24px_rgba(144,43,245,0.35)]'
+                          : 'bg-transparent group-hover:bg-[#902bf5]/15',
+                      ].join(' ')}
+                    >
+                      <span
+                        className={[
+                          'relative flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-[21px] transition-all duration-200',
+                          freshZoneCategoryId == null
+                            ? 'bg-white ring-2 ring-white'
+                            : 'bg-gray-50/90 ring-1 ring-white/40 group-hover:ring-[#902bf5]/25',
+                        ].join(' ')}
+                      >
+                        <Classify size={28} className="text-[#902bf5]" aria-hidden />
+                      </span>
                     </span>
-                    <span>All</span>
+                    <span
+                      className={[
+                        'max-w-[80px] truncate text-center text-[11px] font-bold uppercase leading-tight tracking-wide transition-colors duration-200',
+                        freshZoneCategoryId == null ? 'text-white' : 'text-white/80',
+                      ].join(' ')}
+                    >
+                      ALL
+                    </span>
+                    <span
+                      className={[
+                        'h-1 w-6 rounded-full transition-all duration-200',
+                        freshZoneCategoryId == null
+                          ? 'scale-100 bg-white opacity-100'
+                          : 'scale-75 bg-transparent opacity-0',
+                      ].join(' ')}
+                      aria-hidden
+                    />
                   </button>
 
                   {freshZoneDisplayCategories.map((cat) => {
-                    const active = freshZoneCategoryId != null && String(freshZoneCategoryId) === String(cat.id);
+                    const active =
+                      freshZoneCategoryId != null &&
+                      String(freshZoneCategoryId) === String(cat.id);
                     const src = getCategoryImageUrl(cat) || CATEGORY_DUMMY_IMAGE;
+                    const name = String(cat.name || 'Category').trim();
                     return (
                       <button
                         key={cat.id}
                         type="button"
                         onClick={() => setFreshZoneCategoryId(cat.id)}
-                        className={`h-11 flex-shrink-0 inline-flex items-center gap-2 rounded-full border px-3 text-sm font-semibold transition whitespace-nowrap ${
-                          active
-                            ? 'border-violet-600 bg-violet-50 text-violet-800'
-                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-                        }`}
+                        aria-pressed={active}
+                        aria-label={name}
+                        className={[
+                          'group flex w-[80px] shrink-0 flex-col items-center gap-2',
+                          'touch-manipulation transition-transform duration-200 ease-[cubic-bezier(0.33,1,0.68,1)]',
+                          'active:scale-[0.88]',
+                          active ? 'scale-[1.02]' : 'scale-100',
+                        ].join(' ')}
                       >
-                        <span className="relative h-7 w-7 overflow-hidden rounded-full bg-gray-100 border border-gray-200">
-                          <img
-                            src={src}
-                            alt=""
-                            className="h-full w-full object-contain"
-                            onError={(e) => {
-                              e.currentTarget.src = CATEGORY_DUMMY_IMAGE;
-                            }}
-                          />
+                        <span
+                          className={[
+                            'rounded-[24px] p-[3px] transition-all duration-200',
+                            active
+                              ? 'bg-gradient-to-br from-[#902bf5] to-[#c084fc] shadow-[0_10px_24px_rgba(144,43,245,0.35)]'
+                              : 'bg-transparent group-hover:bg-[#902bf5]/15',
+                          ].join(' ')}
+                        >
+                          <span
+                            className={[
+                              'relative flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-[21px] transition-all duration-200',
+                              active
+                                ? 'bg-white ring-2 ring-white'
+                                : 'bg-gray-50/90 ring-1 ring-white/40 group-hover:ring-[#902bf5]/25',
+                            ].join(' ')}
+                          >
+                            <img
+                              src={src}
+                              alt=""
+                              className={[
+                                'h-full w-full object-cover object-center transition-transform duration-200 group-active:scale-95',
+                                active ? 'scale-[1.04]' : '',
+                              ].join(' ')}
+                              onError={(e) => {
+                                e.currentTarget.src = CATEGORY_DUMMY_IMAGE;
+                              }}
+                            />
+                            {active ? (
+                              <span
+                                className="pointer-events-none absolute inset-0 rounded-[21px] bg-[#902bf5]/12"
+                                aria-hidden
+                              />
+                            ) : null}
+                          </span>
                         </span>
-                        <span className="max-w-[9.5rem] truncate">{cat.name}</span>
+                        <span
+                          className={[
+                            'max-w-[80px] truncate text-center text-[11px] font-bold uppercase leading-tight tracking-wide transition-colors duration-200',
+                            active ? 'text-white' : 'text-white/80',
+                          ].join(' ')}
+                        >
+                          {name}
+                        </span>
+                        <span
+                          className={[
+                            'h-1 w-6 rounded-full transition-all duration-200',
+                            active
+                              ? 'scale-100 bg-white opacity-100'
+                              : 'scale-75 bg-transparent opacity-0',
+                          ].join(' ')}
+                          aria-hidden
+                        />
                       </button>
                     );
                   })}
                 </SmoothDragRail>
+
+                {freshZoneSelectedCategory ? (
+                  <div
+                    key={String(freshZoneSelectedCategory.id)}
+                    className="mt-5 animate-fade-in px-4 text-center sm:px-5"
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/75">
+                      Browsing
+                    </p>
+                    <h3 className="mt-1 font-headingnow text-[2rem] font-extrabold uppercase leading-none tracking-wide text-white sm:text-[2.4rem]">
+                      {freshZoneSelectedCategory.name}
+                    </h3>
+                  </div>
+                ) : null}
               </div>
             )}
 
-            {/* Products (carousel) */}
-            <div className="w-full">
+            {/* Products (carousel) — fade in when category changes */}
+            <div
+              key={
+                freshZoneCategoryId == null
+                  ? 'fresh-all'
+                  : String(freshZoneCategoryId)
+              }
+              className="w-full animate-fade-in"
+            >
               <SmoothDragRail
                 className="pb-3"
                 trackClassName="items-stretch gap-3 px-4"
@@ -715,8 +817,8 @@ export default function Home() {
                   ))}
               </SmoothDragRail>
               {freshZoneSelectedCategory && freshZoneDisplayProducts.length === 0 && (
-                <div className="px-4 pb-2 text-sm text-gray-500">
-                  No products found for <span className="font-semibold text-gray-800">{freshZoneSelectedCategory.name}</span>.
+                <div className="px-4 pb-2 text-sm text-white/80">
+                  No products found for <span className="font-semibold text-white">{freshZoneSelectedCategory.name}</span>.
                 </div>
               )}
             </div>

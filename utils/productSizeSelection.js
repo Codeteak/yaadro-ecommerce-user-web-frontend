@@ -1,6 +1,13 @@
 /**
  * Size/weight options for product cards and PDP.
  * Keeps selected variant in sync with live catalog price updates.
+ *
+ * Custom weight chips (step × 1 and × 2) only apply when the product is
+ * sold-by-weight AND has a custom step (unit_size ≠ 1 kg). Packed products
+ * without sold-by-weight must not invent 250 g / 500 g chips from unit_size.
+ *
+ * Catalog prices are per kg — gram-scale unit_size (e.g. 725) is normalized
+ * before multiplying so listing never shows ₹165 × 725 = ₹119625.
  */
 
 import {
@@ -8,6 +15,8 @@ import {
   formatWeightUnitLabel,
   getEffectivePrice,
   getListPrice,
+  massAmountInKg,
+  parseProductUnitSize,
   resolveProductWeightAndUnit,
 } from './productUtils.js';
 
@@ -23,6 +32,35 @@ export function isSoldByWeightProduct(product) {
   if (isSoldByWeight(product)) return true;
   if (product.product && isSoldByWeight(product.product)) return true;
   return false;
+}
+
+function resolveCatalogStepKg(product) {
+  const { weight, unit } = resolveProductWeightAndUnit(product);
+  const raw = Number(
+    weight ??
+      parseProductUnitSize(product) ??
+      product?.weightStepKg ??
+      product?.product?.weightStepKg ??
+      product?.product?.unit_size ??
+      product?.product?.unitSize
+  );
+  if (!Number.isFinite(raw) || raw <= 0) return null;
+  const fromMass = massAmountInKg(raw, unit || 'kg');
+  if (fromMass != null) return fromMass;
+  // Non-mass or already kg-scale without recognized unit.
+  if (raw > 20) return Math.round((raw / 1000) * 10000) / 10000;
+  return Math.round(raw * 10000) / 10000;
+}
+
+/**
+ * Admin-set custom order step for sold-by-weight (e.g. 0.25 kg).
+ * Default catalog unit_size of 1 kg means "no custom step" — no multi chips.
+ */
+export function hasCustomWeightStep(product) {
+  if (!isSoldByWeightProduct(product)) return false;
+  const stepKg = resolveCatalogStepKg(product);
+  if (stepKg == null || !(stepKg > 0)) return false;
+  return Math.abs(stepKg - 1) >= 1e-9;
 }
 
 /**
@@ -43,47 +81,48 @@ export function cartQuantityStep(productOrLine) {
   if (!(Number.isFinite(persisted) && Math.abs(persisted - 1) < 1e-9)) {
     candidates.push(productOrLine?.unit_size, productOrLine?.unitSize);
   }
+  const unit =
+    productOrLine?.unit ||
+    productOrLine?.base_unit ||
+    productOrLine?.baseUnit ||
+    productOrLine?.product?.unit ||
+    productOrLine?.product?.base_unit ||
+    'kg';
   for (const raw of candidates) {
     const n = Number(raw);
-    if (Number.isFinite(n) && n > 0) return Math.round(n * 10000) / 10000;
+    if (!Number.isFinite(n) || !(n > 0)) continue;
+    const kg = massAmountInKg(n, unit);
+    if (kg != null && kg > 0) return kg;
+    if (n > 20) return Math.round((n / 1000) * 10000) / 10000;
+    return Math.round(n * 10000) / 10000;
   }
   return 0.25;
 }
 
-function isMassUnit(unit) {
-  const u = String(unit || '').trim().toLowerCase();
-  return u === 'kg' || u === 'g' || u === 'gm' || u === 'gram' || u === 'grams';
-}
-
 /**
- * kg/g sold in a step (250 g stored as 0.25 kg).
- * Returns chips for step × 1 and × 2. Prices are amount × price per base unit.
+ * kg sold in a custom step. Prices = kg amount × price per kg.
  * @param {object} product
- * @param {{ forceStep?: boolean }} [opts] — when true, also build for step === 1 (1 kg chips)
  */
-function buildWeightStepSizes(product, opts = {}) {
-  const { weight, unit } = resolveProductWeightAndUnit(product);
-  const step = Number(weight);
-  if (!isMassUnit(unit) || !Number.isFinite(step) || step <= 0) {
-    return null;
-  }
-  if (!opts.forceStep && Math.abs(step - 1) < 1e-9) {
-    return null;
-  }
+function buildCustomWeightStepSizes(product) {
+  const stepKg = resolveCatalogStepKg(product);
+  if (stepKg == null || !(stepKg > 0)) return null;
+  // Refuse default 1 kg — that is not a custom step.
+  if (Math.abs(stepKg - 1) < 1e-9) return null;
+
   const unitList = getListPrice(product) || parseFloat(product.price) || 0;
   const unitPay = getEffectivePrice(product, unitList) || unitList;
   if (!Number.isFinite(unitPay) || unitPay <= 0) return null;
 
   return WEIGHT_STEP_PACK_COUNTS.map((packCount) => {
-    const amount = Math.round(step * packCount * 10000) / 10000;
+    const amountKg = Math.round(stepKg * packCount * 10000) / 10000;
     const label =
-      formatMassAmountLabel(amount, unit) || formatWeightUnitLabel(amount, unit);
+      formatMassAmountLabel(amountKg, 'kg') || formatWeightUnitLabel(amountKg, 'kg');
     return {
       packCount,
-      weight: amount,
-      unit,
-      price: unitList * amount,
-      payPrice: unitPay * amount,
+      weight: amountKg,
+      unit: 'kg',
+      price: unitList * amountKg,
+      payPrice: unitPay * amountKg,
       label,
       weightStep: true,
     };
@@ -96,23 +135,23 @@ function packCountOf(size) {
 }
 
 /**
- * Sold-by-weight: same step chips (250 g × 1 and × 2). Qty added to cart is kg (`weight`).
+ * Sold-by-weight with a custom admin step → 250 g / 500 g style chips.
+ * Without a custom step → empty (card uses +/- in kg via cartQuantityStep).
  */
 function buildSoldByWeightSizes(product) {
-  const stepped = buildWeightStepSizes(product, { forceStep: true });
-  if (stepped?.length) return stepped;
-  return [];
+  if (!hasCustomWeightStep(product)) return [];
+  const stepped = buildCustomWeightStepSizes(product);
+  return stepped?.length ? stepped : [];
 }
 
 /** @param {object | null | undefined} product */
 export function buildAvailableSizes(product) {
   if (!product || typeof product !== 'object') return [];
+  // Custom weight chips only for sold-by-weight + custom unit_size step.
   if (isSoldByWeight(product)) {
-    const packs = buildSoldByWeightSizes(product);
-    if (packs.length) return packs;
+    return buildSoldByWeightSizes(product);
   }
-  const weightSteps = buildWeightStepSizes(product);
-  if (weightSteps?.length) return weightSteps;
+  // Packed / normal products: never invent weight-step chips from unit_size.
   if (Array.isArray(product.sizes) && product.sizes.length > 0) {
     return product.sizes;
   }
@@ -159,8 +198,14 @@ export function sizeAddQuantity(product, size) {
   if (isSoldByWeight(product) && size?.weight != null) {
     const kg = Number(size.weight);
     if (Number.isFinite(kg) && kg > 0) {
-      return Math.round(kg * 10000) / 10000;
+      // Chip weights are stored in kg; still guard gram-scale leftovers.
+      const normalized = massAmountInKg(kg, size.unit || 'kg');
+      return normalized != null ? normalized : Math.round(kg * 10000) / 10000;
     }
+  }
+  // Sold-by-weight without chips: add one step of kg (custom or default 0.25).
+  if (isSoldByWeight(product) && !size) {
+    return cartQuantityStep(product);
   }
   return packCountOf(size);
 }

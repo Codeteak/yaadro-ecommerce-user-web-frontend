@@ -15,7 +15,6 @@ import {
   isBundleRewardCartLine,
   isTrustedCartCouponPreview,
   mergePreviewPricingOntoLocalLines,
-  allocateCartPayableOntoLines,
   normalizeCartLineCatalogPricing,
   stripPaidCartLinesOnly,
   sumCartPaidUnits,
@@ -323,26 +322,20 @@ export function CartProvider({ children }) {
 
   const cartItems = useMemo(() => {
     const base = buildGuestDisplayCartItems(localCartItems);
-    const merged =
-      cartPreviewTrusted && cartPreviewData?.items?.length
-        ? mergePreviewPricingOntoLocalLines(base, cartPreviewData.items, {
-            ignoreCouponPricing: bxgyBlocksCoupons,
-          })
-        : base;
-    if (
-      !bxgyBlocksCoupons &&
-      cartPreviewTrusted &&
-      cartPreviewData?.total != null &&
-      Number.isFinite(Number(cartPreviewData.total))
-    ) {
-      return allocateCartPayableOntoLines(merged, Number(cartPreviewData.total));
+    // Keep catalog / SKU line prices from preview. Do NOT paint cart-level
+    // auto/coupon discounts onto unit prices — that invents fake ₹2.22 "sale"
+    // prices (e.g. 99.5% cart off shown as product SAVE ₹438). Bill summary
+    // already shows auto_cart / coupon as separate rows.
+    if (cartPreviewTrusted && cartPreviewData?.items?.length) {
+      return mergePreviewPricingOntoLocalLines(base, cartPreviewData.items, {
+        ignoreCouponPricing: bxgyBlocksCoupons,
+      });
     }
-    return merged;
+    return base;
   }, [
     localCartItems,
     cartPreviewTrusted,
     cartPreviewData?.items,
-    cartPreviewData?.total,
     bxgyBlocksCoupons,
   ]);
 
