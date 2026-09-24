@@ -16,7 +16,7 @@ import {
   resolveProductWeightAndUnit,
 } from '../utils/productUtils';
 import { getProductOfferDisplay } from '../utils/offerDisplay';
-import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep, weightStepLinePrices, isSoldByWeightProduct } from '../utils/productSizeSelection';
+import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep, weightStepLinePrices, isSoldByWeightProduct, formatCartQtyControlLabel } from '../utils/productSizeSelection';
 import { tapFeedback } from '../utils/haptics';
 import PriceDisplay from './ui/PriceDisplay';
 import OfferRibbon from './ui/OfferRibbon';
@@ -159,6 +159,15 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
 
   const paidCartQty = cartLine ? getCartLinePaidQty(cartLine) : 0;
   const displayCartQty = paidCartQty > 0 ? paidCartQty : pendingCartQty;
+  const qtyStep = cartQuantityStep(product);
+  const qtyControlLabel = formatCartQtyControlLabel(
+    cartLine || product,
+    displayCartQty
+  );
+  const atMinPack =
+    isSoldByWeightProduct(product)
+      ? displayCartQty <= qtyStep + 1e-9
+      : displayCartQty <= 1;
 
   useEffect(() => {
     if (paidCartQty > 0) setPendingCartQty(0);
@@ -473,12 +482,12 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         onClick={handleDecrement}
         onPointerDown={stopCartBubble}
         className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] active:scale-95"
-        aria-label={displayCartQty <= 1 ? 'Remove from cart' : 'Decrease quantity'}
+        aria-label={atMinPack ? 'Remove from cart' : 'Decrease quantity'}
       >
         <span className="text-base font-bold leading-none">−</span>
       </button>
       <span className="min-w-[1.5rem] text-center text-sm font-bold tabular-nums text-[#902bf5]">
-        {displayCartQty}
+        {qtyControlLabel}
       </span>
       <button
         type="button"

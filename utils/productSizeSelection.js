@@ -8,6 +8,10 @@
  *
  * Catalog prices are per kg — gram-scale unit_size (e.g. 725) is normalized
  * before multiplying so listing never shows ₹165 × 725 = ₹119625.
+ *
+ * Customer-facing quantity for custom-weight products is PACK COUNT
+ * (1 = one custom_weight / unit_size step), while cart/checkout/order store
+ * quantity in kg. Example: ₹600/kg, step 200 g → 1 pack = ₹120, 5 packs = 1 kg = ₹600.
  */
 
 import {
@@ -116,6 +120,82 @@ export function cartQuantityStep(productOrLine) {
     return Math.round(n * 10000) / 10000;
   }
   return 0.25;
+}
+
+/**
+ * Purchasable step in kg for sold-by-weight (maps to DB custom_weight / unit_size).
+ */
+export function soldByWeightStepKg(productOrLine) {
+  if (!isSoldByWeightProduct(productOrLine)) return null;
+  return cartQuantityStep(productOrLine);
+}
+
+/**
+ * Price of ONE purchasable pack = catalog per-kg × step kg.
+ * (Customer "total_price for custom_weight".)
+ */
+export function soldByWeightPackUnitPrice(product, pricePerKg) {
+  const stepKg = soldByWeightStepKg(product);
+  const perKg = Number(pricePerKg);
+  if (!(stepKg > 0) || !Number.isFinite(perKg) || !(perKg > 0)) return null;
+  return Math.round(perKg * stepKg * 100) / 100;
+}
+
+/** Cart kg quantity → customer pack count (1 = one custom_weight unit). */
+export function kgQtyToPackCount(kgQty, stepKg) {
+  const kg = Number(kgQty);
+  const step = Number(stepKg);
+  if (!Number.isFinite(kg) || !(kg > 0)) return 0;
+  if (!Number.isFinite(step) || !(step > 0)) {
+    return Math.round(kg * 10000) / 10000;
+  }
+  const packs = kg / step;
+  const rounded = Math.round(packs);
+  if (Math.abs(packs - rounded) < 1e-6) return rounded;
+  return Math.round(packs * 10000) / 10000;
+}
+
+/** Pack count → cart kg quantity. */
+export function packCountToKgQty(packCount, stepKg) {
+  const packs = Number(packCount);
+  const step = Number(stepKg);
+  if (!Number.isFinite(packs) || !(packs > 0)) return 0;
+  if (!Number.isFinite(step) || !(step > 0)) return packs;
+  return Math.round(packs * step * 10000) / 10000;
+}
+
+/** Qty control label: pack count for sold-by-weight, otherwise raw qty. */
+export function formatCartQtyControlLabel(productOrLine, kgOrUnitQty) {
+  if (isSoldByWeightProduct(productOrLine)) {
+    const step = soldByWeightStepKg(productOrLine);
+    return String(kgQtyToPackCount(kgOrUnitQty, step));
+  }
+  const n = Number(kgOrUnitQty);
+  if (!Number.isFinite(n) || !(n > 0)) return '0';
+  return Number.isInteger(n) ? String(Math.trunc(n)) : String(n);
+}
+
+/**
+ * Cart/order subtitle: `200 g × 5 · 1 kg` (unit × packs · total weight).
+ */
+export function formatSoldByWeightPurchaseLabel(item, kgQty) {
+  if (!isSoldByWeightProduct(item)) return '';
+  const qty = Number(kgQty != null ? kgQty : item?.quantity);
+  if (!Number.isFinite(qty) || !(qty > 0)) return '';
+  const step = soldByWeightStepKg(item);
+  const totalLabel =
+    formatMassAmountLabel(qty, 'kg') || formatWeightUnitLabel(qty, 'kg');
+  if (!(step > 0)) return totalLabel || '';
+  const packs = kgQtyToPackCount(qty, step);
+  const stepLabel =
+    formatMassAmountLabel(step, 'kg') || formatWeightUnitLabel(step, 'kg');
+  if (!stepLabel) return totalLabel || '';
+  if (!Number.isInteger(packs) || packs <= 0) return totalLabel || '';
+  if (packs === 1) return stepLabel;
+  if (totalLabel && totalLabel !== stepLabel) {
+    return `${stepLabel} × ${packs} · ${totalLabel}`;
+  }
+  return `${stepLabel} × ${packs}`;
 }
 
 /**

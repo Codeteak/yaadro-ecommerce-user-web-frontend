@@ -30,7 +30,7 @@ import {
   resolveProductWeightAndUnit,
   stripPackFromProductName,
 } from '../../../utils/productUtils';
-import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep, weightStepLinePrices } from '../../../utils/productSizeSelection';
+import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep, weightStepLinePrices, formatCartQtyControlLabel } from '../../../utils/productSizeSelection';
 import Container from '../../../components/Container';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
 import PdpOfferPanel from '../../../components/promotions/PdpOfferPanel';
@@ -702,7 +702,7 @@ export default function ProductDetailClient({ productId = null }) {
                             −
                           </button>
                           <div className="flex min-w-[2rem] items-center justify-center border-x border-violet-100 px-2 text-[13px] font-bold tabular-nums text-violet-900">
-                            {cartQty}
+                            {formatCartQtyControlLabel(product, cartQty)}
                           </div>
                           <button
                             type="button"

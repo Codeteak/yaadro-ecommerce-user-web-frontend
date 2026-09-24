@@ -694,11 +694,41 @@ export function getCartLineVariantLabel(item) {
   );
   const unitRaw = item.unitLabel ?? item.unit ?? 'kg';
 
-  // Sold-by-weight: quantity is already kg — show total mass.
+  // Sold-by-weight: show pack × step · total (e.g. 200 g × 5 · 1 kg).
   if (soldByWeight && Number.isFinite(qty) && qty > 0) {
-    const label =
+    // Lazy import avoided — keep label helpers in productSizeSelection to prevent cycles.
+    // Inline the same presentation as formatSoldByWeightPurchaseLabel without importing it.
+    const stepRaw =
+      item.weightStepKg ??
+      item.product?.weightStepKg ??
+      (Number.isFinite(unitSize) && Math.abs(unitSize - 1) >= 1e-9 ? unitSize : null);
+    let stepKg = null;
+    if (stepRaw != null) {
+      const n = Number(stepRaw);
+      if (Number.isFinite(n) && n > 0) {
+        stepKg = massAmountInKg(n, unitRaw) ?? (n > 20 ? n / 1000 : n);
+      }
+    }
+    if (!(stepKg > 0)) {
+      // Fallback: treat common fractional kg qty as step (legacy lines without weightStepKg).
+      stepKg = null;
+    }
+    const totalLabel =
       formatMassAmountLabel(qty, 'kg') || formatWeightUnitLabel(qty, 'kg');
-    if (label) return label;
+    if (stepKg > 0) {
+      const packs = Math.round(qty / stepKg);
+      const exact = Math.abs(qty / stepKg - packs) < 1e-6;
+      const stepLabel =
+        formatMassAmountLabel(stepKg, 'kg') || formatWeightUnitLabel(stepKg, 'kg');
+      if (exact && packs >= 1 && stepLabel) {
+        if (packs === 1) return stepLabel;
+        if (totalLabel && totalLabel !== stepLabel) {
+          return `${stepLabel} × ${packs} · ${totalLabel}`;
+        }
+        return `${stepLabel} × ${packs}`;
+      }
+    }
+    if (totalLabel) return totalLabel;
   }
 
   // Packed weight step: qty is pack count × catalog unit_size (e.g. 3 × 0.25 kg → 750 g).
