@@ -15,7 +15,6 @@ import {
 } from '../../../components/icons';
 import { useAddress } from '../../../context/AddressContext';
 import { useAuth } from '../../../context/AuthContext';
-import GuestAuthPrompt from '../../../components/GuestAuthPrompt';
 import ConfirmModal from '../../../components/ConfirmModal';
 import { useRequireAuth } from '../../../hooks/useRequireAuth';
 import { reverseGeocode } from '../../../utils/geocoding';
@@ -26,9 +25,15 @@ import IndianPhoneInput from '../../../components/IndianPhoneInput';
 import { haversineKm, formatDistanceKm } from '../../../utils/geoDistance';
 import { getStoreCoordinates } from '../../../utils/storeLocation';
 import { checkDeliveryLocation } from '../../../utils/storefrontLocationApi';
+import {
+  getAddressSaveErrorMessage,
+  getPinDeliveryCheckMessage,
+} from '../../../utils/apiErrors';
 import { useLocationService } from '../../../context/LocationServiceContext';
 import { sanitizeAddressNotes } from '../../../utils/addressApi';
 import { buildMapStreetArea, sanitizeStoredStreetArea } from '../../../utils/formatAddress';
+import { isUnauthorizedError } from '../../../utils/authErrors';
+import { useLoginNavigation } from '../../../hooks/useLoginNavigation';
 
 // Leaflet uses `window` at import time — load only on the client.
 const AddressMapPicker = dynamic(
@@ -105,6 +110,7 @@ export default function AddAddressPage() {
 
   const { user, refreshUser } = useAuth();
   const { ok, ready } = useRequireAuth();
+  const { goToLogin } = useLoginNavigation();
   const { addresses = [], addAddress, updateAddress, isCreating, isUpdating } = useAddress();
   const { shopLocation: contextShopLocation } = useLocationService();
 
@@ -142,6 +148,10 @@ export default function AddAddressPage() {
   const [nameDraft, setNameDraft] = useState('');
   const [phoneDraft, setPhoneDraft] = useState('');
   const [submitError, setSubmitError] = useState('');
+  const line1InputRef = useRef(null);
+  const nameInputRef = useRef(null);
+  const phoneSectionRef = useRef(null);
+  const formScrollRef = useRef(null);
 
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [isDraftDirty, setIsDraftDirty] = useState(false);
@@ -326,7 +336,7 @@ export default function AddAddressPage() {
         setPinDeliveryCheck((prev) => ({
           ...prev,
           loading: false,
-          error: e?.message || 'Could not verify delivery',
+          error: e,
         }));
       }
     }, 420);
@@ -373,7 +383,7 @@ export default function AddAddressPage() {
   // ── Validation (step 2) — only Address Line 1 required (matches backend) ──
   const validation = useMemo(() => {
     const errors = {};
-    if (!form.line1.trim()) errors.line1 = 'Address line 1 is required';
+    if (!form.line1.trim()) errors.line1 = 'Please enter Address Line 1.';
 
     if (needsName) {
       const n = nameDraft.trim();
@@ -394,6 +404,27 @@ export default function AddAddressPage() {
         ? 'border-red-300 focus:ring-red-100'
         : 'border-gray-200 focus:ring-violet-200'
     }`;
+
+  const focusFirstAddressError = useCallback((errors) => {
+    const order = ['name', 'phone', 'line1'];
+    const firstKey = order.find((k) => errors?.[k]);
+    const refMap = {
+      name: nameInputRef,
+      phone: phoneSectionRef,
+      line1: line1InputRef,
+    };
+    const target = firstKey ? refMap[firstKey]?.current : null;
+    if (target) {
+      if (typeof target.scrollIntoView === 'function') {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      if (typeof target.focus === 'function') {
+        window.setTimeout(() => target.focus(), 280);
+      }
+      return;
+    }
+    formScrollRef.current?.scrollTo?.({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const setField = (key) => (e) => {
     const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -485,10 +516,13 @@ export default function AddAddressPage() {
       phone: true,
       line1: true,
     });
-    if (!validation.ok) return;
+    if (!validation.ok) {
+      focusFirstAddressError(validation.errors);
+      return;
+    }
 
     if (!coords?.lat || !coords?.lng) {
-      setSubmitError('Please pick a location on the map first.');
+      setSubmitError('Please select a delivery location on the map.');
       setStep(1);
       return;
     }
@@ -501,7 +535,7 @@ export default function AddAddressPage() {
     try {
       const shopId = await resolveShopId();
       if (!shopId) {
-        setSubmitError('Shop is not configured (NEXT_PUBLIC_SHOP_ID).');
+        setSubmitError('Shop is not configured. Please refresh the page and try again.');
         return;
       }
 
@@ -522,7 +556,13 @@ export default function AddAddressPage() {
       }
 
       if (payload.lat != null && payload.lng != null) {
-        await checkDeliveryLocation(payload.lat, payload.lng);
+        try {
+          await checkDeliveryLocation(payload.lat, payload.lng);
+        } catch (locErr) {
+          // Address is already saved — do not fail the save UX on cookie/location check.
+          // Checkout will re-verify serviceability with a clear message.
+          console.warn('[address] post-save location check failed', locErr);
+        }
       }
 
       if (typeof window !== 'undefined' && editId) {
@@ -545,29 +585,28 @@ export default function AddAddressPage() {
       lastSavedAddressIdRef.current = createdId;
       navigateBackWith(createdId);
     } catch (e) {
-      setSubmitError(e?.message || 'Could not save. Try again.');
+      // Keep all form fields — customer only needs to fix the failing piece and retry.
+      if (isUnauthorizedError(e)) {
+        setSubmitError('Your session expired. Please sign in again to save your address.');
+        goToLogin(`/add/address?from=${encodeURIComponent(returnTo)}${editId ? `&id=${encodeURIComponent(editId)}` : ''}`);
+        return;
+      }
+      const saveMsg = getAddressSaveErrorMessage(e);
+      setSubmitError(saveMsg);
+      if (/Address Line 1/i.test(saveMsg)) {
+        focusFirstAddressError({ line1: saveMsg });
+      }
     }
   };
 
   const submitting = isCreating || isUpdating;
 
-  // ── Loading / auth guard ──
-  if (!ready) {
+  // Guests: useRequireAuth → home; spinner while loading or redirecting.
+  if (!ready || !ok) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
         <Loader2 size={32} className="h-8 w-8 animate-spin text-violet-600" />
       </div>
-    );
-  }
-
-  if (!ok) {
-    return (
-      <GuestAuthPrompt
-        pageTitle={isEdit ? 'Edit address' : 'Add address'}
-        backHref={returnTo}
-        fallbackHref="/"
-        description="Sign in to save a delivery address."
-      />
     );
   }
 
@@ -656,23 +695,33 @@ export default function AddAddressPage() {
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">
                 Delivery at map pin
               </p>
-              {pinDeliveryCheck.loading && (
-                <p className="mt-1 text-[13px] font-medium">Checking whether we deliver here…</p>
-              )}
+              <p
+                className={`mt-1 text-[13px] font-medium ${
+                  !pinDeliveryCheck.loading &&
+                  !pinDeliveryCheck.error &&
+                  pinDeliveryCheck.serviceable === true
+                    ? 'text-[14px] font-bold text-violet-900'
+                    : ''
+                }`}
+              >
+                {getPinDeliveryCheckMessage({
+                  loading: pinDeliveryCheck.loading,
+                  error: pinDeliveryCheck.error,
+                  serviceable: pinDeliveryCheck.serviceable,
+                })}
+              </p>
+              {!pinDeliveryCheck.loading &&
+                !pinDeliveryCheck.error &&
+                pinDeliveryCheck.serviceable === false && (
+                  <p className="mt-0.5 text-[12px] text-red-800">
+                    You can still save this pin, but checkout will not continue until the pin is
+                    inside the delivery area.
+                  </p>
+                )}
               {!pinDeliveryCheck.loading && pinDeliveryCheck.error && (
-                <p className="mt-1 text-[13px] font-medium">{pinDeliveryCheck.error}</p>
-              )}
-              {!pinDeliveryCheck.loading && !pinDeliveryCheck.error && pinDeliveryCheck.serviceable === true && (
-                <p className="mt-1 text-[14px] font-bold text-violet-900">Delivery available at this spot</p>
-              )}
-              {!pinDeliveryCheck.loading && !pinDeliveryCheck.error && pinDeliveryCheck.serviceable === false && (
-                <p className="mt-1 text-[13px] font-semibold">
-                  Delivery not available — move the map so the pin sits inside the green zone.
-                </p>
-              )}
-              {!pinDeliveryCheck.loading && !pinDeliveryCheck.error && pinDeliveryCheck.serviceable == null && (
-                <p className="mt-1 text-[13px] font-medium text-gray-600">
-                  Pan the map; we’ll check this spot automatically.
+                <p className="mt-0.5 text-[12px] text-amber-900">
+                  Your pin is kept. Try again when you are back online, or continue to enter
+                  address details.
                 </p>
               )}
             </div>
@@ -824,7 +873,22 @@ export default function AddAddressPage() {
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          <div ref={formScrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            {Object.keys(validation.errors).length > 0 &&
+              (touched.line1 || touched.name || touched.phone) && (
+                <div
+                  role="alert"
+                  className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-3 text-red-950"
+                >
+                  <p className="text-[13px] font-semibold">Please complete the following</p>
+                  <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-[12px]">
+                    {validation.errors.name && <li>{validation.errors.name}</li>}
+                    {validation.errors.phone && <li>{validation.errors.phone}</li>}
+                    {validation.errors.line1 && <li>{validation.errors.line1}</li>}
+                  </ul>
+                </div>
+              )}
+
             <div className="mb-5 rounded-2xl border border-gray-100 bg-gray-50 p-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                 Contact
@@ -835,6 +899,7 @@ export default function AddAddressPage() {
                     Full name <span className="text-red-500">*</span>
                   </label>
                   <input
+                    ref={nameInputRef}
                     value={nameDraft}
                     onChange={(e) => {
                       setNameDraft(e.target.value);
@@ -852,7 +917,7 @@ export default function AddAddressPage() {
               )}
 
               {needsPhone ? (
-                <div className="mt-3">
+                <div ref={phoneSectionRef} className="mt-3">
                   <label className="text-xs font-semibold text-gray-800">
                     Mobile number <span className="text-red-500">*</span>
                   </label>
@@ -895,6 +960,7 @@ export default function AddAddressPage() {
                   Address line 1 <span className="text-red-500">*</span>
                 </label>
                 <input
+                  ref={line1InputRef}
                   value={form.line1}
                   onChange={setField('line1')}
                   placeholder="House number, building, street"

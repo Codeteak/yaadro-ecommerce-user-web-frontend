@@ -5,6 +5,9 @@
  * call customer.yaadro.online in env; without this proxy, httpOnly serviceability
  * cookies from POST /storefront/location/check are cross-site and checkout gets 403.
  *
+ * Product UUIDs must be remapped to `/api/storefront/products/id/:id` (backend
+ * slug route is `/products/:slug` and rejects raw UUIDs with 404).
+ *
  * Set API_ORIGIN in Pages → Settings → Environment variables (optional).
  */
 
@@ -27,9 +30,31 @@ const HOP_BY_HOP = new Set([
   'x-forwarded-for',
 ]);
 
+const PRODUCT_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 function apiOriginFromEnv(env) {
   const raw = env?.API_ORIGIN || env?.NEXT_PUBLIC_API_URL || DEFAULT_API_ORIGIN;
   return String(raw).trim().replace(/\/+$/, '');
+}
+
+/**
+ * Align CF proxy paths with customer API routing (same as Next `products/[id]` route).
+ * @param {string} pathname
+ */
+function rewriteStorefrontPathname(pathname) {
+  const m = String(pathname || '').match(
+    /^\/api\/storefront\/products\/([^/]+)\/?$/i,
+  );
+  if (!m) return pathname;
+  let segment = m[1];
+  try {
+    segment = decodeURIComponent(segment);
+  } catch {
+    /* keep raw */
+  }
+  if (!PRODUCT_UUID_RE.test(segment)) return pathname;
+  return `/api/storefront/products/id/${encodeURIComponent(segment)}`;
 }
 
 /** Drop Domain=… so the browser stores cookies on the shop host (marketfresh.in). */
@@ -44,7 +69,8 @@ export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const origin = apiOriginFromEnv(env);
-  const target = `${origin}${url.pathname}${url.search}`;
+  const pathname = rewriteStorefrontPathname(url.pathname);
+  const target = `${origin}${pathname}${url.search}`;
 
   const headers = new Headers();
   for (const [key, value] of request.headers.entries()) {

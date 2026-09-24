@@ -14,7 +14,6 @@ import { useAlert } from "../../../context/AlertContext";
 import ProductCarousel from "../../../components/ProductCarousel";
 import ProductImageWithFallback from "../../../components/ProductImageWithFallback";
 import FloatingViewCartPill from "../../../components/FloatingViewCartPill";
-import GuestAuthPrompt from "../../../components/GuestAuthPrompt";
 import OrderDetailPageSkeleton from "../../../components/skeletons/OrderDetailPageSkeleton";
 import {
   getResolvedProductImageUrls,
@@ -39,6 +38,10 @@ import {
   hasOrderDisplayAddress,
   savedAddressToOrderAddress,
 } from "../../../utils/orderApi";
+import {
+  shouldPostOrderBackToHome,
+  clearPostOrderBackToHome,
+} from "../../../utils/checkoutSession";
 import { useAddress } from "../../../context/AddressContext";
 import { useShopBranding } from "../../../context/ShopBrandingContext";
 import BillPreviewSheet from "../../../components/BillPreviewSheet";
@@ -792,6 +795,7 @@ function ErrorState({ message, ordersHref = "/orders" }) {
   );
 }
 
+/* TEMPORARILY HIDDEN — Return / refund modal (kept for later restore)
 function ReturnModal({ order, onClose, onSubmit }) {
   const [selected, setSelected] = useState([]);
   const [reason, setReason] = useState("");
@@ -870,6 +874,8 @@ function ReturnModal({ order, onClose, onSubmit }) {
     </div>
   );
 }
+*/
+
 
 function OrderDetailContent({ orderId: orderIdProp = null }) {
   const params = useParams();
@@ -892,18 +898,63 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   const { getDefaultAddress } = useAddress();
 
   const [isReordering, setIsReordering] = useState(false);
-  const [showReturn, setShowReturn] = useState(false);
+  // TEMPORARILY HIDDEN — return / refund UI
+  // const [showReturn, setShowReturn] = useState(false);
   const [billOpen, setBillOpen] = useState(false);
+  const [backToHomeAfterOrder, setBackToHomeAfterOrder] = useState(false);
+
+  useEffect(() => {
+    if (!resolvedOrderId) return;
+    setBackToHomeAfterOrder(shouldPostOrderBackToHome(resolvedOrderId));
+  }, [resolvedOrderId]);
+
+  // Post-checkout: browser Back must go Home, not empty cart / checkout / success.
+  useEffect(() => {
+    if (!backToHomeAfterOrder || typeof window === "undefined") return undefined;
+
+    const guardState = { yaadroPostOrderHome: true };
+    window.history.pushState(guardState, "", window.location.href);
+
+    const onPopState = () => {
+      clearPostOrderBackToHome();
+      router.replace("/");
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [backToHomeAfterOrder, router]);
+
+  const goBackFromOrderDetail = () => {
+    if (backToHomeAfterOrder || shouldPostOrderBackToHome(resolvedOrderId)) {
+      clearPostOrderBackToHome();
+      router.replace("/");
+      return;
+    }
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.replace("/orders");
+  };
 
   // Once shop accepts and DMS returns a link, open in-app tracking once per session.
+  // Skip after checkout — Order Detail is the landing page; user can open tracking manually.
   useEffect(() => {
+    if (backToHomeAfterOrder || shouldPostOrderBackToHome(resolvedOrderId)) {
+      return;
+    }
     const url = order?.deliveryTrackingUrl;
     const id = order?.id;
     if (!id || !isHttpTrackingUrl(url)) return;
     if (hasOpenedTrackingThisSession(id)) return;
     markTrackingOpenedThisSession(id);
     router.push(inAppTrackingHref(id));
-  }, [order?.id, order?.deliveryTrackingUrl, router]);
+  }, [
+    order?.id,
+    order?.deliveryTrackingUrl,
+    router,
+    backToHomeAfterOrder,
+    resolvedOrderId,
+  ]);
 
   const visibleOrderItems = order ? getOrderItems(order) : [];
   const activeOrderItems = order ? getActiveOrderItems(order) : [];
@@ -952,18 +1003,9 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
     };
   }, []);
 
-  if (!ready) {
+  // Guests: useRequireAuth → home; keep skeleton while redirecting.
+  if (!ready || !ok) {
     return <OrderDetailPageSkeleton />;
-  }
-
-  if (!ok) {
-    return (
-      <GuestAuthPrompt
-        pageTitle="Order details"
-        fallbackHref="/orders"
-        description="Sign in to view this order."
-      />
-    );
   }
 
   if (isLoading) return <OrderDetailPageSkeleton />;
@@ -1083,6 +1125,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
     }
   };
 
+  /* TEMPORARILY HIDDEN — return / refund submit
   const handleReturnSubmit = (items, reason) => {
     if (!items.length) {
       showAlert("Select at least one item.", "Required", "warning");
@@ -1095,6 +1138,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
     setShowReturn(false);
     showAlert("Return request feature coming soon!", "Coming soon", "info");
   };
+  */
 
   return (
     <>
@@ -1105,16 +1149,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
           <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-100 bg-white px-4 py-3.5">
             <button
               type="button"
-              onClick={() => {
-                if (
-                  typeof window !== "undefined" &&
-                  window.history.length > 1
-                ) {
-                  router.back();
-                  return;
-                }
-                router.replace("/orders");
-              }}
+              onClick={goBackFromOrderDetail}
               className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700"
             >
               <IconBack />
@@ -1150,6 +1185,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                   </Link>
                 </div>
               )}
+              {/* TEMPORARILY HIDDEN — Request return / refund (do not show to customers)
               {order.status === "delivered" && (
                 <div className="px-4 pb-3.5">
                   <button
@@ -1161,6 +1197,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                   </button>
                 </div>
               )}
+              */}
             </Section>
 
             <OrderPromotionsSection order={order} />
@@ -1423,6 +1460,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
         </div>
       </div>
 
+      {/* TEMPORARILY HIDDEN — Return / refund modal (do not show to customers)
       {showReturn && (
         <ReturnModal
           order={order}
@@ -1430,6 +1468,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
           onSubmit={handleReturnSubmit}
         />
       )}
+      */}
 
       <BillPreviewSheet
         isOpen={billOpen}

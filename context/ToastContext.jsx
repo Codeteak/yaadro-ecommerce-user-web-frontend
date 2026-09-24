@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { useLayoutHeights } from './LayoutHeightsContext';
 import { useBottomNavVisibility } from './BottomNavVisibilityContext';
 
@@ -27,8 +27,13 @@ export function ToastProvider({ children }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const value = useMemo(
+    () => ({ showToast, removeToast, toasts }),
+    [showToast, removeToast, toasts],
+  );
+
   return (
-    <ToastContext.Provider value={{ showToast, removeToast, toasts }}>
+    <ToastContext.Provider value={value}>
       {children}
     </ToastContext.Provider>
   );
@@ -43,11 +48,11 @@ export function ToastHost() {
   if (!ctx) return null;
 
   const { toasts, removeToast } = ctx;
-  const liftPx =
-    !hideForRoute
-      ? Math.max(Number(bottomNavHeight) || 0, MOBILE_BOTTOM_NAV_FALLBACK_PX) +
-        GAP_ABOVE_BOTTOM_NAV_PX
-      : null;
+  /** Anchor above the tab bar only — do not add brand `siteFooterHeight` (mid-viewport lift). */
+  const liftPx = !hideForRoute
+    ? Math.max(Number(bottomNavHeight) || 0, MOBILE_BOTTOM_NAV_FALLBACK_PX) +
+      GAP_ABOVE_BOTTOM_NAV_PX
+    : null;
 
   return (
     <div
@@ -57,7 +62,7 @@ export function ToastHost() {
           liftPx != null
             ? `${liftPx}px`
             : 'calc(1rem + env(safe-area-inset-bottom, 0px))',
-        transition: 'bottom 300ms cubic-bezier(0.22, 1, 0.36, 1)',
+        transition: 'bottom 220ms cubic-bezier(0.22, 1, 0.36, 1)',
       }}
     >
       {toasts.map((toast) => (

@@ -49,8 +49,13 @@ export default function HomeClientShelves({ products: productsProp, hideFeatured
   }, [catalogProducts, featuredProducts]);
 
   const { data: ordersInfinite } = useInfiniteOrdersList(
-    { limit: 50 },
-    { enabled: isAuthenticated }
+    { limit: 20 },
+    {
+      enabled: isAuthenticated,
+      // Buy Again is a soft shelf — do not poll; reuse list for several minutes.
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+    }
   );
 
   const orders = useMemo(
@@ -62,7 +67,8 @@ export default function HomeClientShelves({ products: productsProp, hideFeatured
     limit: 60,
     sort_by: 'created_at',
     sort_order: 'desc',
-    enabled: isAuthenticated && orders.length > 0,
+    // Skip when home already provided a usable catalog pool.
+    enabled: isAuthenticated && orders.length > 0 && catalogProducts.length < 8,
   });
 
   const buyAgainProducts = useMemo(() => {

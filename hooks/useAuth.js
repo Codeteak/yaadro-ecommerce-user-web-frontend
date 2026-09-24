@@ -27,7 +27,8 @@ export function useCurrentUser() {
     queryKey: authKeys.user(),
     queryFn: getCurrentUser,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: true,
+    // AuthContext owns session recovery on visibility; do not refetch /me on every focus.
+    refetchOnWindowFocus: false,
     retry: 1,
   });
 }

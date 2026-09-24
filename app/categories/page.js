@@ -93,7 +93,7 @@ function RotatingHintInput({ value, onChange, hintWords, inputProps }) {
         onChange={onChange}
         placeholder=""
         autoComplete="off"
-        className={`relative z-10 w-full border-0 bg-transparent outline-none text-[13px] caret-gray-900 ${
+        className={`relative z-10 w-full border-0 bg-transparent outline-none text-[13px] caret-[#902bf5] ${
           empty ? 'text-transparent' : 'text-gray-900'
         } ${inputProps?.className || ''}`}
       />
@@ -225,9 +225,9 @@ export default function CategoriesPage() {
         onSearchToggle={onSearchOpenToggle}
         searchAriaLabel="Search categories"
         searchSlot={
-          <div className="flex items-center gap-2 px-3 h-10 rounded-full border border-gray-200 bg-white focus-within:border-violet-400 focus-within:ring-1 focus-within:ring-violet-200 transition">
+          <div className="group flex h-10 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 transition-[border-color,box-shadow] duration-200 ease-out focus-within:border-[#902bf5] focus-within:shadow-[0_0_0_3px_rgba(144,43,245,0.18)]">
             <svg
-              className="h-4 w-4 text-gray-400 flex-shrink-0"
+              className="h-4 w-4 flex-shrink-0 text-gray-400 transition-colors duration-200 ease-out group-focus-within:text-[#902bf5]"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

@@ -572,9 +572,42 @@ export async function fetchShopByDomain(domain) {
  * Resolve shop for current origin (id + display name + logo URL).
  * Development: `NEXT_PUBLIC_SHOP_ID` + optional `NEXT_PUBLIC_SHOP_NAME` / `NEXT_PUBLIC_SHOP_IMAGE`.
  * Production: domain resolver API with localStorage cache.
+ * Concurrent callers share one in-flight promise per domain+forceRefresh key.
  * @param {{ forceRefresh?: boolean }} [options]
  */
+/** @type {Map<string, Promise<any>>} */
+const brandingResolveInFlight = new Map();
+
 export async function resolveShopBranding(options = {}) {
+  const forceRefresh = !!options.forceRefresh;
+  if (typeof window === 'undefined') {
+    return {
+      shopId: envShopId(),
+      shopName: envShopName() || DEFAULT_SHOP_NAME,
+      shopImage: envShopImage(),
+      bannerEnabled: false,
+      bannerImages: [],
+      seo: null,
+      fromCache: false,
+      notFound: false,
+    };
+  }
+
+  const domainKey = String(window.location.hostname || '').toLowerCase().trim() || '_';
+  const flightKey = `${domainKey}|${forceRefresh ? '1' : '0'}`;
+  const existing = brandingResolveInFlight.get(flightKey);
+  if (existing) return existing;
+
+  const promise = resolveShopBrandingUncached(options).finally(() => {
+    if (brandingResolveInFlight.get(flightKey) === promise) {
+      brandingResolveInFlight.delete(flightKey);
+    }
+  });
+  brandingResolveInFlight.set(flightKey, promise);
+  return promise;
+}
+
+async function resolveShopBrandingUncached(options = {}) {
   const forceRefresh = !!options.forceRefresh;
   if (typeof window === 'undefined') {
     return {

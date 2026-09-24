@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { resolveShopId } from '../utils/authApi';
 import { checkDeliveryLocation } from '../utils/storefrontLocationApi';
+import { classifyDeliveryCheckResult } from '../utils/apiErrors';
 import { reverseGeocode } from '../utils/geocoding';
 import { formatAddressDisplay, buildMapStreetArea } from '../utils/formatAddress';
 import { useAuth } from './AuthContext';
@@ -258,13 +259,13 @@ export function LocationServiceProvider({ children }) {
         );
       } catch (e) {
         if (gen !== deliveryCheckGenRef.current) return;
-        const msg = e?.message || 'Could not verify delivery area.';
+        const classified = classifyDeliveryCheckResult(null, e);
         setPhase('done');
         setServiceable(null);
-        if (e?.code === 'MISSING_SHOP_ID') {
+        if (e?.code === 'MISSING_SHOP_ID' || classified.kind === 'missing_shop') {
           setErrorMessage(null);
         } else {
-          setErrorMessage(msg);
+          setErrorMessage(classified.message);
         }
       }
     },
@@ -307,13 +308,13 @@ export function LocationServiceProvider({ children }) {
           applyDeliveryResult(data, { lat, lng }, shopId);
         } catch (e) {
           if (gen !== deliveryCheckGenRef.current) return;
-          const msg = e?.message || 'Could not verify delivery area.';
+          const classified = classifyDeliveryCheckResult(null, e);
           setPhase('done');
           setServiceable(null);
-          if (e?.code === 'MISSING_SHOP_ID') {
+          if (e?.code === 'MISSING_SHOP_ID' || classified.kind === 'missing_shop') {
             setErrorMessage(null);
           } else {
-            setErrorMessage(msg);
+            setErrorMessage(classified.message);
           }
         }
       },
@@ -477,7 +478,7 @@ export function LocationServiceProvider({ children }) {
       setSheetServiceable(null);
       setSheetDistanceM(null);
       setSheetMaxRadiusM(null);
-      setSheetErrorMessage(e?.message || 'Could not verify delivery area.');
+      setSheetErrorMessage(classifyDeliveryCheckResult(null, e).message);
     }
   }, []);
 
@@ -590,19 +591,19 @@ export function LocationServiceProvider({ children }) {
         }
         setSheetPhase('done');
       } catch (e) {
-        const msg = e?.message || 'Could not verify delivery area.';
+        const classified = classifyDeliveryCheckResult(null, e);
         setPhase('done');
         setServiceable(null);
         setSheetPhase('done');
         setSheetServiceable(null);
         setSheetDistanceM(null);
         setSheetMaxRadiusM(null);
-        if (e?.code === 'MISSING_SHOP_ID') {
+        if (e?.code === 'MISSING_SHOP_ID' || classified.kind === 'missing_shop') {
           setErrorMessage(null);
           setSheetErrorMessage(null);
         } else {
-          setErrorMessage(msg);
-          setSheetErrorMessage(msg);
+          setErrorMessage(classified.message);
+          setSheetErrorMessage(classified.message);
         }
       }
     },

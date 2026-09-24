@@ -21,7 +21,10 @@ const MOBILE_BOTTOM_NAV_FALLBACK_PX = 72;
 /** Visual gap between pill bottom edge and top of tab bar. */
 const GAP_ABOVE_BOTTOM_NAV_PX = 14;
 /**
- * Floating cart pill above the mobile tab bar (or above optional fixed bottom chrome).
+ * Floating cart pill — viewport-fixed, just above the mobile tab bar.
+ * Portaled into `#app-shell` so desktop `transform` keeps it inside the phone column.
+ * Do NOT add `siteFooterHeight`: the brand footer is separate chrome; lifting by both
+ * pushed this pill into the lower-middle of the viewport.
  * @param {number} [stackAboveBottomPx] — When set (e.g. PDP), CSS `bottom` in px; measure from the
  *   owning page using the fixed bar’s `getBoundingClientRect().top` vs `visualViewport`.
  */
@@ -131,9 +134,10 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
   if (!mounted || !portalTarget || cartItems.length === 0) return null;
 
   const navShowing = !bottomNavHidden && bottomNavVisible;
-  /** Always reserve at least one tab-bar height when the bar is on-screen (avoids pill sitting flush to viewport bottom while nav slides in / before RO fires). */
+  /** Tab bar only — measured height already includes safe-area padding. */
   const liftPx = navShowing
-    ? Math.max(Number(bottomNavHeight) || 0, MOBILE_BOTTOM_NAV_FALLBACK_PX) + GAP_ABOVE_BOTTOM_NAV_PX
+    ? Math.max(Number(bottomNavHeight) || 0, MOBILE_BOTTOM_NAV_FALLBACK_PX) +
+      GAP_ABOVE_BOTTOM_NAV_PX
     : null;
 
   const stackedAboveFixedChromePx =
@@ -151,7 +155,7 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
             : stackedAboveFixedChromePx != null
               ? `${stackedAboveFixedChromePx}px`
               : 'calc(1rem + env(safe-area-inset-bottom, 0px))',
-        transition: 'bottom 300ms cubic-bezier(0.22, 1, 0.36, 1)',
+        transition: 'bottom 220ms cubic-bezier(0.22, 1, 0.36, 1)',
         willChange: 'bottom',
       }}
       aria-hidden={cartItems.length === 0}
@@ -166,7 +170,7 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
           }
           goToLogin('/cart');
         }}
-        className="pointer-events-auto group relative flex h-auto w-full max-w-[420px] items-center gap-3 overflow-hidden rounded-full border border-gray-200/90 bg-white/95 px-3 py-2.5 shadow-[0_8px_32px_rgba(15,23,42,0.1)] backdrop-blur-md transition-all duration-200 hover:border-violet-200 hover:bg-white hover:shadow-[0_14px_40px_rgba(144,43,245,0.12)] active:scale-[0.98]"
+        className="pointer-events-auto group relative flex h-auto w-full max-w-[420px] items-center gap-3 overflow-hidden rounded-full border border-gray-200/90 bg-white/95 px-3 py-2.5 shadow-[0_8px_32px_rgba(15,23,42,0.1)] backdrop-blur-md animate-slide-up transition-all duration-200 hover:border-violet-200 hover:bg-white hover:shadow-[0_14px_40px_rgba(144,43,245,0.12)] active:scale-[0.98] motion-reduce:animate-none"
         aria-label={`Go to cart, ${cartCount} ${cartCount === 1 ? 'item' : 'items'}${savingsRounded > 0 ? `, saving ₹${savingsRounded}` : ''}`}
       >
         {celebrationBurst > 0 && (

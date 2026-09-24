@@ -1,59 +1,52 @@
 'use client';
 
+import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useLayoutHeights } from '../context/LayoutHeightsContext';
 import { useBottomNavVisibility } from '../context/BottomNavVisibilityContext';
+import Footer from './Footer';
 
 function normalizePath(pathname) {
   return pathname?.replace(/\/+$/, '') || '';
 }
 
+/** Login / OTP — no site footer. */
+function hideSiteFooter(path) {
+  return path === '/login';
+}
+
+/**
+ * Brand footer scrolls with page content (end of main).
+ * Only the mobile tab bar stays fixed — a fixed brand footer was covering
+ * the lower viewport on every page and forced unnecessary scrolling.
+ */
 export default function ConditionalLayout({ children }) {
   const pathname = usePathname();
-  const { bottomNavHeight } = useLayoutHeights();
-  const { isVisible: bottomNavVisible } = useBottomNavVisibility();
+  const { bottomNavHeight, setSiteFooterHeight } = useLayoutHeights();
+  const { isVisible: bottomNavVisible, hideForRoute } = useBottomNavVisibility();
 
   const path = normalizePath(pathname);
+  const hideFooter = hideSiteFooter(path);
 
-  const hideFooter =
-    path === '/order-success' ||
-    path === '/checkout' ||
-    path === '/login' ||
-    path === '/profile' ||
-    path === '/addresses' ||
-    path === '/add/address' ||
-    path === '/cart' ||
-    path === '/orders' ||
-    path.startsWith('/orders/') ||
-    path === '/order' ||
-    path.startsWith('/order/') ||
-    path === '/product' ||
-    (pathname?.startsWith('/products/') && path !== '/products');
+  // Footer is in document flow — sticky bars (cart/checkout) must not lift for it.
+  useEffect(() => {
+    setSiteFooterHeight?.(0);
+    return () => setSiteFooterHeight?.(0);
+  }, [setSiteFooterHeight, path]);
 
-  const categoriesRoute = pathname?.startsWith('/categories');
-  const productsListingRoute = path === '/products';
-  const searchRoute = path === '/search' || pathname?.startsWith('/search/');
-
-  const reserveBottomNavInset =
-    !hideFooter ||
-    categoriesRoute ||
-    searchRoute ||
-    productsListingRoute;
-
-  const mainPaddingBottom =
-    reserveBottomNavInset && bottomNavVisible ? bottomNavHeight : 0;
+  const navInset =
+    !hideForRoute && bottomNavVisible ? Math.max(Number(bottomNavHeight) || 0, 0) : 0;
 
   return (
-    <>
-      <main
-        className="flex-grow w-full max-w-full overflow-x-clip transition-[padding] duration-300 ease-out"
-        style={{
-          overflowX: 'clip',
-          paddingBottom: mainPaddingBottom,
-        }}
-      >
-        {children}
-      </main>
-    </>
+    <main
+      className="flex w-full max-w-full flex-grow flex-col overflow-x-clip"
+      style={{
+        overflowX: 'clip',
+        paddingBottom: navInset,
+      }}
+    >
+      <div className="w-full min-w-0 flex-1">{children}</div>
+      {!hideFooter ? <Footer /> : null}
+    </main>
   );
 }

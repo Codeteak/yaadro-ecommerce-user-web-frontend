@@ -15,16 +15,17 @@ import { placeStorefrontOrder } from "../../utils/storefrontCheckoutApi";
 import {
   getApiErrorCode,
   getCheckoutErrorMessage,
+  isNetworkError,
 } from "../../utils/apiErrors";
 import { couponKeys } from "../../hooks/useCoupons";
 import { cartKeys } from "../../hooks/useCart";
-import { addressKeys } from "../../hooks/useAddresses";
-import { checkDeliveryLocation } from "../../utils/storefrontLocationApi";
+import { verifyDeliveryAtCoords } from "../../utils/verifyDeliveryAtCoords";
 import { getStorefrontCookieSiteWarning } from "../../utils/storefrontApiSite";
 import {
   readCheckoutDraft,
   writeCheckoutDraft,
   clearCheckoutDraft,
+  markPostOrderBackToHome,
 } from "../../utils/checkoutSession";
 import { useLoginNavigation } from "../../hooks/useLoginNavigation";
 import CheckoutCouponsSection from "../../components/CheckoutCouponsSection";
@@ -49,10 +50,43 @@ import CouponThresholdBanner from "../../components/promotions/CouponThresholdBa
 import { BRAND_PRIMARY_BTN } from "../../components/ui/brandButton";
 import { formatAddressDisplay } from "../../utils/formatAddress";
 import { AddressCardSkeleton } from "../../components/skeletons/primitives";
+import { useLayoutHeights } from "../../context/LayoutHeightsContext";
 
 function isAddressNotServiceableError(err) {
   const code = getApiErrorCode(err) || err?.code;
   return code === "ADDRESS_NOT_SERVICEABLE";
+}
+
+/** Missing checkout prerequisites the customer can fix (existing rules only). */
+function getCheckoutReadinessIssues({
+  selectedAddressId,
+  selectedAddress,
+  selectedAddressCoords,
+}) {
+  const issues = [];
+  if (!selectedAddressId) {
+    issues.push({
+      id: "address",
+      message: "Please add a delivery address.",
+    });
+    return issues;
+  }
+  const line1 = String(
+    selectedAddress?.line1 || selectedAddress?.street || "",
+  ).trim();
+  if (!line1) {
+    issues.push({
+      id: "line1",
+      message: "Please enter Address Line 1.",
+    });
+  }
+  if (!selectedAddressCoords) {
+    issues.push({
+      id: "coords",
+      message: "Please select a delivery location on the map.",
+    });
+  }
+  return issues;
 }
 
 /* ─────────────────────────────────────────────
@@ -491,6 +525,7 @@ export default function CheckoutPage() {
   const { goToLogin } = useLoginNavigation();
   const { showAlert } = useAlert();
   const { openServiceAreaSheet } = useLocationService();
+  const { siteFooterHeight } = useLayoutHeights();
 
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [notes, setNotes] = useState("");
@@ -504,6 +539,9 @@ export default function CheckoutPage() {
   /** Stable across double-clicks of Place order (ConfirmModal + sticky CTA). */
   const placeOrderLockRef = useRef(false);
   const checkoutIdempotencyKeyRef = useRef(null);
+  const deliveryCheckGenRef = useRef(0);
+  const addressSectionRef = useRef(null);
+  const [isCheckingDelivery, setIsCheckingDelivery] = useState(false);
 
   const selectedAddress = useMemo(() => {
     if (!selectedAddressId) return null;
@@ -519,17 +557,32 @@ export default function CheckoutPage() {
     return { lat, lng };
   }, [selectedAddress?.lat, selectedAddress?.lng]);
 
+  const checkoutReadinessIssues = useMemo(
+    () =>
+      getCheckoutReadinessIssues({
+        selectedAddressId,
+        selectedAddress,
+        selectedAddressCoords,
+      }),
+    [selectedAddressId, selectedAddress, selectedAddressCoords],
+  );
+
+  const scrollToDeliveryAddress = useCallback(() => {
+    const el = addressSectionRef.current;
+    if (!el || typeof el.scrollIntoView !== "function") return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   const verifySelectedAddressServiceability = useCallback(async () => {
-    if (!selectedAddressCoords) return false;
-    try {
-      const r = await checkDeliveryLocation(
-        selectedAddressCoords.lat,
-        selectedAddressCoords.lng,
-      );
-      return r?.serviceable === true;
-    } catch {
-      return false;
+    const gen = ++deliveryCheckGenRef.current;
+    const outcome = await verifyDeliveryAtCoords(
+      selectedAddressCoords?.lat,
+      selectedAddressCoords?.lng,
+    );
+    if (gen !== deliveryCheckGenRef.current) {
+      return { ...outcome, stale: true };
     }
+    return { ...outcome, stale: false };
   }, [selectedAddressCoords]);
 
   const showDeliveryAreaForSelectedAddress = useCallback(() => {
@@ -700,25 +753,7 @@ export default function CheckoutPage() {
     router.replace(qs ? `/checkout?${qs}` : "/checkout");
   }, [searchParams, addresses, isLoadingAddresses, router]);
 
-  /* ── Refresh cart + addresses when tabbing back (e.g. from address map). ── */
-  useEffect(() => {
-    if (!isAuthenticated) return undefined;
-    const refresh = () => {
-      void queryClient.invalidateQueries({ queryKey: addressKeys.all });
-    };
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-    const onPageShow = (event) => {
-      if (event.persisted) refresh();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("pageshow", onPageShow);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("pageshow", onPageShow);
-    };
-  }, [isAuthenticated, queryClient]);
+  /* Address freshness on tab resume is handled by AddressContext (app-wide). */
 
   /* ── Guests with items: require login, then return here ── */
   useEffect(() => {
@@ -760,12 +795,22 @@ export default function CheckoutPage() {
         selectedAddress?.line1 || selectedAddress?.street || "",
       ).trim();
       if (!selectedAddressId || !selectedAddressCoords || !line1) {
+        const issues = getCheckoutReadinessIssues({
+          selectedAddressId,
+          selectedAddress,
+          selectedAddressCoords,
+        });
+        const first = issues[0];
         showAlert(
-          "Please save a delivery address with a street and map pin.",
+          first?.message ||
+            "Please save a delivery address with Address Line 1 and a map pin.",
           "Delivery address",
           "warning",
         );
-        showDeliveryAreaForSelectedAddress();
+        scrollToDeliveryAddress();
+        if (!selectedAddressCoords && selectedAddressId) {
+          showDeliveryAreaForSelectedAddress();
+        }
         placeOrderLockRef.current = false;
         checkoutIdempotencyKeyRef.current = null;
         setIsSubmitting(false);
@@ -805,8 +850,11 @@ export default function CheckoutPage() {
       // never gets a chance to render between cartItems becoming [] and navigation.
       setIsFinishing(true);
       clearCheckoutDraft();
+      // Back from the created order must go Home — not cart/checkout/success.
+      markPostOrderBackToHome(orderResponse.orderId);
       await clearCart();
-      router.push(
+      // replace: drop checkout from history so it is not revisited after success.
+      router.replace(
         `/order-success?orderId=${encodeURIComponent(orderResponse.orderId)}&orderNumber=${encodeURIComponent(
           orderResponse.orderNumber || "",
         )}&payment=cod`,
@@ -827,8 +875,8 @@ export default function CheckoutPage() {
             ? crossSite
               ? `${crossSite} Also confirm the map pin on your delivery address is inside the delivery zone.`
               : "Your delivery location could not be verified for this shop. Update the map pin on your address and try again."
-            : "Delivery is not available for this address. Please choose another address or update the map pin.",
-          "Delivery not available",
+            : "This address is outside this shop's delivery area. Choose another address or move the map pin.",
+          locationNotVerified ? "Location not verified" : "Outside delivery area",
           "warning",
         );
         showDeliveryAreaForSelectedAddress();
@@ -851,6 +899,15 @@ export default function CheckoutPage() {
           "warning",
         );
         goToLogin("/checkout");
+        setIsSubmitting(false);
+        return;
+      }
+      if (isNetworkError(err)) {
+        showAlert(
+          "Unable to connect. Please check your internet connection and try again.",
+          "Connection problem",
+          "error",
+        );
         setIsSubmitting(false);
         return;
       }
@@ -884,7 +941,10 @@ export default function CheckoutPage() {
           ? "Price or Quantity updated"
           : code === "PRODUCT_UNAVAILABLE"
             ? "Item or Quantity unavailable"
-            : "Error";
+            : code === "ADDRESS_REQUIRED" ||
+                code === "ADDRESS_COORDINATES_REQUIRED"
+              ? "Delivery address"
+              : "Could not place order";
       const alertTone =
         code === "PRICE_CHANGED" || code === "PRODUCT_UNAVAILABLE"
           ? "warning"
@@ -897,40 +957,92 @@ export default function CheckoutPage() {
   const handleSubmit = async (e) => {
     e?.preventDefault();
 
-    if (isSubmitting) return;
+    if (isSubmitting || isCheckingDelivery) return;
 
     if (!isAuthenticated) {
       goToLogin("/checkout");
       return;
     }
     if (cartItems.length === 0) {
-      showAlert("Your cart is empty.", "Empty Cart", "warning");
-      return;
-    }
-    if (
-      !selectedAddressId ||
-      !selectedAddressCoords ||
-      !String(selectedAddress?.line1 || selectedAddress?.street || "").trim()
-    ) {
       showAlert(
-        "Please save a delivery address with a street and map pin.",
-        "Delivery address",
+        "Your cart is empty. Add items before placing an order.",
+        "Empty cart",
         "warning",
       );
       return;
     }
+
+    const readiness = getCheckoutReadinessIssues({
+      selectedAddressId,
+      selectedAddress,
+      selectedAddressCoords,
+    });
+    if (readiness.length > 0) {
+      showAlert(
+        readiness.length === 1
+          ? readiness[0].message
+          : `Please complete the following:\n• ${readiness.map((i) => i.message.replace(/^Please /, "")).join("\n• ")}`,
+        "Complete your delivery details",
+        "warning",
+      );
+      scrollToDeliveryAddress();
+      if (readiness.some((i) => i.id === "address")) {
+        if (addresses.length === 0) goToAddAddress();
+        else setShowAddressSelector(true);
+      } else if (readiness.some((i) => i.id === "coords" || i.id === "line1")) {
+        goToAddAddress(selectedAddressId);
+      }
+      return;
+    }
+
     // Use backend-consistent verification for the selected delivery address pin.
     // This avoids a mismatch where cached/default-address checks pass but the selected address isn't serviceable.
-    const pinOk = await verifySelectedAddressServiceability();
-    if (!pinOk) {
+    setIsCheckingDelivery(true);
+    let deliveryOutcome;
+    try {
+      deliveryOutcome = await verifySelectedAddressServiceability();
+    } finally {
+      setIsCheckingDelivery(false);
+    }
+    if (deliveryOutcome?.stale) return;
+
+    if (!deliveryOutcome?.ok) {
+      if (deliveryOutcome?.kind === "auth") {
+        showAlert(
+          deliveryOutcome.message,
+          deliveryOutcome.title,
+          deliveryOutcome.tone,
+        );
+        goToLogin("/checkout");
+        return;
+      }
+      if (
+        deliveryOutcome?.kind === "network" ||
+        deliveryOutcome?.kind === "unknown" ||
+        deliveryOutcome?.kind === "missing_shop"
+      ) {
+        showAlert(
+          deliveryOutcome.message,
+          deliveryOutcome.title,
+          deliveryOutcome.tone,
+        );
+        return;
+      }
+      // not_serviceable or missing_coords
       showAlert(
-        "Delivery is not available for this address. Please choose another address or update the map pin.",
-        "Delivery not available",
-        "warning",
+        deliveryOutcome?.message ||
+          "This address is outside this shop's delivery area. Choose another address or move the map pin.",
+        deliveryOutcome?.title || "Outside delivery area",
+        deliveryOutcome?.tone || "warning",
       );
-      showDeliveryAreaForSelectedAddress();
+      if (deliveryOutcome?.kind === "not_serviceable") {
+        showDeliveryAreaForSelectedAddress();
+      } else {
+        scrollToDeliveryAddress();
+      }
       return;
     }
+
     if (!hasUserPhone(user) && !phoneOverride) {
       setShowPhoneSheet(true);
       return;
@@ -1007,10 +1119,28 @@ export default function CheckoutPage() {
       <form onSubmit={handleSubmit} className="space-y-0">
         {/* ── Delivery address ── */}
         <div
+          ref={addressSectionRef}
           className="px-4 pt-5 pb-1"
           aria-busy={isLoadingAddresses && addresses.length === 0}
         >
           <SectionLabel>Delivery address</SectionLabel>
+
+          {checkoutReadinessIssues.length > 0 &&
+            !(isLoadingAddresses && addresses.length === 0) && (
+              <div
+                role="status"
+                className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-amber-950"
+              >
+                <p className="text-[13px] font-semibold">
+                  Complete your delivery details
+                </p>
+                <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-[12px] text-amber-900">
+                  {checkoutReadinessIssues.map((issue) => (
+                    <li key={issue.id}>{issue.message}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
           <div
             className={`space-y-2 ${isLoadingAddresses && addresses.length === 0 ? "min-h-[52px]" : ""}`}
@@ -1221,7 +1351,10 @@ export default function CheckoutPage() {
       </form>
 
       {/* ── Sticky bottom bar (marquee is full bar width; padded block below) ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 w-full max-w-[100vw] overflow-x-hidden bg-white border-t border-gray-100">
+      <div
+        className="fixed left-0 right-0 z-50 w-full max-w-[100vw] overflow-x-hidden bg-white border-t border-gray-100"
+        style={{ bottom: Math.max(Number(siteFooterHeight) || 0, 0) }}
+      >
         <marquee
           className="block w-full bg-red-600 py-0.5 text-[10px] font-medium leading-tight text-white"
           scrollAmount={3}
@@ -1260,8 +1393,8 @@ export default function CheckoutPage() {
 
           <Button
             variant="primary"
-            isDisabled={isSubmitting || showPriceVaryConfirm}
-            isLoading={isSubmitting}
+            isDisabled={isSubmitting || isCheckingDelivery || showPriceVaryConfirm}
+            isLoading={isSubmitting || isCheckingDelivery}
             onPress={() => {
               if (!selectedAddressId) {
                 if (addresses.length === 0) {
@@ -1273,24 +1406,38 @@ export default function CheckoutPage() {
               }
               if (!selectedAddressCoords) {
                 showAlert(
-                  "Please set a map pin on your delivery address.",
-                  "Delivery address",
+                  "Please select a delivery location on the map.",
+                  "Delivery location needed",
                   "warning",
                 );
+                scrollToDeliveryAddress();
+                goToAddAddress(selectedAddressId);
+                return;
+              }
+              const line1 = String(
+                selectedAddress?.line1 || selectedAddress?.street || "",
+              ).trim();
+              if (!line1) {
+                showAlert(
+                  "Please enter Address Line 1.",
+                  "Address incomplete",
+                  "warning",
+                );
+                scrollToDeliveryAddress();
                 goToAddAddress(selectedAddressId);
                 return;
               }
               handleSubmit({ preventDefault: () => {} });
             }}
             className={`w-full h-12 rounded-full text-sm font-medium flex items-center justify-center gap-2 transition active:scale-[0.98] ${
-              isSubmitting || showPriceVaryConfirm
+              isSubmitting || isCheckingDelivery || showPriceVaryConfirm
                 ? "bg-gray-200 text-gray-400"
                 : !selectedAddressId || !selectedAddressCoords
                   ? "bg-amber-500 text-white hover:bg-amber-600"
                   : BRAND_PRIMARY_BTN
             }`}
           >
-            {!isSubmitting && !selectedAddressId ? (
+            {!isSubmitting && !isCheckingDelivery && !selectedAddressId ? (
               <>
                 <svg
                   className="w-4 h-4"
@@ -1312,9 +1459,11 @@ export default function CheckoutPage() {
                     d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                   />
                 </svg>
-                Select address
+                {addresses.length === 0
+                  ? "Add delivery address"
+                  : "Select address"}
               </>
-            ) : !isSubmitting && !selectedAddressCoords ? (
+            ) : !isSubmitting && !isCheckingDelivery && !selectedAddressCoords ? (
               <>
                 <svg
                   className="w-4 h-4"
@@ -1338,6 +1487,8 @@ export default function CheckoutPage() {
                 </svg>
                 Set map pin on address
               </>
+            ) : isCheckingDelivery ? (
+              "Checking delivery availability…"
             ) : isSubmitting ? (
               "Placing order…"
             ) : (

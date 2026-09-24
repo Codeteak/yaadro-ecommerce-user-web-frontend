@@ -14,6 +14,9 @@ import PhoneChangeOtpSheet from '../../components/PhoneChangeOtpSheet';
 import PageTopBar from '../../components/PageTopBar';
 import ProfileOffersSection from '../../components/profile/ProfileOffersSection';
 import ProfileCouponsSection from '../../components/profile/ProfileCouponsSection';
+import ProfileDeliveryShopCard from '../../components/profile/ProfileDeliveryShopCard';
+import ProfileRecentOrdersSection from '../../components/profile/ProfileRecentOrdersSection';
+import ProfileShopContactSection from '../../components/profile/ProfileShopContactSection';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
 import {
   ExitRegular as LogOut,
@@ -29,8 +32,6 @@ import {
   profileUpdateSchema,
 } from '../../lib/validations/auth.schema';
 import ProfilePageSkeleton from '../../components/skeletons/ProfilePageSkeleton';
-import GuestAuthPrompt from '../../components/GuestAuthPrompt';
-
 function ProfilePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -39,7 +40,11 @@ function ProfilePageContent() {
   const { showAlert } = useAlert();
   const { cartItems } = useCart();
   const { logActivity } = useActivityLog();
-  const { data: ordersData } = useOrdersList({ limit: 5 }, { enabled: ok });
+  const {
+    data: ordersData,
+    isLoading: ordersLoading,
+    isError: ordersError,
+  } = useOrdersList({ limit: 5 }, { enabled: ok });
   const updateProfileMutation = useUpdateProfile();
   const recentOrders = ordersData?.orders || [];
 
@@ -107,19 +112,9 @@ function ProfilePageContent() {
     { id: 'logout', label: 'Logout', Icon: LogOut, isDanger: true },
   ];
 
-  if (!ready) {
+  // Guests: useRequireAuth → home; keep skeleton while redirecting.
+  if (!ready || !ok) {
     return <ProfilePageSkeleton />;
-  }
-
-  if (!ok) {
-    return (
-      <GuestAuthPrompt
-        pageTitle="My Profile"
-        backHref="/"
-        fallbackHref="/"
-        description="Sign in to view and edit your profile."
-      />
-    );
   }
 
   if (isEditing) {
@@ -246,61 +241,78 @@ function ProfilePageContent() {
       </div>
 
       <div className="mx-auto w-full max-w-2xl flex-1 pb-24">
-        {/* Profile Header */}
-        <div className="bg-white px-4 py-6 border-b border-gray-100">
+        {/* Profile header */}
+        <div className="border-b border-gray-100 bg-white px-4 py-5">
           <div className="flex items-center gap-4">
-            {/* Avatar */}
-            <div className="relative">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-red-400 to-pink-500 flex items-center justify-center overflow-hidden border-2 border-white shadow-md">
-                <span className="text-white text-3xl font-bold">
+            <div className="relative shrink-0">
+              <div className="flex h-[4.5rem] w-[4.5rem] items-center justify-center overflow-hidden rounded-full border-2 border-white bg-gradient-to-br from-red-400 to-pink-500 shadow-md">
+                <span className="text-3xl font-bold text-white">
                   {profileData.name?.charAt(0).toUpperCase() || 'U'}
                 </span>
               </div>
-              <span className="absolute bottom-0 right-0 w-5 h-5 bg-blue-500 rounded-full border-2 border-white"></span>
+              <span
+                className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white bg-blue-500"
+                aria-hidden
+              />
             </div>
 
-            {/* User Info */}
-            <div className="flex-1">
-              <h2 className="text-xl font-bold text-gray-900">{profileData.name}</h2>
-              <p className="text-sm text-gray-600">@{profileData.phone?.slice(-6) || 'user'}</p>
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-xl font-bold tracking-tight text-gray-900">
+                {profileData.name}
+              </h2>
+              <p className="mt-0.5 text-sm text-gray-500">
+                @{profileData.phone?.slice(-6) || 'user'}
+              </p>
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="mt-2 inline-flex items-center gap-1 rounded-full bg-red-600 px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+                className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-red-600 px-4 py-1.5 text-sm font-semibold text-white transition-[transform,background-color] duration-200 hover:bg-red-700 active:scale-[0.98] motion-reduce:active:scale-100"
               >
-                <Pencil size={16} className="h-4 w-4" />
+                <Pencil size={15} className="h-3.5 w-3.5" aria-hidden />
                 Edit Profile
               </button>
             </div>
           </div>
-        </div>
 
-        {/* Quick Stats */}
-        <div className="bg-white px-4 py-4 border-b border-gray-100 grid grid-cols-2 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">{recentOrders.length}</div>
-            <p className="text-xs text-gray-600 mt-1">Orders</p>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-gray-50 px-3 py-3 text-center">
+              <div className="text-xl font-bold text-gray-900">{recentOrders.length}</div>
+              <p className="mt-0.5 text-[11px] font-medium text-gray-500">Orders</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 px-3 py-3 text-center">
+              <div className="text-xl font-bold text-gray-900">{cartItems.length}</div>
+              <p className="mt-0.5 text-[11px] font-medium text-gray-500">Cart items</p>
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">{cartItems.length}</div>
-            <p className="text-xs text-gray-600 mt-1">Cart items</p>
+        </div>
+
+        <ProfileDeliveryShopCard />
+
+        <ProfileRecentOrdersSection
+          orders={recentOrders}
+          isLoading={ordersLoading}
+          isError={ordersError}
+        />
+
+        <ProfileShopContactSection />
+
+        {/* Offers — compact empty states */}
+        <div className="mx-4 mt-4 rounded-2xl border border-gray-100 bg-white px-4 py-3.5 shadow-sm">
+          <h3 className="text-sm font-bold text-gray-900">Category offers</h3>
+          <div className="mt-2">
+            <ProfileOffersSection />
           </div>
         </div>
 
-        {/* Category offers */}
-        <div className="mx-4 mt-4 rounded-lg border border-gray-100 bg-white p-4">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Category offers</h3>
-          <ProfileOffersSection />
+        <div className="mx-4 mt-3 rounded-2xl border border-gray-100 bg-white px-4 py-3.5 shadow-sm">
+          <h3 className="text-sm font-bold text-gray-900">Available coupons</h3>
+          <div className="mt-2">
+            <ProfileCouponsSection />
+          </div>
         </div>
 
-        {/* Coupons */}
-        <div className="mx-4 mt-4 rounded-lg border border-gray-100 bg-white p-4">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Available coupons</h3>
-          <ProfileCouponsSection />
-        </div>
-
-        {/* Menu Items */}
-        <div className="mx-4 mt-4 divide-y divide-gray-100 rounded-lg border border-gray-100 bg-white">
+        {/* Menu */}
+        <div className="mx-4 mt-4 divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
           {menuItems.map((item) => {
             const Icon = item.Icon;
             if (item.id === 'logout') {
@@ -309,13 +321,13 @@ function ProfilePageContent() {
                   key={item.id}
                   type="button"
                   onClick={handleLogout}
-                  className="flex w-full items-center justify-between px-4 py-4 text-left text-red-600 transition-colors hover:bg-red-50"
+                  className="flex w-full items-center justify-between px-4 py-3.5 text-left text-red-600 transition-colors duration-150 hover:bg-red-50 active:bg-red-50/80"
                 >
                   <div className="flex items-center gap-3">
-                    <Icon size={20} className="h-5 w-5 flex-shrink-0" />
+                    <Icon size={20} className="h-5 w-5 flex-shrink-0" aria-hidden />
                     <span className="font-medium">{item.label}</span>
                   </div>
-                  <ChevronRight size={20} className="h-5 w-5 flex-shrink-0 text-gray-400" />
+                  <ChevronRight size={18} className="h-4.5 w-4.5 flex-shrink-0 text-gray-400" />
                 </button>
               );
             }
@@ -323,38 +335,42 @@ function ProfilePageContent() {
               <Link
                 key={item.id}
                 href={item.href}
-                className="flex items-center justify-between px-4 py-4 text-gray-700 transition-colors hover:bg-gray-50"
+                className="flex items-center justify-between px-4 py-3.5 text-gray-700 transition-colors duration-150 hover:bg-gray-50 active:bg-gray-100"
               >
                 <div className="flex items-center gap-3">
-                  <Icon size={20} className="h-5 w-5 flex-shrink-0 text-gray-600" />
+                  <Icon size={20} className="h-5 w-5 flex-shrink-0 text-gray-600" aria-hidden />
                   <span className="font-medium">{item.label}</span>
                 </div>
-                <ChevronRight size={20} className="h-5 w-5 flex-shrink-0 text-gray-400" />
+                <ChevronRight size={18} className="h-4.5 w-4.5 flex-shrink-0 text-gray-400" />
               </Link>
             );
           })}
         </div>
 
-        {/* Account Info */}
-        <div className="bg-white mx-4 mt-4 rounded-lg border border-gray-100 p-4">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Account Information</h3>
-          <div className="space-y-2 text-sm">
-            <p className="text-gray-600">
-              <span className="text-gray-500">Email:</span> {profileData.email}
-            </p>
-            <p className="text-gray-600">
-              <span className="text-gray-500">Phone:</span> {profileData.phone}
-            </p>
-            {profileData.dateOfBirth && (
+        {/* Account info */}
+        <div className="mx-4 mt-4 mb-2 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <h3 className="text-sm font-bold text-gray-900">Account information</h3>
+          <div className="mt-3 space-y-2 text-sm">
+            {profileData.email ? (
               <p className="text-gray-600">
-                <span className="text-gray-500">DOB:</span> {new Date(profileData.dateOfBirth).toLocaleDateString()}
+                <span className="text-gray-400">Email · </span>
+                {profileData.email}
               </p>
-            )}
+            ) : null}
+            <p className="text-gray-600">
+              <span className="text-gray-400">Phone · </span>
+              {profileData.phone ? `+91 ${profileData.phone}` : 'Not set'}
+            </p>
+            {profileData.dateOfBirth ? (
+              <p className="text-gray-600">
+                <span className="text-gray-400">DOB · </span>
+                {new Date(profileData.dateOfBirth).toLocaleDateString()}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
 
-      {/* Confirmation Modals */}
       <ConfirmModal
         isOpen={showLogoutConfirm}
         onClose={() => setShowLogoutConfirm(false)}

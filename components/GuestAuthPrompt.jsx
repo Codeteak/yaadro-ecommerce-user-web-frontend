@@ -3,6 +3,10 @@
 import PageTopBar from './PageTopBar';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
 
+/**
+ * Optional in-page sign-in CTA for flows that intentionally ask for auth
+ * (e.g. checkout). Protected account routes use `useRequireAuth` → home instead.
+ */
 export default function GuestAuthPrompt({
   pageTitle,
   description = 'Sign in to access this page.',

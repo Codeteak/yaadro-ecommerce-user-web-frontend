@@ -15,6 +15,7 @@ import {
 import { useLocationService } from '../context/LocationServiceContext';
 import { useAddress } from '../context/AddressContext';
 import { checkDeliveryLocation } from '../utils/storefrontLocationApi';
+import { classifyDeliveryCheckResult } from '../utils/apiErrors';
 import { getDefaultMapCenter, reverseGeocode } from '../utils/geocoding';
 import { getStoreCoordinates } from '../utils/storeLocation';
 import { buildMapStreetArea } from '../utils/formatAddress';
@@ -238,7 +239,7 @@ export default function ServiceAreaBottomSheet() {
           distanceM: null,
           maxRadiusM: null,
           shopLocation: null,
-          error: e?.message || 'Could not verify delivery area.',
+          error: classifyDeliveryCheckResult(null, e).message,
         });
       }
     }, 420);
@@ -576,7 +577,7 @@ function SheetBody({
               <p className="text-sm text-gray-600 mt-1">
                 {distLabel && radiusLabel
                   ? `This point is about ${distLabel} away; we currently deliver within about ${radiusLabel}.`
-                  : 'This location is outside our delivery area. Try pinning a different spot on the map.'}
+                  : "This address is outside this shop's delivery area. Try pinning a different spot on the map."}
               </p>
             </div>
           </div>

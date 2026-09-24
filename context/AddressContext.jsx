@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useMemo, useEffect } from 'react';
+import { createContext, useContext, useMemo, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import {
@@ -11,6 +11,7 @@ import {
   useSetDefaultAddress,
   addressKeys,
 } from '../hooks/useAddresses';
+import { attachVisibilityResume } from '../utils/visibilityResume';
 
 const AddressContext = createContext();
 
@@ -21,30 +22,16 @@ export function AddressProvider({ children }) {
   // Fetch addresses from API only if authenticated
   const { data: apiAddresses = [], isLoading, error } = useAddressesList(isAuthenticated);
 
-  /** Installed PWAs often miss window focus events; refresh linked address when app tabs back or resumes from bfcache. */
+  /** PWA / tab resume — refresh linked address with cooldown (avoid invalidate storms). */
   useEffect(() => {
     if (!isAuthenticated || typeof window === 'undefined') return undefined;
 
-    const invalidate = () => {
-      void queryClient.invalidateQueries({ queryKey: addressKeys.all });
-    };
-
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') invalidate();
-    };
-
-    /** iOS/Android standalone: restoring from suspended state */
-    const onPageShow = (event) => {
-      if (event.persisted) invalidate();
-    };
-
-    document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('pageshow', onPageShow);
-
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('pageshow', onPageShow);
-    };
+    return attachVisibilityResume(
+      () => {
+        void queryClient.invalidateQueries({ queryKey: addressKeys.lists() });
+      },
+      { cooldownMs: 60_000 },
+    );
   }, [isAuthenticated, queryClient]);
   
   const createAddressMutation = useCreateAddress();
@@ -55,74 +42,101 @@ export function AddressProvider({ children }) {
   // Use API addresses if authenticated, otherwise empty array
   const addresses = isAuthenticated ? apiAddresses : [];
 
-  const addAddress = async (address) => {
-    if (!isAuthenticated) {
-      throw new Error('Please login to add addresses');
-    }
-    try {
-      // Return the created address so callers (e.g. checkout) can auto-select it
-      return await createAddressMutation.mutateAsync(address);
-    } catch (error) {
-      console.error('Error adding address:', error);
-      throw error;
-    }
-  };
+  const addAddress = useCallback(
+    async (address) => {
+      if (!isAuthenticated) {
+        throw new Error('Please login to add addresses');
+      }
+      try {
+        // Return the created address so callers (e.g. checkout) can auto-select it
+        return await createAddressMutation.mutateAsync(address);
+      } catch (err) {
+        console.error('Error adding address:', err);
+        throw err;
+      }
+    },
+    [isAuthenticated, createAddressMutation],
+  );
 
-  const updateAddress = async (id, updatedAddress) => {
-    if (!isAuthenticated) {
-      throw new Error('Please login to update addresses');
-    }
-    try {
-      await updateAddressMutation.mutateAsync({ addressId: id, addressData: updatedAddress });
-    } catch (error) {
-      console.error('Error updating address:', error);
-      throw error;
-    }
-  };
+  const updateAddress = useCallback(
+    async (id, updatedAddress) => {
+      if (!isAuthenticated) {
+        throw new Error('Please login to update addresses');
+      }
+      try {
+        await updateAddressMutation.mutateAsync({ addressId: id, addressData: updatedAddress });
+      } catch (err) {
+        console.error('Error updating address:', err);
+        throw err;
+      }
+    },
+    [isAuthenticated, updateAddressMutation],
+  );
 
-  const deleteAddress = async (id) => {
-    if (!isAuthenticated) {
-      throw new Error('Please login to delete addresses');
-    }
-    try {
-      await deleteAddressMutation.mutateAsync(id);
-    } catch (error) {
-      console.error('Error deleting address:', error);
-      throw error;
-    }
-  };
+  const deleteAddress = useCallback(
+    async (id) => {
+      if (!isAuthenticated) {
+        throw new Error('Please login to delete addresses');
+      }
+      try {
+        await deleteAddressMutation.mutateAsync(id);
+      } catch (err) {
+        console.error('Error deleting address:', err);
+        throw err;
+      }
+    },
+    [isAuthenticated, deleteAddressMutation],
+  );
 
-  const setDefaultAddress = async (id) => {
-    if (!isAuthenticated) {
-      throw new Error('Please login to set default address');
-    }
-    try {
-      await setDefaultMutation.mutateAsync(id);
-    } catch (error) {
-      console.error('Error setting default address:', error);
-      throw error;
-    }
-  };
+  const setDefaultAddress = useCallback(
+    async (id) => {
+      if (!isAuthenticated) {
+        throw new Error('Please login to set default address');
+      }
+      try {
+        await setDefaultMutation.mutateAsync(id);
+      } catch (err) {
+        console.error('Error setting default address:', err);
+      }
+    },
+    [isAuthenticated, setDefaultMutation],
+  );
 
-  const getDefaultAddress = () => {
-    return addresses.find(addr => addr.isDefault) || addresses[0] || null;
-  };
+  const getDefaultAddress = useCallback(() => {
+    return addresses.find((addr) => addr.isDefault) || addresses[0] || null;
+  }, [addresses]);
 
-  const value = {
-    addresses,
-    addAddress,
-    updateAddress,
-    deleteAddress,
-    setDefaultAddress,
-    getDefaultAddress,
-    isLoading,
-    error,
-    // Mutation states for UI feedback
-    isCreating: createAddressMutation.isPending,
-    isUpdating: updateAddressMutation.isPending,
-    isDeleting: deleteAddressMutation.isPending,
-    isSettingDefault: setDefaultMutation.isPending,
-  };
+  const value = useMemo(
+    () => ({
+      addresses,
+      addAddress,
+      updateAddress,
+      deleteAddress,
+      setDefaultAddress,
+      getDefaultAddress,
+      isLoading,
+      error,
+      // Mutation states for UI feedback
+      isCreating: createAddressMutation.isPending,
+      isUpdating: updateAddressMutation.isPending,
+      isDeleting: deleteAddressMutation.isPending,
+      isSettingDefault: setDefaultMutation.isPending,
+    }),
+    [
+      addresses,
+      addAddress,
+      updateAddress,
+      deleteAddress,
+      setDefaultAddress,
+      getDefaultAddress,
+      isLoading,
+      error,
+      createAddressMutation.isPending,
+      updateAddressMutation.isPending,
+      deleteAddressMutation.isPending,
+      setDefaultMutation.isPending,
+    ],
+  );
 
   return <AddressContext.Provider value={value}>{children}</AddressContext.Provider>;
 }
@@ -134,4 +148,3 @@ export function useAddress() {
   }
   return context;
 }
-

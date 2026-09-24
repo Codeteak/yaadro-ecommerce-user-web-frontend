@@ -11,6 +11,8 @@ export default function SearchSuggestInput({
   value,
   onValueChange,
   onSubmitQuery,
+  onFocus,
+  onBlur,
   placeholder = 'Search products…',
   inputRef,
   className = '',
@@ -21,6 +23,7 @@ export default function SearchSuggestInput({
   inputClassName = '',
   autoFocus = false,
   showSearchIcon = true,
+  enableSuggestions = true,
 }) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -28,10 +31,10 @@ export default function SearchSuggestInput({
 
   const q = value != null ? String(value) : '';
   const trimmed = q.trim();
-  const enableSuggest = trimmed.length >= 2;
+  const enableSuggest = enableSuggestions && trimmed.length >= 2;
 
   const { suggestions, isLoadingCatalog } = useProductSearchSuggest(trimmed, {
-    enabled: open || enableSuggest,
+    enabled: enableSuggestions && (open || enableSuggest),
     limit: 8,
     catalogLimit: 50,
   });
@@ -73,23 +76,34 @@ export default function SearchSuggestInput({
     setOpen(false);
   };
 
-  const showDropdown = open && (trimmed.length >= 2 || isLoadingCatalog);
+  const showDropdown =
+    enableSuggestions && open && (trimmed.length >= 2 || isLoadingCatalog);
+
+  // Icon color lives on the shell: MingCute sets inline `color: currentColor`,
+  // so Tailwind text-* on the SVG itself cannot win — inheritance must.
+  const defaultShell =
+    'group flex h-11 items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 ' +
+    'text-gray-400 transition-[border-color,background-color,box-shadow,color] duration-200 ease-out ' +
+    'focus-within:border-[#902bf5] focus-within:bg-white focus-within:text-[#902bf5] ' +
+    'focus-within:shadow-[0_0_0_3px_rgba(144,43,245,0.18)]';
+
+  const defaultIcon = 'h-5 w-5 flex-shrink-0';
+
+  const defaultInput =
+    'w-full bg-transparent text-[14px] text-gray-900 caret-[#902bf5] outline-none ' +
+    'placeholder:text-gray-400';
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <div ref={rootRef} className={`relative ${className}`.trim()}>
         <Popover.Anchor asChild>
-          <div
-            className={
-              shellClassName ||
-              'flex items-center gap-2 px-3 h-11 rounded-full border border-gray-200 bg-gray-50 focus-within:bg-white focus-within:border-violet-500 transition'
-            }
-          >
+          <div className={shellClassName || defaultShell}>
             {showSearchIcon ? (
               <IconComponent
                 size={20}
-                color={iconColor}
-                className={`h-5 w-5 flex-shrink-0 ${iconClassName || (iconColor ? '' : 'text-gray-400')}`}
+                {...(iconColor ? { color: iconColor } : {})}
+                className={iconClassName || defaultIcon}
+                aria-hidden
               />
             ) : null}
             <input
@@ -97,10 +111,23 @@ export default function SearchSuggestInput({
               value={q}
               onChange={(e) => {
                 onValueChange?.(e.target.value);
-                if (!open) setOpen(true);
+                if (enableSuggestions && !open) setOpen(true);
               }}
-              onFocus={() => setOpen(true)}
+              onFocus={(e) => {
+                if (enableSuggestions) setOpen(true);
+                onFocus?.(e);
+              }}
+              onBlur={(e) => {
+                onBlur?.(e);
+              }}
               onKeyDown={(e) => {
+                if (!enableSuggestions) {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submit(trimmed);
+                  }
+                  return;
+                }
                 if (e.key === 'ArrowDown') {
                   if (!open) setOpen(true);
                   e.preventDefault();
@@ -131,10 +158,7 @@ export default function SearchSuggestInput({
                 }
               }}
               placeholder={placeholder}
-              className={
-                inputClassName ||
-                'w-full bg-transparent outline-none text-[14px] text-gray-900 placeholder:text-gray-400'
-              }
+              className={inputClassName || defaultInput}
               inputMode="search"
               enterKeyHint="search"
               autoComplete="off"
@@ -148,9 +172,9 @@ export default function SearchSuggestInput({
                 type="button"
                 onClick={() => {
                   onValueChange?.('');
-                  setOpen(true);
+                  if (enableSuggestions) setOpen(true);
                 }}
-                className="text-[12px] font-semibold text-gray-500 hover:text-gray-700 px-2"
+                className="px-2 text-[12px] font-semibold text-gray-500 hover:text-gray-700"
                 aria-label="Clear search"
               >
                 Clear

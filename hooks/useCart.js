@@ -77,13 +77,15 @@ function normalizeCodes(couponCode, couponCodes) {
  * Preview pricing/coupon for local cart lines (no Redis cart). Works for guests.
  */
 export function useCartQuery(options = {}) {
-  const { couponCode, couponCodes, items = [], ...queryOptions } = options;
-  const { shopId } = useShopBranding();
+  const { couponCode, couponCodes, items = [], enabled: enabledOption = true, ...queryOptions } =
+    options;
+  const { shopId, isResolving } = useShopBranding();
   const codes = normalizeCodes(couponCode, couponCodes);
   const normalizedCoupon = codes[0] || '';
   const codesKey = codes.join(',');
   const payload = toPreviewPayload(items);
   const itemsKey = fingerprintPaidItems(items);
+  const shopReady = Boolean(shopId) && !isResolving;
 
   return useQuery({
     queryKey: cartKeys.preview(
@@ -99,7 +101,9 @@ export function useCartQuery(options = {}) {
         couponCodes: codes.length > 1 ? codes : undefined,
       }),
     staleTime: 1000 * 30,
-    refetchOnWindowFocus: true,
+    // Match QueryProvider default; cart/checkout pages invalidate on visibility when needed.
+    refetchOnWindowFocus: false,
+    enabled: Boolean(enabledOption) && shopReady && payload.length > 0,
     ...queryOptions,
   });
 }

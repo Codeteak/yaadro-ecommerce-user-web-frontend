@@ -1,56 +1,12 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'framer-motion';
 import { History, House, LayoutGrid, ShoppingBag } from 'lucide-react';
 import { useBottomNavVisibility } from '../context/BottomNavVisibilityContext';
 import { useLayoutHeights } from '../context/LayoutHeightsContext';
-
-const PILL_SPRING = { type: 'spring', stiffness: 420, damping: 34, mass: 0.7 };
-const ICON_SPRING = { type: 'spring', stiffness: 520, damping: 32, mass: 0.65 };
-const TAP_SPRING = { type: 'spring', stiffness: 540, damping: 34 };
-const LABEL_TRANSITION = { type: 'spring', stiffness: 420, damping: 34, mass: 0.7 };
-
-function SmoothNavIcon({ Icon, active, reduceMotion }) {
-  const spring = reduceMotion ? { duration: 0 } : ICON_SPRING;
-
-  return (
-    <span className="relative inline-flex h-[22px] w-[22px] max-w-none shrink-0 items-center justify-center">
-      <motion.span
-        className="absolute inset-0 flex items-center justify-center"
-        initial={false}
-        animate={{ opacity: active ? 0 : 1, scale: active ? 0.78 : 1 }}
-        transition={spring}
-      >
-        <Icon
-          size={22}
-          strokeWidth={1.7}
-          absoluteStrokeWidth
-          fill="none"
-          className="max-w-none"
-          aria-hidden
-        />
-      </motion.span>
-      <motion.span
-        className="absolute inset-0 flex items-center justify-center"
-        initial={false}
-        animate={{ opacity: active ? 1 : 0, scale: active ? 1 : 0.78 }}
-        transition={spring}
-      >
-        <Icon
-          size={22}
-          strokeWidth={1.7}
-          absoluteStrokeWidth
-          fill="currentColor"
-          className="max-w-none"
-          aria-hidden
-        />
-      </motion.span>
-    </span>
-  );
-}
+import { useUiStore } from '../stores/uiStore';
 
 const navItems = [
   { href: '/', label: 'Home', Icon: House },
@@ -59,12 +15,43 @@ const navItems = [
   { href: '/orders', label: 'Reorder', Icon: History },
 ];
 
+const PILL_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
+
+function pathIsActive(pathname, href) {
+  if (!pathname) return false;
+  const path = pathname.replace(/\/+$/, '') || '/';
+  const target = href.replace(/\/+$/, '') || '/';
+  if (target === '/') return path === '/';
+  return path === target || path.startsWith(`${target}/`);
+}
+
 export default function MobileBottomNav() {
   const pathname = usePathname();
-  const { hideForRoute } = useBottomNavVisibility();
+  const { hideForRoute, isVisible } = useBottomNavVisibility();
   const { setBottomNavHeight } = useLayoutHeights();
+  const setScrollNavVisible = useUiStore((s) => s.setScrollNavVisible);
   const navRef = useRef(null);
-  const reduceMotion = useReducedMotion();
+  const trackRef = useRef(null);
+  const itemRefs = useRef([]);
+  const [pill, setPill] = useState({ x: 0, w: 0, ready: false });
+
+  const activeIndex = Math.max(
+    0,
+    navItems.findIndex(({ href }) => pathIsActive(pathname, href))
+  );
+
+  const measurePill = useCallback(() => {
+    const track = trackRef.current;
+    const item = itemRefs.current[activeIndex];
+    if (!track || !item) return;
+    const trackRect = track.getBoundingClientRect();
+    const itemRect = item.getBoundingClientRect();
+    setPill({
+      x: itemRect.left - trackRect.left,
+      w: itemRect.width,
+      ready: true,
+    });
+  }, [activeIndex]);
 
   useEffect(() => {
     if (hideForRoute) {
@@ -81,78 +68,122 @@ export default function MobileBottomNav() {
     return () => ro.disconnect();
   }, [hideForRoute, setBottomNavHeight]);
 
+  useLayoutEffect(() => {
+    if (hideForRoute) return undefined;
+    measurePill();
+    const track = trackRef.current;
+    if (!track || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => measurePill());
+    ro.observe(track);
+    itemRefs.current.forEach((node) => {
+      if (node) ro.observe(node);
+    });
+    window.addEventListener('resize', measurePill);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measurePill);
+    };
+  }, [hideForRoute, measurePill, pathname, isVisible]);
+
   if (hideForRoute) return null;
 
-  const spring = reduceMotion ? { duration: 0 } : PILL_SPRING;
-  const labelSpring = reduceMotion ? { duration: 0 } : LABEL_TRANSITION;
+  const showBar = isVisible !== false;
 
   return (
     <div
       ref={navRef}
-      className="mobile-bottom-nav pointer-events-none fixed inset-x-0 bottom-0 z-50 w-full min-w-0 overflow-x-clip"
+      className={`mobile-bottom-nav pointer-events-none fixed inset-x-0 bottom-0 z-50 w-full min-w-0 overflow-x-clip transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none ${
+        showBar ? 'translate-y-0' : 'translate-y-full'
+      }`}
+      aria-hidden={!showBar}
     >
       <nav
-        className="pointer-events-auto w-full min-w-0 overflow-hidden rounded-t-[24px] border-t border-black/[0.06] bg-white px-1.5 pt-1.5 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]"
+        className={`w-full min-w-0 overflow-hidden rounded-t-[24px] border-t border-black/[0.06] bg-white px-1.5 pt-1.5 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] ${
+          showBar ? 'pointer-events-auto' : 'pointer-events-none'
+        }`}
         style={{
           paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
         }}
         aria-label="Primary"
       >
-        <LayoutGroup id="mobile-bottom-nav">
-          <div className="mobile-bottom-nav-track flex w-full min-w-0 items-center">
-            {navItems.map(({ href, label, Icon }) => {
-              const isActive =
-                pathname === href || (href !== '/' && pathname?.startsWith(href));
+        <div
+          ref={trackRef}
+          className="mobile-bottom-nav-track relative flex w-full min-w-0 items-center"
+        >
+          {/* Sliding active pill — transform/width only (GPU-friendly, no Framer layout) */}
+          <span
+            aria-hidden
+            className={`pointer-events-none absolute top-0 z-0 h-11 rounded-full bg-[#902bf5] shadow-[0_6px_16px_rgba(144,43,245,0.28)] transition-[transform,width,opacity] duration-300 motion-reduce:transition-none ${
+              pill.ready ? 'opacity-100' : 'opacity-0'
+            }`}
+            style={{
+              width: pill.w,
+              transform: `translate3d(${pill.x}px, 0, 0)`,
+              transitionTimingFunction: PILL_EASE,
+            }}
+          />
 
-              return (
-                <motion.div
-                  key={href}
-                  className={`flex min-w-0 justify-center ${isActive ? 'shrink-0' : 'flex-1'}`}
-                  whileTap={reduceMotion ? undefined : { scale: 0.96 }}
-                  transition={TAP_SPRING}
+          {navItems.map(({ href, label, Icon }, index) => {
+            const isActive = index === activeIndex;
+
+            return (
+              <div
+                key={href}
+                className="relative z-10 flex min-w-0 flex-1 justify-center"
+              >
+                <Link
+                  ref={(node) => {
+                    itemRefs.current[index] = node;
+                  }}
+                  href={href}
+                  prefetch
+                  tabIndex={showBar ? undefined : -1}
+                  onClick={() => {
+                    setScrollNavVisible(true);
+                    // Snap pill toward this item immediately for instant feedback
+                    requestAnimationFrame(() => {
+                      const track = trackRef.current;
+                      const item = itemRefs.current[index];
+                      if (!track || !item) return;
+                      const trackRect = track.getBoundingClientRect();
+                      const itemRect = item.getBoundingClientRect();
+                      setPill({
+                        x: itemRect.left - trackRect.left,
+                        w: itemRect.width,
+                        ready: true,
+                      });
+                    });
+                  }}
+                  className={`relative flex h-11 max-w-full items-center justify-center gap-1.5 overflow-hidden rounded-full px-3 touch-manipulation transition-[color,transform] duration-200 ease-out active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 ${
+                    isActive ? 'text-white' : 'text-neutral-800'
+                  }`}
+                  aria-current={isActive ? 'page' : undefined}
+                  aria-label={label}
                 >
-                  <Link
-                    href={href}
-                    prefetch
-                    className={`relative flex max-w-full items-center justify-center overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 ${
+                  <Icon
+                    size={22}
+                    strokeWidth={1.7}
+                    absoluteStrokeWidth
+                    fill={isActive ? 'currentColor' : 'none'}
+                    className="h-[22px] w-[22px] max-w-none shrink-0 transition-[fill,color] duration-200 ease-out motion-reduce:transition-none"
+                    aria-hidden
+                  />
+                  <span
+                    className={`overflow-hidden whitespace-nowrap text-[13px] font-semibold leading-none tracking-wide transition-[max-width,opacity,transform] duration-300 motion-reduce:transition-none ${
                       isActive
-                        ? 'h-11 gap-1.5 px-3 text-white'
-                        : 'h-11 w-11 text-neutral-800'
+                        ? 'max-w-[5.5rem] translate-x-0 opacity-100'
+                        : 'max-w-0 -translate-x-1 opacity-0'
                     }`}
-                    aria-current={isActive ? 'page' : undefined}
-                    aria-label={label}
+                    style={{ transitionTimingFunction: PILL_EASE }}
+                    aria-hidden={!isActive}
                   >
-                    {isActive ? (
-                      <motion.span
-                        layoutId="mobile-tab-pill"
-                        className="absolute inset-0 rounded-full bg-[#902bf5]"
-                        transition={spring}
-                        initial={false}
-                      />
-                    ) : null}
-                    <span className="relative z-10 flex min-w-0 items-center gap-1.5">
-                      <SmoothNavIcon Icon={Icon} active={isActive} reduceMotion={reduceMotion} />
-                      <AnimatePresence initial={false}>
-                        {isActive ? (
-                          <motion.span
-                            key={label}
-                            initial={reduceMotion ? false : { width: 0, opacity: 0 }}
-                            animate={{ width: 'auto', opacity: 1 }}
-                            exit={reduceMotion ? undefined : { width: 0, opacity: 0 }}
-                            transition={labelSpring}
-                            className="overflow-hidden whitespace-nowrap text-[13px] font-semibold leading-none tracking-wide"
-                          >
-                            {label}
-                          </motion.span>
-                        ) : null}
-                      </AnimatePresence>
-                    </span>
-                  </Link>
-                </motion.div>
-              );
-            })}
-          </div>
-        </LayoutGroup>
+                    {label}
+                  </span>
+                </Link>
+              </div>
+            );
+          })}
+        </div>
       </nav>
     </div>
   );

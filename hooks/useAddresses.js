@@ -11,6 +11,7 @@ import {
   deleteAddress,
   setDefaultAddress,
 } from '../utils/addressApi';
+import { getAddressSaveErrorMessage } from '../utils/apiErrors';
 import { useToast } from '../context/ToastContext';
 
 // Query keys
@@ -30,9 +31,9 @@ export function useAddressesList(enabled = true) {
     queryKey: addressKeys.list(),
     queryFn: listAddresses,
     enabled: enabled,
-    // Standalone / installed PWA rarely gets window focus like a tab; rely on invalidate + visibility refetch instead of long staleness.
-    staleTime: 30 * 1000,
-    refetchOnWindowFocus: true,
+    // Match QueryProvider; AddressContext invalidates on visibility for PWA resume.
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
     refetchOnReconnect: true,
     refetchOnMount: true,
   });
@@ -60,22 +61,16 @@ export function useCreateAddress() {
   return useMutation({
     mutationFn: (addressData) => createAddress(addressData),
     onSuccess: (created) => {
-      queryClient.setQueryData(addressKeys.list(), (old) => {
-        const prev = Array.isArray(old) ? old : [];
-        if (!created?.id) return prev;
-        const idx = prev.findIndex((a) => String(a?.id) === String(created.id));
-        if (idx >= 0) {
-          const next = [...prev];
-          next[idx] = { ...prev[idx], ...created };
-          return next;
-        }
-        return [created, ...prev];
+      // createAddress already GETs the linked address after POST (204 body).
+      // Seed cache from that result — do not invalidate (second listAddresses).
+      queryClient.setQueryData(addressKeys.list(), () => {
+        if (!created?.id) return [];
+        return [{ ...created, isDefault: true }];
       });
-      queryClient.invalidateQueries({ queryKey: addressKeys.lists() });
       showToast('Address saved!', 'success');
     },
     onError: (error) => {
-      showToast(error?.message || 'Could not save address. Please try again.', 'error');
+      showToast(getAddressSaveErrorMessage(error), 'error');
     },
   });
 }
@@ -89,25 +84,19 @@ export function useUpdateAddress() {
 
   return useMutation({
     mutationFn: ({ addressId, addressData }) => updateAddress(addressId, addressData),
-    onSuccess: (data, variables) => {
+    onSuccess: (data) => {
+      // updateAddress already GETs after PATCH — seed cache, skip invalidate refetch.
+      queryClient.setQueryData(addressKeys.list(), () => {
+        if (!data?.id) return [];
+        return [{ ...data, isDefault: true }];
+      });
       if (data?.id) {
-        queryClient.setQueryData(addressKeys.list(), (old) => {
-          const prev = Array.isArray(old) ? old : [];
-          const idx = prev.findIndex((a) => String(a?.id) === String(data.id));
-          if (idx >= 0) {
-            const next = [...prev];
-            next[idx] = { ...prev[idx], ...data };
-            return next;
-          }
-          return [data];
-        });
+        queryClient.setQueryData(addressKeys.detail(data.id), data);
       }
-      queryClient.invalidateQueries({ queryKey: addressKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: addressKeys.detail(variables.addressId) });
       showToast('Address updated!', 'success');
     },
     onError: (error) => {
-      showToast(error?.message || 'Could not update address. Please try again.', 'error');
+      showToast(getAddressSaveErrorMessage(error), 'error');
     },
   });
 }

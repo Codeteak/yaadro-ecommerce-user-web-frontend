@@ -81,6 +81,7 @@ export function ShopBrandingProvider({ children }) {
   const pageTitleRef = useRef(null);
   const resolveStartedRef = useRef(false);
   const brandingFetchInFlightRef = useRef(false);
+  const visibilityRefreshAtRef = useRef(0);
 
   const applyDocumentTitle = useCallback(
     (pageTitle) => {
@@ -175,6 +176,10 @@ export function ShopBrandingProvider({ children }) {
   useEffect(() => {
     const onVisibility = () => {
       if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      // Avoid resolve-by-domain on every brief tab switch / app resume.
+      if (now - visibilityRefreshAtRef.current < 60_000) return;
+      visibilityRefreshAtRef.current = now;
       void refreshShopBranding({ withSeoFallback: false, markResolving: false });
     };
     document.addEventListener('visibilitychange', onVisibility);

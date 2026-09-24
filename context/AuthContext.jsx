@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { refreshAccessToken, getCurrentUser, logoutUser } from '../utils/authApi';
 import { onTokenAutoRefreshed, persistAccessToken } from '../utils/apiClient';
 import { getJwtExpiresAtMs, getMsUntilAccessTokenRefresh } from '../utils/jwtExp';
@@ -56,7 +56,7 @@ export function AuthProvider({ children }) {
     clearAllClientSessionData();
   }, []);
 
-  /** Clear session and send user to `/login` (token expired / 401 / refresh failed). */
+  /** Clear session on token expiry / 401 / refresh failure (no forced /login redirect). */
   const expireSession = useCallback(() => {
     const hadSession = !!(user || token || refreshToken);
     setUser(null);
@@ -381,7 +381,7 @@ export function AuthProvider({ children }) {
    * Post-login navigation is owned by LoginPageClient (soft router.replace).
    * @returns {boolean} always false (no hard redirect).
    */
-  const login = (userData, tokens = {}, _options = {}) => {
+  const login = useCallback((userData, tokens = {}, _options = {}) => {
     setUser(normalizeCustomer(userData) || userData);
     const access = tokens?.token || tokens?.accessToken;
     if (access) {
@@ -394,15 +394,15 @@ export function AuthProvider({ children }) {
     }
     establishClientSession({ refreshToken: tokens?.refreshToken });
     return false;
-  };
+  }, []);
 
   // Delete account function - removes all user data
-  const deleteAccount = () => {
+  const deleteAccount = useCallback(() => {
     setUser(null);
     setToken(null);
     setRefreshToken(null);
     clearAllClientSessionData();
-  };
+  }, []);
 
   /**
    * Refresh user from GET /api/me/profile.
@@ -450,18 +450,32 @@ export function AuthProvider({ children }) {
   // Check if user is authenticated
   const isAuthenticated = !!user && !!token;
 
-  const value = {
-    user,
-    token,
-    refreshToken,
-    login,
-    logout,
-    deleteAccount,
-    isAuthenticated,
-    authHydrated,
-    isLoadingUser,
-    refreshUser,
-  };
+  const value = useMemo(
+    () => ({
+      user,
+      token,
+      refreshToken,
+      login,
+      logout,
+      deleteAccount,
+      isAuthenticated,
+      authHydrated,
+      isLoadingUser,
+      refreshUser,
+    }),
+    [
+      user,
+      token,
+      refreshToken,
+      login,
+      logout,
+      deleteAccount,
+      isAuthenticated,
+      authHydrated,
+      isLoadingUser,
+      refreshUser,
+    ],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

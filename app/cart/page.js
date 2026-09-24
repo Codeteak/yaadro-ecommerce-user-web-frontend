@@ -12,6 +12,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useProducts } from "../../hooks/useProducts";
 import { cartKeys } from "../../hooks/useCart";
 import { useLoginNavigation } from "../../hooks/useLoginNavigation";
+import { attachVisibilityResume } from "../../utils/visibilityResume";
 import {
   computeCartSavings,
   getCartBottomBarPricing,
@@ -33,6 +34,7 @@ import CartPageSkeleton from "../../components/skeletons/CartPageSkeleton";
 import OfferGroupCard from "../../components/promotions/OfferGroupCard";
 import CouponThresholdBanner from "../../components/promotions/CouponThresholdBanner";
 import { BRAND_CHECKOUT_BTN } from "../../components/ui/brandButton";
+import { useLayoutHeights } from "../../context/LayoutHeightsContext";
 
 /* ─────────────────────────────────────────────
    Sub-components
@@ -330,6 +332,7 @@ function CartPageContent() {
   const searchParams = useSearchParams();
   const { isAuthenticated, authHydrated } = useAuth();
   const { goToLogin } = useLoginNavigation();
+  const { siteFooterHeight } = useLayoutHeights();
   const {
     cartItems,
     cartCount,
@@ -358,21 +361,12 @@ function CartPageContent() {
 
   useEffect(() => {
     if (!isAuthenticated) return undefined;
-    const refresh = () => {
-      void queryClient.invalidateQueries({ queryKey: cartKeys.all });
-    };
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-    const onPageShow = (event) => {
-      if (event.persisted) refresh();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("pageshow", onPageShow);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("pageshow", onPageShow);
-    };
+    return attachVisibilityResume(
+      () => {
+        void queryClient.invalidateQueries({ queryKey: cartKeys.all });
+      },
+      { cooldownMs: 60_000 },
+    );
   }, [isAuthenticated, queryClient]);
 
   const handleBack = () => {
@@ -768,7 +762,10 @@ function CartPageContent() {
 
       {/* ── Sticky bottom bar (savings strip + checkout row) ── */}
       {cartItems.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col border-t border-gray-100 bg-white/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(15,23,42,0.06)]">
+        <div
+          className="fixed left-0 right-0 z-50 flex flex-col border-t border-gray-100 bg-white/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(15,23,42,0.06)]"
+          style={{ bottom: Math.max(Number(siteFooterHeight) || 0, 0) }}
+        >
           {orderSavings > 0 && (
             <div
               className="flex items-center justify-center gap-1.5 border-b border-white/15 px-3 py-2 text-center"

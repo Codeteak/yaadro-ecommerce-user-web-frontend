@@ -7,7 +7,6 @@ import { useAddress } from '../../context/AddressContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import PageTopBar from '../../components/PageTopBar';
-import GuestAuthPrompt from '../../components/GuestAuthPrompt';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
 import AddressesPageSkeleton from '../../components/skeletons/AddressesPageSkeleton';
 import { AddressCardSkeleton } from '../../components/skeletons/primitives';
@@ -75,18 +74,9 @@ export default function AddressesPage() {
     }
   };
 
-  if (!ready) {
+  // Guests: useRequireAuth → home; keep skeleton while redirecting.
+  if (!ready || !ok) {
     return <AddressesPageSkeleton />;
-  }
-
-  if (!ok) {
-    return (
-      <GuestAuthPrompt
-        pageTitle="Addresses"
-        fallbackHref="/"
-        description="Sign in to manage your delivery addresses."
-      />
-    );
   }
 
   return (

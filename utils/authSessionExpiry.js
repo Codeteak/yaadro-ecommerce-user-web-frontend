@@ -1,12 +1,23 @@
 import { clearAllClientSessionData } from './clearClientSession';
-import { setPostLoginRedirect, sanitizeInternalPath } from './authSession';
 
 export const AUTH_SESSION_EXPIRED_EVENT = 'yaadro:auth-session-expired';
 
 let expiryHandling = false;
 
-/** Paths where a failed request should show an in-page error, not force login redirect. */
+/** Paths where a failed request should show an in-page error, not force navigation away. */
 const SOFT_SESSION_PATHS = ['/checkout', '/order-success'];
+
+/**
+ * Account / order surfaces that require a session.
+ * Guests and expired sessions leave these for the public home — not `/login`.
+ */
+const PROTECTED_CUSTOMER_PATHS = [
+  '/profile',
+  '/orders',
+  '/addresses',
+  '/add/address',
+  '/order',
+];
 
 const BUSINESS_ERROR_CODES = new Set([
   'EMPTY_CART_WITH_COUPON',
@@ -29,6 +40,19 @@ const BUSINESS_ERROR_CODES = new Set([
 function isLoginOrAuthRoute(pathname) {
   const p = pathname || '';
   return p === '/login' || p.startsWith('/auth/');
+}
+
+function pathMatchesPrefix(pathname, prefix) {
+  const p = pathname || '';
+  return p === prefix || p.startsWith(`${prefix}/`) || p.startsWith(`${prefix}?`);
+}
+
+/** True when the current URL is an account/order page that needs auth. */
+export function isProtectedCustomerPath(pathname) {
+  const p = pathname || '';
+  if (!p || p === '/') return false;
+  if (SOFT_SESSION_PATHS.some((prefix) => pathMatchesPrefix(p, prefix))) return false;
+  return PROTECTED_CUSTOMER_PATHS.some((prefix) => pathMatchesPrefix(p, prefix));
 }
 
 function extractApiErrorCode(json) {
@@ -62,12 +86,19 @@ export function shouldSkipSessionExpiryForApiPath(path) {
   );
 }
 
-/** Avoid hard redirect during checkout / post-order so the user sees the real error first. */
+/**
+ * Whether session-end handling should navigate away from the current page.
+ * Public browse + soft checkout stay; protected account pages leave via React
+ * (`useRequireAuth` → home). Hard `/login` redirects are never used here.
+ */
 export function shouldRedirectAfterSessionExpiry() {
-  if (typeof window === 'undefined') return true;
+  if (typeof window === 'undefined') return false;
   const p = window.location.pathname || '';
   if (isLoginOrAuthRoute(p)) return false;
-  return !SOFT_SESSION_PATHS.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));
+  if (SOFT_SESSION_PATHS.some((prefix) => pathMatchesPrefix(p, prefix))) return false;
+  // Protected pages: do not hard-navigate here — AuthContext + useRequireAuth → `/`.
+  // Public pages: clear auth only; keep browsing.
+  return false;
 }
 
 /**
@@ -92,28 +123,13 @@ export function shouldInvalidateSessionOnApiError({
   return true;
 }
 
-function hadStoredAuthSession() {
-  if (typeof window === 'undefined') return false;
-  return !!(
-    window.localStorage.getItem('token') ||
-    window.localStorage.getItem('authToken') ||
-    window.localStorage.getItem('accessToken') ||
-    window.localStorage.getItem('refreshToken') ||
-    window.localStorage.getItem('user')
-  );
-}
-
 /**
- * Clear session storage and React auth state. Optionally redirect to `/login`.
+ * Clear session storage and notify React auth state.
+ * Does not send the customer to `/login` — public shopping continues;
+ * protected routes navigate home via `useRequireAuth`.
  */
-export function notifyAuthSessionEnded(options = {}) {
+export function notifyAuthSessionEnded(_options = {}) {
   if (typeof window === 'undefined') return;
-
-  const { redirect = shouldRedirectAfterSessionExpiry(), saveReturnPath = true, hadSession } =
-    options;
-  const pathname = window.location.pathname || '/';
-  const onAuthPage = isLoginOrAuthRoute(pathname);
-  const wasLoggedIn = hadSession ?? hadStoredAuthSession();
 
   if (expiryHandling) return;
   expiryHandling = true;
@@ -121,20 +137,8 @@ export function notifyAuthSessionEnded(options = {}) {
   try {
     clearAllClientSessionData();
     window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));
-
-    if (redirect && wasLoggedIn && !onAuthPage) {
-      if (saveReturnPath) {
-        const search = window.location.search || '';
-        const returnPath = sanitizeInternalPath(`${pathname}${search}`);
-        if (returnPath) setPostLoginRedirect(returnPath);
-      }
-      window.location.assign('/login');
-      return;
-    }
   } finally {
-    if (!redirect || onAuthPage) {
-      expiryHandling = false;
-    }
+    expiryHandling = false;
   }
 }
 

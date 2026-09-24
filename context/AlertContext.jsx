@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import AlertModal from '../components/AlertModal';
 import { useUiStore } from '../stores/uiStore';
 
@@ -11,10 +11,13 @@ export function AlertProvider({ children }) {
   const showAlert = useUiStore((s) => s.showAlert);
   const hideAlert = useUiStore((s) => s.hideAlert);
 
-  const value = {
-    showAlert,
-    hideAlert,
-  };
+  const value = useMemo(
+    () => ({
+      showAlert,
+      hideAlert,
+    }),
+    [showAlert, hideAlert],
+  );
 
   return (
     <AlertContext.Provider value={value}>

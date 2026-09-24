@@ -12,15 +12,16 @@ import { cartKeys } from '../../hooks/useCart';
 import { useAlert } from '../../context/AlertContext';
 import BrowsePageHeader from '../../components/BrowsePageHeader';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
-import GuestAuthPrompt from '../../components/GuestAuthPrompt';
 import ProductCarousel from '../../components/ProductCarousel';
 import InfiniteScrollSentinel from '../../components/InfiniteScrollSentinel';
 import EarlyPrefetchSentinel from '../../components/orders/EarlyPrefetchSentinel';
 import OrderCard from '../../components/orders/OrderCard';
 import { PackageRegular as Package } from '../../components/icons';
 import OrdersPageSkeleton from '../../components/skeletons/OrdersPageSkeleton';
+import { clearPostOrderBackToHome } from '../../utils/checkoutSession';
 import { OrderListCardSkeleton } from '../../components/skeletons/primitives';
 import { PRODUCT_IMAGE_PLACEHOLDER } from '../../utils/productImages';
+import { attachVisibilityResume } from '../../utils/visibilityResume';
 
 function orderMatchesQuery(order, query) {
   const q = String(query || '').trim().toLowerCase();
@@ -56,7 +57,8 @@ export default function OrdersPage() {
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
-  } = useInfiniteOrdersList({ limit: 100 }, { enabled: ok, refetchInterval: 2000 });
+  } = useInfiniteOrdersList({ limit: 100 }, { enabled: ok });
+  // Live status polling belongs on order *detail*, not the full list (was ~30 GETs/min per tab).
   const { addToCart } = useCart();
   const { showAlert } = useAlert();
   const [reorderLoadingId, setReorderLoadingId] = useState(null);
@@ -67,21 +69,12 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (!ok) return undefined;
-    const refresh = () => {
-      void queryClient.invalidateQueries({ queryKey: orderKeys.all });
-    };
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') refresh();
-    };
-    const onPageShow = (event) => {
-      if (event.persisted) refresh();
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('pageshow', onPageShow);
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('pageshow', onPageShow);
-    };
+    return attachVisibilityResume(
+      () => {
+        void queryClient.invalidateQueries({ queryKey: orderKeys.all });
+      },
+      { cooldownMs: 60_000 },
+    );
   }, [ok, queryClient]);
 
   const orders = useMemo(
@@ -298,6 +291,8 @@ export default function OrdersPage() {
 
   const handleOpenDetails = useCallback(
     (orderId) => {
+      // Opening from order history is normal browsing — Back should not force Home.
+      clearPostOrderBackToHome();
       router.push(`/order?id=${encodeURIComponent(orderId)}`);
     },
     [router]
@@ -317,18 +312,9 @@ export default function OrdersPage() {
 
   const onSearchOpenToggle = useCallback(() => setSearchOpen((v) => !v), []);
 
-  if (!ready) {
+  // Guests: useRequireAuth → home; keep skeleton while redirecting.
+  if (!ready || !ok) {
     return <OrdersPageSkeleton />;
-  }
-
-  if (!ok) {
-    return (
-      <GuestAuthPrompt
-        pageTitle="Your Orders"
-        fallbackHref="/"
-        description="Sign in to view your order history."
-      />
-    );
   }
 
   return (
@@ -359,7 +345,7 @@ export default function OrdersPage() {
               value={orderSearch}
               onChange={(e) => setOrderSearch(e.target.value)}
               placeholder="Search orders…"
-              className="h-10 w-full rounded-full border border-gray-200 bg-white pl-9 pr-4 text-[13px] text-gray-900 placeholder-gray-400 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-200"
+              className="h-10 w-full rounded-full border border-gray-200 bg-white pl-9 pr-4 text-[13px] text-gray-900 caret-[#902bf5] placeholder-gray-400 outline-none transition-[border-color,box-shadow] duration-200 ease-out focus:border-[#902bf5] focus:shadow-[0_0_0_3px_rgba(144,43,245,0.18)]"
               autoFocus
             />
           </div>

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useOrder } from '../../context/OrderContext';
 import { useShopBranding } from '../../context/ShopBrandingContext';
 import { useOrderDetail } from '../../hooks/useOrders';
-import { clearCheckoutDraft } from '../../utils/checkoutSession';
+import { clearCheckoutDraft, orderDetailHref, clearPostOrderBackToHome } from '../../utils/checkoutSession';
 import { downloadBillPdf } from '../../utils/orderInvoice';
 import {
   getOrderLineOfferLabel,
@@ -379,27 +379,21 @@ function OrderSuccessContent() {
     [order, orderId, rawOrderId, paymentStatus, shopName, shopImage]
   );
 
-  /* Auto-redirect after countdown: prefer in-app tracking when ready, else order details */
+  /* Auto-advance to the created order's detail page (replace — no success entry left in history). */
   useEffect(() => {
-    if (!isSuccess || !orderId) return;
+    if (!isSuccess || !orderId) return undefined;
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          const trackReady = isHttpTrackingUrl(order?.deliveryTrackingUrl);
-          if (trackReady) {
-            markTrackingOpenedThisSession(orderId);
-            router.push(inAppTrackingHref(orderId));
-          } else {
-            router.push(`/order?id=${encodeURIComponent(orderId)}`);
-          }
+          router.replace(orderDetailHref(orderId));
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isSuccess, orderId, order?.deliveryTrackingUrl, router]);
+  }, [isSuccess, orderId, router]);
 
   useEffect(() => {
     if (!openBillWhenReady) return;
@@ -513,53 +507,63 @@ function OrderSuccessContent() {
             isError={orderError}
           />
 
-          {/* Actions */}
+          {/* Actions — use replace for post-order destinations so history stays clean */}
           <div style={styles.actions}>
             {isRejected ? (
-              <Link href={orderId ? `/order?id=${encodeURIComponent(orderId)}` : '/orders'} style={styles.btnPrimary}>
-                <ArrowIcon />
-                View order & retry payment
-              </Link>
-            ) : isHttpTrackingUrl(order?.deliveryTrackingUrl) ? (
-              <Link
-                href={inAppTrackingHref(orderId)}
+              <button
+                type="button"
                 style={styles.btnPrimary}
-                onClick={() => {
-                  if (orderId) markTrackingOpenedThisSession(orderId);
-                }}
+                onClick={() =>
+                  router.replace(orderId ? orderDetailHref(orderId) : '/orders')
+                }
               >
                 <ArrowIcon />
-                Track live delivery
-              </Link>
+                View order & retry payment
+              </button>
             ) : (
-              <Link href={orderId ? `/order?id=${encodeURIComponent(orderId)}` : '/orders'} style={styles.btnPrimary}>
+              <button
+                type="button"
+                style={styles.btnPrimary}
+                onClick={() =>
+                  router.replace(orderId ? orderDetailHref(orderId) : '/orders')
+                }
+              >
                 <ArrowIcon />
-                Track my order
-              </Link>
+                View order details
+              </button>
             )}
 
-            {isHttpTrackingUrl(order?.deliveryTrackingUrl) && orderId && (
-              <Link href={`/order?id=${encodeURIComponent(orderId)}`} style={styles.btnSecondary}>
-                View order details
+            {isSuccess && isHttpTrackingUrl(order?.deliveryTrackingUrl) && orderId ? (
+              <Link
+                href={inAppTrackingHref(orderId)}
+                style={styles.btnSecondary}
+                onClick={() => markTrackingOpenedThisSession(orderId)}
+              >
+                Track live delivery
               </Link>
-            )}
+            ) : null}
 
             <button type="button" onClick={handleOpenInvoice} style={styles.btnSecondary}>
               <DownloadIcon />
               {openBillWhenReady && orderLoading ? 'Loading invoice…' : 'Download invoice'}
             </button>
 
-            <Link href="/" style={styles.btnGhost}>
+            <button
+              type="button"
+              style={styles.btnGhost}
+              onClick={() => {
+                clearPostOrderBackToHome();
+                router.replace('/');
+              }}
+            >
               Continue shopping
-            </Link>
+            </button>
           </div>
 
           {/* Countdown */}
           {isSuccess && countdown > 0 && orderId && (
             <p style={styles.countdown}>
-              {isHttpTrackingUrl(order?.deliveryTrackingUrl)
-                ? 'Opening live tracking in'
-                : 'Opening order details in'}
+              Opening order details in
               &nbsp;
               <span style={styles.countdownBadge}>{countdown}</span>s
             </p>
