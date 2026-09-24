@@ -267,6 +267,8 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     ]
   );
 
+  /** Keep cart taps from activating nested Link navigation; do not stop pointerdown
+   *  so SmoothDragRail can still arm horizontal drag when the gesture starts on ADD. */
   const stopCartBubble = useCallback((e) => {
     e.stopPropagation();
   }, []);
@@ -413,7 +415,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   };
 
   const cardShellClass = `flex h-full flex-col overflow-hidden rounded-[20px] touch-manipulation transition-transform duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/45 [@media(hover:hover)_and_(pointer:fine)]:active:scale-[0.97] ${chromeClass} ${
-    isShelf || isCarousel ? 'w-[173px] max-w-[173px]' : 'w-full'
+    isShelf || isCarousel ? 'w-[173px] max-w-[173px] shrink-0' : 'w-full'
   }`;
 
   const navLinkProps = {
@@ -480,7 +482,6 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       <button
         type="button"
         onClick={handleDecrement}
-        onPointerDown={stopCartBubble}
         className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] active:scale-95"
         aria-label={atMinPack ? 'Remove from cart' : 'Decrease quantity'}
       >
@@ -492,7 +493,6 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       <button
         type="button"
         onClick={handleIncrement}
-        onPointerDown={stopCartBubble}
         className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] active:scale-95"
         aria-label="Increase quantity"
       >
@@ -507,7 +507,6 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         e.stopPropagation();
         void handleAddToCart();
       }}
-      onPointerDown={stopCartBubble}
       aria-label={
         shelfRole === 'buy' && damakaBuyQty > 1
           ? `Add ${damakaBuyQty} to cart for this offer`
@@ -624,7 +623,6 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
             className="absolute z-10 flex justify-end"
             style={{ right: 10, bottom: 10 }}
             onClick={stopCartBubble}
-            onPointerDown={stopCartBubble}
           >
             {cartControls}
           </div>
@@ -649,7 +647,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         </Link>
 
         {showPackChips ? (
-          <div className="mt-1 flex flex-wrap gap-1" onPointerDown={stopCartBubble}>
+          <div className="mt-1 flex flex-wrap gap-1">
             {availableSizes.map((size) => {
               const active = sizePackCount(activeSize) === sizePackCount(size);
               const chipPrices = weightStepLinePrices(product, size);

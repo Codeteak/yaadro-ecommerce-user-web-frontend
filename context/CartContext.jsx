@@ -676,7 +676,11 @@ export function CartProvider({ children }) {
     }
   };
 
-  const cartCount = cartItems.length === 0 ? 0 : sumCartPaidUnits(cartItems);
+  // Weight lines are fractional kg; round so UI never shows 7.800000000000001.
+  const cartCount =
+    cartItems.length === 0
+      ? 0
+      : Math.round(sumCartPaidUnits(cartItems) * 1000) / 1000;
 
   const localLinesTotal =
     cartItems.length === 0

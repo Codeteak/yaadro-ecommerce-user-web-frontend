@@ -85,7 +85,7 @@ function OrderCardMenu({ order, onOpenDetails, onCancel, onShareCopied }) {
       {open && (
         <>
           <div
-            className="fixed inset-0 z-10"
+            className="fixed inset-0 z-[55]"
             aria-hidden
             onClick={(e) => {
               e.stopPropagation();
@@ -93,7 +93,7 @@ function OrderCardMenu({ order, onOpenDetails, onCancel, onShareCopied }) {
             }}
           />
           <div
-            className="absolute right-0 top-full z-20 mt-1 min-w-[160px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
+            className="absolute right-0 top-full z-[56] mt-1 min-w-[160px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <Link
