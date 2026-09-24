@@ -6,7 +6,12 @@ import {
   getBundleFreeExtraOnPaidLine,
   getCartLinePaidQty,
 } from '../utils/cartPromotions';
-import { cartQuantityStep, isSoldByWeightProduct } from '../utils/productSizeSelection';
+import {
+  cartQuantityStep,
+  isSoldByWeightProduct,
+  formatCartQtyControlLabel,
+  formatSoldByWeightPurchaseLabel,
+} from '../utils/productSizeSelection';
 import { useWishlist } from '../context/WishlistContext';
 import { formatRupeeINR, getCartLineVariantLabel } from '../utils/productUtils';
 import ProductImageWithFallback from './ProductImageWithFallback';
@@ -111,7 +116,8 @@ export default function CartItem({ item }) {
   const hasDiscount =
     listUnit != null && Number.isFinite(payableUnit) && listUnit > payableUnit + 1e-9;
   const discountValue = hasDiscount ? listUnit - payableUnit : null;
-  const variantLabel = getCartLineVariantLabel(item);
+  const variantLabel =
+    formatSoldByWeightPurchaseLabel(item, paidQty) || getCartLineVariantLabel(item);
 
   return (
     <div className="flex gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
@@ -221,7 +227,7 @@ export default function CartItem({ item }) {
                 bundleFreeExtra > 0 ? `${paidQty} paid + ${bundleFreeExtra} free` : undefined
               }
             >
-              {paidQty}
+              {formatCartQtyControlLabel(item, paidQty)}
             </span>
             <button
               onClick={() =>

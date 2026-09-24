@@ -51,6 +51,19 @@ test('variant label shows total kg for sold-by-weight cart lines', () => {
   );
 });
 
+test('variant label shows pack × step when weightStepKg is present', () => {
+  assert.equal(
+    getCartLineVariantLabel({
+      soldByWeight: true,
+      quantity: 1,
+      unit: 'kg',
+      unit_size: '1',
+      weightStepKg: 0.2,
+    }),
+    '200 g × 5 · 1 kg'
+  );
+});
+
 test('variant label shows pack × step total for packed weight-step lines', () => {
   assert.equal(
     getCartLineVariantLabel({

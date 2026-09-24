@@ -9,6 +9,12 @@ import {
   isSoldByWeightProduct,
   hasCustomWeightStep,
   weightStepLinePrices,
+  soldByWeightStepKg,
+  soldByWeightPackUnitPrice,
+  kgQtyToPackCount,
+  packCountToKgQty,
+  formatCartQtyControlLabel,
+  formatSoldByWeightPurchaseLabel,
 } from './productSizeSelection.js';
 import {
   formatOrderLineWeight,
@@ -264,4 +270,38 @@ test('resolveSelectedSize picks fresh price after catalog refetch', () => {
   const staleSelection = { weight: '1', unit: 'kg', price: 99 };
   const resolved = resolveSelectedSize(availableSizes, staleSelection);
   assert.equal(resolved.price, 120);
+});
+
+test('custom weight pack model: ₹120 / 200g × 5 = 1kg = ₹600', () => {
+  // DB: price_per_kg = 600, unit_size = 0.2 kg (customer "₹120 / 200g")
+  const product = {
+    id: 'apple',
+    soldByWeight: true,
+    unit: 'kg',
+    unit_size: 0.2,
+    price: 600,
+  };
+  assert.equal(soldByWeightStepKg(product), 0.2);
+  assert.equal(soldByWeightPackUnitPrice(product, 600), 120);
+  assert.equal(kgQtyToPackCount(0.2, 0.2), 1);
+  assert.equal(kgQtyToPackCount(1, 0.2), 5);
+  assert.equal(packCountToKgQty(5, 0.2), 1);
+  assert.equal(formatCartQtyControlLabel(product, 1), '5');
+  assert.equal(
+    formatSoldByWeightPurchaseLabel({ ...product, weightStepKg: 0.2, quantity: 1 }, 1),
+    '200 g × 5 · 1 kg'
+  );
+  // Authoritative line total stays price_per_kg × kg qty
+  assert.equal(600 * packCountToKgQty(5, 0.2), 600);
+  assert.equal(soldByWeightPackUnitPrice(product, 600) * 5, 600);
+});
+
+test('qty control never shows fractional kg for custom-weight steps', () => {
+  const line = {
+    soldByWeight: true,
+    weightStepKg: 0.25,
+    quantity: 0.75,
+  };
+  assert.equal(formatCartQtyControlLabel(line, 0.75), '3');
+  assert.equal(formatCartQtyControlLabel(line, 0.25), '1');
 });
