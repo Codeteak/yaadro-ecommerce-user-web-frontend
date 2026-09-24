@@ -142,16 +142,16 @@ export default function ProfileOffersSection() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-6 text-gray-400">
-        <Loader2 size={20} className="h-5 w-5 animate-spin" aria-hidden />
+      <div className="flex items-center justify-center py-3 text-gray-400">
+        <Loader2 size={18} className="h-4.5 w-4.5 animate-spin" aria-hidden />
       </div>
     );
   }
 
   if (isError || categoriesWithOffers.length === 0) {
     return (
-      <p className="py-2 text-center text-[13px] text-gray-500">
-        No category offers right now. Check back soon.
+      <p className="py-0.5 text-[13px] leading-snug text-gray-500">
+        No active category offers right now.
       </p>
     );
   }

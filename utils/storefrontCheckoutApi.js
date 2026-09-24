@@ -46,9 +46,16 @@ export async function placeStorefrontOrder({
     throw err;
   }
 
-  const delivery = await checkDeliveryLocation(latNum, lngNum);
+  let delivery;
+  try {
+    delivery = await checkDeliveryLocation(latNum, lngNum);
+  } catch (locErr) {
+    throw attachApiErrorCode(locErr);
+  }
   if (!delivery.serviceable) {
-    const err = new Error('Delivery is not available for this address.');
+    const err = new Error(
+      "This address is outside this shop's delivery area. Choose another address or move the map pin.",
+    );
     err.code = 'ADDRESS_NOT_SERVICEABLE';
     throw err;
   }

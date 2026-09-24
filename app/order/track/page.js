@@ -83,18 +83,8 @@ function OrderTrackContent() {
     setIframeFailed(false);
   }, [trackingUrl]);
 
-  if (!ready) return <TrackPageSkeleton />;
-
-  if (!ok) {
-    return (
-      <TrackShell>
-        <PageTopBar title="Live tracking" backHref="/login" fallbackHref="/login" />
-        <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center text-sm text-gray-600">
-          Sign in to view live tracking.
-        </div>
-      </TrackShell>
-    );
-  }
+  // Guests: useRequireAuth → home; keep skeleton while redirecting.
+  if (!ready || !ok) return <TrackPageSkeleton />;
 
   if (!orderId) {
     return (

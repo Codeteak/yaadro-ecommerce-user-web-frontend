@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 
 const ActivityLogContext = createContext();
 
@@ -31,7 +31,7 @@ export function ActivityLogProvider({ children }) {
   }, [activities, isClient]);
 
   // Log an activity
-  const logActivity = (action, details = {}) => {
+  const logActivity = useCallback((action, details = {}) => {
     const activity = {
       id: Date.now() + Math.random(),
       timestamp: new Date().toISOString(),
@@ -39,27 +39,31 @@ export function ActivityLogProvider({ children }) {
       details,
     };
     setActivities(prev => [activity, ...prev].slice(0, 1000)); // Keep last 1000 activities
-  };
+  }, []);
 
   // Clear activity log
-  const clearActivityLog = () => {
+  const clearActivityLog = useCallback(() => {
     setActivities([]);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('activityLog');
     }
-  };
+  }, []);
 
   // Get activities for a specific user (if needed for multi-user support)
-  const getUserActivities = (userId) => {
-    return activities.filter(activity => activity.details?.userId === userId);
-  };
+  const getUserActivities = useCallback(
+    (userId) => activities.filter(activity => activity.details?.userId === userId),
+    [activities],
+  );
 
-  const value = {
-    activities,
-    logActivity,
-    clearActivityLog,
-    getUserActivities,
-  };
+  const value = useMemo(
+    () => ({
+      activities,
+      logActivity,
+      clearActivityLog,
+      getUserActivities,
+    }),
+    [activities, logActivity, clearActivityLog, getUserActivities],
+  );
 
   return <ActivityLogContext.Provider value={value}>{children}</ActivityLogContext.Provider>;
 }
@@ -71,5 +75,3 @@ export function useActivityLog() {
   }
   return context;
 }
-
-

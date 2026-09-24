@@ -292,7 +292,7 @@ export function CartProvider({ children }) {
     isFetching: cartQueryFetching,
   } = useCartQuery({
     // Guest-safe: POST /storefront/cart/preview does not require JWT.
-    // Always preview when the cart has paid lines so offer/pricing merge works with or without coupons.
+    // Shop gate lives inside useCartQuery (wait for resolved shopId).
     enabled: paidLocalCount > 0,
     couponCode: cartHasBxgyOffer(localCartItems)
       ? undefined
@@ -699,42 +699,142 @@ export function CartProvider({ children }) {
         ? Number(cartPreviewData.total)
         : localLinesTotal;
 
-  const value = {
-    cartItems,
+  // Keep action identities stable across renders (avoid cascading consumer re-renders).
+  const cartActionsRef = useRef({});
+  cartActionsRef.current = {
     addToCart,
     removeFromCart,
     updateQuantity,
     updateCartItemNote,
     clearCart,
-    cartCount,
-    cartTotal,
-    showSidebarCart,
-    setShowSidebarCart,
     saveCart,
     loadSavedCart,
     deleteSavedCart,
-    savedCarts,
     saveCartAsTemplate,
     loadCartTemplate,
     deleteCartTemplate,
-    cartTemplates,
     shareCart,
     loadSharedCart,
-    lastActivityTime,
-    loading: false,
-    cartQueryFetching,
-    hasHydratedLocalCart,
-    selectedCouponCode,
+    setShowSidebarCart,
     setSelectedCouponCode,
-    bxgyBlocksCoupons,
-    selectedCouponCodes,
     setSelectedCouponCodes,
-    cartData: cartDataForUi,
-    couponPreviewTrusted,
-    cartPreviewTrusted,
-    /** Always true — cart UI reads from localStorage (layout) + query merge; no full-page cart gate. */
-    isCartReady: true,
   };
+
+  const stableAddToCart = useCallback((...args) => cartActionsRef.current.addToCart(...args), []);
+  const stableRemoveFromCart = useCallback((...args) => cartActionsRef.current.removeFromCart(...args), []);
+  const stableUpdateQuantity = useCallback((...args) => cartActionsRef.current.updateQuantity(...args), []);
+  const stableUpdateCartItemNote = useCallback(
+    (...args) => cartActionsRef.current.updateCartItemNote(...args),
+    [],
+  );
+  const stableClearCart = useCallback((...args) => cartActionsRef.current.clearCart(...args), []);
+  const stableSaveCart = useCallback((...args) => cartActionsRef.current.saveCart(...args), []);
+  const stableLoadSavedCart = useCallback((...args) => cartActionsRef.current.loadSavedCart(...args), []);
+  const stableDeleteSavedCart = useCallback(
+    (...args) => cartActionsRef.current.deleteSavedCart(...args),
+    [],
+  );
+  const stableSaveCartAsTemplate = useCallback(
+    (...args) => cartActionsRef.current.saveCartAsTemplate(...args),
+    [],
+  );
+  const stableLoadCartTemplate = useCallback(
+    (...args) => cartActionsRef.current.loadCartTemplate(...args),
+    [],
+  );
+  const stableDeleteCartTemplate = useCallback(
+    (...args) => cartActionsRef.current.deleteCartTemplate(...args),
+    [],
+  );
+  const stableShareCart = useCallback((...args) => cartActionsRef.current.shareCart(...args), []);
+  const stableLoadSharedCart = useCallback(
+    (...args) => cartActionsRef.current.loadSharedCart(...args),
+    [],
+  );
+  const stableSetShowSidebarCart = useCallback(
+    (...args) => cartActionsRef.current.setShowSidebarCart(...args),
+    [],
+  );
+  const stableSetSelectedCouponCode = useCallback(
+    (...args) => cartActionsRef.current.setSelectedCouponCode(...args),
+    [],
+  );
+  const stableSetSelectedCouponCodes = useCallback(
+    (...args) => cartActionsRef.current.setSelectedCouponCodes(...args),
+    [],
+  );
+
+  const value = useMemo(
+    () => ({
+      cartItems,
+      addToCart: stableAddToCart,
+      removeFromCart: stableRemoveFromCart,
+      updateQuantity: stableUpdateQuantity,
+      updateCartItemNote: stableUpdateCartItemNote,
+      clearCart: stableClearCart,
+      cartCount,
+      cartTotal,
+      showSidebarCart,
+      setShowSidebarCart: stableSetShowSidebarCart,
+      saveCart: stableSaveCart,
+      loadSavedCart: stableLoadSavedCart,
+      deleteSavedCart: stableDeleteSavedCart,
+      savedCarts,
+      saveCartAsTemplate: stableSaveCartAsTemplate,
+      loadCartTemplate: stableLoadCartTemplate,
+      deleteCartTemplate: stableDeleteCartTemplate,
+      cartTemplates,
+      shareCart: stableShareCart,
+      loadSharedCart: stableLoadSharedCart,
+      lastActivityTime,
+      loading: false,
+      cartQueryFetching,
+      hasHydratedLocalCart,
+      selectedCouponCode,
+      setSelectedCouponCode: stableSetSelectedCouponCode,
+      bxgyBlocksCoupons,
+      selectedCouponCodes,
+      setSelectedCouponCodes: stableSetSelectedCouponCodes,
+      cartData: cartDataForUi,
+      couponPreviewTrusted,
+      cartPreviewTrusted,
+      /** Always true — cart UI reads from localStorage (layout) + query merge; no full-page cart gate. */
+      isCartReady: true,
+    }),
+    [
+      cartItems,
+      stableAddToCart,
+      stableRemoveFromCart,
+      stableUpdateQuantity,
+      stableUpdateCartItemNote,
+      stableClearCart,
+      cartCount,
+      cartTotal,
+      showSidebarCart,
+      stableSetShowSidebarCart,
+      stableSaveCart,
+      stableLoadSavedCart,
+      stableDeleteSavedCart,
+      savedCarts,
+      stableSaveCartAsTemplate,
+      stableLoadCartTemplate,
+      stableDeleteCartTemplate,
+      cartTemplates,
+      stableShareCart,
+      stableLoadSharedCart,
+      lastActivityTime,
+      cartQueryFetching,
+      hasHydratedLocalCart,
+      selectedCouponCode,
+      stableSetSelectedCouponCode,
+      bxgyBlocksCoupons,
+      selectedCouponCodes,
+      stableSetSelectedCouponCodes,
+      cartDataForUi,
+      couponPreviewTrusted,
+      cartPreviewTrusted,
+    ],
+  );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

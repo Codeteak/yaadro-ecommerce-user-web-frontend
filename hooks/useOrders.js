@@ -12,7 +12,8 @@ function liveOrderRefetchInterval(query) {
     .trim()
     .toLowerCase();
   if (status === 'delivered' || status === 'cancelled') return false;
-  return 2000;
+  // Live tracking — soft poll; list pages do not use this interval.
+  return 5000;
 }
 
 // Query keys
@@ -34,7 +35,7 @@ export function useOrdersList(params = {}, queryOptions = {}) {
     queryKey: orderKeys.list(params),
     queryFn: () => listOrders(params),
     staleTime: ORDERS_STALE_MS,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
     enabled,
     ...rest,
@@ -55,7 +56,7 @@ export function useInfiniteOrdersList(params = {}, queryOptions = {}) {
     queryFn: () => listOrders({ limit }),
     getNextPageParam: () => undefined,
     staleTime: ORDERS_STALE_MS,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
     enabled,
     ...rest,
@@ -71,9 +72,9 @@ export function useOrderDetail(orderId, queryOptions = {}) {
     queryKey: orderKeys.detail(orderId),
     queryFn: () => getOrder(orderId),
     enabled: !!orderId && enabledOpt,
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
+    staleTime: 5_000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
     refetchInterval: liveOrderRefetchInterval,
     placeholderData: keepPreviousData,
     ...rest,

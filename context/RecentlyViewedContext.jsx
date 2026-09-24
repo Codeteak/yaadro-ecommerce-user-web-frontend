@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 
 const RecentlyViewedContext = createContext();
 
@@ -42,24 +42,28 @@ export function RecentlyViewedProvider({ children }) {
   }, []);
 
   // Clear recently viewed
-  const clearRecentlyViewed = () => {
+  const clearRecentlyViewed = useCallback(() => {
     setRecentlyViewed([]);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('recentlyViewed');
     }
-  };
+  }, []);
 
   // Get recently viewed products
-  const getRecentlyViewed = (limit = maxItems) => {
-    return recentlyViewed.slice(0, limit);
-  };
+  const getRecentlyViewed = useCallback(
+    (limit = maxItems) => recentlyViewed.slice(0, limit),
+    [recentlyViewed],
+  );
 
-  const value = {
-    recentlyViewed,
-    addToRecentlyViewed,
-    clearRecentlyViewed,
-    getRecentlyViewed,
-  };
+  const value = useMemo(
+    () => ({
+      recentlyViewed,
+      addToRecentlyViewed,
+      clearRecentlyViewed,
+      getRecentlyViewed,
+    }),
+    [recentlyViewed, addToRecentlyViewed, clearRecentlyViewed, getRecentlyViewed],
+  );
 
   return <RecentlyViewedContext.Provider value={value}>{children}</RecentlyViewedContext.Provider>;
 }
@@ -71,4 +75,3 @@ export function useRecentlyViewed() {
   }
   return context;
 }
-

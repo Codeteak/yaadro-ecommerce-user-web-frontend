@@ -32,6 +32,8 @@ export default function QueryProvider({ children }) {
         defaultOptions: {
           queries: {
             staleTime: 60 * 1000,
+            // Fresh within staleTime → no remount refetch (footer tab switches).
+            // Stale queries still refetch on mount (TanStack default).
             refetchOnWindowFocus: false,
             retry: 1,
           },

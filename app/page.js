@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { productKeys, useCategoriesTree, useProducts, useRootCategories } from '../hooks/useProducts';
 import { homeSectionKeys } from '../hooks/useHomeSections';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
@@ -19,10 +18,9 @@ import BannerCarousel from '../components/BannerCarousel';
 import HomeSections from '../components/home/HomeSections';
 import HomeClientShelves from '../components/home/HomeClientShelves';
 import HomeCategoryRail from '../components/home/HomeCategoryRail';
-import HomeSearchHints from '../components/home/HomeSearchHints';
 import SmoothDragRail from '../components/motion/SmoothDragRail';
+import ProductSearchExperience from '../components/search/ProductSearchExperience';
 import { dedupeProductsByVariantGroup } from '../utils/productUtils';
-import { getProducts } from '../utils/productApi';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../utils/categoryImage';
 import { formatAddressDisplay } from '../utils/formatAddress';
 import { Bone, ProductCarouselRowSkeleton } from '../components/skeletons/primitives';
@@ -32,7 +30,6 @@ import {
   ClassifyFilled as Classify,
   DownRegular as ChevronDown,
   ShopFilled as Shop,
-  SearchRegular as Search,
   User1Regular as User,
 } from '../components/icons';
 import {
@@ -111,6 +108,7 @@ function collectDescendantCategoryIds(flat, rootId) {
 export default function Home() {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
+  const [searchActive, setSearchActive] = useState(false);
    
   const { showAlert } = useAlert();
   const { isAuthenticated } = useAuth();
@@ -178,9 +176,6 @@ export default function Home() {
           queryKey: [...productKeys.categories(shopId), 'tree'],
         }),
         queryClient.invalidateQueries({ queryKey: productKeys.categoryRoots(shopId) }),
-        queryClient.invalidateQueries({
-          queryKey: [...productKeys.shop(shopId), 'fresh-zone'],
-        }),
         queryClient.invalidateQueries({ queryKey: homeSectionKeys.all }),
       ]);
     } finally {
@@ -203,10 +198,6 @@ export default function Home() {
   const catalogProducts = useMemo(
     () => dedupeProductsByVariantGroup(catalogData?.products || []),
     [catalogData?.products]
-  );
-  const searchHintNames = useMemo(
-    () => catalogProducts.map((product) => product?.name).filter(Boolean),
-    [catalogProducts]
   );
 
   const { data: rootCategoriesData, isLoading: rootCategoriesLoading } = useRootCategories();
@@ -262,7 +253,8 @@ export default function Home() {
     limit: 4,
     sort_by: 'created_at',
     sort_order: 'desc',
-    enabled: Boolean(homeCategoryId),
+    // Only fetch when a real category is selected — "all" already uses catalogData above.
+    enabled: Boolean(homeShelfCategoryId),
   });
 
   const homeCategoryProducts = useMemo(
@@ -270,7 +262,7 @@ export default function Home() {
     [homeCategoryProductsData?.products]
   );
 
-  // Fresh Zone category tabs
+  // Fresh Zone category tabs — All reuses home catalog; one tab = one category fetch.
   const [freshZoneCategoryId, setFreshZoneCategoryId] = useState(null);
 
   const freshZoneResolved = useMemo(() => {
@@ -293,57 +285,66 @@ export default function Home() {
     }).filter(Boolean);
   }, [categoryTree]);
 
-  const freshZoneFetchKey = useMemo(
-    () => freshZoneResolved.map((r) => String(r.category.id ?? r.category._id)),
-    [freshZoneResolved]
-  );
+  const freshZoneCategoryIdSet = useMemo(() => {
+    const ids = new Set();
+    for (const row of freshZoneResolved) {
+      for (const id of row.categoryIds) ids.add(String(id));
+    }
+    return ids;
+  }, [freshZoneResolved]);
+
+  /** "All" tab: filter home catalog — no parallel Fresh Zone list fan-out. */
+  const freshZoneFromCatalog = useMemo(() => {
+    if (!freshZoneCategoryIdSet.size) return [];
+    return catalogProducts.filter((p) => {
+      const cid = String(p?.category_id ?? p?.categoryId ?? p?.category?.id ?? '');
+      return cid && freshZoneCategoryIdSet.has(cid);
+    });
+  }, [catalogProducts, freshZoneCategoryIdSet]);
+
+  const selectedFreshZoneRootId =
+    freshZoneCategoryId != null && CATEGORY_ID_UUID.test(String(freshZoneCategoryId))
+      ? String(freshZoneCategoryId)
+      : '';
 
   const {
-    data: freshZoneByCategory,
-    isLoading: freshZoneProductsLoading,
-  } = useQuery({
-    queryKey: [...productKeys.shop(shopId), 'fresh-zone', freshZoneFetchKey],
-    enabled: freshZoneResolved.length > 0 && !!shopId,
-    staleTime: 1000 * 60 * 2,
-    refetchOnWindowFocus: false,
-    queryFn: async () => {
-      // One list call per Fresh Zone root (include all child categories).
-      // Avoids N+1 fetches for Dairy → Ghee / Milk / etc.
-      const rows = await Promise.all(
-        freshZoneResolved.map(async ({ category, categoryIds }) => {
-          const rootId = String(category.id ?? category._id);
-          const list = await getProducts({
-            category_id: rootId,
-            include_descendants: true,
-            limit: 24,
-            sort_by: 'created_at',
-            sort_order: 'desc',
-          });
-          const products = dedupeProductsByVariantGroup(list?.products || []);
-          return { category, categoryIds, products };
-        })
-      );
-      return rows;
-    },
+    data: freshZoneTabProductsData,
+    isLoading: freshZoneTabLoading,
+  } = useProducts({
+    category_id: selectedFreshZoneRootId || undefined,
+    include_descendants: Boolean(selectedFreshZoneRootId),
+    limit: 12,
+    sort_by: 'created_at',
+    sort_order: 'desc',
+    enabled: Boolean(selectedFreshZoneRootId),
   });
 
-  const freshZoneLoading =
-    categoryTreeLoading || (freshZoneResolved.length > 0 && freshZoneProductsLoading);
-
-  const freshZoneDisplayCategories = useMemo(
-    () =>
-      (freshZoneByCategory || [])
-        .filter((row) => Array.isArray(row.products) && row.products.length > 0)
-        .map((row) => row.category),
-    [freshZoneByCategory]
+  const freshZoneTabProducts = useMemo(
+    () => dedupeProductsByVariantGroup(freshZoneTabProductsData?.products || []),
+    [freshZoneTabProductsData?.products],
   );
 
-  const freshZoneDisplayProductsBase = useMemo(() => {
-    const rows = (freshZoneByCategory || []).filter(
-      (row) => Array.isArray(row.products) && row.products.length > 0
-    );
-    return dedupeProductsByVariantGroup(rows.flatMap((row) => row.products));
-  }, [freshZoneByCategory]);
+  const freshZoneLoading =
+    categoryTreeLoading || (Boolean(selectedFreshZoneRootId) && freshZoneTabLoading);
+
+  const freshZoneDisplayCategories = useMemo(() => {
+    if (!freshZoneFromCatalog.length && !selectedFreshZoneRootId) {
+      // Still show tabs once catalog may be empty but categories resolved (tab fetch can fill).
+      return freshZoneResolved.map((row) => row.category);
+    }
+    return freshZoneResolved
+      .filter((row) => {
+        if (selectedFreshZoneRootId && String(row.category.id ?? row.category._id) === selectedFreshZoneRootId) {
+          return true;
+        }
+        const idSet = new Set(row.categoryIds.map(String));
+        return freshZoneFromCatalog.some((p) => {
+          const cid = String(p?.category_id ?? p?.categoryId ?? p?.category?.id ?? '');
+          return cid && idSet.has(cid);
+        });
+      })
+      .map((row) => row.category);
+  }, [freshZoneFromCatalog, freshZoneResolved, selectedFreshZoneRootId]);
 
   const freshZoneSelectedCategory =
     freshZoneCategoryId == null
@@ -360,12 +361,9 @@ export default function Home() {
   }, [freshZoneCategoryId, freshZoneDisplayCategories]);
 
   const freshZoneDisplayProducts = useMemo(() => {
-    if (freshZoneCategoryId == null) return freshZoneDisplayProductsBase;
-    const row = (freshZoneByCategory || []).find(
-      (r) => String(r.category.id ?? r.category._id) === String(freshZoneCategoryId)
-    );
-    return row?.products || [];
-  }, [freshZoneCategoryId, freshZoneByCategory, freshZoneDisplayProductsBase]);
+    if (freshZoneCategoryId == null) return freshZoneFromCatalog;
+    return freshZoneTabProducts;
+  }, [freshZoneCategoryId, freshZoneFromCatalog, freshZoneTabProducts]);
 
   const locationSubtitle = useMemo(() => {
     if (isLocationChecking) return 'Checking your area…';
@@ -453,64 +451,69 @@ export default function Home() {
 
       {/* Home top: location + search + banner */}
       <section className="w-full bg-white pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
-        <div className="flex items-center justify-between gap-3 px-4 sm:px-5">
-          <button
-            type="button"
-            onClick={() => openServiceAreaSheet()}
-            className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
-            aria-label="Change delivery location"
-          >
-            {shopImage ? (
-              <span className="flex h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[#902bf5]/10 ring-2 ring-[#902bf5]/35">
-                <img
-                  src={shopImage}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              </span>
-            ) : (
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#902bf5]/10 ring-2 ring-[#902bf5]/35">
-                <Shop size={22} color="#902bf5" className="h-[22px] w-[22px]" />
-              </span>
-            )}
-            <span className="min-w-0 flex-1">
-              <span className="inline-flex max-w-full items-center gap-0.5">
-                <span className="truncate text-[16px] font-extrabold leading-tight text-gray-900">
-                  {shopName || 'Yaadro'}
+        <div
+          className={
+            searchActive
+              ? 'relative z-[72] bg-white pb-3 shadow-[0_8px_20px_rgba(15,23,42,0.06)] transition-[box-shadow] duration-200 ease-out motion-reduce:transition-none'
+              : 'transition-[box-shadow] duration-200 ease-out motion-reduce:transition-none'
+          }
+        >
+          <div className="flex items-center justify-between gap-3 px-4 sm:px-5">
+            <button
+              type="button"
+              onClick={() => openServiceAreaSheet()}
+              className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+              aria-label="Change delivery location"
+            >
+              {shopImage ? (
+                <span className="flex h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[#902bf5]/10 ring-2 ring-[#902bf5]/35">
+                  <img
+                    src={shopImage}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
                 </span>
-                <ChevronDown size={16} color="#111827" className="h-4 w-4 shrink-0" aria-hidden />
+              ) : (
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#902bf5]/10 ring-2 ring-[#902bf5]/35">
+                  <Shop size={22} color="#902bf5" className="h-[22px] w-[22px]" />
+                </span>
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="inline-flex max-w-full items-center gap-0.5">
+                  <span className="truncate text-[16px] font-extrabold leading-tight text-gray-900">
+                    {shopName || 'Yaadro'}
+                  </span>
+                  <ChevronDown size={16} color="#111827" className="h-4 w-4 shrink-0" aria-hidden />
+                </span>
+                <span className="mt-0.5 block truncate text-[12px] leading-snug text-gray-500">
+                  {locationSubtitle}
+                </span>
               </span>
-              <span className="mt-0.5 block truncate text-[12px] leading-snug text-gray-500">
-                {locationSubtitle}
-              </span>
-            </span>
-          </button>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (isAuthenticated) {
-                window.location.href = '/profile';
-              } else {
-                goToLogin();
-              }
-            }}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white ring-2 ring-[#902bf5]/45 ring-offset-2 ring-offset-white transition hover:bg-gray-50 hover:ring-[#902bf5]/70"
-            aria-label={isAuthenticated ? 'Profile' : 'Login'}
-          >
-            <User size={22} color="#111827" className="h-[22px] w-[22px]" />
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (isAuthenticated) {
+                  window.location.href = '/profile';
+                } else {
+                  goToLogin();
+                }
+              }}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white ring-2 ring-[#902bf5]/45 ring-offset-2 ring-offset-white transition hover:bg-gray-50 hover:ring-[#902bf5]/70"
+              aria-label={isAuthenticated ? 'Profile' : 'Login'}
+            >
+              <User size={22} color="#111827" className="h-[22px] w-[22px]" />
+            </button>
+          </div>
 
-        <div className="mt-3 px-4 sm:px-5">
-          <Link
-            href="/search/"
-            className="flex h-11 items-center gap-2 rounded-full border border-gray-200 bg-white px-3.5 ring-2 ring-[#902bf5]/45 ring-offset-2 ring-offset-white transition hover:bg-gray-50 hover:ring-[#902bf5]/70"
-            aria-label="Search products"
-          >
-            <Search size={20} color="#6b7280" className="h-5 w-5 shrink-0" />
-            <HomeSearchHints productNames={searchHintNames} />
-          </Link>
+          <div className="mt-3 px-4 sm:px-5">
+            <ProductSearchExperience
+              mode="overlay"
+              onActiveChange={setSearchActive}
+              placeholder="Search products…"
+            />
+          </div>
         </div>
 
         <div className="mt-5 px-4 sm:px-5">
@@ -846,68 +849,6 @@ export default function Home() {
       </section>
 
       <HomeClientShelves products={catalogProducts} />
-
-      {/* Footer */}
-      <footer className="relative bg-white pt-8 pb-6 sm:pt-10 sm:pb-8 md:pt-16 md:pb-12 border-t border-gray-100 [@media(max-height:720px)]:pt-6 [@media(max-height:720px)]:pb-5">
-        <Container>
-          <div className="px-3 sm:px-4 md:px-0">
-            {/* Brand block */}
-            <div className="flex flex-col items-center text-center">
-              <h2
-                className="font-headingnow text-footer-brand-wordmark font-extrabold text-gray-300/90 select-none"
-                aria-label="Yaadro"
-              >
-                Yaadro
-              </h2>
-              <p className="mt-2 text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-[0.35em] sm:tracking-[0.4em] text-violet-400">
-                SHOP
-              </p>
-            </div>
-
-            {/* Legal links (restore when pages are ready)
-            <nav
-              className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] font-medium text-gray-600"
-              aria-label="Legal"
-            >
-              <Link href="/privacy-policy" className="hover:text-violet-700 transition-colors">
-                Privacy Policy
-              </Link>
-              <span aria-hidden className="h-1 w-1 rounded-full bg-gray-300" />
-              <Link href="/terms-and-conditions" className="hover:text-violet-700 transition-colors">
-                Terms &amp; Conditions
-              </Link>
-            </nav>
-            */}
-
-            {/* Divider */}
-            <div className="mx-auto mt-8 mb-6 h-px max-w-md bg-gray-100" />
-
-            {/* Maintained by */}
-            <a
-              href="https://codeteak.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mx-auto flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-800"
-              aria-label="Maintained by codeteak.com"
-            >
-              <span>Maintained by</span>
-              <Image
-                src="/codeteak-logo.png"
-                alt="Codeteak"
-                width={20}
-                height={20}
-                className="h-5 w-5 object-contain"
-              />
-              <span className="font-semibold text-gray-700">codeteak.com</span>
-            </a>
-
-            {/* Copyright */}
-            <p className="mt-3 text-center text-[11px] text-gray-400">
-              &copy; {new Date().getFullYear()} Yaadro. All rights reserved.
-            </p>
-          </div>
-        </Container>
-      </footer>
 
       <FloatingViewCartPill />
     </div>

@@ -4,7 +4,7 @@ import { useStorefrontShopGate } from './useStorefrontShopGate';
 
 export const homeSectionKeys = {
   all: ['home-sections'],
-  list: () => [...homeSectionKeys.all, 'list'],
+  list: (shopId = '') => [...homeSectionKeys.all, 'list', shopId || ''],
 };
 
 /**
@@ -12,9 +12,9 @@ export const homeSectionKeys = {
  */
 export function useHomeSections(options = {}) {
   const { enabled = true } = options;
-  const { ready } = useStorefrontShopGate();
+  const { ready, shopId } = useStorefrontShopGate();
   const query = useQuery({
-    queryKey: homeSectionKeys.list(),
+    queryKey: homeSectionKeys.list(shopId),
     queryFn: getHomeSections,
     enabled: enabled && ready,
     staleTime: 2 * 60 * 1000,

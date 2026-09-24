@@ -1,5 +1,3 @@
-import Container from '../Container';
-
 function Bone({ className = '', style }) {
   return (
     <div
@@ -124,28 +122,9 @@ function DailyDiarySkeleton() {
   );
 }
 
-function FooterSkeleton() {
-  return (
-    <footer className="relative border-t border-gray-100 bg-white pt-8 pb-6 sm:pt-10 sm:pb-8 md:pt-12 md:pb-10">
-      <Container>
-        <div className="flex flex-col items-center px-3 sm:px-4 md:px-0">
-          <Bone className="h-10 w-40 rounded-lg" />
-          <Bone className="mt-3 h-6 w-24 rounded" />
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-6">
-            <Bone className="h-4 w-24 rounded" />
-            <Bone className="h-4 w-32 rounded" />
-          </div>
-          <Bone className="mx-auto mt-8 h-px w-full max-w-md rounded" />
-          <Bone className="mt-6 h-8 w-44 rounded-full" />
-          <Bone className="mt-3 h-3 w-48 rounded" />
-        </div>
-      </Container>
-    </footer>
-  );
-}
-
 /**
- * Full home page loading state — mirrors loaded home layout (top → sections → footer).
+ * Full home page loading state — mirrors loaded home layout (top → sections).
+ * Site footer is rendered by ConditionalLayout.
  */
 export default function HomePageSkeleton() {
   return (
@@ -176,8 +155,6 @@ export default function HomePageSkeleton() {
         </div>
         <ProductCarouselRowSkeleton count={6} />
       </section>
-
-      <FooterSkeleton />
     </div>
   );
 }

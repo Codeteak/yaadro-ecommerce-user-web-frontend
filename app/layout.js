@@ -13,6 +13,7 @@ import { LayoutHeightsProvider } from '../context/LayoutHeightsContext';
 import { LocationServiceProvider } from '../context/LocationServiceContext';
 import ConditionalLayout from '../components/ConditionalLayout';
 import MobileBottomNav from '../components/MobileBottomNav';
+import NavigationProgress from '../components/NavigationProgress';
 import CartSidebar from '../components/CartSidebar';
 import ServiceAreaBottomSheet from '../components/ServiceAreaBottomSheet';
 import ClientOnly from '../components/ClientOnly';
@@ -84,6 +85,7 @@ export default function RootLayout({ children }) {
                                     <div id="app-scroll" className="app-scroll">
                                       <ConditionalLayout>{children}</ConditionalLayout>
                                     </div>
+                                    <NavigationProgress />
                                     <MobileBottomNav />
                                     <ToastHost />
                                     <CartSidebar />

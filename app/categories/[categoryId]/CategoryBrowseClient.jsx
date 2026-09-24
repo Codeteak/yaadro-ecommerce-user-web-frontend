@@ -211,7 +211,7 @@ function CategoryBrowseInner() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search products…"
-              className="h-10 w-full rounded-full border border-gray-200 bg-white pl-9 pr-4 text-[13px] text-gray-900 placeholder-gray-400 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-200"
+              className="h-10 w-full rounded-full border border-gray-200 bg-white pl-9 pr-4 text-[13px] text-gray-900 caret-[#902bf5] placeholder-gray-400 outline-none transition-[border-color,box-shadow] duration-200 ease-out focus:border-[#902bf5] focus:shadow-[0_0_0_3px_rgba(144,43,245,0.18)]"
               autoFocus
             />
           </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 
 const OrderContext = createContext();
 
@@ -313,19 +313,34 @@ export function OrderProvider({ children }) {
     };
   }, [getOrderById]);
 
-  const value = {
-    orders,
-    createOrder,
-    getOrderById,
-    cancelOrder,
-    modifyOrder,
-    updateOrderStatus,
-    requestReturn,
-    updateReturnStatus,
-    getFilteredOrders,
-    shareOrder,
-    getInvoiceData,
-  };
+  const value = useMemo(
+    () => ({
+      orders,
+      createOrder,
+      getOrderById,
+      cancelOrder,
+      modifyOrder,
+      updateOrderStatus,
+      requestReturn,
+      updateReturnStatus,
+      getFilteredOrders,
+      shareOrder,
+      getInvoiceData,
+    }),
+    [
+      orders,
+      createOrder,
+      getOrderById,
+      cancelOrder,
+      modifyOrder,
+      updateOrderStatus,
+      requestReturn,
+      updateReturnStatus,
+      getFilteredOrders,
+      shareOrder,
+      getInvoiceData,
+    ],
+  );
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>;
 }

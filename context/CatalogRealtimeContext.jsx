@@ -21,6 +21,8 @@ export function CatalogRealtimeProvider({ children }) {
   const [resolvedShopId, setResolvedShopId] = useState(/** @type {string | null} */ (null));
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
+  /** Keep HTTP revision poll running across Socket.IO reconnect flaps. */
+  const pollStopRef = useRef(/** @type {null | (() => void)} */ (null));
 
   useEffect(() => {
     if (!isCatalogRealtimeEnabled()) {
@@ -75,18 +77,39 @@ export function CatalogRealtimeProvider({ children }) {
       cancelled = true;
       setResolvedShopId(null);
       disconnect();
+      pollStopRef.current?.();
+      pollStopRef.current = null;
     };
   }, [queryClient]);
 
-  /** Poll revision only while the socket is not connected (fallback when Socket.IO is down). */
+  /**
+   * HTTP revision fallback while the socket is not live.
+   * Keep one poller through connecting↔disconnected flaps; stop only when connected/disabled.
+   */
   useEffect(() => {
-    if (!isCatalogRealtimeEnabled() || !resolvedShopId || phase === 'connected') {
+    if (!isCatalogRealtimeEnabled() || !resolvedShopId || phase === 'disabled') {
+      pollStopRef.current?.();
+      pollStopRef.current = null;
       return undefined;
     }
-    return startCatalogRevisionPoll({ shopId: resolvedShopId, queryClient });
+
+    if (phase === 'connected') {
+      pollStopRef.current?.();
+      pollStopRef.current = null;
+      return undefined;
+    }
+
+    if (!pollStopRef.current) {
+      pollStopRef.current = startCatalogRevisionPoll({
+        shopId: resolvedShopId,
+        queryClient,
+      });
+    }
+
+    return undefined;
   }, [queryClient, phase, resolvedShopId]);
 
-  /** When the socket is down, refetch catalog after the tab is focused again. */
+  /** When the socket is down, refetch catalog after the tab is focused again (visibility only — avoid focus+visibility double fire). */
   useEffect(() => {
     if (!isCatalogRealtimeEnabled()) return undefined;
 
@@ -96,10 +119,8 @@ export function CatalogRealtimeProvider({ children }) {
       scheduleCoalescedCatalogRefetch(queryClient);
     };
 
-    window.addEventListener('focus', maybeRefetchOnVisible);
     document.addEventListener('visibilitychange', maybeRefetchOnVisible);
     return () => {
-      window.removeEventListener('focus', maybeRefetchOnVisible);
       document.removeEventListener('visibilitychange', maybeRefetchOnVisible);
     };
   }, [queryClient]);

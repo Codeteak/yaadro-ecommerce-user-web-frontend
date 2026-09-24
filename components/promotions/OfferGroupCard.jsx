@@ -28,6 +28,22 @@ function OfferBadgePill({ children, tone = 'violet' }) {
   );
 }
 
+function FreeWithLabel() {
+  return (
+    <div
+      className="flex items-center gap-2 py-1.5"
+      role="separator"
+      aria-label="Free with this item"
+    >
+      <span className="h-px min-w-[12px] flex-1 bg-violet-200/90" aria-hidden />
+      <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.08em] text-violet-700">
+        Free with this item
+      </span>
+      <span className="h-px min-w-[12px] flex-1 bg-violet-200/90" aria-hidden />
+    </div>
+  );
+}
+
 function LineRow({
   item,
   isFree,
@@ -54,15 +70,27 @@ function LineRow({
       ? Math.round((listLine - linePay) * 100) / 100
       : null;
 
+  const imgBox = isFree
+    ? compact
+      ? 'h-10 w-10'
+      : 'h-11 w-11'
+    : compact
+      ? 'h-12 w-12'
+      : 'h-14 w-14';
+
   return (
-    <div className={`flex gap-3 ${compact ? 'py-1.5' : 'py-2'}`}>
-      <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl bg-white">
+    <div className={`flex gap-3 ${compact ? 'py-1.5' : isFree ? 'py-1.5' : 'py-2'}`}>
+      <div
+        className={`relative flex-shrink-0 overflow-hidden rounded-xl bg-white ${imgBox} ${
+          isFree ? 'ring-1 ring-emerald-100' : ''
+        }`}
+      >
         <ProductImageWithFallback
           src={imageSrc}
           alt={item.name || ''}
           fill
           className="object-contain object-center"
-          sizes="56px"
+          sizes={isFree ? '44px' : '56px'}
           placeholderName={item.name || ''}
           placeholderCategory={
             item.categoryName ||
@@ -75,7 +103,13 @@ function LineRow({
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <p className="truncate text-[13px] font-medium text-gray-900">{item.name}</p>
+          <p
+            className={`truncate font-medium text-gray-900 ${
+              isFree ? 'text-[12px]' : 'text-[13px]'
+            }`}
+          >
+            {item.name}
+          </p>
           {isFree ? <OfferBadgePill tone="green">FREE</OfferBadgePill> : null}
           {!isFree &&
             (badges || [])
@@ -99,9 +133,13 @@ function LineRow({
 
         <div className="mt-2 flex items-center justify-between gap-2">
           <div className="flex flex-wrap items-baseline gap-1.5">
-            <span className="text-[15px] font-semibold tabular-nums text-gray-900">
-              {isFree ? '₹0' : `₹${linePay.toLocaleString('en-IN')}`}
-            </span>
+            {isFree ? (
+              <span className="text-[14px] font-bold tabular-nums text-emerald-700">FREE</span>
+            ) : (
+              <span className="text-[15px] font-semibold tabular-nums text-gray-900">
+                ₹{linePay.toLocaleString('en-IN')}
+              </span>
+            )}
             {showStrike && listLine != null && (
               <span className="text-[11px] text-gray-400 line-through tabular-nums">
                 ₹{listLine.toLocaleString('en-IN')}
@@ -115,7 +153,7 @@ function LineRow({
           </div>
 
           {isFree || !showStepper ? (
-            <span className="text-[12px] font-medium text-gray-600">Qty: {paidQty}</span>
+            <span className="text-[12px] font-medium text-gray-500">Qty: {paidQty}</span>
           ) : (
             <div className="flex items-center overflow-hidden rounded-full border border-gray-200 bg-white">
               <button
@@ -182,7 +220,8 @@ function LineRow({
 }
 
 /**
- * Off-white grouped promo card: parent paid line + free child with connector.
+ * Off-white grouped promo card: parent paid line + free child with clear hierarchy.
+ * Presentation only — parent/children come from buildCartOfferGroups.
  */
 export default function OfferGroupCard({
   group,
@@ -215,28 +254,66 @@ export default function OfferGroupCard({
         showStepper={showStepper}
       />
 
-      {hasChildren
-        ? group.children.map((child) => {
-            const key = child.cartItemKey ?? child.cartItemId ?? child.id;
-            return (
-              <div key={key} className="relative ml-2 border-l border-dashed border-gray-300 pl-3">
-                <span
-                  className="absolute -left-[1px] top-4 text-gray-400"
-                  aria-hidden
-                >
-                  ⌞
-                </span>
-                <LineRow
-                  item={child}
-                  isFree
-                  badges={['FREE']}
-                  compact={compact}
-                  showStepper={false}
+      {hasChildren ? (
+        <div className="mt-0.5" role="group" aria-label="Free items included with this purchase">
+          {/* Stem under parent image column (w-14 / 56px → center ~28px) */}
+          <div className="flex">
+            <div className="flex w-14 flex-shrink-0 flex-col items-center" aria-hidden>
+              <div className="h-2 w-px bg-violet-300" />
+              <svg
+                className="h-3.5 w-3.5 text-violet-500"
+                viewBox="0 0 16 16"
+                fill="none"
+                aria-hidden
+              >
+                <path
+                  d="M8 2v9M4.5 8.5 8 12l3.5-3.5"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
-              </div>
-            );
-          })
-        : null}
+              </svg>
+            </div>
+            <div className="min-w-0 flex-1 self-center">
+              <FreeWithLabel />
+            </div>
+          </div>
+
+          <ul className="m-0 list-none space-y-1 p-0">
+            {group.children.map((child, index) => {
+              const key = child.cartItemKey ?? child.cartItemId ?? child.id;
+              const isLast = index === group.children.length - 1;
+              return (
+                <li key={key} className="flex animate-[fade-in_0.2s_ease-out]">
+                  {/* Elbow connector aligned to parent image column */}
+                  <div
+                    className="relative flex w-14 flex-shrink-0 justify-center"
+                    aria-hidden
+                  >
+                    <div
+                      className={`absolute left-1/2 top-0 w-px -translate-x-1/2 bg-violet-300 ${
+                        isLast ? 'h-5' : 'bottom-0'
+                      }`}
+                    />
+                    <div className="absolute left-1/2 top-5 h-px w-[18px] bg-violet-300" />
+                    <div className="absolute left-[calc(50%+16px)] top-5 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-violet-400" />
+                  </div>
+                  <div className="min-w-0 flex-1 rounded-xl bg-emerald-50/50 px-2 ring-1 ring-emerald-100/80">
+                    <LineRow
+                      item={child}
+                      isFree
+                      badges={['FREE']}
+                      compact={compact}
+                      showStepper={false}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }

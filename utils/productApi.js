@@ -12,7 +12,7 @@ import {
   resolveProductWeightAndUnit,
 } from './productUtils';
 import { normalizeStorefrontProductPricing } from './storefrontProductPricing';
-
+import { resolveStorefrontProductUpstreamPath } from '../lib/storefrontProductDetail.js';
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -662,9 +662,12 @@ export async function getProductById(productId, options = {}) {
     const lookup = normalizeProductRouteParam(productId);
     if (!lookup) return null;
 
-    // Always hit `/storefront/products/:idOrSlug` via Next proxy → customer API
-    // (same Redis/SWR path as listing; avoids slow Next Postgres PDP path).
-    const path = `/storefront/products/${encodeURIComponent(lookup)}`;
+    // Backend: UUID → GET /storefront/products/id/:id ; slug → GET /storefront/products/:slug
+    // (Next route handler + CF Pages proxy must keep the same remap.)
+    const upstream = resolveStorefrontProductUpstreamPath(lookup);
+    const path = upstream
+      ? upstream.replace(/^\/api(?=\/)/, '')
+      : `/storefront/products/${encodeURIComponent(lookup)}`;
 
     const response = await apiFetchRoot(path, {
       method: 'GET',
