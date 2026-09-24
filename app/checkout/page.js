@@ -422,14 +422,12 @@ function OrderSummary({
           ₹{cartTotal.toLocaleString("en-IN")}
         </span>
       </div>
-      <marquee
-        className="mt-2 block w-full rounded-md bg-red-600 py-1.5 text-[12px] font-medium tracking-wide text-white"
-        scrollAmount={4}
+      <p
+        role="note"
+        className="mt-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-[12px] font-medium leading-snug text-amber-900/90"
       >
-        {Array.from({ length: 16 }, () => "Price may vary").join(
-          "        ·        ",
-        )}
-      </marquee>
+        Price may vary
+      </p>
     </div>
   );
 }
@@ -646,7 +644,10 @@ export default function CheckoutPage() {
     sort_by: "created_at",
     sort_order: "desc",
   });
-  const similarPool = similarPoolData?.products || [];
+  const similarPool = useMemo(
+    () => similarPoolData?.products || [],
+    [similarPoolData?.products],
+  );
 
   const cartProductIds = useMemo(
     () =>
@@ -1350,19 +1351,17 @@ export default function CheckoutPage() {
         )}
       </form>
 
-      {/* ── Sticky bottom bar (marquee is full bar width; padded block below) ── */}
+      {/* ── Sticky bottom bar ── */}
       <div
         className="fixed left-0 right-0 z-50 w-full max-w-[100vw] overflow-x-hidden bg-white border-t border-gray-100"
         style={{ bottom: Math.max(Number(siteFooterHeight) || 0, 0) }}
       >
-        <marquee
-          className="block w-full bg-red-600 py-0.5 text-[10px] font-medium leading-tight text-white"
-          scrollAmount={3}
+        <p
+          role="note"
+          className="border-b border-amber-100 bg-amber-50 px-4 py-1.5 text-center text-[11px] font-medium text-amber-900/90"
         >
-          {Array.from({ length: 16 }, () => "Price may vary").join(
-            "        ·        ",
-          )}
-        </marquee>
+          Price may vary
+        </p>
         <div className="px-4 pt-3 pb-5">
           <div className="mb-3 flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">

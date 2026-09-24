@@ -10,9 +10,14 @@ function normalizePath(pathname) {
   return pathname?.replace(/\/+$/, '') || '';
 }
 
-/** Login / OTP — no site footer. */
+/** Routes where sticky CTAs own the bottom — brand footer breaks the flow. */
 function hideSiteFooter(path) {
-  return path === '/login';
+  return (
+    path === '/login' ||
+    path === '/cart' ||
+    path === '/checkout' ||
+    path === '/order-success'
+  );
 }
 
 /**
