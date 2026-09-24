@@ -447,6 +447,13 @@ function OrderSuccessContent() {
           from { transform: translateY(40px); opacity: 0; }
           to   { transform: translateY(0);    opacity: 1; }
         }
+        .os-pressable:active {
+          transform: scale(0.95);
+          background: #f3f4f6 !important;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .os-pressable:active { transform: none; }
+        }
       `}</style>
 
       <div style={styles.page}>
@@ -460,6 +467,7 @@ function OrderSuccessContent() {
               type="button"
               onClick={() => router.push('/')}
               style={styles.topBarBtn}
+              className="os-pressable"
               aria-label="Back to home"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -657,6 +665,8 @@ const styles = {
     justifyContent: 'center',
     color: '#374151',
     cursor: 'pointer',
+    touchAction: 'manipulation',
+    transition: 'transform 150ms ease-out, background-color 150ms ease-out',
   },
   topBarTitle: {
     fontSize: 13,

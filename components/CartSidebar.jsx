@@ -10,6 +10,7 @@ import { formatRupeeINR } from '../utils/productUtils';
 import { buildCartOfferGroups } from '../utils/offerDisplay';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import OfferGroupCard from './promotions/OfferGroupCard';
+import { PRESSABLE_ICON_BTN_SOFT } from './ui/brandButton';
 
 function normalizePath(pathname) {
   return pathname?.replace(/\/+$/, '') || '';
@@ -88,8 +89,9 @@ export default function CartSidebar() {
         <div className="px-6 py-5 flex items-center justify-between border-b border-gray-100">
           <h2 className="text-base font-medium text-gray-900">Shopping Cart</h2>
           <button
+            type="button"
             onClick={handleClose}
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+            className={`p-1.5 text-gray-400 hover:text-gray-600 rounded-lg ${PRESSABLE_ICON_BTN_SOFT}`}
             aria-label="Close cart"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

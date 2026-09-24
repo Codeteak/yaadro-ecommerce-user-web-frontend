@@ -34,6 +34,7 @@ import { sanitizeAddressNotes } from '../../../utils/addressApi';
 import { buildMapStreetArea, sanitizeStoredStreetArea } from '../../../utils/formatAddress';
 import { isUnauthorizedError } from '../../../utils/authErrors';
 import { useLoginNavigation } from '../../../hooks/useLoginNavigation';
+import { PRESSABLE_ICON_BTN_SOFT } from '../../../components/ui/brandButton';
 
 // Leaflet uses `window` at import time — load only on the client.
 const AddressMapPicker = dynamic(
@@ -316,8 +317,14 @@ export default function AddAddressPage() {
     if (!Number.isFinite(checkLat) || !Number.isFinite(checkLng)) return undefined;
 
     let cancelled = false;
+    // Invalidate previous pin result immediately so Save cannot use a stale "serviceable".
+    setPinDeliveryCheck((prev) => ({
+      ...prev,
+      loading: true,
+      error: null,
+      serviceable: null,
+    }));
     const t = window.setTimeout(async () => {
-      setPinDeliveryCheck((prev) => ({ ...prev, loading: true, error: null }));
       try {
         const data = await checkDeliveryLocation(checkLat, checkLng);
         if (cancelled) return;
@@ -332,10 +339,11 @@ export default function AddAddressPage() {
         });
       } catch (e) {
         if (cancelled) return;
-        // Do not coerce API failure → unavailable; keep last known serviceable.
+        // Network/API failure must not keep a previous "serviceable=true" for this pin.
         setPinDeliveryCheck((prev) => ({
           ...prev,
           loading: false,
+          serviceable: null,
           error: e,
         }));
       }
@@ -527,6 +535,18 @@ export default function AddAddressPage() {
       return;
     }
 
+    if (pinDeliveryCheck.loading || pinDeliveryCheck.serviceable !== true) {
+      setSubmitError(
+        pinDeliveryCheck.serviceable === false
+          ? "This location is outside the available delivery area. Move the pin inside the delivery zone to save."
+          : pinDeliveryCheck.error
+            ? 'Could not verify delivery for this pin. Check your connection and try again.'
+            : 'Please wait until delivery availability is confirmed for this pin.',
+      );
+      setStep(1);
+      return;
+    }
+
     const finalName = needsName ? nameDraft.trim() : nameFromProfile;
     const finalPhone = needsPhone
       ? normalizePhoneForApi(phoneDraft)
@@ -628,7 +648,7 @@ export default function AddAddressPage() {
           <button
             type="button"
             onClick={() => setStep(1)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 ${PRESSABLE_ICON_BTN_SOFT}`}
             aria-label="Back"
           >
             <ArrowLeft size={16} className="h-4 w-4" />
@@ -666,7 +686,7 @@ export default function AddAddressPage() {
               type="button"
               onClick={requestLeave}
               aria-label="Back"
-              className="absolute left-3 top-3 z-[1100] inline-flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-800 shadow-md hover:bg-gray-50"
+              className={`absolute left-3 top-3 z-[1100] inline-flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-800 shadow-md hover:bg-gray-50 ${PRESSABLE_ICON_BTN_SOFT}`}
               style={{ marginTop: 'env(safe-area-inset-top)' }}
             >
               <ArrowLeft size={16} className="h-4 w-4" />
@@ -714,14 +734,14 @@ export default function AddAddressPage() {
                 !pinDeliveryCheck.error &&
                 pinDeliveryCheck.serviceable === false && (
                   <p className="mt-0.5 text-[12px] text-red-800">
-                    You can still save this pin, but checkout will not continue until the pin is
-                    inside the delivery area.
+                    This location is outside the available delivery area. Move the
+                    pin inside the delivery zone to continue.
                   </p>
                 )}
               {!pinDeliveryCheck.loading && pinDeliveryCheck.error && (
                 <p className="mt-0.5 text-[12px] text-amber-900">
-                  Your pin is kept. Try again when you are back online, or continue to enter
-                  address details.
+                  Could not verify this pin right now. Check your connection and
+                  try again — Save stays disabled until delivery is confirmed.
                 </p>
               )}
             </div>
@@ -837,15 +857,23 @@ export default function AddAddressPage() {
                 }
                 setStep(2);
               }}
-              disabled={!coords}
+              disabled={
+                !coords ||
+                pinDeliveryCheck.loading ||
+                pinDeliveryCheck.serviceable !== true
+              }
               className={`mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold shadow-sm transition active:scale-[0.99] ${
-                coords
+                coords &&
+                !pinDeliveryCheck.loading &&
+                pinDeliveryCheck.serviceable === true
                   ? 'bg-violet-600 text-white hover:bg-violet-700'
                   : 'cursor-not-allowed bg-gray-200 text-gray-500'
               }`}
             >
               <Check size={16} className="h-4 w-4" />
-              Confirm location
+              {pinDeliveryCheck.loading
+                ? 'Checking delivery…'
+                : 'Confirm location'}
             </button>
 
             {submitError && step === 1 && (
@@ -1033,7 +1061,11 @@ export default function AddAddressPage() {
             <button
               type="button"
               onClick={handleSave}
-              disabled={submitting}
+              disabled={
+                submitting ||
+                pinDeliveryCheck.loading ||
+                pinDeliveryCheck.serviceable !== true
+              }
               className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? (

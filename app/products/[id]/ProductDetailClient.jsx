@@ -38,6 +38,7 @@ import Link from 'next/link';
 import ProductCarousel from '../../../components/ProductCarousel';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import PriceDisplay from '../../../components/ui/PriceDisplay';
+import { PRESSABLE_ICON_BTN_SOFT } from '../../../components/ui/brandButton';
 import { SHOW_PRODUCT_EXTENDED_SECTIONS } from './productDetailFlags';
 import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../../utils/productImages';
 import ProductImageWithFallback from '../../../components/ProductImageWithFallback';
@@ -532,10 +533,10 @@ export default function ProductDetailClient({ productId = null }) {
           <button
             type="button"
             onClick={() => router.back()}
-            className="w-9 h-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm border border-gray-100"
+            className={`w-9 h-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm border border-gray-100 ${PRESSABLE_ICON_BTN_SOFT}`}
             aria-label="Back"
           >
-            <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
@@ -545,11 +546,11 @@ export default function ProductDetailClient({ productId = null }) {
 
         {galleryUrls.length > 1 && (
           <>
-            <button onClick={goToPrevious} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm z-20 border border-gray-100" aria-label="Previous">
-              <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            <button type="button" onClick={goToPrevious} className={`absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm z-20 border border-gray-100 ${PRESSABLE_ICON_BTN_SOFT}`} aria-label="Previous">
+              <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <button onClick={goToNext} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm z-20 border border-gray-100" aria-label="Next">
-              <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <button type="button" onClick={goToNext} className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm z-20 border border-gray-100 ${PRESSABLE_ICON_BTN_SOFT}`} aria-label="Next">
+              <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
             </button>
           </>
         )}

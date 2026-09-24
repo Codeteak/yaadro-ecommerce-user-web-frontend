@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useOrderDetail } from '../../../hooks/useOrders';
 import { useRequireAuth } from '../../../hooks/useRequireAuth';
+import GuestAuthPrompt from '../../../components/GuestAuthPrompt';
 import {
   isHttpTrackingUrl,
   markTrackingOpenedThisSession,
@@ -56,7 +57,7 @@ function TrackPageSkeleton() {
 function OrderTrackContent() {
   const searchParams = useSearchParams();
   const orderId = String(searchParams?.get('id') || '').trim();
-  const { ok, ready } = useRequireAuth();
+  const { ok, ready } = useRequireAuth({ mode: 'prompt' });
   const {
     data: order,
     isLoading,
@@ -83,8 +84,23 @@ function OrderTrackContent() {
     setIframeFailed(false);
   }, [trackingUrl]);
 
-  // Guests: useRequireAuth → home; keep skeleton while redirecting.
-  if (!ready || !ok) return <TrackPageSkeleton />;
+  // Guests: stay on page and ask to sign in (do not dump to home).
+  if (!ready) return <TrackPageSkeleton />;
+  if (!ok) {
+    const returnPath = orderId
+      ? `/order/track?id=${encodeURIComponent(orderId)}`
+      : '/orders';
+    return (
+      <GuestAuthPrompt
+        pageTitle="Live tracking"
+        description="Sign in to view live delivery tracking for your order."
+        loginReturnPath={returnPath}
+        backHref="/"
+        fallbackHref="/"
+        homeLabel="Continue shopping"
+      />
+    );
+  }
 
   if (!orderId) {
     return (

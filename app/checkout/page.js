@@ -47,10 +47,11 @@ import ConfirmModal from "../../components/ConfirmModal";
 import CheckoutPageSkeleton from "../../components/skeletons/CheckoutPageSkeleton";
 import OfferGroupCard from "../../components/promotions/OfferGroupCard";
 import CouponThresholdBanner from "../../components/promotions/CouponThresholdBanner";
-import { BRAND_PRIMARY_BTN } from "../../components/ui/brandButton";
+import { BRAND_PRIMARY_BTN, PRESSABLE_ICON_BTN_SOFT } from "../../components/ui/brandButton";
 import { formatAddressDisplay } from "../../utils/formatAddress";
 import { AddressCardSkeleton } from "../../components/skeletons/primitives";
 import { useLayoutHeights } from "../../context/LayoutHeightsContext";
+import { buildSuggestedProductSections } from "../../utils/suggestedProducts";
 
 function isAddressNotServiceableError(err) {
   const code = getApiErrorCode(err) || err?.code;
@@ -649,51 +650,47 @@ export default function CheckoutPage() {
     [similarPoolData?.products],
   );
 
-  const cartProductIds = useMemo(
-    () =>
-      new Set(
-        cartItems
-          .map((item) => item.productId ?? item.product?.id ?? item.id)
-          .filter((id) => id != null)
-          .map((id) => String(id)),
-      ),
-    [cartItems],
-  );
-
-  /** “You might also like” above order summary; other slices below delivery notes. */
+  /**
+   * “You might also like” above order summary; other slices below delivery notes.
+   * Do not exclude in-cart products — ProductCard must stay mounted to show qty controls.
+   */
   const { checkoutMightLikeSection, checkoutCarouselsBelowNotes } =
     useMemo(() => {
-      const list = similarPool.filter(
-        (p) => p?.id != null && !cartProductIds.has(String(p.id)),
-      );
+      const sections = buildSuggestedProductSections(similarPool, {
+        sections: [
+          {
+            key: "checkout-might-like",
+            title: "You might also like",
+            description: "Add a few more items before you check out.",
+            start: 0,
+            end: 8,
+          },
+          {
+            key: "checkout-trending",
+            title: "Trending picks",
+            description: "Popular choices shoppers add with their orders.",
+            start: 8,
+            end: 16,
+          },
+          {
+            key: "checkout-more",
+            title: "More to explore",
+            description: "Recently listed items worth a quick look.",
+            start: 16,
+            end: 24,
+          },
+        ],
+      });
       const mightLike =
-        list.length > 0
-          ? {
-              key: "checkout-might-like",
-              title: "You might also like",
-              description: "Add a few more items before you check out.",
-              products: list.slice(0, 8),
-            }
-          : null;
-      const belowNotes = [
-        {
-          key: "checkout-trending",
-          title: "Trending picks",
-          description: "Popular choices shoppers add with their orders.",
-          products: list.slice(8, 16),
-        },
-        {
-          key: "checkout-more",
-          title: "More to explore",
-          description: "Recently listed items worth a quick look.",
-          products: list.slice(16, 24),
-        },
-      ].filter((s) => s.products.length > 0);
+        sections.find((s) => s.key === "checkout-might-like") || null;
+      const belowNotes = sections.filter(
+        (s) => s.key !== "checkout-might-like",
+      );
       return {
         checkoutMightLikeSection: mightLike,
         checkoutCarouselsBelowNotes: belowNotes,
       };
-    }, [similarPool, cartProductIds]);
+    }, [similarPool]);
 
   const bottomBarPricing = useMemo(
     () => getCartBottomBarPricing(cartItems, displayCartTotal),
@@ -1095,7 +1092,7 @@ export default function CheckoutPage() {
         <div className="flex items-center gap-3 px-4 py-3.5">
           <Link
             href="/cart"
-            className="w-9 h-9 rounded-full border border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0"
+            className={`w-9 h-9 rounded-full border border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0 ${PRESSABLE_ICON_BTN_SOFT}`}
             aria-label="Back to cart"
           >
             <svg

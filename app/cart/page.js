@@ -33,8 +33,12 @@ import CheckoutCouponsSection from "../../components/CheckoutCouponsSection";
 import CartPageSkeleton from "../../components/skeletons/CartPageSkeleton";
 import OfferGroupCard from "../../components/promotions/OfferGroupCard";
 import CouponThresholdBanner from "../../components/promotions/CouponThresholdBanner";
-import { BRAND_CHECKOUT_BTN } from "../../components/ui/brandButton";
+import { BRAND_CHECKOUT_BTN, PRESSABLE_ICON_BTN_SOFT, PRESSABLE_BTN } from "../../components/ui/brandButton";
 import { useLayoutHeights } from "../../context/LayoutHeightsContext";
+import {
+  buildSuggestedProducts,
+  buildSuggestedProductSections,
+} from "../../utils/suggestedProducts";
 
 /* ─────────────────────────────────────────────
    Sub-components
@@ -48,7 +52,7 @@ function TopBar({ itemCount, onBack }) {
       <button
         type="button"
         onClick={onBack}
-        className="w-9 h-9 rounded-full border border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0"
+        className={`w-9 h-9 rounded-full border border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0 ${PRESSABLE_ICON_BTN_SOFT}`}
         aria-label="Back"
       >
         <svg
@@ -56,6 +60,7 @@ function TopBar({ itemCount, onBack }) {
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
+          aria-hidden
         >
           <path
             strokeLinecap="round"
@@ -87,8 +92,9 @@ function ActionButton({ onClick, variant = "default", icon, children }) {
   };
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium border transition ${variants[variant]}`}
+      className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium border ${PRESSABLE_BTN} ${variants[variant]}`}
     >
       {icon && <span className="w-3.5 h-3.5">{icon}</span>}
       {children}
@@ -552,17 +558,6 @@ function CartPageContent() {
     [similarPoolData?.products],
   );
 
-  const cartProductIds = useMemo(
-    () =>
-      new Set(
-        cartItems
-          .map((item) => item.productId ?? item.product?.id ?? item.id)
-          .filter((id) => id != null)
-          .map((id) => String(id)),
-      ),
-    [cartItems],
-  );
-
   const cartCategoryNames = useMemo(() => {
     const names = new Set();
     cartItems.forEach((item) => {
@@ -588,43 +583,39 @@ function CartPageContent() {
     [cartItems, displayCartTotal],
   );
 
-  const similarProducts = useMemo(() => {
-    if (similarPool.length === 0) return [];
-    const candidates = similarPool.filter(
-      (p) => p?.id != null && !cartProductIds.has(String(p.id)),
-    );
-    if (cartCategoryNames.size === 0) return candidates.slice(0, 12);
-    const matchesCart = (p) => {
-      const pc = (p?.category?.name ?? p?.category ?? p?.categoryName ?? "")
-        .toString()
-        .trim()
-        .toLowerCase();
-      return pc && cartCategoryNames.has(pc);
-    };
-    const priority = candidates.filter(matchesCart);
-    const others = candidates.filter((p) => !matchesCart(p));
-    return [...priority, ...others].slice(0, 12);
-  }, [similarPool, cartProductIds, cartCategoryNames]);
+  // Keep in-cart products in the list so ProductCard can show − / qty / + after Add.
+  const similarProducts = useMemo(
+    () =>
+      buildSuggestedProducts(similarPool, {
+        limit: 12,
+        categoryNames: cartCategoryNames,
+      }),
+    [similarPool, cartCategoryNames],
+  );
 
   /** Two non-overlapping carousels below empty-cart CTA (same catalog pool as Similar Products). */
-  const emptyCartCarouselSections = useMemo(() => {
-    const list = similarPool.filter((p) => p?.id != null);
-    if (list.length === 0) return [];
-    return [
-      {
-        key: "empty-picks-1",
-        title: "You might like",
-        description: "Popular picks you can add anytime.",
-        products: list.slice(0, 8),
-      },
-      {
-        key: "empty-picks-2",
-        title: "More to explore",
-        description: "Recently listed items worth a look.",
-        products: list.slice(8, 16),
-      },
-    ];
-  }, [similarPool]);
+  const emptyCartCarouselSections = useMemo(
+    () =>
+      buildSuggestedProductSections(similarPool, {
+        sections: [
+          {
+            key: "empty-picks-1",
+            title: "You might like",
+            description: "Popular picks you can add anytime.",
+            start: 0,
+            end: 8,
+          },
+          {
+            key: "empty-picks-2",
+            title: "More to explore",
+            description: "Recently listed items worth a look.",
+            start: 8,
+            end: 16,
+          },
+        ],
+      }),
+    [similarPool],
+  );
 
   const handleProceedToCheckout = () => {
     if (!authHydrated) return;

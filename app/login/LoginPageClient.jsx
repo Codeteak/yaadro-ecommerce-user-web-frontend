@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import LoginPanel from '../../components/LoginPanel';
 import { ArrowLeftRegular as ArrowLeft } from '../../components/icons';
+import { PRESSABLE_ICON_BTN_SOFT, PRESSABLE_BTN } from '../../components/ui/brandButton';
 import {
   sanitizeInternalPath,
   setPostLoginRedirect,
@@ -41,7 +42,7 @@ export default function LoginPageClient() {
         <button
           type="button"
           onClick={() => router.back()}
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-gray-200/80 bg-white/80 text-gray-700 shadow-[0_2px_10px_rgba(16,24,40,0.04)] backdrop-blur-sm transition hover:bg-white"
+          className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-gray-200/80 bg-white/80 text-gray-700 shadow-[0_2px_10px_rgba(16,24,40,0.04)] backdrop-blur-sm hover:bg-white ${PRESSABLE_ICON_BTN_SOFT}`}
           aria-label="Go back"
         >
           <ArrowLeft size={18} className="h-[18px] w-[18px]" aria-hidden />
@@ -54,7 +55,7 @@ export default function LoginPageClient() {
         </div>
         <Link
           href="/"
-          className="whitespace-nowrap text-[13px] font-semibold text-[#902bf5] transition hover:text-[#7d24d6]"
+          className={`whitespace-nowrap text-[13px] font-semibold text-[#902bf5] hover:text-[#7d24d6] ${PRESSABLE_BTN}`}
         >
           Home
         </Link>
