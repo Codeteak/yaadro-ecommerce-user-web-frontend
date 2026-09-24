@@ -1,10 +1,10 @@
 import { Bone, CartLineSkeleton, CartTopBarSkeleton, ProductCarouselRowSkeleton } from './primitives';
 
-/** Matches `/cart` — top bar, line items, summary, sticky checkout bar. */
+/** Matches `/cart` — items → suggestions → summary → sticky checkout. */
 export default function CartPageSkeleton() {
   return (
     <div
-      className="min-h-screen w-full max-w-full overflow-x-hidden bg-gray-50 pb-32"
+      className="min-h-screen w-full max-w-full overflow-x-hidden bg-gray-50 pb-40"
       aria-busy="true"
       aria-label="Loading cart"
     >
@@ -15,15 +15,15 @@ export default function CartPageSkeleton() {
         {[0, 1, 2].map((i) => (
           <CartLineSkeleton key={i} />
         ))}
-
-        <div className="mt-6 space-y-4">
-          <Bone className="h-10 w-full max-w-[280px] rounded-lg" />
-          <Bone className="h-4 w-40 rounded" />
-          <ProductCarouselRowSkeleton count={5} />
-        </div>
       </div>
 
-      <div className="mx-auto mt-4 max-w-screen-xl px-4">
+      <div className="mt-4 border-t border-gray-100/80 px-4 pt-5">
+        <Bone className="mb-2 h-6 w-40 rounded-lg" />
+        <Bone className="mb-4 h-3 w-48 rounded" />
+        <ProductCarouselRowSkeleton count={5} />
+      </div>
+
+      <div className="mx-auto mt-6 max-w-screen-xl px-4 pb-4">
         <div className="rounded-2xl border border-gray-100 bg-white p-4 animate-pulse">
           <Bone className="mb-3 h-3 w-24 rounded" />
           <div className="space-y-2">
@@ -45,10 +45,10 @@ export default function CartPageSkeleton() {
       </div>
 
       <div
-        className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-100 bg-white/95 px-4 py-3 backdrop-blur-md"
-        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+        className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200/80 bg-white shadow-[0_-8px_32px_rgba(15,23,42,0.1)]"
+        style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 px-4 py-3">
           <div className="min-w-0 flex-1 space-y-1.5">
             <Bone className="h-3 w-10 rounded" />
             <Bone className="h-6 w-24 rounded" />

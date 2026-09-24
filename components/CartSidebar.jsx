@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useMemo } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { useEffect, useMemo } from 'react';
 import { useDrag } from '@use-gesture/react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -11,8 +11,13 @@ import { buildCartOfferGroups } from '../utils/offerDisplay';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import OfferGroupCard from './promotions/OfferGroupCard';
 
+function normalizePath(pathname) {
+  return pathname?.replace(/\/+$/, '') || '';
+}
+
 export default function CartSidebar() {
   const router = useRouter();
+  const pathname = usePathname();
   const { cartItems, cartTotal, showSidebarCart, setShowSidebarCart, updateQuantity, removeFromCart } =
     useCart();
   const { isAuthenticated, authHydrated } = useAuth();
@@ -21,6 +26,14 @@ export default function CartSidebar() {
   const offerGroups = useMemo(() => buildCartOfferGroups(cartItems), [cartItems]);
 
   const handleClose = () => setShowSidebarCart(false);
+
+  // Full cart/checkout pages already own the journey — keep the drawer closed there.
+  useEffect(() => {
+    const path = normalizePath(pathname);
+    if (path === '/cart' || path === '/checkout') {
+      setShowSidebarCart(false);
+    }
+  }, [pathname, setShowSidebarCart]);
 
   const bindDrag = useDrag(
     ({ movement: [mx], velocity: [vx], last }) => {
@@ -61,6 +74,7 @@ export default function CartSidebar() {
           showSidebarCart ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={handleClose}
+        aria-hidden={!showSidebarCart}
       />
 
       <aside
@@ -68,6 +82,8 @@ export default function CartSidebar() {
         className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-white z-[95] shadow-lg transition-transform duration-300 flex flex-col touch-pan-y ${
           showSidebarCart ? 'translate-x-0' : 'translate-x-full'
         }`}
+        aria-hidden={!showSidebarCart}
+        {...(!showSidebarCart ? { inert: true } : {})}
       >
         <div className="px-6 py-5 flex items-center justify-between border-b border-gray-100">
           <h2 className="text-base font-medium text-gray-900">Shopping Cart</h2>

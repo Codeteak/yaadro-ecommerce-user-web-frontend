@@ -96,6 +96,17 @@ function ActionButton({ onClick, variant = "default", icon, children }) {
   );
 }
 
+function PriceMayVaryNotice({ className = "" }) {
+  return (
+    <p
+      role="note"
+      className={`rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-[12px] font-medium leading-snug text-amber-900/90 ${className}`}
+    >
+      Price may vary
+    </p>
+  );
+}
+
 function SummaryCard({
   cartItems,
   cartTotal,
@@ -124,12 +135,12 @@ function SummaryCard({
   const lumpDiscount = !hasSplit && savings > 0.009 ? savings : 0;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-4 mx-4 mb-3">
+    <div className="bg-white rounded-2xl border border-gray-100 p-4">
       <SectionLabel>Order summary</SectionLabel>
       <div className="space-y-0 divide-y divide-gray-100 text-[13px]">
         <div className="flex justify-between py-2.5 text-gray-500">
           <span>Subtotal ({totalQty} items)</span>
-          <span className="font-medium text-gray-900">
+          <span className="font-medium text-gray-900 tabular-nums">
             ₹{mrpTotal.toLocaleString("en-IN")}
           </span>
         </div>
@@ -142,7 +153,7 @@ function SummaryCard({
         {saleSavings > 0.009 && (
           <div className="flex justify-between py-2.5 text-gray-500">
             <span>Sale price savings</span>
-            <span className="font-medium text-violet-700">
+            <span className="font-medium text-violet-700 tabular-nums">
               −₹{saleSavings.toLocaleString("en-IN")}
             </span>
           </div>
@@ -150,7 +161,7 @@ function SummaryCard({
         {bundleDiscount > 0.009 && (
           <div className="flex justify-between py-2.5 text-gray-500">
             <span>Free items (buy more, get free)</span>
-            <span className="font-medium text-violet-700">
+            <span className="font-medium text-violet-700 tabular-nums">
               −₹{bundleDiscount.toLocaleString("en-IN")}
             </span>
           </div>
@@ -158,7 +169,7 @@ function SummaryCard({
         {autoCartDiscount > 0.009 && (
           <div className="flex justify-between py-2.5 text-gray-500">
             <span>Automatic cart discount</span>
-            <span className="font-medium text-violet-700">
+            <span className="font-medium text-violet-700 tabular-nums">
               −₹{autoCartDiscount.toLocaleString("en-IN")}
             </span>
           </div>
@@ -166,7 +177,7 @@ function SummaryCard({
         {couponDiscount > 0.009 && (
           <div className="flex justify-between py-2.5 text-gray-500">
             <span>Coupon</span>
-            <span className="font-medium text-violet-700">
+            <span className="font-medium text-violet-700 tabular-nums">
               −₹{couponDiscount.toLocaleString("en-IN")}
             </span>
           </div>
@@ -174,32 +185,66 @@ function SummaryCard({
         {lumpDiscount > 0 && (
           <div className="flex justify-between py-2.5 text-gray-500">
             <span>Offers & discounts</span>
-            <span className="font-medium text-violet-700">
+            <span className="font-medium text-violet-700 tabular-nums">
               −₹{lumpDiscount.toLocaleString("en-IN")}
             </span>
           </div>
         )}
         <div className="flex justify-between pt-3 pb-1 text-[15px] font-medium text-gray-900">
           <span>Total</span>
-          <span>₹{cartTotal.toLocaleString("en-IN")}</span>
+          <span className="tabular-nums">
+            ₹{cartTotal.toLocaleString("en-IN")}
+          </span>
         </div>
       </div>
-      <marquee
-        className="mt-2 block w-full rounded-md bg-red-600 py-1.5 text-[12px] font-medium tracking-wide text-white"
-        scrollAmount={4}
-      >
-        {Array.from({ length: 16 }, () => "Price may vary").join(
-          "        ·        ",
-        )}
-      </marquee>
+      <PriceMayVaryNotice className="mt-3" />
     </div>
+  );
+}
+
+function SimilarProductsSection({ products }) {
+  if (!products?.length) return null;
+  return (
+    <section className="px-4 pt-2 pb-2" aria-label="Similar products">
+      <div className="mb-3">
+        <h2 className="text-lg font-semibold tracking-tight text-gray-900 sm:text-xl">
+          Similar Products
+        </h2>
+        <p className="mt-1 text-[13px] text-gray-500">
+          You might also like these picks.
+        </p>
+      </div>
+      <ProductCarousel products={products} showMoreLink="/products" />
+      <div className="mt-3 flex justify-center">
+        <Link
+          href="/products"
+          className="inline-flex items-center gap-1.5 text-[12px] font-medium text-violet-700 transition hover:text-violet-800"
+        >
+          <span>See all</span>
+          <svg
+            className="h-3.5 w-3.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        </Link>
+      </div>
+    </section>
   );
 }
 
 function SavedCartsSection({ savedCarts, onLoad, onDelete }) {
   if (!savedCarts?.length) return null;
   return (
-    <div className="mx-4 mb-3 bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
         <p className="text-[13px] font-medium text-gray-900">Saved carts</p>
         <span className="text-[11px] text-gray-400">
@@ -502,7 +547,10 @@ function CartPageContent() {
     sort_by: "created_at",
     sort_order: "desc",
   });
-  const similarPool = similarPoolData?.products || [];
+  const similarPool = useMemo(
+    () => similarPoolData?.products || [],
+    [similarPoolData?.products],
+  );
 
   const cartProductIds = useMemo(
     () =>
@@ -605,7 +653,24 @@ function CartPageContent() {
 
   return (
     <div
-      className={`min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden ${cartItems.length > 0 ? "pb-32" : "pb-28"}`}
+      className={`min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden ${
+        cartItems.length > 0
+          ? orderSavings > 0
+            ? "pb-36"
+            : "pb-28"
+          : "pb-8"
+      }`}
+      style={
+        cartItems.length > 0
+          ? {
+              // Keep scroll-into-view / last summary lines above the fixed checkout bar.
+              scrollPaddingBottom:
+                orderSavings > 0
+                  ? "calc(7.5rem + env(safe-area-inset-bottom, 0px))"
+                  : "calc(5.5rem + env(safe-area-inset-bottom, 0px))",
+            }
+          : undefined
+      }
     >
       <TopBar itemCount={totalQty} onBack={handleBack} />
 
@@ -613,8 +678,8 @@ function CartPageContent() {
         <EmptyCart carouselSections={emptyCartCarouselSections} />
       ) : (
         <>
-          {/* Cart items */}
-          <div className="px-4 pt-4 space-y-2.5 mb-4">
+          {/* 1. Cart items */}
+          <div className="px-4 pt-4 space-y-2.5">
             <SectionLabel>Items</SectionLabel>
             {couponThresholdHint ? (
               <CouponThresholdBanner hint={couponThresholdHint} />
@@ -628,7 +693,6 @@ function CartPageContent() {
               />
             ))}
 
-            {/* Add more items — full-width CTA */}
             <Link
               href="/products"
               className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-violet-300 bg-violet-50/40 px-4 py-3 text-[13px] font-semibold text-violet-800 transition hover:border-violet-500 hover:bg-violet-50 active:scale-[0.99]"
@@ -650,7 +714,6 @@ function CartPageContent() {
               Add more items
             </Link>
 
-            {/* Action buttons */}
             <div className="flex flex-wrap gap-2 pt-1">
               <ActionButton
                 onClick={clearCart}
@@ -662,7 +725,7 @@ function CartPageContent() {
             </div>
 
             {isAuthenticated && (
-              <div className="pt-4">
+              <div className="pt-4 pb-2">
                 <CheckoutCouponsSection
                   cartSubtotalMinor={cartSubtotalMinor}
                   selectedCouponCode={selectedCouponCode}
@@ -687,88 +750,59 @@ function CartPageContent() {
                 />
               </div>
             )}
-
-            {/* Similar products — suggestions based on cart contents (or random fallback) */}
-            {similarProducts.length > 0 && (
-              <section className="mt-6" aria-label="Similar products">
-                <div className="mb-4">
-                  <div>
-                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
-                      Similar Products
-                    </h2>
-                    <p className="mt-2 text-[13px] md:text-sm text-gray-500">
-                      You might also like these picks.
-                    </p>
-                  </div>
-                </div>
-                <ProductCarousel
-                  products={similarProducts}
-                  showMoreLink="/products"
-                />
-                <div className="mt-4 flex justify-center">
-                  <Link
-                    href="/products"
-                    className="inline-flex items-center gap-2 text-[12px] font-medium text-violet-700 hover:text-violet-800 transition"
-                  >
-                    <span>See all</span>
-                    <svg
-                      className="h-3.5 w-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-hidden
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </Link>
-                </div>
-              </section>
-            )}
           </div>
 
-          {/* Order summary */}
-          <SummaryCard
-            cartItems={cartItems}
-            cartTotal={displayCartTotal}
-            totalQty={totalQty}
-            couponDiscount={couponDiscountMajor}
-            autoCartDiscount={autoCartDiscountMajor}
-            bundleDiscount={bundleDiscountMajor}
-            linePromoDiscount={
-              couponPreviewTrusted && cartData?.linePromoDiscountMinor > 0
-                ? minorToMajor(cartData.linePromoDiscountMinor)
-                : couponPreviewTrusted &&
-                    cartData?.promotions?.auto?.linePromoDiscountMinor > 0
-                  ? minorToMajor(
-                      cartData.promotions.auto.linePromoDiscountMinor,
-                    )
-                  : 0
-            }
-          />
+          {/* 2. Suggested products (above order summary) — omit shell when empty */}
+          {similarProducts.length > 0 ? (
+            <div className="mt-4 border-t border-gray-100 bg-gray-50/80 pt-4">
+              <SimilarProductsSection products={similarProducts} />
+            </div>
+          ) : null}
 
-          {/* Saved carts */}
-          <SavedCartsSection
-            savedCarts={savedCarts}
-            onLoad={loadSavedCart}
-            onDelete={(id) => setDeleteCartConfirm(id)}
-          />
+          {/* 3. Order summary → leads into sticky checkout action */}
+          <section
+            className="mt-3 space-y-3 px-4 pb-2"
+            aria-label="Order summary"
+          >
+            <SummaryCard
+              cartItems={cartItems}
+              cartTotal={displayCartTotal}
+              totalQty={totalQty}
+              couponDiscount={couponDiscountMajor}
+              autoCartDiscount={autoCartDiscountMajor}
+              bundleDiscount={bundleDiscountMajor}
+              linePromoDiscount={
+                couponPreviewTrusted && cartData?.linePromoDiscountMinor > 0
+                  ? minorToMajor(cartData.linePromoDiscountMinor)
+                  : couponPreviewTrusted &&
+                      cartData?.promotions?.auto?.linePromoDiscountMinor > 0
+                    ? minorToMajor(
+                        cartData.promotions.auto.linePromoDiscountMinor,
+                      )
+                    : 0
+              }
+            />
+
+            <SavedCartsSection
+              savedCarts={savedCarts}
+              onLoad={loadSavedCart}
+              onDelete={(id) => setDeleteCartConfirm(id)}
+            />
+          </section>
         </>
       )}
 
-      {/* ── Sticky bottom bar (savings strip + checkout row) ── */}
+      {/* 4. Sticky checkout action (savings + total + CTA) */}
       {cartItems.length > 0 && (
         <div
-          className="fixed left-0 right-0 z-50 flex flex-col border-t border-gray-100 bg-white/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(15,23,42,0.06)]"
+          className="fixed inset-x-0 z-50 flex flex-col overflow-hidden border-t border-gray-200/80 bg-white shadow-[0_-8px_32px_rgba(15,23,42,0.1)]"
           style={{ bottom: Math.max(Number(siteFooterHeight) || 0, 0) }}
+          role="region"
+          aria-label="Checkout"
         >
           {orderSavings > 0 && (
             <div
-              className="flex items-center justify-center gap-1.5 border-b border-white/15 px-3 py-2 text-center"
+              className="flex items-center justify-center gap-1.5 px-3 py-2 text-center"
               style={{ backgroundColor: "#902bf5" }}
             >
               <svg
@@ -793,7 +827,9 @@ function CartPageContent() {
           )}
           <div
             className="flex items-center gap-3 px-4 py-3"
-            style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+            style={{
+              paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+            }}
           >
             <div className="min-w-0 flex-1">
               <p className="text-[11px] text-gray-400">Total</p>
@@ -802,24 +838,16 @@ function CartPageContent() {
                   ₹{bottomBarPricing.payable.toLocaleString("en-IN")}
                 </p>
                 {bottomBarPricing.hasOffer && (
-                  <>
-                    <p className="text-sm text-gray-400 line-through tabular-nums">
-                      ₹{bottomBarPricing.mrpTotal.toLocaleString("en-IN")}
-                    </p>
-                    <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-800">
-                      Save ₹
-                      {Math.round(bottomBarPricing.savings).toLocaleString(
-                        "en-IN",
-                      )}
-                    </span>
-                  </>
+                  <p className="text-sm text-gray-400 line-through tabular-nums">
+                    ₹{bottomBarPricing.mrpTotal.toLocaleString("en-IN")}
+                  </p>
                 )}
               </div>
             </div>
             <Button
               variant="primary"
               onPress={handleProceedToCheckout}
-              className={`flex h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap ${BRAND_CHECKOUT_BTN} active:scale-[0.98]`}
+              className={`flex h-11 min-w-[44%] flex-1 items-center justify-center gap-2 whitespace-nowrap ${BRAND_CHECKOUT_BTN} active:scale-[0.98]`}
             >
               Checkout
               <svg
@@ -827,6 +855,7 @@ function CartPageContent() {
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden
               >
                 <path
                   strokeLinecap="round"
