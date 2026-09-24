@@ -12,6 +12,7 @@ import { cartKeys } from '../../hooks/useCart';
 import { useAlert } from '../../context/AlertContext';
 import BrowsePageHeader from '../../components/BrowsePageHeader';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
+import GuestAuthPrompt from '../../components/GuestAuthPrompt';
 import ProductCarousel from '../../components/ProductCarousel';
 import InfiniteScrollSentinel from '../../components/InfiniteScrollSentinel';
 import EarlyPrefetchSentinel from '../../components/orders/EarlyPrefetchSentinel';
@@ -49,7 +50,7 @@ export default function OrdersPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { isAuthenticated } = useAuth();
-  const { ok, ready } = useRequireAuth();
+  const { ok, ready } = useRequireAuth({ mode: 'prompt' });
   const {
     data: ordersInfinite,
     isLoading,
@@ -312,9 +313,21 @@ export default function OrdersPage() {
 
   const onSearchOpenToggle = useCallback(() => setSearchOpen((v) => !v), []);
 
-  // Guests: useRequireAuth → home; keep skeleton while redirecting.
-  if (!ready || !ok) {
+  // Guests: stay on page and ask to sign in (do not dump to home).
+  if (!ready) {
     return <OrdersPageSkeleton />;
+  }
+  if (!ok) {
+    return (
+      <GuestAuthPrompt
+        pageTitle="Your Orders"
+        description="Sign in to view your order history and reorder past purchases."
+        loginReturnPath="/orders"
+        backHref="/"
+        fallbackHref="/"
+        homeLabel="Continue shopping"
+      />
+    );
   }
 
   return (

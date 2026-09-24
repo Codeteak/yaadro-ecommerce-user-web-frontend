@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { ArrowLeftRegular as ChevronLeft } from './icons';
 import { usePageTitle } from '../context/ShopBrandingContext';
+import IconBackButton from './ui/IconBackButton';
 
 export default function PageTopBar({ title, subtitle, backHref, fallbackHref = '/', right = null }) {
   const router = useRouter();
@@ -21,28 +22,27 @@ export default function PageTopBar({ title, subtitle, backHref, fallbackHref = '
   };
 
   return (
-    <div className="w-full bg-white/95 backdrop-blur border-b border-gray-200">
-      <div className="mx-auto w-full max-w-6xl px-3 sm:px-4 pt-[env(safe-area-inset-top)]">
+    <div className="w-full border-b border-gray-200 bg-white/95 backdrop-blur">
+      <div className="mx-auto w-full max-w-6xl px-3 pt-[env(safe-area-inset-top)] sm:px-4">
         <div
           className={`flex items-center justify-between ${subtitle ? 'py-1.5 sm:py-2' : 'h-12 min-h-[3rem] sm:h-14 sm:min-h-0'}`}
         >
-          <button
-            type="button"
-            onClick={handleBack}
-            className="w-10 h-10 rounded-xl hover:bg-gray-100 flex items-center justify-center"
-            aria-label="Back"
-          >
-            <ChevronLeft size={24} className="w-6 h-6 text-gray-800" />
-          </button>
+          <IconBackButton onClick={handleBack} className="hover:bg-gray-100">
+            <ChevronLeft size={24} className="h-6 w-6 text-gray-800" aria-hidden />
+          </IconBackButton>
 
-          <div className="flex-1 px-2 sm:px-3 text-center min-w-0">
-            <div className="text-sm sm:text-base font-extrabold text-gray-900 truncate">{title}</div>
+          <div className="min-w-0 flex-1 px-2 text-center sm:px-3">
+            <div className="truncate text-sm font-extrabold text-gray-900 sm:text-base">
+              {title}
+            </div>
             {subtitle ? (
-              <div className="text-[11px] sm:text-xs text-gray-500 mt-0.5 truncate">{subtitle}</div>
+              <div className="mt-0.5 truncate text-[11px] text-gray-500 sm:text-xs">
+                {subtitle}
+              </div>
             ) : null}
           </div>
 
-          <div className="w-10 h-10 flex items-center justify-center">{right}</div>
+          <div className="flex h-10 w-10 items-center justify-center">{right}</div>
         </div>
       </div>
     </div>

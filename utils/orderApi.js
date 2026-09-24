@@ -992,7 +992,6 @@ function normalizeDeliveryAddress(apiOrder) {
     "address_line2",
     "addressLine2",
     "address_line_2",
-    "landmark",
   );
   const fullName = pick(
     "fullName",
@@ -1062,14 +1061,15 @@ export function hasOrderDisplayAddress(addr) {
 
 export function savedAddressToOrderAddress(saved) {
   if (!saved || typeof saved !== "object") return {};
+  // Keep line1 / line2 atomic — do not join into street while also exporting line2
+  // (that caused "line1, line2" + line2 duplicate lines on order detail).
   const line1 = String(saved.line1 || saved.street || saved.address || "").trim();
   const line2 = String(saved.line2 || "").trim();
-  const street = [line1, line2].filter(Boolean).join(", ");
   return {
     fullName: String(saved.fullName || saved.name || "").trim(),
     name: String(saved.fullName || saved.name || "").trim(),
-    street,
-    address: street || line1,
+    street: line1,
+    address: line1,
     line1,
     line2,
     city: String(saved.city || saved.area || "").trim(),

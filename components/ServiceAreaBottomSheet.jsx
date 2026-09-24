@@ -20,6 +20,7 @@ import { getDefaultMapCenter, reverseGeocode } from '../utils/geocoding';
 import { getStoreCoordinates } from '../utils/storeLocation';
 import { buildMapStreetArea } from '../utils/formatAddress';
 import AnimatedSheet from './motion/AnimatedSheet';
+import { PRESSABLE_ICON_BTN_SOFT } from './ui/brandButton';
 
 const AddressMapPicker = dynamic(() => import('./AddressMapPicker'), {
   ssr: false,
@@ -399,7 +400,7 @@ function SheetBody({
           <button
             type="button"
             onClick={onCloseMapMode}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-700 hover:bg-gray-50"
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-700 hover:bg-gray-50 ${PRESSABLE_ICON_BTN_SOFT}`}
             aria-label="Back"
           >
             <ArrowLeft size={16} className="h-4 w-4" />
@@ -504,7 +505,7 @@ function SheetBody({
         <button
           type="button"
           onClick={onClose}
-          className="p-2 -mr-2 text-gray-500 hover:text-gray-800 rounded-full hover:bg-gray-100"
+          className={`p-2 -mr-2 text-gray-500 hover:text-gray-800 rounded-full ${PRESSABLE_ICON_BTN_SOFT}`}
           aria-label="Close"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

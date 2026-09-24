@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useOrderDetail } from "../../../hooks/useOrders";
 import { useRequireAuth } from "../../../hooks/useRequireAuth";
+import GuestAuthPrompt from "../../../components/GuestAuthPrompt";
 import { useProductWithRelated } from "../../../hooks/useProducts";
 import { useCart } from "../../../context/CartContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -15,6 +16,8 @@ import ProductCarousel from "../../../components/ProductCarousel";
 import ProductImageWithFallback from "../../../components/ProductImageWithFallback";
 import FloatingViewCartPill from "../../../components/FloatingViewCartPill";
 import OrderDetailPageSkeleton from "../../../components/skeletons/OrderDetailPageSkeleton";
+import IconBackButton from "../../../components/ui/IconBackButton";
+import { PRESSABLE_BTN } from "../../../components/ui/brandButton";
 import {
   getResolvedProductImageUrls,
   PRODUCT_IMAGE_PLACEHOLDER,
@@ -883,7 +886,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
   const queryClient = useQueryClient();
   const resolvedOrderId =
     orderIdProp != null ? String(orderIdProp).trim() : params.id;
-  const { ok, ready } = useRequireAuth();
+  const { ok, ready } = useRequireAuth({ mode: "prompt" });
   const {
     data: order,
     isLoading,
@@ -1003,9 +1006,24 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
     };
   }, []);
 
-  // Guests: useRequireAuth → home; keep skeleton while redirecting.
-  if (!ready || !ok) {
+  // Guests: stay on page and ask to sign in (do not dump to home).
+  if (!ready) {
     return <OrderDetailPageSkeleton />;
+  }
+  if (!ok) {
+    const returnPath = resolvedOrderId
+      ? `/order?id=${encodeURIComponent(resolvedOrderId)}`
+      : "/orders";
+    return (
+      <GuestAuthPrompt
+        pageTitle="Order details"
+        description="Sign in to view this order and track its progress."
+        loginReturnPath={returnPath}
+        backHref="/"
+        fallbackHref="/"
+        homeLabel="Continue shopping"
+      />
+    );
   }
 
   if (isLoading) return <OrderDetailPageSkeleton />;
@@ -1147,13 +1165,12 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
       <div className="min-h-svh bg-gray-50 pb-28">
         <div className="mx-auto max-w-[480px]">
           <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-100 bg-white px-4 py-3.5">
-            <button
-              type="button"
+            <IconBackButton
               onClick={goBackFromOrderDetail}
-              className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700"
+              className="h-9 w-9 rounded-full border border-gray-200 bg-white text-gray-700"
             >
               <IconBack />
-            </button>
+            </IconBackButton>
             <div className="min-w-0 flex-1">
               <p className="m-0 text-base font-medium text-gray-900">
                 Order details
@@ -1179,7 +1196,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                     onClick={() => {
                       if (order.id) markTrackingOpenedThisSession(order.id);
                     }}
-                    className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#902bf5] py-3 text-[13px] font-semibold text-white shadow-[0_8px_20px_rgba(144,43,245,0.28)] hover:bg-[#7d24d6]"
+                    className={`flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#902bf5] py-3 text-[13px] font-semibold text-white shadow-[0_8px_20px_rgba(144,43,245,0.28)] hover:bg-[#7d24d6] ${PRESSABLE_BTN}`}
                   >
                     Track live delivery
                   </Link>
@@ -1371,25 +1388,18 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
                     {addr.phone ? ` · ${addr.phone}` : ""}
                   </p>
                 )}
-                {(addr.street || addr.address || addr.line1) && (
-                  <p className="m-0 text-gray-500">
-                    {addr.street || addr.address || addr.line1}
-                  </p>
-                )}
-                {addr.line2 && (
-                  <p className="m-0 text-gray-500">{addr.line2}</p>
-                )}
-                {addr.city && (
-                  <p className="m-0 text-gray-500">{addr.city}</p>
-                )}
-                {addr.landmark && (
-                  <p className="mb-0 mt-1 text-[11px] text-gray-500">
-                    Near {addr.landmark}
-                  </p>
-                )}
-                {!hasAddress && (
-                  <p className="m-0 italic text-gray-500">No address on file</p>
-                )}
+                {(() => {
+                  const body = formatAddressDisplay(addr);
+                  if (body) {
+                    return <p className="m-0 text-gray-500">{body}</p>;
+                  }
+                  if (!hasAddress) {
+                    return (
+                      <p className="m-0 italic text-gray-500">No address on file</p>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
               <div className="grid grid-cols-2 border-t border-gray-100">
                 <div className="border-r border-gray-100 px-4 py-3">

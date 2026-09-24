@@ -29,6 +29,7 @@ import ProductImageWithFallback from './ProductImageWithFallback';
 import { getProductDetailPath } from '../utils/productApi';
 import { prefetchProductDetail } from '../hooks/useProducts';
 import { useShopBranding } from '../context/ShopBrandingContext';
+import { PRESSABLE_BTN } from './ui/brandButton';
 
 export default function ProductCard({ product, isCarousel = false, variant = 'default' }) {
   const queryClient = useQueryClient();
@@ -68,7 +69,6 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     setSelectedSize((prev) => resolveSelectedSize(availableSizes, prev));
   }, [availableSizes, product?.id, product?.price, product?.actualPriceMinor]);
 
-  const [showSizeSelector, setShowSizeSelector] = useState(false);
   const [cartActionLoading, setCartActionLoading] = useState(false);
   /** Holds stepper visible until cart context catches up (API / size-key races on mobile). */
   const [pendingCartQty, setPendingCartQty] = useState(0);
@@ -169,10 +169,9 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   const handleAddToCart = useCallback(async () => {
     if (product?.inStock === false) return;
     if (String(product?.bxgyShelfRole || '').trim() === 'get') return;
-    if (availableSizes.length > 1 && !selectedSize) {
-      setShowSizeSelector(true);
-      return;
-    }
+    // activeSize already falls back to availableSizes[0] — never gate on selectedSize
+    // alone (that left an invisible showSizeSelector path that ate the first tap).
+    if (cartActionLoading) return;
     const shelfBuy = Math.floor(Number(product?.bxgyBuyQty));
     const qtyToAdd =
       String(product?.bxgyShelfRole || '').trim() === 'buy' &&
@@ -192,8 +191,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       setCartActionLoading(false);
     }
   }, [
-    availableSizes.length,
-    selectedSize,
+    cartActionLoading,
     addToCart,
     productToAddPayload,
     addQty,
@@ -209,10 +207,6 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       if (cartActionLoading) return;
       if (String(product?.bxgyShelfRole || '').trim() === 'get') return;
       if (product?.inStock === false) return;
-      if (availableSizes.length > 1 && !selectedSize) {
-        setShowSizeSelector(true);
-        return;
-      }
       if (paidCartQty === 0 && pendingCartQty === 0) {
         setCartActionLoading(true);
         setPendingCartQty(addQty);
@@ -252,8 +246,6 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     },
     [
       cartActionLoading,
-      availableSizes.length,
-      selectedSize,
       paidCartQty,
       pendingCartQty,
       cartUpdateKey,
@@ -411,7 +403,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     setTouchEnd(null);
   };
 
-  const cardShellClass = `flex h-full flex-col overflow-hidden rounded-[20px] touch-manipulation transition-transform duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/45 ${chromeClass} ${
+  const cardShellClass = `flex h-full flex-col overflow-hidden rounded-[20px] touch-manipulation transition-transform duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/45 [@media(hover:hover)_and_(pointer:fine)]:active:scale-[0.97] ${chromeClass} ${
     isShelf || isCarousel ? 'w-[173px] max-w-[173px]' : 'w-full'
   }`;
 
@@ -501,7 +493,9 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   ) : (
     <button
       type="button"
-      onClick={() => {
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
         void handleAddToCart();
       }}
       onPointerDown={stopCartBubble}
@@ -510,7 +504,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           ? `Add ${damakaBuyQty} to cart for this offer`
           : 'Add to cart'
       }
-      className="flex h-9 min-w-[68px] items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-[#902bf5] px-4 text-[12px] font-bold uppercase leading-none tracking-[0.14em] text-white shadow-[0_8px_20px_rgba(144,43,245,0.4)] transition hover:bg-[#7d24d6] active:scale-[0.97]"
+      className="flex h-9 min-w-[68px] items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-[#902bf5] px-4 text-[12px] font-bold uppercase leading-none tracking-[0.14em] text-white shadow-[0_8px_20px_rgba(144,43,245,0.4)] transition hover:bg-[#7d24d6] active:scale-[0.97] touch-manipulation"
     >
       {shelfRole === 'buy' && damakaBuyQty > 1 ? `ADD ${damakaBuyQty}` : 'ADD'}
     </button>
@@ -662,7 +656,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
                     e.stopPropagation();
                     setSelectedSize(size);
                   }}
-                  className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-tight ${
+                  className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-tight ${PRESSABLE_BTN} ${
                     active
                       ? 'border-violet-600 bg-violet-600 text-white'
                       : 'border-gray-200 bg-white text-gray-700'

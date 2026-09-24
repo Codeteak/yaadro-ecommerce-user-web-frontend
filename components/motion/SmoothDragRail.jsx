@@ -92,6 +92,17 @@ export default function SmoothDragRail({
     const viewport = viewportRef.current;
     if (!viewport) return undefined;
     const onClickCapture = (event) => {
+      // Never suppress taps on cart / nav controls inside the rail.
+      if (
+        event.target instanceof Element &&
+        event.target.closest(
+          'button, a, input, select, textarea, label, [role="button"]'
+        )
+      ) {
+        didDragRef.current = false;
+        lastDeltaXRef.current = 0;
+        return;
+      }
       const suppress = shouldSuppressClickAfterDrag({
         didDrag: didDragRef.current,
         totalDeltaX: lastDeltaXRef.current,
@@ -173,6 +184,15 @@ export default function SmoothDragRail({
   const onPointerDown = (event) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     if (minXRef.current === 0) return;
+    // Never start a rail-drag from ADD / links — that steals the first tap.
+    if (
+      event.target instanceof Element &&
+      event.target.closest(
+        'button, a, input, select, textarea, label, [role="button"]'
+      )
+    ) {
+      return;
+    }
     killTween();
     const now = performance.now();
     pointerRef.current = {

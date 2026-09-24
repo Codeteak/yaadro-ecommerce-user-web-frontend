@@ -11,8 +11,10 @@ import { validateAddressCheckoutForm } from '../lib/validations/address.schema';
 import { sanitizeAddressNotes } from '../utils/addressApi';
 import { buildMapStreetArea, sanitizeStoredStreetArea } from '../utils/formatAddress';
 import { checkDeliveryLocation } from '../utils/storefrontLocationApi';
+import { getPinDeliveryCheckMessage } from '../utils/apiErrors';
 import { getStoreCoordinates } from '../utils/storeLocation';
 import { useLocationService } from '../context/LocationServiceContext';
+import { PRESSABLE_ICON_BTN_SOFT } from './ui/brandButton';
 
 // Leaflet uses `window` at import time, so we load the picker only on the
 // client to keep this sheet SSR-safe.
@@ -139,8 +141,13 @@ export default function CheckoutAddAddressSheet({
     const lng = Number(form.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
     let cancelled = false;
+    setDeliveryCheck((prev) => ({
+      ...prev,
+      loading: true,
+      error: null,
+      serviceable: null,
+    }));
     const t = window.setTimeout(async () => {
-      setDeliveryCheck((prev) => ({ ...prev, loading: true, error: null }));
       try {
         const data = await checkDeliveryLocation(lat, lng);
         if (cancelled) return;
@@ -158,6 +165,7 @@ export default function CheckoutAddAddressSheet({
         setDeliveryCheck((prev) => ({
           ...prev,
           loading: false,
+          serviceable: null,
           error: e?.message || 'Could not verify delivery',
         }));
       }
@@ -202,7 +210,16 @@ export default function CheckoutAddAddressSheet({
     [form, needsNameField, needsPhoneField, nameDraft, phoneDraft, nameFromAddress, phoneFromAddress, phoneFromProfile]
   );
 
-  const canSubmit = validation.ok && !isSubmitting && !pending;
+  const hasValidCoords =
+    Number.isFinite(Number(form.lat)) && Number.isFinite(Number(form.lng));
+  const locationServiceable = deliveryCheck.serviceable === true;
+  const canSubmit =
+    validation.ok &&
+    !isSubmitting &&
+    !pending &&
+    hasValidCoords &&
+    !deliveryCheck.loading &&
+    locationServiceable;
 
   const err = (key) => (touched[key] ? validation.errors[key] : '');
 
@@ -307,6 +324,22 @@ export default function CheckoutAddAddressSheet({
     });
     if (!validation.ok) return;
 
+    if (
+      !Number.isFinite(Number(form.lat)) ||
+      !Number.isFinite(Number(form.lng)) ||
+      deliveryCheck.loading ||
+      deliveryCheck.serviceable !== true
+    ) {
+      setSubmitError(
+        deliveryCheck.serviceable === false
+          ? 'This location is outside the available delivery area. Move the pin inside the delivery zone to save.'
+          : deliveryCheck.error
+            ? 'Could not verify delivery for this pin. Check your connection and try again.'
+            : 'Please select a delivery location on the map and wait for availability to confirm.',
+      );
+      return;
+    }
+
     const finalName = (needsNameField ? nameDraft.trim() || nameFromAddress : nameFromProfile).trim();
     const finalPhone = needsPhoneField
       ? normalizePhoneForApi(phoneDraft) || normalizePhoneForApi(phoneFromAddress)
@@ -381,7 +414,7 @@ export default function CheckoutAddAddressSheet({
             <button
               type="button"
               onClick={onClose}
-              className="shrink-0 rounded-xl p-2 hover:bg-gray-100"
+              className={`shrink-0 rounded-xl p-2 ${PRESSABLE_ICON_BTN_SOFT}`}
               aria-label="Close"
             >
               <X size={20} className="h-5 w-5 text-gray-600" />
@@ -414,6 +447,34 @@ export default function CheckoutAddAddressSheet({
                 storeLocation={effectiveStoreLocation}
                 showStoreMarker
               />
+              {hasValidCoords ? (
+                <div
+                  className={`mt-2 rounded-xl border px-3 py-2 ${
+                    deliveryCheck.loading
+                      ? 'border-violet-100 bg-violet-50/70'
+                      : deliveryCheck.serviceable === true
+                        ? 'border-emerald-100 bg-emerald-50/70'
+                        : deliveryCheck.serviceable === false
+                          ? 'border-red-100 bg-red-50/80'
+                          : deliveryCheck.error
+                            ? 'border-amber-100 bg-amber-50/80'
+                            : 'border-gray-100 bg-gray-50'
+                  }`}
+                >
+                  <p className="text-[12px] font-medium text-gray-800">
+                    {getPinDeliveryCheckMessage({
+                      loading: deliveryCheck.loading,
+                      error: deliveryCheck.error,
+                      serviceable: deliveryCheck.serviceable,
+                    })}
+                  </p>
+                  {!deliveryCheck.loading && deliveryCheck.serviceable === false ? (
+                    <p className="mt-0.5 text-[11px] text-red-800">
+                      Save stays disabled until the pin is inside the delivery area.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
 
 

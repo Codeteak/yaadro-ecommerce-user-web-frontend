@@ -48,6 +48,21 @@
   box-sizing: border-box;
 }
 
+/* Immediate tap feedback on mobile (pairs with :active press classes). */
+button,
+a,
+[role="button"] {
+  -webkit-tap-highlight-color: rgb(144 43 245 / 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  a,
+  [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
 /* clip: horizontal overflow without establishing a scroll container (sticky sidebars work). */
 html {
   overflow-x: clip !important;
@@ -154,14 +169,19 @@ body {
   }
 }
 
-/* Prevent any element from causing horizontal overflow */
-* {
-  max-width: 100%;
-}
+/* Prevent runaway horizontal overflow — in @layer base so Tailwind
+   max-w-* / w-* utilities still win (unlayered * would override them). */
+@layer base {
+  * {
+    max-width: 100%;
+  }
 
-img, video, iframe {
-  max-width: 100%;
-  height: auto;
+  img,
+  video,
+  iframe {
+    max-width: 100%;
+    height: auto;
+  }
 }
 
 /* In-app order tracking: fill the remaining column and keep iframe scroll usable. */
@@ -529,6 +549,8 @@ iframe.order-tracking-embed {
     font-size: clamp(3rem, 19cqi + 0.75rem, 12.5rem);
     line-height: 1;
     letter-spacing: 0.07em;
+    /* Trailing letter-spacing skews optical center — pull it back. */
+    margin-inline-end: -0.07em;
   }
 
   .text-fresh-zone-heading {

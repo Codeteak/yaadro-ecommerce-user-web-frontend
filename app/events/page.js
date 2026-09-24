@@ -9,6 +9,7 @@ import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import ProductListingPageSkeleton from '../../components/skeletons/ProductListingPageSkeleton';
 import { useHomeSections } from '../../hooks/useHomeSections';
 import { findHomeSectionById, formatEventDateRange } from '../../utils/homeSectionsApi';
+import { PRESSABLE_BTN } from '../../components/ui/brandButton';
 
 function EventProductsInner() {
   const searchParams = useSearchParams();
@@ -31,7 +32,7 @@ function EventProductsInner() {
         <div className="py-6 md:py-8">
           <Link
             href="/"
-            className="mb-4 inline-flex items-center gap-1 px-3 sm:px-4 md:px-0 text-[13px] font-semibold text-white/90 hover:text-white"
+            className={`mb-4 inline-flex items-center gap-1 px-3 sm:px-4 md:px-0 text-[13px] font-semibold text-white/90 hover:text-white ${PRESSABLE_BTN}`}
           >
             <span aria-hidden>←</span>
             Home
