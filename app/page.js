@@ -188,7 +188,37 @@ export default function Home() {
   };
 
   // Catalog for home shelves; Fresh Zone loads from exact Vegetables / Fruits / Dairy categories.
-  const { data: categoryTree, isLoading: categoryTreeLoading } = useCategoriesTree();
+  // Top Category rail uses roots only — do NOT fetch full tree until Fresh Zone is near viewport
+  // (all=true competes with roots/products and delays the above-the-fold chips).
+  const freshZoneSectionRef = useRef(null);
+  const [freshZoneNear, setFreshZoneNear] = useState(false);
+
+  useEffect(() => {
+    const el = freshZoneSectionRef.current;
+    if (!el) {
+      setFreshZoneNear(true);
+      return undefined;
+    }
+    if (typeof IntersectionObserver === 'undefined') {
+      setFreshZoneNear(true);
+      return undefined;
+    }
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setFreshZoneNear(true);
+          io.disconnect();
+        }
+      },
+      { root: null, rootMargin: '320px 0px', threshold: 0.01 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  const { data: categoryTree, isLoading: categoryTreeLoading } = useCategoriesTree({
+    enabled: freshZoneNear,
+  });
   const { data: catalogData } = useProducts({
     limit: 24,
     sort_by: 'created_at',
@@ -606,8 +636,9 @@ export default function Home() {
         <HomeSections />
       </div>
 
-      {/* Fresh Zone */}
+      {/* Fresh Zone — tree fetch is deferred until this section nears the viewport */}
       <section
+        ref={freshZoneSectionRef}
         className="fresh-zone-minh relative overflow-hidden bg-white rounded-[32px] mx-3 sm:mx-6 md:mx-8 my-4 sm:my-6 min-h-[12rem]"
       >
         {freshZoneLoading && freshZoneDisplayProducts.length === 0 && (
