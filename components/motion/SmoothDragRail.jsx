@@ -15,8 +15,12 @@ import {
  * Horizontal rail with mouse and touch drag.
  * Framer Motion renders the transform; GSAP coasts after release.
  *
- * Tap safety: only suppress the following click when the rail actually moved
- * past {@link DRAG_CLICK_PX} (finger wobble alone must not kill category chips).
+ * Drag may start on product cards (links) and ADD buttons — otherwise the
+ * rail surface is almost entirely interactive and horizontal scroll feels broken.
+ * ProductCard must NOT stopPropagation on pointerdown for cart controls
+ * (click handlers still stopPropagation so ADD does not navigate the Link).
+ * Taps still reach children when movement stays under {@link DRAG_CLICK_PX}.
+ * Capture is deferred until horizontal axis lock so taps are not stolen.
  */
 export default function SmoothDragRail({
   children,
@@ -82,9 +86,21 @@ export default function SmoothDragRail({
     ro?.observe(track);
     const mo = typeof MutationObserver === 'undefined' ? null : new MutationObserver(measure);
     mo?.observe(track, { childList: true, subtree: true, attributes: true });
+
+    // Images / fonts can widen the track after first paint — remeasure so drag unlocks.
+    const onLoad = () => measure();
+    track.querySelectorAll('img').forEach((img) => {
+      if (!img.complete) img.addEventListener('load', onLoad);
+    });
+    window.addEventListener('load', onLoad);
+
     return () => {
       ro?.disconnect();
       mo?.disconnect();
+      track.querySelectorAll('img').forEach((img) => {
+        img.removeEventListener('load', onLoad);
+      });
+      window.removeEventListener('load', onLoad);
     };
   }, [measure]);
 
@@ -92,17 +108,6 @@ export default function SmoothDragRail({
     const viewport = viewportRef.current;
     if (!viewport) return undefined;
     const onClickCapture = (event) => {
-      // Never suppress taps on cart / nav controls inside the rail.
-      if (
-        event.target instanceof Element &&
-        event.target.closest(
-          'button, a, input, select, textarea, label, [role="button"]'
-        )
-      ) {
-        didDragRef.current = false;
-        lastDeltaXRef.current = 0;
-        return;
-      }
       const suppress = shouldSuppressClickAfterDrag({
         didDrag: didDragRef.current,
         totalDeltaX: lastDeltaXRef.current,
@@ -154,7 +159,6 @@ export default function SmoothDragRail({
         x.set(clampX(current));
         return;
       }
-      // Stronger flick throw + longer coast so rails feel less "tight".
       const target = clampX(current + velocityX * 0.4);
       const distance = Math.abs(target - current);
       if (distance < 0.5) {
@@ -183,16 +187,9 @@ export default function SmoothDragRail({
 
   const onPointerDown = (event) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
+    // Remeasure in case images just finished; do not bail only on stale minX=0.
+    measure();
     if (minXRef.current === 0) return;
-    // Never start a rail-drag from ADD / links — that steals the first tap.
-    if (
-      event.target instanceof Element &&
-      event.target.closest(
-        'button, a, input, select, textarea, label, [role="button"]'
-      )
-    ) {
-      return;
-    }
     killTween();
     const now = performance.now();
     pointerRef.current = {
@@ -208,7 +205,7 @@ export default function SmoothDragRail({
     };
     didDragRef.current = false;
     lastDeltaXRef.current = 0;
-    // Do not capture yet — early capture steals the click from child buttons.
+    // Do not capture yet — early capture steals taps from ADD / links.
   };
 
   const onPointerMove = (event) => {
@@ -257,7 +254,6 @@ export default function SmoothDragRail({
     const totalDx = event.clientX - pointer.startX;
     lastDeltaXRef.current = totalDx;
 
-    // Finger wobble mid-gesture then release near start → keep the click.
     if (
       !shouldSuppressClickAfterDrag({
         didDrag: didDragRef.current,
@@ -291,7 +287,7 @@ export default function SmoothDragRail({
   return (
     <div
       ref={viewportRef}
-      className={`relative overflow-hidden touch-pan-y ${className}`.trim()}
+      className={`smooth-drag-rail relative overflow-hidden touch-pan-y ${className}`.trim()}
       aria-label={ariaLabel}
       role="region"
       onPointerDown={onPointerDown}

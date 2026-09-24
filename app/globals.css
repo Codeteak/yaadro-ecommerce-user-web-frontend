@@ -346,14 +346,21 @@ iframe.order-tracking-embed {
   object-position: center !important;
 }
 
-/* Drag rails must size to their items, not the viewport (overrides `* { max-width: 100% }`). */
+/* Drag rails must size to their items, not the viewport (overrides `* { max-width: 100% }`).
+   Without flex-shrink:0 + max-width:none on children, cards collapse → track fits viewport → no scroll. */
+.smooth-drag-rail {
+  touch-action: pan-y;
+  overscroll-behavior-x: contain;
+}
+
 .drag-rail-track {
   max-width: none !important;
-  width: max-content;
+  width: max-content !important;
 }
 
 .drag-rail-track > * {
-  max-width: none;
+  max-width: none !important;
+  flex-shrink: 0 !important;
 }
 
 /* Expanding-label tab bar: keep items inside the 430px shell; stable flex track. */

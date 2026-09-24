@@ -178,8 +178,8 @@ export default function AddressesPage() {
                         </button>
                         {menuOpenId === address.id && (
                           <>
-                            <div className="fixed inset-0 z-10" aria-hidden onClick={() => setMenuOpenId(null)} />
-                            <div className="absolute right-0 top-full z-20 mt-1 min-w-[160px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                            <div className="fixed inset-0 z-[55]" aria-hidden onClick={() => setMenuOpenId(null)} />
+                            <div className="absolute right-0 top-full z-[56] mt-1 min-w-[160px] rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
                               <button
                                 type="button"
                                 className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"

@@ -70,21 +70,23 @@ export default function CartSidebar() {
 
   return (
     <>
-      <div
-        className={`fixed inset-0 bg-black/25 z-[90] transition-opacity duration-300 ${
-          showSidebarCart ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-        onClick={handleClose}
-        aria-hidden={!showSidebarCart}
-      />
+      {showSidebarCart ? (
+        <div
+          className="fixed inset-0 z-[90] bg-black/25 opacity-100 transition-opacity duration-300"
+          onClick={handleClose}
+          aria-hidden={false}
+        />
+      ) : null}
 
       <aside
-        {...bindDrag()}
-        className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-white z-[95] shadow-lg transition-transform duration-300 flex flex-col touch-pan-y ${
-          showSidebarCart ? 'translate-x-0' : 'translate-x-full'
+        {...(showSidebarCart ? bindDrag() : {})}
+        className={`fixed top-0 right-0 flex h-full w-full flex-col bg-white shadow-lg transition-transform duration-300 touch-pan-y sm:w-96 ${
+          showSidebarCart
+            ? 'z-[95] translate-x-0'
+            : 'pointer-events-none invisible z-[-1] translate-x-full'
         }`}
         aria-hidden={!showSidebarCart}
-        {...(!showSidebarCart ? { inert: true } : {})}
+        {...(!showSidebarCart ? { inert: '' } : {})}
       >
         <div className="px-6 py-5 flex items-center justify-between border-b border-gray-100">
           <h2 className="text-base font-medium text-gray-900">Shopping Cart</h2>
