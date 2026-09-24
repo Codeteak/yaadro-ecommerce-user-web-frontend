@@ -311,25 +311,28 @@ export function useCategories() {
 /**
  * Root categories only (single HTTP call — no tree recursion).
  */
-export function useRootCategories() {
+export function useRootCategories(options = {}) {
+  const { enabled = true } = options;
   const { shopId, ready } = useStorefrontShopGate();
   return useQuery({
     queryKey: productKeys.categoryRoots(shopId),
     queryFn: () => getRootCategories(),
-    enabled: ready,
+    enabled: enabled && ready,
     staleTime: 1000 * 60 * 10, // 10 minutes
   });
 }
 
 /**
  * Get category tree (nested root categories with children)
+ * @param {{ enabled?: boolean }} [options]
  */
-export function useCategoriesTree() {
+export function useCategoriesTree(options = {}) {
+  const { enabled = true } = options;
   const { shopId, ready } = useStorefrontShopGate();
   return useQuery({
     queryKey: [...productKeys.categories(shopId), 'tree'],
     queryFn: () => getCategoriesTree(),
-    enabled: ready,
+    enabled: enabled && ready,
     staleTime: 1000 * 60 * 10,
   });
 }
