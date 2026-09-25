@@ -160,7 +160,7 @@ function ProductsContent() {
   }
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-gray-50 pb-28 pt-[env(safe-area-inset-top,0px)]">
+    <div className="min-h-screen w-full max-w-full bg-gray-50 pb-28 pt-[env(safe-area-inset-top,0px)]">
       <BrowsePageHeader
         title="Products"
         searchOpen={searchOpen}

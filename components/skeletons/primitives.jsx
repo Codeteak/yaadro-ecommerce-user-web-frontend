@@ -27,7 +27,7 @@ export function ProductGridSkeleton({
   const wrapPad = paddingClass || (variant === 'home' ? 'px-3 sm:px-4 md:px-0' : '');
 
   return (
-    <div className={`${gridCls} w-full max-w-full overflow-x-hidden ${wrapPad} ${className}`.trim()}>
+    <div className={`${gridCls} w-full max-w-full ${wrapPad} ${className}`.trim()}>
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="flex flex-col gap-1.5 sm:gap-2">
           <Bone className={`w-full ${aspect} rounded-xl sm:rounded-2xl`} />
@@ -43,7 +43,7 @@ export function ProductGridSkeleton({
 export function ProductCarouselRowSkeleton({ count = 6, gapClass = 'gap-2' }) {
   return (
     <div className="w-full">
-      <div className="overflow-x-hidden scrollbar-hide pb-3">
+      <div className=" scrollbar-hide pb-3">
         <div className={`flex w-max ${gapClass} px-4`}>
           {Array.from({ length: count }).map((_, i) => (
             <div key={i} className="w-[140px] shrink-0 flex flex-col gap-2">

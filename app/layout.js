@@ -63,8 +63,8 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className="overflow-x-clip w-full max-w-full" style={{ overflowX: 'clip' }}>
-      <body className="flex min-h-screen w-full max-w-full flex-col overflow-x-clip bg-white">
+    <html lang="en" className="w-full max-w-full">
+      <body className="flex min-h-screen w-full max-w-full flex-col bg-white">
         <div id="app-shell" className="app-shell">
           <ClientOnly fallback={<div className="min-h-screen w-full bg-white" />}>
           <ShopBrandingProvider>

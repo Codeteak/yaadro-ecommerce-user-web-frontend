@@ -1086,7 +1086,7 @@ export default function CheckoutPage() {
      Render
   ───────────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-gray-50 pb-36 w-full max-w-full overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50 pb-36 w-full max-w-full">
       {/* Top bar */}
       <div className="sticky top-0 z-30 bg-white border-b border-gray-100">
         <div className="flex items-center gap-3 px-4 py-3.5">
@@ -1350,7 +1350,7 @@ export default function CheckoutPage() {
 
       {/* ── Sticky bottom bar ── */}
       <div
-        className="fixed left-0 right-0 z-50 w-full max-w-[100vw] overflow-x-hidden bg-white border-t border-gray-100"
+        className="fixed left-0 right-0 z-50 w-full max-w-[100vw] bg-white border-t border-gray-100"
         style={{ bottom: Math.max(Number(siteFooterHeight) || 0, 0) }}
       >
         <p

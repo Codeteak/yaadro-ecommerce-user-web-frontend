@@ -32,7 +32,7 @@ export default function LoginPageClient() {
   }, [authHydrated, isAuthenticated, router]);
 
   return (
-    <div className="relative flex min-h-[100dvh] min-h-screen w-full max-w-full flex-col overflow-x-hidden bg-[linear-gradient(180deg,#faf7ff_0%,#ffffff_42%,#ffffff_100%)] pt-[env(safe-area-inset-top,0px)]">
+    <div className="relative flex min-h-[100dvh] min-h-screen w-full max-w-full flex-col bg-[linear-gradient(180deg,#faf7ff_0%,#ffffff_42%,#ffffff_100%)] pt-[env(safe-area-inset-top,0px)]">
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-[55%] bg-[radial-gradient(ellipse_at_50%_18%,rgba(144,43,245,0.12)_0%,rgba(144,43,245,0.04)_42%,transparent_70%)]"
         aria-hidden

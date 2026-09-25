@@ -638,18 +638,27 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       <div className="flex min-h-0 flex-1 flex-col px-3 pb-2 pt-1.5">
         <Link {...navLinkProps} className="block min-w-0" title={product.name}>
           {brandLabel ? (
-            <p className="mb-0.5 truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+            <p className="mb-0.5 h-[14px] truncate text-[10px] font-semibold uppercase leading-[14px] tracking-[0.08em] text-gray-500">
               {brandLabel}
             </p>
+          ) : inHorizontalRail ? (
+            <p className="mb-0.5 h-[14px]" aria-hidden />
           ) : null}
-          <h3 className="line-clamp-2 text-[13px] font-bold leading-4 tracking-tight text-gray-900">
+          <h3 className="h-8 line-clamp-2 text-[13px] font-bold leading-4 tracking-tight text-gray-900">
             {product.name}
           </h3>
-          {offerDisplay.secondaryText && !bundleRibbonText ? (
-            <p className="mt-0.5 line-clamp-2 text-[11px] leading-tight text-violet-700">
-              {offerDisplay.secondaryText}
-            </p>
-          ) : null}
+          {/* Always reserve offer line height so sale vs non-sale cards stay even */}
+          <p
+            className={`mt-0.5 h-[14px] line-clamp-1 text-[11px] leading-[14px] ${
+              offerDisplay.secondaryText && !bundleRibbonText
+                ? 'text-violet-700'
+                : 'text-transparent'
+            }`}
+          >
+            {offerDisplay.secondaryText && !bundleRibbonText
+              ? offerDisplay.secondaryText
+              : '\u00a0'}
+          </p>
         </Link>
 
         {showPackChips ? (
@@ -683,7 +692,10 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           </div>
         ) : null}
 
-        <Link {...navLinkProps} className="mt-0.5 block">
+        <Link
+          {...navLinkProps}
+          className="mt-auto flex min-h-5 items-end pt-0.5"
+        >
           {product?.bxgyShelfRole === 'get' ? (
             <div className="text-base font-bold leading-5">
               <span className="text-violet-700">Free</span>

@@ -10,7 +10,7 @@ import {
 export default function CheckoutPageSkeleton() {
   return (
     <div
-      className="min-h-screen w-full max-w-full overflow-x-hidden bg-gray-50 pb-36"
+      className="min-h-screen w-full max-w-full bg-gray-50 pb-36"
       aria-busy="true"
       aria-label="Loading checkout"
     >

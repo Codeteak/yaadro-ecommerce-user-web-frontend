@@ -21,7 +21,7 @@ export function CategoriesGridSkeleton({ count = 8 }) {
 export default function CategoriesPageSkeleton() {
   return (
     <div
-      className="min-h-screen w-full max-w-full overflow-x-hidden bg-white pb-28 pt-[env(safe-area-inset-top,0px)]"
+      className="min-h-screen w-full max-w-full bg-white pb-28 pt-[env(safe-area-inset-top,0px)]"
       aria-busy="true"
       aria-label="Loading categories"
     >

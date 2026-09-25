@@ -184,7 +184,7 @@ function CategoryBrowseInner() {
     : `All ${categoryTitle}`;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28 pt-[env(safe-area-inset-top,0px)] w-full max-w-full overflow-x-clip">
+    <div className="min-h-screen bg-gray-50 pb-28 pt-[env(safe-area-inset-top,0px)] w-full max-w-full">
       <BrowsePageHeader
         title={categoryTitle}
         searchOpen={searchOpen}

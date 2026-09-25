@@ -3,7 +3,7 @@ import Container from '../components/Container';
 
 export default function NotFound() {
   return (
-    <div className="py-6 sm:py-8 md:py-12 lg:py-16 w-full max-w-full overflow-x-hidden [@media(max-height:720px)]:py-5">
+    <div className="py-6 sm:py-8 md:py-12 lg:py-16 w-full max-w-full [@media(max-height:720px)]:py-5">
       <Container>
         <div className="text-center px-3 sm:px-4">
           <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-violet-600">404</p>

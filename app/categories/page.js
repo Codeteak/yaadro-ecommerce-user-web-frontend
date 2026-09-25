@@ -217,7 +217,7 @@ export default function CategoriesPage() {
     : rootCategories;
 
   return (
-    <div className="min-h-screen bg-white w-full max-w-full overflow-x-hidden pb-28 pt-[env(safe-area-inset-top,0px)]">
+    <div className="min-h-screen bg-white w-full max-w-full pb-28 pt-[env(safe-area-inset-top,0px)]">
       <BrowsePageHeader
         title="Categories"
         searchOpen={searchOpen}
