@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Container from '../Container';
 import SearchSuggestInput from './SearchSuggestInput';
 import ProductSearchResults from './ProductSearchResults';
-import { getAppScrollEl, getAppScrollY, setAppScrollY } from '../../lib/pwa/appShell';
+import { lockAppScroll, unlockAppScroll } from '../../lib/pwa/appShell';
 
 const OVERLAY_MS = 200;
 
@@ -34,7 +34,6 @@ export default function ProductSearchExperience({
   const barWrapRef = useRef(null);
   const resultsPanelRef = useRef(null);
   const inputRef = useRef(null);
-  const lockedScrollYRef = useRef(0);
   const closeTimerRef = useRef(null);
   const resultsId = useId();
 
@@ -127,22 +126,9 @@ export default function ProductSearchExperience({
   // Lock background scroll while overlay is open; restore on close.
   useEffect(() => {
     if (!active || isPage) return undefined;
-    lockedScrollYRef.current = getAppScrollY();
-    const scroller = getAppScrollEl();
-    const html = document.documentElement;
-    const body = document.body;
-    const prevHtmlOverflow = html.style.overflow;
-    const prevBodyOverflow = body.style.overflow;
-    const prevScrollerOverflow = scroller?.style.overflow ?? '';
-    html.style.overflow = 'hidden';
-    body.style.overflow = 'hidden';
-    if (scroller) scroller.style.overflow = 'hidden';
-
+    lockAppScroll();
     return () => {
-      html.style.overflow = prevHtmlOverflow;
-      body.style.overflow = prevBodyOverflow;
-      if (scroller) scroller.style.overflow = prevScrollerOverflow;
-      setAppScrollY(lockedScrollYRef.current);
+      unlockAppScroll();
     };
   }, [active, isPage]);
 

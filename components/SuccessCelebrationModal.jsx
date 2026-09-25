@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { CheckRegular as Check } from './icons';
+import { lockAppScroll, unlockAppScroll } from '../lib/pwa/appShell';
 
 /**
  * Full-screen success overlay — used after address save/update instead of a generic alert.
@@ -15,10 +16,9 @@ export default function SuccessCelebrationModal({
 }) {
   useEffect(() => {
     if (!open) return undefined;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    lockAppScroll();
     return () => {
-      document.body.style.overflow = prev;
+      unlockAppScroll();
     };
   }, [open]);
 

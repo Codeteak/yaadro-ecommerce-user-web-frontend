@@ -21,6 +21,7 @@ import { getStoreCoordinates } from '../utils/storeLocation';
 import { buildMapStreetArea } from '../utils/formatAddress';
 import AnimatedSheet from './motion/AnimatedSheet';
 import { PRESSABLE_ICON_BTN_SOFT } from './ui/brandButton';
+import { lockAppScroll, unlockAppScroll } from '../lib/pwa/appShell';
 
 const AddressMapPicker = dynamic(() => import('./AddressMapPicker'), {
   ssr: false,
@@ -184,9 +185,10 @@ export default function ServiceAreaBottomSheet() {
   });
 
   useEffect(() => {
-    document.body.style.overflow = showServiceAreaSheet ? 'hidden' : 'unset';
+    if (!showServiceAreaSheet) return undefined;
+    lockAppScroll();
     return () => {
-      document.body.style.overflow = 'unset';
+      unlockAppScroll();
     };
   }, [showServiceAreaSheet]);
 

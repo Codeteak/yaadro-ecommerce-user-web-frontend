@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@heroui/react';
 import { AlertRegular as AlertTriangle, CloseRegular as X } from './icons';
+import { lockAppScroll, unlockAppScroll } from '../lib/pwa/appShell';
 
 export default function DeleteAccountConfirmModal({ 
   isOpen, 
@@ -12,13 +13,10 @@ export default function DeleteAccountConfirmModal({
   setConfirmText
 }) {
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    if (!isOpen) return undefined;
+    lockAppScroll();
     return () => {
-      document.body.style.overflow = '';
+      unlockAppScroll();
     };
   }, [isOpen]);
 

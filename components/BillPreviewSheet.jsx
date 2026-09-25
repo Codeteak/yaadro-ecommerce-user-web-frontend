@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseRegular as X, DownloadRegular as Download } from './icons';
 import { formatAddressDisplay } from '../utils/formatAddress';
+import { lockAppScroll, unlockAppScroll } from '../lib/pwa/appShell';
 
 function formatMoney(v) {
   const n = typeof v === 'string' ? parseFloat(v) : typeof v === 'number' ? v : NaN;
@@ -31,12 +32,11 @@ export default function BillPreviewSheet({
   useEffect(() => {
     if (!isOpen) {
       setDownloadingPdf(false);
-      return;
+      return undefined;
     }
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    lockAppScroll();
     return () => {
-      document.body.style.overflow = prev;
+      unlockAppScroll();
     };
   }, [isOpen]);
 

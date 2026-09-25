@@ -15,16 +15,14 @@ import {
   ModalDialogDescription,
 } from './ui/ModalDialog';
 import { BRAND_PRIMARY_BTN } from './ui/brandButton';
+import { lockAppScroll, unlockAppScroll } from '../lib/pwa/appShell';
 
 export default function AlertModal({ isOpen, onClose, title, message, type = 'info' }) {
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    if (!isOpen) return undefined;
+    lockAppScroll();
     return () => {
-      document.body.style.overflow = '';
+      unlockAppScroll();
     };
   }, [isOpen]);
 

@@ -1,28 +1,32 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, useMemo } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDrag } from '@use-gesture/react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { formatRupeeINR } from '../utils/productUtils';
 import { buildCartOfferGroups } from '../utils/offerDisplay';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
+import { useAppNavigation } from '../hooks/useAppNavigation';
 import OfferGroupCard from './promotions/OfferGroupCard';
 import { PRESSABLE_ICON_BTN_SOFT } from './ui/brandButton';
+import { Loading2Regular as Loader2 } from './icons';
 
 function normalizePath(pathname) {
   return pathname?.replace(/\/+$/, '') || '';
 }
 
 export default function CartSidebar() {
-  const router = useRouter();
   const pathname = usePathname();
   const { cartItems, cartTotal, showSidebarCart, setShowSidebarCart, updateQuantity, removeFromCart } =
     useCart();
   const { isAuthenticated, authHydrated } = useAuth();
   const { goToLogin } = useLoginNavigation();
+  const { navigate, prefetch } = useAppNavigation();
+  const [checkoutPending, setCheckoutPending] = useState(false);
+  const checkoutPendingTimerRef = useRef(null);
 
   const offerGroups = useMemo(() => buildCartOfferGroups(cartItems), [cartItems]);
 
@@ -36,6 +40,13 @@ export default function CartSidebar() {
     }
   }, [pathname, setShowSidebarCart]);
 
+  useEffect(() => {
+    prefetch('/checkout');
+    return () => {
+      if (checkoutPendingTimerRef.current) clearTimeout(checkoutPendingTimerRef.current);
+    };
+  }, [prefetch]);
+
   const bindDrag = useDrag(
     ({ movement: [mx], velocity: [vx], last }) => {
       if (!showSidebarCart) return;
@@ -47,10 +58,17 @@ export default function CartSidebar() {
   );
 
   const handleProceedToCheckout = () => {
-    if (!authHydrated) return;
+    if (!authHydrated || checkoutPending) return;
+    setCheckoutPending(true);
+    if (checkoutPendingTimerRef.current) clearTimeout(checkoutPendingTimerRef.current);
+    checkoutPendingTimerRef.current = setTimeout(() => {
+      setCheckoutPending(false);
+      checkoutPendingTimerRef.current = null;
+    }, 8000);
+
     handleClose();
     if (isAuthenticated) {
-      router.push('/checkout');
+      navigate('/checkout');
       return;
     }
     goToLogin('/checkout');
@@ -142,10 +160,21 @@ export default function CartSidebar() {
             <button
               type="button"
               onClick={handleProceedToCheckout}
-              disabled={!authHydrated}
-              className="block w-full py-3 px-4 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors text-center disabled:opacity-60"
+              disabled={!authHydrated || checkoutPending}
+              aria-busy={checkoutPending}
+              aria-label={checkoutPending ? 'Checking out' : 'Checkout'}
+              className={`flex w-full touch-manipulation items-center justify-center gap-2 rounded-lg px-4 py-3 text-center text-sm font-medium text-white transition-[transform,background-color,opacity] duration-150 active:scale-[0.98] disabled:opacity-70 motion-reduce:active:scale-100 ${
+                checkoutPending ? 'bg-gray-800' : 'bg-gray-900 hover:bg-gray-800'
+              }`}
             >
-              Checkout
+              {checkoutPending ? (
+                <>
+                  <Loader2 size={16} className="h-4 w-4 animate-spin" aria-hidden />
+                  Checking out…
+                </>
+              ) : (
+                'Checkout'
+              )}
             </button>
 
             <Link

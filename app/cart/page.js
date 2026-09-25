@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -12,6 +12,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useProducts } from "../../hooks/useProducts";
 import { cartKeys } from "../../hooks/useCart";
 import { useLoginNavigation } from "../../hooks/useLoginNavigation";
+import { useAppNavigation } from "../../hooks/useAppNavigation";
 import { attachVisibilityResume } from "../../utils/visibilityResume";
 import {
   computeCartSavings,
@@ -383,6 +384,7 @@ function CartPageContent() {
   const searchParams = useSearchParams();
   const { isAuthenticated, authHydrated } = useAuth();
   const { goToLogin } = useLoginNavigation();
+  const { navigate, prefetch } = useAppNavigation();
   const { siteFooterHeight } = useLayoutHeights();
   const {
     cartItems,
@@ -409,6 +411,17 @@ function CartPageContent() {
   const queryClient = useQueryClient();
 
   const [deleteCartConfirm, setDeleteCartConfirm] = useState(null);
+  const [checkoutPending, setCheckoutPending] = useState(false);
+  const checkoutPendingTimerRef = useRef(null);
+
+  useEffect(() => {
+    prefetch("/checkout");
+    return () => {
+      if (checkoutPendingTimerRef.current) {
+        clearTimeout(checkoutPendingTimerRef.current);
+      }
+    };
+  }, [prefetch]);
 
   useEffect(() => {
     if (!isAuthenticated) return undefined;
@@ -618,9 +631,19 @@ function CartPageContent() {
   );
 
   const handleProceedToCheckout = () => {
-    if (!authHydrated) return;
+    if (!authHydrated || checkoutPending) return;
+    setCheckoutPending(true);
+    if (checkoutPendingTimerRef.current) {
+      clearTimeout(checkoutPendingTimerRef.current);
+    }
+    // Safety only if navigation is blocked — not a fake UX delay.
+    checkoutPendingTimerRef.current = setTimeout(() => {
+      setCheckoutPending(false);
+      checkoutPendingTimerRef.current = null;
+    }, 8000);
+
     if (isAuthenticated) {
-      router.push("/checkout");
+      navigate("/checkout");
       return;
     }
     goToLogin("/checkout");
@@ -838,23 +861,33 @@ function CartPageContent() {
             <Button
               variant="primary"
               onPress={handleProceedToCheckout}
+              isDisabled={!authHydrated || checkoutPending}
+              isLoading={checkoutPending}
+              aria-busy={checkoutPending}
+              aria-label={checkoutPending ? "Checking out" : "Checkout"}
               className={`flex h-11 min-w-[44%] flex-1 items-center justify-center gap-2 whitespace-nowrap ${BRAND_CHECKOUT_BTN} active:scale-[0.98]`}
             >
-              Checkout
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
+              {checkoutPending ? (
+                "Checking out…"
+              ) : (
+                <>
+                  Checkout
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </>
+              )}
             </Button>
           </div>
         </div>

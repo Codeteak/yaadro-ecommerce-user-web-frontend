@@ -11,7 +11,7 @@ import {
   isHttpTrackingUrl,
   markTrackingOpenedThisSession,
 } from '../../../utils/deliveryTracking';
-import { getAppScrollEl, getAppShellEl } from '../../../lib/pwa/appShell';
+import { getAppShellEl, lockAppScroll, unlockAppScroll } from '../../../lib/pwa/appShell';
 import PageTopBar from '../../../components/PageTopBar';
 import { Share2Regular as Share2 } from '../../../components/icons';
 
@@ -20,16 +20,12 @@ function TrackShell({ children }) {
 
   useEffect(() => {
     const shell = getAppShellEl();
-    const scroller = getAppScrollEl();
     setHost(shell || document.body);
     shell?.classList.add('app-shell-tracking');
-    document.documentElement.classList.add('app-scroll-locked');
-    const prevOverflow = scroller?.style.overflow || '';
-    if (scroller) scroller.style.overflow = 'hidden';
+    lockAppScroll();
     return () => {
       shell?.classList.remove('app-shell-tracking');
-      document.documentElement.classList.remove('app-scroll-locked');
-      if (scroller) scroller.style.overflow = prevOverflow;
+      unlockAppScroll();
     };
   }, []);
 

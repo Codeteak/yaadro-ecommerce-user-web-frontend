@@ -10,6 +10,7 @@ import {
   ModalDialogDescription,
 } from './ui/ModalDialog';
 import { BRAND_PRIMARY_BTN } from './ui/brandButton';
+import { lockAppScroll, unlockAppScroll } from '../lib/pwa/appShell';
 
 export default function ConfirmModal({
   isOpen,
@@ -26,13 +27,10 @@ export default function ConfirmModal({
   closeOnConfirm = true,
 }) {
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    if (!isOpen) return undefined;
+    lockAppScroll();
     return () => {
-      document.body.style.overflow = '';
+      unlockAppScroll();
     };
   }, [isOpen]);
 

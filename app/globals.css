@@ -83,6 +83,22 @@ body {
   padding: 0;
 }
 
+/*
+  iOS Safari (and many Android WebViews) auto-zoom the page when a focused
+  text control has computed font-size < 16px. Shared form fields use text-sm /
+  text-[14px] across search, address, checkout, login, profile.
+
+  Raise form-control size on touch-primary devices only. Do NOT set
+  maximum-scale=1 / user-scalable=no (accessibility).
+*/
+@media (hover: none) and (pointer: coarse) {
+  input:not([type='button']):not([type='submit']):not([type='reset']):not([type='checkbox']):not([type='radio']):not([type='file']):not([type='image']):not([type='range']):not([type='color']):not([type='hidden']),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 #__next {
   flex: 1;
   display: flex;
@@ -344,7 +360,8 @@ iframe.order-tracking-embed {
 /* Drag rails must size to their items, not the viewport (overrides `* { max-width: 100% }`).
    Without flex-shrink:0 + max-width:none on children, cards collapse → track fits viewport → no scroll. */
 .smooth-drag-rail {
-  touch-action: pan-x;
+  /* Allow vertical document/#app-scroll pans; axis-lock in JS still prefers horizontal once intent is clear. */
+  touch-action: pan-x pan-y;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -352,7 +369,7 @@ iframe.order-tracking-embed {
 
 .smooth-drag-rail .drag-rail-track,
 .smooth-drag-rail .drag-rail-track > * {
-  touch-action: pan-x;
+  touch-action: pan-x pan-y;
 }
 
 .drag-rail-track {

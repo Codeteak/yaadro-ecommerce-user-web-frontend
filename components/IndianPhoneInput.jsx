@@ -78,7 +78,7 @@ const IndianPhoneInput = forwardRef(function IndianPhoneInput(
         aria-invalid={displayError ? 'true' : undefined}
         className={
           inputClassName ||
-          `w-full h-[46px] px-4 rounded-xl border-[1.5px] text-[14px] text-gray-900 bg-gray-50 focus:outline-none focus:bg-white transition placeholder-gray-400 ${
+          `w-full h-[46px] px-4 rounded-xl border-[1.5px] text-base text-gray-900 bg-gray-50 focus:outline-none focus:bg-white transition placeholder-gray-400 ${
             displayError
               ? 'border-red-300 focus:border-red-500 focus:ring-1 focus:ring-red-500/30'
               : isComplete
