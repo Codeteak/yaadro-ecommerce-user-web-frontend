@@ -25,6 +25,7 @@ import {
 } from "./catalogOfferPricing";
 import {
   formatWeightUnitLabel,
+  hasSoldByWeightFlag,
   parseProductUnitSize,
   resolveProductWeightAndUnit,
 } from "./productUtils";
@@ -434,6 +435,8 @@ function transformOrderItem(item) {
     productSku: item.productSku ?? item.product_sku,
     unitLabel: item.unit_label_snapshot ?? item.unitLabel ?? unit ?? "",
     unitSize,
+    soldByWeight: hasSoldByWeightFlag(item),
+    sold_by_weight: hasSoldByWeightFlag(item),
     weight,
     unit,
     packLabel,

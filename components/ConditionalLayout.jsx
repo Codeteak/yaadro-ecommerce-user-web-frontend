@@ -48,12 +48,12 @@ export default function ConditionalLayout({ children }) {
 
   return (
     <main
-      className="flex w-full max-w-full flex-grow flex-col"
+      className="flex min-h-dvh w-full max-w-full flex-col"
       style={{
         paddingBottom: navInset,
       }}
     >
-      <div className="w-full min-w-0 flex-1">{children}</div>
+      <div className="flex w-full min-w-0 flex-1 flex-col">{children}</div>
       {!hideFooter ? <Footer /> : null}
     </main>
   );

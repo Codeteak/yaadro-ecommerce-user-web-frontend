@@ -30,7 +30,8 @@ import {
   resolveProductWeightAndUnit,
   stripPackFromProductName,
 } from '../../../utils/productUtils';
-import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep, weightStepLinePrices, formatCartQtyControlLabel } from '../../../utils/productSizeSelection';
+import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep, weightStepLinePrices, hasCustomWeightStep, formatCartQtyControlLabel } from '../../../utils/productSizeSelection';
+import { playAddTap } from '../../../utils/playAddTap';
 import Container from '../../../components/Container';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
 import PdpOfferPanel from '../../../components/promotions/PdpOfferPanel';
@@ -315,20 +316,29 @@ export default function ProductDetailClient({ productId = null }) {
   const legacyOriginal =
     product?.originalPrice != null ? parseFloat(product.originalPrice) : null;
   // Custom weight: show ₹ for the selected step (250 g), not the full ₹/kg.
-  const effectivePrice = stepLinePrices
-    ? stepLinePrices.pay
-    : product
-      ? getEffectivePrice(product, listUnit)
-      : 0;
-  const mrpDisplay = stepLinePrices
-    ? stepLinePrices.list > stepLinePrices.pay + 1e-9
-      ? stepLinePrices.list
+  const customWeight = hasCustomWeightStep(product);
+  const perKgList = product ? getListPrice(product) || parseFloat(product.price) || 0 : 0;
+  const perKgPay = product ? getEffectivePrice(product, perKgList) || perKgList : 0;
+  const effectivePrice = customWeight
+    ? perKgPay
+    : stepLinePrices
+      ? stepLinePrices.pay
+      : product
+        ? getEffectivePrice(product, listUnit)
+        : 0;
+  const mrpDisplay = customWeight
+    ? perKgList > perKgPay + 1e-9
+      ? perKgList
       : null
-    : product && effectivePrice < listUnit - 1e-9
-      ? listUnit
-      : legacyOriginal != null && legacyOriginal > effectivePrice
-        ? legacyOriginal
-        : null;
+    : stepLinePrices
+      ? stepLinePrices.list > stepLinePrices.pay + 1e-9
+        ? stepLinePrices.list
+        : null
+      : product && effectivePrice < listUnit - 1e-9
+        ? listUnit
+        : legacyOriginal != null && legacyOriginal > effectivePrice
+          ? legacyOriginal
+          : null;
   const discountValue =
     mrpDisplay != null && mrpDisplay > effectivePrice ? mrpDisplay - effectivePrice : null;
   const deliveryTimeEstimate = product?.deliveryTimeEstimate ?? '5–7 business days';
@@ -387,7 +397,8 @@ export default function ProductDetailClient({ productId = null }) {
     ? cartLine.cartItemKey ?? cartLine.cartItemId ?? cartLine.id
     : null;
 
-  const handleAddToCart = useCallback(async () => {
+  const handleAddToCart = useCallback(async (event) => {
+    playAddTap(event?.currentTarget);
     if (!productToAddPayload || !product?.inStock) return;
     setCartActionLoading(true);
     try {
@@ -679,8 +690,25 @@ export default function ProductDetailClient({ productId = null }) {
                         />
                       )}
                     </div>
-                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                      {product?.bxgyShelfRole === 'get' ? (
+                  ) : (
+                    <PriceDisplay
+                      amount={effectivePrice}
+                      listPrice={mrpDisplay}
+                      size="lg"
+                      suffix={customWeight ? '/kg' : undefined}
+                    />
+                  )}
+                  <PdpOfferPanel product={product} />
+                  <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
+                    {product?.bxgyShelfRole === 'get' ? (
+                      <div
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-3.5 text-[12px] font-semibold text-emerald-800"
+                        aria-label="Free with offer — added when you buy the paired product"
+                      >
+                        Free with offer
+                      </div>
+                    ) : cartQty > 0 ? (
+                      <>
                         <div
                           className="inline-flex h-9 items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-emerald-600 px-3.5 text-[11px] font-bold uppercase tracking-[0.08em] text-white shadow-sm"
                           aria-label="Free with offer — added when you buy the paired product"
@@ -739,16 +767,26 @@ export default function ProductDetailClient({ productId = null }) {
                               : 'cursor-not-allowed bg-gray-100 text-gray-400'
                           }`}
                         >
-                          {cartActionLoading ? (
-                            <span
-                              className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
-                              aria-hidden
-                            />
-                          ) : null}
-                          {product.inStock ? 'ADD' : 'Unavailable'}
-                        </button>
-                      )}
-                    </div>
+                          Go to cart
+                        </Link>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => void handleAddToCart(e)}
+                        disabled={!product.inStock || cartActionLoading}
+                        className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-full px-4 text-[12px] font-bold uppercase tracking-wide transition active:scale-[0.97] ${
+                          product.inStock
+                            ? 'bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-70'
+                            : 'cursor-not-allowed bg-gray-100 text-gray-400'
+                        }`}
+                      >
+                        {cartActionLoading ? (
+                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden />
+                        ) : null}
+                        {product.inStock ? 'Add' : 'Unavailable'}
+                      </button>
+                    )}
                   </div>
                   <PdpOfferPanel product={product} />
                 </div>

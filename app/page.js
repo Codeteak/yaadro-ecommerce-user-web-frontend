@@ -127,8 +127,6 @@ export default function Home() {
   const { shopId, shopName, shopImage, bannerEnabled, bannerImages } = useShopBranding();
   const { getDefaultAddress, addresses } = useAddress();
 
-  const isLocalDev = process.env.NODE_ENV !== 'production';
-
   // Warm profile/login so the header icon opens without a cold wait.
   useEffect(() => {
     prefetch(isAuthenticated ? '/profile' : '/login');
@@ -152,35 +150,18 @@ export default function Home() {
   }, [profileNavPending]);
 
   const shopBanners = useMemo(() => {
-    // In local/dev we show static banners (from `/public/banner/*`) regardless of resolver response.
-    if (isLocalDev) {
-      return [
-        {
-          id: 'local-1',
-          image:
-            '/banner/360_F_249501541_XmWdfAfUbWAvGxBwAM0ba2aYT36ntlpH.jpg',
-        },
-        {
-          id: 'local-2',
-          image:
-            '/banner/11871820-online-shopping-am-telefon-kaufen-verkaufen-geschaft-digitale-web-banner-anwendung-geldwerbung-zahlung-e-commerce-illustration-suche-vektor.jpg',
-        },
-        {
-          id: 'local-3',
-          image:
-            '/banner/360_F_465465254_1pN9MGrA831idD6zIBL7q8rnZZpUCQTy.jpg',
-        },
-      ];
-    }
-
-    // Production: use all banner URLs from resolve-by-domain.
     if (!Array.isArray(bannerImages) || bannerImages.length === 0) return [];
     if (bannerEnabled === false) return [];
     return bannerImages.map((url, index) => ({
       id: `shop-banner-${index}`,
       image: url,
     }));
-  }, [bannerEnabled, bannerImages, isLocalDev]);
+  }, [bannerEnabled, bannerImages]);
+  const [bannerSlotOpen, setBannerSlotOpen] = useState(() => shopBanners.length > 0);
+
+  useEffect(() => {
+    setBannerSlotOpen(shopBanners.length > 0);
+  }, [shopBanners]);
 
   // Pull-to-refresh (mobile-like)
   const [ptrPull, setPtrPull] = useState(0); // px
@@ -603,7 +584,7 @@ export default function Home() {
           </Link>
         </div>
 
-        {shopBanners.length > 0 ? (
+        {bannerSlotOpen && shopBanners.length > 0 ? (
           <div className="mt-4 px-4 sm:px-5">
             <div className="overflow-hidden rounded-2xl bg-white">
               <BannerCarousel
@@ -611,6 +592,7 @@ export default function Home() {
                 fallbackToDefaults={false}
                 imageClassName="object-cover object-center"
                 className="bg-white"
+                onSlidesChange={(count) => setBannerSlotOpen(count > 0)}
               />
             </div>
           </div>

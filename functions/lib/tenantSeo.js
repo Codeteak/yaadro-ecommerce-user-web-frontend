@@ -3,6 +3,8 @@
  * Fetches shop/product SEO from the Yaadro API and injects tags into static HTML.
  */
 
+import { replaceFaviconLinksInHtml } from '../../utils/shopFavicon.js';
+
 const DEFAULT_API_ORIGIN = 'https://customer.yaadro.online';
 
 export function apiOriginFromEnv(env) {
@@ -65,6 +67,12 @@ function shopNameFromResolve(data) {
   return String(data.shopName || data.shop_name || data.name || '').trim();
 }
 
+export function shopImageFromResolve(data) {
+  if (!data || typeof data !== 'object') return '';
+  const raw = data.shopImage ?? data.shop_image ?? data.logo ?? data.logo_url ?? '';
+  return String(raw).trim();
+}
+
 function seoFromResolve(data) {
   if (!data || typeof data !== 'object') return null;
   return normalizeSeoBlock(data.seo);
@@ -108,11 +116,11 @@ async function cachedJsonGet(url, init = {}, ttlSeconds = 300) {
 
 /**
  * Resolve tenant SEO for the request host + path.
- * @returns {Promise<{ seo: object|null, shopName: string, shopId: string }>}
+ * @returns {Promise<{ seo: object|null, shopName: string, shopId: string, shopImage: string }>}
  */
 export async function resolveTenantSeo(hostname, pathname, env) {
   const domain = String(hostname || '').toLowerCase().trim();
-  if (!domain) return { seo: null, shopName: '', shopId: '' };
+  if (!domain) return { seo: null, shopName: '', shopId: '', shopImage: '' };
 
   const apiOrigin = apiOriginFromEnv(env);
   const resolveUrl = `${apiOrigin}/api/shops/resolve-by-domain?domain=${encodeURIComponent(domain)}`;
@@ -123,6 +131,7 @@ export async function resolveTenantSeo(hostname, pathname, env) {
   const resolveData = unwrapPayload(resolveJson);
   const shopId = shopIdFromResolve(resolveData);
   const shopName = shopNameFromResolve(resolveData);
+  const shopImage = shopImageFromResolve(resolveData);
   let seo = seoFromResolve(resolveData);
 
   const slug = parseProductSlug(pathname);
@@ -152,7 +161,7 @@ export async function resolveTenantSeo(hostname, pathname, env) {
     });
   }
 
-  return { seo, shopName, shopId };
+  return { seo, shopName, shopId, shopImage };
 }
 
 function replaceTag(html, pattern, replacement) {
@@ -185,21 +194,27 @@ function upsertLinkInHtml(html, rel, href) {
  * Inject tenant SEO into exported Next HTML (for crawlers: WhatsApp, Google, etc.).
  */
 export function injectSeoIntoHtml(html, seo, options = {}) {
-  if (!seo || !html) return html;
+  if (!html) return html;
+  if (!seo && !options.shopImage) return html;
 
   const siteName = options.shopName || '';
-  const canonical =
-    seo.canonicalUrl ||
-    options.canonicalUrl ||
-    (options.hostname ? `https://${options.hostname}/` : '');
-  const ogImage = seo.og?.image || '';
-  const ogType = seo.og?.type === 'product' ? 'website' : seo.og?.type || 'website';
-  const twitterCard = seo.twitter?.card || (ogImage ? 'summary_large_image' : 'summary');
-  const lang = String(seo.locale || 'en_IN').replace('_', '-');
+  const canonical = seo
+    ? seo.canonicalUrl ||
+      options.canonicalUrl ||
+      (options.hostname ? `https://${options.hostname}/` : '')
+    : '';
+  const ogImage = seo?.og?.image || '';
+  const ogType = seo?.og?.type === 'product' ? 'website' : seo?.og?.type || 'website';
+  const twitterCard = seo?.twitter?.card || (ogImage ? 'summary_large_image' : 'summary');
+  const lang = String(seo?.locale || 'en_IN').replace('_', '-');
 
   let out = html;
 
-  if (seo.title) {
+  if (!seo) {
+    return replaceFaviconLinksInHtml(out, options.shopImage);
+  }
+
+  if (seo?.title) {
     out = replaceTag(out, /<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(seo.title)}</title>`);
   }
   if (seo.description) {
@@ -236,11 +251,6 @@ export function injectSeoIntoHtml(html, seo, options = {}) {
   if (seo.themeColor) {
     out = upsertMetaInHtml(out, 'name', 'theme-color', seo.themeColor);
   }
-  if (ogImage) {
-    out = upsertLinkInHtml(out, 'icon', ogImage);
-    out = upsertLinkInHtml(out, 'apple-touch-icon', ogImage);
-  }
-
   if (lang) {
     out = out.replace(/<html([^>]*)\slang=["'][^"']*["']/i, `<html$1 lang="${escapeHtml(lang)}"`);
     if (!/lang=/i.test(out.match(/<html[^>]*>/i)?.[0] || '')) {
@@ -248,7 +258,7 @@ export function injectSeoIntoHtml(html, seo, options = {}) {
     }
   }
 
-  return out;
+  return replaceFaviconLinksInHtml(out, options.shopImage);
 }
 
 export function shouldInjectTenantSeo(url, request) {

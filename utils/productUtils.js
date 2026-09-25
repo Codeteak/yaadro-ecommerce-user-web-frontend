@@ -606,7 +606,13 @@ export function formatOrderLineWeight(item) {
   if (!isMassUnitLabel(unit)) return '';
   const sizeRaw = item.unitSize ?? item.unit_size ?? item.unit_size_snapshot ?? 1;
   const size = Number(sizeRaw);
-  const factor = Number.isFinite(size) && size > 0 ? size : 1;
+  // Sold-by-weight quantity is already kilograms. unit_size on the order is the
+  // shop's step (e.g. 0.23) and must not be multiplied again.
+  const factor = hasSoldByWeightFlag(item)
+    ? 1
+    : Number.isFinite(size) && size > 0
+      ? size
+      : 1;
   const billedQty = Number(item.quantity);
   if (!Number.isFinite(billedQty) || billedQty <= 0) return '';
   const orderedRaw = item.ordered_quantity ?? item.orderedQuantity;

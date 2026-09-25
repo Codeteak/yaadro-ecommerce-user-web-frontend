@@ -19,7 +19,7 @@ import {
 } from '../utils/shopResolver';
 import { fetchShopSeoMetadata } from '../utils/seoApi';
 import { applySeoBlockToDocument } from '../utils/seoBlock';
-import { upsertLink } from '../utils/documentMeta';
+import { applyShopFavicon } from '../utils/shopFavicon';
 
 /** Pathname (no trailing slash) → default document title segment before `| Shop Name`. */
 const ROUTE_PAGE_TITLES = {
@@ -94,11 +94,9 @@ export function ShopBrandingProvider({ children }) {
     [shopName]
   );
 
-  const applyShopBrandingAssets = useCallback((name, imageUrl) => {
-    if (imageUrl) {
-      upsertLink('icon', imageUrl);
-      upsertLink('apple-touch-icon', imageUrl);
-    }
+  const applyShopBrandingAssets = useCallback((_name, imageUrl) => {
+    if (typeof document === 'undefined') return;
+    applyShopFavicon(document, imageUrl);
   }, []);
 
   const applyResolvedBranding = useCallback(
@@ -180,7 +178,13 @@ export function ShopBrandingProvider({ children }) {
       // Avoid resolve-by-domain on every brief tab switch / app resume.
       if (now - visibilityRefreshAtRef.current < 60_000) return;
       visibilityRefreshAtRef.current = now;
-      void refreshShopBranding({ withSeoFallback: false, markResolving: false });
+      // Force refresh so admin banner removals clear the sticky cache and
+      // collapse the home carousel instead of leaving a gray placeholder.
+      void refreshShopBranding({
+        withSeoFallback: false,
+        markResolving: false,
+        forceRefresh: true,
+      });
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);

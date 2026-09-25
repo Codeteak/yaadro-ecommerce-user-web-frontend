@@ -20,7 +20,7 @@ export default function GuestAuthPrompt({
   const { goToLogin } = useLoginNavigation();
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
+    <div className="flex h-full min-h-0 flex-col bg-gray-50">
       <div className="sticky top-0 z-20 shrink-0">
         <PageTopBar
           title={pageTitle}

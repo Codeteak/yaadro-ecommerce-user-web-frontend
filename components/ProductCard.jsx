@@ -16,8 +16,10 @@ import {
   resolveProductWeightAndUnit,
 } from '../utils/productUtils';
 import { getProductOfferDisplay } from '../utils/offerDisplay';
-import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep, weightStepLinePrices, isSoldByWeightProduct, formatCartQtyControlLabel } from '../utils/productSizeSelection';
+import { buildAvailableSizes, resolveSelectedSize, sizeAddQuantity, cartQuantityStep, weightStepLinePrices, hasCustomWeightStep, isSoldByWeightProduct, formatCartQtyControlLabel } from '../utils/productSizeSelection';
 import { tapFeedback } from '../utils/haptics';
+import { playAddTap } from '../utils/playAddTap';
+import CustomWeightChooser from './CustomWeightChooser';
 import PriceDisplay from './ui/PriceDisplay';
 import OfferRibbon from './ui/OfferRibbon';
 import BundleOfferRibbon from './ui/BundleOfferRibbon';
@@ -29,7 +31,6 @@ import ProductImageWithFallback from './ProductImageWithFallback';
 import { getProductDetailPath } from '../utils/productApi';
 import { prefetchProductDetail } from '../hooks/useProducts';
 import { useShopBranding } from '../context/ShopBrandingContext';
-import { PRESSABLE_BTN } from './ui/brandButton';
 
 export default function ProductCard({ product, isCarousel = false, variant = 'default' }) {
   const queryClient = useQueryClient();
@@ -58,6 +59,9 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   
   // Get available sizes or use default weight/unit
   const availableSizes = useMemo(() => buildAvailableSizes(product), [product]);
+  const customWeight = hasCustomWeightStep(product);
+  const [weightChooserOpen, setWeightChooserOpen] = useState(false);
+  const addBtnRef = useRef(null);
   const [selectedSize, setSelectedSize] = useState(() => availableSizes[0] || null);
   /** Always read price from latest catalog row (selectedSize state can hold stale price). */
   const activeSize = useMemo(
@@ -74,17 +78,21 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   const [pendingCartQty, setPendingCartQty] = useState(0);
 
   const stepLinePrices = useMemo(
-    () => weightStepLinePrices(product, activeSize),
-    [product, activeSize]
+    () => (customWeight ? null : weightStepLinePrices(product, activeSize)),
+    [customWeight, product, activeSize]
   );
 
-  // Custom weight chips: show pay for the selected step (e.g. ₹11.25 for 250 g), never full ₹/kg.
-  const basePrice = stepLinePrices
-    ? stepLinePrices.list
-    : parseFloat(activeSize ? activeSize.price : product.price) || 0;
-  const currentPrice = stepLinePrices
-    ? stepLinePrices.pay
-    : getEffectivePrice(product, basePrice);
+  // Custom-weight cards show the per-kg price. The step price appears only in the ADD chooser.
+  const basePrice = customWeight
+    ? getListPrice(product) || parseFloat(product.price) || 0
+    : stepLinePrices
+      ? stepLinePrices.list
+      : parseFloat(activeSize ? activeSize.price : product.price) || 0;
+  const currentPrice = customWeight
+    ? getEffectivePrice(product, basePrice) || basePrice
+    : stepLinePrices
+      ? stepLinePrices.pay
+      : getEffectivePrice(product, basePrice);
   const strikeList = stepLinePrices
     ? stepLinePrices.list > stepLinePrices.pay + 1e-9
       ? stepLinePrices.list
@@ -110,17 +118,14 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     return null;
   }, [strikeList, currentPrice, basePrice]);
   const productPack = useMemo(() => resolveProductWeightAndUnit(product), [product]);
-  const displayWeight = activeSize?.label
-    ? activeSize.label
-    : activeSize
-      ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
-      : formatWeightUnitLabel(productPack.weight, productPack.unit);
+  const displayWeight = customWeight
+    ? '1 kg'
+    : activeSize?.label
+      ? activeSize.label
+      : activeSize
+        ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
+        : formatWeightUnitLabel(productPack.weight, productPack.unit);
   const addQty = sizeAddQuantity(product, activeSize);
-  const weightStep =
-    activeSize?.weightStep === true || availableSizes.some((size) => size.weightStep === true);
-  const showPackChips =
-    availableSizes.length > 1 &&
-    (weightStep || isSoldByWeightProduct(product));
 
   const bundleRule = useMemo(() => getPrimaryBundleRule(product), [product]);
   const offerDisplay = useMemo(() => getProductOfferDisplay(product), [product]);
@@ -175,12 +180,43 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   const cartUpdateKey =
     cartLine?.cartItemKey ?? cartLine?.cartItemId ?? cartLine?.id ?? null;
 
+  const chooseCustomWeight = useCallback(
+    async (size) => {
+      if (product?.inStock === false) return;
+      if (cartActionLoading || !size) return;
+      const qtyToAdd = sizeAddQuantity(product, size);
+      const list = getListPrice(product);
+      const pay = getEffectivePrice(product);
+      const payload = {
+        ...product,
+        price: pay,
+        ...(list > pay + 1e-9 ? { originalPrice: list } : {}),
+        selectedSize: size,
+        sizeDisplay: size.label,
+      };
+      setCartActionLoading(true);
+      setPendingCartQty(qtyToAdd);
+      try {
+        await addToCart(payload, qtyToAdd);
+        setWeightChooserOpen(false);
+      } catch {
+        setPendingCartQty(0);
+      } finally {
+        setCartActionLoading(false);
+      }
+    },
+    [addToCart, cartActionLoading, product]
+  );
+
   const handleAddToCart = useCallback(async () => {
     if (product?.inStock === false) return;
     if (String(product?.bxgyShelfRole || '').trim() === 'get') return;
-    // activeSize already falls back to availableSizes[0] — never gate on selectedSize
-    // alone (that left an invisible showSizeSelector path that ate the first tap).
     if (cartActionLoading) return;
+    playAddTap(addBtnRef.current);
+    if (customWeight && availableSizes.length > 0) {
+      setWeightChooserOpen(true);
+      return;
+    }
     const shelfBuy = Math.floor(Number(product?.bxgyBuyQty));
     const qtyToAdd =
       String(product?.bxgyShelfRole || '').trim() === 'buy' &&
@@ -192,7 +228,6 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     setPendingCartQty(qtyToAdd);
     try {
       await addToCart(productToAddPayload, qtyToAdd);
-      tapFeedback();
     } catch {
       setPendingCartQty(0);
       /* CartContext already alerts */
@@ -204,6 +239,8 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     addToCart,
     productToAddPayload,
     addQty,
+    customWeight,
+    availableSizes.length,
     product?.inStock,
     product?.bxgyShelfRole,
     product?.bxgyBuyQty,
@@ -519,6 +556,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           ? `Add ${damakaBuyQty} to cart for this offer`
           : 'Add to cart'
       }
+      ref={addBtnRef}
       className="relative flex h-11 min-w-[4.75rem] items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-[#902bf5] px-3.5 text-[13px] font-bold uppercase leading-none tracking-[0.12em] text-white shadow-[0_8px_20px_rgba(144,43,245,0.4)] transition hover:bg-[#7d24d6] active:scale-[0.97] touch-manipulation before:absolute before:-inset-1.5 before:content-['']"
     >
       {shelfRole === 'buy' && damakaBuyQty > 1 ? `ADD ${damakaBuyQty}` : 'ADD'}
@@ -526,6 +564,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   );
 
   return (
+    <>
     <article className={cardShellClass}>
       <div className="relative w-full shrink-0 overflow-hidden rounded-t-[20px] bg-gray-50">
         <Link {...navLinkProps} className="block">
@@ -664,37 +703,6 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           </p>
         </Link>
 
-        {showPackChips ? (
-          <div className="mt-1 flex flex-wrap gap-1">
-            {availableSizes.map((size) => {
-              const active = sizePackCount(activeSize) === sizePackCount(size);
-              const chipPrices = weightStepLinePrices(product, size);
-              const chipPay = chipPrices
-                ? chipPrices.pay
-                : getEffectivePrice(product, parseFloat(size.price));
-              return (
-                <button
-                  key={`${size.packCount}-${size.weight}-${size.unit}`}
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setSelectedSize(size);
-                  }}
-                  className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-tight ${PRESSABLE_BTN} ${
-                    active
-                      ? 'border-violet-600 bg-violet-600 text-white'
-                      : 'border-gray-200 bg-white text-gray-700'
-                  }`}
-                >
-                  {size.label || formatWeightUnitLabel(size.weight, size.unit)}
-                  <span className="ml-1 font-bold tabular-nums">₹{formatRupeeINR(chipPay)}</span>
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
-
         <Link
           {...navLinkProps}
           className="mt-auto flex min-h-5 items-end pt-0.5"
@@ -713,11 +721,30 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
               ) : null}
             </div>
           ) : (
-            <PriceDisplay amount={currentPrice} listPrice={displayListPrice} size="sm" />
+            <PriceDisplay
+              amount={currentPrice}
+              listPrice={displayListPrice}
+              size="sm"
+              suffix={customWeight ? '/kg' : undefined}
+            />
           )}
         </Link>
       </div>
     </article>
+    {customWeight ? (
+      <CustomWeightChooser
+        open={weightChooserOpen}
+        onOpenChange={setWeightChooserOpen}
+        product={product}
+        productName={product?.name}
+        sizes={availableSizes}
+        busy={cartActionLoading}
+        onSelect={(size) => {
+          void chooseCustomWeight(size);
+        }}
+      />
+    ) : null}
+    </>
   );
 }
 

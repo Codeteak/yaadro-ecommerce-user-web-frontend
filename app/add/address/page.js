@@ -80,6 +80,26 @@ function abandonedSessionKey(addressId) {
   return `yaadro_address_edit_abandoned_${addressId}`;
 }
 
+function keptContactName(address, profileName) {
+  return String(address?.fullName || profileName || '').trim();
+}
+
+function addressEditSignature({ form, coords, name }) {
+  const lat = coords?.lat != null ? Number(coords.lat) : null;
+  const lng = coords?.lng != null ? Number(coords.lng) : null;
+  return JSON.stringify({
+    label: String(form?.label || 'Home'),
+    line1: String(form?.line1 || '').trim(),
+    line2: String(form?.line2 || '').trim(),
+    landmark: String(form?.landmark || '').trim(),
+    city: String(form?.city || '').trim(),
+    raw: sanitizeAddressNotes(form?.raw) || '',
+    lat: Number.isFinite(lat) ? lat.toFixed(4) : null,
+    lng: Number.isFinite(lng) ? lng.toFixed(4) : null,
+    name: String(name || '').trim(),
+  });
+}
+
 function buildEditSnapshot(editingAddress) {
   if (!editingAddress?.id) return null;
   const lat = editingAddress.lat != null ? Number(editingAddress.lat) : null;
@@ -109,7 +129,14 @@ export default function AddAddressPage() {
   const { user, refreshUser } = useAuth();
   const { ok, ready } = useRequireAuth();
   const { goToLogin } = useLoginNavigation();
-  const { addresses = [], addAddress, updateAddress, isCreating, isUpdating } = useAddress();
+  const {
+    addresses = [],
+    addAddress,
+    updateAddress,
+    isCreating,
+    isUpdating,
+    isLoading: addressesLoading,
+  } = useAddress();
   const { shopLocation: contextShopLocation } = useLocationService();
 
   const editingAddress = useMemo(
@@ -118,8 +145,8 @@ export default function AddAddressPage() {
   );
   const isEdit = Boolean(editingAddress?.id);
 
-  // ── 2-step flow ──
-  const [step, setStep] = useState(1);
+  // New address: map first. Edit: open the saved details, map stays at the bottom.
+  const [step, setStep] = useState(() => (editId ? 2 : 1));
 
   // ── Coordinates from map (never reverse-geocode into form fields) ──
   const [coords, setCoords] = useState(null);
@@ -149,94 +176,115 @@ export default function AddAddressPage() {
   const formScrollRef = useRef(null);
 
   const [showLeaveModal, setShowLeaveModal] = useState(false);
-  const [isDraftDirty, setIsDraftDirty] = useState(false);
+  const [editBaseline, setEditBaseline] = useState(null);
   const editInitForIdRef = useRef(null);
   /** After a successful save, skip leave guards and navigate away on back. */
   const saveCompletedRef = useRef(false);
   const lastSavedAddressIdRef = useRef(null);
 
-  const markDirty = useCallback(() => {
-    if (isEdit) setIsDraftDirty(true);
-  }, [isEdit]);
+  const savedName = keptContactName(editingAddress, nameFromProfile);
 
-  // Edit mode: backup previous address to localStorage, then clear form for a fresh entry.
-  // If user left without saving earlier (abandoned), restore from backup instead of clearing again.
+  // Edit opens on the saved address. Name stays filled from the profile or this address.
   useEffect(() => {
     if (!isEdit || !editingAddress?.id || String(editingAddress.id) !== String(editId)) return;
     if (editInitForIdRef.current === editId) return;
 
     const backupKey = backupStorageKey(editId);
     const abandonedKey = abandonedSessionKey(editId);
+    const existing = buildAddressFromExisting(editingAddress) ?? { ...EMPTY_FORM };
+    const savedLat = editingAddress.lat != null ? Number(editingAddress.lat) : null;
+    const savedLng = editingAddress.lng != null ? Number(editingAddress.lng) : null;
+    const savedCoords =
+      savedLat != null &&
+      savedLng != null &&
+      Number.isFinite(savedLat) &&
+      Number.isFinite(savedLng)
+        ? { lat: savedLat, lng: savedLng }
+        : null;
+    const name = keptContactName(editingAddress, nameFromProfile);
 
     try {
-      const abandoned =
-        typeof sessionStorage !== 'undefined' && sessionStorage.getItem(abandonedKey) === '1';
-      const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(backupKey) : null;
-
-      if (abandoned && raw) {
-        const snap = JSON.parse(raw);
-        if (snap?.form && typeof snap.form === 'object') {
-          setForm({ ...EMPTY_FORM, ...snap.form });
-        } else {
-          setForm({ ...EMPTY_FORM });
-        }
-        if (snap?.coords?.lat != null && snap?.coords?.lng != null) {
-          setCoords({ lat: Number(snap.coords.lat), lng: Number(snap.coords.lng) });
-        } else {
-          setCoords(null);
-        }
-        if (typeof snap?.nameDraft === 'string' && !nameFromProfile) setNameDraft(snap.nameDraft);
-        if (typeof snap?.phoneDraft === 'string' && !phoneFromProfile) setPhoneDraft(snap.phoneDraft);
-        setStep(1);
-        setTouched({});
-        setIsDraftDirty(false);
-        sessionStorage.removeItem(abandonedKey);
-        editInitForIdRef.current = editId;
-        return;
-      }
-
       const snapshot = buildEditSnapshot(editingAddress);
       if (snapshot && typeof localStorage !== 'undefined') {
         localStorage.setItem(backupKey, JSON.stringify(snapshot));
       }
 
-      setForm({ ...EMPTY_FORM });
-      const savedLat =
-        editingAddress.lat != null ? Number(editingAddress.lat) : null;
-      const savedLng =
-        editingAddress.lng != null ? Number(editingAddress.lng) : null;
-      if (
-        savedLat != null &&
-        savedLng != null &&
-        Number.isFinite(savedLat) &&
-        Number.isFinite(savedLng)
-      ) {
-        setCoords({ lat: savedLat, lng: savedLng });
-      } else {
-        setCoords(null);
+      const abandoned =
+        typeof sessionStorage !== 'undefined' && sessionStorage.getItem(abandonedKey) === '1';
+      const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(backupKey) : null;
+      let nextForm = existing;
+      let nextCoords = savedCoords;
+      let nextName = name;
+
+      if (abandoned && raw) {
+        const snap = JSON.parse(raw);
+        if (snap?.form && typeof snap.form === 'object') {
+          nextForm = { ...EMPTY_FORM, ...snap.form };
+        }
+        if (snap?.coords?.lat != null && snap?.coords?.lng != null) {
+          nextCoords = { lat: Number(snap.coords.lat), lng: Number(snap.coords.lng) };
+        }
+        if (typeof snap?.nameDraft === 'string' && snap.nameDraft.trim()) {
+          nextName = snap.nameDraft.trim();
+        }
+        if (typeof snap?.phoneDraft === 'string' && !phoneFromProfile) {
+          setPhoneDraft(snap.phoneDraft);
+        }
+        sessionStorage.removeItem(abandonedKey);
+      } else if (!phoneFromProfile) {
+        setPhoneDraft('');
       }
-      setStep(1);
+
+      setForm(nextForm);
+      setCoords(nextCoords);
+      setNameDraft(nextName);
+      setEditBaseline({
+        form: existing,
+        coords: savedCoords,
+        name,
+      });
+      setStep(2);
       setTouched({});
-      if (!nameFromProfile) setNameDraft('');
-      if (!phoneFromProfile) setPhoneDraft('');
-      setIsDraftDirty(false);
       saveCompletedRef.current = false;
       editInitForIdRef.current = editId;
     } catch (e) {
       console.warn('Address edit init backup failed', e);
+      setForm(existing);
+      setCoords(savedCoords);
+      setNameDraft(name);
+      setEditBaseline({ form: existing, coords: savedCoords, name });
+      setStep(2);
       editInitForIdRef.current = editId;
     }
   }, [isEdit, editingAddress, editId, nameFromProfile, phoneFromProfile]);
 
+  // Profile name can arrive after the address. Fill an empty name without wiping a typed one.
   useEffect(() => {
-    if (!isEdit || !isDraftDirty || saveCompletedRef.current) return undefined;
+    if (!isEdit || !savedName) return;
+    setNameDraft((prev) => (String(prev || '').trim() ? prev : savedName));
+    setEditBaseline((prev) => {
+      if (!prev || String(prev.name || '').trim()) return prev;
+      return { ...prev, name: savedName };
+    });
+  }, [isEdit, savedName]);
+
+  const hasEditChanges = useMemo(() => {
+    if (!isEdit || !editBaseline) return false;
+    return (
+      addressEditSignature({ form, coords, name: nameDraft || savedName }) !==
+      addressEditSignature(editBaseline)
+    );
+  }, [isEdit, editBaseline, form, coords, nameDraft, savedName]);
+
+  useEffect(() => {
+    if (!isEdit || !hasEditChanges || saveCompletedRef.current) return undefined;
     const onBeforeUnload = (e) => {
       e.preventDefault();
       e.returnValue = '';
     };
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [isEdit, isDraftDirty]);
+  }, [isEdit, hasEditChanges]);
 
   useEffect(() => {
     if (!editId) editInitForIdRef.current = null;
@@ -359,17 +407,15 @@ export default function AddAddressPage() {
     const errors = {};
     if (!form.line1.trim()) errors.line1 = 'Please enter Address Line 1.';
 
-    if (needsName) {
-      const n = nameDraft.trim();
-      if (!n || n.length < 2) errors.name = 'Enter your full name';
-    }
+    const nameForCheck = (nameDraft.trim() || nameFromProfile || savedName).trim();
+    if (!nameForCheck || nameForCheck.length < 2) errors.name = 'Enter your full name';
     if (needsPhone) {
       const phoneErr = getIndianPhoneSubmitError(phoneDraft);
       if (phoneErr) errors.phone = phoneErr;
     }
 
     return { errors, ok: Object.keys(errors).length === 0 };
-  }, [form, needsName, needsPhone, nameDraft, phoneDraft]);
+  }, [form, needsPhone, nameDraft, phoneDraft, nameFromProfile, savedName]);
 
   const err = (key) => (touched[key] ? validation.errors[key] : '');
   const inputCls = (key) =>
@@ -404,17 +450,12 @@ export default function AddAddressPage() {
     const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     setForm((prev) => ({ ...prev, [key]: v }));
     setTouched((prev) => ({ ...prev, [key]: true }));
-    markDirty();
   };
 
   // ── Map → coordinates only (do not auto-fill address form / notes) ──
-  const handleMapChange = useCallback(
-    ({ lat, lng }) => {
-      setCoords({ lat, lng });
-      markDirty();
-    },
-    [markDirty]
-  );
+  const handleMapChange = useCallback(({ lat, lng }) => {
+    setCoords({ lat, lng });
+  }, []);
 
   // ── Submit ──
   const buildPayload = (nameResolved, phoneResolved) => {
@@ -454,17 +495,13 @@ export default function AddAddressPage() {
       navigateBackWith(lastSavedAddressIdRef.current);
       return;
     }
-    // Map step is not persisted until Confirm + Save — always leave immediately.
-    if (!isEdit || step === 1) {
-      router.replace(returnTo);
-      return;
-    }
-    if (!isDraftDirty) {
+    // New address, or an edit with nothing changed — leave immediately.
+    if (!isEdit || step === 1 || !hasEditChanges) {
       router.replace(returnTo);
       return;
     }
     setShowLeaveModal(true);
-  }, [isEdit, isDraftDirty, step, router, returnTo, navigateBackWith]);
+  }, [isEdit, hasEditChanges, step, router, returnTo, navigateBackWith]);
 
   const confirmLeaveIncompleteEdit = useCallback(() => {
     if (!saveCompletedRef.current && editId && typeof sessionStorage !== 'undefined') {
@@ -489,7 +526,7 @@ export default function AddAddressPage() {
 
     if (!coords?.lat || !coords?.lng) {
       setSubmitError('Please select a delivery location on the map.');
-      setStep(1);
+      if (!isEdit) setStep(1);
       return;
     }
 
@@ -501,11 +538,11 @@ export default function AddAddressPage() {
             ? 'Could not verify delivery for this pin. Check your connection and try again.'
             : 'Please wait until delivery availability is confirmed for this pin.',
       );
-      setStep(1);
+      if (!isEdit) setStep(1);
       return;
     }
 
-    const finalName = needsName ? nameDraft.trim() : nameFromProfile;
+    const finalName = (nameDraft.trim() || nameFromProfile || savedName).trim();
     const finalPhone = needsPhone
       ? normalizePhoneForApi(phoneDraft)
       : normalizePhoneForApi(phoneFromProfile);
@@ -517,7 +554,7 @@ export default function AddAddressPage() {
         return;
       }
 
-      if (needsName && finalName) {
+      if (finalName && finalName !== nameFromProfile) {
         await updateProfile({ displayName: finalName });
         await refreshUser({ silent: true });
       }
@@ -557,7 +594,6 @@ export default function AddAddressPage() {
         void queryClient.invalidateQueries({ queryKey: cartKeys.all });
       }
 
-      setIsDraftDirty(false);
       setShowLeaveModal(false);
       saveCompletedRef.current = true;
       lastSavedAddressIdRef.current = createdId;
@@ -580,7 +616,7 @@ export default function AddAddressPage() {
   const submitting = isCreating || isUpdating;
 
   // Guests: useRequireAuth → home; spinner while loading or redirecting.
-  if (!ready || !ok) {
+  if (!ready || !ok || (editId && addressesLoading && !editingAddress)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
         <Loader2 size={32} className="h-8 w-8 animate-spin text-violet-600" />
@@ -604,18 +640,20 @@ export default function AddAddressPage() {
         <div className="relative z-20 flex shrink-0 items-center gap-3 border-b border-gray-100 bg-white px-4 py-3">
           <button
             type="button"
-            onClick={() => setStep(1)}
+            onClick={() => (isEdit ? requestLeave() : setStep(1))}
             className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 ${PRESSABLE_ICON_BTN_SOFT}`}
-            aria-label="Back"
+            aria-label={isEdit ? 'Cancel' : 'Back'}
           >
             <ArrowLeft size={16} className="h-4 w-4" />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-700">
-              Step 2 of 2
-            </p>
+            {!isEdit && (
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-700">
+                Step 2 of 2
+              </p>
+            )}
             <h1 className="truncate text-base font-semibold text-gray-900">
-              Add address details
+              {isEdit ? 'Edit address' : 'Add address details'}
             </h1>
           </div>
         </div>
@@ -793,7 +831,6 @@ export default function AddAddressPage() {
                   return;
                 }
                 setSubmitError('');
-                if (isEdit) markDirty();
                 if (isEdit && editingAddress) {
                   const existing = buildAddressFromExisting(editingAddress);
                   if (existing) {
@@ -842,20 +879,21 @@ export default function AddAddressPage() {
       {/* ===== STEP 2: Details form ===== */}
       {step === 2 && (
         <div className="flex min-h-0 flex-1 flex-col">
-          {/* Resolved location summary (compact) */}
-          <div className="shrink-0 border-b border-gray-100 bg-violet-50/40 px-4 py-3">
-            <div className="flex items-center gap-2 text-[12px] text-violet-900">
-              <MapPin size={16} className="h-4 w-4 flex-shrink-0" />
-              <span className="line-clamp-1 font-medium">{previewLine1}</span>
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="ml-auto flex-shrink-0 rounded-full border border-violet-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-violet-700 hover:bg-violet-50"
-              >
-                Change
-              </button>
+          {!isEdit && (
+            <div className="shrink-0 border-b border-gray-100 bg-violet-50/40 px-4 py-3">
+              <div className="flex items-center gap-2 text-[12px] text-violet-900">
+                <MapPin size={16} className="h-4 w-4 flex-shrink-0" />
+                <span className="line-clamp-1 font-medium">{previewLine1}</span>
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="ml-auto flex-shrink-0 rounded-full border border-violet-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-violet-700 hover:bg-violet-50"
+                >
+                  Change
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <div ref={formScrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
             {Object.keys(validation.errors).length > 0 &&
@@ -877,7 +915,7 @@ export default function AddAddressPage() {
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                 Contact
               </p>
-              {needsName ? (
+              {isEdit || needsName ? (
                 <div className="mt-2">
                   <label className="text-xs font-semibold text-gray-800">
                     Full name <span className="text-red-500">*</span>
@@ -888,7 +926,6 @@ export default function AddAddressPage() {
                     onChange={(e) => {
                       setNameDraft(e.target.value);
                       setSubmitError('');
-                      markDirty();
                     }}
                     autoComplete="name"
                     placeholder="Name as on phone bill / ID"
@@ -910,7 +947,6 @@ export default function AddAddressPage() {
                     onChange={(v) => {
                       setPhoneDraft(v);
                       setSubmitError('');
-                      markDirty();
                     }}
                     inputClassName={inputCls('phone')}
                     placeholder="10-digit mobile"
@@ -1003,6 +1039,43 @@ export default function AddAddressPage() {
                 />
               </div>
 
+              {isEdit && (
+                <div className="pt-2">
+                  <p className="text-xs font-semibold text-gray-700">Delivery location</p>
+                  <p className="mt-0.5 text-[12px] text-gray-500">
+                    Move the pin if this address needs a different spot.
+                  </p>
+                  <div className="mt-2">
+                    <AddressMapPicker
+                      variant="card"
+                      centerPinMode
+                      height={220}
+                      value={coords}
+                      onChange={handleMapChange}
+                      userLocation={userLocation}
+                      storeLocation={effectiveStoreLocation}
+                      showStoreMarker
+                      focusRequest={mapFocusRequest}
+                    />
+                  </div>
+                  <p
+                    className={`mt-2 text-[12px] font-medium ${
+                      pinDeliveryCheck.serviceable === false
+                        ? 'text-red-700'
+                        : pinDeliveryCheck.serviceable === true
+                          ? 'text-violet-800'
+                          : 'text-gray-600'
+                    }`}
+                  >
+                    {getPinDeliveryCheckMessage({
+                      loading: pinDeliveryCheck.loading,
+                      error: pinDeliveryCheck.error,
+                      serviceable: pinDeliveryCheck.serviceable,
+                    })}
+                  </p>
+                </div>
+              )}
+
               {submitError && (
                 <p className="text-center text-xs text-red-600">{submitError}</p>
               )}
@@ -1014,15 +1087,28 @@ export default function AddAddressPage() {
             className="shrink-0 border-t border-gray-100 bg-white px-4 pt-3 shadow-[0_-4px_14px_rgba(0,0,0,0.06)]"
             style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
           >
+            <div className={isEdit ? 'flex gap-2' : ''}>
+            {isEdit && (
+              <button
+                type="button"
+                onClick={requestLeave}
+                className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl border border-gray-200 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            )}
             <button
               type="button"
               onClick={handleSave}
               disabled={
                 submitting ||
+                (isEdit && !hasEditChanges) ||
                 pinDeliveryCheck.loading ||
                 pinDeliveryCheck.serviceable !== true
               }
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className={`inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-violet-600 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-500 disabled:opacity-100 disabled:shadow-none ${
+                isEdit ? 'flex-[1.4]' : 'w-full'
+              }`}
             >
               {submitting ? (
                 <>
@@ -1036,6 +1122,7 @@ export default function AddAddressPage() {
                 </>
               )}
             </button>
+            </div>
           </div>
         </div>
       )}
