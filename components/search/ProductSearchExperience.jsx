@@ -163,7 +163,9 @@ export default function ProductSearchExperience({
     return () => window.removeEventListener('keydown', onKey);
   }, [active, isPage, close]);
 
-  // Root-level dismiss: any click outside the search bar closes search.
+  // Root-level dismiss: any click outside the search bar / results closes search.
+  // Results are portaled to document.body, so they are not under barWrapRef —
+  // without excluding resultsPanelRef, ADD / qty clicks would dismiss the overlay.
   // Use click (not pointerdown) so scrolling the results panel does not dismiss.
   // Deferred so the opening click cannot immediately dismiss.
   useEffect(() => {
@@ -175,6 +177,7 @@ export default function ProductSearchExperience({
         const target = event.target;
         if (!(target instanceof Node)) return;
         if (barWrapRef.current?.contains(target)) return;
+        if (resultsPanelRef.current?.contains(target)) return;
         close();
       };
       document.addEventListener('click', onClick, true);

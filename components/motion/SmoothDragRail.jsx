@@ -8,6 +8,8 @@ import {
   shouldMarkAsDrag,
   shouldSuppressClickAfterDrag,
 } from '../../utils/pointerDragClick';
+import { getAppScrollEl } from '../../lib/pwa/appShell';
+import { resolveRailWheelIntent } from '../../utils/railWheelIntent';
 
 /**
  * Horizontal product / category rail.
@@ -15,6 +17,10 @@ import {
  * Touch & trackpad: native `overflow-x` scrolling (instant + momentum).
  * Mouse: click-drag updates `scrollLeft` 1:1 so desktop still feels direct.
  * Taps under {@link DRAG_CLICK_PX} still hit ADD / links.
+ *
+ * CRITICAL: `overflow-x:auto` + `overflow-y:hidden` creates a scrollport that
+ * traps vertical wheel/trackpad pans when the pointer is over product cards.
+ * Vertical deltas are forwarded to the page scroll owner (#app-scroll or window).
  */
 export default function SmoothDragRail({
   children,
@@ -100,17 +106,40 @@ export default function SmoothDragRail({
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return undefined;
-    const onWheel = (event) => {
-      const absX = Math.abs(event.deltaX);
-      const absY = Math.abs(event.deltaY);
-      const delta = absX > absY ? event.deltaX : event.shiftKey ? event.deltaY : 0;
-      if (!delta) return;
-      if (viewport.scrollWidth <= viewport.clientWidth + 1) return;
-      // Prefer native horizontal deltas; only hijack vertical+shift.
-      if (absX > absY) return;
-      event.preventDefault();
-      viewport.scrollLeft += delta;
+
+    const scrollPageBy = (deltaY) => {
+      const scroller = getAppScrollEl();
+      if (scroller) {
+        const oy = window.getComputedStyle(scroller).overflowY;
+        if (oy === 'auto' || oy === 'scroll' || oy === 'overlay') {
+          scroller.scrollTop += deltaY;
+          return;
+        }
+      }
+      window.scrollBy(0, deltaY);
     };
+
+    const onWheel = (event) => {
+      const canH = viewport.scrollWidth > viewport.clientWidth + 1;
+      const intent = resolveRailWheelIntent({
+        deltaX: event.deltaX,
+        deltaY: event.deltaY,
+        shiftKey: event.shiftKey,
+        canScrollHoriz: canH,
+      });
+
+      if (intent === 'page') {
+        event.preventDefault();
+        scrollPageBy(event.deltaY);
+        return;
+      }
+      if (intent === 'rail-shift') {
+        event.preventDefault();
+        viewport.scrollLeft += event.deltaY;
+      }
+      // native-h / ignore → leave to browser overflow-x or no-op
+    };
+
     viewport.addEventListener('wheel', onWheel, { passive: false });
     return () => viewport.removeEventListener('wheel', onWheel);
   }, []);
@@ -159,7 +188,12 @@ export default function SmoothDragRail({
       );
       if (!axis) return;
       pointer.axis = axis;
-      if (axis !== 'x') return;
+      // Vertical mouse drag → release to page; do not capture.
+      if (axis !== 'x') {
+        pointer.id = null;
+        pointer.isMouse = false;
+        return;
+      }
     }
     if (pointer.axis !== 'x') return;
 
