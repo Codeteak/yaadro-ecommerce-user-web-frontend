@@ -395,6 +395,11 @@ export default function Home() {
     return freshZoneTabProducts;
   }, [freshZoneCategoryId, freshZoneFromCatalog, freshZoneTabProducts]);
 
+  const freshZoneSeeAllHref = useMemo(() => {
+    if (!freshZoneSelectedCategory?.id) return '/products';
+    return `/products?category=${encodeURIComponent(String(freshZoneSelectedCategory.id))}`;
+  }, [freshZoneSelectedCategory]);
+
   const locationSubtitle = useMemo(() => {
     if (isLocationChecking) return 'Checking your area…';
     const fromAddress = formatHomeAddressLine(getDefaultAddress());
@@ -857,10 +862,10 @@ export default function Home() {
               )}
             </div>
 
-            {/* Bottom center "See all →" (no background) */}
+            {/* Bottom center "See all →" — opens the active Fresh Zone category */}
             <div className="mt-10 flex justify-center px-4 md:px-0">
               <Link
-                href="/products"
+                href={freshZoneSeeAllHref}
                 className="inline-flex items-center gap-2 text-[13px] font-semibold text-white/90 hover:text-white transition"
               >
                 <span>See all</span>

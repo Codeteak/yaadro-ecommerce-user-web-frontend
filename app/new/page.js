@@ -18,7 +18,7 @@ export default function NewPage() {
   }
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden pb-20 md:pb-8">
+    <div className="w-full max-w-full pb-20 md:pb-8">
       <Container>
         <div className="py-6 md:py-8">
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-2 px-3 sm:px-4 md:px-0">New</h1>

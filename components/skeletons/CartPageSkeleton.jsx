@@ -4,7 +4,7 @@ import { Bone, CartLineSkeleton, CartTopBarSkeleton, ProductCarouselRowSkeleton 
 export default function CartPageSkeleton() {
   return (
     <div
-      className="min-h-screen w-full max-w-full overflow-x-hidden bg-gray-50 pb-40"
+      className="min-h-screen w-full max-w-full bg-gray-50 pb-40"
       aria-busy="true"
       aria-label="Loading cart"
     >

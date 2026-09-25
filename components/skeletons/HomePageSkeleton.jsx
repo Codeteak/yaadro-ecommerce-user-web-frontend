@@ -34,7 +34,7 @@ function SectionHeading({ titleWidth = 280, subtitleWidth = 0, showMore = false,
 function ProductCarouselRowSkeleton({ count = 6, gapClass = 'gap-2' }) {
   return (
     <div className="w-full">
-      <div className="overflow-x-hidden scrollbar-hide pb-3">
+      <div className=" scrollbar-hide pb-3">
         <div className={`flex w-max ${gapClass} px-4`}>
           {Array.from({ length: count }).map((_, i) => (
             <div key={i} className="w-[140px] shrink-0 flex flex-col gap-2">
@@ -73,7 +73,7 @@ function HomeTopSkeleton() {
       </div>
 
       <div className="mt-5 w-full">
-        <div className="overflow-x-hidden px-4 sm:px-5">
+        <div className=" px-4 sm:px-5">
           <div className="flex w-max gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="flex shrink-0 flex-col items-center gap-2">
@@ -85,7 +85,7 @@ function HomeTopSkeleton() {
         </div>
       </div>
 
-      <div className="mt-5 overflow-x-hidden px-4 sm:px-5 pb-2">
+      <div className="mt-5 px-4 sm:px-5 pb-2">
         <div className="flex w-max items-stretch gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="flex w-[173px] shrink-0 flex-col gap-2">
@@ -129,7 +129,7 @@ function DailyDiarySkeleton() {
 export default function HomePageSkeleton() {
   return (
     <div
-      className="w-full max-w-full overflow-x-hidden min-h-screen bg-white"
+      className="w-full max-w-full min-h-screen bg-white"
       aria-busy="true"
       aria-live="polite"
       aria-label="Loading home"

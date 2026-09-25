@@ -32,7 +32,7 @@ export default function SearchPage() {
   }, []);
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-gray-50 pb-28">
+    <div className="min-h-screen w-full max-w-full bg-gray-50 pb-28">
       <ProductSearchExperience
         mode="page"
         initialQuery={initialQ}

@@ -28,7 +28,7 @@ function hideSiteFooter(path) {
 export default function ConditionalLayout({ children }) {
   const pathname = usePathname();
   const { bottomNavHeight, setSiteFooterHeight } = useLayoutHeights();
-  const { isVisible: bottomNavVisible, hideForRoute } = useBottomNavVisibility();
+  const { hideForRoute } = useBottomNavVisibility();
 
   const path = normalizePath(pathname);
   const hideFooter = hideSiteFooter(path);
@@ -39,14 +39,13 @@ export default function ConditionalLayout({ children }) {
     return () => setSiteFooterHeight?.(0);
   }, [setSiteFooterHeight, path]);
 
-  const navInset =
-    !hideForRoute && bottomNavVisible ? Math.max(Number(bottomNavHeight) || 0, 0) : 0;
+  // Keep inset constant while the bar slides — toggling padding mid-scroll feels sticky.
+  const navInset = !hideForRoute ? Math.max(Number(bottomNavHeight) || 0, 0) : 0;
 
   return (
     <main
-      className="flex w-full max-w-full flex-grow flex-col overflow-x-clip"
+      className="flex w-full max-w-full flex-grow flex-col"
       style={{
-        overflowX: 'clip',
         paddingBottom: navInset,
       }}
     >

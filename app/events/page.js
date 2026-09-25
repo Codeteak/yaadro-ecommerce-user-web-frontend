@@ -27,7 +27,7 @@ function EventProductsInner() {
   const missing = !eventId || !section;
 
   return (
-    <div className="event-theme-wash min-h-screen w-full max-w-full overflow-x-hidden pb-20 md:pb-8">
+    <div className="event-theme-wash min-h-screen w-full max-w-full pb-20 md:pb-8">
       <Container>
         <div className="py-6 md:py-8">
           <Link

@@ -20,7 +20,7 @@ export function SearchResultsGridSkeleton() {
 export default function SearchPageSkeleton({ mode = 'results' }) {
   return (
     <div
-      className="min-h-screen w-full max-w-full overflow-x-hidden bg-gray-50 pb-28"
+      className="min-h-screen w-full max-w-full bg-gray-50 pb-28"
       aria-busy="true"
       aria-label="Loading search"
     >

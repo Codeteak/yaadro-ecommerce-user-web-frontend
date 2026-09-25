@@ -9,7 +9,7 @@ function Shimmer({ className = '' }) {
 
 export default function ProductDetailSkeleton() {
   return (
-    <div className="w-full max-w-full overflow-x-hidden bg-gray-50 pb-24" aria-busy="true" aria-label="Loading product">
+    <div className="w-full max-w-full bg-gray-50 pb-24" aria-busy="true" aria-label="Loading product">
       {/* ── Compact image gallery ── */}
       <section className="relative w-full bg-gray-50 overflow-hidden">
         <div className="absolute top-0 left-0 right-0 z-20 p-3 flex items-center justify-between pointer-events-none">

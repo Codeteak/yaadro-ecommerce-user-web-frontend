@@ -5,7 +5,7 @@ import { Bone } from './primitives';
 export default function WishlistPageSkeleton() {
   return (
     <div
-      className="w-full max-w-full overflow-x-hidden py-4 md:py-6"
+      className="w-full max-w-full py-4 md:py-6"
       aria-busy="true"
       aria-label="Loading wishlist"
     >

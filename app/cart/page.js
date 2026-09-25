@@ -644,7 +644,7 @@ function CartPageContent() {
 
   return (
     <div
-      className={`min-h-screen bg-gray-50 w-full max-w-full overflow-x-hidden ${
+      className={`min-h-screen bg-gray-50 w-full max-w-full ${
         cartItems.length > 0
           ? orderSavings > 0
             ? "pb-36"

@@ -27,7 +27,7 @@ export default function WishlistPage() {
 
   if (wishlistItems.length === 0) {
     return (
-      <div className="py-16 w-full max-w-full overflow-x-hidden">
+      <div className="py-16 w-full max-w-full">
         <Container>
           <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Wishlist', href: '/wishlist' }]} />
           <div className="text-center mt-4">
@@ -63,7 +63,7 @@ export default function WishlistPage() {
   }
 
   return (
-    <div className="py-4 md:py-6 lg:py-8 w-full max-w-full overflow-x-hidden">
+    <div className="py-4 md:py-6 lg:py-8 w-full max-w-full">
       <Container>
         <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Wishlist', href: '/wishlist' }]} />
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 md:mb-8 px-4 md:px-0 mt-2">

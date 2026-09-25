@@ -5,7 +5,7 @@ import { Bone, ProductGridSkeleton } from './primitives';
 export default function ProductListingPageSkeleton({ titleWidth = 160 }) {
   return (
     <div
-      className="w-full max-w-full overflow-x-hidden pb-20 md:pb-8"
+      className="w-full max-w-full pb-20 md:pb-8"
       aria-busy="true"
       aria-label="Loading products"
     >

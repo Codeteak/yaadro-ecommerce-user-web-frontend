@@ -15,8 +15,8 @@ export default function Footer({ fixed = false, bottomOffset = 0, footerRef = nu
       ref={footerRef}
       className={
         fixed
-          ? 'pointer-events-none fixed inset-x-0 z-40 w-full max-w-full overflow-x-hidden border-t border-gray-100 bg-white'
-          : 'relative mt-auto w-full max-w-full overflow-x-hidden border-t border-gray-100 bg-white'
+          ? 'pointer-events-none fixed inset-x-0 z-40 w-full max-w-full border-t border-gray-100 bg-white'
+          : 'relative mt-auto w-full max-w-full border-t border-gray-100 bg-white'
       }
       style={
         fixed

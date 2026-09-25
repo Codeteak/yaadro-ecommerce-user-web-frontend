@@ -465,7 +465,7 @@ export default function ProductDetailClient({ productId = null }) {
   }
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden bg-gray-50 pb-24">
+    <div className="w-full max-w-full bg-gray-50 pb-24">
       <div className="border-b border-gray-100 bg-white px-4 sm:px-5">
         <Breadcrumbs
           items={[
