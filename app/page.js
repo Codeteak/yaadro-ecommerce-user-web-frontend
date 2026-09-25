@@ -639,7 +639,7 @@ export default function Home() {
       {/* Fresh Zone — tree fetch is deferred until this section nears the viewport */}
       <section
         ref={freshZoneSectionRef}
-        className="fresh-zone-minh relative overflow-hidden bg-white rounded-[32px] mx-3 sm:mx-6 md:mx-8 my-4 sm:my-6 min-h-[12rem]"
+        className="fresh-zone-minh relative overflow-hidden bg-white rounded-none my-4 sm:my-6 min-h-[12rem]"
       >
         {freshZoneLoading && freshZoneDisplayProducts.length === 0 && (
           <Container className="relative z-[2] py-10 sm:py-14">
@@ -656,7 +656,7 @@ export default function Home() {
           {/* Background video */}
           <div className="pointer-events-none absolute inset-0 z-0">
             <video
-              className="h-full w-full object-contain object-center"
+              className="h-full w-full object-cover object-center"
               autoPlay
               muted
               loop
