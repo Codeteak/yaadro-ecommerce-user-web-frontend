@@ -349,8 +349,15 @@ iframe.order-tracking-embed {
 /* Drag rails must size to their items, not the viewport (overrides `* { max-width: 100% }`).
    Without flex-shrink:0 + max-width:none on children, cards collapse → track fits viewport → no scroll. */
 .smooth-drag-rail {
-  touch-action: pan-y;
+  touch-action: pan-x;
   overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.smooth-drag-rail .drag-rail-track,
+.smooth-drag-rail .drag-rail-track > * {
+  touch-action: pan-x;
 }
 
 .drag-rail-track {

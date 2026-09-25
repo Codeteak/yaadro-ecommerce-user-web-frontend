@@ -414,8 +414,12 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     setTouchEnd(null);
   };
 
-  const cardShellClass = `flex h-full flex-col overflow-hidden rounded-[20px] touch-manipulation transition-transform duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/45 [@media(hover:hover)_and_(pointer:fine)]:active:scale-[0.97] ${chromeClass} ${
-    isShelf || isCarousel ? 'w-[173px] max-w-[173px] shrink-0' : 'w-full'
+  const inHorizontalRail = isShelf || isCarousel;
+
+  const cardShellClass = `flex h-full flex-col overflow-hidden rounded-[20px] transition-transform duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/45 [@media(hover:hover)_and_(pointer:fine)]:active:scale-[0.97] ${chromeClass} ${
+    inHorizontalRail
+      ? 'w-[173px] max-w-[173px] shrink-0 touch-pan-x'
+      : 'w-full touch-manipulation'
   }`;
 
   const navLinkProps = {
@@ -524,14 +528,16 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         <Link {...navLinkProps} className="block">
           <div
             ref={carouselRef}
-            className="relative aspect-square w-full cursor-grab overflow-hidden bg-gray-50 pointer-events-auto active:cursor-grabbing"
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
-            onMouseDown={isCarousel ? undefined : onMouseDown}
-            onMouseMove={isCarousel ? undefined : onMouseMove}
-            onMouseUp={isCarousel ? undefined : onMouseUp}
-            onMouseLeave={isCarousel ? undefined : onMouseUp}
+            className={`relative aspect-square w-full overflow-hidden bg-gray-50 pointer-events-auto ${
+              inHorizontalRail ? 'touch-pan-x' : 'cursor-grab active:cursor-grabbing'
+            }`}
+            onTouchStart={inHorizontalRail ? undefined : onTouchStart}
+            onTouchMove={inHorizontalRail ? undefined : onTouchMove}
+            onTouchEnd={inHorizontalRail ? undefined : onTouchEnd}
+            onMouseDown={inHorizontalRail ? undefined : onMouseDown}
+            onMouseMove={inHorizontalRail ? undefined : onMouseMove}
+            onMouseUp={inHorizontalRail ? undefined : onMouseUp}
+            onMouseLeave={inHorizontalRail ? undefined : onMouseUp}
           >
             <div
               className="relative z-0 flex h-full min-h-0 w-full transition-transform duration-500 ease-in-out"
