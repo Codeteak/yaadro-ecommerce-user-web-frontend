@@ -491,7 +491,7 @@ export default function ProductDetailClient({ productId = null }) {
         />
       </div>
 
-      <section className="relative w-full overflow-hidden bg-gray-50">
+      <section className="relative w-full overflow-hidden bg-white">
         <div
           className="relative mx-auto w-full max-w-lg h-[min(36vh,280px)] sm:h-[min(40vh,320px)]"
           onTouchStart={onTouchStart}
@@ -505,7 +505,7 @@ export default function ProductDetailClient({ productId = null }) {
             {galleryUrls.map((img, idx) => (
               <div
                 key={`${idx}-${img}`}
-                className="relative h-full w-full flex-shrink-0 bg-gray-100"
+                className="relative h-full w-full flex-shrink-0 bg-white"
               >
                 <ProductImageWithFallback
                   src={img}
@@ -660,90 +660,97 @@ export default function ProductDetailClient({ productId = null }) {
                 </div>
 
                 <div className="space-y-2.5 pt-0.5">
-                  {product?.bxgyShelfRole === 'get' ? (
-                    <div className="text-2xl font-bold leading-none sm:text-3xl">
-                      <span className="text-violet-700">Free</span>
-                      {mrpDisplay != null && mrpDisplay > 0 ? (
-                        <span className="ml-2 text-base font-medium text-gray-400 line-through tabular-nums">
-                          ₹{formatRupeeINR(mrpDisplay)}
-                        </span>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <PriceDisplay
-                      amount={effectivePrice}
-                      listPrice={mrpDisplay}
-                      size="lg"
-                    />
-                  )}
-                  <PdpOfferPanel product={product} />
-                  <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
-                    {product?.bxgyShelfRole === 'get' ? (
-                      <div
-                        className="inline-flex h-9 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-3.5 text-[12px] font-semibold text-emerald-800"
-                        aria-label="Free with offer — added when you buy the paired product"
-                      >
-                        Free with offer
-                      </div>
-                    ) : cartQty > 0 ? (
-                      <>
-                        <div
-                          className="inline-flex h-9 items-stretch overflow-hidden rounded-full border border-violet-200 bg-white"
-                          role="group"
-                          aria-label="Quantity"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => void handleStepperDecrement()}
-                            disabled={cartActionLoading}
-                            className="flex w-9 items-center justify-center text-base font-medium text-violet-700 transition hover:bg-violet-50 disabled:opacity-50"
-                            aria-label="Decrease quantity"
-                          >
-                            −
-                          </button>
-                          <div className="flex min-w-[2rem] items-center justify-center border-x border-violet-100 px-2 text-[13px] font-bold tabular-nums text-violet-900">
-                            {formatCartQtyControlLabel(product, cartQty)}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => void handleStepperIncrement()}
-                            disabled={cartActionLoading}
-                            className="flex w-9 items-center justify-center text-base font-medium text-violet-700 transition hover:bg-violet-50 disabled:opacity-50"
-                            aria-label="Increase quantity"
-                          >
-                            +
-                          </button>
+                  <div className="flex items-end justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      {product?.bxgyShelfRole === 'get' ? (
+                        <div className="text-2xl font-bold leading-none sm:text-3xl">
+                          <span className="text-violet-700">Free</span>
+                          {mrpDisplay != null && mrpDisplay > 0 ? (
+                            <span className="ml-2 text-base font-medium text-gray-400 line-through tabular-nums">
+                              ₹{formatRupeeINR(mrpDisplay)}
+                            </span>
+                          ) : null}
                         </div>
-                        {bundleFreeExtra > 0 ? (
-                          <span className="text-[12px] font-medium text-emerald-700 tabular-nums">
-                            +{bundleFreeExtra} free
-                          </span>
-                        ) : null}
-                        <Link
-                          href="/cart"
-                          className="inline-flex h-9 items-center justify-center rounded-full px-3.5 text-[12px] font-semibold text-violet-700 transition hover:bg-violet-50"
+                      ) : (
+                        <PriceDisplay
+                          amount={effectivePrice}
+                          listPrice={mrpDisplay}
+                          size="lg"
+                        />
+                      )}
+                    </div>
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                      {product?.bxgyShelfRole === 'get' ? (
+                        <div
+                          className="inline-flex h-9 items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-emerald-600 px-3.5 text-[11px] font-bold uppercase tracking-[0.08em] text-white shadow-sm"
+                          aria-label="Free with offer — added when you buy the paired product"
                         >
-                          Go to cart
-                        </Link>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => void handleAddToCart()}
-                        disabled={!product.inStock || cartActionLoading}
-                        className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-full px-4 text-[12px] font-bold uppercase tracking-wide transition active:scale-[0.97] ${
-                          product.inStock
-                            ? 'bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-70'
-                            : 'cursor-not-allowed bg-gray-100 text-gray-400'
-                        }`}
-                      >
-                        {cartActionLoading ? (
-                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden />
-                        ) : null}
-                        {product.inStock ? 'Add' : 'Unavailable'}
-                      </button>
-                    )}
+                          Free
+                        </div>
+                      ) : cartQty > 0 ? (
+                        <>
+                          <div
+                            className="inline-flex h-9 min-w-[96px] items-center justify-between rounded-full bg-white px-2 ring-2 ring-[#902bf5] shadow-[0_8px_20px_rgba(144,43,245,0.35)]"
+                            role="group"
+                            aria-label="Quantity"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => void handleStepperDecrement()}
+                              disabled={cartActionLoading}
+                              className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] transition active:scale-95 disabled:opacity-50"
+                              aria-label="Decrease quantity"
+                            >
+                              <span className="text-base font-bold leading-none">−</span>
+                            </button>
+                            <span className="min-w-[1.5rem] text-center text-sm font-bold tabular-nums text-[#902bf5]">
+                              {formatCartQtyControlLabel(product, cartQty)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => void handleStepperIncrement()}
+                              disabled={cartActionLoading}
+                              className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] transition active:scale-95 disabled:opacity-50"
+                              aria-label="Increase quantity"
+                            >
+                              <span className="text-base font-bold leading-none">+</span>
+                            </button>
+                          </div>
+                          {bundleFreeExtra > 0 ? (
+                            <span className="text-[12px] font-medium text-emerald-700 tabular-nums">
+                              +{bundleFreeExtra} free
+                            </span>
+                          ) : null}
+                          <Link
+                            href="/cart"
+                            className="inline-flex h-9 items-center justify-center rounded-full px-3 text-[12px] font-semibold text-[#902bf5] transition hover:bg-violet-50"
+                          >
+                            Go to cart
+                          </Link>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => void handleAddToCart()}
+                          disabled={!product.inStock || cartActionLoading}
+                          className={`flex h-11 min-w-[88px] items-center justify-center gap-1.5 rounded-l-[24px] rounded-r-[12px] px-5 text-[13px] font-bold uppercase leading-none tracking-[0.14em] transition active:scale-[0.97] touch-manipulation ${
+                            product.inStock
+                              ? 'bg-[#902bf5] text-white shadow-[0_8px_20px_rgba(144,43,245,0.4)] hover:bg-[#7d24d6] disabled:opacity-70'
+                              : 'cursor-not-allowed bg-gray-100 text-gray-400'
+                          }`}
+                        >
+                          {cartActionLoading ? (
+                            <span
+                              className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+                              aria-hidden
+                            />
+                          ) : null}
+                          {product.inStock ? 'ADD' : 'Unavailable'}
+                        </button>
+                      )}
+                    </div>
                   </div>
+                  <PdpOfferPanel product={product} />
                 </div>
               </div>
             </section>
