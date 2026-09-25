@@ -416,9 +416,12 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
 
   const inHorizontalRail = isShelf || isCarousel;
 
+  // Never use touch-pan-x on cards: it blocks vertical page scroll when the
+  // finger starts on the image (most of the card). Horizontal movement stays
+  // with the parent SmoothDragRail (overflow-x / pointer drag).
   const cardShellClass = `flex h-full flex-col overflow-hidden rounded-[20px] transition-transform duration-200 ease-[cubic-bezier(0.33,1,0.68,1)] will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/45 [@media(hover:hover)_and_(pointer:fine)]:active:scale-[0.97] ${chromeClass} ${
     inHorizontalRail
-      ? 'w-[173px] max-w-[173px] shrink-0 touch-pan-x'
+      ? 'w-[173px] max-w-[173px] shrink-0 touch-manipulation'
       : 'w-full touch-manipulation'
   }`;
 
@@ -529,7 +532,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           <div
             ref={carouselRef}
             className={`relative aspect-square w-full overflow-hidden bg-gray-50 pointer-events-auto ${
-              inHorizontalRail ? 'touch-pan-x' : 'cursor-grab active:cursor-grabbing'
+              inHorizontalRail ? '' : 'cursor-grab active:cursor-grabbing'
             }`}
             onTouchStart={inHorizontalRail ? undefined : onTouchStart}
             onTouchMove={inHorizontalRail ? undefined : onTouchMove}
