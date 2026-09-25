@@ -2,8 +2,9 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { subscribeNavigationBegin } from '../utils/navigationProgressSignal';
 
-/** Wait before showing — avoids flicker on fast navigations. */
+/** Wait before showing — avoids flicker on fast Link navigations. */
 const SHOW_AFTER_MS = 140;
 /** Keep bar visible briefly so it can finish animating. */
 const MIN_VISIBLE_MS = 220;
@@ -33,6 +34,15 @@ function NavigationProgressInner() {
     }
   }, []);
 
+  const paintBar = useCallback(() => {
+    setPainted(true);
+    // Next frame so CSS width transition runs from 0 → progress.
+    requestAnimationFrame(() => {
+      if (!navigatingRef.current) return;
+      setFilling(true);
+    });
+  }, []);
+
   const finish = useCallback(() => {
     if (!navigatingRef.current) return;
     navigatingRef.current = false;
@@ -50,22 +60,32 @@ function NavigationProgressInner() {
     }, hold);
   }, [clearTimers]);
 
-  const begin = useCallback(() => {
-    if (navigatingRef.current) return;
-    navigatingRef.current = true;
-    startedAtRef.current = Date.now();
-    clearTimers();
+  const begin = useCallback(
+    ({ immediate = false } = {}) => {
+      if (navigatingRef.current) {
+        // Already navigating — keep bar visible if a second tap asks for feedback.
+        if (immediate) {
+          clearTimers();
+          paintBar();
+        }
+        return;
+      }
+      navigatingRef.current = true;
+      startedAtRef.current = Date.now();
+      clearTimers();
 
-    showTimerRef.current = setTimeout(() => {
-      if (!navigatingRef.current) return;
-      setPainted(true);
-      // Next frame so CSS width transition runs from 0 → progress.
-      requestAnimationFrame(() => {
+      if (immediate) {
+        paintBar();
+        return;
+      }
+
+      showTimerRef.current = setTimeout(() => {
         if (!navigatingRef.current) return;
-        setFilling(true);
-      });
-    }, SHOW_AFTER_MS);
-  }, [clearTimers]);
+        paintBar();
+      }, SHOW_AFTER_MS);
+    },
+    [clearTimers, paintBar]
+  );
 
   // Route settled → complete progress.
   useEffect(() => {
@@ -73,6 +93,9 @@ function NavigationProgressInner() {
     routeKeyRef.current = routeKey;
     finish();
   }, [routeKey, finish]);
+
+  // Programmatic navigations (profile button, login redirect, etc.).
+  useEffect(() => subscribeNavigationBegin(() => begin({ immediate: true })), [begin]);
 
   // Capture same-origin Link / <a> navigations (footer + header + in-page).
   useEffect(() => {
@@ -137,7 +160,7 @@ function NavigationProgressInner() {
 
 /**
  * One global App Router navigation indicator.
- * Shows only when navigation takes longer than SHOW_AFTER_MS.
+ * Link clicks wait SHOW_AFTER_MS; programmatic `signalNavigationBegin` paints immediately.
  */
 export default function NavigationProgress() {
   return (

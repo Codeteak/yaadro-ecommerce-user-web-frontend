@@ -9,7 +9,7 @@ import { normalizePhoneForApi } from '../utils/otpVerifyPayload';
 import IndianPhoneInput from './IndianPhoneInput';
 import { validateAddressCheckoutForm } from '../lib/validations/address.schema';
 import { sanitizeAddressNotes } from '../utils/addressApi';
-import { buildMapStreetArea, sanitizeStoredStreetArea } from '../utils/formatAddress';
+import { sanitizeStoredStreetArea } from '../utils/formatAddress';
 import { checkDeliveryLocation } from '../utils/storefrontLocationApi';
 import { getPinDeliveryCheckMessage } from '../utils/apiErrors';
 import { getStoreCoordinates } from '../utils/storeLocation';

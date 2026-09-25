@@ -28,45 +28,15 @@ function scaleForZoom(zoom) {
 function clampLat(v) { return Math.max(-85, Math.min(85, v)); }
 function clampLng(v) { return ((v + 540) % 360) - 180; }
 
-
-function parseGoogleAddress(result) {
-  if (!result) return null;
-  const comps = Array.isArray(result.address_components) ? result.address_components : [];
-  const byType = (types) => comps.find((c) => types.every((t) => c.types?.includes(t)));
-  const long = (types) => byType(types)?.long_name || '';
-
-  const house = long(['street_number']);
-  const route = long(['route']);
-  const landmark = long(['point_of_interest']) || long(['establishment']) || '';
-  const locality =
-    long(['locality', 'political']) ||
-    long(['sublocality_level_1', 'sublocality', 'political']) ||
-    long(['administrative_area_level_2', 'political']) ||
-    '';
-  const state = long(['administrative_area_level_1', 'political']);
-  const postalCode = long(['postal_code']);
-  const country = long(['country', 'political']);
-
-  const line1 = [house, route].filter(Boolean).join(' ').trim();
-  const line2 = long(['sublocality_level_1', 'sublocality', 'political']) || '';
-
-  return {
-    line1,
-    line2,
-    landmark,
-    city: locality,
-    state,
-    postalCode,
-    country,
-    displayName: result.formatted_address || '',
-    raw: result,
-  };
-}
-
+/**
+ * Map picker for delivery coordinates only.
+ * Does NOT reverse-geocode into customer address form fields.
+ * Optional `onAddress` is ignored (kept for call-site compatibility).
+ */
 export default function AddressMapPicker({
   value,
   onChange,
-  onAddress,
+  onAddress: _onAddress,
   height = 240,
   showSearch = true,
   variant = 'card',
@@ -98,8 +68,8 @@ export default function AddressMapPicker({
     center: initialPoint,
     zoom: value?.lat ? 16 : 12,
   });
-  const [reverseStatus, setReverseStatus] = useState('idle'); // idle | loading | error
   const [locating, setLocating] = useState(false);
+  const [locateStatus, setLocateStatus] = useState('idle'); // idle | locating | selected | denied | unavailable
   const [searching, setSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -116,8 +86,7 @@ export default function AddressMapPicker({
   const searchDebounceRef = useRef(null);
   const centerDebounceRef = useRef(null);
   const lastCenterEmitKeyRef = useRef('');
-  const lastReverseResolvedKeyRef = useRef('');
-  const reverseReqIdRef = useRef(0);
+  const locateFlashTimerRef = useRef(null);
   /** True while programmatic camera moves run; idle must not emit pin updates. */
   const ignoreIdlePinEmitRef = useRef(false);
   const ignoreIdleClearRef = useRef(null);
@@ -166,39 +135,23 @@ export default function AddressMapPicker({
     recenterMap(lat, lng, Number.isFinite(zoomTo) ? zoomTo : undefined);
   }, [focusRequest, recenterMap]);
 
-  const reverseGeocodeWithGoogle = useCallback((lat, lng) => {
-    if (!geocoderRef.current || !window?.google?.maps) return;
-    // Avoid repeated reverse-geocoding for practically identical coordinates.
-    const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
-    if (lastReverseResolvedKeyRef.current === key) return;
-
-    const reqId = ++reverseReqIdRef.current;
-    setReverseStatus('loading');
-    geocoderRef.current.geocode({ location: { lat, lng } }, (results, status) => {
-      // Ignore stale callbacks if a newer reverse-geocode was requested.
-      if (reqId !== reverseReqIdRef.current) return;
-      if (status === 'OK' && Array.isArray(results) && results.length > 0) {
-        const parsed = parseGoogleAddress(results[0]);
-        if (parsed) onAddress?.(parsed);
-        lastReverseResolvedKeyRef.current = key;
-        setReverseStatus('idle');
-      } else {
-        setReverseStatus('error');
-      }
-    });
-  }, [onAddress]);
-
-  const updatePoint = useCallback((lat, lng, { skipReverse } = {}) => {
+  const updatePoint = useCallback((lat, lng) => {
     const next = { lat, lng };
     setPoint(next);
     onChange?.(next);
-    if (skipReverse || !onAddress) return;
-    reverseGeocodeWithGoogle(lat, lng);
-  }, [onChange, onAddress, reverseGeocodeWithGoogle]);
+  }, [onChange]);
 
   const handleLocateMe = () => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLocateStatus('unavailable');
+      return;
+    }
     setLocating(true);
+    setLocateStatus('locating');
+    if (locateFlashTimerRef.current) {
+      clearTimeout(locateFlashTimerRef.current);
+      locateFlashTimerRef.current = null;
+    }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setLocating(false);
@@ -207,12 +160,29 @@ export default function AddressMapPicker({
         if (Number.isFinite(lat) && Number.isFinite(lng)) {
           recenterMap(lat, lng, 17);
           updatePoint(lat, lng);
+          setLocateStatus('selected');
+          locateFlashTimerRef.current = setTimeout(() => {
+            setLocateStatus('idle');
+            locateFlashTimerRef.current = null;
+          }, 2200);
+        } else {
+          setLocateStatus('unavailable');
         }
       },
-      () => setLocating(false),
+      (err) => {
+        setLocating(false);
+        setLocateStatus(err?.code === 1 ? 'denied' : 'unavailable');
+      },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60_000 }
     );
   };
+
+  useEffect(
+    () => () => {
+      if (locateFlashTimerRef.current) clearTimeout(locateFlashTimerRef.current);
+    },
+    []
+  );
 
   useEffect(() => {
     if (!showSearch || !isLoaded || !window?.google?.maps || !placesServiceRef.current) return undefined;
@@ -250,6 +220,7 @@ export default function AddressMapPicker({
 
   const handleSelectSearchResult = useCallback((item) => {
     if (!geocoderRef.current || !item?.placeId) return;
+    // Place → coordinates only. Do not copy formatted address into the delivery form.
     geocoderRef.current.geocode({ placeId: item.placeId }, (results, status) => {
       if (status !== 'OK' || !Array.isArray(results) || results.length === 0) return;
       const r = results[0];
@@ -258,7 +229,7 @@ export default function AddressMapPicker({
       const lat = loc.lat();
       const lng = loc.lng();
       setSearchOpen(false);
-      setSearchQuery(r.formatted_address || item.displayName);
+      setSearchQuery(item.displayName || '');
       recenterMap(lat, lng, 17);
       updatePoint(lat, lng);
     });
@@ -573,20 +544,40 @@ export default function AddressMapPicker({
             <Crosshair size={16} className="h-4 w-4" aria-hidden />
           )}
           {!isFullscreen && (
-            <span>{locating ? 'Locating…' : 'My location'}</span>
+            <span>
+              {locating
+                ? 'Getting your location…'
+                : locateStatus === 'selected'
+                  ? 'Location selected'
+                  : 'My location'}
+            </span>
           )}
         </button>
 
-        {reverseStatus === 'loading' && (
+        {(locateStatus === 'locating' ||
+          locateStatus === 'selected' ||
+          locateStatus === 'denied' ||
+          locateStatus === 'unavailable') && (
           <div
             className={
               isFullscreen
-                ? 'absolute left-1/2 top-20 z-[1000] inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-gray-200 bg-white/95 px-3 py-1.5 text-[12px] font-medium text-gray-700 shadow-md'
-                : 'absolute left-3 top-3 z-[1000] inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white/95 px-2.5 py-1 text-[11px] font-medium text-gray-700 shadow'
+                ? 'absolute left-1/2 top-20 z-[1000] inline-flex max-w-[min(90vw,20rem)] -translate-x-1/2 items-center gap-1.5 rounded-full border border-gray-200 bg-white/95 px-3 py-1.5 text-center text-[12px] font-medium text-gray-700 shadow-md'
+                : 'absolute left-3 top-3 z-[1000] inline-flex max-w-[min(90%,14rem)] items-center gap-1.5 rounded-full border border-gray-200 bg-white/95 px-2.5 py-1 text-[11px] font-medium text-gray-700 shadow'
             }
+            role="status"
           >
-            <Loader2 size={12} className="h-3 w-3 animate-spin" aria-hidden />
-            Resolving address…
+            {locateStatus === 'locating' ? (
+              <>
+                <Loader2 size={12} className="h-3 w-3 shrink-0 animate-spin" aria-hidden />
+                Getting your location…
+              </>
+            ) : locateStatus === 'selected' ? (
+              'Location selected'
+            ) : locateStatus === 'denied' ? (
+              'Location access was denied. Allow access or pick a spot on the map.'
+            ) : (
+              'Could not get GPS. Pick a location on the map.'
+            )}
           </div>
         )}
       </div>

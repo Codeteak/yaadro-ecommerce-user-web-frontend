@@ -17,7 +17,6 @@ import { useAddress } from '../../../context/AddressContext';
 import { useAuth } from '../../../context/AuthContext';
 import ConfirmModal from '../../../components/ConfirmModal';
 import { useRequireAuth } from '../../../hooks/useRequireAuth';
-import { reverseGeocode } from '../../../utils/geocoding';
 import { updateProfile, resolveShopId } from '../../../utils/authApi';
 import { normalizePhoneForApi } from '../../../utils/otpVerifyPayload';
 import { getIndianPhoneSubmitError } from '../../../utils/indianPhone';
@@ -31,7 +30,7 @@ import {
 } from '../../../utils/apiErrors';
 import { useLocationService } from '../../../context/LocationServiceContext';
 import { sanitizeAddressNotes } from '../../../utils/addressApi';
-import { buildMapStreetArea, sanitizeStoredStreetArea } from '../../../utils/formatAddress';
+import { sanitizeStoredStreetArea } from '../../../utils/formatAddress';
 import { isUnauthorizedError } from '../../../utils/authErrors';
 import { useLoginNavigation } from '../../../hooks/useLoginNavigation';
 import { PRESSABLE_ICON_BTN_SOFT } from '../../../components/ui/brandButton';
@@ -49,17 +48,15 @@ const ALLOWED_RETURN_ROUTES = new Set(['/checkout', '/addresses', '/']);
 
 function buildAddressFromExisting(addr) {
   if (!addr) return null;
-  // Apartment / building is customer-typed — do not seed from street/geocode.
+  // Apartment / building is customer-typed — never seed from map/geocode text.
   const line1 = String(addr.line1 || addr.apartment || addr.flat || addr.building || '').trim();
   // line2 is street/area only — strip leftover city/state/PIN from older saves.
+  // Do not fall back to displayName / Plus Codes from map providers.
   const line2 = sanitizeStoredStreetArea(String(addr.line2 || '').trim(), addr);
   return {
     label: addr.label || 'Home',
     line1,
-    line2:
-      addr.line2 ||
-      addr.displayName ||
-      [addr.landmark, addr.city].filter(Boolean).join(', '),
+    line2,
     landmark: addr.landmark || '',
     city: addr.city || '',
     raw: sanitizeAddressNotes(addr.raw),
@@ -124,11 +121,8 @@ export default function AddAddressPage() {
   // ── 2-step flow ──
   const [step, setStep] = useState(1);
 
-  // ── Coordinates / resolved address from map ──
+  // ── Coordinates from map (never reverse-geocode into form fields) ──
   const [coords, setCoords] = useState(null);
-
-  const [resolvedAddress, setResolvedAddress] = useState(null);
-  const [resolvingStatus, setResolvingStatus] = useState('idle'); // idle | loading | error
   const [mapFocusRequest, setMapFocusRequest] = useState(null);
 
   /** GPS position for "your location" vs pinned centre (fixed pin flow). */
@@ -193,8 +187,6 @@ export default function AddAddressPage() {
         }
         if (typeof snap?.nameDraft === 'string' && !nameFromProfile) setNameDraft(snap.nameDraft);
         if (typeof snap?.phoneDraft === 'string' && !phoneFromProfile) setPhoneDraft(snap.phoneDraft);
-        setResolvedAddress(null);
-        setResolvingStatus('idle');
         setStep(1);
         setTouched({});
         setIsDraftDirty(false);
@@ -223,8 +215,6 @@ export default function AddAddressPage() {
       } else {
         setCoords(null);
       }
-      setResolvedAddress(null);
-      setResolvingStatus('idle');
       setStep(1);
       setTouched({});
       if (!nameFromProfile) setNameDraft('');
@@ -364,30 +354,6 @@ export default function AddAddressPage() {
     return storeCoords;
   }, [pinDeliveryCheck.shopLocation, contextShopLocation, storeCoords]);
 
-  // ── On editing (with existing coords) → reverse geocode once for preview text ──
-  useEffect(() => {
-    if (!coords || resolvedAddress) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        setResolvingStatus('loading');
-        const r = await reverseGeocode(coords.lat, coords.lng);
-        if (cancelled) return;
-        if (r) {
-          setResolvedAddress(r);
-          setResolvingStatus('idle');
-        } else {
-          setResolvingStatus('error');
-        }
-      } catch {
-        if (!cancelled) setResolvingStatus('error');
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [coords?.lat, coords?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // ── Validation (step 2) — only Address Line 1 required (matches backend) ──
   const validation = useMemo(() => {
     const errors = {};
@@ -448,15 +414,6 @@ export default function AddAddressPage() {
       markDirty();
     },
     [markDirty]
-  );
-
-  const handleMapAddress = useCallback(
-    (resolved) => {
-      // Preview label only — never mutate Address Line 1/2, landmark, city, or notes.
-      setResolvedAddress(resolved);
-      setResolvingStatus('idle');
-    },
-    []
   );
 
   // ── Submit ──
@@ -630,14 +587,13 @@ export default function AddAddressPage() {
     );
   }
 
-  // Resolved-address preview text (shown on step 1).
-  const previewLine1 =
-    buildMapStreetArea(resolvedAddress) ||
-    resolvedAddress?.landmark ||
-    'Pinned location';
-  const previewLine2 =
-    resolvedAddress?.city ||
-    (resolvingStatus === 'loading' ? 'Resolving address…' : 'Pan the map to refine');
+  // Map pin preview — coordinates only (customer enters address on step 2).
+  const previewLine1 = coords
+    ? 'Location selected'
+    : 'Choose a delivery point';
+  const previewLine2 = coords
+    ? `${Number(coords.lat).toFixed(5)}, ${Number(coords.lng).toFixed(5)}`
+    : 'Pan the map or use My location';
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-white">
@@ -674,7 +630,6 @@ export default function AddAddressPage() {
               height="100%"
               value={coords}
               onChange={handleMapChange}
-              onAddress={handleMapAddress}
               userLocation={userLocation}
               storeLocation={effectiveStoreLocation}
               showStoreMarker
@@ -820,7 +775,7 @@ export default function AddAddressPage() {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                  Delivering to
+                  Selected location
                 </p>
                 <p className="mt-0.5 line-clamp-1 text-sm font-semibold text-gray-900">
                   {previewLine1}

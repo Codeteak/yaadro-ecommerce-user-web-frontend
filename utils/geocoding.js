@@ -1,6 +1,9 @@
 // Lightweight Nominatim (OpenStreetMap) geocoder helpers.
 //
 // IMPORTANT — Usage policy:
+//   • Do NOT use reverseGeocode to auto-fill customer delivery address forms.
+//     Map pickers store latitude/longitude only; customers type address text.
+//     Reverse geocode remains for place *labels* (service-area sheet, shop contact).
 //   • The public endpoint at https://nominatim.openstreetmap.org is rate-limited
 //     to ~1 request/second and an identifying User-Agent / email is REQUIRED.
 //   • For any non-trivial production traffic you MUST self-host Nominatim or

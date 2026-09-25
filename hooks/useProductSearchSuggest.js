@@ -61,6 +61,7 @@ export function useProductSearchSuggest(query, options = {}) {
   } = useProducts({
     enabled: enabled && q.length >= 2,
     search: q,
+    search_mode: 'contains',
     limit,
     sort_by: 'created_at',
     sort_order: 'desc',
