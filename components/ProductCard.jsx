@@ -464,14 +464,14 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
 
   const cartControls = isDamakaFreeReward ? (
     <div
-      className="flex h-9 min-w-[68px] items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-emerald-600 px-3 text-[11px] font-bold uppercase tracking-[0.08em] text-white shadow-sm"
+      className="flex h-11 min-w-[4.75rem] items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-emerald-600 px-3.5 text-[12px] font-bold uppercase tracking-[0.08em] text-white shadow-sm"
       aria-label="Free with offer — added when you buy the paired product"
     >
       Free
     </div>
   ) : cartActionLoading ? (
     <div
-      className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
+      className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
       aria-busy="true"
       aria-label="Updating cart"
     >
@@ -482,14 +482,14 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     </div>
   ) : displayCartQty > 0 ? (
     <div
-      className="flex h-9 min-w-[96px] items-center justify-between rounded-full bg-white px-2 ring-2 ring-[#902bf5] shadow-[0_8px_20px_rgba(144,43,245,0.35)]"
+      className="flex h-11 min-w-[6.5rem] items-center justify-between rounded-full bg-white px-1 ring-2 ring-[#902bf5] shadow-[0_8px_20px_rgba(144,43,245,0.35)]"
       role="group"
       aria-label="Quantity"
     >
       <button
         type="button"
         onClick={handleDecrement}
-        className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] active:scale-95"
+        className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-[#902bf5] active:scale-95"
         aria-label={atMinPack ? 'Remove from cart' : 'Decrease quantity'}
       >
         <span className="text-base font-bold leading-none">−</span>
@@ -500,7 +500,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       <button
         type="button"
         onClick={handleIncrement}
-        className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] active:scale-95"
+        className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-[#902bf5] active:scale-95"
         aria-label="Increase quantity"
       >
         <span className="text-base font-bold leading-none">+</span>
@@ -519,7 +519,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           ? `Add ${damakaBuyQty} to cart for this offer`
           : 'Add to cart'
       }
-      className="flex h-9 min-w-[68px] items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-[#902bf5] px-4 text-[12px] font-bold uppercase leading-none tracking-[0.14em] text-white shadow-[0_8px_20px_rgba(144,43,245,0.4)] transition hover:bg-[#7d24d6] active:scale-[0.97] touch-manipulation"
+      className="relative flex h-11 min-w-[4.75rem] items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-[#902bf5] px-3.5 text-[13px] font-bold uppercase leading-none tracking-[0.12em] text-white shadow-[0_8px_20px_rgba(144,43,245,0.4)] transition hover:bg-[#7d24d6] active:scale-[0.97] touch-manipulation before:absolute before:-inset-1.5 before:content-['']"
     >
       {shelfRole === 'buy' && damakaBuyQty > 1 ? `ADD ${damakaBuyQty}` : 'ADD'}
     </button>
