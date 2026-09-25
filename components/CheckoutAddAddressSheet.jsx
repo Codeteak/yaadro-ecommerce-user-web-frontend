@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { CloseRegular as X } from './icons';
+import { CloseRegular as X, Loading2Regular as Loader2 } from './icons';
 import { useAuth } from '../context/AuthContext';
 import { updateProfile, resolveShopId } from '../utils/authApi';
 import { normalizePhoneForApi } from '../utils/otpVerifyPayload';
@@ -15,6 +15,7 @@ import { getPinDeliveryCheckMessage } from '../utils/apiErrors';
 import { getStoreCoordinates } from '../utils/storeLocation';
 import { useLocationService } from '../context/LocationServiceContext';
 import { PRESSABLE_ICON_BTN_SOFT } from './ui/brandButton';
+import { lockAppScroll, unlockAppScroll } from '../lib/pwa/appShell';
 
 // Leaflet uses `window` at import time, so we load the picker only on the
 // client to keep this sheet SSR-safe.
@@ -118,10 +119,10 @@ export default function CheckoutAddAddressSheet({
   }, [isOpen, isEdit, editingAddress?.id, nameFromProfile, phoneFromProfile, nameFromAddress, phoneFromAddress]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    document.body.style.overflow = 'hidden';
+    if (!isOpen) return undefined;
+    lockAppScroll();
     return () => {
-      document.body.style.overflow = '';
+      unlockAppScroll();
     };
   }, [isOpen]);
 
@@ -316,6 +317,7 @@ export default function CheckoutAddAddressSheet({
   };
 
   const handleSubmit = async () => {
+    if (pending || isSubmitting) return;
     setSubmitError('');
     setTouched({
       name: true,
@@ -631,10 +633,20 @@ export default function CheckoutAddAddressSheet({
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={!canSubmit}
-                className="min-h-[3rem] flex-[1.2] rounded-2xl bg-violet-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-45"
+                disabled={!canSubmit || busy}
+                aria-busy={busy}
+                className="inline-flex min-h-[3rem] flex-[1.2] items-center justify-center gap-2 rounded-2xl bg-violet-600 py-3 text-sm font-bold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-45"
               >
-                {busy ? 'Saving…' : isEdit ? 'Save changes' : 'Save address'}
+                {busy ? (
+                  <>
+                    <Loader2 size={16} className="h-4 w-4 animate-spin" aria-hidden />
+                    Saving…
+                  </>
+                ) : isEdit ? (
+                  'Save changes'
+                ) : (
+                  'Save address'
+                )}
               </button>
             </div>
           </div>

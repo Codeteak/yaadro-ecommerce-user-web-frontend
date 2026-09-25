@@ -475,6 +475,7 @@ export default function AddAddressPage() {
   }, [editId, router, returnTo]);
 
   const handleSave = async () => {
+    if (isCreating || isUpdating) return;
     setSubmitError('');
     setTouched({
       name: true,
@@ -954,7 +955,7 @@ export default function AddAddressPage() {
 
               <div>
                 <label className="text-xs font-semibold text-gray-700">
-                  Address line 2 (from map)
+                  Address line 2 
                 </label>
                 <input
                   value={form.line2}

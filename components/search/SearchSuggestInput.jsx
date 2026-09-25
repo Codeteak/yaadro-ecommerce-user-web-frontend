@@ -90,7 +90,7 @@ export default function SearchSuggestInput({
   const defaultIcon = 'h-5 w-5 flex-shrink-0';
 
   const defaultInput =
-    'w-full bg-transparent text-[14px] text-gray-900 caret-[#902bf5] outline-none ' +
+    'w-full bg-transparent text-base text-gray-900 caret-[#902bf5] outline-none ' +
     'placeholder:text-gray-400';
 
   return (

@@ -214,6 +214,7 @@ export default function CheckoutCouponsSection({
     if (couponsBlocked) return;
     const normalized = String(codeInput || '').trim().toUpperCase();
     if (!normalized) return;
+    if (lookupCode) return; // already applying
     setCodeLookupError('');
     setLookupCode(normalized);
   };
@@ -313,10 +314,11 @@ export default function CheckoutCouponsSection({
         <button
           type="button"
           onClick={handleApplyInput}
-          disabled={!String(codeInput || '').trim()}
+          disabled={!String(codeInput || '').trim() || Boolean(lookupCode)}
+          aria-busy={Boolean(lookupCode)}
           className="flex-shrink-0 rounded-xl bg-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-violet-700 disabled:opacity-40"
         >
-          Apply
+          {lookupCode ? 'Applying…' : 'Apply'}
         </button>
       </div>
 

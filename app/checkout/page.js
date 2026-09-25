@@ -1484,9 +1484,9 @@ export default function CheckoutPage() {
                 Set map pin on address
               </>
             ) : isCheckingDelivery ? (
-              "Checking delivery availability…"
+              "Checking delivery…"
             ) : isSubmitting ? (
-              "Placing order…"
+              "Processing order…"
             ) : (
               <>
                 <svg

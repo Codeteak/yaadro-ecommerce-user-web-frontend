@@ -9,6 +9,7 @@ import {
   ModalDialogTitle,
   ModalDialogDescription,
 } from './ui/ModalDialog';
+import { lockAppScroll, unlockAppScroll } from '../lib/pwa/appShell';
 
 export default function PromptModal({
   isOpen,
@@ -24,14 +25,11 @@ export default function PromptModal({
   const [value, setValue] = useState(defaultValue);
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-      setValue(defaultValue);
-    } else {
-      document.body.style.overflow = '';
-    }
+    if (!isOpen) return undefined;
+    lockAppScroll();
+    setValue(defaultValue);
     return () => {
-      document.body.style.overflow = '';
+      unlockAppScroll();
     };
   }, [isOpen, defaultValue]);
 
