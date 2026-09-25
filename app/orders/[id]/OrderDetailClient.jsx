@@ -1162,7 +1162,7 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
     <>
       <style>{`@keyframes odSpin{to{transform:rotate(360deg)}}`}</style>
 
-      <div className="min-h-svh bg-gray-50 pb-28">
+      <div className="bg-gray-50 pb-8">
         <div className="mx-auto max-w-[480px]">
           <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-100 bg-white px-4 py-3.5">
             <IconBackButton

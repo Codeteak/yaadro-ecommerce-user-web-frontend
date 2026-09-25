@@ -252,6 +252,16 @@ export default function OrdersPage() {
       weight: item?.weight ?? item?.unitSize ?? undefined,
       unit: item?.unit || undefined,
       unit_size: item?.unitSize ?? item?.unit_size ?? undefined,
+      soldByWeight:
+        item?.soldByWeight === true ||
+        item?.sold_by_weight === true ||
+        item?.product?.soldByWeight === true ||
+        item?.product?.sold_by_weight === true,
+      sold_by_weight:
+        item?.soldByWeight === true ||
+        item?.sold_by_weight === true ||
+        item?.product?.soldByWeight === true ||
+        item?.product?.sold_by_weight === true,
       brand: item?.brand || item?.product?.brand || undefined,
       category: item?.category || item?.product?.category || undefined,
     };
@@ -331,7 +341,7 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 pt-[env(safe-area-inset-top,0px)]">
+    <div className="flex flex-col bg-gray-50 pt-[env(safe-area-inset-top,0px)]">
       <BrowsePageHeader
         title="Your Orders"
         searchOpen={searchOpen}

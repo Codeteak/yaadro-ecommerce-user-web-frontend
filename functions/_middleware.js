@@ -27,14 +27,19 @@ export async function onRequest(context) {
   }
 
   try {
-    const { seo, shopName } = await resolveTenantSeo(url.hostname, url.pathname, env);
-    if (!seo) return response;
+    const { seo, shopName, shopImage } = await resolveTenantSeo(
+      url.hostname,
+      url.pathname,
+      env
+    );
+    if (!seo && !shopImage) return response;
 
     const html = await response.text();
     const rewritten = injectSeoIntoHtml(html, seo, {
       shopName,
+      shopImage,
       hostname: url.hostname,
-      canonicalUrl: seo.canonicalUrl || `https://${url.hostname}/`,
+      canonicalUrl: seo?.canonicalUrl || `https://${url.hostname}/`,
     });
 
     const headers = new Headers(response.headers);

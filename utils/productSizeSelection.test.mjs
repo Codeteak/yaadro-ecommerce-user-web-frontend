@@ -265,6 +265,41 @@ test('sold-by-weight order lines use unit_size 1 so qty is already kg', () => {
   );
 });
 
+test('sold-by-weight order history does not multiply kg qty by the custom step', () => {
+  assert.equal(
+    formatOrderLineWeight({
+      unit: 'kg',
+      unit_size: '0.23',
+      soldByWeight: true,
+      quantity: 0.23,
+      ordered_quantity: 0.23,
+    }),
+    '230 g'
+  );
+  assert.equal(
+    formatOrderLineWeight({
+      unit: 'kg',
+      unit_size: 0.23,
+      sold_by_weight: true,
+      quantity: 0.46,
+      ordered_quantity: 0.46,
+    }),
+    '460 g'
+  );
+});
+
+test('packed order lines still multiply pack count by unit size', () => {
+  assert.equal(
+    formatOrderLineWeight({
+      unit: 'kg',
+      unitSize: 0.25,
+      quantity: 2,
+      ordered_quantity: 2,
+    }),
+    '500 g'
+  );
+});
+
 test('resolveSelectedSize picks fresh price after catalog refetch', () => {
   const availableSizes = [{ weight: '1', unit: 'kg', price: 120 }];
   const staleSelection = { weight: '1', unit: 'kg', price: 99 };

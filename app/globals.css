@@ -574,3 +574,28 @@ iframe.order-tracking-embed {
 .fresh-zone-minh {
   min-height: min(680px, 92svh);
 }
+
+@keyframes yaadro-add-tap {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  35% {
+    transform: scale(0.86);
+    filter: brightness(1.18);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.yaadro-add-tap {
+  animation: yaadro-add-tap 280ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yaadro-add-tap {
+    animation: none;
+  }
+}

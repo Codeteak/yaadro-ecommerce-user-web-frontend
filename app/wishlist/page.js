@@ -1,28 +1,56 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
 import Container from '../../components/Container';
 import Breadcrumbs from '../../components/Breadcrumbs';
-import { getEffectivePrice, formatRupeeINR } from '../../utils/productUtils';
+import { getEffectivePrice, getListPrice, formatRupeeINR } from '../../utils/productUtils';
 import { getResolvedProductImageUrls } from '../../utils/productImages';
 import { getProductDetailPath } from '../../utils/productApi';
 import {
   buildAvailableSizes,
+  hasCustomWeightStep,
   sizeAddQuantity,
 } from '../../utils/productSizeSelection';
+import CustomWeightChooser from '../../components/CustomWeightChooser';
+import { playAddTap } from '../../utils/playAddTap';
 
 export default function WishlistPage() {
   const { wishlistItems, removeFromWishlist, clearWishlist } = useWishlist();
   const { addToCart } = useCart();
 
+  const [weightProduct, setWeightProduct] = useState(null);
+
   const handleAddToCart = (product) => {
+    if (hasCustomWeightStep(product)) {
+      setWeightProduct(product);
+      return;
+    }
     const sizes = buildAvailableSizes(product);
     const size = sizes[0] || product?.selectedSize || null;
     const payload = size ? { ...product, selectedSize: size } : product;
     addToCart(payload, sizeAddQuantity(product, size));
+  };
+
+  const chooseWishlistWeight = (size) => {
+    const product = weightProduct;
+    if (!product || !size) return;
+    const list = getListPrice(product);
+    const pay = getEffectivePrice(product);
+    addToCart(
+      {
+        ...product,
+        price: pay,
+        ...(list > pay + 1e-9 ? { originalPrice: list } : {}),
+        selectedSize: size,
+        sizeDisplay: size.label,
+      },
+      sizeAddQuantity(product, size)
+    );
+    setWeightProduct(null);
   };
 
   if (wishlistItems.length === 0) {
@@ -144,7 +172,10 @@ export default function WishlistPage() {
                     View Details
                   </Link>
                   <button
-                    onClick={() => handleAddToCart(item)}
+                    onClick={(e) => {
+                      playAddTap(e.currentTarget);
+                      handleAddToCart(item);
+                    }}
                     disabled={!item.inStock}
                     className={`flex-1 px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                       item.inStock
@@ -160,6 +191,16 @@ export default function WishlistPage() {
           ))}
         </div>
       </Container>
+      <CustomWeightChooser
+        open={Boolean(weightProduct)}
+        onOpenChange={(open) => {
+          if (!open) setWeightProduct(null);
+        }}
+        product={weightProduct}
+        productName={weightProduct?.name}
+        sizes={weightProduct ? buildAvailableSizes(weightProduct) : []}
+        onSelect={chooseWishlistWeight}
+      />
     </div>
   );
 }

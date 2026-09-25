@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import ProductCard from '../ProductCard';
 import FadeInWhenVisible from '../motion/FadeInWhenVisible';
@@ -11,6 +11,30 @@ import { SearchResultsGridSkeleton } from '../skeletons/SearchPageSkeleton';
 import { useInfiniteSearchProducts, useProducts } from '../../hooks/useProducts';
 import { useShopBranding } from '../../context/ShopBrandingContext';
 import { buildDiscoverSections } from './searchDiscover';
+
+function CollapsibleShopBanner({ banners }) {
+  const [open, setOpen] = useState(() => (banners || []).length > 0);
+
+  useEffect(() => {
+    setOpen((banners || []).length > 0);
+  }, [banners]);
+
+  if (!open || !(banners || []).length) return null;
+
+  return (
+    <div className="mb-4">
+      <div className="overflow-hidden rounded-2xl shadow-[0_8px_28px_rgba(15,23,42,0.08)] ring-1 ring-gray-200/80">
+        <BannerCarousel
+          banners={banners}
+          fallbackToDefaults={false}
+          imageClassName="object-cover object-center"
+          className="bg-white"
+          onSlidesChange={(count) => setOpen(count > 0)}
+        />
+      </div>
+    </div>
+  );
+}
 
 function DiscoverSections({ sections, freshBanner }) {
   const available = (sections || []).filter((s) => (s.products || []).length > 0);
@@ -43,41 +67,20 @@ export default function ProductSearchResults({ q }) {
   const showDiscover = trimmed.length < 2;
 
   const { bannerEnabled, bannerImages } = useShopBranding();
-  const isLocalDev = process.env.NODE_ENV !== 'production';
 
   const shopBanners = useMemo(() => {
-    if (isLocalDev) {
-      return [
-        { id: 'local-1', image: '/banner/360_F_249501541_XmWdfAfUbWAvGxBwAM0ba2aYT36ntlpH.jpg' },
-        {
-          id: 'local-2',
-          image:
-            '/banner/11871820-online-shopping-am-telefon-kaufen-verkaufen-geschaft-digitale-web-banner-anwendung-geldwerbung-zahlung-e-commerce-illustration-suche-vektor.jpg',
-        },
-        { id: 'local-3', image: '/banner/360_F_465465254_1pN9MGrA831idD6zIBL7q8rnZZpUCQTy.jpg' },
-      ];
-    }
     if (!Array.isArray(bannerImages) || bannerImages.length === 0) return [];
     if (bannerEnabled === false) return [];
     return bannerImages.map((url, index) => ({
       id: `shop-banner-${index}`,
       image: url,
     }));
-  }, [bannerEnabled, bannerImages, isLocalDev]);
+  }, [bannerEnabled, bannerImages]);
 
   const freshBanner = useMemo(() => {
     if (!shopBanners.length) return null;
     return (
-      <div className="mb-4">
-        <div className="overflow-hidden rounded-2xl shadow-[0_8px_28px_rgba(15,23,42,0.08)] ring-1 ring-gray-200/80">
-          <BannerCarousel
-            banners={shopBanners}
-            fallbackToDefaults={false}
-            imageClassName="object-cover object-center"
-            className="bg-white"
-          />
-        </div>
-      </div>
+      <CollapsibleShopBanner banners={shopBanners} />
     );
   }, [shopBanners]);
 

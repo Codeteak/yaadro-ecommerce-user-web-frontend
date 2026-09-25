@@ -30,7 +30,8 @@ import {
   resolveProductWeightAndUnit,
   stripPackFromProductName,
 } from '../../../utils/productUtils';
-import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep, weightStepLinePrices, formatCartQtyControlLabel } from '../../../utils/productSizeSelection';
+import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep, weightStepLinePrices, hasCustomWeightStep, formatCartQtyControlLabel } from '../../../utils/productSizeSelection';
+import { playAddTap } from '../../../utils/playAddTap';
 import Container from '../../../components/Container';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
 import PdpOfferPanel from '../../../components/promotions/PdpOfferPanel';
@@ -315,20 +316,29 @@ export default function ProductDetailClient({ productId = null }) {
   const legacyOriginal =
     product?.originalPrice != null ? parseFloat(product.originalPrice) : null;
   // Custom weight: show ₹ for the selected step (250 g), not the full ₹/kg.
-  const effectivePrice = stepLinePrices
-    ? stepLinePrices.pay
-    : product
-      ? getEffectivePrice(product, listUnit)
-      : 0;
-  const mrpDisplay = stepLinePrices
-    ? stepLinePrices.list > stepLinePrices.pay + 1e-9
-      ? stepLinePrices.list
+  const customWeight = hasCustomWeightStep(product);
+  const perKgList = product ? getListPrice(product) || parseFloat(product.price) || 0 : 0;
+  const perKgPay = product ? getEffectivePrice(product, perKgList) || perKgList : 0;
+  const effectivePrice = customWeight
+    ? perKgPay
+    : stepLinePrices
+      ? stepLinePrices.pay
+      : product
+        ? getEffectivePrice(product, listUnit)
+        : 0;
+  const mrpDisplay = customWeight
+    ? perKgList > perKgPay + 1e-9
+      ? perKgList
       : null
-    : product && effectivePrice < listUnit - 1e-9
-      ? listUnit
-      : legacyOriginal != null && legacyOriginal > effectivePrice
-        ? legacyOriginal
-        : null;
+    : stepLinePrices
+      ? stepLinePrices.list > stepLinePrices.pay + 1e-9
+        ? stepLinePrices.list
+        : null
+      : product && effectivePrice < listUnit - 1e-9
+        ? listUnit
+        : legacyOriginal != null && legacyOriginal > effectivePrice
+          ? legacyOriginal
+          : null;
   const discountValue =
     mrpDisplay != null && mrpDisplay > effectivePrice ? mrpDisplay - effectivePrice : null;
   const deliveryTimeEstimate = product?.deliveryTimeEstimate ?? '5–7 business days';
@@ -387,7 +397,8 @@ export default function ProductDetailClient({ productId = null }) {
     ? cartLine.cartItemKey ?? cartLine.cartItemId ?? cartLine.id
     : null;
 
-  const handleAddToCart = useCallback(async () => {
+  const handleAddToCart = useCallback(async (event) => {
+    playAddTap(event?.currentTarget);
     if (!productToAddPayload || !product?.inStock) return;
     setCartActionLoading(true);
     try {
@@ -674,6 +685,7 @@ export default function ProductDetailClient({ productId = null }) {
                       amount={effectivePrice}
                       listPrice={mrpDisplay}
                       size="lg"
+                      suffix={customWeight ? '/kg' : undefined}
                     />
                   )}
                   <PdpOfferPanel product={product} />
@@ -729,7 +741,7 @@ export default function ProductDetailClient({ productId = null }) {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => void handleAddToCart()}
+                        onClick={(e) => void handleAddToCart(e)}
                         disabled={!product.inStock || cartActionLoading}
                         className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-full px-4 text-[12px] font-bold uppercase tracking-wide transition active:scale-[0.97] ${
                           product.inStock

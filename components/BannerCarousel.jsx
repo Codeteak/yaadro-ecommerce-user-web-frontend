@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import gsap from 'gsap';
@@ -36,16 +36,19 @@ const SWIPE_VELOCITY_PX_MS = 0.35;
  * @param {boolean} [props.fallbackToDefaults] - use static /banner assets when `banners` is empty
  * @param {string} [props.className] - wrapper class on outer section
  * @param {string} [props.imageClassName] - image object-fit class
+ * @param {(count: number) => void} [props.onSlidesChange] - called when loadable slide count changes (0 = collapsed)
  */
 export default function BannerCarousel({
   banners = [],
-  fallbackToDefaults = true,
+  fallbackToDefaults = false,
   className = '',
   imageClassName = 'object-contain object-center',
+  onSlidesChange,
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dragOffsetPx, setDragOffsetPx] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [failedImages, setFailedImages] = useState(() => new Set());
 
   const viewportRef = useRef(null);
   const trackRef = useRef(null);
@@ -54,17 +57,58 @@ export default function BannerCarousel({
   const activePointerIdRef = useRef(null);
   const didSwipeRef = useRef(false);
   const autoTimerRef = useRef(null);
+  const onSlidesChangeRef = useRef(onSlidesChange);
+  onSlidesChangeRef.current = onSlidesChange;
 
-  const bannerList =
-    banners.length > 0 ? banners : fallbackToDefaults ? DEFAULT_BANNERS : [];
+  const sourceBanners = useMemo(() => {
+    if (Array.isArray(banners) && banners.length > 0) return banners;
+    return fallbackToDefaults ? DEFAULT_BANNERS : [];
+  }, [banners, fallbackToDefaults]);
+
+  const sourceKey = useMemo(
+    () => sourceBanners.map((b) => b?.image || '').join('|'),
+    [sourceBanners]
+  );
+
+  useEffect(() => {
+    setFailedImages(new Set());
+  }, [sourceKey]);
+
+  const bannerList = useMemo(
+    () =>
+      sourceBanners.filter(
+        (b) => b?.image && !failedImages.has(String(b.image))
+      ),
+    [sourceBanners, failedImages]
+  );
+
+  const markImageFailed = useCallback((src) => {
+    const key = String(src || '');
+    if (!key) return;
+    setFailedImages((prev) => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  }, []);
 
   const slideCount = bannerList.length;
   const canSwipe = slideCount > 1;
 
   useEffect(() => {
+    onSlidesChangeRef.current?.(slideCount);
+  }, [slideCount]);
+
+  useEffect(() => {
     setCurrentIndex(0);
     setDragOffsetPx(0);
   }, [bannerList.length, bannerList[0]?.image]);
+
+  useEffect(() => {
+    if (slideCount === 0) return;
+    setCurrentIndex((prev) => (prev >= slideCount ? 0 : prev));
+  }, [slideCount]);
 
   const goToSlide = useCallback((index) => {
     if (slideCount === 0) return;
@@ -232,6 +276,7 @@ export default function BannerCarousel({
         sizes="100vw"
         unoptimized
         draggable={false}
+        onError={() => markImageFailed(banner.image)}
       />
       {(banner.title || banner.subtitle) && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">

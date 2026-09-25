@@ -7,7 +7,7 @@ import {
   getCartLinePaidQty,
   isBundleRewardCartLine,
 } from '../../utils/cartPromotions';
-import { cartQuantityStep } from '../../utils/productSizeSelection';
+import { cartQuantityStep, formatCartQtyControlLabel } from '../../utils/productSizeSelection';
 import { lineListUnit, linePayTotal, lineUnitPrice } from '../../utils/offerDisplay';
 
 function OfferBadgePill({ children, tone = 'violet' }) {
@@ -153,7 +153,9 @@ function LineRow({
           </div>
 
           {isFree || !showStepper ? (
-            <span className="text-[12px] font-medium text-gray-500">Qty: {paidQty}</span>
+            <span className="text-[12px] font-medium text-gray-500">
+              Qty: {formatCartQtyControlLabel(item, paidQty)}
+            </span>
           ) : (
             <div className="flex items-center overflow-hidden rounded-full border border-gray-200 bg-white">
               <button
@@ -176,7 +178,7 @@ function LineRow({
                 −
               </button>
               <span className="min-w-[20px] text-center text-[13px] font-medium text-gray-900">
-                {paidQty}
+                {formatCartQtyControlLabel(item, paidQty)}
               </span>
               <button
                 type="button"
