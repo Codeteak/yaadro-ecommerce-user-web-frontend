@@ -440,7 +440,7 @@ function transformCategory(apiCategory) {
  *
  * Supported filters (see OpenAPI / product search spec):
  * - `search` / `q` — partial match on name & slug, max 200 chars
- * - `search_mode` — `prefix` (typeahead, `term%`) or `contains` (`%term%`)
+ * - `search_mode` — `contains` (default customer search, `%term%`) or `prefix` (typeahead `term%`)
  * - `category_id`, `brand_id` — UUIDs only (non-UUID values are ignored)
  * - `include_descendants` — when `1`/`true` with `category_id`, include child categories
  * - `availability` — `in_stock` | `out_of_stock` | `unknown`
@@ -755,8 +755,9 @@ export async function searchProducts(params = {}) {
     }
 
     const search = String(q).trim().slice(0, 200);
-    // Typeahead default: prefix (apple%). Pass search_mode: 'contains' for full substring.
-    const mode = search_mode === 'contains' ? 'contains' : 'prefix';
+    // Customer search default: contains (%term%) so "apple" matches "Organic Apple".
+    // Pass search_mode: 'prefix' only for typeahead that wants name-start matches (term%).
+    const mode = search_mode === 'prefix' ? 'prefix' : 'contains';
 
     const list = await getProducts({
       per_page,

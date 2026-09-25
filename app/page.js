@@ -6,6 +6,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { productKeys, useCategoriesTree, useProducts, useRootCategories } from '../hooks/useProducts';
 import { homeSectionKeys } from '../hooks/useHomeSections';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
+import { useAppNavigation } from '../hooks/useAppNavigation';
+import { PRESSABLE_ICON_BTN_SOFT } from '../components/ui/brandButton';
 import { useAlert } from '../context/AlertContext';
 import { useLocationService } from '../context/LocationServiceContext';
 import { useAuth } from '../context/AuthContext';
@@ -113,6 +115,8 @@ export default function Home() {
   const { showAlert } = useAlert();
   const { isAuthenticated } = useAuth();
   const { goToLogin } = useLoginNavigation();
+  const { navigate, prefetch } = useAppNavigation();
+  const [profileNavPending, setProfileNavPending] = useState(false);
   const {
     isChecking: isLocationChecking,
     serviceable: isServiceable,
@@ -124,6 +128,28 @@ export default function Home() {
   const { getDefaultAddress, addresses } = useAddress();
 
   const isLocalDev = process.env.NODE_ENV !== 'production';
+
+  // Warm profile/login so the header icon opens without a cold wait.
+  useEffect(() => {
+    prefetch(isAuthenticated ? '/profile' : '/login');
+  }, [isAuthenticated, prefetch]);
+
+  const handleProfilePress = () => {
+    if (profileNavPending) return;
+    setProfileNavPending(true);
+    if (isAuthenticated) {
+      navigate('/profile');
+      return;
+    }
+    goToLogin();
+  };
+
+  // If navigation stalls (offline / blocked), don't leave the icon spinning forever.
+  useEffect(() => {
+    if (!profileNavPending) return undefined;
+    const t = window.setTimeout(() => setProfileNavPending(false), 8000);
+    return () => window.clearTimeout(t);
+  }, [profileNavPending]);
 
   const shopBanners = useMemo(() => {
     // In local/dev we show static banners (from `/public/banner/*`) regardless of resolver response.
@@ -523,17 +549,31 @@ export default function Home() {
 
             <button
               type="button"
-              onClick={() => {
-                if (isAuthenticated) {
-                  window.location.href = '/profile';
-                } else {
-                  goToLogin();
-                }
-              }}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white ring-2 ring-[#902bf5]/45 ring-offset-2 ring-offset-white transition hover:bg-gray-50 hover:ring-[#902bf5]/70"
-              aria-label={isAuthenticated ? 'Profile' : 'Login'}
+              onClick={handleProfilePress}
+              onPointerEnter={() => prefetch(isAuthenticated ? '/profile' : '/login')}
+              disabled={profileNavPending}
+              aria-busy={profileNavPending}
+              aria-label={
+                profileNavPending
+                  ? isAuthenticated
+                    ? 'Opening profile'
+                    : 'Opening login'
+                  : isAuthenticated
+                    ? 'Profile'
+                    : 'Login'
+              }
+              className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white ring-2 ring-[#902bf5]/45 ring-offset-2 ring-offset-white hover:bg-gray-50 hover:ring-[#902bf5]/70 disabled:opacity-100 ${PRESSABLE_ICON_BTN_SOFT} ${
+                profileNavPending ? 'scale-95 bg-violet-50 ring-[#902bf5]/80' : ''
+              }`}
             >
-              <User size={22} color="#111827" className="h-[22px] w-[22px]" />
+              {profileNavPending ? (
+                <span
+                  className="h-5 w-5 animate-spin rounded-full border-2 border-[#902bf5]/25 border-t-[#902bf5] motion-reduce:animate-none"
+                  aria-hidden
+                />
+              ) : (
+                <User size={22} color="#111827" className="h-[22px] w-[22px]" />
+              )}
             </button>
           </div>
 

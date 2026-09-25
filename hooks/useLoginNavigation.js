@@ -3,6 +3,8 @@
 import { useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { setPostLoginRedirect, sanitizeInternalPath } from '../utils/authSession';
+import { tapFeedback } from '../utils/haptics';
+import { signalNavigationBegin } from '../utils/navigationProgressSignal';
 
 /**
  * Navigate to `/login` and remember where to return after a successful session.
@@ -19,6 +21,8 @@ export function useLoginNavigation() {
       const target =
         sanitizeInternalPath(explicitReturnPath) ?? sanitizeInternalPath(fallback) ?? '/';
       setPostLoginRedirect(target);
+      tapFeedback();
+      signalNavigationBegin();
       router.push('/login');
     },
     [router, pathname]

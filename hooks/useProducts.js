@@ -229,7 +229,7 @@ export function useSearchProducts(params = {}) {
   const q = params.q != null ? String(params.q).trim() : '';
   const page = params.page ?? 1;
   const perPage = params.per_page ?? params.perPage ?? 24;
-  const search_mode = params.search_mode === 'contains' ? 'contains' : 'prefix';
+  const search_mode = params.search_mode === 'prefix' ? 'prefix' : 'contains';
   const { ready } = useStorefrontShopGate();
   return useQuery({
     queryKey: productKeys.search(shopId, { q, page, per_page: perPage, search_mode }),
@@ -257,7 +257,7 @@ export function useInfiniteSearchProducts(params = {}) {
     category_id: params.category_id || undefined,
     sort_by: sort_by && sort_by !== 'default' ? sort_by : cursorMode ? 'created_at' : undefined,
     sort_order: sort_order || (cursorMode ? 'desc' : undefined),
-    search_mode: params.search_mode === 'contains' ? 'contains' : 'prefix',
+    search_mode: params.search_mode === 'prefix' ? 'prefix' : 'contains',
     mode: cursorMode ? 'cursor' : 'offset',
   };
 

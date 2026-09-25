@@ -1,7 +1,7 @@
 /**
  * Cloudflare Pages Function — proxy /api/* to the Yaadro customer API.
  *
- * Static export cannot use Next.js rewrites. Custom domains (e.g. marketfresh.in)
+ * Staticcc export cannot use Next.js rewrites. Custom domains (e.g. marketfresh.in)
  * call customer.yaadro.online in env; without this proxy, httpOnly serviceability
  * cookies from POST /storefront/location/check are cross-site and checkout gets 403.
  *

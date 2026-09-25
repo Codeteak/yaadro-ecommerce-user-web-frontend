@@ -87,7 +87,7 @@ export default function ProductSearchResults({ q }) {
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
-  } = useInfiniteSearchProducts({ q: trimmed, per_page: 24 });
+  } = useInfiniteSearchProducts({ q: trimmed, per_page: 24, search_mode: 'contains' });
 
   const products = useMemo(
     () => (searchInfinite?.pages || []).flatMap((p) => p?.products || []),
