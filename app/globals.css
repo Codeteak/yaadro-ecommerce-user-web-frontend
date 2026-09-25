@@ -360,15 +360,15 @@ iframe.order-tracking-embed {
 /* Drag rails must size to their items, not the viewport (overrides `* { max-width: 100% }`).
    Without flex-shrink:0 + max-width:none on children, cards collapse → track fits viewport → no scroll. */
 .smooth-drag-rail {
-  /* Allow vertical document/#app-scroll pans; axis-lock in JS still prefers horizontal once intent is clear. */
-  touch-action: pan-x pan-y;
+  /* Allow vertical document/#app-scroll pans; axis-lock in JS still prefers horizontal once intent is clear.
+     Include descendants (e.g. ProductCard image) — nested `touch-pan-x` previously blocked vertical scroll on the photo. */
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
 
-.smooth-drag-rail .drag-rail-track,
-.smooth-drag-rail .drag-rail-track > * {
+.smooth-drag-rail,
+.smooth-drag-rail * {
   touch-action: pan-x pan-y;
 }
 
