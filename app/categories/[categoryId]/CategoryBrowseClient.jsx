@@ -332,7 +332,7 @@ function CategoryBrowseInner() {
             maxHeight: `calc(100dvh - env(safe-area-inset-top,0px) - 5.75rem - ${bottomInset}px)`,
           }}
         >
-          <div className="flex max-h-[inherit] flex-col gap-1 overflow-y-auto overscroll-contain scrollbar-hide px-1.5 pb-4">
+          <div className="flex max-h-[inherit] flex-col gap-1 overflow-y-auto scrollbar-hide px-1.5 pb-4">
             <CategoryRailItem
               active={!validSub}
               label="All"

@@ -422,27 +422,8 @@ iframe.order-tracking-embed {
 }
 
 /* ──────────────────────────────────────────────────────────────────────
-   Leaflet — undo the global `* { max-width: 100% }` and
-   `img { max-width: 100%; height: auto }` resets *only* inside the map
-   container, so map tiles, markers, popups and controls keep their
-   intrinsic pixel sizes. Without this, tile <img> elements collapse and
-   the map appears blank.
+   Address map pin (Google Maps AdvancedMarker / img pin styling).
    ────────────────────────────────────────────────────────────────────── */
-.leaflet-container,
-.leaflet-container * {
-  max-width: none !important;
-}
-
-.leaflet-container img {
-  max-width: none !important;
-  max-height: none !important;
-  height: auto;
-}
-
-/* Address-picker marker — keep the original PNG crisp at any device pixel
-   ratio, give it a soft ground shadow so the 3D pin reads as planted, and a
-   small lift on hover for affordance. `object-fit: contain` prevents the
-   browser from squashing the PNG if Leaflet ever overrides its dimensions. */
 .address-map-pin {
   filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.35));
   transition: transform 150ms ease-out, filter 150ms ease-out;
@@ -457,11 +438,7 @@ iframe.order-tracking-embed {
   filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.35));
 }
 
-.leaflet-marker-draggable.address-map-pin {
-  cursor: grab;
-}
-
-.leaflet-marker-draggable.address-map-pin:active {
+.address-map-pin:active {
   cursor: grabbing;
 }
 

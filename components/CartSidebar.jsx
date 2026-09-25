@@ -13,6 +13,7 @@ import { useAppNavigation } from '../hooks/useAppNavigation';
 import OfferGroupCard from './promotions/OfferGroupCard';
 import { PRESSABLE_ICON_BTN_SOFT } from './ui/brandButton';
 import { Loading2Regular as Loader2 } from './icons';
+import { lockAppScroll, unlockAppScroll } from '../lib/pwa/appShell';
 
 function normalizePath(pathname) {
   return pathname?.replace(/\/+$/, '') || '';
@@ -46,6 +47,15 @@ export default function CartSidebar() {
       if (checkoutPendingTimerRef.current) clearTimeout(checkoutPendingTimerRef.current);
     };
   }, [prefetch]);
+
+  // Lock document / #app-scroll while the drawer is open (same as other overlays).
+  useEffect(() => {
+    if (!showSidebarCart) return undefined;
+    lockAppScroll();
+    return () => {
+      unlockAppScroll();
+    };
+  }, [showSidebarCart]);
 
   const bindDrag = useDrag(
     ({ movement: [mx], velocity: [vx], last }) => {
