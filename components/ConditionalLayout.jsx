@@ -10,13 +10,17 @@ function normalizePath(pathname) {
   return pathname?.replace(/\/+$/, '') || '';
 }
 
-/** Routes where sticky CTAs own the bottom — brand footer breaks the flow. */
+/** Routes where sticky CTAs / browse rails own the bottom — brand footer breaks the flow. */
 function hideSiteFooter(path) {
   return (
     path === '/login' ||
     path === '/cart' ||
     path === '/checkout' ||
-    path === '/order-success'
+    path === '/order-success' ||
+    path === '/products' ||
+    path.startsWith('/products/') ||
+    path === '/categories' ||
+    path.startsWith('/categories/')
   );
 }
 
