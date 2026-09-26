@@ -14,7 +14,6 @@ import { cartKeys } from "../../../hooks/useCart";
 import { useAlert } from "../../../context/AlertContext";
 import ProductCarousel from "../../../components/ProductCarousel";
 import ProductImageWithFallback from "../../../components/ProductImageWithFallback";
-import FloatingViewCartPill from "../../../components/FloatingViewCartPill";
 import OrderDetailPageSkeleton from "../../../components/skeletons/OrderDetailPageSkeleton";
 import IconBackButton from "../../../components/ui/IconBackButton";
 import { PRESSABLE_BTN } from "../../../components/ui/brandButton";
@@ -1499,7 +1498,6 @@ function OrderDetailContent({ orderId: orderIdProp = null }) {
         }
       />
 
-      <FloatingViewCartPill />
     </>
   );
 }

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import ProductCard from '../../../components/ProductCard';
 import BrowsePageHeader from '../../../components/BrowsePageHeader';
-import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
 import { CategoryRailItem } from '../../../components/products/ProductsCategoryRail';
 import { useCategoriesTree, useInfiniteProducts } from '../../../hooks/useProducts';
 import InfiniteScrollSentinel from '../../../components/InfiniteScrollSentinel';
@@ -402,7 +401,6 @@ function CategoryBrowseInner() {
         </main>
       </div>
 
-      <FloatingViewCartPill />
     </div>
   );
 }

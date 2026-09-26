@@ -10,7 +10,6 @@ import { getResolvedProductImageUrls } from '../../utils/productImages';
 import { getProductDetailPath, toDisplayText } from '../../utils/productApi';
 import { navigateToProductDetail } from '../../utils/productNavigation';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryImage';
-import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import { CategoryCardSkeleton } from '../../components/skeletons/primitives';
 import ProductImageWithFallback from '../../components/ProductImageWithFallback';
 import BrowsePageHeader from '../../components/BrowsePageHeader';
@@ -413,7 +412,6 @@ export default function CategoriesPage() {
         </div>
       )}
 
-      <FloatingViewCartPill />
     </div>
   );
 }

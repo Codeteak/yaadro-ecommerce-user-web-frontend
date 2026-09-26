@@ -46,23 +46,39 @@ export function replaceFaviconLinksInHtml(html, imageUrl) {
   return `${tags}${stripped}`;
 }
 
-/** Client: drop the shared fallback icons and use this shop's image. */
+/**
+ * Client: apply shop image as favicon without removeChild on Next-managed <link>s.
+ * Removing React-owned head nodes races metadata updates and throws removeChild null.
+ */
 export function applyShopFavicon(doc, imageUrl) {
   const links = faviconLinksForShop(imageUrl);
   if (!links || !doc?.head || typeof doc.createElement !== 'function') return false;
+
+  for (const link of links) {
+    const marker = link.rel;
+    let el = doc.head.querySelector?.(
+      `link[data-yaadro-shop-favicon="${marker}"]`
+    );
+    if (!el) {
+      el = doc.createElement('link');
+      el.setAttribute('data-yaadro-shop-favicon', marker);
+      el.setAttribute('rel', link.rel);
+      doc.head.appendChild(el);
+    }
+    el.setAttribute('href', link.href);
+    el.removeAttribute('media');
+  }
+
+  // Soft-disable built-in icons (do not remove — Next may still own those nodes).
   const existing = doc.head.querySelectorAll?.(
     'link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]'
   );
   if (existing) {
     for (const el of existing) {
-      el.remove?.();
+      if (el.hasAttribute('data-yaadro-shop-favicon')) continue;
+      el.setAttribute('data-yaadro-favicon-suppressed', '1');
+      el.setAttribute('media', 'not all');
     }
-  }
-  for (const link of links) {
-    const el = doc.createElement('link');
-    el.setAttribute('rel', link.rel);
-    el.setAttribute('href', link.href);
-    doc.head.appendChild(el);
   }
   return true;
 }

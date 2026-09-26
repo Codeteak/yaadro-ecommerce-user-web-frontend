@@ -2,7 +2,6 @@
 
 import { useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import ProductSearchExperience from '../../components/search/ProductSearchExperience';
 
 const SEARCH_BASE_PATH = '/search/';
@@ -40,7 +39,6 @@ export default function SearchPage() {
         onQueryChange={handleQueryChange}
         placeholder="Search products…"
       />
-      <FloatingViewCartPill />
     </div>
   );
 }
