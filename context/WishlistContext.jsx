@@ -3,11 +3,17 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { useShopBranding } from './ShopBrandingContext';
+import { sanitizeProductUiFields } from '../utils/productApi';
 
 const WishlistContext = createContext();
 
 function wishlistStorageKey(shopId) {
   return shopId ? `yaadro_wishlist_${shopId}` : 'wishlist';
+}
+
+function sanitizeWishlistItem(item) {
+  if (!item || typeof item !== 'object') return item;
+  return sanitizeProductUiFields({ ...item });
 }
 
 export function WishlistProvider({ children }) {
@@ -39,7 +45,8 @@ export function WishlistProvider({ children }) {
         return;
       }
       const parsed = JSON.parse(raw);
-      setWishlistItems(Array.isArray(parsed) ? parsed : []);
+      const list = Array.isArray(parsed) ? parsed : [];
+      setWishlistItems(list.map(sanitizeWishlistItem).filter(Boolean));
     } catch (error) {
       console.error('Error parsing wishlist from localStorage:', error);
       setWishlistItems([]);
@@ -54,9 +61,11 @@ export function WishlistProvider({ children }) {
 
   const addToWishlist = useCallback((product) => {
     setWishlistItems((prevItems) => {
-      const existingItem = prevItems.find((item) => item.id === product.id);
+      const safe = sanitizeWishlistItem(product);
+      if (!safe?.id) return prevItems;
+      const existingItem = prevItems.find((item) => item.id === safe.id);
       if (existingItem) return prevItems;
-      return [...prevItems, product];
+      return [...prevItems, safe];
     });
   }, []);
 

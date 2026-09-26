@@ -262,6 +262,7 @@ export default function ProductDetailClient({ productId = null }) {
 
   const descriptionText = toDisplayText(product?.description);
   const productTitle = toDisplayText(product?.name) || 'Product';
+  const brandText = toDisplayText(product?.brand);
   const packSizeLabel = toDisplayText(product?.packSize);
 
   // "Small Onion 10kg" -> "Small Onion" (used to find other pack variants).
@@ -624,9 +625,9 @@ export default function ProductDetailClient({ productId = null }) {
               </div>
 
               <div className="space-y-2.5 sm:space-y-3">
-                {String(product.brand || '').trim() ? (
+                {brandText ? (
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">
-                    {String(product.brand).trim()}
+                    {brandText}
                   </p>
                 ) : null}
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-snug text-balance">

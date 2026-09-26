@@ -15,6 +15,7 @@ import { computeCartSavings } from '../utils/cartSavings';
 import ProductImageWithFallback from './ProductImageWithFallback';
 import CartSavingsCelebration from './CartSavingsCelebration';
 import { getAppShellEl } from '../lib/pwa/appShell';
+import { toDisplayText } from '../utils/productApi';
 
 /** Keep in sync with `LayoutHeightsProvider` initial `bottomNavHeight` — used when measurement lags or is 0. */
 const MOBILE_BOTTOM_NAV_FALLBACK_PX = 72;
@@ -197,15 +198,15 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
                 >
                   <ProductImageWithFallback
                     src={src}
-                    alt={item.name || ''}
+                    alt={toDisplayText(item.name) || ''}
                     fill
                     className="object-contain object-center"
                     sizes="36px"
-                    placeholderName={item.name || ''}
+                    placeholderName={toDisplayText(item.name) || ''}
                     placeholderCategory={
-                      item.categoryName ||
-                      item.category?.name ||
-                      (typeof item.category === 'string' ? item.category : '') ||
+                      toDisplayText(item.categoryName) ||
+                      toDisplayText(item.category?.name) ||
+                      toDisplayText(typeof item.category === 'string' ? item.category : '') ||
                       ''
                     }
                   />

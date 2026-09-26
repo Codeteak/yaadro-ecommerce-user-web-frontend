@@ -28,6 +28,7 @@ import { DietIcon, resolveProductDiet } from './ui/DietIcon';
 import { getResolvedProductImageUrls } from '../utils/productImages';
 import { getCartLinePaidQty } from '../utils/cartPromotions';
 import { findPaidCartLine } from '../utils/cartLinePersist';
+import { toDisplayText } from '../utils/productApi';
 import ProductImageWithFallback from './ProductImageWithFallback';
 import { getProductDetailPath } from '../utils/productApi';
 import { navigateToProductDetail } from '../utils/productNavigation';
@@ -495,7 +496,8 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     discountPct >= 1 &&
     discountPct <= 95;
 
-  const brandLabel = String(product?.brand || '').trim();
+  const brandLabel = toDisplayText(product?.brand);
+  const productTitle = toDisplayText(product?.name) || 'Product';
 
   // Offer Damaka free reward: show only — do not allow separate add-to-cart.
   const isDamakaFreeReward = shelfRole === 'get';
@@ -594,18 +596,20 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
                 <div key={`${idx}-${img}`} className="relative h-full min-h-0 w-full flex-shrink-0">
                   <ProductImageWithFallback
                     src={img}
-                    alt={`${product.name} – image ${idx + 1}`}
+                    alt={`${productTitle} – image ${idx + 1}`}
                     fill
                     className={`object-contain object-center ${
                       isUnavailable ? 'brightness-[0.55] grayscale' : ''
                     }`}
                     sizes="(max-width: 640px) 50vw, (max-width: 768px) 50vw, (max-width: 1200px) 33vw, 173px"
-                    placeholderName={product.name}
+                    placeholderName={productTitle}
                     placeholderCategory={
-                      product.categoryName ||
-                      product.category?.name ||
-                      (typeof product.category === 'string' ? product.category : '') ||
-                      product.primaryCategoryName ||
+                      toDisplayText(product.categoryName) ||
+                      toDisplayText(product.category?.name) ||
+                      toDisplayText(
+                        typeof product.category === 'string' ? product.category : ''
+                      ) ||
+                      toDisplayText(product.primaryCategoryName) ||
                       ''
                     }
                   />
@@ -683,7 +687,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col px-3 pb-2 pt-1.5">
-        <Link {...navLinkProps} className="block min-w-0" title={product.name}>
+        <Link {...navLinkProps} className="block min-w-0" title={productTitle}>
           {brandLabel ? (
             <p className="mb-0.5 h-[14px] truncate text-[10px] font-semibold uppercase leading-[14px] tracking-[0.08em] text-gray-500">
               {brandLabel}
@@ -692,7 +696,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
             <p className="mb-0.5 h-[14px]" aria-hidden />
           ) : null}
           <h3 className="h-8 line-clamp-2 text-[13px] font-bold leading-4 tracking-tight text-gray-900">
-            {product.name}
+            {productTitle}
           </h3>
           {/* Always reserve offer line height so sale vs non-sale cards stay even */}
           <p
@@ -741,7 +745,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         open={weightChooserOpen}
         onOpenChange={setWeightChooserOpen}
         product={product}
-        productName={product?.name}
+        productName={productTitle}
         sizes={availableSizes}
         busy={cartActionLoading}
         onSelect={(size) => {
