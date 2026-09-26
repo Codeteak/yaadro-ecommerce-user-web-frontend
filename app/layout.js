@@ -114,6 +114,12 @@ export default function RootLayout({ children }) {
           </ShopBrandingProvider>
           </ClientOnly>
         </div>
+        {/*
+          React-owned empty portal host — sibling of #app-shell, never a child of it.
+          Overlays (cart pill, search, sheets) portal here so React does not fight a
+          manually appended node under #app-shell (removeChild null crashes).
+        */}
+        <div id="yaadro-portal-root" data-yaadro-portal-root="" />
       </body>
     </html>
   );

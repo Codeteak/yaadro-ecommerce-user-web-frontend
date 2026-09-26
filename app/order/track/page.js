@@ -30,16 +30,16 @@ function TrackShell({ children }) {
     };
   }, []);
 
+  // Portal to the body-level host only — never into #app-shell (React-owned; removeChild crash).
+  // `.yaadro-track-overlay` centers on the 430px column on desktop; full-bleed on mobile.
   const tree = (
-    <div className="absolute inset-0 z-[80] flex h-full min-h-0 w-full flex-col bg-white">
+    <div className="yaadro-track-overlay fixed inset-0 z-[80] flex h-full min-h-0 w-full flex-col bg-white">
       {children}
     </div>
   );
 
   if (!ready) return tree;
-  // Prefer live shell so tracking fills the phone column; fall back to stable portal root.
-  const shell = typeof document !== 'undefined' ? getAppShellEl() : null;
-  return createAppPortal(tree, shell?.isConnected ? shell : null) || tree;
+  return createAppPortal(tree) || tree;
 }
 
 function TrackPageSkeleton() {

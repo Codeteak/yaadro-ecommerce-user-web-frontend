@@ -19,8 +19,8 @@ const MOBILE_BOTTOM_NAV_FALLBACK_PX = 72;
 const GAP_ABOVE_BOTTOM_NAV_PX = 14;
 /**
  * Floating cart pill — viewport-fixed, just above the mobile tab bar.
- * Portaled into a stable host inside `#app-shell` (or body) so desktop column
- * containment stays correct and HMR/ClientOnly remounts cannot detach the host.
+ * Portaled into `#yaadro-portal-root` (body sibling of `#app-shell`), never under
+ * the shell — a foreign DOM sibling there causes removeChild null crashes on nav.
  * Do NOT add `siteFooterHeight`: the brand footer is separate chrome; lifting by both
  * pushed this pill into the lower-middle of the viewport.
  * @param {number} [stackAboveBottomPx] — When set (e.g. PDP), CSS `bottom` in px; measure from the
@@ -45,7 +45,7 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
 
   useEffect(() => {
     setMounted(true);
-    // Ensure host exists before first portal paint; re-parent if shell remounts.
+    // Ensure body-level portal host exists before first paint.
     ensurePortalRoot();
     const onVis = () => ensurePortalRoot();
     window.addEventListener('pageshow', onVis);
