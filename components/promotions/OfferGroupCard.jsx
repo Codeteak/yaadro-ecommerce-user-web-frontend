@@ -7,7 +7,11 @@ import {
   getCartLinePaidQty,
   isBundleRewardCartLine,
 } from '../../utils/cartPromotions';
-import { cartQuantityStep, formatCartQtyControlLabel } from '../../utils/productSizeSelection';
+import {
+  cartQuantityStep,
+  formatCartQtyControlLabel,
+  formatSoldByWeightPurchaseLabel,
+} from '../../utils/productSizeSelection';
 import { lineListUnit, linePayTotal, lineUnitPrice } from '../../utils/offerDisplay';
 
 function OfferBadgePill({ children, tone = 'violet' }) {
@@ -127,8 +131,14 @@ function LineRow({
               <OfferBadgePill tone="red">SAVE ₹{Math.round(saveLine)}</OfferBadgePill>
             )}
         </div>
-        <p className="mt-0.5 text-[11px] text-gray-400">
-          {[getCartLineVariantLabel(item), item.brand].filter(Boolean).join(' · ') || ' '}
+        <p className="mt-0.5 text-[11px] text-gray-500">
+          {[
+            formatSoldByWeightPurchaseLabel(item, paidQty) ||
+              getCartLineVariantLabel(item),
+            item.brand,
+          ]
+            .filter(Boolean)
+            .join(' · ') || ' '}
         </p>
 
         <div className="mt-2 flex items-center justify-between gap-2">

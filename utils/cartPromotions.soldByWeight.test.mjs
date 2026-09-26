@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  applyGuestCartLineBundleQuantities,
   getCartLinePaidQty,
   normalizeCartLineCatalogPricing,
   sumCartShelfPayable,
@@ -10,6 +11,28 @@ import { lineTotalFromUnitPricing } from './productUtils.js';
 test('getCartLinePaidQty keeps fractional sold-by-weight qty', () => {
   assert.equal(getCartLinePaidQty({ quantity: 0.25, soldByWeight: true }), 0.25);
   assert.equal(getCartLinePaidQty({ quantity: 0.75 }), 0.75);
+});
+
+test('applyGuestCartLineBundleQuantities keeps 0.2 kg (does not Math.max to 1)', () => {
+  const next = applyGuestCartLineBundleQuantities({
+    id: 'carrot',
+    quantity: 0.2,
+    price: 55,
+    soldByWeight: true,
+    sold_by_weight: true,
+    weightStepKg: 0.1,
+  });
+  assert.equal(next.quantity, 0.2);
+  assert.equal(next.paid_quantity, 0.2);
+});
+
+test('applyGuestCartLineBundleQuantities still floors piece products to >= 1', () => {
+  const next = applyGuestCartLineBundleQuantities({
+    id: 'oil',
+    quantity: 2,
+    price: 175,
+  });
+  assert.equal(next.quantity, 2);
 });
 
 test('normalizeCartLineCatalogPricing does not inflate 0.25 kg to 1 kg', () => {

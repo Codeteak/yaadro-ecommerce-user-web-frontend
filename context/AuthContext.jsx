@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { refreshAccessToken, getCurrentUser, logoutUser } from '../utils/authApi';
 import { onTokenAutoRefreshed, persistAccessToken } from '../utils/apiClient';
 import { getJwtExpiresAtMs, getMsUntilAccessTokenRefresh } from '../utils/jwtExp';
@@ -36,6 +37,7 @@ function applyRefreshedTokensToStorage(newTokens, previousRefreshToken) {
 }
 
 export function AuthProvider({ children }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [refreshToken, setRefreshToken] = useState(null);
@@ -43,6 +45,14 @@ export function AuthProvider({ children }) {
   const [isLoadingUser, setIsLoadingUser] = useState(false);
   /** False until first client auth hydration from localStorage runs (avoids redirect flash before token/user are restored). */
   const [authHydrated, setAuthHydrated] = useState(false);
+
+  const clearQueryCache = useCallback(() => {
+    try {
+      queryClient.clear();
+    } catch {
+      /* ignore */
+    }
+  }, [queryClient]);
 
   const logout = useCallback(async () => {
     try {
@@ -54,7 +64,8 @@ export function AuthProvider({ children }) {
     setToken(null);
     setRefreshToken(null);
     clearAllClientSessionData();
-  }, []);
+    clearQueryCache();
+  }, [clearQueryCache]);
 
   /** Clear session on token expiry / 401 / refresh failure (no forced /login redirect). */
   const expireSession = useCallback(() => {
@@ -63,7 +74,8 @@ export function AuthProvider({ children }) {
     setToken(null);
     setRefreshToken(null);
     expireAuthSessionAndRedirect({ hadSession });
-  }, [user, token, refreshToken]);
+    clearQueryCache();
+  }, [user, token, refreshToken, clearQueryCache]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -71,10 +83,11 @@ export function AuthProvider({ children }) {
       setUser(null);
       setToken(null);
       setRefreshToken(null);
+      clearQueryCache();
     };
     window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, onExpired);
     return () => window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, onExpired);
-  }, []);
+  }, [clearQueryCache]);
 
   const recoverSessionWithRefresh = useCallback(async () => {
     if (typeof window === 'undefined') return false;
@@ -402,6 +415,42 @@ export function AuthProvider({ children }) {
     setToken(null);
     setRefreshToken(null);
     clearAllClientSessionData();
+    clearQueryCache();
+  }, [clearQueryCache]);
+
+  /**
+   * Apply a profile/API user payload into AuthContext without another GET /me.
+   * Used after PATCH /me/profile so UI stays in sync without a duplicate fetch.
+   */
+  const syncUser = useCallback((nextUser) => {
+    if (!nextUser || typeof nextUser !== 'object') return;
+    const normalized = normalizeCustomer(nextUser) || nextUser;
+    setUser((prev) => {
+      const merged = {
+        ...(prev && typeof prev === 'object' ? prev : {}),
+        ...(normalized && typeof normalized === 'object' ? normalized : {}),
+        phone:
+          (normalized && (normalized.phone || normalized.mobile)) ||
+          (prev && (prev.phone || prev.mobile)) ||
+          '',
+        name:
+          (normalized && (normalized.name || normalized.displayName || normalized.fullName)) ||
+          (prev && (prev.name || prev.displayName)) ||
+          '',
+        displayName:
+          (normalized && (normalized.displayName || normalized.name)) ||
+          (prev && (prev.displayName || prev.name)) ||
+          '',
+      };
+      try {
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('user', JSON.stringify(merged));
+        }
+      } catch {
+        /* ignore */
+      }
+      return merged;
+    });
   }, []);
 
   /**
@@ -462,6 +511,7 @@ export function AuthProvider({ children }) {
       authHydrated,
       isLoadingUser,
       refreshUser,
+      syncUser,
     }),
     [
       user,
@@ -474,6 +524,7 @@ export function AuthProvider({ children }) {
       authHydrated,
       isLoadingUser,
       refreshUser,
+      syncUser,
     ],
   );
 

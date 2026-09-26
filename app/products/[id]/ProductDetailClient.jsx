@@ -31,7 +31,7 @@ import {
   stripPackFromProductName,
 } from '../../../utils/productUtils';
 import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep, weightStepLinePrices, hasCustomWeightStep, formatCartQtyControlLabel } from '../../../utils/productSizeSelection';
-import { playAddTap } from '../../../utils/playAddTap';
+import { playAddTap, playAddTapAndHold } from '../../../utils/playAddTap';
 import Container from '../../../components/Container';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
 import PdpOfferPanel from '../../../components/promotions/PdpOfferPanel';
@@ -137,7 +137,7 @@ function ReviewCard({ author, rating, text }) {
 export default function ProductDetailClient({ productId = null }) {
   const params = useParams();
   const router = useRouter();
-  const { addToCart, cartItems, updateQuantity, removeFromCart } = useCart();
+  const { addToCart, cartItems, updateQuantity, removeFromCart, setShowSidebarCart } = useCart();
   const { addToRecentlyViewed } = useRecentlyViewed();
   const { showAlert } = useAlert();
   const { shopName } = useShopBranding();
@@ -398,15 +398,15 @@ export default function ProductDetailClient({ productId = null }) {
     : null;
 
   const handleAddToCart = useCallback(async (event) => {
-    playAddTap(event?.currentTarget);
-    if (!productToAddPayload || !product?.inStock) return;
+    if (!productToAddPayload || !product?.inStock || cartActionLoading) return;
+    await playAddTapAndHold(event?.currentTarget);
     setCartActionLoading(true);
     try {
       await addToCart(productToAddPayload, sizeAddQuantity(product, activeSize));
     } finally {
       setCartActionLoading(false);
     }
-  }, [addToCart, productToAddPayload, product?.inStock, activeSize]);
+  }, [addToCart, productToAddPayload, product, activeSize, cartActionLoading]);
 
   const handleStepperIncrement = useCallback(() => {
     if (cartActionLoading || !productToAddPayload || cartUpdateKey == null) return;
@@ -671,24 +671,14 @@ export default function ProductDetailClient({ productId = null }) {
                 </div>
 
                 <div className="space-y-2.5 pt-0.5">
-                  <div className="flex items-end justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      {product?.bxgyShelfRole === 'get' ? (
-                        <div className="text-2xl font-bold leading-none sm:text-3xl">
-                          <span className="text-violet-700">Free</span>
-                          {mrpDisplay != null && mrpDisplay > 0 ? (
-                            <span className="ml-2 text-base font-medium text-gray-400 line-through tabular-nums">
-                              ₹{formatRupeeINR(mrpDisplay)}
-                            </span>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <PriceDisplay
-                          amount={effectivePrice}
-                          listPrice={mrpDisplay}
-                          size="lg"
-                        />
-                      )}
+                  {product?.bxgyShelfRole === 'get' ? (
+                    <div className="text-2xl font-bold leading-none sm:text-3xl">
+                      <span className="text-violet-700">Free</span>
+                      {mrpDisplay != null && mrpDisplay > 0 ? (
+                        <span className="ml-2 text-base font-medium text-gray-400 line-through tabular-nums">
+                          ₹{formatRupeeINR(mrpDisplay)}
+                        </span>
+                      ) : null}
                     </div>
                   ) : (
                     <PriceDisplay
@@ -710,85 +700,75 @@ export default function ProductDetailClient({ productId = null }) {
                     ) : cartQty > 0 ? (
                       <>
                         <div
-                          className="inline-flex h-9 items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-emerald-600 px-3.5 text-[11px] font-bold uppercase tracking-[0.08em] text-white shadow-sm"
-                          aria-label="Free with offer — added when you buy the paired product"
+                          className="inline-flex h-9 min-w-[96px] items-center justify-between rounded-full bg-white px-2 ring-2 ring-[#902bf5] shadow-[0_8px_20px_rgba(144,43,245,0.35)]"
+                          role="group"
+                          aria-label="Quantity"
                         >
-                          Free
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              playAddTap(e.currentTarget);
+                              void handleStepperDecrement();
+                            }}
+                            disabled={cartActionLoading}
+                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] transition active:scale-95 disabled:opacity-50"
+                            aria-label="Decrease quantity"
+                          >
+                            <span className="text-base font-bold leading-none">−</span>
+                          </button>
+                          <span className="min-w-[1.5rem] text-center text-sm font-bold tabular-nums text-[#902bf5]">
+                            {formatCartQtyControlLabel(product, cartQty)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              playAddTap(e.currentTarget);
+                              void handleStepperIncrement();
+                            }}
+                            disabled={cartActionLoading}
+                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] transition active:scale-95 disabled:opacity-50"
+                            aria-label="Increase quantity"
+                          >
+                            <span className="text-base font-bold leading-none">+</span>
+                          </button>
                         </div>
-                      ) : cartQty > 0 ? (
-                        <>
-                          <div
-                            className="inline-flex h-9 min-w-[96px] items-center justify-between rounded-full bg-white px-2 ring-2 ring-[#902bf5] shadow-[0_8px_20px_rgba(144,43,245,0.35)]"
-                            role="group"
-                            aria-label="Quantity"
-                          >
-                            <button
-                              type="button"
-                              onClick={() => void handleStepperDecrement()}
-                              disabled={cartActionLoading}
-                              className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] transition active:scale-95 disabled:opacity-50"
-                              aria-label="Decrease quantity"
-                            >
-                              <span className="text-base font-bold leading-none">−</span>
-                            </button>
-                            <span className="min-w-[1.5rem] text-center text-sm font-bold tabular-nums text-[#902bf5]">
-                              {formatCartQtyControlLabel(product, cartQty)}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => void handleStepperIncrement()}
-                              disabled={cartActionLoading}
-                              className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] transition active:scale-95 disabled:opacity-50"
-                              aria-label="Increase quantity"
-                            >
-                              <span className="text-base font-bold leading-none">+</span>
-                            </button>
-                          </div>
-                          {bundleFreeExtra > 0 ? (
-                            <span className="text-[12px] font-medium text-emerald-700 tabular-nums">
-                              +{bundleFreeExtra} free
-                            </span>
-                          ) : null}
-                          <Link
-                            href="/cart"
-                            className="inline-flex h-9 items-center justify-center rounded-full px-3 text-[12px] font-semibold text-[#902bf5] transition hover:bg-violet-50"
-                          >
-                            Go to cart
-                          </Link>
-                        </>
-                      ) : (
+                        {bundleFreeExtra > 0 ? (
+                          <span className="text-[12px] font-medium text-emerald-700 tabular-nums">
+                            +{bundleFreeExtra} free
+                          </span>
+                        ) : null}
                         <button
                           type="button"
-                          onClick={() => void handleAddToCart()}
-                          disabled={!product.inStock || cartActionLoading}
-                          className={`flex h-11 min-w-[88px] items-center justify-center gap-1.5 rounded-l-[24px] rounded-r-[12px] px-5 text-[13px] font-bold uppercase leading-none tracking-[0.14em] transition active:scale-[0.97] touch-manipulation ${
-                            product.inStock
-                              ? 'bg-[#902bf5] text-white shadow-[0_8px_20px_rgba(144,43,245,0.4)] hover:bg-[#7d24d6] disabled:opacity-70'
-                              : 'cursor-not-allowed bg-gray-100 text-gray-400'
-                          }`}
+                          onClick={() => setShowSidebarCart(true)}
+                          className="inline-flex h-9 items-center justify-center rounded-full px-3 text-[12px] font-semibold text-[#902bf5] transition hover:bg-violet-50"
                         >
-                          Go to cart
-                        </Link>
+                          View cart
+                        </button>
                       </>
                     ) : (
                       <button
                         type="button"
                         onClick={(e) => void handleAddToCart(e)}
                         disabled={!product.inStock || cartActionLoading}
-                        className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-full px-4 text-[12px] font-bold uppercase tracking-wide transition active:scale-[0.97] ${
+                        className={`inline-flex h-9 min-w-[5.5rem] items-center justify-center gap-1.5 rounded-full px-4 text-[12px] font-bold uppercase tracking-wide touch-manipulation shadow-[0_8px_20px_rgba(144,43,245,0.4)] transition active:scale-[0.97] ${
                           product.inStock
-                            ? 'bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-70'
-                            : 'cursor-not-allowed bg-gray-100 text-gray-400'
+                            ? 'bg-[#902bf5] text-white hover:bg-[#7d24d6] disabled:opacity-70'
+                            : 'cursor-not-allowed bg-gray-100 text-gray-400 shadow-none'
                         }`}
                       >
                         {cartActionLoading ? (
-                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden />
-                        ) : null}
-                        {product.inStock ? 'Add' : 'Unavailable'}
+                          <span
+                            className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"
+                            aria-hidden
+                          />
+                        ) : product.inStock ? (
+                          'Add'
+                        ) : (
+                          'Unavailable'
+                        )}
                       </button>
                     )}
                   </div>
-                  <PdpOfferPanel product={product} />
                 </div>
               </div>
             </section>

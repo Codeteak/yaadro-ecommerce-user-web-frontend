@@ -17,7 +17,7 @@ import {
   mergePreviewPricingOntoLocalLines,
   normalizeCartLineCatalogPricing,
   stripPaidCartLinesOnly,
-  sumCartPaidUnits,
+  sumCartCustomerUnits,
 } from '../utils/cartPromotions';
 import { findProductNameForNewFreeUnits } from '../utils/offerDisplay';
 import {
@@ -676,11 +676,11 @@ export function CartProvider({ children }) {
     }
   };
 
-  // Weight lines are fractional kg; round so UI never shows 7.800000000000001.
+  // Customer badge: pack count for weight lines (not fractional kg).
   const cartCount =
     cartItems.length === 0
       ? 0
-      : Math.round(sumCartPaidUnits(cartItems) * 1000) / 1000;
+      : Math.round(sumCartCustomerUnits(cartItems) * 1000) / 1000;
 
   const localLinesTotal =
     cartItems.length === 0
