@@ -16,6 +16,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { formatRupeeINR, getCartLineVariantLabel } from '../utils/productUtils';
 import ProductImageWithFallback from './ProductImageWithFallback';
 import { getCartLinePreviewImageSrc } from '../utils/productImages';
+import { toDisplayText } from '../utils/productApi';
 
 export default function CartItem({ item }) {
   const { updateQuantity, removeFromCart, updateCartItemNote } = useCart();
@@ -23,6 +24,11 @@ export default function CartItem({ item }) {
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [note, setNote] = useState(item.note || '');
   const [mounted, setMounted] = useState(false);
+  const itemName = toDisplayText(item?.name) || 'Product';
+  const itemCategoryLabel =
+    toDisplayText(item?.categoryName) ||
+    toDisplayText(item?.category?.name) ||
+    toDisplayText(typeof item?.category === 'string' ? item.category : '');
 
   useEffect(() => {
     setMounted(true);
@@ -125,17 +131,12 @@ export default function CartItem({ item }) {
       <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0">
         <ProductImageWithFallback
           src={imageSrc}
-          alt={item.name}
+          alt={itemName}
           fill
           className="object-contain object-center"
           sizes="64px"
-          placeholderName={item.name}
-          placeholderCategory={
-            item.categoryName ||
-            item.category?.name ||
-            (typeof item.category === 'string' ? item.category : '') ||
-            ''
-          }
+          placeholderName={itemName}
+          placeholderCategory={itemCategoryLabel}
         />
       </div>
 
@@ -144,7 +145,7 @@ export default function CartItem({ item }) {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2">
-              {item.name}
+              {itemName}
             </h3>
             {isBundleReward && (
               <span className="mt-1 inline-block rounded-md bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">

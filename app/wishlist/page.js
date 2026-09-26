@@ -10,7 +10,7 @@ import Container from '../../components/Container';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import { getEffectivePrice, getListPrice, formatRupeeINR } from '../../utils/productUtils';
 import { getResolvedProductImageUrls } from '../../utils/productImages';
-import { getProductDetailPath } from '../../utils/productApi';
+import { getProductDetailPath, toDisplayText } from '../../utils/productApi';
 import { navigateToProductDetail } from '../../utils/productNavigation';
 import {
   buildAvailableSizes,
@@ -133,7 +133,7 @@ export default function WishlistPage() {
                 <div className="relative h-64 overflow-hidden">
                   <Image
                     src={getResolvedProductImageUrls(item)[0]}
-                    alt={`${item.name} – image 1`}
+                    alt={`${toDisplayText(item.name) || 'Product'} – image 1`}
                     fill
                     className="object-contain object-center"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -171,11 +171,11 @@ export default function WishlistPage() {
                   }}
                 >
                   <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-1 hover:text-gray-600 transition-colors line-clamp-2 break-words">
-                    {item.name}
+                    {toDisplayText(item.name) || 'Product'}
                   </h3>
                 </Link>
                 <p className="text-gray-600 text-xs sm:text-sm mb-2 line-clamp-1 break-words">
-                  {item.description}
+                  {toDisplayText(item.description)}
                 </p>
                 <div className="flex items-center justify-between mb-3 gap-2">
                   <span className="text-lg sm:text-xl font-bold text-gray-900 truncate min-w-0">
@@ -222,7 +222,7 @@ export default function WishlistPage() {
           if (!open) setWeightProduct(null);
         }}
         product={weightProduct}
-        productName={weightProduct?.name}
+        productName={toDisplayText(weightProduct?.name)}
         sizes={weightProduct ? buildAvailableSizes(weightProduct) : []}
         onSelect={chooseWishlistWeight}
       />

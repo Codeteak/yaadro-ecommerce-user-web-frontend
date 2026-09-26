@@ -368,17 +368,17 @@ export default function CategoriesPage() {
                     <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-gray-50 border border-gray-100">
                       <ProductImageWithFallback
                         src={img}
-                        alt={p?.name || 'Product'}
+                        alt={toDisplayText(p?.name) || 'Product'}
                         fill
                         className="object-contain"
                         sizes="48px"
-                        placeholderName={p?.name || ''}
+                        placeholderName={toDisplayText(p?.name) || ''}
                         placeholderCategory={toDisplayText(p?.categoryName || p?.category)}
                       />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-[13px] font-medium text-gray-900 truncate">
-                        {p?.name}
+                        {toDisplayText(p?.name) || 'Product'}
                       </p>
                       <p className="mt-0.5 text-[11px] text-gray-500 truncate">
                         {toDisplayText(p?.categoryName || p?.category)}
