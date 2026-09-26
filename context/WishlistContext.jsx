@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { useShopBranding } from './ShopBrandingContext';
-import { sanitizeProductUiFields } from '../utils/productApi';
+import { sanitizeProductUiFields } from '../utils/displayText';
 
 const WishlistContext = createContext();
 

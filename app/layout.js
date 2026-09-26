@@ -22,6 +22,7 @@ import { ToastProvider, ToastHost } from '../context/ToastContext';
 import { CatalogRealtimeProvider } from '../context/CatalogRealtimeContext';
 import PWARegistrar from '../components/PWARegistrar';
 import InstallPrompt from '../components/InstallPrompt';
+import ChunkLoadRecovery from '../components/ChunkLoadRecovery';
 
 /**
  * Build-time defaults only (same HTML for every tenant in `out/`).
@@ -94,6 +95,7 @@ export default function RootLayout({ children }) {
                                     <CartSidebar />
                                     <ServiceAreaBottomSheet />
                                     <PWARegistrar />
+                                    <ChunkLoadRecovery />
                                     <InstallPrompt />
                                   </LocationServiceProvider>
                                 </LayoutHeightsProvider>
