@@ -20,6 +20,24 @@ function isChunkLoadError(err) {
   );
 }
 
+/** Stale SW / hydration mismatches often throw during React commit (not render). */
+function isDomHydrationCorruption(err) {
+  if (!err) return false;
+  const name = String(err.name || '');
+  const msg = String(err.message || err || '');
+  return (
+    name === 'NotFoundError' ||
+    /Failed to execute 'removeChild' on 'Node'/i.test(msg) ||
+    /Cannot read properties of null \(reading 'removeChild'\)/i.test(msg) ||
+    /The node to be removed is not a child of this node/i.test(msg) ||
+    /InsertBefore|replaceChild|removeChild/i.test(msg) && /NotFoundError|null/i.test(msg)
+  );
+}
+
+function shouldHardRecover(err) {
+  return isChunkLoadError(err) || isDomHydrationCorruption(err);
+}
+
 /**
  * Permanent guard: stale hashed chunks / SW mismatches cause blank or looping errors.
  * On ChunkLoadError, clear SW+caches and hard-reload once. Clears recovery marker when healthy.
@@ -41,13 +59,13 @@ export default function ChunkLoadRecovery() {
     if (process.env.NODE_ENV !== 'production') return undefined;
     const onError = (event) => {
       const err = event?.error || event;
-      if (!isChunkLoadError(err)) return;
+      if (!shouldHardRecover(err)) return;
       event?.preventDefault?.();
       void hardRecoverStorefront();
     };
     const onRejection = (event) => {
       const reason = event?.reason;
-      if (!isChunkLoadError(reason)) return;
+      if (!shouldHardRecover(reason)) return;
       event?.preventDefault?.();
       void hardRecoverStorefront();
     };

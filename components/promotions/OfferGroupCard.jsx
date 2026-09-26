@@ -134,16 +134,14 @@ function LineRow({
               <OfferBadgePill tone="red">SAVE ₹{Math.round(saveLine)}</OfferBadgePill>
             )}
         </div>
-        <p className="mt-0.5 text-[11px] text-gray-500">
+        <p className="mt-0.5 text-[11px] text-gray-400">
           {[
             formatSoldByWeightPurchaseLabel(item, paidQty) ||
               getCartLineVariantLabel(item),
-            item.brand,
+            brandLabel,
           ]
             .filter(Boolean)
             .join(' · ') || ' '}
-        <p className="mt-0.5 text-[11px] text-gray-400">
-          {[getCartLineVariantLabel(item), brandLabel].filter(Boolean).join(' · ') || ' '}
         </p>
 
         <div className="mt-2 flex items-center justify-between gap-2">

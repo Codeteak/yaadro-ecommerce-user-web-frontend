@@ -692,74 +692,62 @@ export default function ProductDetailClient({ productId = null }) {
                     <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                       {product?.bxgyShelfRole === 'get' ? (
                         <div
-                          className="inline-flex h-9 min-w-[96px] items-center justify-between rounded-full bg-white px-2 ring-2 ring-[#902bf5] shadow-[0_8px_20px_rgba(144,43,245,0.35)]"
-                          role="group"
-                          aria-label="Quantity"
+                          className="inline-flex h-9 items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-emerald-600 px-3.5 text-[11px] font-bold uppercase tracking-[0.08em] text-white shadow-sm"
+                          aria-label="Free with offer — added when you buy the paired product"
                         >
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              playAddTap(e.currentTarget);
-                              void handleStepperDecrement();
-                            }}
-                            disabled={cartActionLoading}
-                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] transition active:scale-95 disabled:opacity-50"
-                            aria-label="Decrease quantity"
-                          >
-                            <span className="text-base font-bold leading-none">−</span>
-                          </button>
-                          <span className="min-w-[1.5rem] text-center text-sm font-bold tabular-nums text-[#902bf5]">
-                            {formatCartQtyControlLabel(product, cartQty)}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              playAddTap(e.currentTarget);
-                              void handleStepperIncrement();
-                            }}
-                            disabled={cartActionLoading}
-                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] transition active:scale-95 disabled:opacity-50"
-                            aria-label="Increase quantity"
-                          >
-                            <span className="text-base font-bold leading-none">+</span>
-                          </button>
+                          Free
                         </div>
-                        {bundleFreeExtra > 0 ? (
-                          <span className="text-[12px] font-medium text-emerald-700 tabular-nums">
-                            +{bundleFreeExtra} free
-                          </span>
-                        ) : null}
+                      ) : cartQty > 0 ? (
+                        <>
+                          <div
+                            className="inline-flex h-9 min-w-[96px] items-center justify-between rounded-full bg-white px-2 ring-2 ring-[#902bf5] shadow-[0_8px_20px_rgba(144,43,245,0.35)]"
+                            role="group"
+                            aria-label="Quantity"
+                          >
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                playAddTap(e.currentTarget);
+                                void handleStepperDecrement();
+                              }}
+                              disabled={cartActionLoading}
+                              className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] transition active:scale-95 disabled:opacity-50"
+                              aria-label="Decrease quantity"
+                            >
+                              <span className="text-base font-bold leading-none">−</span>
+                            </button>
+                            <span className="min-w-[1.5rem] text-center text-sm font-bold tabular-nums text-[#902bf5]">
+                              {formatCartQtyControlLabel(product, cartQty)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                playAddTap(e.currentTarget);
+                                void handleStepperIncrement();
+                              }}
+                              disabled={cartActionLoading}
+                              className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] transition active:scale-95 disabled:opacity-50"
+                              aria-label="Increase quantity"
+                            >
+                              <span className="text-base font-bold leading-none">+</span>
+                            </button>
+                          </div>
+                          {bundleFreeExtra > 0 ? (
+                            <span className="text-[12px] font-medium text-emerald-700 tabular-nums">
+                              +{bundleFreeExtra} free
+                            </span>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => setShowSidebarCart(true)}
+                            className="inline-flex h-9 items-center justify-center rounded-full px-3 text-[12px] font-semibold text-[#902bf5] transition hover:bg-violet-50"
+                          >
+                            View cart
+                          </button>
+                        </>
+                      ) : (
                         <button
                           type="button"
-                          onClick={() => setShowSidebarCart(true)}
-                          className="inline-flex h-9 items-center justify-center rounded-full px-3 text-[12px] font-semibold text-[#902bf5] transition hover:bg-violet-50"
-                        >
-                          View cart
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => void handleAddToCart(e)}
-                        disabled={!product.inStock || cartActionLoading}
-                        className={`inline-flex h-9 min-w-[5.5rem] items-center justify-center gap-1.5 rounded-full px-4 text-[12px] font-bold uppercase tracking-wide touch-manipulation shadow-[0_8px_20px_rgba(144,43,245,0.4)] transition active:scale-[0.97] ${
-                          product.inStock
-                            ? 'bg-[#902bf5] text-white hover:bg-[#7d24d6] disabled:opacity-70'
-                            : 'cursor-not-allowed bg-gray-100 text-gray-400 shadow-none'
-                        }`}
-                      >
-                        {cartActionLoading ? (
-                          <span
-                            className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"
-                            aria-hidden
-                          />
-                        ) : product.inStock ? (
-                          'Add'
-                        ) : (
-                          'Unavailable'
-                        )}
-                      </button>
-                    )}
                           onClick={(e) => void handleAddToCart(e)}
                           disabled={!product.inStock || cartActionLoading}
                           className={`flex h-11 min-w-[88px] items-center justify-center gap-1.5 rounded-l-[24px] rounded-r-[12px] px-5 text-[13px] font-bold uppercase leading-none tracking-[0.14em] transition active:scale-[0.97] touch-manipulation ${
@@ -779,6 +767,7 @@ export default function ProductDetailClient({ productId = null }) {
                       )}
                     </div>
                   </div>
+                  <PdpOfferPanel product={product} />
                 </div>
               </div>
             </section>
