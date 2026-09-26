@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import * as Popover from '@radix-ui/react-popover';
 import { SearchRegular as Search } from '../icons';
 import { getProductDetailPath } from '../../utils/productApi';
+import { navigateToProductDetail } from '../../utils/productNavigation';
 import { useProductSearchSuggest } from '../../hooks/useProductSearchSuggest';
 
 export default function SearchSuggestInput({
@@ -25,6 +27,7 @@ export default function SearchSuggestInput({
   showSearchIcon = true,
   enableSuggestions = true,
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const rootRef = useRef(null);
@@ -148,7 +151,8 @@ export default function SearchSuggestInput({
                   if (activeIndex >= 0 && items[activeIndex]) {
                     const row = items[activeIndex];
                     if (row.type === 'product' && row.href) {
-                      window.location.href = row.href;
+                      navigateToProductDetail(router, row.href);
+                      setOpen(false);
                     } else {
                       submit(trimmed);
                     }
@@ -203,7 +207,11 @@ export default function SearchSuggestInput({
                         <Link
                           href={row.href}
                           className={`block px-4 py-2.5 text-sm ${index === activeIndex ? 'bg-violet-50' : 'hover:bg-gray-50'}`}
-                          onClick={() => setOpen(false)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setOpen(false);
+                            navigateToProductDetail(router, row.href);
+                          }}
                         >
                           <p className="font-medium text-gray-900 truncate">{row.label}</p>
                           {row.sublabel ? <p className="text-[12px] text-gray-500 truncate">{row.sublabel}</p> : null}

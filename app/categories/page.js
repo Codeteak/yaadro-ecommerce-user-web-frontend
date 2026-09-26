@@ -8,11 +8,13 @@ import { useCategoriesTree, useSearchProducts, useProducts } from '../../hooks/u
 import ProductCarousel from '../../components/ProductCarousel';
 import { getResolvedProductImageUrls } from '../../utils/productImages';
 import { getProductDetailPath } from '../../utils/productApi';
+import { navigateToProductDetail } from '../../utils/productNavigation';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryImage';
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import { CategoryCardSkeleton } from '../../components/skeletons/primitives';
 import ProductImageWithFallback from '../../components/ProductImageWithFallback';
 import BrowsePageHeader from '../../components/BrowsePageHeader';
+import { productsCategoryHref } from '../../components/products/productsBrowseConstants';
 
 /** Rotating hint (same UX as header search). */
 const FALLBACK_HINT_WORDS = [
@@ -106,14 +108,13 @@ function RotatingHintInput({ value, onChange, hintWords, inputProps }) {
    Blinkit-style: light tile + label below (no section grouping)
 ───────────────────────────────────────────── */
 function CategoryCard({ category, featured = false }) {
-  const categorySlugOrId = category.slug || category.id;
   const imageUrl = getCategoryImageUrl(category);
   const [imgSrc, setImgSrc] = useState(imageUrl || CATEGORY_DUMMY_IMAGE);
   const isDummy = imgSrc === CATEGORY_DUMMY_IMAGE;
 
   return (
     <Link
-      href={`/categories/${encodeURIComponent(categorySlugOrId)}`}
+      href={productsCategoryHref(category)}
       className={`flex flex-col items-center gap-1.5 select-none active:scale-[0.97] transition-transform ${
         featured ? 'col-span-2' : ''
       }`}
@@ -360,7 +361,7 @@ export default function CategoriesPage() {
                     onClick={() => {
                       const path = getProductDetailPath(p);
                       if (path === '/products/') return;
-                      router.push(path);
+                      navigateToProductDetail(router, path);
                     }}
                     className="w-full flex items-center gap-3 rounded-2xl border border-gray-100 bg-white px-3.5 py-3 text-left hover:border-gray-200 active:scale-[0.99] transition"
                   >

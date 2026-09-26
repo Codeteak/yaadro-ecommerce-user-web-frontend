@@ -14,16 +14,33 @@ import {
 import ProductsPageSkeleton from '../../components/skeletons/ProductsPageSkeleton';
 import BrowsePageHeader from '../../components/BrowsePageHeader';
 
-function findCategoryNameInTree(nodes, idOrSlug) {
-  if (!idOrSlug || isAllCategorySentinel(idOrSlug) || !nodes?.length) return '';
+function findCategoryInTree(nodes, idOrSlug) {
+  if (!idOrSlug || isAllCategorySentinel(idOrSlug) || !nodes?.length) return null;
   for (const n of nodes) {
     if (String(n.id) === String(idOrSlug) || (n.slug && String(n.slug) === String(idOrSlug))) {
-      return String(n.name || '').trim();
+      return n;
     }
-    const child = findCategoryNameInTree(n.children || [], idOrSlug);
+    const child = findCategoryInTree(n.children || [], idOrSlug);
     if (child) return child;
   }
-  return '';
+  return null;
+}
+
+function findParentInTree(nodes, idOrSlug, parent = null) {
+  if (!idOrSlug || !nodes?.length) return null;
+  for (const n of nodes) {
+    if (String(n.id) === String(idOrSlug) || (n.slug && String(n.slug) === String(idOrSlug))) {
+      return parent;
+    }
+    const found = findParentInTree(n.children || [], idOrSlug, n);
+    if (found) return found;
+  }
+  return null;
+}
+
+function findCategoryNameInTree(nodes, idOrSlug) {
+  const node = findCategoryInTree(nodes, idOrSlug);
+  return node?.name ? String(node.name).trim() : '';
 }
 
 function normalizeCategoryParam(raw) {
@@ -41,6 +58,10 @@ function flattenCategoryTree(nodes) {
   return out;
 }
 
+function activeChildrenOf(category) {
+  return (category?.children || []).filter((c) => c && c.isActive !== false);
+}
+
 function ProductsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -49,6 +70,8 @@ function ProductsContent() {
   const [activeCategory, setActiveCategory] = useState(() =>
     normalizeCategoryParam(searchParams?.get('category'))
   );
+  /** Root whose children are expanded inline under it in the same rail. */
+  const [expandedRootId, setExpandedRootId] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [localSearch, setLocalSearch] = useState('');
   const [filters, setFilters] = useState({
@@ -84,27 +107,53 @@ function ProductsContent() {
     return flat?.name || 'Category';
   }, [activeCategory, categoryTree, categoriesData]);
 
-  useEffect(() => {
-    const cat = searchParams?.get('category');
-    if (!cat || isAllCategorySentinel(cat)) {
-      setActiveCategory('all');
-      return;
-    }
-    if (!CATEGORY_ID_UUID.test(cat)) {
-      const match = (categoriesData || []).find(
-        (c) =>
-          c &&
-          c.parentId == null &&
-          !isAllNamedCategory(c) &&
-          String(c.name || '') === String(cat)
-      );
-      if (match?.id) {
-        setActiveCategory(String(match.id));
+  const resolveAndApplyCategory = useCallback(
+    (cat) => {
+      if (!cat || isAllCategorySentinel(cat)) {
+        setActiveCategory('all');
+        setExpandedRootId(null);
         return;
       }
-    }
-    setActiveCategory(cat);
-  }, [searchParams, categoriesData]);
+
+      const fromTree = findCategoryInTree(categoryTree, cat);
+      let id = fromTree?.id
+        ? String(fromTree.id)
+        : CATEGORY_ID_UUID.test(cat)
+          ? cat
+          : '';
+
+      if (!id) {
+        const match = (categoriesData || []).find(
+          (c) =>
+            c &&
+            !isAllNamedCategory(c) &&
+            (String(c.name || '') === String(cat) || String(c.slug || '') === String(cat))
+        );
+        if (match?.id) id = String(match.id);
+      }
+
+      if (!id) {
+        setActiveCategory(cat);
+        return;
+      }
+
+      setActiveCategory(id);
+      const node = fromTree || findCategoryInTree(categoryTree, id);
+      const parent = findParentInTree(categoryTree, id);
+      if (parent?.id) {
+        setExpandedRootId(String(parent.id));
+      } else if (node && activeChildrenOf(node).length > 0) {
+        setExpandedRootId(id);
+      } else {
+        setExpandedRootId(null);
+      }
+    },
+    [categoryTree, categoriesData]
+  );
+
+  useEffect(() => {
+    resolveAndApplyCategory(searchParams?.get('category'));
+  }, [searchParams, resolveAndApplyCategory]);
 
   const urlSearch = searchParams?.get('search') || '';
 
@@ -120,25 +169,64 @@ function ProductsContent() {
 
   const showRailSkeleton = treeLoading && rootCategories.length === 0;
 
-  const handleCategorySelect = useCallback(
-    (cat) => {
+  const navigateToCategory = useCallback(
+    (next) => {
       startCategoryTransition(() => {
-        const next = isAllCategorySentinel(cat) ? 'all' : cat;
-        setActiveCategory(next);
-        if (next === 'all') {
+        const value = isAllCategorySentinel(next) ? 'all' : next;
+        setActiveCategory(value);
+        if (value === 'all') {
+          setExpandedRootId(null);
           router.replace('/products', { scroll: false });
         } else {
-          router.replace(`/products?category=${encodeURIComponent(next)}`, { scroll: false });
+          router.replace(`/products?category=${encodeURIComponent(value)}`, { scroll: false });
         }
       });
     },
     [router]
   );
 
+  const handleCategorySelect = useCallback(
+    (catId) => {
+      const node = findCategoryInTree(categoryTree, catId);
+      const children = activeChildrenOf(node);
+      const parent = findParentInTree(categoryTree, catId);
+
+      // Child chip under an expanded root.
+      if (parent?.id) {
+        setExpandedRootId(String(parent.id));
+        navigateToCategory(catId);
+        return;
+      }
+
+      // Root with children: expand inline under parent (toggle if already expanded + selected).
+      if (children.length > 0) {
+        const already =
+          String(expandedRootId) === String(catId) && String(activeCategory) === String(catId);
+        if (already) {
+          setExpandedRootId(null);
+          navigateToCategory('all');
+          return;
+        }
+        setExpandedRootId(String(catId));
+        navigateToCategory(catId);
+        return;
+      }
+
+      setExpandedRootId(null);
+      navigateToCategory(catId);
+    },
+    [categoryTree, expandedRootId, activeCategory, navigateToCategory]
+  );
+
+  const handleSelectAll = useCallback(() => {
+    setExpandedRootId(null);
+    navigateToCategory('all');
+  }, [navigateToCategory]);
+
   const onResetBrowse = useCallback(() => {
-    setActiveCategory('all');
-    router.replace('/products', { scroll: false });
-  }, [router]);
+    setExpandedRootId(null);
+    navigateToCategory('all');
+  }, [navigateToCategory]);
 
   const onBack = useCallback(() => router.back(), [router]);
   const onSearchOpenToggle = useCallback(() => setSearchOpen((v) => !v), []);
@@ -206,6 +294,8 @@ function ProductsContent() {
         <ProductsCategoryRail
           activeCategory={activeCategory}
           rootCategories={rootCategories}
+          expandedRootId={expandedRootId}
+          onSelectAll={handleSelectAll}
           onCategorySelect={handleCategorySelect}
         />
         <ProductsListingPanel
