@@ -36,7 +36,7 @@ function ProfilePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { ok, ready } = useRequireAuth();
-  const { user, logout, refreshUser } = useAuth();
+  const { user, logout, syncUser } = useAuth();
   const { showAlert } = useAlert();
   const { cartItems } = useCart();
   const { logActivity } = useActivityLog();
@@ -84,10 +84,10 @@ function ProfilePageContent() {
       return;
     }
     try {
-      await updateProfileMutation.mutateAsync({
+      const updated = await updateProfileMutation.mutateAsync({
         name: result.data.name,
       });
-      await refreshUser();
+      if (updated) syncUser(updated);
       setIsEditing(false);
       showAlert('Profile updated successfully!', 'Success', 'success');
       router.push('/profile');

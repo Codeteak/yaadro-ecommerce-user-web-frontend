@@ -6,6 +6,7 @@ import {
   bundleRuleRoleForProduct,
   formatBundleRuleLabel,
   getPrimaryBundleRule,
+  hasSoldByWeightFlag,
   isCrossSkuBundleRule,
   lineTotalFromUnitPricing,
 } from './productUtils';
@@ -255,6 +256,37 @@ export function sumCartPaidUnits(items) {
     .reduce((sum, line) => sum + getCartLinePaidQty(line), 0);
 }
 
+/**
+ * Customer-facing cart badge count: pack count for sold-by-weight, else paid qty.
+ * Avoids "0.2 items" for 200 g of produce.
+ */
+export function sumCartCustomerUnits(items) {
+  if (!Array.isArray(items) || !items.length) return 0;
+  let sum = 0;
+  for (const line of items) {
+    if (isBundleRewardCartLine(line)) continue;
+    const paid = getCartLinePaidQty(line);
+    if (!(paid > 0)) continue;
+    if (hasSoldByWeightFlag(line)) {
+      const stepRaw = Number(
+        line.weightStepKg ?? line.product?.weightStepKg ?? line.unit_size ?? line.unitSize
+      );
+      const step =
+        Number.isFinite(stepRaw) && stepRaw > 0 && Math.abs(stepRaw - 1) >= 1e-9
+          ? stepRaw
+          : null;
+      if (step > 0) {
+        const packs = paid / step;
+        const rounded = Math.round(packs);
+        sum += Math.abs(packs - rounded) < 1e-6 ? rounded : Math.round(packs * 100) / 100;
+        continue;
+      }
+    }
+    sum += paid;
+  }
+  return Math.round(sum * 1000) / 1000;
+}
+
 /** Free units on a paid line (from API `offer_quantity` / `free_quantity` or bundle rules). */
 export function getBundleFreeExtraOnPaidLine(item) {
   if (!item || isBundleRewardCartLine(item)) return 0;
@@ -389,9 +421,19 @@ function rewardSnapshotFromRule(rule, fallbackLine) {
 /** Apply buy-X-get-Y free/display quantities on guest (localStorage) cart lines. */
 export function applyGuestCartLineBundleQuantities(item) {
   if (!item || isBundleRewardCartLine(item)) return item;
-  const paid = Math.max(1, Number(item.quantity) || 0);
+  const raw = Number(item.quantity);
+  // Sold-by-weight qty is kilograms (e.g. 0.1). Do not floor up to 1.
+  const paid = hasSoldByWeightFlag(item)
+    ? Math.round((Number.isFinite(raw) && raw > 0 ? raw : 0) * 10000) / 10000
+    : Math.max(1, Math.trunc(Number.isFinite(raw) ? raw : 0) || 0);
+  if (!(paid > 0)) return item;
   const line = { ...item, quantity: paid };
   const free = getBundleFreeExtraOnPaidLine(line);
+  const unitPrice = Number(line.price) || 0;
+  const lineTotal =
+    unitPrice > 0
+      ? Math.round(lineTotalFromUnitPricing(unitPrice, paid, line) * 100) / 100
+      : Number(line.lineTotal);
   return {
     ...line,
     quantity: paid,
@@ -402,6 +444,9 @@ export function applyGuestCartLineBundleQuantities(item) {
     freeQuantity: free,
     displayQuantity: paid + free,
     display_quantity: paid + free,
+    ...(Number.isFinite(lineTotal) && lineTotal >= 0
+      ? { lineTotal, total: lineTotal }
+      : {}),
   };
 }
 

@@ -415,6 +415,7 @@ export async function apiFetch(path, options = {}) {
     err.status = response.status;
     err.data = json;
     if (json?.error?.code) err.code = json.error.code;
+    if (json?.error?.details != null) err.details = json.error.details;
     if (
       !omitAuthHeader &&
       shouldInvalidateSessionOnApiError({
@@ -534,6 +535,7 @@ export async function apiFetchRoot(path, options = {}) {
     err.status = response.status;
     err.data = json;
     if (json?.error?.code) err.code = json.error.code;
+    if (json?.error?.details != null) err.details = json.error.details;
 
     if (
       !omitAuthHeader &&

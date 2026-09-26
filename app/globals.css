@@ -597,19 +597,26 @@ iframe.order-tracking-embed {
   0% {
     transform: scale(1);
     filter: brightness(1);
+    box-shadow: 0 8px 20px rgba(144, 43, 245, 0.4);
   }
-  35% {
-    transform: scale(0.86);
-    filter: brightness(1.18);
+  45% {
+    transform: scale(0.93);
+    filter: brightness(1.14);
+    box-shadow:
+      0 4px 12px rgba(144, 43, 245, 0.32),
+      0 0 0 4px rgba(144, 43, 245, 0.22);
   }
   100% {
     transform: scale(1);
     filter: brightness(1);
+    box-shadow: 0 8px 20px rgba(144, 43, 245, 0.4);
   }
 }
 
 .yaadro-add-tap {
-  animation: yaadro-add-tap 280ms cubic-bezier(0.33, 1, 0.68, 1);
+  /* Kill Tailwind transition so the keyframe punch is visible */
+  transition: none !important;
+  animation: yaadro-add-tap 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {

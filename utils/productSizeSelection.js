@@ -191,6 +191,7 @@ export function formatSoldByWeightPurchaseLabel(item, kgQty) {
     formatMassAmountLabel(step, 'kg') || formatWeightUnitLabel(step, 'kg');
   if (!stepLabel) return totalLabel || '';
   if (!Number.isInteger(packs) || packs <= 0) return totalLabel || '';
+  // Always show step × packs so cart matches the chooser (100 g × 1, 100 g × 2 · 200 g).
   if (packs === 1) return stepLabel;
   if (totalLabel && totalLabel !== stepLabel) {
     return `${stepLabel} × ${packs} · ${totalLabel}`;

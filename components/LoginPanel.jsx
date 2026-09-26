@@ -16,17 +16,32 @@ import {
   verifyOtp,
   normalizePhoneForApi,
   formatPhoneForDisplay,
+  getCurrentUser,
 } from '../utils/authApi';
 import { persistAccessToken } from '../utils/apiClient';
 import { normalizeOtpCodeInput } from '../utils/otpVerifyPayload';
 import { sanitizeIndianPhoneInput } from '../utils/indianPhone';
 import { otpSchema, validateLoginPhone, firstZodIssueMessage } from '../lib/validations/auth.schema';
 import { BRAND_PRIMARY_BTN_FULL } from './ui/brandButton';
+import {
+  OTP_RESEND_COOLDOWN_SEC,
+  clearPendingLoginOtp,
+  getOtpRetryAfterSeconds,
+  isOtpResendCooldownError,
+  markPendingLoginOtpAfterSend,
+  readPendingLoginOtp,
+} from '../utils/otpLoginLifecycle';
+import {
+  getPendingCustomerName,
+  normalizePendingCustomerName,
+  setPendingCustomerName,
+} from '../utils/pendingCustomerName';
 
 const fieldClass =
   'h-[52px] w-full rounded-2xl border border-[#902bf5]/25 bg-white px-4 text-[16px] text-gray-900 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition placeholder:text-gray-400 focus:border-[#902bf5] focus:outline-none focus:ring-2 focus:ring-[#902bf5]/20';
 
 const OTP_RATE_LIMIT_COOLDOWN_SEC = 5 * 60;
+const WELCOME_HOLD_MS = 1500;
 
 function otpRateLimitStorageKey({ shopId, phone }) {
   const s = String(shopId || '').trim() || 'unknown-shop';
@@ -102,6 +117,7 @@ function PrimaryButton({
 function SecondaryButton({ children, disabled, onClick }) {
   return (
     <Button
+      type="button"
       variant="ghost"
       isDisabled={disabled}
       onPress={onClick}
@@ -230,23 +246,68 @@ function OtpStep({
   );
 }
 
+function NameStep({ name, setName, onSubmit, onSkip, isSubmitting, inputRef }) {
+  return (
+    <form onSubmit={onSubmit} className="space-y-0">
+      <label htmlFor="login-name" className="mb-2 block text-[13px] font-semibold text-gray-900">
+        Your name
+      </label>
+      <input
+        ref={inputRef}
+        type="text"
+        id="login-name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Enter your name"
+        autoComplete="name"
+        autoCapitalize="words"
+        maxLength={120}
+        className={`${fieldClass} mb-6`}
+      />
+      <div className="space-y-3">
+        <PrimaryButton type="submit" loading={isSubmitting} loadingText="Continuing…">
+          Continue
+        </PrimaryButton>
+        <SecondaryButton onClick={onSkip} disabled={isSubmitting}>
+          Skip for now
+        </SecondaryButton>
+      </div>
+    </form>
+  );
+}
+
+function WelcomeStep({ name }) {
+  return (
+    <div className="py-6 text-center" role="status" aria-live="polite">
+      <p className="font-headingnow text-[1.75rem] font-extrabold leading-tight text-gray-900 sm:text-[2rem]">
+        Welcome, {name}
+      </p>
+      <p className="mt-2 text-[14px] text-gray-500">Taking you to your shop…</p>
+    </div>
+  );
+}
+
 /** Mobile OTP login — fields sit directly on the login page (no inner card). */
 export default function LoginPanel({ className = '' }) {
   const { login } = useAuth();
   const phoneInputRef = useRef(null);
   const otpInputRef = useRef(null);
+  const nameInputRef = useRef(null);
 
   const [step, setStep] = useState('phone');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
+  const [nameDraft, setNameDraft] = useState('');
+  const [welcomeName, setWelcomeName] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  /** Tokens + base user after OTP, before AuthContext.login (avoids early redirect). */
+  const pendingAuthRef = useRef(null);
 
   const [shopId, setShopId] = useState('');
   const [resendSecondsLeft, setResendSecondsLeft] = useState(0);
   const [otpCooldownSecondsLeft, setOtpCooldownSecondsLeft] = useState(0);
-
-  const OTP_RESEND_COOLDOWN_SEC = 30;
+  const pendingRestoredRef = useRef(false);
 
   useEffect(() => {
     if (resendSecondsLeft <= 0) return undefined;
@@ -319,7 +380,9 @@ export default function LoginPanel({ className = '' }) {
   };
 
   useEffect(() => {
-    const ref = step === 'phone' ? phoneInputRef : otpInputRef;
+    const ref =
+      step === 'phone' ? phoneInputRef : step === 'name' ? nameInputRef : otpInputRef;
+    if (step === 'welcome') return undefined;
     const t = setTimeout(() => ref.current?.focus?.(), 80);
     return () => clearTimeout(t);
   }, [step]);
@@ -338,8 +401,58 @@ export default function LoginPanel({ className = '' }) {
     if (step !== 'otp') cancelWebOtp();
   }, [step, cancelWebOtp]);
 
+  const finishLogin = useCallback((userPayload) => {
+    const pending = pendingAuthRef.current;
+    if (!pending?.token) return;
+    const nextPhone = pending.phone || '';
+    const merged = {
+      ...(userPayload && typeof userPayload === 'object' ? userPayload : {}),
+      phone:
+        (userPayload && (userPayload.phone || userPayload.mobile)) ||
+        nextPhone,
+    };
+    login(merged, { token: pending.token, refreshToken: pending.refreshToken }, {
+      skipPostLoginRedirect: true,
+    });
+    pendingAuthRef.current = null;
+    clearPendingLoginOtp();
+  }, [login]);
+
+  // Leave/return remounts LoginPanel on the phone step while a backend OTP
+  // challenge is still outstanding — restore the OTP step for that phone.
+  useEffect(() => {
+    if (pendingRestoredRef.current) return;
+    const pending = readPendingLoginOtp();
+    if (!pending) return;
+    pendingRestoredRef.current = true;
+    setPhone(sanitizeIndianPhoneInput(pending.phone));
+    setStep('otp');
+    const left = Math.ceil((pending.resendUntilMs - Date.now()) / 1000);
+    setResendSecondsLeft(Math.max(0, left));
+    if (pending.shopId) setShopId(pending.shopId);
+    beginWebOtp();
+  }, [beginWebOtp]);
+
   const apiPhone = () => normalizePhoneForApi(phone);
   const displayPhone = () => formatPhoneForDisplay(phone);
+
+  const enterOtpStepAfterSend = useCallback(
+    ({ nextPhone, resolvedShopId, retryAfterSeconds }) => {
+      const waitSec =
+        Number.isFinite(Number(retryAfterSeconds)) && Number(retryAfterSeconds) > 0
+          ? Math.ceil(Number(retryAfterSeconds))
+          : OTP_RESEND_COOLDOWN_SEC;
+      setStep('otp');
+      setResendSecondsLeft(waitSec);
+      markPendingLoginOtpAfterSend({
+        phone: nextPhone,
+        shopId: resolvedShopId,
+        retryAfterSeconds: waitSec,
+      });
+      writeOtpRateLimitUntilMs({ shopId: resolvedShopId, phone: nextPhone, untilMs: 0 });
+    },
+    []
+  );
 
   const handleRequestOtp = async (e) => {
     e.preventDefault();
@@ -363,10 +476,18 @@ export default function LoginPanel({ className = '' }) {
       });
       if (!result.ok) return;
       resolvedShopId = result.resolvedShopId;
-      setStep('otp');
-      setResendSecondsLeft(OTP_RESEND_COOLDOWN_SEC);
-      writeOtpRateLimitUntilMs({ shopId: resolvedShopId, phone: nextPhone, untilMs: 0 });
+      enterOtpStepAfterSend({ nextPhone, resolvedShopId });
     } catch (err) {
+      if (isOtpResendCooldownError(err)) {
+        // Backend still has an unconsumed OTP for this phone — continue that flow.
+        enterOtpStepAfterSend({
+          nextPhone,
+          resolvedShopId: resolvedShopId || shopId,
+          retryAfterSeconds: getOtpRetryAfterSeconds(err),
+        });
+        clearError();
+        return;
+      }
       cancelWebOtp();
       if (isTooManyOtpRequestsError(err)) {
         const untilMs = Date.now() + OTP_RATE_LIMIT_COOLDOWN_SEC * 1000;
@@ -409,7 +530,7 @@ export default function LoginPanel({ className = '' }) {
       const { user, token, refreshToken } = normalizeSession(session);
       if (!token) throw new Error('Invalid response from server.');
 
-      const mergedUser =
+      const sessionUser =
         user && typeof user === 'object'
           ? { ...user, phone: user.phone || user.mobile || nextPhone }
           : { phone: nextPhone };
@@ -419,8 +540,61 @@ export default function LoginPanel({ className = '' }) {
         if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
       }
 
-      login(mergedUser, { token, refreshToken }, { skipPostLoginRedirect: true });
+      pendingAuthRef.current = {
+        token,
+        refreshToken,
+        phone: nextPhone,
+        user: sessionUser,
+      };
+
+      let profileUser = null;
+      try {
+        profileUser = await getCurrentUser();
+      } catch {
+        profileUser = null;
+      }
+
+      const serverName = String(
+        profileUser?.displayName || profileUser?.name || ''
+      ).trim();
+      const pendingName = getPendingCustomerName(nextPhone);
+      const effectiveName = serverName || pendingName;
+
+      const baseUser = {
+        ...(profileUser && typeof profileUser === 'object' ? profileUser : sessionUser),
+        phone:
+          (profileUser && (profileUser.phone || profileUser.mobile)) ||
+          nextPhone,
+      };
+
+      if (effectiveName) {
+        // Only attach name to auth user when it came from the server.
+        // Local pending names must stay out of profile fields so address save still PATCHes.
+        const namedUser = serverName
+          ? {
+              ...baseUser,
+              name: serverName,
+              displayName: serverName,
+            }
+          : baseUser;
+        pendingAuthRef.current.user = namedUser;
+        if (serverName) {
+          setPendingCustomerName(nextPhone, '');
+        }
+        setWelcomeName(effectiveName);
+        setStep('welcome');
+        setIsSubmitting(false);
+        window.setTimeout(() => {
+          finishLogin(namedUser);
+        }, WELCOME_HOLD_MS);
+        return;
+      }
+
+      pendingAuthRef.current.user = baseUser;
+      setNameDraft('');
+      setStep('name');
     } catch (err) {
+      pendingAuthRef.current = null;
       if (isShopNotFoundError(err)) {
         setError(getShopIdConfigError());
       } else {
@@ -429,6 +603,36 @@ export default function LoginPanel({ className = '' }) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleNameContinue = (e) => {
+    e.preventDefault();
+    clearError();
+    const nextName = normalizePendingCustomerName(nameDraft);
+    if (!nextName) {
+      setError('Please enter your name.');
+      return;
+    }
+    const pending = pendingAuthRef.current;
+    if (!pending?.token) {
+      setError('Session expired. Please verify OTP again.');
+      setStep('otp');
+      return;
+    }
+    setPendingCustomerName(pending.phone, nextName);
+    // Do not put name on AuthContext user — address save persists it.
+    finishLogin(pending.user || { phone: pending.phone });
+  };
+
+  const handleNameSkip = () => {
+    clearError();
+    const pending = pendingAuthRef.current;
+    if (!pending?.token) {
+      setError('Session expired. Please verify OTP again.');
+      setStep('otp');
+      return;
+    }
+    finishLogin(pending.user || { phone: pending.phone });
   };
 
   const handleResend = async () => {
@@ -454,8 +658,23 @@ export default function LoginPanel({ className = '' }) {
       if (!result.ok) return;
       resolvedShopId = result.resolvedShopId;
       setResendSecondsLeft(OTP_RESEND_COOLDOWN_SEC);
+      markPendingLoginOtpAfterSend({
+        phone: nextPhone,
+        shopId: resolvedShopId,
+        retryAfterSeconds: OTP_RESEND_COOLDOWN_SEC,
+      });
       writeOtpRateLimitUntilMs({ shopId: resolvedShopId, phone: nextPhone, untilMs: 0 });
     } catch (err) {
+      if (isOtpResendCooldownError(err)) {
+        setResendSecondsLeft(getOtpRetryAfterSeconds(err));
+        markPendingLoginOtpAfterSend({
+          phone: nextPhone,
+          shopId: resolvedShopId || shopId,
+          retryAfterSeconds: getOtpRetryAfterSeconds(err),
+        });
+        clearError();
+        return;
+      }
       cancelWebOtp();
       if (isTooManyOtpRequestsError(err)) {
         const untilMs = Date.now() + OTP_RATE_LIMIT_COOLDOWN_SEC * 1000;
@@ -491,12 +710,20 @@ export default function LoginPanel({ className = '' }) {
 
       <div className="mb-6 text-center animate-slide-up" style={{ animationDelay: '60ms' }}>
         <h2 className="font-headingnow text-[2rem] font-extrabold leading-[0.95] text-gray-900 sm:text-[2.5rem]">
-          Welcome back
+          {step === 'name'
+            ? 'Welcome!'
+            : step === 'welcome'
+              ? 'You are in'
+              : 'Welcome back'}
         </h2>
         <p className="mx-auto mt-2.5 max-w-[320px] text-[14px] leading-snug text-gray-500">
           {step === 'phone'
             ? 'Sign in to continue shopping fresh and fast.'
-            : 'Enter the code we sent to unlock your basket.'}
+            : step === 'otp'
+              ? 'Enter the code we sent to unlock your basket.'
+              : step === 'name'
+                ? 'What should we call you?'
+                : 'Glad to see you again.'}
         </p>
       </div>
 
@@ -515,7 +742,7 @@ export default function LoginPanel({ className = '' }) {
             inputRef={phoneInputRef}
             otpCooldownSecondsLeft={otpCooldownSecondsLeft}
           />
-        ) : (
+        ) : step === 'otp' ? (
           <OtpStep
             phone={displayPhone()}
             code={code}
@@ -527,6 +754,8 @@ export default function LoginPanel({ className = '' }) {
             onResend={handleResend}
             onChangePhone={() => {
               cancelWebOtp();
+              clearPendingLoginOtp();
+              pendingAuthRef.current = null;
               setStep('phone');
               setCode('');
               setResendSecondsLeft(0);
@@ -537,6 +766,20 @@ export default function LoginPanel({ className = '' }) {
             resendSecondsLeft={resendSecondsLeft}
             otpCooldownSecondsLeft={otpCooldownSecondsLeft}
           />
+        ) : step === 'name' ? (
+          <NameStep
+            name={nameDraft}
+            setName={(v) => {
+              setNameDraft(v);
+              clearError();
+            }}
+            onSubmit={handleNameContinue}
+            onSkip={handleNameSkip}
+            isSubmitting={isSubmitting}
+            inputRef={nameInputRef}
+          />
+        ) : (
+          <WelcomeStep name={welcomeName} />
         )}
       </div>
     </div>

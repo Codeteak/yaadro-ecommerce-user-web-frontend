@@ -18,8 +18,7 @@ import {
 } from '../utils/productUtils';
 import { getProductOfferDisplay } from '../utils/offerDisplay';
 import { buildAvailableSizes, resolveSelectedSize, sizeAddQuantity, cartQuantityStep, weightStepLinePrices, hasCustomWeightStep, isSoldByWeightProduct, formatCartQtyControlLabel } from '../utils/productSizeSelection';
-import { tapFeedback } from '../utils/haptics';
-import { playAddTap } from '../utils/playAddTap';
+import { playAddTap, playAddTapAndHold } from '../utils/playAddTap';
 import CustomWeightChooser from './CustomWeightChooser';
 import PriceDisplay from './ui/PriceDisplay';
 import OfferRibbon from './ui/OfferRibbon';
@@ -200,6 +199,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       };
       setCartActionLoading(true);
       setPendingCartQty(qtyToAdd);
+      setSelectedSize(size);
       try {
         await addToCart(payload, qtyToAdd);
         setWeightChooserOpen(false);
@@ -216,8 +216,9 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     if (product?.inStock === false) return;
     if (String(product?.bxgyShelfRole || '').trim() === 'get') return;
     if (cartActionLoading) return;
-    playAddTap(addBtnRef.current);
+    // Press anim first; hold ADD visible so the swap to qty feels smooth.
     if (customWeight && availableSizes.length > 0) {
+      void playAddTap(addBtnRef.current);
       setWeightChooserOpen(true);
       return;
     }
@@ -228,8 +229,9 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       shelfBuy > 1
         ? Math.max(addQty, shelfBuy)
         : addQty;
-    setCartActionLoading(true);
+    await playAddTapAndHold(addBtnRef.current);
     setPendingCartQty(qtyToAdd);
+    setCartActionLoading(true);
     try {
       await addToCart(productToAddPayload, qtyToAdd);
     } catch {
@@ -262,7 +264,6 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         setPendingCartQty(addQty);
         try {
           await addToCart(productToAddPayload, addQty);
-          tapFeedback();
         } catch {
           setPendingCartQty(0);
           /* CartContext already alerts */
@@ -277,7 +278,6 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           cartUpdateKey,
           Math.round((paidCartQty + step) * 10000) / 10000
         );
-        tapFeedback();
         return;
       }
       if (pendingCartQty > 0) {
@@ -286,7 +286,6 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         setCartActionLoading(true);
         try {
           await addToCart(productToAddPayload, step);
-          tapFeedback();
         } catch {
           setPendingCartQty((q) => Math.max(0, Math.round((q - step) * 10000) / 10000));
         } finally {
@@ -330,7 +329,6 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
             Math.round((paidCartQty - step) * 10000) / 10000
           );
         }
-        tapFeedback();
         setPendingCartQty(0);
         return;
       }
@@ -513,38 +511,43 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     >
       Free
     </div>
-  ) : cartActionLoading ? (
-    <div
-      className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
-      aria-busy="true"
-      aria-label="Updating cart"
-    >
-      <div
-        className="h-4 w-4 animate-spin rounded-full border-2 border-violet-600 border-t-transparent"
-        role="status"
-      />
-    </div>
   ) : displayCartQty > 0 ? (
     <div
       className="flex h-11 min-w-[6.5rem] items-center justify-between rounded-full bg-white px-1 ring-2 ring-[#902bf5] shadow-[0_8px_20px_rgba(144,43,245,0.35)]"
       role="group"
       aria-label="Quantity"
+      aria-busy={cartActionLoading || undefined}
     >
       <button
         type="button"
-        onClick={handleDecrement}
-        className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-[#902bf5] active:scale-95"
+        onClick={(e) => {
+          playAddTap(e.currentTarget);
+          void handleDecrement(e);
+        }}
+        disabled={cartActionLoading}
+        className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-[#902bf5] active:scale-95 disabled:opacity-50"
         aria-label={atMinPack ? 'Remove from cart' : 'Decrease quantity'}
       >
         <span className="text-base font-bold leading-none">−</span>
       </button>
       <span className="min-w-[1.5rem] text-center text-sm font-bold tabular-nums text-[#902bf5]">
-        {qtyControlLabel}
+        {cartActionLoading ? (
+          <span
+            className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#902bf5] border-t-transparent align-middle"
+            aria-hidden
+          />
+        ) : (
+          qtyControlLabel
+        )}
       </span>
       <button
         type="button"
-        onClick={handleIncrement}
-        className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-[#902bf5] active:scale-95"
+        onClick={(e) => {
+          playAddTap(e.currentTarget);
+          void handleIncrement(e);
+        }}
+        disabled={cartActionLoading}
+        className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-[#902bf5] active:scale-95 disabled:opacity-50"
         aria-label="Increase quantity"
       >
         <span className="text-base font-bold leading-none">+</span>
@@ -563,10 +566,21 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           ? `Add ${damakaBuyQty} to cart for this offer`
           : 'Add to cart'
       }
+      aria-busy={cartActionLoading || undefined}
+      disabled={cartActionLoading}
       ref={addBtnRef}
-      className="relative flex h-11 min-w-[4.75rem] items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-[#902bf5] px-3.5 text-[13px] font-bold uppercase leading-none tracking-[0.12em] text-white shadow-[0_8px_20px_rgba(144,43,245,0.4)] transition hover:bg-[#7d24d6] active:scale-[0.97] touch-manipulation before:absolute before:-inset-1.5 before:content-['']"
+      className="relative flex h-11 min-w-[4.75rem] items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-[#902bf5] px-3.5 text-[13px] font-bold uppercase leading-none tracking-[0.12em] text-white shadow-[0_8px_20px_rgba(144,43,245,0.4)] transition hover:bg-[#7d24d6] active:scale-[0.97] touch-manipulation before:absolute before:-inset-1.5 before:content-[''] disabled:opacity-90"
     >
-      {shelfRole === 'buy' && damakaBuyQty > 1 ? `ADD ${damakaBuyQty}` : 'ADD'}
+      {cartActionLoading ? (
+        <span
+          className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+          aria-hidden
+        />
+      ) : shelfRole === 'buy' && damakaBuyQty > 1 ? (
+        `ADD ${damakaBuyQty}`
+      ) : (
+        'ADD'
+      )}
     </button>
   );
 
