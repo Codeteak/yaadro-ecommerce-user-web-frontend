@@ -42,20 +42,53 @@ test('replaceFaviconLinksInHtml escapes a shop image url', () => {
   assert.equal(out.includes('href="https://cdn.example/logo.png?a=1&amp;b=2"'), true);
 });
 
-test('applyShopFavicon removes shared icons and leaves only the shop image', () => {
+test('applyShopFavicon suppresses shared icons without removing them', () => {
   const nodes = [
-    { rel: 'icon', href: '/favicon.ico' },
-    { rel: 'apple-touch-icon', href: '/icons/pwa-192.png' },
+    {
+      rel: 'icon',
+      href: '/favicon.ico',
+      attrs: {},
+      hasAttribute(key) {
+        return Object.prototype.hasOwnProperty.call(this.attrs, key);
+      },
+      setAttribute(key, value) {
+        this.attrs[key] = value;
+      },
+      removeAttribute(key) {
+        delete this.attrs[key];
+      },
+    },
+    {
+      rel: 'apple-touch-icon',
+      href: '/icons/pwa-192.png',
+      attrs: {},
+      hasAttribute(key) {
+        return Object.prototype.hasOwnProperty.call(this.attrs, key);
+      },
+      setAttribute(key, value) {
+        this.attrs[key] = value;
+      },
+      removeAttribute(key) {
+        delete this.attrs[key];
+      },
+    },
   ];
-  for (const node of nodes) {
-    node.remove = () => {
-      head.nodes = head.nodes.filter((item) => item !== node);
-    };
-  }
   const head = {
     nodes,
+    querySelector(sel) {
+      const m = String(sel).match(/data-yaadro-shop-favicon="([^"]+)"/);
+      if (!m) return null;
+      return this.nodes.find((n) => n.attrs?.['data-yaadro-shop-favicon'] === m[1]) || null;
+    },
     querySelectorAll() {
-      return this.nodes;
+      return this.nodes.filter(
+        (n) =>
+          n.rel === 'icon' ||
+          n.rel === 'shortcut icon' ||
+          n.rel === 'apple-touch-icon' ||
+          n.attrs?.rel === 'icon' ||
+          n.attrs?.rel === 'apple-touch-icon'
+      );
     },
     appendChild(el) {
       this.nodes.push(el);
@@ -66,8 +99,16 @@ test('applyShopFavicon removes shared icons and leaves only the shop image', () 
     createElement() {
       const el = {
         attrs: {},
+        hasAttribute(key) {
+          return Object.prototype.hasOwnProperty.call(this.attrs, key);
+        },
         setAttribute(key, value) {
           this.attrs[key] = value;
+          if (key === 'rel') this.rel = value;
+          if (key === 'href') this.href = value;
+        },
+        removeAttribute(key) {
+          delete this.attrs[key];
         },
       };
       return el;
@@ -75,14 +116,13 @@ test('applyShopFavicon removes shared icons and leaves only the shop image', () 
   };
 
   assert.equal(applyShopFavicon(doc, SHOP_LOGO), true);
-  assert.deepEqual(
-    head.nodes.map((node) =>
-      node.attrs ? { rel: node.attrs.rel, href: node.attrs.href } : { rel: node.rel, href: node.href }
-    ),
-    [
-      { rel: 'icon', href: SHOP_LOGO },
-      { rel: 'apple-touch-icon', href: SHOP_LOGO },
-    ]
-  );
+  // Original Next-owned icons stay in the tree (suppressed, not removed).
+  assert.equal(nodes[0].attrs.media, 'not all');
+  assert.equal(nodes[0].attrs['data-yaadro-favicon-suppressed'], '1');
+  assert.equal(nodes[1].attrs.media, 'not all');
+  const shopLinks = head.nodes.filter((n) => n.attrs?.['data-yaadro-shop-favicon']);
+  assert.equal(shopLinks.length, 2);
+  assert.equal(shopLinks[0].attrs.href, SHOP_LOGO);
+  assert.equal(shopLinks[1].attrs.href, SHOP_LOGO);
   assert.equal(applyShopFavicon(doc, ''), false);
 });

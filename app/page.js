@@ -15,7 +15,6 @@ import { useShopBranding } from '../context/ShopBrandingContext';
 import { useAddress } from '../context/AddressContext';
 import ProductCard from '../components/ProductCard';
 import Container from '../components/Container';
-import FloatingViewCartPill from '../components/FloatingViewCartPill';
 import BannerCarousel from '../components/BannerCarousel';
 import HomeSections from '../components/home/HomeSections';
 import HomeClientShelves from '../components/home/HomeClientShelves';
@@ -910,7 +909,6 @@ export default function Home() {
 
       <HomeClientShelves products={catalogProducts} slot="afterFresh" />
 
-      <FloatingViewCartPill />
     </div>
   );
 }

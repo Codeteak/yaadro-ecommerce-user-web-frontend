@@ -29,8 +29,9 @@ function isDomHydrationCorruption(err) {
     name === 'NotFoundError' ||
     /Failed to execute 'removeChild' on 'Node'/i.test(msg) ||
     /Cannot read properties of null \(reading 'removeChild'\)/i.test(msg) ||
+    /null is not an object \(evaluating .*\.removeChild\)/i.test(msg) ||
     /The node to be removed is not a child of this node/i.test(msg) ||
-    /InsertBefore|replaceChild|removeChild/i.test(msg) && /NotFoundError|null/i.test(msg)
+    (/InsertBefore|replaceChild|removeChild/i.test(msg) && /NotFoundError|null/i.test(msg))
   );
 }
 

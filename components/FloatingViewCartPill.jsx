@@ -10,24 +10,24 @@ import { getCartLinePreviewImageSrc } from '../utils/productImages';
 import { computeCartSavings } from '../utils/cartSavings';
 import ProductImageWithFallback from './ProductImageWithFallback';
 import CartSavingsCelebration from './CartSavingsCelebration';
-import { createAppPortal, ensurePortalRoot } from '../lib/pwa/safePortal';
 import { toDisplayText } from '../utils/productApi';
 
 /** Keep in sync with `LayoutHeightsProvider` initial `bottomNavHeight` — used when measurement lags or is 0. */
 const MOBILE_BOTTOM_NAV_FALLBACK_PX = 72;
 /** Visual gap between pill bottom edge and top of tab bar. */
 const GAP_ABOVE_BOTTOM_NAV_PX = 14;
+
 /**
  * Floating cart pill — viewport-fixed, just above the mobile tab bar.
- * Portaled into `#yaadro-portal-root` (body sibling of `#app-shell`), never under
- * the shell — a foreign DOM sibling there causes removeChild null crashes on nav.
+ *
+ * Mounted once from root layout (not per page, not via createPortal). Remounting a
+ * portal on every route change caused removeChild null crashes on iOS Safari.
+ *
  * Do NOT add `siteFooterHeight`: the brand footer is separate chrome; lifting by both
  * pushed this pill into the lower-middle of the viewport.
- * @param {number} [stackAboveBottomPx] — When set (e.g. PDP), CSS `bottom` in px; measure from the
- *   owning page using the fixed bar’s `getBoundingClientRect().top` vs `visualViewport`.
+ * @param {number} [stackAboveBottomPx] — When set (e.g. PDP), CSS `bottom` in px.
  */
 export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
-  const [mounted, setMounted] = useState(false);
   const { cartItems, cartCount, cartTotal, loading, setShowSidebarCart } = useCart();
   const { isVisible: bottomNavVisible, hideForRoute: bottomNavHidden } = useBottomNavVisibility();
   const { bottomNavHeight } = useLayoutHeights();
@@ -42,15 +42,6 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
   const userSawEmptyCartRef = useRef(false);
   const [celebrationBurst, setCelebrationBurst] = useState(0);
   const celebrationClearRef = useRef(null);
-
-  useEffect(() => {
-    setMounted(true);
-    // Ensure body-level portal host exists before first paint.
-    ensurePortalRoot();
-    const onVis = () => ensurePortalRoot();
-    window.addEventListener('pageshow', onVis);
-    return () => window.removeEventListener('pageshow', onVis);
-  }, []);
 
   useEffect(() => {
     if (cartItems.length === 0) {
@@ -129,10 +120,7 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
     };
   }, []);
 
-  if (!mounted || cartItems.length === 0) return null;
-
-  const portalHost = ensurePortalRoot();
-  if (!portalHost) return null;
+  if (cartItems.length === 0) return null;
 
   const navShowing = !bottomNavHidden && bottomNavVisible;
   /** Tab bar only — measured height already includes safe-area padding. */
@@ -146,7 +134,7 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
       ? Math.ceil(stackAboveBottomPx)
       : null;
 
-  const pill = (
+  return (
     <div
       className="pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-4"
       style={{
@@ -238,6 +226,4 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
       </Button>
     </div>
   );
-
-  return createAppPortal(pill);
 }
