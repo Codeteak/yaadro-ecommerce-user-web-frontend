@@ -37,7 +37,8 @@ function TrackShell({ children }) {
   );
 
   if (!ready) return tree;
-  // Prefer live shell so tracking fills the phone column; fall back to stable portal root.
+  // Prefer live `#app-shell` so tracking fills the phone column on desktop.
+  // This does not move `#yaadro-portal-root` (preferred host bypasses the body root).
   const shell = typeof document !== 'undefined' ? getAppShellEl() : null;
   return createAppPortal(tree, shell?.isConnected ? shell : null) || tree;
 }

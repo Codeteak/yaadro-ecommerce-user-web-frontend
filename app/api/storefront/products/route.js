@@ -44,9 +44,13 @@ export async function GET(request) {
     });
 
     const products = Array.isArray(result?.products) ? result.products : [];
-    if (products.length === 0 && shopId) {
+    // Empty list is valid (filtered category/search with no matches). Do not treat it
+    // as DB failure — that spammed logs and forced unnecessary customer-API fallback.
+    // Unfiltered empty is still suspicious (RLS/tenant GUC); fall back only then.
+    const hasFilter = Boolean(categoryId || brandId || search || availability);
+    if (products.length === 0 && shopId && !hasFilter) {
       console.warn(
-        '[storefront/products] DB returned 0 products for shop; falling back to customer API'
+        '[storefront/products] DB returned 0 products for unfiltered shop list; falling back to customer API'
       );
       return proxyUpstreamGet(request, '/api/storefront/products');
     }

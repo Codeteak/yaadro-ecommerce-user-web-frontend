@@ -23,6 +23,7 @@ import { CatalogRealtimeProvider } from '../context/CatalogRealtimeContext';
 import PWARegistrar from '../components/PWARegistrar';
 import InstallPrompt from '../components/InstallPrompt';
 import ChunkLoadRecovery from '../components/ChunkLoadRecovery';
+import PortalRootMount from '../components/PortalRootMount';
 
 /**
  * Build-time defaults only (same HTML for every tenant in `out/`).
@@ -95,6 +96,7 @@ export default function RootLayout({ children }) {
                                     <CartSidebar />
                                     <ServiceAreaBottomSheet />
                                     <PWARegistrar />
+                                    <PortalRootMount />
                                     <ChunkLoadRecovery />
                                     <InstallPrompt />
                                   </LocationServiceProvider>

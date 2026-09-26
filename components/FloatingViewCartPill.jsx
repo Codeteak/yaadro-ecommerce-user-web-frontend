@@ -19,8 +19,7 @@ const MOBILE_BOTTOM_NAV_FALLBACK_PX = 72;
 const GAP_ABOVE_BOTTOM_NAV_PX = 14;
 /**
  * Floating cart pill — viewport-fixed, just above the mobile tab bar.
- * Portaled into a stable host inside `#app-shell` (or body) so desktop column
- * containment stays correct and HMR/ClientOnly remounts cannot detach the host.
+ * Portaled into a stable body-mounted host so shell remounts cannot detach it.
  * Do NOT add `siteFooterHeight`: the brand footer is separate chrome; lifting by both
  * pushed this pill into the lower-middle of the viewport.
  * @param {number} [stackAboveBottomPx] — When set (e.g. PDP), CSS `bottom` in px; measure from the
@@ -45,11 +44,8 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
 
   useEffect(() => {
     setMounted(true);
-    // Ensure host exists before first portal paint; re-parent if shell remounts.
+    // Create the stable body-mounted host once (never re-parent).
     ensurePortalRoot();
-    const onVis = () => ensurePortalRoot();
-    window.addEventListener('pageshow', onVis);
-    return () => window.removeEventListener('pageshow', onVis);
   }, []);
 
   useEffect(() => {
@@ -130,9 +126,6 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
   }, []);
 
   if (!mounted || cartItems.length === 0) return null;
-
-  const portalHost = ensurePortalRoot();
-  if (!portalHost) return null;
 
   const navShowing = !bottomNavHidden && bottomNavVisible;
   /** Tab bar only — measured height already includes safe-area padding. */

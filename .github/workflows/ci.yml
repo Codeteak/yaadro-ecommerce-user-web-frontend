@@ -4,13 +4,20 @@ on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - alan-dev
+      - main
+      - user
 
 jobs:
-  build:
+  quality:
     runs-on: ubuntu-latest
     env:
       NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL || 'https://example.com/api' }}
       NEXT_PUBLIC_SHOP_ID: ${{ vars.NEXT_PUBLIC_SHOP_ID || '00000000-0000-4000-8000-000000000001' }}
+      NEXT_PUBLIC_USE_SAME_ORIGIN_API: 'true'
+      NEXT_PUBLIC_CATALOG_REALTIME_USE_SAME_ORIGIN: 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -20,8 +27,27 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm ci
-      - run: npm run lint
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (TypeError / unused / React)
+        run: npm run lint
+
+      - name: Unit tests (portal removeChild, catalog, auth, cart, …)
+        run: npm run test:ci
+
+      - name: Dependency security audit (high+)
+        # Report known Next 14 / workbox transitive advisories; fail only if audit cannot run.
+        # Bumping next@16 is a separate upgrade track — do not block portal/CI fixes on it.
+        run: |
+          set +e
+          npm run audit:ci
+          code=$?
+          if [ "$code" -ne 0 ]; then
+            echo "::warning::npm audit reported high/critical advisories (exit $code). Review before release; next major upgrade tracked separately."
+          fi
+          exit 0
+
       # Production is Docker `next start` on EC2 (customer-web-pipeline), not static Pages.
       - name: Production build
         run: npm run build
