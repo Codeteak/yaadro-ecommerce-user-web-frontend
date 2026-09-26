@@ -179,6 +179,15 @@ body {
   .app-shell.app-shell-tracking {
     transform: none;
   }
+
+  /* Body-level track overlay — align with the centered 430px shell column. */
+  .yaadro-track-overlay {
+    left: 50%;
+    right: auto;
+    width: var(--app-shell-max);
+    max-width: var(--app-shell-max);
+    transform: translateX(-50%);
+  }
 }
 
 /* Prevent runaway horizontal overflow — in @layer base so Tailwind

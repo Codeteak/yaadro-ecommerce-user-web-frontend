@@ -244,7 +244,7 @@ function transformProduct(apiProduct) {
         coerceSoldByWeightFlag(apiProduct.sold_by_weight) ||
         coerceSoldByWeightFlag(apiProduct.soldByWeight),
       packSize: toDisplayText(apiProduct.pack_size ?? apiProduct.packSize),
-      brand: resolveProductBrand(apiProduct),
+      brand: resolveProductBrand(apiProduct, { allowInfer: false }),
       ingredients: toDisplayText(apiProduct.ingredients),
       sku: '',
       barcode: '',
@@ -350,7 +350,7 @@ function transformProduct(apiProduct) {
       coerceSoldByWeightFlag(apiProduct.sold_by_weight) ||
       coerceSoldByWeightFlag(apiProduct.soldByWeight),
     packSize: toDisplayText(apiProduct.packSize),
-    brand: resolveProductBrand(apiProduct),
+    brand: resolveProductBrand(apiProduct, { allowInfer: false }),
     sku: apiProduct.sku || '',
     barcode: apiProduct.barcode || '',
     vegNonVeg: apiProduct.vegNonVeg || null,

@@ -1,7 +1,6 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useOrderDetail } from '../../../hooks/useOrders';
@@ -12,16 +11,18 @@ import {
   markTrackingOpenedThisSession,
 } from '../../../utils/deliveryTracking';
 import { getAppShellEl, lockAppScroll, unlockAppScroll } from '../../../lib/pwa/appShell';
+import { createAppPortal, ensurePortalRoot } from '../../../lib/pwa/safePortal';
 import PageTopBar from '../../../components/PageTopBar';
 import { Share2Regular as Share2 } from '../../../components/icons';
 
 function TrackShell({ children }) {
-  const [host, setHost] = useState(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const shell = getAppShellEl();
-    setHost(shell || document.body);
-    shell?.classList.add('app-shell-tracking');
+    ensurePortalRoot();
+    if (shell?.isConnected) shell.classList.add('app-shell-tracking');
+    setReady(true);
     lockAppScroll();
     return () => {
       shell?.classList.remove('app-shell-tracking');
@@ -29,14 +30,16 @@ function TrackShell({ children }) {
     };
   }, []);
 
+  // Portal to the body-level host only — never into #app-shell (React-owned; removeChild crash).
+  // `.yaadro-track-overlay` centers on the 430px column on desktop; full-bleed on mobile.
   const tree = (
-    <div className="absolute inset-0 z-[80] flex h-full min-h-0 w-full flex-col bg-white">
+    <div className="yaadro-track-overlay fixed inset-0 z-[80] flex h-full min-h-0 w-full flex-col bg-white">
       {children}
     </div>
   );
 
-  if (!host) return tree;
-  return createPortal(tree, host);
+  if (!ready) return tree;
+  return createAppPortal(tree) || tree;
 }
 
 function TrackPageSkeleton() {
