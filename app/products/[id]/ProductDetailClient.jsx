@@ -46,7 +46,7 @@ import ProductImageWithFallback from '../../../components/ProductImageWithFallba
 import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
 import { getCartLinePaidQty, getBundleFreeExtraOnPaidLine } from '../../../utils/cartPromotions';
 import { findPaidCartLine } from '../../../utils/cartLinePersist';
-import { getProductDetailPath, normalizeProductRouteParam, resolveProductDetailSegment } from '../../../utils/productApi';
+import { getProductDetailPath, normalizeProductRouteParam, resolveProductDetailSegment, toDisplayText } from '../../../utils/productApi';
 import { backFromProductDetail, navigateToProductDetail } from '../../../utils/productNavigation';
 
 function PillTag({ children, color = 'green' }) {
@@ -81,10 +81,12 @@ function Divider() {
 }
 
 function InfoCard({ label, value }) {
+  const text = toDisplayText(value);
+  if (!text) return null;
   return (
     <div className="bg-gray-50 rounded-xl p-3">
       <p className="text-[11px] text-gray-400 mb-1">{label}</p>
-      <p className="text-[13px] font-medium text-gray-800">{value}</p>
+      <p className="text-[13px] font-medium text-gray-800">{text}</p>
     </div>
   );
 }
@@ -342,14 +344,24 @@ export default function ProductDetailClient({ productId = null }) {
           : null;
   const discountValue =
     mrpDisplay != null && mrpDisplay > effectivePrice ? mrpDisplay - effectivePrice : null;
-  const deliveryTimeEstimate = product?.deliveryTimeEstimate ?? '5–7 business days';
+  const deliveryTimeEstimate = toDisplayText(product?.deliveryTimeEstimate) || '5–7 business days';
   const nutritionalInformation = product?.nutritionalInformation ?? null;
-  const allergenInformation = product?.allergenInformation ?? null;
+  const allergenText = toDisplayText(product?.allergenInformation);
   const storageInstructions =
-    product?.storageInstructions ||
+    toDisplayText(product?.storageInstructions) ||
     (product?.storageType
       ? `Store in ${String(product.storageType).replace('_', ' ')}.`
-      : null);
+      : '');
+  const ingredientsText = toDisplayText(product?.ingredients);
+  const categoryLabel =
+    toDisplayText(product?.categoryName) ||
+    toDisplayText(product?.category) ||
+    toDisplayText(product?.primaryCategoryName);
+  const categoryHrefSegment =
+    (product?.categoryId != null && String(product.categoryId).trim()) ||
+    (typeof product?.category === 'string' ? product.category.trim() : '') ||
+    toDisplayText(product?.category?.id) ||
+    categoryLabel;
   // Only show related/FBT when the API (or category-related query) provides real items.
   // Do not invent "Similar" / "Frequently Bought" from a random newest-products pool.
   const similarItems = useMemo(() => {
@@ -483,22 +495,12 @@ export default function ProductDetailClient({ productId = null }) {
           items={[
             { label: 'Home', href: '/' },
             {
-              label:
-                product.categoryName ||
-                (typeof product.category === 'string' ? product.category : null) ||
-                product.primaryCategoryName ||
-                'Products',
-              href: product.categoryId
-                ? `/products?category=${encodeURIComponent(product.categoryId)}`
-                : product.category
-                  ? `/products?category=${encodeURIComponent(
-                      typeof product.category === 'string'
-                        ? product.category
-                        : product.category?.name || product.category?.id || ''
-                    )}`
-                  : '/products',
+              label: categoryLabel || 'Products',
+              href: categoryHrefSegment
+                ? `/products?category=${encodeURIComponent(categoryHrefSegment)}`
+                : '/products',
             },
-            { label: product.name },
+            { label: toDisplayText(product.name) || 'Product' },
           ]}
         />
       </div>
@@ -886,9 +888,7 @@ export default function ProductDetailClient({ productId = null }) {
                 <DetailSectionTitle>Key Details</DetailSectionTitle>
                 <div className="grid grid-cols-2 gap-2.5 mb-5 mt-3">
                   {product.brand && <InfoCard label="Brand" value={product.brand} />}
-                  {product.category && (
-                    <InfoCard label="Category" value={product.category} />
-                  )}
+                  {categoryLabel ? <InfoCard label="Category" value={categoryLabel} /> : null}
                   <InfoCard label="Delivery" value={deliveryTimeEstimate} />
                   {product.countryOfOrigin && (
                     <InfoCard label="Origin" value={product.countryOfOrigin} />
@@ -910,15 +910,15 @@ export default function ProductDetailClient({ productId = null }) {
               </>
             )}
 
-            {product.ingredients && (
+            {ingredientsText ? (
               <>
                 <DetailSectionTitle>Ingredients</DetailSectionTitle>
                 <p className="mt-2 text-[13px] md:text-sm text-gray-500 leading-relaxed mb-5 whitespace-pre-wrap">
-                  {product.ingredients}
+                  {ingredientsText}
                 </p>
                 <Divider />
               </>
-            )}
+            ) : null}
 
             {SHOW_PRODUCT_EXTENDED_SECTIONS && (
               <>
@@ -952,15 +952,19 @@ export default function ProductDetailClient({ productId = null }) {
               </>
             )}
 
-            {(allergenInformation || storageInstructions) && (
+            {(allergenText || storageInstructions) && (
               <>
                 <DetailSectionTitle>Allergens & Storage</DetailSectionTitle>
-                {allergenInformation && (
-                  <p className="mt-2 text-[13px] md:text-sm text-gray-500 leading-relaxed mb-2">{allergenInformation}</p>
-                )}
-                {storageInstructions && (
-                  <p className="text-[13px] md:text-sm text-gray-500 leading-relaxed mb-5">{storageInstructions}</p>
-                )}
+                {allergenText ? (
+                  <p className="mt-2 text-[13px] md:text-sm text-gray-500 leading-relaxed mb-2">
+                    {allergenText}
+                  </p>
+                ) : null}
+                {storageInstructions ? (
+                  <p className="text-[13px] md:text-sm text-gray-500 leading-relaxed mb-5">
+                    {storageInstructions}
+                  </p>
+                ) : null}
                 <Divider />
               </>
             )}
@@ -1015,8 +1019,8 @@ export default function ProductDetailClient({ productId = null }) {
               <ProductCarousel
                 products={fbtItems}
                 showMoreLink={
-                  product.category
-                    ? `/products?category=${encodeURIComponent(product.category)}`
+                  categoryHrefSegment
+                    ? `/products?category=${encodeURIComponent(categoryHrefSegment)}`
                     : '/products'
                 }
               />
@@ -1036,8 +1040,8 @@ export default function ProductDetailClient({ productId = null }) {
                 </div>
                 <Link
                   href={
-                    product.category
-                      ? `/products?category=${encodeURIComponent(product.category)}`
+                    categoryHrefSegment
+                      ? `/products?category=${encodeURIComponent(categoryHrefSegment)}`
                       : '/products'
                   }
                   className="text-[12px] font-medium text-violet-700 hover:text-violet-800 transition whitespace-nowrap"
@@ -1048,8 +1052,8 @@ export default function ProductDetailClient({ productId = null }) {
               <ProductCarousel
                 products={similarItems}
                 showMoreLink={
-                  product.category
-                    ? `/products?category=${encodeURIComponent(product.category)}`
+                  categoryHrefSegment
+                    ? `/products?category=${encodeURIComponent(categoryHrefSegment)}`
                     : '/products'
                 }
               />

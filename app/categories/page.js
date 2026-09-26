@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useCategoriesTree, useSearchProducts, useProducts } from '../../hooks/useProducts';
 import ProductCarousel from '../../components/ProductCarousel';
 import { getResolvedProductImageUrls } from '../../utils/productImages';
-import { getProductDetailPath } from '../../utils/productApi';
+import { getProductDetailPath, toDisplayText } from '../../utils/productApi';
 import { navigateToProductDetail } from '../../utils/productNavigation';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryImage';
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
@@ -373,7 +373,7 @@ export default function CategoriesPage() {
                         className="object-contain"
                         sizes="48px"
                         placeholderName={p?.name || ''}
-                        placeholderCategory={p?.category || p?.categoryName || ''}
+                        placeholderCategory={toDisplayText(p?.categoryName || p?.category)}
                       />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -381,7 +381,7 @@ export default function CategoriesPage() {
                         {p?.name}
                       </p>
                       <p className="mt-0.5 text-[11px] text-gray-500 truncate">
-                        {p?.category || p?.categoryName || ''}
+                        {toDisplayText(p?.categoryName || p?.category)}
                       </p>
                     </div>
                     <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>

@@ -16,6 +16,36 @@ import { resolveStorefrontProductUpstreamPath } from '../lib/storefrontProductDe
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/**
+ * Coerce API fields that may be string | object | array into safe UI text.
+ * Prevents "Objects are not valid as a React child" on PDP.
+ */
+export function toDisplayText(value) {
+  if (value == null || value === false) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => toDisplayText(item))
+      .filter(Boolean)
+      .join(', ');
+  }
+  if (typeof value === 'object') {
+    if (typeof value.name === 'string' && value.name.trim()) return value.name.trim();
+    if (typeof value.label === 'string' && value.label.trim()) return value.label.trim();
+    if (typeof value.title === 'string' && value.title.trim()) return value.title.trim();
+    if (typeof value.text === 'string' && value.text.trim()) return value.text.trim();
+    if (typeof value.slug === 'string' && value.slug.trim()) return value.slug.trim();
+    try {
+      const json = JSON.stringify(value);
+      return json && json !== '{}' && json !== '[]' ? json : '';
+    } catch {
+      return '';
+    }
+  }
+  return '';
+}
+
 function coerceSoldByWeightFlag(value) {
   if (value === true || value === 1) return true;
   if (typeof value === 'string') {
@@ -145,12 +175,7 @@ function rememberSlugMapping(apiProduct, slug) {
 function transformProduct(apiProduct) {
   if (!apiProduct) return null;
 
-  const normalizeCategoryName = (cat) => {
-    if (!cat) return '';
-    if (typeof cat === 'string') return cat;
-    if (typeof cat === 'object') return cat.name || cat.slug || '';
-    return '';
-  };
+  const normalizeCategoryName = (cat) => toDisplayText(cat);
 
   // Storefront catalog shape (minor currency units + availability)
   const isStorefrontCatalog =
@@ -223,7 +248,7 @@ function transformProduct(apiProduct) {
       offerPriceMinor: offerLayerMinor,
       promoPriceMinor: promoLayerMinor,
       totalDiscountMinor,
-      category: normalizeCategoryName(apiProduct.category) || apiProduct.category_slug || '',
+      category: normalizeCategoryName(apiProduct.category) || toDisplayText(apiProduct.category_slug) || '',
       subcategory: '',
       description: parseProductDescription(apiProduct),
       image,
@@ -244,9 +269,9 @@ function transformProduct(apiProduct) {
       soldByWeight:
         coerceSoldByWeightFlag(apiProduct.sold_by_weight) ||
         coerceSoldByWeightFlag(apiProduct.soldByWeight),
-      packSize: apiProduct.pack_size ?? apiProduct.packSize ?? '',
-      brand: apiProduct.brand || '',
-      ingredients: apiProduct.ingredients || '',
+      packSize: toDisplayText(apiProduct.pack_size ?? apiProduct.packSize),
+      brand: toDisplayText(apiProduct.brand),
+      ingredients: toDisplayText(apiProduct.ingredients),
       sku: '',
       barcode: '',
       discountPercentage,
@@ -258,6 +283,13 @@ function transformProduct(apiProduct) {
       thumbnail: apiProduct.thumbnail || null,
       categoryId: apiProduct.category_id || null,
       categoryObj: apiProduct.category || null,
+      allergenInformation: toDisplayText(apiProduct.allergenInformation) || null,
+      nutritionalInformation:
+        typeof apiProduct.nutritionalInformation === 'string' ||
+        apiProduct.nutritionalInformation == null
+          ? apiProduct.nutritionalInformation || null
+          : apiProduct.nutritionalInformation,
+      storageInstructions: toDisplayText(apiProduct.storageInstructions) || null,
       base_unit:
         apiProduct.base_unit != null
           ? String(apiProduct.base_unit).trim()
@@ -319,9 +351,9 @@ function transformProduct(apiProduct) {
     offerPrice: legacyOffer,
     offerPriceEffective: legacyOffer,
     totalDiscountMinor: legacyPricing.totalDiscountMinor || undefined,
-    category: apiProduct.category || apiProduct.subcategory || '',
-    subcategory: apiProduct.subcategory || '',
-    description: apiProduct.description || '',
+    category: normalizeCategoryName(apiProduct.category) || normalizeCategoryName(apiProduct.subcategory) || '',
+    subcategory: toDisplayText(apiProduct.subcategory),
+    description: toDisplayText(apiProduct.description) || parseProductDescription(apiProduct) || '',
     image: firstImage,
     images: finalUrls,
     imageUrls: finalUrls,
@@ -342,25 +374,25 @@ function transformProduct(apiProduct) {
     soldByWeight:
       coerceSoldByWeightFlag(apiProduct.sold_by_weight) ||
       coerceSoldByWeightFlag(apiProduct.soldByWeight),
-    packSize: apiProduct.packSize || '',
-    brand: apiProduct.brand || '',
+    packSize: toDisplayText(apiProduct.packSize),
+    brand: toDisplayText(apiProduct.brand),
     sku: apiProduct.sku || '',
     barcode: apiProduct.barcode || '',
     vegNonVeg: apiProduct.vegNonVeg || null,
     organicTag: apiProduct.organicTag || false,
-    ingredients: apiProduct.ingredients || '',
+    ingredients: toDisplayText(apiProduct.ingredients),
     storageType: apiProduct.storageType || null,
-    countryOfOrigin: apiProduct.countryOfOrigin || '',
+    countryOfOrigin: toDisplayText(apiProduct.countryOfOrigin),
     batchNumber: apiProduct.batchNumber || '',
     manufactureDate: apiProduct.manufactureDate || null,
     expiryDate: apiProduct.expiryDate || null,
-    shelfLife: apiProduct.shelfLife || '',
-    storageInstructions: apiProduct.storageInstructions || null,
+    shelfLife: toDisplayText(apiProduct.shelfLife),
+    storageInstructions: toDisplayText(apiProduct.storageInstructions) || null,
     returnable: apiProduct.returnable !== undefined ? apiProduct.returnable : true,
-    warranty: apiProduct.warranty || '',
-    deliveryTimeEstimate: apiProduct.deliveryTimeEstimate || null,
+    warranty: toDisplayText(apiProduct.warranty),
+    deliveryTimeEstimate: toDisplayText(apiProduct.deliveryTimeEstimate) || null,
     nutritionalInformation: apiProduct.nutritionalInformation || null,
-    allergenInformation: apiProduct.allergenInformation || null,
+    allergenInformation: toDisplayText(apiProduct.allergenInformation) || null,
     frequentlyBoughtTogether: apiProduct.frequentlyBoughtTogether || null,
     ratingsAverage: apiProduct.ratingsAverage ? parseFloat(apiProduct.ratingsAverage) : 0,
     ratingsCount: apiProduct.ratingsCount || 0,
