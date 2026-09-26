@@ -46,7 +46,8 @@ import ProductImageWithFallback from '../../../components/ProductImageWithFallba
 import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
 import { getCartLinePaidQty, getBundleFreeExtraOnPaidLine } from '../../../utils/cartPromotions';
 import { findPaidCartLine } from '../../../utils/cartLinePersist';
-import { getProductDetailPath, normalizeProductRouteParam, resolveProductDetailSegment } from '../../../utils/productApi';
+import { getProductDetailPath, normalizeProductRouteParam, resolveProductDetailSegment, toDisplayText } from '../../../utils/productApi';
+import { backFromProductDetail, navigateToProductDetail } from '../../../utils/productNavigation';
 
 function PillTag({ children, color = 'green' }) {
   const colorMap = {
@@ -66,10 +67,10 @@ function PillTag({ children, color = 'green' }) {
   );
 }
 
-/** Matches home page section typography (e.g. Buy Again / Best Sellers blocks). */
+/** Section titles on PDP — softer than home hero rails so body sections stay readable. */
 function DetailSectionTitle({ children }) {
   return (
-    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+    <h2 className="text-xl sm:text-2xl font-bold text-gray-700 font-headingnow leading-tight">
       {children}
     </h2>
   );
@@ -80,10 +81,12 @@ function Divider() {
 }
 
 function InfoCard({ label, value }) {
+  const text = toDisplayText(value);
+  if (!text) return null;
   return (
     <div className="bg-gray-50 rounded-xl p-3">
       <p className="text-[11px] text-gray-400 mb-1">{label}</p>
-      <p className="text-[13px] font-medium text-gray-800">{value}</p>
+      <p className="text-[13px] font-medium text-gray-800">{text}</p>
     </div>
   );
 }
@@ -257,8 +260,10 @@ export default function ProductDetailClient({ productId = null }) {
       ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
       : formatWeightUnitLabel(resolvedPack.weight, resolvedPack.unit);
 
-  const descriptionText =
-    typeof product?.description === 'string' ? product.description.trim() : '';
+  const descriptionText = toDisplayText(product?.description);
+  const productTitle = toDisplayText(product?.name) || 'Product';
+  const brandText = toDisplayText(product?.brand);
+  const packSizeLabel = toDisplayText(product?.packSize);
 
   // "Small Onion 10kg" -> "Small Onion" (used to find other pack variants).
   const baseName = useMemo(() => stripPackFromProductName(product?.name || ''), [product?.name]);
@@ -341,14 +346,24 @@ export default function ProductDetailClient({ productId = null }) {
           : null;
   const discountValue =
     mrpDisplay != null && mrpDisplay > effectivePrice ? mrpDisplay - effectivePrice : null;
-  const deliveryTimeEstimate = product?.deliveryTimeEstimate ?? '5–7 business days';
+  const deliveryTimeEstimate = toDisplayText(product?.deliveryTimeEstimate) || '5–7 business days';
   const nutritionalInformation = product?.nutritionalInformation ?? null;
-  const allergenInformation = product?.allergenInformation ?? null;
+  const allergenText = toDisplayText(product?.allergenInformation);
   const storageInstructions =
-    product?.storageInstructions ||
+    toDisplayText(product?.storageInstructions) ||
     (product?.storageType
       ? `Store in ${String(product.storageType).replace('_', ' ')}.`
-      : null);
+      : '');
+  const ingredientsText = toDisplayText(product?.ingredients);
+  const categoryLabel =
+    toDisplayText(product?.categoryName) ||
+    toDisplayText(product?.category) ||
+    toDisplayText(product?.primaryCategoryName);
+  const categoryHrefSegment =
+    (product?.categoryId != null && String(product.categoryId).trim()) ||
+    (typeof product?.category === 'string' ? product.category.trim() : '') ||
+    toDisplayText(product?.category?.id) ||
+    categoryLabel;
   // Only show related/FBT when the API (or category-related query) provides real items.
   // Do not invent "Similar" / "Frequently Bought" from a random newest-products pool.
   const similarItems = useMemo(() => {
@@ -447,13 +462,14 @@ export default function ProductDetailClient({ productId = null }) {
   };
 
   const formatDate = (d) => {
-    if (!d) return null;
+    if (!d) return '';
     try {
       const date = new Date(d);
-      return isNaN(date.getTime())
-        ? d
-        : date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-    } catch { return d; }
+      if (isNaN(date.getTime())) return toDisplayText(d);
+      return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch {
+      return toDisplayText(d);
+    }
   };
 
   if (loading) {
@@ -482,22 +498,12 @@ export default function ProductDetailClient({ productId = null }) {
           items={[
             { label: 'Home', href: '/' },
             {
-              label:
-                product.categoryName ||
-                (typeof product.category === 'string' ? product.category : null) ||
-                product.primaryCategoryName ||
-                'Products',
-              href: product.categoryId
-                ? `/categories/${encodeURIComponent(product.categoryId)}`
-                : product.category
-                  ? `/products?category=${encodeURIComponent(
-                      typeof product.category === 'string'
-                        ? product.category
-                        : product.category?.name || ''
-                    )}`
-                  : '/products',
+              label: categoryLabel || 'Products',
+              href: categoryHrefSegment
+                ? `/products?category=${encodeURIComponent(categoryHrefSegment)}`
+                : '/products',
             },
-            { label: product.name },
+            { label: productTitle },
           ]}
         />
       </div>
@@ -520,16 +526,14 @@ export default function ProductDetailClient({ productId = null }) {
               >
                 <ProductImageWithFallback
                   src={img}
-                  alt={`${product.name} – image ${idx + 1}`}
+                  alt={`${productTitle} – image ${idx + 1}`}
                   fill
                   className="object-contain object-center p-3 sm:p-4"
                   sizes="(max-width: 640px) 100vw, 512px"
                   priority={idx === 0}
-                  placeholderName={product.name}
+                  placeholderName={productTitle}
                   placeholderCategory={
-                    product.categoryName ||
-                    product.category?.name ||
-                    (typeof product.category === 'string' ? product.category : '') ||
+                    categoryLabel ||
                     product.primaryCategoryName ||
                     ''
                   }
@@ -543,7 +547,7 @@ export default function ProductDetailClient({ productId = null }) {
         <div className="absolute top-0 left-0 right-0 z-20 p-3 flex items-center justify-between">
           <button
             type="button"
-            onClick={() => router.back()}
+            onClick={() => backFromProductDetail(router)}
             className={`w-9 h-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm border border-gray-100 ${PRESSABLE_ICON_BTN_SOFT}`}
             aria-label="Back"
           >
@@ -583,18 +587,12 @@ export default function ProductDetailClient({ productId = null }) {
                 >
                   <ProductImageWithFallback
                     src={u}
-                    alt={`${product.name} – thumbnail ${idx + 1}`}
+                    alt={`${productTitle} – thumbnail ${idx + 1}`}
                     fill
                     className="object-contain"
                     sizes="36px"
-                    placeholderName={product.name}
-                    placeholderCategory={
-                      product.categoryName ||
-                      product.category?.name ||
-                      (typeof product.category === 'string' ? product.category : '') ||
-                      product.primaryCategoryName ||
-                      ''
-                    }
+                    placeholderName={productTitle}
+                    placeholderCategory={categoryLabel || product.primaryCategoryName || ''}
                   />
                 </button>
               ))}
@@ -627,30 +625,30 @@ export default function ProductDetailClient({ productId = null }) {
               </div>
 
               <div className="space-y-2.5 sm:space-y-3">
-                {String(product.brand || '').trim() ? (
+                {brandText ? (
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">
-                    {String(product.brand).trim()}
+                    {brandText}
                   </p>
                 ) : null}
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-snug text-balance">
-                  {product.name}
+                  {productTitle}
                 </h1>
 
                 <div className="flex flex-wrap items-center gap-x-0 gap-y-1.5 text-[13px] sm:text-sm text-gray-600">
                   {displayWeight && (
                     <span className="font-medium text-gray-700 tabular-nums">{displayWeight}</span>
                   )}
-                  {displayWeight && product.packSize && (
+                  {displayWeight && packSizeLabel ? (
                     <span className="mx-2 text-gray-300 select-none" aria-hidden>
                       ·
                     </span>
-                  )}
-                  {product.packSize && (
+                  ) : null}
+                  {packSizeLabel ? (
                     <span>
-                      Pack: <span className="font-medium text-gray-800">{product.packSize}</span>
+                      Pack: <span className="font-medium text-gray-800">{packSizeLabel}</span>
                     </span>
-                  )}
-                  {(displayWeight || product.packSize) && rating > 0 && (
+                  ) : null}
+                  {(displayWeight || packSizeLabel) && rating > 0 && (
                     <span className="mx-2 text-gray-300 select-none" aria-hidden>
                       ·
                     </span>
@@ -660,7 +658,7 @@ export default function ProductDetailClient({ productId = null }) {
                       <svg className="h-3 w-3 fill-violet-600" viewBox="0 0 24 24" aria-hidden>
                         <path d="M12 .587l3.668 7.431L24 9.75l-6 5.847 1.417 8.26L12 19.771l-7.417 4.086L6 15.597 0 9.75l8.332-1.732z" />
                       </svg>
-                      {rating.toFixed(1)}
+                      {Number(rating).toFixed(1)}
                       {product.ratingsCount > 0 && (
                         <span className="font-normal text-violet-700/80">
                           ({product.ratingsCount})
@@ -671,34 +669,28 @@ export default function ProductDetailClient({ productId = null }) {
                 </div>
 
                 <div className="space-y-2.5 pt-0.5">
-                  {product?.bxgyShelfRole === 'get' ? (
-                    <div className="text-2xl font-bold leading-none sm:text-3xl">
-                      <span className="text-violet-700">Free</span>
-                      {mrpDisplay != null && mrpDisplay > 0 ? (
-                        <span className="ml-2 text-base font-medium text-gray-400 line-through tabular-nums">
-                          ₹{formatRupeeINR(mrpDisplay)}
-                        </span>
-                      ) : null}
+                  <div className="flex items-end justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      {product?.bxgyShelfRole === 'get' ? (
+                        <div className="text-2xl font-bold leading-none sm:text-3xl">
+                          <span className="text-violet-700">Free</span>
+                          {mrpDisplay != null && mrpDisplay > 0 ? (
+                            <span className="ml-2 text-base font-medium text-gray-400 line-through tabular-nums">
+                              ₹{formatRupeeINR(mrpDisplay)}
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <PriceDisplay
+                          amount={effectivePrice}
+                          listPrice={mrpDisplay}
+                          size="lg"
+                          suffix={customWeight ? '/kg' : undefined}
+                        />
+                      )}
                     </div>
-                  ) : (
-                    <PriceDisplay
-                      amount={effectivePrice}
-                      listPrice={mrpDisplay}
-                      size="lg"
-                      suffix={customWeight ? '/kg' : undefined}
-                    />
-                  )}
-                  <PdpOfferPanel product={product} />
-                  <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
-                    {product?.bxgyShelfRole === 'get' ? (
-                      <div
-                        className="inline-flex h-9 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-3.5 text-[12px] font-semibold text-emerald-800"
-                        aria-label="Free with offer — added when you buy the paired product"
-                      >
-                        Free with offer
-                      </div>
-                    ) : cartQty > 0 ? (
-                      <>
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                      {product?.bxgyShelfRole === 'get' ? (
                         <div
                           className="inline-flex h-9 min-w-[96px] items-center justify-between rounded-full bg-white px-2 ring-2 ring-[#902bf5] shadow-[0_8px_20px_rgba(144,43,245,0.35)]"
                           role="group"
@@ -768,6 +760,24 @@ export default function ProductDetailClient({ productId = null }) {
                         )}
                       </button>
                     )}
+                          onClick={(e) => void handleAddToCart(e)}
+                          disabled={!product.inStock || cartActionLoading}
+                          className={`flex h-11 min-w-[88px] items-center justify-center gap-1.5 rounded-l-[24px] rounded-r-[12px] px-5 text-[13px] font-bold uppercase leading-none tracking-[0.14em] transition active:scale-[0.97] touch-manipulation ${
+                            product.inStock
+                              ? 'bg-[#902bf5] text-white shadow-[0_8px_20px_rgba(144,43,245,0.4)] hover:bg-[#7d24d6] disabled:opacity-70'
+                              : 'cursor-not-allowed bg-gray-100 text-gray-400'
+                          }`}
+                        >
+                          {cartActionLoading ? (
+                            <span
+                              className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+                              aria-hidden
+                            />
+                          ) : null}
+                          {product.inStock ? 'ADD' : 'Unavailable'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -792,7 +802,7 @@ export default function ProductDetailClient({ productId = null }) {
                         <button
                           key={p.id}
                           type="button"
-                          onClick={() => router.push(getProductDetailPath(p))}
+                          onClick={() => navigateToProductDetail(router, getProductDetailPath(p))}
                           className={`flex w-[128px] shrink-0 flex-col overflow-hidden rounded-2xl border text-left transition ${
                             active
                               ? 'border-violet-500 ring-2 ring-violet-200'
@@ -891,9 +901,7 @@ export default function ProductDetailClient({ productId = null }) {
                 <DetailSectionTitle>Key Details</DetailSectionTitle>
                 <div className="grid grid-cols-2 gap-2.5 mb-5 mt-3">
                   {product.brand && <InfoCard label="Brand" value={product.brand} />}
-                  {product.category && (
-                    <InfoCard label="Category" value={product.category} />
-                  )}
+                  {categoryLabel ? <InfoCard label="Category" value={categoryLabel} /> : null}
                   <InfoCard label="Delivery" value={deliveryTimeEstimate} />
                   {product.countryOfOrigin && (
                     <InfoCard label="Origin" value={product.countryOfOrigin} />
@@ -915,15 +923,15 @@ export default function ProductDetailClient({ productId = null }) {
               </>
             )}
 
-            {product.ingredients && (
+            {ingredientsText ? (
               <>
                 <DetailSectionTitle>Ingredients</DetailSectionTitle>
                 <p className="mt-2 text-[13px] md:text-sm text-gray-500 leading-relaxed mb-5 whitespace-pre-wrap">
-                  {product.ingredients}
+                  {ingredientsText}
                 </p>
                 <Divider />
               </>
-            )}
+            ) : null}
 
             {SHOW_PRODUCT_EXTENDED_SECTIONS && (
               <>
@@ -957,15 +965,19 @@ export default function ProductDetailClient({ productId = null }) {
               </>
             )}
 
-            {(allergenInformation || storageInstructions) && (
+            {(allergenText || storageInstructions) && (
               <>
                 <DetailSectionTitle>Allergens & Storage</DetailSectionTitle>
-                {allergenInformation && (
-                  <p className="mt-2 text-[13px] md:text-sm text-gray-500 leading-relaxed mb-2">{allergenInformation}</p>
-                )}
-                {storageInstructions && (
-                  <p className="text-[13px] md:text-sm text-gray-500 leading-relaxed mb-5">{storageInstructions}</p>
-                )}
+                {allergenText ? (
+                  <p className="mt-2 text-[13px] md:text-sm text-gray-500 leading-relaxed mb-2">
+                    {allergenText}
+                  </p>
+                ) : null}
+                {storageInstructions ? (
+                  <p className="text-[13px] md:text-sm text-gray-500 leading-relaxed mb-5">
+                    {storageInstructions}
+                  </p>
+                ) : null}
                 <Divider />
               </>
             )}
@@ -1010,7 +1022,7 @@ export default function ProductDetailClient({ productId = null }) {
           {fbtItems.length > 0 && (
             <div className="mt-10">
               <div className="px-1 mb-4">
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-700 font-headingnow leading-tight">
                   Frequently Bought Together
                 </h2>
                 <p className="mt-2 text-[13px] md:text-sm text-gray-500">
@@ -1020,8 +1032,8 @@ export default function ProductDetailClient({ productId = null }) {
               <ProductCarousel
                 products={fbtItems}
                 showMoreLink={
-                  product.category
-                    ? `/products?category=${encodeURIComponent(product.category)}`
+                  categoryHrefSegment
+                    ? `/products?category=${encodeURIComponent(categoryHrefSegment)}`
                     : '/products'
                 }
               />
@@ -1032,7 +1044,7 @@ export default function ProductDetailClient({ productId = null }) {
             <div className="mt-10 mb-4">
               <div className="flex items-end justify-between gap-3 mb-4 px-1">
                 <div>
-                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-700 font-headingnow leading-tight">
                     Similar Products
                   </h2>
                   <p className="mt-2 text-[13px] md:text-sm text-gray-500">
@@ -1041,8 +1053,8 @@ export default function ProductDetailClient({ productId = null }) {
                 </div>
                 <Link
                   href={
-                    product.category
-                      ? `/products?category=${encodeURIComponent(product.category)}`
+                    categoryHrefSegment
+                      ? `/products?category=${encodeURIComponent(categoryHrefSegment)}`
                       : '/products'
                   }
                   className="text-[12px] font-medium text-violet-700 hover:text-violet-800 transition whitespace-nowrap"
@@ -1053,8 +1065,8 @@ export default function ProductDetailClient({ productId = null }) {
               <ProductCarousel
                 products={similarItems}
                 showMoreLink={
-                  product.category
-                    ? `/products?category=${encodeURIComponent(product.category)}`
+                  categoryHrefSegment
+                    ? `/products?category=${encodeURIComponent(categoryHrefSegment)}`
                     : '/products'
                 }
               />

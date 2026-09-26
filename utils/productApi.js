@@ -13,6 +13,10 @@ import {
 } from './productUtils';
 import { normalizeStorefrontProductPricing } from './storefrontProductPricing';
 import { resolveStorefrontProductUpstreamPath } from '../lib/storefrontProductDetail.js';
+import { toDisplayText, sanitizeProductUiFields, resolveProductBrand } from './displayText.js';
+
+export { toDisplayText, sanitizeProductUiFields, resolveProductBrand } from './displayText.js';
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -145,12 +149,7 @@ function rememberSlugMapping(apiProduct, slug) {
 function transformProduct(apiProduct) {
   if (!apiProduct) return null;
 
-  const normalizeCategoryName = (cat) => {
-    if (!cat) return '';
-    if (typeof cat === 'string') return cat;
-    if (typeof cat === 'object') return cat.name || cat.slug || '';
-    return '';
-  };
+  const normalizeCategoryName = (cat) => toDisplayText(cat);
 
   // Storefront catalog shape (minor currency units + availability)
   const isStorefrontCatalog =
@@ -206,10 +205,10 @@ function transformProduct(apiProduct) {
 
     const { weight, unit } = resolveProductWeightAndUnit(apiProduct);
 
-    return {
+    return sanitizeProductUiFields({
       id: apiProduct.id,
-      name: apiProduct.name,
-      shortName: apiProduct.name,
+      name: toDisplayText(apiProduct.name) || 'Product',
+      shortName: toDisplayText(apiProduct.name) || 'Product',
       slug,
       status: apiProduct.status != null ? String(apiProduct.status) : undefined,
       price: listPrice,
@@ -223,9 +222,9 @@ function transformProduct(apiProduct) {
       offerPriceMinor: offerLayerMinor,
       promoPriceMinor: promoLayerMinor,
       totalDiscountMinor,
-      category: normalizeCategoryName(apiProduct.category) || apiProduct.category_slug || '',
+      category: normalizeCategoryName(apiProduct.category) || toDisplayText(apiProduct.category_slug) || '',
       subcategory: '',
-      description: parseProductDescription(apiProduct),
+      description: parseProductDescription(apiProduct) || toDisplayText(apiProduct.description),
       image,
       images,
       imageUrls: finalUrls,
@@ -244,9 +243,9 @@ function transformProduct(apiProduct) {
       soldByWeight:
         coerceSoldByWeightFlag(apiProduct.sold_by_weight) ||
         coerceSoldByWeightFlag(apiProduct.soldByWeight),
-      packSize: apiProduct.pack_size ?? apiProduct.packSize ?? '',
-      brand: apiProduct.brand || '',
-      ingredients: apiProduct.ingredients || '',
+      packSize: toDisplayText(apiProduct.pack_size ?? apiProduct.packSize),
+      brand: resolveProductBrand(apiProduct),
+      ingredients: toDisplayText(apiProduct.ingredients),
       sku: '',
       barcode: '',
       discountPercentage,
@@ -258,6 +257,14 @@ function transformProduct(apiProduct) {
       thumbnail: apiProduct.thumbnail || null,
       categoryId: apiProduct.category_id || null,
       categoryObj: apiProduct.category || null,
+      brandId: apiProduct.brand_id || apiProduct.brandId || null,
+      allergenInformation: toDisplayText(apiProduct.allergenInformation) || null,
+      nutritionalInformation:
+        typeof apiProduct.nutritionalInformation === 'string' ||
+        apiProduct.nutritionalInformation == null
+          ? apiProduct.nutritionalInformation || null
+          : apiProduct.nutritionalInformation,
+      storageInstructions: toDisplayText(apiProduct.storageInstructions) || null,
       base_unit:
         apiProduct.base_unit != null
           ? String(apiProduct.base_unit).trim()
@@ -266,7 +273,7 @@ function transformProduct(apiProduct) {
             : apiProduct.unit != null
               ? String(apiProduct.unit).trim()
               : undefined,
-    };
+    });
   }
 
   const images = apiProduct.images || [];
@@ -299,10 +306,10 @@ function transformProduct(apiProduct) {
     : parseFloat(apiProduct.price) || 0;
   const legacyOffer = legacyPricing.offerPrice;
   const legacyHasDiscount = legacyPricing.hasDiscount;
-  return {
+  return sanitizeProductUiFields({
     id: apiProduct.id,
-    name: apiProduct.name,
-    shortName: apiProduct.shortName || apiProduct.name,
+    name: toDisplayText(apiProduct.name) || toDisplayText(apiProduct.shortName) || 'Product',
+    shortName: toDisplayText(apiProduct.shortName) || toDisplayText(apiProduct.name) || 'Product',
     slug,
     price: legacyList,
     originalPrice: legacyHasDiscount
@@ -319,9 +326,9 @@ function transformProduct(apiProduct) {
     offerPrice: legacyOffer,
     offerPriceEffective: legacyOffer,
     totalDiscountMinor: legacyPricing.totalDiscountMinor || undefined,
-    category: apiProduct.category || apiProduct.subcategory || '',
-    subcategory: apiProduct.subcategory || '',
-    description: apiProduct.description || '',
+    category: normalizeCategoryName(apiProduct.category) || normalizeCategoryName(apiProduct.subcategory) || '',
+    subcategory: toDisplayText(apiProduct.subcategory),
+    description: toDisplayText(apiProduct.description) || parseProductDescription(apiProduct) || '',
     image: firstImage,
     images: finalUrls,
     imageUrls: finalUrls,
@@ -342,25 +349,25 @@ function transformProduct(apiProduct) {
     soldByWeight:
       coerceSoldByWeightFlag(apiProduct.sold_by_weight) ||
       coerceSoldByWeightFlag(apiProduct.soldByWeight),
-    packSize: apiProduct.packSize || '',
-    brand: apiProduct.brand || '',
+    packSize: toDisplayText(apiProduct.packSize),
+    brand: resolveProductBrand(apiProduct),
     sku: apiProduct.sku || '',
     barcode: apiProduct.barcode || '',
     vegNonVeg: apiProduct.vegNonVeg || null,
     organicTag: apiProduct.organicTag || false,
-    ingredients: apiProduct.ingredients || '',
+    ingredients: toDisplayText(apiProduct.ingredients),
     storageType: apiProduct.storageType || null,
-    countryOfOrigin: apiProduct.countryOfOrigin || '',
+    countryOfOrigin: toDisplayText(apiProduct.countryOfOrigin),
     batchNumber: apiProduct.batchNumber || '',
     manufactureDate: apiProduct.manufactureDate || null,
     expiryDate: apiProduct.expiryDate || null,
-    shelfLife: apiProduct.shelfLife || '',
-    storageInstructions: apiProduct.storageInstructions || null,
+    shelfLife: toDisplayText(apiProduct.shelfLife),
+    storageInstructions: toDisplayText(apiProduct.storageInstructions) || null,
     returnable: apiProduct.returnable !== undefined ? apiProduct.returnable : true,
-    warranty: apiProduct.warranty || '',
-    deliveryTimeEstimate: apiProduct.deliveryTimeEstimate || null,
+    warranty: toDisplayText(apiProduct.warranty),
+    deliveryTimeEstimate: toDisplayText(apiProduct.deliveryTimeEstimate) || null,
     nutritionalInformation: apiProduct.nutritionalInformation || null,
-    allergenInformation: apiProduct.allergenInformation || null,
+    allergenInformation: toDisplayText(apiProduct.allergenInformation) || null,
     frequentlyBoughtTogether: apiProduct.frequentlyBoughtTogether || null,
     ratingsAverage: apiProduct.ratingsAverage ? parseFloat(apiProduct.ratingsAverage) : 0,
     ratingsCount: apiProduct.ratingsCount || 0,
@@ -381,7 +388,7 @@ function transformProduct(apiProduct) {
         : apiProduct.baseUnit != null
           ? String(apiProduct.baseUnit).trim()
           : undefined,
-  };
+  });
 }
 
 /**

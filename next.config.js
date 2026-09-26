@@ -12,6 +12,9 @@ const apiSocketOrigin = apiProxyTarget.replace(/\/api\/?$/i, '');
 
 const baseConfig = {
   reactStrictMode: true,
+  // Optional isolated cache dir (e.g. YAADRO_DIST_DIR=.next-clean npm run dev) when
+  // multiple zombie `next` processes corrupt the shared `.next` folder.
+  distDir: process.env.YAADRO_DIST_DIR || '.next',
   // Static export is opt-in (Cloudflare Pages). Default prod build allows GET DB API routes.
   output: useStaticExport ? 'export' : undefined,
   // Trailing slashes are for Cloudflare Pages static export (`/cart/index.html`).

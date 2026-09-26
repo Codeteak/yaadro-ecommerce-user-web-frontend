@@ -92,11 +92,12 @@ export function formatRupeeINR(amount) {
 // Get product rating from API data or generate mock
 export function getProductRating(product) {
   // Use API rating if available
-  if (product.ratingsAverage !== undefined && product.ratingsAverage !== null) {
-    return parseFloat(product.ratingsAverage) || 0;
+  if (product?.ratingsAverage !== undefined && product?.ratingsAverage !== null) {
+    const n = parseFloat(product.ratingsAverage);
+    return Number.isFinite(n) ? n : 0;
   }
   // Fallback: Generate consistent rating based on product ID (for backward compatibility)
-  if (typeof product.id === 'number') {
+  if (typeof product?.id === 'number') {
     const seed = product.id * 7;
     const rating = 3 + (seed % 20) / 10; // Rating between 3.0 and 4.9
     return Math.round(rating * 10) / 10;
