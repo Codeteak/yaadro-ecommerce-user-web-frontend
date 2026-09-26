@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Container from '../../components/Container';
 import ProductGrid from '../../components/ProductGrid';
-import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import ProductListingPageSkeleton from '../../components/skeletons/ProductListingPageSkeleton';
 import { useHomeSections } from '../../hooks/useHomeSections';
 import { findHomeSectionById, formatEventDateRange } from '../../utils/homeSectionsApi';
@@ -61,8 +60,7 @@ function EventProductsInner() {
           </div>
         </div>
       </Container>
-      <FloatingViewCartPill />
-    </div>
+</div>
   );
 }
 

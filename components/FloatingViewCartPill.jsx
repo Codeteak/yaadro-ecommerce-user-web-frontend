@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@heroui/react';
 import { ShoppingCart1Regular as ShoppingCart } from './icons';
 import { useCart } from '../context/CartContext';
@@ -20,18 +19,19 @@ import { toDisplayText } from '../utils/productApi';
 const MOBILE_BOTTOM_NAV_FALLBACK_PX = 72;
 /** Visual gap between pill bottom edge and top of tab bar. */
 const GAP_ABOVE_BOTTOM_NAV_PX = 14;
+
+function normalizePath(pathname) {
+  return pathname?.replace(/\/+$/, '') || '';
+}
+
 /**
  * Floating cart pill — viewport-fixed, just above the mobile tab bar.
- * Always portaled to `document.body` (never `#app-shell`) — portaling into the
- * shell caused React `removeChild` null crashes when the client tree remounted.
- * Desktop phone-column alignment uses the same max-width + center flex as before.
- * Do NOT add `siteFooterHeight`: the brand footer is separate chrome; lifting by both
- * pushed this pill into the lower-middle of the viewport.
- * @param {number} [stackAboveBottomPx] — When set (e.g. PDP), CSS `bottom` in px; measure from the
- *   owning page using the fixed bar’s `getBoundingClientRect().top` vs `visualViewport`.
+ * Mounted once from root layout (not per-page). No createPortal — page remounts
+ * previously raced React removeChild during navigation.
  */
-export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
+export default function FloatingViewCartPill() {
   const router = useRouter();
+  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const { cartItems, cartCount, cartTotal, loading } = useCart();
   const { isAuthenticated, authHydrated } = useAuth();
@@ -131,7 +131,8 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
     };
   }, []);
 
-  if (!mounted || typeof document === 'undefined' || !document.body || cartItems.length === 0) {
+  const path = normalizePath(pathname);
+  if (!mounted || cartItems.length === 0 || path === '/cart' || path === '/checkout') {
     return null;
   }
 
@@ -142,21 +143,14 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
       GAP_ABOVE_BOTTOM_NAV_PX
     : null;
 
-  const stackedAboveFixedChromePx =
-    typeof stackAboveBottomPx === 'number' && stackAboveBottomPx > 0 && liftPx == null
-      ? Math.ceil(stackAboveBottomPx)
-      : null;
-
-  const pill = (
+  return (
     <div
       className="pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-4"
       style={{
         bottom:
           liftPx != null
             ? `${liftPx}px`
-            : stackedAboveFixedChromePx != null
-              ? `${stackedAboveFixedChromePx}px`
-              : 'calc(1rem + env(safe-area-inset-bottom, 0px))',
+            : 'calc(1rem + env(safe-area-inset-bottom, 0px))',
         transition: 'bottom 220ms cubic-bezier(0.22, 1, 0.36, 1)',
         willChange: 'bottom',
       }}
@@ -243,6 +237,4 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
       </Button>
     </div>
   );
-
-  return createPortal(pill, document.body);
 }

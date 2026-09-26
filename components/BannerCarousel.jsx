@@ -154,7 +154,9 @@ export default function BannerCarousel({
       { opacity: 0.88 },
       { opacity: 1, duration: 0.45, ease: 'power2.out' }
     );
-    return undefined;
+    return () => {
+      gsap.killTweensOf(track);
+    };
   }, [currentIndex]);
 
   const finishDrag = useCallback(

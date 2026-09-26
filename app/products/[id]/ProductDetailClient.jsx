@@ -43,7 +43,6 @@ import { PRESSABLE_ICON_BTN_SOFT } from '../../../components/ui/brandButton';
 import { SHOW_PRODUCT_EXTENDED_SECTIONS } from './productDetailFlags';
 import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../../utils/productImages';
 import ProductImageWithFallback from '../../../components/ProductImageWithFallback';
-import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
 import { getCartLinePaidQty, getBundleFreeExtraOnPaidLine } from '../../../utils/cartPromotions';
 import { findPaidCartLine } from '../../../utils/cartLinePersist';
 import { getProductDetailPath, normalizeProductRouteParam, resolveProductDetailSegment, toDisplayText } from '../../../utils/productApi';
@@ -1063,8 +1062,6 @@ export default function ProductDetailClient({ productId = null }) {
           )}
         </Container>
       </div>
-
-      <FloatingViewCartPill />
-    </div>
+</div>
   );
 }

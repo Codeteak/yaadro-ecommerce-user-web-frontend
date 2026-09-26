@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo, useCallback, useTransition, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useCategoriesTree } from '../../hooks/useProducts';
-import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import ProductsCategoryRail from '../../components/products/ProductsCategoryRail';
 import ProductsListingPanel, { FilterBar } from '../../components/products/ProductsListingPanel';
 import {
@@ -239,12 +238,7 @@ function ProductsContent() {
   }, []);
 
   if (showRailSkeleton) {
-    return (
-      <>
-        <ProductsPageSkeleton />
-        <FloatingViewCartPill />
-      </>
-    );
+    return <ProductsPageSkeleton />;
   }
 
   return (
@@ -313,9 +307,7 @@ function ProductsContent() {
           onClearFilters={onClearFilters}
         />
       </div>
-
-      <FloatingViewCartPill />
-    </div>
+</div>
   );
 }
 

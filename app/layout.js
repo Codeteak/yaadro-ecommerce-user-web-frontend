@@ -23,6 +23,7 @@ import { CatalogRealtimeProvider } from '../context/CatalogRealtimeContext';
 import PWARegistrar from '../components/PWARegistrar';
 import InstallPrompt from '../components/InstallPrompt';
 import ChunkLoadRecovery from '../components/ChunkLoadRecovery';
+import FloatingViewCartPill from '../components/FloatingViewCartPill';
 
 /**
  * Build-time defaults only (same HTML for every tenant in `out/`).
@@ -91,6 +92,7 @@ export default function RootLayout({ children }) {
                                     </div>
                                     <NavigationProgress />
                                     <MobileBottomNav />
+                                    <FloatingViewCartPill />
                                     <ToastHost />
                                     <CartSidebar />
                                     <ServiceAreaBottomSheet />
