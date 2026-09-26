@@ -47,6 +47,7 @@ import FloatingViewCartPill from '../../../components/FloatingViewCartPill';
 import { getCartLinePaidQty, getBundleFreeExtraOnPaidLine } from '../../../utils/cartPromotions';
 import { findPaidCartLine } from '../../../utils/cartLinePersist';
 import { getProductDetailPath, normalizeProductRouteParam, resolveProductDetailSegment } from '../../../utils/productApi';
+import { backFromProductDetail, navigateToProductDetail } from '../../../utils/productNavigation';
 
 function PillTag({ children, color = 'green' }) {
   const colorMap = {
@@ -66,10 +67,10 @@ function PillTag({ children, color = 'green' }) {
   );
 }
 
-/** Matches home page section typography (e.g. Buy Again / Best Sellers blocks). */
+/** Section titles on PDP — softer than home hero rails so body sections stay readable. */
 function DetailSectionTitle({ children }) {
   return (
-    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+    <h2 className="text-xl sm:text-2xl font-bold text-gray-700 font-headingnow leading-tight">
       {children}
     </h2>
   );
@@ -488,12 +489,12 @@ export default function ProductDetailClient({ productId = null }) {
                 product.primaryCategoryName ||
                 'Products',
               href: product.categoryId
-                ? `/categories/${encodeURIComponent(product.categoryId)}`
+                ? `/products?category=${encodeURIComponent(product.categoryId)}`
                 : product.category
                   ? `/products?category=${encodeURIComponent(
                       typeof product.category === 'string'
                         ? product.category
-                        : product.category?.name || ''
+                        : product.category?.name || product.category?.id || ''
                     )}`
                   : '/products',
             },
@@ -543,7 +544,7 @@ export default function ProductDetailClient({ productId = null }) {
         <div className="absolute top-0 left-0 right-0 z-20 p-3 flex items-center justify-between">
           <button
             type="button"
-            onClick={() => router.back()}
+            onClick={() => backFromProductDetail(router)}
             className={`w-9 h-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm border border-gray-100 ${PRESSABLE_ICON_BTN_SOFT}`}
             aria-label="Back"
           >
@@ -687,28 +688,12 @@ export default function ProductDetailClient({ productId = null }) {
                           amount={effectivePrice}
                           listPrice={mrpDisplay}
                           size="lg"
+                          suffix={customWeight ? '/kg' : undefined}
                         />
                       )}
                     </div>
-                  ) : (
-                    <PriceDisplay
-                      amount={effectivePrice}
-                      listPrice={mrpDisplay}
-                      size="lg"
-                      suffix={customWeight ? '/kg' : undefined}
-                    />
-                  )}
-                  <PdpOfferPanel product={product} />
-                  <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
-                    {product?.bxgyShelfRole === 'get' ? (
-                      <div
-                        className="inline-flex h-9 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-3.5 text-[12px] font-semibold text-emerald-800"
-                        aria-label="Free with offer — added when you buy the paired product"
-                      >
-                        Free with offer
-                      </div>
-                    ) : cartQty > 0 ? (
-                      <>
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                      {product?.bxgyShelfRole === 'get' ? (
                         <div
                           className="inline-flex h-9 items-center justify-center rounded-l-[22px] rounded-r-[10px] bg-emerald-600 px-3.5 text-[11px] font-bold uppercase tracking-[0.08em] text-white shadow-sm"
                           aria-label="Free with offer — added when you buy the paired product"
@@ -759,7 +744,7 @@ export default function ProductDetailClient({ productId = null }) {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => void handleAddToCart()}
+                          onClick={(e) => void handleAddToCart(e)}
                           disabled={!product.inStock || cartActionLoading}
                           className={`flex h-11 min-w-[88px] items-center justify-center gap-1.5 rounded-l-[24px] rounded-r-[12px] px-5 text-[13px] font-bold uppercase leading-none tracking-[0.14em] transition active:scale-[0.97] touch-manipulation ${
                             product.inStock
@@ -767,26 +752,16 @@ export default function ProductDetailClient({ productId = null }) {
                               : 'cursor-not-allowed bg-gray-100 text-gray-400'
                           }`}
                         >
-                          Go to cart
-                        </Link>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => void handleAddToCart(e)}
-                        disabled={!product.inStock || cartActionLoading}
-                        className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-full px-4 text-[12px] font-bold uppercase tracking-wide transition active:scale-[0.97] ${
-                          product.inStock
-                            ? 'bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-70'
-                            : 'cursor-not-allowed bg-gray-100 text-gray-400'
-                        }`}
-                      >
-                        {cartActionLoading ? (
-                          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden />
-                        ) : null}
-                        {product.inStock ? 'Add' : 'Unavailable'}
-                      </button>
-                    )}
+                          {cartActionLoading ? (
+                            <span
+                              className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+                              aria-hidden
+                            />
+                          ) : null}
+                          {product.inStock ? 'ADD' : 'Unavailable'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <PdpOfferPanel product={product} />
                 </div>
@@ -812,7 +787,7 @@ export default function ProductDetailClient({ productId = null }) {
                         <button
                           key={p.id}
                           type="button"
-                          onClick={() => router.push(getProductDetailPath(p))}
+                          onClick={() => navigateToProductDetail(router, getProductDetailPath(p))}
                           className={`flex w-[128px] shrink-0 flex-col overflow-hidden rounded-2xl border text-left transition ${
                             active
                               ? 'border-violet-500 ring-2 ring-violet-200'
@@ -1030,7 +1005,7 @@ export default function ProductDetailClient({ productId = null }) {
           {fbtItems.length > 0 && (
             <div className="mt-10">
               <div className="px-1 mb-4">
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-700 font-headingnow leading-tight">
                   Frequently Bought Together
                 </h2>
                 <p className="mt-2 text-[13px] md:text-sm text-gray-500">
@@ -1052,7 +1027,7 @@ export default function ProductDetailClient({ productId = null }) {
             <div className="mt-10 mb-4">
               <div className="flex items-end justify-between gap-3 mb-4 px-1">
                 <div>
-                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-700 font-headingnow leading-tight">
                     Similar Products
                   </h2>
                   <p className="mt-2 text-[13px] md:text-sm text-gray-500">

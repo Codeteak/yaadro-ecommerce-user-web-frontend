@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCart } from '../context/CartContext';
 import {
@@ -29,11 +30,13 @@ import { getCartLinePaidQty } from '../utils/cartPromotions';
 import { findPaidCartLine } from '../utils/cartLinePersist';
 import ProductImageWithFallback from './ProductImageWithFallback';
 import { getProductDetailPath } from '../utils/productApi';
+import { navigateToProductDetail } from '../utils/productNavigation';
 import { prefetchProductDetail } from '../hooks/useProducts';
 import { useShopBranding } from '../context/ShopBrandingContext';
 
 export default function ProductCard({ product, isCarousel = false, variant = 'default' }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { shopId } = useShopBranding();
   const { addToCart, cartItems, updateQuantity, removeFromCart } = useCart();
   const legacyOriginal =
@@ -472,9 +475,11 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       if (suppressNavClickRef.current) {
         e.preventDefault();
         e.stopPropagation();
-      } else {
-        warmProductDetail();
+        return;
       }
+      warmProductDetail();
+      e.preventDefault();
+      navigateToProductDetail(router, productDetailHref);
     },
   };
 
