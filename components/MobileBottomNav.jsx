@@ -91,7 +91,7 @@ export default function MobileBottomNav() {
   return (
     <div
       ref={navRef}
-      className={`mobile-bottom-nav pointer-events-none fixed inset-x-0 bottom-0 z-50 w-full min-w-0 overflow-x-clip transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none ${
+      className={`mobile-bottom-nav pointer-events-none z-50 min-w-0 overflow-x-clip transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none ${
         showBar ? 'translate-y-0' : 'translate-y-full'
       }`}
       aria-hidden={!showBar}
