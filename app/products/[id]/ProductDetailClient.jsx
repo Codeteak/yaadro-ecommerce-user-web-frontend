@@ -260,8 +260,9 @@ export default function ProductDetailClient({ productId = null }) {
       ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
       : formatWeightUnitLabel(resolvedPack.weight, resolvedPack.unit);
 
-  const descriptionText =
-    typeof product?.description === 'string' ? product.description.trim() : '';
+  const descriptionText = toDisplayText(product?.description);
+  const productTitle = toDisplayText(product?.name) || 'Product';
+  const packSizeLabel = toDisplayText(product?.packSize);
 
   // "Small Onion 10kg" -> "Small Onion" (used to find other pack variants).
   const baseName = useMemo(() => stripPackFromProductName(product?.name || ''), [product?.name]);
@@ -460,13 +461,14 @@ export default function ProductDetailClient({ productId = null }) {
   };
 
   const formatDate = (d) => {
-    if (!d) return null;
+    if (!d) return '';
     try {
       const date = new Date(d);
-      return isNaN(date.getTime())
-        ? d
-        : date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-    } catch { return d; }
+      if (isNaN(date.getTime())) return toDisplayText(d);
+      return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch {
+      return toDisplayText(d);
+    }
   };
 
   if (loading) {
@@ -500,7 +502,7 @@ export default function ProductDetailClient({ productId = null }) {
                 ? `/products?category=${encodeURIComponent(categoryHrefSegment)}`
                 : '/products',
             },
-            { label: toDisplayText(product.name) || 'Product' },
+            { label: productTitle },
           ]}
         />
       </div>
@@ -523,16 +525,14 @@ export default function ProductDetailClient({ productId = null }) {
               >
                 <ProductImageWithFallback
                   src={img}
-                  alt={`${product.name} – image ${idx + 1}`}
+                  alt={`${productTitle} – image ${idx + 1}`}
                   fill
                   className="object-contain object-center p-3 sm:p-4"
                   sizes="(max-width: 640px) 100vw, 512px"
                   priority={idx === 0}
-                  placeholderName={product.name}
+                  placeholderName={productTitle}
                   placeholderCategory={
-                    product.categoryName ||
-                    product.category?.name ||
-                    (typeof product.category === 'string' ? product.category : '') ||
+                    categoryLabel ||
                     product.primaryCategoryName ||
                     ''
                   }
@@ -586,18 +586,12 @@ export default function ProductDetailClient({ productId = null }) {
                 >
                   <ProductImageWithFallback
                     src={u}
-                    alt={`${product.name} – thumbnail ${idx + 1}`}
+                    alt={`${productTitle} – thumbnail ${idx + 1}`}
                     fill
                     className="object-contain"
                     sizes="36px"
-                    placeholderName={product.name}
-                    placeholderCategory={
-                      product.categoryName ||
-                      product.category?.name ||
-                      (typeof product.category === 'string' ? product.category : '') ||
-                      product.primaryCategoryName ||
-                      ''
-                    }
+                    placeholderName={productTitle}
+                    placeholderCategory={categoryLabel || product.primaryCategoryName || ''}
                   />
                 </button>
               ))}
@@ -636,24 +630,24 @@ export default function ProductDetailClient({ productId = null }) {
                   </p>
                 ) : null}
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-snug text-balance">
-                  {product.name}
+                  {productTitle}
                 </h1>
 
                 <div className="flex flex-wrap items-center gap-x-0 gap-y-1.5 text-[13px] sm:text-sm text-gray-600">
                   {displayWeight && (
                     <span className="font-medium text-gray-700 tabular-nums">{displayWeight}</span>
                   )}
-                  {displayWeight && product.packSize && (
+                  {displayWeight && packSizeLabel ? (
                     <span className="mx-2 text-gray-300 select-none" aria-hidden>
                       ·
                     </span>
-                  )}
-                  {product.packSize && (
+                  ) : null}
+                  {packSizeLabel ? (
                     <span>
-                      Pack: <span className="font-medium text-gray-800">{product.packSize}</span>
+                      Pack: <span className="font-medium text-gray-800">{packSizeLabel}</span>
                     </span>
-                  )}
-                  {(displayWeight || product.packSize) && rating > 0 && (
+                  ) : null}
+                  {(displayWeight || packSizeLabel) && rating > 0 && (
                     <span className="mx-2 text-gray-300 select-none" aria-hidden>
                       ·
                     </span>
@@ -663,7 +657,7 @@ export default function ProductDetailClient({ productId = null }) {
                       <svg className="h-3 w-3 fill-violet-600" viewBox="0 0 24 24" aria-hidden>
                         <path d="M12 .587l3.668 7.431L24 9.75l-6 5.847 1.417 8.26L12 19.771l-7.417 4.086L6 15.597 0 9.75l8.332-1.732z" />
                       </svg>
-                      {rating.toFixed(1)}
+                      {Number(rating).toFixed(1)}
                       {product.ratingsCount > 0 && (
                         <span className="font-normal text-violet-700/80">
                           ({product.ratingsCount})

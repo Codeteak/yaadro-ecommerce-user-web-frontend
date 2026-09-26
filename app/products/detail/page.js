@@ -4,6 +4,7 @@ import { Suspense, useMemo } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import ProductDetailClient from '../[id]/ProductDetailClient';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
+import ProductDetailErrorBoundary from '../../../components/ProductDetailErrorBoundary';
 import { normalizeProductRouteParam } from '../../../utils/productApi';
 
 function segmentFromPathname(pathname) {
@@ -35,8 +36,10 @@ function ProductDetailFromQuery() {
  */
 export default function ProductDetailQueryPage() {
   return (
-    <Suspense fallback={<ProductDetailSkeleton />}>
-      <ProductDetailFromQuery />
-    </Suspense>
+    <ProductDetailErrorBoundary>
+      <Suspense fallback={<ProductDetailSkeleton />}>
+        <ProductDetailFromQuery />
+      </Suspense>
+    </ProductDetailErrorBoundary>
   );
 }

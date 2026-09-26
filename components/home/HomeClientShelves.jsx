@@ -8,6 +8,7 @@ import { dedupeProductsByVariantGroup, getPopularityScore } from '../../utils/pr
 import { getBuyAgainFavorites } from '../../utils/buyAgainRecommendations';
 import HomeProductShelf from './HomeProductShelf';
 import HomeCategoryProductSections from './HomeCategoryProductSections';
+import HomeBrandProductSections from './HomeBrandProductSections';
 
 const FEATURED_TITLE = 'Featured Products';
 const BEST_SELLERS_TITLE = 'Best Sellers';
@@ -122,6 +123,7 @@ export default function HomeClientShelves({
         />
       ) : null}
       <HomeCategoryProductSections />
+      <HomeBrandProductSections />
       {buyAgainProducts.length > 0 ? (
         <HomeProductShelf
           title={BUY_AGAIN_TITLE}

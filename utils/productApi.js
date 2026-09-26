@@ -18,12 +18,13 @@ const UUID_RE =
 
 /**
  * Coerce API fields that may be string | object | array into safe UI text.
- * Prevents "Objects are not valid as a React child" on PDP.
+ * Prevents "Objects are not valid as a React child" on PDP and cards.
  */
 export function toDisplayText(value) {
   if (value == null || value === false) return '';
   if (typeof value === 'string') return value.trim();
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'bigint') return String(value);
   if (Array.isArray(value)) {
     return value
       .map((item) => toDisplayText(item))
@@ -31,19 +32,88 @@ export function toDisplayText(value) {
       .join(', ');
   }
   if (typeof value === 'object') {
-    if (typeof value.name === 'string' && value.name.trim()) return value.name.trim();
-    if (typeof value.label === 'string' && value.label.trim()) return value.label.trim();
-    if (typeof value.title === 'string' && value.title.trim()) return value.title.trim();
-    if (typeof value.text === 'string' && value.text.trim()) return value.text.trim();
-    if (typeof value.slug === 'string' && value.slug.trim()) return value.slug.trim();
+    // Prefer common human-readable keys before JSON dump.
+    for (const key of [
+      'name',
+      'label',
+      'title',
+      'text',
+      'slug',
+      'value',
+      'message',
+      'description',
+      'en',
+      'en_US',
+      'en-US',
+    ]) {
+      const part = value[key];
+      if (typeof part === 'string' && part.trim()) return part.trim();
+      if (typeof part === 'number' || typeof part === 'boolean') return String(part);
+    }
+    if (Array.isArray(value.items)) return toDisplayText(value.items);
+    if (Array.isArray(value.values)) return toDisplayText(value.values);
+    // First nested string (e.g. { en: "Coffee" } without hitting preferred key order)
+    for (const part of Object.values(value)) {
+      if (typeof part === 'string' && part.trim()) return part.trim();
+    }
     try {
       const json = JSON.stringify(value);
-      return json && json !== '{}' && json !== '[]' ? json : '';
+      return json && json !== '{}' && json !== 'null' && json !== '[]' ? json : '';
     } catch {
       return '';
     }
   }
   return '';
+}
+
+/**
+ * Final pass so every product leaving transformProduct is safe to render as text.
+ * Mutates and returns the same object for call-site convenience.
+ */
+export function sanitizeProductUiFields(product) {
+  if (!product || typeof product !== 'object') return product;
+
+  product.name = toDisplayText(product.name) || toDisplayText(product.shortName) || 'Product';
+  product.shortName = toDisplayText(product.shortName) || product.name;
+  product.brand = toDisplayText(product.brand);
+  product.category = toDisplayText(product.category);
+  product.categoryName = toDisplayText(product.categoryName) || product.category;
+  product.subcategory = toDisplayText(product.subcategory);
+  product.primaryCategoryName = toDisplayText(product.primaryCategoryName);
+  product.description = toDisplayText(product.description);
+  product.ingredients = toDisplayText(product.ingredients);
+  product.packSize = toDisplayText(product.packSize);
+  product.shelfLife = toDisplayText(product.shelfLife);
+  product.countryOfOrigin = toDisplayText(product.countryOfOrigin);
+  product.warranty = toDisplayText(product.warranty);
+  product.deliveryTimeEstimate = toDisplayText(product.deliveryTimeEstimate) || null;
+  product.storageInstructions = toDisplayText(product.storageInstructions) || null;
+  product.allergenInformation = toDisplayText(product.allergenInformation) || null;
+  product.vegNonVeg =
+    product.vegNonVeg == null || product.vegNonVeg === ''
+      ? null
+      : toDisplayText(product.vegNonVeg) || null;
+
+  if (
+    product.nutritionalInformation != null &&
+    typeof product.nutritionalInformation !== 'string' &&
+    typeof product.nutritionalInformation !== 'object'
+  ) {
+    product.nutritionalInformation = toDisplayText(product.nutritionalInformation) || null;
+  }
+
+  if (Array.isArray(product.tags)) {
+    product.tags = product.tags.map((t) => toDisplayText(t)).filter(Boolean);
+  }
+
+  if (Array.isArray(product.frequentlyBoughtTogether)) {
+    product.frequentlyBoughtTogether = product.frequentlyBoughtTogether.map((item) => {
+      if (!item || typeof item !== 'object') return item;
+      return sanitizeProductUiFields({ ...item });
+    });
+  }
+
+  return product;
 }
 
 function coerceSoldByWeightFlag(value) {
@@ -231,10 +301,10 @@ function transformProduct(apiProduct) {
 
     const { weight, unit } = resolveProductWeightAndUnit(apiProduct);
 
-    return {
+    return sanitizeProductUiFields({
       id: apiProduct.id,
-      name: apiProduct.name,
-      shortName: apiProduct.name,
+      name: toDisplayText(apiProduct.name) || 'Product',
+      shortName: toDisplayText(apiProduct.name) || 'Product',
       slug,
       status: apiProduct.status != null ? String(apiProduct.status) : undefined,
       price: listPrice,
@@ -250,7 +320,7 @@ function transformProduct(apiProduct) {
       totalDiscountMinor,
       category: normalizeCategoryName(apiProduct.category) || toDisplayText(apiProduct.category_slug) || '',
       subcategory: '',
-      description: parseProductDescription(apiProduct),
+      description: parseProductDescription(apiProduct) || toDisplayText(apiProduct.description),
       image,
       images,
       imageUrls: finalUrls,
@@ -298,7 +368,7 @@ function transformProduct(apiProduct) {
             : apiProduct.unit != null
               ? String(apiProduct.unit).trim()
               : undefined,
-    };
+    });
   }
 
   const images = apiProduct.images || [];
@@ -331,10 +401,10 @@ function transformProduct(apiProduct) {
     : parseFloat(apiProduct.price) || 0;
   const legacyOffer = legacyPricing.offerPrice;
   const legacyHasDiscount = legacyPricing.hasDiscount;
-  return {
+  return sanitizeProductUiFields({
     id: apiProduct.id,
-    name: apiProduct.name,
-    shortName: apiProduct.shortName || apiProduct.name,
+    name: toDisplayText(apiProduct.name) || toDisplayText(apiProduct.shortName) || 'Product',
+    shortName: toDisplayText(apiProduct.shortName) || toDisplayText(apiProduct.name) || 'Product',
     slug,
     price: legacyList,
     originalPrice: legacyHasDiscount
@@ -413,7 +483,7 @@ function transformProduct(apiProduct) {
         : apiProduct.baseUnit != null
           ? String(apiProduct.baseUnit).trim()
           : undefined,
-  };
+  });
 }
 
 /**

@@ -110,6 +110,7 @@ body {
 
 /* Mobile: full device width, document scroll, viewport-fixed tab bar. */
 .app-shell {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -382,8 +383,13 @@ iframe.order-tracking-embed {
   flex-shrink: 0 !important;
 }
 
-/* Expanding-label tab bar: keep items inside the 430px shell; stable flex track. */
+/* Expanding-label tab bar: phone = viewport-fixed; desktop = pinned to 430px shell. */
 .mobile-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
   max-width: 100%;
 }
 
@@ -393,6 +399,18 @@ iframe.order-tracking-embed {
 
 .mobile-bottom-nav-track > * {
   max-width: none;
+}
+
+@media (hover: hover) and (pointer: fine) and (min-width: 48rem) {
+  /* Stay inside the centered .app-shell column (fixed escapes it otherwise). */
+  .mobile-bottom-nav {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
