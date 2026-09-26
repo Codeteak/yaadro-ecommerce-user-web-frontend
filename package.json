@@ -19,7 +19,7 @@
     "test:auth-session": "node --import ./scripts/register-extensionless.mjs --test utils/authSession.test.mjs utils/authSessionExpiry.test.mjs",
     "test:address": "node --test utils/addressApi.test.mjs utils/apiErrors.test.mjs lib/validations/address.schema.test.mjs",
     "test:product-detail": "node --test lib/storefrontProductDetail.test.mjs",
-    "test:portal": "node --test lib/pwa/safePortal.test.mjs lib/pwa/appShell.test.mjs",
+    "test:portal": "node --test lib/pwa/safePortal.test.mjs lib/pwa/portalInventory.test.mjs lib/pwa/appShell.test.mjs",
     "test:catalog-realtime": "node --import ./scripts/register-extensionless.mjs --test lib/coalesceCatalogRefetch.test.mjs lib/catalogRealtimeSocket.test.mjs lib/catalogRevisionPoll.test.mjs utils/productSizeSelection.test.mjs utils/cartLinePersist.soldByWeight.test.mjs utils/cartPromotions.soldByWeight.test.mjs utils/productUtils.soldByWeight.test.mjs utils/storefrontCheckoutLines.test.mjs lib/applyCatalogProductUpdates.test.mjs",
     "test:sold-by-weight": "node --import ./scripts/register-extensionless.mjs --test utils/productSizeSelection.test.mjs utils/cartLinePersist.soldByWeight.test.mjs utils/cartPromotions.soldByWeight.test.mjs utils/productUtils.soldByWeight.test.mjs utils/storefrontCheckoutLines.test.mjs lib/applyCatalogProductUpdates.test.mjs",
     "audit:ci": "npm audit --audit-level=high --omit=dev",

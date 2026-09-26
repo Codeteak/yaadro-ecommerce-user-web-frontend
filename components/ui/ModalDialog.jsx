@@ -2,6 +2,7 @@
 
 import * as Dialog from '@radix-ui/react-dialog';
 import { CloseRegular as X } from '../icons';
+import { getStablePortalContainer } from '../../lib/pwa/safePortal';
 
 export function ModalDialogOverlay({ className = 'z-50', ...props }) {
   return (
@@ -20,8 +21,11 @@ export function ModalDialogContent({
   onClose,
   ...props
 }) {
+  const container =
+    typeof document !== 'undefined' ? getStablePortalContainer() : null;
+
   return (
-    <Dialog.Portal>
+    <Dialog.Portal container={container ?? undefined}>
       <div className={`fixed inset-0 ${overlayClassName}`}>
         <ModalDialogOverlay className="absolute inset-0" />
         <Dialog.Content

@@ -31,16 +31,14 @@ function TrackShell({ children }) {
   }, []);
 
   const tree = (
-    <div className="absolute inset-0 z-[80] flex h-full min-h-0 w-full flex-col bg-white">
+    <div className="fixed inset-0 z-[80] mx-auto flex h-full min-h-0 w-full max-w-[430px] flex-col bg-white">
       {children}
     </div>
   );
 
   if (!ready) return tree;
-  // Prefer live `#app-shell` so tracking fills the phone column on desktop.
-  // This does not move `#yaadro-portal-root` (preferred host bypasses the body root).
-  const shell = typeof document !== 'undefined' ? getAppShellEl() : null;
-  return createAppPortal(tree, shell?.isConnected ? shell : null) || tree;
+  // Always body portal root — never `#app-shell` (removeChild null crash).
+  return createAppPortal(tree) || tree;
 }
 
 function TrackPageSkeleton() {
