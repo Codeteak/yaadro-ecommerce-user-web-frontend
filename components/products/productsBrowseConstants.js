@@ -22,3 +22,22 @@ export function isAllNamedCategory(category) {
   const slug = String(category.slug || '').trim().toLowerCase();
   return name === 'all' || slug === 'all';
 }
+
+/**
+ * Browse a category on the products page sidebar (same page drill-in), not /categories/[id].
+ * Prefers UUID so storefront `category_id` works immediately.
+ */
+export function productsCategoryHref(categoryOrId) {
+  if (categoryOrId == null || categoryOrId === '') return '/products';
+  if (typeof categoryOrId === 'string' || typeof categoryOrId === 'number') {
+    const raw = String(categoryOrId).trim();
+    if (!raw || isAllCategorySentinel(raw)) return '/products';
+    return `/products?category=${encodeURIComponent(raw)}`;
+  }
+  const id = String(categoryOrId.id ?? categoryOrId._id ?? '').trim();
+  const slug = String(categoryOrId.slug || '').trim();
+  const segment = id || slug;
+  if (!segment) return '/products';
+  return `/products?category=${encodeURIComponent(segment)}`;
+}
+

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../utils/categoryImage';
+import { productsCategoryHref } from './products/productsBrowseConstants';
 
 export default function CategoryCard({ category, labelClassName = 'text-gray-900', compact = false }) {
   const categoryName =
@@ -11,10 +12,10 @@ export default function CategoryCard({ category, labelClassName = 'text-gray-900
   const firstLine = categoryName.slice(0, 10);
   const secondLine = categoryName.length > 10 ? categoryName.slice(10) : '';
   const catObj = typeof category === 'object' ? category : { name: categoryName };
-  const categorySlugOrId = catObj.slug || catObj.id || catObj._id;
-  const href = categorySlugOrId
-    ? `/categories/${encodeURIComponent(categorySlugOrId)}`
-    : `/products?category=${encodeURIComponent(categoryName)}`;
+  const href =
+    typeof category === 'string'
+      ? productsCategoryHref(categoryName)
+      : productsCategoryHref(catObj);
 
   const initialSrc = getCategoryImageUrl(catObj);
   const [imgSrc, setImgSrc] = useState(initialSrc || CATEGORY_DUMMY_IMAGE);

@@ -3,13 +3,15 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
 import Container from '../../components/Container';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import { getEffectivePrice, getListPrice, formatRupeeINR } from '../../utils/productUtils';
 import { getResolvedProductImageUrls } from '../../utils/productImages';
-import { getProductDetailPath } from '../../utils/productApi';
+import { getProductDetailPath, toDisplayText } from '../../utils/productApi';
+import { navigateToProductDetail } from '../../utils/productNavigation';
 import {
   buildAvailableSizes,
   hasCustomWeightStep,
@@ -19,10 +21,17 @@ import CustomWeightChooser from '../../components/CustomWeightChooser';
 import { playAddTap } from '../../utils/playAddTap';
 
 export default function WishlistPage() {
+  const router = useRouter();
   const { wishlistItems, removeFromWishlist, clearWishlist } = useWishlist();
   const { addToCart } = useCart();
 
   const [weightProduct, setWeightProduct] = useState(null);
+
+  const openProduct = (item) => {
+    const path = getProductDetailPath(item);
+    if (path === '/products/') return;
+    navigateToProductDetail(router, path);
+  };
 
   const handleAddToCart = (product) => {
     if (hasCustomWeightStep(product)) {
@@ -114,11 +123,17 @@ export default function WishlistPage() {
               key={item.id}
               className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 group relative"
             >
-              <Link href={getProductDetailPath(item)}>
+              <Link
+                href={getProductDetailPath(item)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  openProduct(item);
+                }}
+              >
                 <div className="relative h-64 overflow-hidden">
                   <Image
                     src={getResolvedProductImageUrls(item)[0]}
-                    alt={`${item.name} – image 1`}
+                    alt={`${toDisplayText(item.name) || 'Product'} – image 1`}
                     fill
                     className="object-contain object-center"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -148,13 +163,19 @@ export default function WishlistPage() {
               </button>
 
               <div className="p-4 min-w-0">
-                <Link href={getProductDetailPath(item)}>
+                <Link
+                  href={getProductDetailPath(item)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    openProduct(item);
+                  }}
+                >
                   <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-1 hover:text-gray-600 transition-colors line-clamp-2 break-words">
-                    {item.name}
+                    {toDisplayText(item.name) || 'Product'}
                   </h3>
                 </Link>
                 <p className="text-gray-600 text-xs sm:text-sm mb-2 line-clamp-1 break-words">
-                  {item.description}
+                  {toDisplayText(item.description)}
                 </p>
                 <div className="flex items-center justify-between mb-3 gap-2">
                   <span className="text-lg sm:text-xl font-bold text-gray-900 truncate min-w-0">
@@ -167,6 +188,10 @@ export default function WishlistPage() {
                 <div className="flex gap-2">
                   <Link
                     href={getProductDetailPath(item)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      openProduct(item);
+                    }}
                     className="flex-1 text-center px-3 sm:px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors whitespace-nowrap"
                   >
                     View Details
@@ -197,7 +222,7 @@ export default function WishlistPage() {
           if (!open) setWeightProduct(null);
         }}
         product={weightProduct}
-        productName={weightProduct?.name}
+        productName={toDisplayText(weightProduct?.name)}
         sizes={weightProduct ? buildAvailableSizes(weightProduct) : []}
         onSelect={chooseWishlistWeight}
       />

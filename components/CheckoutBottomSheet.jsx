@@ -3,6 +3,7 @@
 import { formatQuantityWithPack } from '../utils/productUtils';
 import AnimatedSheet from './motion/AnimatedSheet';
 import ProductImageWithFallback from './ProductImageWithFallback';
+import { toDisplayText } from '../utils/productApi';
 
 export default function CheckoutBottomSheet({
   isOpen, 
@@ -33,33 +34,35 @@ export default function CheckoutBottomSheet({
           
           {/* Order Items */}
           <div className="space-y-3 mb-4">
-            {cartItems.map((item) => (
+            {cartItems.map((item) => {
+              const name = toDisplayText(item.name) || 'Product';
+              const categoryLabel =
+                toDisplayText(item.categoryName) ||
+                toDisplayText(item.category?.name) ||
+                toDisplayText(typeof item.category === 'string' ? item.category : '');
+              return (
               <div key={item.id} className="flex items-center gap-3">
                 <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0">
                   <ProductImageWithFallback
                     src={item.image || item.product?.images?.[0] || ''}
-                    alt={item.name}
+                    alt={name}
                     fill
                     className="object-contain"
                     sizes="48px"
-                    placeholderName={item.name || ''}
-                    placeholderCategory={
-                      item.categoryName ||
-                      item.category?.name ||
-                      (typeof item.category === 'string' ? item.category : '') ||
-                      ''
-                    }
+                    placeholderName={name}
+                    placeholderCategory={categoryLabel}
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
+                  <p className="text-sm font-medium text-gray-900 truncate">{name}</p>
                   <p className="text-xs text-gray-500">
                     {formatQuantityWithPack(item.quantity, item) || `Qty ${item.quantity}`}
                   </p>
                 </div>
                 <p className="text-sm font-semibold text-gray-900">₹{(item.price * item.quantity).toFixed(2)}</p>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Cost Breakdown */}

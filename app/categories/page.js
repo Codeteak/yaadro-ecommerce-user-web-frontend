@@ -7,12 +7,14 @@ import { useRouter } from 'next/navigation';
 import { useCategoriesTree, useSearchProducts, useProducts } from '../../hooks/useProducts';
 import ProductCarousel from '../../components/ProductCarousel';
 import { getResolvedProductImageUrls } from '../../utils/productImages';
-import { getProductDetailPath } from '../../utils/productApi';
+import { getProductDetailPath, toDisplayText } from '../../utils/productApi';
+import { navigateToProductDetail } from '../../utils/productNavigation';
 import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../../utils/categoryImage';
 import FloatingViewCartPill from '../../components/FloatingViewCartPill';
 import { CategoryCardSkeleton } from '../../components/skeletons/primitives';
 import ProductImageWithFallback from '../../components/ProductImageWithFallback';
 import BrowsePageHeader from '../../components/BrowsePageHeader';
+import { productsCategoryHref } from '../../components/products/productsBrowseConstants';
 
 /** Rotating hint (same UX as header search). */
 const FALLBACK_HINT_WORDS = [
@@ -106,14 +108,13 @@ function RotatingHintInput({ value, onChange, hintWords, inputProps }) {
    Blinkit-style: light tile + label below (no section grouping)
 ───────────────────────────────────────────── */
 function CategoryCard({ category, featured = false }) {
-  const categorySlugOrId = category.slug || category.id;
   const imageUrl = getCategoryImageUrl(category);
   const [imgSrc, setImgSrc] = useState(imageUrl || CATEGORY_DUMMY_IMAGE);
   const isDummy = imgSrc === CATEGORY_DUMMY_IMAGE;
 
   return (
     <Link
-      href={`/categories/${encodeURIComponent(categorySlugOrId)}`}
+      href={productsCategoryHref(category)}
       className={`flex flex-col items-center gap-1.5 select-none active:scale-[0.97] transition-transform ${
         featured ? 'col-span-2' : ''
       }`}
@@ -360,27 +361,27 @@ export default function CategoriesPage() {
                     onClick={() => {
                       const path = getProductDetailPath(p);
                       if (path === '/products/') return;
-                      router.push(path);
+                      navigateToProductDetail(router, path);
                     }}
                     className="w-full flex items-center gap-3 rounded-2xl border border-gray-100 bg-white px-3.5 py-3 text-left hover:border-gray-200 active:scale-[0.99] transition"
                   >
                     <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-gray-50 border border-gray-100">
                       <ProductImageWithFallback
                         src={img}
-                        alt={p?.name || 'Product'}
+                        alt={toDisplayText(p?.name) || 'Product'}
                         fill
                         className="object-contain"
                         sizes="48px"
-                        placeholderName={p?.name || ''}
-                        placeholderCategory={p?.category || p?.categoryName || ''}
+                        placeholderName={toDisplayText(p?.name) || ''}
+                        placeholderCategory={toDisplayText(p?.categoryName || p?.category)}
                       />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-[13px] font-medium text-gray-900 truncate">
-                        {p?.name}
+                        {toDisplayText(p?.name) || 'Product'}
                       </p>
                       <p className="mt-0.5 text-[11px] text-gray-500 truncate">
-                        {p?.category || p?.categoryName || ''}
+                        {toDisplayText(p?.categoryName || p?.category)}
                       </p>
                     </div>
                     <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>

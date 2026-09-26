@@ -13,6 +13,7 @@ import {
   formatSoldByWeightPurchaseLabel,
 } from '../../utils/productSizeSelection';
 import { lineListUnit, linePayTotal, lineUnitPrice } from '../../utils/offerDisplay';
+import { toDisplayText } from '../../utils/productApi';
 
 function OfferBadgePill({ children, tone = 'violet' }) {
   const tones = {
@@ -58,6 +59,8 @@ function LineRow({
   showStepper,
 }) {
   const imageSrc = getCartLinePreviewImageSrc(item);
+  const itemName = toDisplayText(item?.name) || 'Product';
+  const brandLabel = toDisplayText(item?.brand);
   const paidQty = isFree ? Number(item.quantity) || 1 : getCartLinePaidQty(item);
   const unit = lineUnitPrice(item);
   const listUnit = lineListUnit(item);
@@ -91,15 +94,15 @@ function LineRow({
       >
         <ProductImageWithFallback
           src={imageSrc}
-          alt={item.name || ''}
+          alt={itemName}
           fill
           className="object-contain object-center"
           sizes={isFree ? '44px' : '56px'}
-          placeholderName={item.name || ''}
+          placeholderName={itemName}
           placeholderCategory={
-            item.categoryName ||
-            item.category?.name ||
-            (typeof item.category === 'string' ? item.category : '') ||
+            toDisplayText(item.categoryName) ||
+            toDisplayText(item.category?.name) ||
+            toDisplayText(typeof item.category === 'string' ? item.category : '') ||
             ''
           }
         />
@@ -112,7 +115,7 @@ function LineRow({
               isFree ? 'text-[12px]' : 'text-[13px]'
             }`}
           >
-            {item.name}
+            {itemName}
           </p>
           {isFree ? <OfferBadgePill tone="green">FREE</OfferBadgePill> : null}
           {!isFree &&
@@ -131,11 +134,11 @@ function LineRow({
               <OfferBadgePill tone="red">SAVE ₹{Math.round(saveLine)}</OfferBadgePill>
             )}
         </div>
-        <p className="mt-0.5 text-[11px] text-gray-500">
+        <p className="mt-0.5 text-[11px] text-gray-400">
           {[
             formatSoldByWeightPurchaseLabel(item, paidQty) ||
               getCartLineVariantLabel(item),
-            item.brand,
+            brandLabel,
           ]
             .filter(Boolean)
             .join(' · ') || ' '}

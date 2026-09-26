@@ -272,10 +272,10 @@ export default function Home() {
   const homeCategoryHref = isAllCategorySentinel(homeCategoryId)
     ? '/products'
     : selectedHomeCategory
-      ? `/categories/${encodeURIComponent(
-          selectedHomeCategory.slug || selectedHomeCategory.id || selectedHomeCategory._id
+      ? `/products?category=${encodeURIComponent(
+          String(selectedHomeCategory.id || selectedHomeCategory._id || selectedHomeCategory.slug || '')
         )}`
-      : '/categories';
+      : '/products';
 
   const homeShelfCategoryId =
     homeCategoryId &&
@@ -663,6 +663,8 @@ export default function Home() {
         <HomeSections />
       </div>
 
+      <HomeClientShelves products={catalogProducts} slot="featured" />
+
       {/* Fresh Zone — tree fetch is deferred until this section nears the viewport */}
       <section
         ref={freshZoneSectionRef}
@@ -906,7 +908,7 @@ export default function Home() {
         )}
       </section>
 
-      <HomeClientShelves products={catalogProducts} />
+      <HomeClientShelves products={catalogProducts} slot="afterFresh" />
 
       <FloatingViewCartPill />
     </div>

@@ -1,8 +1,10 @@
 /* Yaadro storefront service worker — installable PWA for mobile + desktop.
- * Network-first for pages/API; cache for static assets and images.
+ * Network-first for pages, API, and hashed JS/CSS; cache for images.
  * Never cache HTML shells (they reference hashed chunks that vanish on deploy).
+ * CACHE_VERSION bump clears old runtime caches on activate.
  */
-const CACHE_VERSION = 'yaadro-pwa-v2';
+/* Bump on every SW behavior change so activate() drops old runtime caches. */
+const CACHE_VERSION = 'yaadro-pwa-v3';
 const PRECACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME = `${CACHE_VERSION}-runtime`;
 const IMAGES = `${CACHE_VERSION}-images`;
@@ -96,23 +98,26 @@ async function networkFirstNoHtmlCache(request, cacheName) {
 }
 
 /**
- * Cache-first for hashed static assets only after a successful network put.
- * On 404, drop any stale entry so we do not keep serving/hammering dead hashes.
+ * Network-first for hashed Next assets.
+ * Cache-first caused post-deploy “Application error” when a tab kept serving
+ * stale JS that no longer matched the live HTML/RSC graph.
  */
-async function staticAssetCacheFirst(request, cacheName) {
+async function staticAssetNetworkFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
-  if (cached) return cached;
-
-  const fresh = await fetch(request);
-  if (fresh && fresh.ok && request.method === 'GET') {
-    cache.put(request, fresh.clone()).catch(() => {});
+  try {
+    const fresh = await fetch(request);
+    if (fresh && fresh.ok && request.method === 'GET') {
+      cache.put(request, fresh.clone()).catch(() => {});
+    }
+    if (fresh && fresh.status === 404) {
+      await cache.delete(request).catch(() => {});
+    }
     return fresh;
+  } catch (err) {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw err;
   }
-  if (fresh && fresh.status === 404) {
-    await cache.delete(request).catch(() => {});
-  }
-  return fresh;
 }
 
 async function cacheFirst(request, cacheName) {
@@ -156,7 +161,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isSameOrigin(url) && isStaticAsset(url)) {
-    event.respondWith(staticAssetCacheFirst(request, RUNTIME));
+    event.respondWith(staticAssetNetworkFirst(request, RUNTIME));
   }
 });
 

@@ -1,4 +1,5 @@
 import ProductDetailClient from './ProductDetailClient';
+import ProductDetailErrorBoundary from '../../../components/ProductDetailErrorBoundary';
 import { generateProductMetadataForId } from '../../../utils/productMetadata';
 import { generateProductDetailStaticParams } from '../../../utils/productStaticParams';
 
@@ -18,5 +19,9 @@ export async function generateStaticParams() {
 }
 
 export default function ProductDetailPage() {
-  return <ProductDetailClient />;
+  return (
+    <ProductDetailErrorBoundary>
+      <ProductDetailClient />
+    </ProductDetailErrorBoundary>
+  );
 }

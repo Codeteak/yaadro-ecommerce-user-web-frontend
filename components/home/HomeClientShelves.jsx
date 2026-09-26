@@ -7,12 +7,23 @@ import { useAuth } from '../../context/AuthContext';
 import { dedupeProductsByVariantGroup, getPopularityScore } from '../../utils/productUtils';
 import { getBuyAgainFavorites } from '../../utils/buyAgainRecommendations';
 import HomeProductShelf from './HomeProductShelf';
+import HomeCategoryProductSections from './HomeCategoryProductSections';
+import HomeBrandProductSections from './HomeBrandProductSections';
 
 const FEATURED_TITLE = 'Featured Products';
 const BEST_SELLERS_TITLE = 'Best Sellers';
 const BUY_AGAIN_TITLE = 'Buy Again';
 
-export default function HomeClientShelves({ products: productsProp, hideFeatured = false } = {}) {
+/**
+ * @param {'featured' | 'afterFresh'} [slot]
+ *   featured — above Fresh Zone
+ *   afterFresh — Best Sellers, category grids, Buy Again
+ */
+export default function HomeClientShelves({
+  products: productsProp,
+  hideFeatured = false,
+  slot = 'afterFresh',
+} = {}) {
   const { isAuthenticated } = useAuth();
 
   const needsFallbackFetch = !Array.isArray(productsProp) || productsProp.length === 0;
@@ -51,7 +62,7 @@ export default function HomeClientShelves({ products: productsProp, hideFeatured
   const { data: ordersInfinite } = useInfiniteOrdersList(
     { limit: 20 },
     {
-      enabled: isAuthenticated,
+      enabled: isAuthenticated && slot === 'afterFresh',
       // Buy Again is a soft shelf — do not poll; reuse list for several minutes.
       staleTime: 5 * 60 * 1000,
       refetchOnWindowFocus: false,
@@ -68,32 +79,42 @@ export default function HomeClientShelves({ products: productsProp, hideFeatured
     sort_by: 'created_at',
     sort_order: 'desc',
     // Skip when home already provided a usable catalog pool.
-    enabled: isAuthenticated && orders.length > 0 && catalogProducts.length < 8,
+    enabled:
+      slot === 'afterFresh' &&
+      isAuthenticated &&
+      orders.length > 0 &&
+      catalogProducts.length < 8,
   });
 
   const buyAgainProducts = useMemo(() => {
-    if (!isAuthenticated || !orders.length) return [];
+    if (slot !== 'afterFresh' || !isAuthenticated || !orders.length) return [];
     const pool =
       recommendPoolData?.products?.length > 0
         ? recommendPoolData.products
         : catalogProducts;
     return getBuyAgainFavorites(pool, orders, { limit: 12 });
-  }, [isAuthenticated, orders, recommendPoolData?.products, catalogProducts]);
+  }, [
+    slot,
+    isAuthenticated,
+    orders,
+    recommendPoolData?.products,
+    catalogProducts,
+  ]);
 
-  const showFeatured = !hideFeatured && featuredProducts.length > 0;
-  if (!showFeatured && !bestSellerProducts.length && !buyAgainProducts.length) {
-    return null;
+  if (slot === 'featured') {
+    const showFeatured = !hideFeatured && featuredProducts.length > 0;
+    if (!showFeatured) return null;
+    return (
+      <HomeProductShelf
+        title={FEATURED_TITLE}
+        products={featuredProducts}
+        tone="plain"
+      />
+    );
   }
 
   return (
     <div>
-      {showFeatured ? (
-        <HomeProductShelf
-          title={FEATURED_TITLE}
-          products={featuredProducts}
-          tone="plain"
-        />
-      ) : null}
       {bestSellerProducts.length > 0 ? (
         <HomeProductShelf
           title={BEST_SELLERS_TITLE}
@@ -101,6 +122,8 @@ export default function HomeClientShelves({ products: productsProp, hideFeatured
           tone="plain"
         />
       ) : null}
+      <HomeCategoryProductSections />
+      <HomeBrandProductSections />
       {buyAgainProducts.length > 0 ? (
         <HomeProductShelf
           title={BUY_AGAIN_TITLE}
