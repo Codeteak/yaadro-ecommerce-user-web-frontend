@@ -1,7 +1,6 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useOrderDetail } from '../../../hooks/useOrders';
@@ -12,16 +11,18 @@ import {
   markTrackingOpenedThisSession,
 } from '../../../utils/deliveryTracking';
 import { getAppShellEl, lockAppScroll, unlockAppScroll } from '../../../lib/pwa/appShell';
+import { createAppPortal, ensurePortalRoot } from '../../../lib/pwa/safePortal';
 import PageTopBar from '../../../components/PageTopBar';
 import { Share2Regular as Share2 } from '../../../components/icons';
 
 function TrackShell({ children }) {
-  const [host, setHost] = useState(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const shell = getAppShellEl();
-    setHost(shell || document.body);
-    shell?.classList.add('app-shell-tracking');
+    ensurePortalRoot();
+    if (shell?.isConnected) shell.classList.add('app-shell-tracking');
+    setReady(true);
     lockAppScroll();
     return () => {
       shell?.classList.remove('app-shell-tracking');
@@ -35,8 +36,10 @@ function TrackShell({ children }) {
     </div>
   );
 
-  if (!host) return tree;
-  return createPortal(tree, host);
+  if (!ready) return tree;
+  // Prefer live shell so tracking fills the phone column; fall back to stable portal root.
+  const shell = typeof document !== 'undefined' ? getAppShellEl() : null;
+  return createAppPortal(tree, shell?.isConnected ? shell : null) || tree;
 }
 
 function TrackPageSkeleton() {

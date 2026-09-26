@@ -111,9 +111,10 @@ export function inferBrandFromProductName(name) {
 
 /**
  * Resolve brand label from storefront / Yaadro / nested API shapes.
- * Skips placeholder "Unknown". Falls back to name inference when `allowInfer`.
+ * Skips placeholder "Unknown". Name inference is opt-in (`allowInfer`) and
+ * off by default so product titles are not mistaken for brands.
  */
-export function resolveProductBrand(apiProduct, { allowInfer = true } = {}) {
+export function resolveProductBrand(apiProduct, { allowInfer = false } = {}) {
   if (!apiProduct || typeof apiProduct !== 'object') return '';
   const direct = [
     apiProduct.brand,
@@ -144,7 +145,7 @@ export function sanitizeProductUiFields(product) {
 
   product.name = toDisplayText(product.name) || toDisplayText(product.shortName) || 'Product';
   product.shortName = toDisplayText(product.shortName) || product.name;
-  product.brand = resolveProductBrand(product, { allowInfer: !toDisplayText(product.brand) });
+  product.brand = resolveProductBrand(product, { allowInfer: false });
   product.category = toDisplayText(product.category);
   product.categoryName = toDisplayText(product.categoryName) || product.category;
   product.subcategory = toDisplayText(product.subcategory);
