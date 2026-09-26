@@ -25,12 +25,15 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 RUN groupadd -r nextjs && useradd -r -g nextjs nextjs
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/package-lock.json ./package-lock.json
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/next.config.js ./next.config.js
+COPY --from=builder --chown=nextjs:nextjs /app/public ./public
+COPY --from=builder --chown=nextjs:nextjs /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nextjs /app/package-lock.json ./package-lock.json
+COPY --from=builder --chown=nextjs:nextjs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nextjs /app/.next ./.next
+COPY --from=builder --chown=nextjs:nextjs /app/next.config.js ./next.config.js
+# Next Incremental Cache writes fetch-cache at runtime; root-owned .next causes EACCES.
+RUN mkdir -p /app/.next/cache/fetch-cache \
+  && chown -R nextjs:nextjs /app/.next
 USER nextjs
 EXPOSE 3000
 CMD ["npm", "run", "start", "--", "-H", "0.0.0.0", "-p", "3000"]
