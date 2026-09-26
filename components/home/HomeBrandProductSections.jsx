@@ -68,7 +68,8 @@ function BrandProductSection({ brandName, products, isLoading }) {
 
 /**
  * Vertical brand product blocks for home — after category sections.
- * Groups catalog products by resolved brand (DB brand or name inference).
+ * Groups only by real catalog brand (no title inference — that made
+ * product names like "ANJEER BOX" look like brands).
  */
 export default function HomeBrandProductSections() {
   const { ready } = useStorefrontShopGate();
@@ -86,7 +87,7 @@ export default function HomeBrandProductSections() {
 
     for (const product of raw) {
       if (!product) continue;
-      const label = resolveProductBrand(product, { allowInfer: true });
+      const label = resolveProductBrand(product, { allowInfer: false });
       if (!label) continue;
       const key = brandKey(label);
       if (!key || key === 'unknown') continue;

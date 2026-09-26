@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Button } from '@heroui/react';
 import { ShoppingCart1Regular as ShoppingCart } from './icons';
@@ -14,7 +13,7 @@ import { getCartLinePreviewImageSrc } from '../utils/productImages';
 import { computeCartSavings } from '../utils/cartSavings';
 import ProductImageWithFallback from './ProductImageWithFallback';
 import CartSavingsCelebration from './CartSavingsCelebration';
-import { getAppShellEl } from '../lib/pwa/appShell';
+import { createAppPortal, ensurePortalRoot } from '../lib/pwa/safePortal';
 import { toDisplayText } from '../utils/productApi';
 
 /** Keep in sync with `LayoutHeightsProvider` initial `bottomNavHeight` — used when measurement lags or is 0. */
@@ -23,7 +22,8 @@ const MOBILE_BOTTOM_NAV_FALLBACK_PX = 72;
 const GAP_ABOVE_BOTTOM_NAV_PX = 14;
 /**
  * Floating cart pill — viewport-fixed, just above the mobile tab bar.
- * Portaled into `#app-shell` so desktop `transform` keeps it inside the phone column.
+ * Portaled into a stable host inside `#app-shell` (or body) so desktop column
+ * containment stays correct and HMR/ClientOnly remounts cannot detach the host.
  * Do NOT add `siteFooterHeight`: the brand footer is separate chrome; lifting by both
  * pushed this pill into the lower-middle of the viewport.
  * @param {number} [stackAboveBottomPx] — When set (e.g. PDP), CSS `bottom` in px; measure from the
@@ -32,7 +32,6 @@ const GAP_ABOVE_BOTTOM_NAV_PX = 14;
 export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [portalTarget, setPortalTarget] = useState(null);
   const { cartItems, cartCount, cartTotal, loading } = useCart();
   const { isAuthenticated, authHydrated } = useAuth();
   const { goToLogin } = useLoginNavigation();
@@ -52,7 +51,11 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
 
   useEffect(() => {
     setMounted(true);
-    setPortalTarget(getAppShellEl() || document.body);
+    // Ensure host exists before first portal paint; re-parent if shell remounts.
+    ensurePortalRoot();
+    const onVis = () => ensurePortalRoot();
+    window.addEventListener('pageshow', onVis);
+    return () => window.removeEventListener('pageshow', onVis);
   }, []);
 
   useEffect(() => {
@@ -132,7 +135,10 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
     };
   }, []);
 
-  if (!mounted || !portalTarget || cartItems.length === 0) return null;
+  if (!mounted || cartItems.length === 0) return null;
+
+  const portalHost = ensurePortalRoot();
+  if (!portalHost) return null;
 
   const navShowing = !bottomNavHidden && bottomNavVisible;
   /** Tab bar only — measured height already includes safe-area padding. */
@@ -243,5 +249,5 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
     </div>
   );
 
-  return createPortal(pill, portalTarget);
+  return createAppPortal(pill);
 }
