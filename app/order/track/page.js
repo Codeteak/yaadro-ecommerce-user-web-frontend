@@ -16,12 +16,12 @@ import PageTopBar from '../../../components/PageTopBar';
 import { Share2Regular as Share2 } from '../../../components/icons';
 
 function TrackShell({ children }) {
-  const [host, setHost] = useState(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const shell = getAppShellEl();
-    setHost(shell || document.body);
-    shell?.classList.add('app-shell-tracking');
+    if (shell?.isConnected) shell.classList.add('app-shell-tracking');
+    setReady(true);
     lockAppScroll();
     return () => {
       shell?.classList.remove('app-shell-tracking');
@@ -30,13 +30,14 @@ function TrackShell({ children }) {
   }, []);
 
   const tree = (
-    <div className="absolute inset-0 z-[80] flex h-full min-h-0 w-full flex-col bg-white">
+    <div className="fixed inset-0 z-[80] mx-auto flex h-full min-h-0 w-full max-w-[var(--app-shell-max,26.875rem)] flex-col bg-white">
       {children}
     </div>
   );
 
-  if (!host) return tree;
-  return createPortal(tree, host);
+  if (!ready || typeof document === 'undefined' || !document.body) return tree;
+  // Body only — never `#app-shell` (removeChild null crash).
+  return createPortal(tree, document.body);
 }
 
 function TrackPageSkeleton() {

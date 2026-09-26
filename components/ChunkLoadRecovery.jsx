@@ -20,8 +20,21 @@ function isChunkLoadError(err) {
   );
 }
 
+/** DOM commit crashes (stale SW / portal host detach) — recover once like chunk errors. */
+function isDomHydrationCorruption(err) {
+  if (!err) return false;
+  const name = String(err.name || '');
+  const msg = String(err.message || err || '');
+  return (
+    name === 'NotFoundError' ||
+    /Failed to execute 'removeChild' on 'Node'/i.test(msg) ||
+    /Cannot read properties of null \(reading 'removeChild'\)/i.test(msg) ||
+    /The node to be removed is not a child of this node/i.test(msg)
+  );
+}
+
 function shouldHardRecover(err) {
-  return isChunkLoadError(err);
+  return isChunkLoadError(err) || isDomHydrationCorruption(err);
 }
 
 /**
