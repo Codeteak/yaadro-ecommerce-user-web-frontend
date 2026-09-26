@@ -545,7 +545,8 @@ function CartPageContent() {
   );
 
   const handleCartQtyChange = (id, qty) => {
-    if (qty < 1) {
+    // Sold-by-weight qty is kg (e.g. 0.1 for 100 g). Only remove at <= 0.
+    if (!(Number(qty) > 0)) {
       removeFromCart(id);
       return;
     }

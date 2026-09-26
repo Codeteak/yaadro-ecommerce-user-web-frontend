@@ -153,11 +153,20 @@ function resolveCartLinePricing(apiItem, quantity, isBundleReward) {
     };
   }
 
-  const paidQty = Math.max(
-    1,
-    Number(apiItem.paid_quantity ?? apiItem.paidQuantity ?? apiItem.billable_quantity ?? apiItem.billableQuantity ?? quantity) ||
+  const paidQtyRaw = Number(
+    apiItem.paid_quantity ??
+      apiItem.paidQuantity ??
+      apiItem.billable_quantity ??
+      apiItem.billableQuantity ??
       quantity
   );
+  // Sold-by-weight may be fractional kg (e.g. 0.1). Do not floor up to 1.
+  const paidQty =
+    Number.isFinite(paidQtyRaw) && paidQtyRaw > 0
+      ? paidQtyRaw
+      : Number.isFinite(quantity) && quantity > 0
+        ? quantity
+        : 1;
 
   let lineTotal = minorToMajor(lineTotalMinor);
   if (!(lineTotal > 0) && finalPerUnitMinor > 0) {

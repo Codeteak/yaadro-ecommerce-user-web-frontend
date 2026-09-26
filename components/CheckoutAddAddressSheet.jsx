@@ -6,6 +6,10 @@ import { CloseRegular as X, Loading2Regular as Loader2 } from './icons';
 import { useAuth } from '../context/AuthContext';
 import { updateProfile, resolveShopId } from '../utils/authApi';
 import { normalizePhoneForApi } from '../utils/otpVerifyPayload';
+import {
+  clearPendingCustomerName,
+  getPendingCustomerName,
+} from '../utils/pendingCustomerName';
 import IndianPhoneInput from './IndianPhoneInput';
 import { validateAddressCheckoutForm } from '../lib/validations/address.schema';
 import { sanitizeAddressNotes } from '../utils/addressApi';
@@ -72,6 +76,7 @@ export default function CheckoutAddAddressSheet({
 
   const nameFromProfile = (user?.name || initialFullName || '').trim();
   const phoneFromProfile = (user?.phone || initialPhone || '').trim();
+  const nameFromPending = getPendingCustomerName(phoneFromProfile || user?.phone);
   const nameFromAddress = (editingAddress?.fullName || '').trim();
   const phoneFromAddress = (editingAddress?.phone || '').trim();
 
@@ -104,8 +109,10 @@ export default function CheckoutAddAddressSheet({
     setGeoStatus('idle');
     if (isEdit && editingAddress) {
       setForm(addressToForm(editingAddress));
-      setNameDraft(nameFromProfile ? '' : (nameFromAddress || ''));
-      setPhoneDraft(phoneFromProfile ? '' : (phoneFromAddress || ''));
+      setNameDraft(
+        nameFromProfile ? '' : nameFromAddress || nameFromPending || ''
+      );
+      setPhoneDraft(phoneFromProfile ? '' : phoneFromAddress || '');
       const la = Number(editingAddress.lat);
       const ln = Number(editingAddress.lng);
       if (Number.isFinite(la) && Number.isFinite(ln)) {
@@ -113,10 +120,19 @@ export default function CheckoutAddAddressSheet({
       }
     } else {
       setForm(emptyForm());
-      setNameDraft('');
+      setNameDraft(nameFromProfile ? '' : nameFromPending || '');
       setPhoneDraft('');
     }
-  }, [isOpen, isEdit, editingAddress?.id, nameFromProfile, phoneFromProfile, nameFromAddress, phoneFromAddress]);
+  }, [
+    isOpen,
+    isEdit,
+    editingAddress?.id,
+    nameFromProfile,
+    phoneFromProfile,
+    nameFromAddress,
+    phoneFromAddress,
+    nameFromPending,
+  ]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -342,7 +358,11 @@ export default function CheckoutAddAddressSheet({
       return;
     }
 
-    const finalName = (needsNameField ? nameDraft.trim() || nameFromAddress : nameFromProfile).trim();
+    const finalName = (
+      needsNameField
+        ? nameDraft.trim() || nameFromAddress || nameFromPending
+        : nameFromProfile
+    ).trim();
     const finalPhone = needsPhoneField
       ? normalizePhoneForApi(phoneDraft) || normalizePhoneForApi(phoneFromAddress)
       : normalizePhoneForApi(phoneFromProfile);
@@ -360,6 +380,7 @@ export default function CheckoutAddAddressSheet({
       if (needsNameField && finalName) {
         await updateProfile({ displayName: finalName });
         await refreshUser({ silent: true });
+        clearPendingCustomerName(phoneFromProfile || finalPhone || user?.phone);
       }
 
       const payload = {

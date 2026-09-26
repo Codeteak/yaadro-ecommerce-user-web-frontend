@@ -7,7 +7,11 @@ import {
   getCartLinePaidQty,
   isBundleRewardCartLine,
 } from '../../utils/cartPromotions';
-import { cartQuantityStep, formatCartQtyControlLabel } from '../../utils/productSizeSelection';
+import {
+  cartQuantityStep,
+  formatCartQtyControlLabel,
+  formatSoldByWeightPurchaseLabel,
+} from '../../utils/productSizeSelection';
 import { lineListUnit, linePayTotal, lineUnitPrice } from '../../utils/offerDisplay';
 import { toDisplayText } from '../../utils/productApi';
 
@@ -131,7 +135,13 @@ function LineRow({
             )}
         </div>
         <p className="mt-0.5 text-[11px] text-gray-400">
-          {[getCartLineVariantLabel(item), brandLabel].filter(Boolean).join(' · ') || ' '}
+          {[
+            formatSoldByWeightPurchaseLabel(item, paidQty) ||
+              getCartLineVariantLabel(item),
+            brandLabel,
+          ]
+            .filter(Boolean)
+            .join(' · ') || ' '}
         </p>
 
         <div className="mt-2 flex items-center justify-between gap-2">

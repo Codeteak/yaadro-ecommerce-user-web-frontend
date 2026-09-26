@@ -13,6 +13,10 @@ import { persistAccessToken } from '../utils/apiClient';
 import { normalizeOtpCodeInput } from '../utils/otpVerifyPayload';
 import { getIndianPhoneSubmitError, isValidIndianMobile } from '../utils/indianPhone';
 import { otpSchema, firstZodIssueMessage } from '../lib/validations/auth.schema';
+import {
+  getOtpRetryAfterSeconds,
+  isOtpResendCooldownError,
+} from '../utils/otpLoginLifecycle';
 
 const RESEND_WAIT_SEC = 60;
 
@@ -76,6 +80,12 @@ export default function PhoneChangeOtpSheet({
       setStep('otp');
       setResendSecondsLeft(RESEND_WAIT_SEC);
     } catch (err) {
+      if (isOtpResendCooldownError(err)) {
+        setStep('otp');
+        setResendSecondsLeft(getOtpRetryAfterSeconds(err));
+        setError('');
+        return;
+      }
       setError(err?.message || 'Could not send OTP. Please wait and try again.');
     } finally {
       setPending(false);

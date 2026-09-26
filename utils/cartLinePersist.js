@@ -81,10 +81,15 @@ export function cartLinesMatch(a, b) {
  */
 export function findPaidCartLine(cartItems, productId, selectedSize = null, productHint = null) {
   if (!Array.isArray(cartItems) || productId == null) return null;
+  const soldByWeight =
+    productHint != null && isSoldByWeightProduct(productHint);
   const probe = {
     id: productId,
     productId,
     ...(selectedSize ? { selectedSize } : {}),
+    ...(soldByWeight
+      ? { soldByWeight: true, sold_by_weight: true }
+      : {}),
     ...(productHint && typeof productHint === 'object'
       ? {
           weight: productHint.weight,
@@ -325,7 +330,12 @@ export function addOrMergeCartLine(prevItems, persistableLine, addQty) {
     return {
       ...row,
       ...persistableLine,
-      quantity: (Number(row.quantity) || 1) + safeAdd,
+      quantity:
+        (soldByWeight
+          ? Number(row.quantity) > 0
+            ? Number(row.quantity)
+            : 0
+          : Math.max(1, Math.trunc(Number(row.quantity) || 0) || 1)) + safeAdd,
       cartItemId: row.cartItemId,
       cartItemKey: row.cartItemKey ?? persistableLine.cartItemKey,
     };

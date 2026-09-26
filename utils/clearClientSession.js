@@ -1,4 +1,5 @@
 import { clearSessionExpiresAt, AUTH_SESSION_EXPIRES_KEY, POST_LOGIN_REDIRECT_KEY } from './authSession';
+import { PENDING_LOGIN_OTP_STORAGE_KEY } from './otpLoginLifecycle';
 
 /**
  * Every localStorage key this app writes — keep in sync when adding new keys.
@@ -51,9 +52,16 @@ const SESSION_STORAGE_KEYS = [
   'yaadro-service-area-warned',
   'yaadro_checkout_draft_v1',
   POST_LOGIN_REDIRECT_KEY,
+  PENDING_LOGIN_OTP_STORAGE_KEY,
 ];
 
-const LOCAL_STORAGE_PREFIXES = ['yaadro_address_edit_'];
+const LOCAL_STORAGE_PREFIXES = [
+  'yaadro_address_edit_',
+  'yaadro_cart_',
+  'yaadro_wishlist_',
+  'yaadro_otp_rate_limit_until_v1:',
+  'yaadro_pending_customer_name_v1:',
+];
 
 function clearLocalStorageByPrefixes(prefixes) {
   if (typeof window === 'undefined') return;

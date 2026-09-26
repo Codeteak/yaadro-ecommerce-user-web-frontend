@@ -31,7 +31,7 @@ import {
   stripPackFromProductName,
 } from '../../../utils/productUtils';
 import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep, weightStepLinePrices, hasCustomWeightStep, formatCartQtyControlLabel } from '../../../utils/productSizeSelection';
-import { playAddTap } from '../../../utils/playAddTap';
+import { playAddTap, playAddTapAndHold } from '../../../utils/playAddTap';
 import Container from '../../../components/Container';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
 import PdpOfferPanel from '../../../components/promotions/PdpOfferPanel';
@@ -140,7 +140,7 @@ function ReviewCard({ author, rating, text }) {
 export default function ProductDetailClient({ productId = null }) {
   const params = useParams();
   const router = useRouter();
-  const { addToCart, cartItems, updateQuantity, removeFromCart } = useCart();
+  const { addToCart, cartItems, updateQuantity, removeFromCart, setShowSidebarCart } = useCart();
   const { addToRecentlyViewed } = useRecentlyViewed();
   const { showAlert } = useAlert();
   const { shopName } = useShopBranding();
@@ -413,15 +413,15 @@ export default function ProductDetailClient({ productId = null }) {
     : null;
 
   const handleAddToCart = useCallback(async (event) => {
-    playAddTap(event?.currentTarget);
-    if (!productToAddPayload || !product?.inStock) return;
+    if (!productToAddPayload || !product?.inStock || cartActionLoading) return;
+    await playAddTapAndHold(event?.currentTarget);
     setCartActionLoading(true);
     try {
       await addToCart(productToAddPayload, sizeAddQuantity(product, activeSize));
     } finally {
       setCartActionLoading(false);
     }
-  }, [addToCart, productToAddPayload, product?.inStock, activeSize]);
+  }, [addToCart, productToAddPayload, product, activeSize, cartActionLoading]);
 
   const handleStepperIncrement = useCallback(() => {
     if (cartActionLoading || !productToAddPayload || cartUpdateKey == null) return;
@@ -706,7 +706,10 @@ export default function ProductDetailClient({ productId = null }) {
                           >
                             <button
                               type="button"
-                              onClick={() => void handleStepperDecrement()}
+                              onClick={(e) => {
+                                playAddTap(e.currentTarget);
+                                void handleStepperDecrement();
+                              }}
                               disabled={cartActionLoading}
                               className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] transition active:scale-95 disabled:opacity-50"
                               aria-label="Decrease quantity"
@@ -718,7 +721,10 @@ export default function ProductDetailClient({ productId = null }) {
                             </span>
                             <button
                               type="button"
-                              onClick={() => void handleStepperIncrement()}
+                              onClick={(e) => {
+                                playAddTap(e.currentTarget);
+                                void handleStepperIncrement();
+                              }}
                               disabled={cartActionLoading}
                               className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[#902bf5] transition active:scale-95 disabled:opacity-50"
                               aria-label="Increase quantity"
@@ -731,12 +737,13 @@ export default function ProductDetailClient({ productId = null }) {
                               +{bundleFreeExtra} free
                             </span>
                           ) : null}
-                          <Link
-                            href="/cart"
+                          <button
+                            type="button"
+                            onClick={() => setShowSidebarCart(true)}
                             className="inline-flex h-9 items-center justify-center rounded-full px-3 text-[12px] font-semibold text-[#902bf5] transition hover:bg-violet-50"
                           >
-                            Go to cart
-                          </Link>
+                            View cart
+                          </button>
                         </>
                       ) : (
                         <button

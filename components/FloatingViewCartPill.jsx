@@ -1,12 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@heroui/react';
 import { ShoppingCart1Regular as ShoppingCart } from './icons';
 import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext';
-import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useBottomNavVisibility } from '../context/BottomNavVisibilityContext';
 import { useLayoutHeights } from '../context/LayoutHeightsContext';
 import { getCartLinePreviewImageSrc } from '../utils/productImages';
@@ -30,11 +27,8 @@ const GAP_ABOVE_BOTTOM_NAV_PX = 14;
  *   owning page using the fixed bar’s `getBoundingClientRect().top` vs `visualViewport`.
  */
 export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
-  const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const { cartItems, cartCount, cartTotal, loading } = useCart();
-  const { isAuthenticated, authHydrated } = useAuth();
-  const { goToLogin } = useLoginNavigation();
+  const { cartItems, cartCount, cartTotal, loading, setShowSidebarCart } = useCart();
   const { isVisible: bottomNavVisible, hideForRoute: bottomNavHidden } = useBottomNavVisibility();
   const { bottomNavHeight } = useLayoutHeights();
 
@@ -170,15 +164,11 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
       <Button
         variant="ghost"
         onPress={() => {
-          if (!authHydrated) return;
-          if (isAuthenticated) {
-            router.push('/cart');
-            return;
-          }
-          goToLogin('/cart');
+          // Guest-safe: open edit drawer (qty +/− / remove). Login only at checkout.
+          setShowSidebarCart(true);
         }}
         className="pointer-events-auto group relative flex h-auto w-full max-w-[420px] items-center gap-3 overflow-hidden rounded-full border border-gray-200/90 bg-white/95 px-3 py-2.5 shadow-[0_8px_32px_rgba(15,23,42,0.1)] backdrop-blur-md animate-slide-up transition-all duration-200 hover:border-violet-200 hover:bg-white hover:shadow-[0_14px_40px_rgba(144,43,245,0.12)] active:scale-[0.98] motion-reduce:animate-none"
-        aria-label={`Go to cart, ${cartCount} ${cartCount === 1 ? 'item' : 'items'}${savingsRounded > 0 ? `, saving ₹${savingsRounded}` : ''}`}
+        aria-label={`View cart, ${cartCount} ${cartCount === 1 ? 'item' : 'items'}${savingsRounded > 0 ? `, saving ₹${savingsRounded}` : ''}`}
       >
         {celebrationBurst > 0 && (
           <>
@@ -233,7 +223,7 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
             <p className="text-[11px] font-medium leading-none text-gray-500">
               {cartCount} {cartCount === 1 ? 'item' : 'items'} in cart
             </p>
-            <p className="mt-1 text-sm font-bold leading-none text-gray-900">Go to cart</p>
+            <p className="mt-1 text-sm font-bold leading-none text-gray-900">View cart</p>
             {savingsRounded > 0 && (
               <p className="mt-1 text-[11px] font-semibold leading-snug text-violet-700">
                 Saving ₹{savingsRounded.toLocaleString('en-IN')}

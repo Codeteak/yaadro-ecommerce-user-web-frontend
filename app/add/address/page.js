@@ -19,6 +19,10 @@ import ConfirmModal from '../../../components/ConfirmModal';
 import { useRequireAuth } from '../../../hooks/useRequireAuth';
 import { updateProfile, resolveShopId } from '../../../utils/authApi';
 import { normalizePhoneForApi } from '../../../utils/otpVerifyPayload';
+import {
+  clearPendingCustomerName,
+  getPendingCustomerName,
+} from '../../../utils/pendingCustomerName';
 import { getIndianPhoneSubmitError } from '../../../utils/indianPhone';
 import IndianPhoneInput from '../../../components/IndianPhoneInput';
 import { haversineKm, formatDistanceKm } from '../../../utils/geoDistance';
@@ -165,6 +169,7 @@ export default function AddAddressPage() {
   // ── Contact (name / phone) ──
   const nameFromProfile = (user?.name || '').trim();
   const phoneFromProfile = (user?.phone || '').trim();
+  const nameFromPending = getPendingCustomerName(phoneFromProfile || user?.phone);
   const needsName = !nameFromProfile;
   const needsPhone = !phoneFromProfile;
   const [nameDraft, setNameDraft] = useState('');
@@ -182,7 +187,7 @@ export default function AddAddressPage() {
   const saveCompletedRef = useRef(false);
   const lastSavedAddressIdRef = useRef(null);
 
-  const savedName = keptContactName(editingAddress, nameFromProfile);
+  const savedName = keptContactName(editingAddress, nameFromProfile || nameFromPending);
 
   // Edit opens on the saved address. Name stays filled from the profile or this address.
   useEffect(() => {
@@ -267,6 +272,14 @@ export default function AddAddressPage() {
       return { ...prev, name: savedName };
     });
   }, [isEdit, savedName]);
+
+  // New address: seed name from local pending draft (OTP onboarding) when profile is empty.
+  useEffect(() => {
+    if (isEdit) return;
+    if (nameFromProfile) return;
+    if (!nameFromPending) return;
+    setNameDraft((prev) => (String(prev || '').trim() ? prev : nameFromPending));
+  }, [isEdit, nameFromProfile, nameFromPending]);
 
   const hasEditChanges = useMemo(() => {
     if (!isEdit || !editBaseline) return false;
@@ -542,7 +555,7 @@ export default function AddAddressPage() {
       return;
     }
 
-    const finalName = (nameDraft.trim() || nameFromProfile || savedName).trim();
+    const finalName = (nameDraft.trim() || nameFromProfile || nameFromPending || savedName).trim();
     const finalPhone = needsPhone
       ? normalizePhoneForApi(phoneDraft)
       : normalizePhoneForApi(phoneFromProfile);
@@ -557,6 +570,7 @@ export default function AddAddressPage() {
       if (finalName && finalName !== nameFromProfile) {
         await updateProfile({ displayName: finalName });
         await refreshUser({ silent: true });
+        clearPendingCustomerName(phoneFromProfile || finalPhone || user?.phone);
       }
 
       const payload = buildPayload(finalName, finalPhone);
