@@ -13,108 +13,12 @@ import {
 } from './productUtils';
 import { normalizeStorefrontProductPricing } from './storefrontProductPricing';
 import { resolveStorefrontProductUpstreamPath } from '../lib/storefrontProductDetail.js';
+import { toDisplayText, sanitizeProductUiFields, resolveProductBrand } from './displayText.js';
+
+export { toDisplayText, sanitizeProductUiFields, resolveProductBrand } from './displayText.js';
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-/**
- * Coerce API fields that may be string | object | array into safe UI text.
- * Prevents "Objects are not valid as a React child" on PDP and cards.
- */
-export function toDisplayText(value) {
-  if (value == null || value === false) return '';
-  if (typeof value === 'string') return value.trim();
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (typeof value === 'bigint') return String(value);
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => toDisplayText(item))
-      .filter(Boolean)
-      .join(', ');
-  }
-  if (typeof value === 'object') {
-    // Prefer common human-readable keys before JSON dump.
-    for (const key of [
-      'name',
-      'label',
-      'title',
-      'text',
-      'slug',
-      'value',
-      'message',
-      'description',
-      'en',
-      'en_US',
-      'en-US',
-    ]) {
-      const part = value[key];
-      if (typeof part === 'string' && part.trim()) return part.trim();
-      if (typeof part === 'number' || typeof part === 'boolean') return String(part);
-    }
-    if (Array.isArray(value.items)) return toDisplayText(value.items);
-    if (Array.isArray(value.values)) return toDisplayText(value.values);
-    // First nested string (e.g. { en: "Coffee" } without hitting preferred key order)
-    for (const part of Object.values(value)) {
-      if (typeof part === 'string' && part.trim()) return part.trim();
-    }
-    try {
-      const json = JSON.stringify(value);
-      return json && json !== '{}' && json !== 'null' && json !== '[]' ? json : '';
-    } catch {
-      return '';
-    }
-  }
-  return '';
-}
-
-/**
- * Final pass so every product leaving transformProduct is safe to render as text.
- * Mutates and returns the same object for call-site convenience.
- */
-export function sanitizeProductUiFields(product) {
-  if (!product || typeof product !== 'object') return product;
-
-  product.name = toDisplayText(product.name) || toDisplayText(product.shortName) || 'Product';
-  product.shortName = toDisplayText(product.shortName) || product.name;
-  product.brand = toDisplayText(product.brand);
-  product.category = toDisplayText(product.category);
-  product.categoryName = toDisplayText(product.categoryName) || product.category;
-  product.subcategory = toDisplayText(product.subcategory);
-  product.primaryCategoryName = toDisplayText(product.primaryCategoryName);
-  product.description = toDisplayText(product.description);
-  product.ingredients = toDisplayText(product.ingredients);
-  product.packSize = toDisplayText(product.packSize);
-  product.shelfLife = toDisplayText(product.shelfLife);
-  product.countryOfOrigin = toDisplayText(product.countryOfOrigin);
-  product.warranty = toDisplayText(product.warranty);
-  product.deliveryTimeEstimate = toDisplayText(product.deliveryTimeEstimate) || null;
-  product.storageInstructions = toDisplayText(product.storageInstructions) || null;
-  product.allergenInformation = toDisplayText(product.allergenInformation) || null;
-  product.vegNonVeg =
-    product.vegNonVeg == null || product.vegNonVeg === ''
-      ? null
-      : toDisplayText(product.vegNonVeg) || null;
-
-  if (
-    product.nutritionalInformation != null &&
-    typeof product.nutritionalInformation !== 'string' &&
-    typeof product.nutritionalInformation !== 'object'
-  ) {
-    product.nutritionalInformation = toDisplayText(product.nutritionalInformation) || null;
-  }
-
-  if (Array.isArray(product.tags)) {
-    product.tags = product.tags.map((t) => toDisplayText(t)).filter(Boolean);
-  }
-
-  if (Array.isArray(product.frequentlyBoughtTogether)) {
-    product.frequentlyBoughtTogether = product.frequentlyBoughtTogether.map((item) => {
-      if (!item || typeof item !== 'object') return item;
-      return sanitizeProductUiFields({ ...item });
-    });
-  }
-
-  return product;
-}
 
 function coerceSoldByWeightFlag(value) {
   if (value === true || value === 1) return true;
@@ -340,7 +244,7 @@ function transformProduct(apiProduct) {
         coerceSoldByWeightFlag(apiProduct.sold_by_weight) ||
         coerceSoldByWeightFlag(apiProduct.soldByWeight),
       packSize: toDisplayText(apiProduct.pack_size ?? apiProduct.packSize),
-      brand: toDisplayText(apiProduct.brand),
+      brand: resolveProductBrand(apiProduct),
       ingredients: toDisplayText(apiProduct.ingredients),
       sku: '',
       barcode: '',
@@ -353,6 +257,7 @@ function transformProduct(apiProduct) {
       thumbnail: apiProduct.thumbnail || null,
       categoryId: apiProduct.category_id || null,
       categoryObj: apiProduct.category || null,
+      brandId: apiProduct.brand_id || apiProduct.brandId || null,
       allergenInformation: toDisplayText(apiProduct.allergenInformation) || null,
       nutritionalInformation:
         typeof apiProduct.nutritionalInformation === 'string' ||
@@ -445,7 +350,7 @@ function transformProduct(apiProduct) {
       coerceSoldByWeightFlag(apiProduct.sold_by_weight) ||
       coerceSoldByWeightFlag(apiProduct.soldByWeight),
     packSize: toDisplayText(apiProduct.packSize),
-    brand: toDisplayText(apiProduct.brand),
+    brand: resolveProductBrand(apiProduct),
     sku: apiProduct.sku || '',
     barcode: apiProduct.barcode || '',
     vegNonVeg: apiProduct.vegNonVeg || null,

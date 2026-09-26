@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import Link from 'next/link';
 import { useProducts } from '../../hooks/useProducts';
 import { useStorefrontShopGate } from '../../hooks/useStorefrontShopGate';
-import { toDisplayText } from '../../utils/productApi';
+import { resolveProductBrand } from '../../utils/displayText';
 import { dedupeProductsByVariantGroup } from '../../utils/productUtils';
 import ProductGrid from '../ProductGrid';
 import { ArrowRightRegular as ArrowRight } from '../icons';
@@ -68,7 +68,7 @@ function BrandProductSection({ brandName, products, isLoading }) {
 
 /**
  * Vertical brand product blocks for home — after category sections.
- * Groups catalog products by product.brand; no cart/pricing changes.
+ * Groups catalog products by resolved brand (DB brand or name inference).
  */
 export default function HomeBrandProductSections() {
   const { ready } = useStorefrontShopGate();
@@ -86,10 +86,10 @@ export default function HomeBrandProductSections() {
 
     for (const product of raw) {
       if (!product) continue;
-      const label = toDisplayText(product.brand);
+      const label = resolveProductBrand(product, { allowInfer: true });
       if (!label) continue;
       const key = brandKey(label);
-      if (!key) continue;
+      if (!key || key === 'unknown') continue;
       let entry = byKey.get(key);
       if (!entry) {
         entry = { name: label, products: [] };

@@ -4,7 +4,7 @@
  * CACHE_VERSION bump clears old runtime caches on activate.
  */
 /* Bump on every SW behavior change so activate() drops old runtime caches. */
-const CACHE_VERSION = 'yaadro-pwa-v3';
+const CACHE_VERSION = 'yaadro-pwa-v4';
 const PRECACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME = `${CACHE_VERSION}-runtime`;
 const IMAGES = `${CACHE_VERSION}-images`;
