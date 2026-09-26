@@ -8,7 +8,6 @@ import { SearchRegular as Search } from '../icons';
 import { getProductDetailPath } from '../../utils/productApi';
 import { navigateToProductDetail } from '../../utils/productNavigation';
 import { useProductSearchSuggest } from '../../hooks/useProductSearchSuggest';
-import { getStablePortalContainer } from '../../lib/pwa/safePortal';
 
 export default function SearchSuggestInput({
   value,
@@ -189,13 +188,7 @@ export default function SearchSuggestInput({
         </Popover.Anchor>
 
         {showDropdown ? (
-          <Popover.Portal
-            container={
-              typeof document !== 'undefined'
-                ? getStablePortalContainer() ?? undefined
-                : undefined
-            }
-          >
+          <Popover.Portal>
             <Popover.Content
               className="z-[120] mt-2 w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl outline-none"
               align="start"

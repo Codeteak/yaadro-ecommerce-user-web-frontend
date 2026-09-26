@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useOrderDetail } from '../../../hooks/useOrders';
@@ -11,18 +12,16 @@ import {
   markTrackingOpenedThisSession,
 } from '../../../utils/deliveryTracking';
 import { getAppShellEl, lockAppScroll, unlockAppScroll } from '../../../lib/pwa/appShell';
-import { createAppPortal, ensurePortalRoot } from '../../../lib/pwa/safePortal';
 import PageTopBar from '../../../components/PageTopBar';
 import { Share2Regular as Share2 } from '../../../components/icons';
 
 function TrackShell({ children }) {
-  const [ready, setReady] = useState(false);
+  const [host, setHost] = useState(null);
 
   useEffect(() => {
     const shell = getAppShellEl();
-    ensurePortalRoot();
-    if (shell?.isConnected) shell.classList.add('app-shell-tracking');
-    setReady(true);
+    setHost(shell || document.body);
+    shell?.classList.add('app-shell-tracking');
     lockAppScroll();
     return () => {
       shell?.classList.remove('app-shell-tracking');
@@ -31,14 +30,13 @@ function TrackShell({ children }) {
   }, []);
 
   const tree = (
-    <div className="fixed inset-0 z-[80] mx-auto flex h-full min-h-0 w-full max-w-[430px] flex-col bg-white">
+    <div className="absolute inset-0 z-[80] flex h-full min-h-0 w-full flex-col bg-white">
       {children}
     </div>
   );
 
-  if (!ready) return tree;
-  // Always body portal root — never `#app-shell` (removeChild null crash).
-  return createAppPortal(tree) || tree;
+  if (!host) return tree;
+  return createPortal(tree, host);
 }
 
 function TrackPageSkeleton() {

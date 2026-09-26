@@ -1,16 +1,20 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useRouter } from 'next/navigation';
 import { Button } from '@heroui/react';
 import { ShoppingCart1Regular as ShoppingCart } from './icons';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useBottomNavVisibility } from '../context/BottomNavVisibilityContext';
 import { useLayoutHeights } from '../context/LayoutHeightsContext';
 import { getCartLinePreviewImageSrc } from '../utils/productImages';
 import { computeCartSavings } from '../utils/cartSavings';
 import ProductImageWithFallback from './ProductImageWithFallback';
 import CartSavingsCelebration from './CartSavingsCelebration';
-import { createAppPortal, ensurePortalRoot } from '../lib/pwa/safePortal';
+import { getAppShellEl } from '../lib/pwa/appShell';
 import { toDisplayText } from '../utils/productApi';
 
 /** Keep in sync with `LayoutHeightsProvider` initial `bottomNavHeight` — used when measurement lags or is 0. */
@@ -19,15 +23,19 @@ const MOBILE_BOTTOM_NAV_FALLBACK_PX = 72;
 const GAP_ABOVE_BOTTOM_NAV_PX = 14;
 /**
  * Floating cart pill — viewport-fixed, just above the mobile tab bar.
- * Portaled into a stable body-mounted host so shell remounts cannot detach it.
+ * Portaled into `#app-shell` so desktop `transform` keeps it inside the phone column.
  * Do NOT add `siteFooterHeight`: the brand footer is separate chrome; lifting by both
  * pushed this pill into the lower-middle of the viewport.
  * @param {number} [stackAboveBottomPx] — When set (e.g. PDP), CSS `bottom` in px; measure from the
  *   owning page using the fixed bar’s `getBoundingClientRect().top` vs `visualViewport`.
  */
 export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const { cartItems, cartCount, cartTotal, loading, setShowSidebarCart } = useCart();
+  const [portalTarget, setPortalTarget] = useState(null);
+  const { cartItems, cartCount, cartTotal, loading } = useCart();
+  const { isAuthenticated, authHydrated } = useAuth();
+  const { goToLogin } = useLoginNavigation();
   const { isVisible: bottomNavVisible, hideForRoute: bottomNavHidden } = useBottomNavVisibility();
   const { bottomNavHeight } = useLayoutHeights();
 
@@ -44,8 +52,7 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
 
   useEffect(() => {
     setMounted(true);
-    // Create the stable body-mounted host once (never re-parent).
-    ensurePortalRoot();
+    setPortalTarget(getAppShellEl() || document.body);
   }, []);
 
   useEffect(() => {
@@ -125,7 +132,7 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
     };
   }, []);
 
-  if (!mounted || cartItems.length === 0) return null;
+  if (!mounted || !portalTarget || cartItems.length === 0) return null;
 
   const navShowing = !bottomNavHidden && bottomNavVisible;
   /** Tab bar only — measured height already includes safe-area padding. */
@@ -157,11 +164,15 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
       <Button
         variant="ghost"
         onPress={() => {
-          // Guest-safe: open edit drawer (qty +/− / remove). Login only at checkout.
-          setShowSidebarCart(true);
+          if (!authHydrated) return;
+          if (isAuthenticated) {
+            router.push('/cart');
+            return;
+          }
+          goToLogin('/cart');
         }}
         className="pointer-events-auto group relative flex h-auto w-full max-w-[420px] items-center gap-3 overflow-hidden rounded-full border border-gray-200/90 bg-white/95 px-3 py-2.5 shadow-[0_8px_32px_rgba(15,23,42,0.1)] backdrop-blur-md animate-slide-up transition-all duration-200 hover:border-violet-200 hover:bg-white hover:shadow-[0_14px_40px_rgba(144,43,245,0.12)] active:scale-[0.98] motion-reduce:animate-none"
-        aria-label={`View cart, ${cartCount} ${cartCount === 1 ? 'item' : 'items'}${savingsRounded > 0 ? `, saving ₹${savingsRounded}` : ''}`}
+        aria-label={`Go to cart, ${cartCount} ${cartCount === 1 ? 'item' : 'items'}${savingsRounded > 0 ? `, saving ₹${savingsRounded}` : ''}`}
       >
         {celebrationBurst > 0 && (
           <>
@@ -216,7 +227,7 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
             <p className="text-[11px] font-medium leading-none text-gray-500">
               {cartCount} {cartCount === 1 ? 'item' : 'items'} in cart
             </p>
-            <p className="mt-1 text-sm font-bold leading-none text-gray-900">View cart</p>
+            <p className="mt-1 text-sm font-bold leading-none text-gray-900">Go to cart</p>
             {savingsRounded > 0 && (
               <p className="mt-1 text-[11px] font-semibold leading-snug text-violet-700">
                 Saving ₹{savingsRounded.toLocaleString('en-IN')}
@@ -232,5 +243,5 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
     </div>
   );
 
-  return createAppPortal(pill);
+  return createPortal(pill, portalTarget);
 }

@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CloseRegular as X, DownloadRegular as Download } from './icons';
 import { formatAddressDisplay } from '../utils/formatAddress';
 import { lockAppScroll, unlockAppScroll } from '../lib/pwa/appShell';
-import { createAppPortal } from '../lib/pwa/safePortal';
 
 function formatMoney(v) {
   const n = typeof v === 'string' ? parseFloat(v) : typeof v === 'number' ? v : NaN;
@@ -304,5 +304,5 @@ export default function BillPreviewSheet({
     </div>
   );
 
-  return createAppPortal(sheet);
+  return createPortal(sheet, document.body);
 }

@@ -20,22 +20,8 @@ function isChunkLoadError(err) {
   );
 }
 
-/** Stale SW / hydration mismatches often throw during React commit (not render). */
-function isDomHydrationCorruption(err) {
-  if (!err) return false;
-  const name = String(err.name || '');
-  const msg = String(err.message || err || '');
-  return (
-    name === 'NotFoundError' ||
-    /Failed to execute 'removeChild' on 'Node'/i.test(msg) ||
-    /Cannot read properties of null \(reading 'removeChild'\)/i.test(msg) ||
-    /The node to be removed is not a child of this node/i.test(msg) ||
-    /InsertBefore|replaceChild|removeChild/i.test(msg) && /NotFoundError|null/i.test(msg)
-  );
-}
-
 function shouldHardRecover(err) {
-  return isChunkLoadError(err) || isDomHydrationCorruption(err);
+  return isChunkLoadError(err);
 }
 
 /**

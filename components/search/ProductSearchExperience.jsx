@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Container from '../Container';
 import SearchSuggestInput from './SearchSuggestInput';
 import ProductSearchResults from './ProductSearchResults';
 import { lockAppScroll, unlockAppScroll } from '../../lib/pwa/appShell';
-import { createAppPortal, ensurePortalRoot } from '../../lib/pwa/safePortal';
 
 const OVERLAY_MS = 200;
 
@@ -50,7 +50,6 @@ export default function ProductSearchExperience({
   );
 
   useEffect(() => {
-    ensurePortalRoot();
     setPortalReady(true);
   }, []);
 
@@ -241,7 +240,7 @@ export default function ProductSearchExperience({
 
   const overlay =
     portalReady && active
-      ? createAppPortal(
+      ? createPortal(
           <div className="fixed inset-0 z-[70]" role="presentation">
             <button
               type="button"
@@ -267,7 +266,8 @@ export default function ProductSearchExperience({
                 <Container>{results}</Container>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )
       : null;
 

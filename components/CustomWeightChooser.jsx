@@ -15,7 +15,6 @@ import {
   weightStepLinePrices,
 } from '../utils/productSizeSelection';
 import { playAddTap } from '../utils/playAddTap';
-import { getStablePortalContainer } from '../lib/pwa/safePortal';
 
 /** Fallback when `sizes` is empty — always offer ×1 and ×2 of the catalog step. */
 const DEFAULT_PACK_COUNTS = [1, 2];
@@ -124,13 +123,7 @@ export default function CustomWeightChooser({
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal
-        container={
-          typeof document !== 'undefined'
-            ? getStablePortalContainer() ?? undefined
-            : undefined
-        }
-      >
+      <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[80] bg-black/45" />
         <Dialog.Content
           className="fixed inset-x-0 bottom-0 z-[81] mx-auto w-full max-w-[430px] rounded-t-3xl bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-2xl outline-none"
