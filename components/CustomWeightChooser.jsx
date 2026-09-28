@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import {
   formatMassAmountLabel,
@@ -19,6 +19,8 @@ import { playAddTap } from '../utils/playAddTap';
 /** Fallback when `sizes` is empty — always offer ×1 and ×2 of the catalog step. */
 const DEFAULT_PACK_COUNTS = [1, 2];
 const MAX_PACKS = 10;
+/** Ignore outside/overlay dismiss while the opening ADD gesture can still hit the overlay. */
+const OPEN_DISMISS_GUARD_MS = 400;
 
 /**
  * After ADD on a custom-weight product: pick pack count of the catalog step.
@@ -68,6 +70,30 @@ export default function CustomWeightChooser({
   }, [sizes, stepKg, product]);
 
   const [packs, setPacks] = useState(1);
+  const dismissGuardUntilRef = useRef(0);
+  const guardTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) {
+      dismissGuardUntilRef.current = 0;
+      if (guardTimerRef.current) {
+        clearTimeout(guardTimerRef.current);
+        guardTimerRef.current = null;
+      }
+      return undefined;
+    }
+    dismissGuardUntilRef.current = Date.now() + OPEN_DISMISS_GUARD_MS;
+    guardTimerRef.current = setTimeout(() => {
+      dismissGuardUntilRef.current = 0;
+      guardTimerRef.current = null;
+    }, OPEN_DISMISS_GUARD_MS);
+    return () => {
+      if (guardTimerRef.current) {
+        clearTimeout(guardTimerRef.current);
+        guardTimerRef.current = null;
+      }
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -105,6 +131,23 @@ export default function CustomWeightChooser({
   const canDec = packs > 1 && !busy;
   const canInc = packs < MAX_PACKS && !busy;
 
+  const isDismissGuarded = () => Date.now() < dismissGuardUntilRef.current;
+
+  const handleOpenChange = useCallback(
+    nextOpen => {
+      // Block the opening ADD gesture / early overlay hit from closing instantly.
+      if (!nextOpen && isDismissGuarded()) return;
+      onOpenChange?.(nextOpen);
+    },
+    [onOpenChange]
+  );
+
+  const blockGuardedOutside = useCallback(e => {
+    if (isDismissGuarded()) {
+      e.preventDefault();
+    }
+  }, []);
+
   const handleAdd = e => {
     if (busy || !selectedSize) return;
     playAddTap(e.currentTarget);
@@ -112,16 +155,23 @@ export default function CustomWeightChooser({
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      {/* Portal only while open — avoids leftover overlay swallowing the next ADD tap. */}
+    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       {open ? (
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-[80] bg-black/45" />
+          <Dialog.Overlay
+            className="fixed inset-0 z-[80] bg-black/45"
+            onPointerDown={blockGuardedOutside}
+          />
           <Dialog.Content
             className="fixed inset-x-0 bottom-0 z-[81] mx-auto w-full max-w-[430px] rounded-t-3xl bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-2xl outline-none"
             aria-describedby={undefined}
             onOpenAutoFocus={e => e.preventDefault()}
             onCloseAutoFocus={e => e.preventDefault()}
+            onPointerDownOutside={blockGuardedOutside}
+            onInteractOutside={blockGuardedOutside}
+            onEscapeKeyDown={e => {
+              if (isDismissGuarded()) e.preventDefault();
+            }}
           >
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-200" aria-hidden />
             <Dialog.Title className="text-[16px] font-bold leading-snug text-gray-900">

@@ -424,8 +424,7 @@ export default function ProductDetailClient({ productId = null }) {
       if (!productToAddPayload || !product?.inStock || cartActionLoading) return;
       if (customWeight) {
         void playAddTap(event?.currentTarget);
-        // Defer so the ADD tap does not immediately dismiss the Radix sheet.
-        window.setTimeout(() => setWeightChooserOpen(true), 0);
+        setWeightChooserOpen(true);
         return;
       }
       await playAddTapAndHold(event?.currentTarget);
