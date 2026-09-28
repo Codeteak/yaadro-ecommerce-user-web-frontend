@@ -22,6 +22,7 @@ import {
   formatRupeeINR,
   formatBundleRuleLabel,
   formatWeightUnitLabel,
+  formatMassAmountLabel,
   getPrimaryBundleRule,
   resolveProductWeightAndUnit,
   stripPackFromProductName,
@@ -40,12 +41,12 @@ import { playAddTap, playAddTapAndHold } from '../../../utils/playAddTap';
 import Container from '../../../components/Container';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
 import PdpOfferPanel from '../../../components/promotions/PdpOfferPanel';
-import CustomWeightChooser from '../../../components/CustomWeightChooser';
 import Link from 'next/link';
 import ProductCarousel from '../../../components/ProductCarousel';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import PriceDisplay from '../../../components/ui/PriceDisplay';
 import { PRESSABLE_ICON_BTN_SOFT } from '../../../components/ui/brandButton';
+import { useUiStore } from '../../../stores/uiStore';
 import { SHOW_PRODUCT_EXTENDED_SECTIONS } from './productDetailFlags';
 import {
   getResolvedProductImageUrls,
@@ -245,7 +246,7 @@ export default function ProductDetailClient({ productId = null }) {
 
   const availableSizes = useMemo(() => buildAvailableSizes(product), [product]);
   const customWeight = hasCustomWeightStep(product);
-  const [weightChooserOpen, setWeightChooserOpen] = useState(false);
+  const openWeightChooserStore = useUiStore(s => s.openWeightChooser);
   const [selectedSize, setSelectedSize] = useState(() => availableSizes[0] || null);
   const activeSize = useMemo(
     () => resolveSelectedSize(availableSizes, selectedSize),
@@ -419,25 +420,6 @@ export default function ProductDetailClient({ productId = null }) {
     ? (cartLine.cartItemKey ?? cartLine.cartItemId ?? cartLine.id)
     : null;
 
-  const handleAddToCart = useCallback(
-    async event => {
-      if (!productToAddPayload || !product?.inStock || cartActionLoading) return;
-      if (customWeight) {
-        void playAddTap(event?.currentTarget);
-        setWeightChooserOpen(true);
-        return;
-      }
-      await playAddTapAndHold(event?.currentTarget);
-      setCartActionLoading(true);
-      try {
-        await addToCart(productToAddPayload, sizeAddQuantity(product, activeSize));
-      } finally {
-        setCartActionLoading(false);
-      }
-    },
-    [addToCart, productToAddPayload, product, activeSize, cartActionLoading, customWeight]
-  );
-
   const chooseCustomWeight = useCallback(
     async size => {
       if (!product?.inStock || cartActionLoading || !size) return;
@@ -455,7 +437,6 @@ export default function ProductDetailClient({ productId = null }) {
       setSelectedSize(size);
       try {
         await addToCart(payload, qtyToAdd);
-        setWeightChooserOpen(false);
       } finally {
         setCartActionLoading(false);
       }
@@ -463,21 +444,75 @@ export default function ProductDetailClient({ productId = null }) {
     [addToCart, cartActionLoading, product]
   );
 
+  const handleAddToCart = useCallback(
+    async event => {
+      if (!productToAddPayload || !product?.inStock || cartActionLoading) return;
+      if (customWeight) {
+        // Pack count is chosen in the sheet (one packs state + stepper).
+        // PDP no longer shows ×1/×2 chips — those duplicated the same state.
+        void playAddTap(event?.currentTarget);
+        openWeightChooserStore({
+          product,
+          productName: productTitle,
+          sizes: availableSizes,
+          initialPackCount: 1,
+          onSelect: size => chooseCustomWeight(size),
+        });
+        return;
+      }
+      await playAddTapAndHold(event?.currentTarget);
+      setCartActionLoading(true);
+      try {
+        await addToCart(productToAddPayload, sizeAddQuantity(product, activeSize));
+      } finally {
+        setCartActionLoading(false);
+      }
+    },
+    [
+      addToCart,
+      productToAddPayload,
+      product,
+      productTitle,
+      activeSize,
+      cartActionLoading,
+      customWeight,
+      openWeightChooserStore,
+      availableSizes,
+      chooseCustomWeight,
+    ]
+  );
+
   const handleStepperIncrement = useCallback(() => {
     if (cartActionLoading || !productToAddPayload || cartUpdateKey == null) return;
-    const step = cartQuantityStep(product);
+    const step = cartQuantityStep(cartLine || product);
     updateQuantity(cartUpdateKey, Math.round((cartQty + step) * 10000) / 10000);
-  }, [cartActionLoading, productToAddPayload, cartUpdateKey, cartQty, updateQuantity, product]);
+  }, [
+    cartActionLoading,
+    productToAddPayload,
+    cartUpdateKey,
+    cartQty,
+    updateQuantity,
+    product,
+    cartLine,
+  ]);
 
   const handleStepperDecrement = useCallback(() => {
     if (cartActionLoading || cartUpdateKey == null || cartQty <= 0) return;
-    const step = cartQuantityStep(product);
+    const step = cartQuantityStep(cartLine || product);
     if (cartQty <= step + 1e-9) {
       removeFromCart(cartUpdateKey);
     } else {
       updateQuantity(cartUpdateKey, Math.round((cartQty - step) * 10000) / 10000);
     }
-  }, [cartActionLoading, cartUpdateKey, cartQty, removeFromCart, updateQuantity, product]);
+  }, [
+    cartActionLoading,
+    cartUpdateKey,
+    cartQty,
+    removeFromCart,
+    updateQuantity,
+    product,
+    cartLine,
+  ]);
 
   const goToPrevious = () =>
     setCurrentImageIndex(p => {
@@ -807,7 +842,7 @@ export default function ProductDetailClient({ productId = null }) {
                               <span className="text-base font-bold leading-none">−</span>
                             </button>
                             <span className="min-w-[1.5rem] text-center text-sm font-bold tabular-nums text-[#902bf5]">
-                              {formatCartQtyControlLabel(product, cartQty)}
+                              {formatCartQtyControlLabel(cartLine || product, cartQty)}
                             </span>
                             <button
                               type="button"
@@ -926,11 +961,21 @@ export default function ProductDetailClient({ productId = null }) {
               </>
             ) : null}
 
-            {(customWeight ? availableSizes.length > 0 : availableSizes.length > 1) && (
+            {customWeight ? (
               <>
-                <DetailSectionTitle>
-                  {customWeight ? 'Weight options' : 'Size / Variant'}
-                </DetailSectionTitle>
+                <DetailSectionTitle>Weight</DetailSectionTitle>
+                <p className="mt-2 mb-5 text-[13px] text-gray-600">
+                  Sold by weight in{' '}
+                  <span className="font-semibold text-gray-900">
+                    {formatMassAmountLabel(cartQuantityStep(product), 'kg') || 'packs'}
+                  </span>
+                  . Choose how many packs when you add to cart; use +/− after to change quantity.
+                </p>
+                <Divider />
+              </>
+            ) : availableSizes.length > 1 ? (
+              <>
+                <DetailSectionTitle>Size / Variant</DetailSectionTitle>
                 <div className="flex flex-wrap gap-2 mb-5 mt-3">
                   {availableSizes.map((size, i) => {
                     const isActive =
@@ -965,7 +1010,7 @@ export default function ProductDetailClient({ productId = null }) {
                 </div>
                 <Divider />
               </>
-            )}
+            ) : null}
 
             {descriptionText ? (
               <>
@@ -1153,20 +1198,6 @@ export default function ProductDetailClient({ productId = null }) {
           )}
         </Container>
       </div>
-
-      {customWeight ? (
-        <CustomWeightChooser
-          open={weightChooserOpen}
-          onOpenChange={setWeightChooserOpen}
-          product={product}
-          productName={productTitle}
-          sizes={availableSizes}
-          busy={cartActionLoading}
-          onSelect={size => {
-            void chooseCustomWeight(size);
-          }}
-        />
-      ) : null}
     </div>
   );
 }

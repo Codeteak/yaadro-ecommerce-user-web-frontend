@@ -11,20 +11,15 @@ import {
   lineTotalFromUnitPricing,
 } from './productUtils';
 import { rewardProductIdFromRule } from './bxgyLabels';
-import {
-  pickMergedSellUnderList,
-  pickSaneListUnit,
-} from './catalogOfferPricing';
+import { pickMergedSellUnderList, pickSaneListUnit } from './catalogOfferPricing';
 
 export function stripPaidCartLinesOnly(items) {
-  return (Array.isArray(items) ? items : []).filter((it) => !isBundleRewardCartLine(it));
+  return (Array.isArray(items) ? items : []).filter(it => !isBundleRewardCartLine(it));
 }
 
 export function cartLineProductId(item) {
   if (!item) return '';
-  return String(
-    item.productId ?? item.product_id ?? item.product?.id ?? item.id ?? '',
-  ).trim();
+  return String(item.productId ?? item.product_id ?? item.product?.id ?? item.id ?? '').trim();
 }
 
 export function getCartLineBundleRule(item) {
@@ -90,8 +85,7 @@ export function cartHasBxgyOffer(items) {
   return cartHasQualifiedBxgyOffer(items);
 }
 
-export const BXGY_COUPON_BLOCKED_MESSAGE =
-  'Coupons cannot be used with Buy X Get Y offers.';
+export const BXGY_COUPON_BLOCKED_MESSAGE = 'Coupons cannot be used with Buy X Get Y offers.';
 
 export function bundleRewardMatchesParent(rewardLine, parentId) {
   const pid = String(parentId || '');
@@ -139,11 +133,8 @@ function readQuantityFields(item) {
   const freeFromOffer =
     hasOffer && Number.isFinite(offerQty) && offerQty >= 0 ? Math.floor(offerQty) : null;
   const free =
-    freeFromOffer != null
-      ? freeFromOffer
-      : Number(item?.free_quantity ?? item?.freeQuantity) || 0;
-  const display =
-    Number(item?.display_quantity ?? item?.displayQuantity) || paid + free || paid;
+    freeFromOffer != null ? freeFromOffer : Number(item?.free_quantity ?? item?.freeQuantity) || 0;
+  const display = Number(item?.display_quantity ?? item?.displayQuantity) || paid + free || paid;
   return {
     paid,
     free,
@@ -233,8 +224,8 @@ export function getCartLineDisplayQty(item) {
 /** Sum display units without double-counting embedded free qty and separate `:bundle-reward` rows. */
 export function sumCartDisplayUnits(items) {
   if (!Array.isArray(items) || !items.length) return 0;
-  const paidLines = items.filter((it) => !isBundleRewardCartLine(it));
-  const rewardLines = items.filter((it) => isBundleRewardCartLine(it));
+  const paidLines = items.filter(it => !isBundleRewardCartLine(it));
+  const rewardLines = items.filter(it => isBundleRewardCartLine(it));
   let total = 0;
   let embeddedFree = 0;
   for (const line of paidLines) {
@@ -243,16 +234,14 @@ export function sumCartDisplayUnits(items) {
   }
   if (!rewardLines.length) return total;
   if (embeddedFree > 0) return total;
-  return (
-    total + rewardLines.reduce((sum, line) => sum + (Number(line.quantity) || 1), 0)
-  );
+  return total + rewardLines.reduce((sum, line) => sum + (Number(line.quantity) || 1), 0);
 }
 
 /** Sum paid/billable units only (excludes BXGY free reward lines from item counts). */
 export function sumCartPaidUnits(items) {
   if (!Array.isArray(items) || !items.length) return 0;
   return items
-    .filter((it) => !isBundleRewardCartLine(it))
+    .filter(it => !isBundleRewardCartLine(it))
     .reduce((sum, line) => sum + getCartLinePaidQty(line), 0);
 }
 
@@ -268,13 +257,15 @@ export function sumCartCustomerUnits(items) {
     const paid = getCartLinePaidQty(line);
     if (!(paid > 0)) continue;
     if (hasSoldByWeightFlag(line)) {
-      const stepRaw = Number(
-        line.weightStepKg ?? line.product?.weightStepKg ?? line.unit_size ?? line.unitSize
-      );
+      const purchase = Number(line.purchaseUnitKg ?? line.selectedSize?.purchaseUnitKg);
+      const stepRaw =
+        Number.isFinite(purchase) && purchase > 0
+          ? purchase
+          : Number(
+              line.weightStepKg ?? line.product?.weightStepKg ?? line.unit_size ?? line.unitSize
+            );
       const step =
-        Number.isFinite(stepRaw) && stepRaw > 0 && Math.abs(stepRaw - 1) >= 1e-9
-          ? stepRaw
-          : null;
+        Number.isFinite(stepRaw) && stepRaw > 0 && Math.abs(stepRaw - 1) >= 1e-9 ? stepRaw : null;
       if (step > 0) {
         const packs = paid / step;
         const rounded = Math.round(packs);
@@ -323,8 +314,7 @@ export function buildSyntheticBundleRewardLine(paidLine, freeQty, parentId, opti
   const rule = options.rule || getCartLineBundleRule(paidLine);
   const cross = rule && isCrossSkuBundleRule(rule);
   const rewardProduct =
-    options.rewardProduct ||
-    (cross ? rewardSnapshotFromRule(rule, null) : null);
+    options.rewardProduct || (cross ? rewardSnapshotFromRule(rule, null) : null);
 
   if (cross) {
     const rewardPid =
@@ -335,8 +325,7 @@ export function buildSyntheticBundleRewardLine(paidLine, freeQty, parentId, opti
       return null;
     }
     const label = rewardProduct?.unitLabel ?? rewardProduct?.unit ?? '';
-    const name =
-      rewardProduct?.name || rewardProduct?.productName || 'Free item';
+    const name = rewardProduct?.name || rewardProduct?.productName || 'Free item';
     return {
       ...(rewardProduct && typeof rewardProduct === 'object' ? rewardProduct : {}),
       id: rewardId,
@@ -395,10 +384,7 @@ function rewardSnapshotFromRule(rule, fallbackLine) {
     rule.getProductName ||
     '';
   const image =
-    rule.reward_product_image ||
-    rule.rewardProductImage ||
-    rule.get_product_image ||
-    '';
+    rule.reward_product_image || rule.rewardProductImage || rule.get_product_image || '';
   if (fallbackLine && cartLineProductId(fallbackLine) === rewardId) {
     return {
       ...fallbackLine,
@@ -444,17 +430,13 @@ export function applyGuestCartLineBundleQuantities(item) {
     freeQuantity: free,
     displayQuantity: paid + free,
     display_quantity: paid + free,
-    ...(Number.isFinite(lineTotal) && lineTotal >= 0
-      ? { lineTotal, total: lineTotal }
-      : {}),
+    ...(Number.isFinite(lineTotal) && lineTotal >= 0 ? { lineTotal, total: lineTotal } : {}),
   };
 }
 
 export function applyGuestCartBundleQuantities(items) {
   if (!Array.isArray(items)) return [];
-  return items
-    .filter((it) => !isBundleRewardCartLine(it))
-    .map(applyGuestCartLineBundleQuantities);
+  return items.filter(it => !isBundleRewardCartLine(it)).map(applyGuestCartLineBundleQuantities);
 }
 
 /**
@@ -466,7 +448,7 @@ export function expandCartItemsWithBundleRewards(items) {
   if (!Array.isArray(items) || !items.length) return [];
 
   const paidLines = stripPaidCartLinesOnly(items);
-  const rewardLines = items.filter((it) => isBundleRewardCartLine(it));
+  const rewardLines = items.filter(it => isBundleRewardCartLine(it));
   /** @type {Map<string, number>} free units claimed from reward product lines */
   const claimedFreeByRewardPid = new Map();
   const out = [];
@@ -489,9 +471,9 @@ export function expandCartItemsWithBundleRewards(items) {
       if (freeQty <= 0) continue;
       const rewardPid = rewardProductIdFromRule(rule);
       const matchingRewardPaid = paidLines.find(
-        (l) => cartLineProductId(l) === rewardPid && !isBundleRewardCartLine(l),
+        l => cartLineProductId(l) === rewardPid && !isBundleRewardCartLine(l)
       );
-      const apiReward = rewardLines.find((r) => bundleRewardMatchesParent(r, parentId));
+      const apiReward = rewardLines.find(r => bundleRewardMatchesParent(r, parentId));
       if (apiReward) {
         const productId = cartLineProductId(apiReward) || rewardPid;
         const snap = rewardSnapshotFromRule(rule, matchingRewardPaid);
@@ -516,23 +498,24 @@ export function expandCartItemsWithBundleRewards(items) {
             ? {
                 image,
                 imageUrl: image,
-                images: Array.isArray(apiReward.images) && apiReward.images.length
-                  ? apiReward.images
-                  : [image],
+                images:
+                  Array.isArray(apiReward.images) && apiReward.images.length
+                    ? apiReward.images
+                    : [image],
               }
             : {}),
         });
       } else {
         const synthetic = buildSyntheticBundleRewardLine(paid, freeQty, parentId, {
-            rule,
-            rewardProduct: rewardSnapshotFromRule(rule, matchingRewardPaid),
-          });
+          rule,
+          rewardProduct: rewardSnapshotFromRule(rule, matchingRewardPaid),
+        });
         if (synthetic) out.push(synthetic);
       }
       if (rewardPid) {
         claimedFreeByRewardPid.set(
           rewardPid,
-          (claimedFreeByRewardPid.get(rewardPid) || 0) + freeQty,
+          (claimedFreeByRewardPid.get(rewardPid) || 0) + freeQty
         );
       }
       continue;
@@ -540,7 +523,7 @@ export function expandCartItemsWithBundleRewards(items) {
 
     const freeQty = getBundleFreeExtraOnPaidLine(paid);
     if (freeQty <= 0) continue;
-    const apiReward = rewardLines.find((r) => bundleRewardMatchesParent(r, parentId));
+    const apiReward = rewardLines.find(r => bundleRewardMatchesParent(r, parentId));
     if (apiReward) {
       out.push({
         ...apiReward,
@@ -630,7 +613,7 @@ export function normalizeCartPromotions(raw) {
   const suggestedRaw = raw.suggested_coupons ?? raw.suggestedCoupons;
   const suggestedCoupons = Array.isArray(suggestedRaw)
     ? suggestedRaw
-        .map((row) => {
+        .map(row => {
           if (!row || typeof row !== 'object') return null;
           return {
             code: String(row.code || '').toUpperCase(),
@@ -647,21 +630,20 @@ export function normalizeCartPromotions(raw) {
 
   const appliedPromotionIds = Array.isArray(topPromotionIds)
     ? topPromotionIds
-    : autoRaw?.applied_promotion_ids ?? autoRaw?.appliedPromotionIds ?? [];
+    : (autoRaw?.applied_promotion_ids ?? autoRaw?.appliedPromotionIds ?? []);
 
   const auto =
     autoRaw || types.length || appliedPromotionIds.length
       ? {
           appliedPromotionIds,
-          bundleDiscountMinor: Number(autoRaw?.bundle_discount_minor ?? autoRaw?.bundleDiscountMinor ?? 0) || 0,
+          bundleDiscountMinor:
+            Number(autoRaw?.bundle_discount_minor ?? autoRaw?.bundleDiscountMinor ?? 0) || 0,
           linePromoDiscountMinor:
             Number(autoRaw?.line_promo_discount_minor ?? autoRaw?.linePromoDiscountMinor ?? 0) || 0,
           autoCartDiscountMinor:
             Number(autoRaw?.auto_cart_discount_minor ?? autoRaw?.autoCartDiscountMinor ?? 0) || 0,
-          hasSkuPromo:
-            types.includes('sku') || !!(autoRaw?.has_sku_promo ?? autoRaw?.hasSkuPromo),
-          hasBundle:
-            types.includes('bundle') || !!(autoRaw?.has_bundle ?? autoRaw?.hasBundle),
+          hasSkuPromo: types.includes('sku') || !!(autoRaw?.has_sku_promo ?? autoRaw?.hasSkuPromo),
+          hasBundle: types.includes('bundle') || !!(autoRaw?.has_bundle ?? autoRaw?.hasBundle),
           hasAutoCart: !!(autoRaw?.has_auto_cart ?? autoRaw?.hasAutoCart),
         }
       : null;
@@ -715,8 +697,10 @@ export function formatCouponIneligibilityHint(codes) {
     if (code && COUPON_REASON_MESSAGES[code]) return COUPON_REASON_MESSAGES[code];
   }
   if (list.includes('MIN_SUBTOTAL_NOT_MET')) return COUPON_REASON_MESSAGES.MIN_SUBTOTAL_NOT_MET;
-  if (list.includes('FIRST_ORDER_ONLY_NOT_MET')) return COUPON_REASON_MESSAGES.FIRST_ORDER_ONLY_NOT_MET;
-  if (list.includes('NEW_CUSTOMER_ONLY_NOT_MET')) return COUPON_REASON_MESSAGES.NEW_CUSTOMER_ONLY_NOT_MET;
+  if (list.includes('FIRST_ORDER_ONLY_NOT_MET'))
+    return COUPON_REASON_MESSAGES.FIRST_ORDER_ONLY_NOT_MET;
+  if (list.includes('NEW_CUSTOMER_ONLY_NOT_MET'))
+    return COUPON_REASON_MESSAGES.NEW_CUSTOMER_ONLY_NOT_MET;
   return 'Not applicable to this order';
 }
 
@@ -724,9 +708,7 @@ export function formatCouponIneligibilityHint(codes) {
 export function isCartCouponPreviewApplied(coupon, selectedCode) {
   if (!coupon || !selectedCode) return false;
   if (coupon.status !== 'applied') return false;
-  return (
-    String(coupon.code || '').toUpperCase() === String(selectedCode).trim().toUpperCase()
-  );
+  return String(coupon.code || '').toUpperCase() === String(selectedCode).trim().toUpperCase();
 }
 
 /**
@@ -746,17 +728,13 @@ export function isTrustedCartCouponPreview(previewCart, localItems) {
  * @param {boolean} [options.ignoreCouponPricing] — BXGY carts: never take coupon-reduced
  *   payable; keep list/catalog × paid qty so coupons cannot stack with offers.
  */
-export function mergePreviewPricingOntoLocalLines(
-  localDisplayItems,
-  previewItems,
-  options = {}
-) {
-  if (!Array.isArray(localDisplayItems) || !localDisplayItems.length) return localDisplayItems || [];
+export function mergePreviewPricingOntoLocalLines(localDisplayItems, previewItems, options = {}) {
+  if (!Array.isArray(localDisplayItems) || !localDisplayItems.length)
+    return localDisplayItems || [];
   if (!Array.isArray(previewItems) || !previewItems.length) return localDisplayItems;
 
   const ignoreCouponPricing = options.ignoreCouponPricing === true;
-  const cartIsBxgy =
-    ignoreCouponPricing || cartHasBxgyOffer(localDisplayItems);
+  const cartIsBxgy = ignoreCouponPricing || cartHasBxgyOffer(localDisplayItems);
 
   const byProductId = new Map();
   for (const preview of previewItems) {
@@ -766,7 +744,7 @@ export function mergePreviewPricingOntoLocalLines(
     if (!byProductId.has(pid)) byProductId.set(pid, preview);
   }
 
-  return localDisplayItems.map((local) => {
+  return localDisplayItems.map(local => {
     if (isBundleRewardCartLine(local)) return local;
     const pid = String(local?.productId ?? local?.product?.id ?? local?.id ?? '').trim();
     const preview = pid ? byProductId.get(pid) : null;
@@ -784,34 +762,21 @@ export function mergePreviewPricingOntoLocalLines(
       const sizeList = Number(local.selectedSize?.price);
       const sizeOrig = Number(local.selectedSize?.originalPrice);
       const localList = Number(
-        local.originalPrice ??
-          local.compareAtPrice ??
-          local.listPrice ??
-          local.mrp ??
-          NaN,
+        local.originalPrice ?? local.compareAtPrice ?? local.listPrice ?? local.mrp ?? NaN
       );
-      const localPay = Number(
-        local.price ?? local.offerPrice ?? local.offerPriceEffective,
-      );
+      const localPay = Number(local.price ?? local.offerPrice ?? local.offerPriceEffective);
       const previewList = Number(
         preview.originalPrice ?? preview.compareAtPrice ?? preview.listPrice ?? preview.mrp
       );
       const previewPay = Number(preview.price);
 
-      const listUnit = pickSaneListUnit([
-        localList,
-        previewList,
-        sizeOrig,
-        sizeList,
-      ]);
+      const listUnit = pickSaneListUnit([localList, previewList, sizeOrig, sizeList]);
 
       // Permanent: catalog offer wins over preview list-as-pay.
       const sellUnit = pickMergedSellUnderList(localPay, previewPay, listUnit);
 
       const listForDisplay =
-        listUnit != null && sellUnit != null && listUnit > sellUnit + 1e-9
-          ? listUnit
-          : null;
+        listUnit != null && sellUnit != null && listUnit > sellUnit + 1e-9 ? listUnit : null;
 
       if (sellUnit != null && sellUnit > 0 && paid > 0) {
         next.price = sellUnit;
@@ -857,7 +822,7 @@ export function mergePreviewPricingOntoLocalLines(
     );
     const pay = Number(next.price);
     const bestList = [previewList, localListKeep]
-      .filter((n) => Number.isFinite(n) && n > 0)
+      .filter(n => Number.isFinite(n) && n > 0)
       .reduce((a, b) => (a == null || b > a ? b : a), null);
     if (bestList != null && Number.isFinite(pay) && bestList > pay + 1e-9) {
       next.originalPrice = bestList;
@@ -906,15 +871,10 @@ export function normalizeCartLineCatalogPricing(item) {
   const paidQty = getCartLinePaidQty(item);
   const line = Number(item.lineTotal);
   const priceUnit = Number(item.price) || 0;
-  const fromLine =
-    Number.isFinite(line) && line > 0 && paidQty > 0 ? line / paidQty : 0;
+  const fromLine = Number.isFinite(line) && line > 0 && paidQty > 0 ? line / paidQty : 0;
   // Prefer item.price when lineTotal was crushed by a bad cart-level allocate.
   let payUnit = priceUnit > 0 ? priceUnit : fromLine;
-  if (
-    priceUnit > 0 &&
-    fromLine > 0 &&
-    fromLine < priceUnit * 0.5 - 1e-9
-  ) {
+  if (priceUnit > 0 && fromLine > 0 && fromLine < priceUnit * 0.5 - 1e-9) {
     payUnit = priceUnit;
   }
   if (!(payUnit > 0)) {
@@ -1025,7 +985,7 @@ export function sumCartShelfPayable(items) {
  */
 export function resetCartLinesToShelfPayable(items) {
   if (!Array.isArray(items) || !items.length) return items || [];
-  return items.map((it) => {
+  return items.map(it => {
     if (isBundleRewardCartLine(it)) return it;
     const shelfUnit = cartLineShelfUnit(it);
     if (!(shelfUnit > 0)) return it;
@@ -1038,9 +998,7 @@ export function resetCartLinesToShelfPayable(items) {
       lineTotal: shelfLine,
       total: shelfLine,
       originalPrice:
-        Number(it.originalPrice) > shelfUnit + 1e-9
-          ? Number(it.originalPrice)
-          : shelfUnit,
+        Number(it.originalPrice) > shelfUnit + 1e-9 ? Number(it.originalPrice) : shelfUnit,
     };
     if (it.selectedSize && typeof it.selectedSize === 'object') {
       const sizeList =
@@ -1066,4 +1024,3 @@ export function resetCartLinesToShelfPayable(items) {
 export function allocateCartPayableOntoLines(items, _payableTotal) {
   return Array.isArray(items) ? items : items || [];
 }
-

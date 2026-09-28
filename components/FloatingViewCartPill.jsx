@@ -23,6 +23,26 @@ function normalizePath(pathname) {
 }
 
 /**
+ * Routes where sticky CTAs / forms / auth own the bottom of the screen —
+ * the floating cart pill blocks taps and is noise (guest login, map pin, etc.).
+ * Keep visible on browse + PDP so shoppers can jump to cart.
+ */
+function hideFloatingCartPill(path) {
+  return (
+    path === '/login' ||
+    path === '/checkout' ||
+    path === '/cart' ||
+    path === '/order-success' ||
+    path === '/add/address' ||
+    path === '/addresses' ||
+    path === '/order' ||
+    path.startsWith('/order/') ||
+    path.startsWith('/orders/') ||
+    path.startsWith('/auth/')
+  );
+}
+
+/**
  * Floating cart pill — viewport-fixed, just above the mobile tab bar.
  *
  * Mounted once from root layout (not per page, not via createPortal). Remounting a
@@ -121,8 +141,8 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
     };
   }, []);
 
-  // Checkout owns its sticky CTA / address UI — pill blocks taps there.
-  if (path === '/checkout') return null;
+  // Checkout / auth / address flows own sticky CTAs — pill blocks taps there.
+  if (hideFloatingCartPill(path)) return null;
   if (cartItems.length === 0) return null;
 
   const navShowing = !bottomNavHidden && bottomNavVisible;

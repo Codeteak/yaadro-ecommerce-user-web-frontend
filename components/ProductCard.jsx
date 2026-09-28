@@ -28,7 +28,6 @@ import {
   formatCartQtyControlLabel,
 } from '../utils/productSizeSelection';
 import { playAddTap, playAddTapAndHold } from '../utils/playAddTap';
-import CustomWeightChooser from './CustomWeightChooser';
 import PriceDisplay from './ui/PriceDisplay';
 import OfferRibbon from './ui/OfferRibbon';
 import BundleOfferRibbon from './ui/BundleOfferRibbon';
@@ -38,6 +37,7 @@ import { getCartLinePaidQty } from '../utils/cartPromotions';
 import { findPaidCartLine } from '../utils/cartLinePersist';
 import { toDisplayText } from '../utils/productApi';
 import ProductImageWithFallback from './ProductImageWithFallback';
+import { useUiStore } from '../stores/uiStore';
 import { getProductDetailPath } from '../utils/productApi';
 import { navigateToProductDetail } from '../utils/productNavigation';
 import { prefetchProductDetail } from '../hooks/useProducts';
@@ -71,7 +71,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   // Get available sizes or use default weight/unit
   const availableSizes = useMemo(() => buildAvailableSizes(product), [product]);
   const customWeight = hasCustomWeightStep(product);
-  const [weightChooserOpen, setWeightChooserOpen] = useState(false);
+  const openWeightChooserStore = useUiStore(s => s.openWeightChooser);
   const addBtnRef = useRef(null);
   const [selectedSize, setSelectedSize] = useState(() => availableSizes[0] || null);
   /** Always read price from latest catalog row (selectedSize state can hold stale price). */
@@ -170,7 +170,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
 
   const paidCartQty = cartLine ? getCartLinePaidQty(cartLine) : 0;
   const displayCartQty = paidCartQty > 0 ? paidCartQty : pendingCartQty;
-  const qtyStep = cartQuantityStep(product);
+  const qtyStep = cartQuantityStep(cartLine || product);
   const qtyControlLabel = formatCartQtyControlLabel(cartLine || product, displayCartQty);
   const atMinPack = isSoldByWeightProduct(product)
     ? displayCartQty <= qtyStep + 1e-9
@@ -180,10 +180,6 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     if (paidCartQty > 0) setPendingCartQty(0);
   }, [paidCartQty]);
   const cartUpdateKey = cartLine?.cartItemKey ?? cartLine?.cartItemId ?? cartLine?.id ?? null;
-
-  const openWeightChooser = useCallback(() => {
-    setWeightChooserOpen(true);
-  }, []);
 
   const chooseCustomWeight = useCallback(
     async size => {
@@ -204,15 +200,25 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       setSelectedSize(size);
       try {
         await addToCart(payload, qtyToAdd);
-        setWeightChooserOpen(false);
-      } catch {
+      } catch (err) {
         setPendingCartQty(0);
+        throw err;
       } finally {
         setCartActionLoading(false);
       }
     },
     [addToCart, cartActionLoading, product]
   );
+
+  const productTitleForChooser = toDisplayText(product?.name) || 'Product';
+  const openWeightChooser = useCallback(() => {
+    openWeightChooserStore({
+      product,
+      productName: productTitleForChooser,
+      sizes: availableSizes,
+      onSelect: size => chooseCustomWeight(size),
+    });
+  }, [openWeightChooserStore, product, productTitleForChooser, availableSizes, chooseCustomWeight]);
 
   const handleAddToCart = useCallback(async () => {
     if (product?.inStock === false) return;
@@ -277,12 +283,12 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         return;
       }
       if (cartUpdateKey != null && paidCartQty > 0) {
-        const step = cartQuantityStep(product);
+        const step = cartQuantityStep(cartLine || product);
         updateQuantity(cartUpdateKey, Math.round((paidCartQty + step) * 10000) / 10000);
         return;
       }
       if (pendingCartQty > 0) {
-        const step = cartQuantityStep(product);
+        const step = cartQuantityStep(cartLine || product);
         setPendingCartQty(q => Math.round((q + step) * 10000) / 10000);
         setCartActionLoading(true);
         try {
@@ -304,6 +310,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       updateQuantity,
       addQty,
       product,
+      cartLine,
       product?.inStock,
     ]
   );
@@ -321,7 +328,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       if (cartActionLoading) return;
 
       if (cartUpdateKey != null) {
-        const step = cartQuantityStep(product);
+        const step = cartQuantityStep(cartLine || product);
         if (paidCartQty <= step + 1e-9) {
           removeFromCart(cartUpdateKey);
         } else {
@@ -343,6 +350,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       removeFromCart,
       updateQuantity,
       product,
+      cartLine,
     ]
   );
 
@@ -745,19 +753,6 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
           </Link>
         </div>
       </article>
-      {customWeight ? (
-        <CustomWeightChooser
-          open={weightChooserOpen}
-          onOpenChange={setWeightChooserOpen}
-          product={product}
-          productName={productTitle}
-          sizes={availableSizes}
-          busy={cartActionLoading}
-          onSelect={size => {
-            void chooseCustomWeight(size);
-          }}
-        />
-      ) : null}
     </>
   );
 }
