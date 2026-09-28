@@ -49,22 +49,17 @@ function CategoryBrowseInner() {
   );
 
   const subcategories = useMemo(
-    () => (category?.children || []).filter((c) => c.isActive !== false),
+    () => (category?.children || []).filter(c => c.isActive !== false),
     [category]
   );
 
   const subFromUrl = searchParams.get('sub');
-  const validSub =
-    subFromUrl && subcategories.some((s) => s.id === subFromUrl) ? subFromUrl : null;
+  const validSub = subFromUrl && subcategories.some(s => s.id === subFromUrl) ? subFromUrl : null;
 
   // Backend expects UUIDs for `category_id`. Prefer URL UUID immediately so products
   // start loading without waiting for the full category tree (slug URLs still wait).
   const urlIsUuid = CATEGORY_UUID_RE.test(categorySlugOrId);
-  const resolvedCategoryId = category?.id
-    ? String(category.id)
-    : urlIsUuid
-      ? categorySlugOrId
-      : '';
+  const resolvedCategoryId = category?.id ? String(category.id) : urlIsUuid ? categorySlugOrId : '';
   const filterCategoryId = validSub || resolvedCategoryId;
 
   const infiniteParams = useMemo(() => {
@@ -102,7 +97,7 @@ function CategoryBrowseInner() {
   });
 
   const products = useMemo(
-    () => (productsInfinite?.pages || []).flatMap((p) => p?.products || []),
+    () => (productsInfinite?.pages || []).flatMap(p => p?.products || []),
     [productsInfinite?.pages]
   );
 
@@ -110,7 +105,7 @@ function CategoryBrowseInner() {
     if (!search.trim()) return products;
     const q = search.toLowerCase();
     return products.filter(
-      (p) =>
+      p =>
         p.name?.toLowerCase().includes(q) ||
         p.brand?.toLowerCase().includes(q) ||
         p.category?.toLowerCase().includes(q)
@@ -119,7 +114,7 @@ function CategoryBrowseInner() {
 
   const brandOptions = useMemo(() => {
     const set = new Set();
-    searchFiltered.forEach((p) => {
+    searchFiltered.forEach(p => {
       if (p.brand && String(p.brand).trim()) set.add(String(p.brand).trim());
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
@@ -127,7 +122,7 @@ function CategoryBrowseInner() {
 
   const brandFiltered = useMemo(() => {
     if (!brandFilter) return searchFiltered;
-    return searchFiltered.filter((p) => String(p.brand || '') === brandFilter);
+    return searchFiltered.filter(p => String(p.brand || '') === brandFilter);
   }, [searchFiltered, brandFilter]);
 
   const displayProducts = brandFiltered;
@@ -136,7 +131,7 @@ function CategoryBrowseInner() {
     router.replace('/categories');
   }, [router]);
 
-  const onSearchOpenToggle = useCallback(() => setSearchOpen((v) => !v), []);
+  const onSearchOpenToggle = useCallback(() => setSearchOpen(v => !v), []);
 
   useEffect(() => {
     setBrandFilter('');
@@ -147,7 +142,7 @@ function CategoryBrowseInner() {
     router.replace(`/categories/${encodeURIComponent(categorySlugOrId)}`, { scroll: false });
   }, [subFromUrl, validSub, router, categorySlugOrId]);
 
-  const setSubFilter = (subId) => {
+  const setSubFilter = subId => {
     if (!subId) {
       router.replace(`/categories/${encodeURIComponent(categorySlugOrId)}`, { scroll: false });
     } else {
@@ -165,7 +160,9 @@ function CategoryBrowseInner() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-6 pb-28 pt-[env(safe-area-inset-top,0px)] text-center">
         <p className="text-[15px] font-medium text-gray-800">Category not found</p>
-        <p className="mt-1 text-[13px] text-gray-500">It may have been removed or the link is invalid.</p>
+        <p className="mt-1 text-[13px] text-gray-500">
+          It may have been removed or the link is invalid.
+        </p>
         <Link
           href="/categories"
           className="mt-6 rounded-full bg-violet-600 px-5 py-2.5 text-[13px] font-semibold text-white"
@@ -179,7 +176,7 @@ function CategoryBrowseInner() {
   const categoryTitle = category?.name || 'Products';
   const typeSelectValue = validSub || '';
   const activeSubLabel = validSub
-    ? subcategories.find((s) => s.id === validSub)?.name || 'Type'
+    ? subcategories.find(s => s.id === validSub)?.name || 'Type'
     : `All ${categoryTitle}`;
 
   return (
@@ -208,7 +205,7 @@ function CategoryBrowseInner() {
             <input
               type="search"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={e => setSearch(e.target.value)}
               placeholder="Search products…"
               className="h-10 w-full rounded-full border border-gray-200 bg-white pl-9 pr-4 text-[13px] text-gray-900 caret-[#902bf5] placeholder-gray-400 outline-none transition-[border-color,box-shadow] duration-200 ease-out focus:border-[#902bf5] focus:shadow-[0_0_0_3px_rgba(144,43,245,0.18)]"
               autoFocus
@@ -220,13 +217,18 @@ function CategoryBrowseInner() {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setShowMoreFilters((v) => !v)}
+                onClick={() => setShowMoreFilters(v => !v)}
                 className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border bg-white ${
                   showMoreFilters ? 'border-violet-300 bg-violet-50' : 'border-gray-200'
                 }`}
                 aria-label="More filters"
               >
-                <svg className="h-[18px] w-[18px] text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="h-[18px] w-[18px] text-gray-700"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -243,12 +245,12 @@ function CategoryBrowseInner() {
                 <select
                   id="filter-type"
                   value={typeSelectValue}
-                  onChange={(e) => setSubFilter(e.target.value || null)}
+                  onChange={e => setSubFilter(e.target.value || null)}
                   disabled={subcategories.length === 0}
                   className="h-9 w-full appearance-none rounded-full border border-gray-200 bg-white py-1.5 pl-3 pr-8 text-[12px] font-semibold text-gray-800 shadow-sm disabled:opacity-50"
                 >
                   <option value="">{subcategories.length ? 'All types' : 'Type'}</option>
-                  {subcategories.map((s) => (
+                  {subcategories.map(s => (
                     <option key={s.id} value={s.id}>
                       {s.name}
                     </option>
@@ -260,7 +262,12 @@ function CategoryBrowseInner() {
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </div>
 
@@ -271,11 +278,11 @@ function CategoryBrowseInner() {
                 <select
                   id="filter-brand"
                   value={brandFilter}
-                  onChange={(e) => setBrandFilter(e.target.value)}
+                  onChange={e => setBrandFilter(e.target.value)}
                   className="h-9 w-full appearance-none rounded-full border border-gray-200 bg-white py-1.5 pl-3 pr-8 text-[12px] font-semibold text-gray-800 shadow-sm"
                 >
                   <option value="">Brand</option>
-                  {brandOptions.map((b) => (
+                  {brandOptions.map(b => (
                     <option key={b} value={b}>
                       {b}
                     </option>
@@ -287,14 +294,21 @@ function CategoryBrowseInner() {
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </div>
             </div>
 
             {showMoreFilters ? (
               <div className="mt-2 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Sort</p>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                  Sort
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {[
                     { key: 'default', label: 'Relevance' },
@@ -338,7 +352,7 @@ function CategoryBrowseInner() {
               category={category}
               onClick={() => setSubFilter(null)}
             />
-            {subcategories.map((sub) => (
+            {subcategories.map(sub => (
               <CategoryRailItem
                 key={sub.id}
                 active={validSub === sub.id}
@@ -355,7 +369,7 @@ function CategoryBrowseInner() {
             <p className="mb-2 text-[11px] text-gray-400">
               {activeSubLabel}
               {displayProducts.length > 0
-                ? ` · ${displayProducts.length} product${displayProducts.length !== 1 ? 's' : ''}`
+                ? ` · ${displayProducts.length}${hasNextPage ? '+' : ''} product${displayProducts.length !== 1 || hasNextPage ? 's' : ''}`
                 : search.trim() || brandFilter
                   ? ' · No matches'
                   : ' · No products'}
@@ -384,7 +398,7 @@ function CategoryBrowseInner() {
           ) : (
             <>
               <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
-                {displayProducts.map((product) => (
+                {displayProducts.map(product => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
@@ -400,7 +414,6 @@ function CategoryBrowseInner() {
           )}
         </main>
       </div>
-
     </div>
   );
 }

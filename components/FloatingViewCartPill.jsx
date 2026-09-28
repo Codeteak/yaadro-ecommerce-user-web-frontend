@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { Button } from '@heroui/react';
 import { ShoppingCart1Regular as ShoppingCart } from './icons';
 import { useCart } from '../context/CartContext';
@@ -17,6 +18,10 @@ const MOBILE_BOTTOM_NAV_FALLBACK_PX = 72;
 /** Visual gap between pill bottom edge and top of tab bar. */
 const GAP_ABOVE_BOTTOM_NAV_PX = 14;
 
+function normalizePath(pathname) {
+  return pathname?.replace(/\/+$/, '') || '';
+}
+
 /**
  * Floating cart pill — viewport-fixed, just above the mobile tab bar.
  *
@@ -28,6 +33,8 @@ const GAP_ABOVE_BOTTOM_NAV_PX = 14;
  * @param {number} [stackAboveBottomPx] — When set (e.g. PDP), CSS `bottom` in px.
  */
 export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
+  const pathname = usePathname();
+  const path = normalizePath(pathname);
   const { cartItems, cartCount, cartTotal, loading, setShowSidebarCart } = useCart();
   const { isVisible: bottomNavVisible, hideForRoute: bottomNavHidden } = useBottomNavVisibility();
   const { bottomNavHeight } = useLayoutHeights();
@@ -54,7 +61,7 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
     prevLoadingRef.current = loading;
 
     const triggerCelebrationBurst = () => {
-      setCelebrationBurst((k) => k + 1);
+      setCelebrationBurst(k => k + 1);
       if (celebrationClearRef.current) clearTimeout(celebrationClearRef.current);
       celebrationClearRef.current = setTimeout(() => {
         celebrationClearRef.current = null;
@@ -88,16 +95,10 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
 
     if (!baselineCapturedRef.current) {
       baselineCapturedRef.current = true;
-      const fromEmptySnapshot =
-        prevCartCountRef.current === 0 && prevSavingsRef.current === 0;
+      const fromEmptySnapshot = prevCartCountRef.current === 0 && prevSavingsRef.current === 0;
       prevSavingsRef.current = nextSavings;
       prevCartCountRef.current = cartCount;
-      if (
-        userSawEmptyCartRef.current &&
-        fromEmptySnapshot &&
-        nextSavings > 0.02 &&
-        cartCount > 0
-      ) {
+      if (userSawEmptyCartRef.current && fromEmptySnapshot && nextSavings > 0.02 && cartCount > 0) {
         triggerCelebrationBurst();
       }
       return;
@@ -120,6 +121,8 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
     };
   }, []);
 
+  // Checkout owns its sticky CTA / address UI — pill blocks taps there.
+  if (path === '/checkout') return null;
   if (cartItems.length === 0) return null;
 
   const navShowing = !bottomNavHidden && bottomNavVisible;
@@ -172,8 +175,7 @@ export default function FloatingViewCartPill({ stackAboveBottomPx } = {}) {
           <div className="flex flex-shrink-0 -space-x-3">
             {cartItems.slice(0, 3).map((item, idx) => {
               const src = getCartLinePreviewImageSrc(item);
-              const key =
-                item?.cartItemKey ?? item?.cartItemId ?? item?.id ?? `${idx}`;
+              const key = item?.cartItemKey ?? item?.cartItemId ?? item?.id ?? `${idx}`;
               return (
                 <span
                   key={key}

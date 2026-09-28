@@ -12,6 +12,7 @@ export const runtime = 'nodejs';
 /**
  * GET /api/storefront/products
  * Postgres first (includes brand from global_brands); customer API fallback.
+ * Supports cursor (created_at) and offset pagination — same contract as customer API.
  */
 export async function GET(request) {
   return tryDbThenUpstream(request, '/api/storefront/products', async () => {
@@ -20,6 +21,7 @@ export async function GET(request) {
 
     const limitRaw = searchParams.get('limit') ?? searchParams.get('per_page');
     const offsetRaw = searchParams.get('offset');
+    const cursorRaw = searchParams.get('cursor');
     const categoryId = searchParams.get('category_id') || searchParams.get('categoryId');
     const brandId = searchParams.get('brand_id') || searchParams.get('brandId');
     const includeDescendants =
@@ -34,6 +36,7 @@ export async function GET(request) {
       shopId: shopId || undefined,
       limit: limitRaw != null ? Number(limitRaw) : undefined,
       offset: offsetRaw != null ? Number(offsetRaw) : undefined,
+      cursor: cursorRaw || undefined,
       categoryId: categoryId || undefined,
       brandId: brandId || undefined,
       includeDescendants: Boolean(includeDescendants && categoryId),
