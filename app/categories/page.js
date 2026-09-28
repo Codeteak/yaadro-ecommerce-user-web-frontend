@@ -14,6 +14,7 @@ import { CategoryCardSkeleton } from '../../components/skeletons/primitives';
 import ProductImageWithFallback from '../../components/ProductImageWithFallback';
 import BrowsePageHeader from '../../components/BrowsePageHeader';
 import { productsCategoryHref } from '../../components/products/productsBrowseConstants';
+import { groupCategoriesIntoAisles } from '../../utils/categoryAisleSections';
 
 /** Rotating hint (same UX as header search). */
 const FALLBACK_HINT_WORDS = [
@@ -104,7 +105,7 @@ function RotatingHintInput({ value, onChange, hintWords, inputProps }) {
 
 /* ─────────────────────────────────────────────
    Category card → dedicated category browse page
-   Blinkit-style: light tile + label below (no section grouping)
+   Blinkit-style: light tile + label below (aisle sections wrap the grid)
 ───────────────────────────────────────────── */
 function CategoryCard({ category, featured = false }) {
   const imageUrl = getCategoryImageUrl(category);
@@ -188,8 +189,12 @@ export default function CategoriesPage() {
     return pool.filter((p) => !skip.has(p.id)).slice(0, 14);
   }, [valuePicksData?.products, newArrivalsProducts]);
 
-  const rootCategories = (categoryTree || []).filter(
-    (cat) => cat.isActive !== false && (cat.level === 0 || cat.parentId == null)
+  const rootCategories = useMemo(
+    () =>
+      (categoryTree || []).filter(
+        (cat) => cat.isActive !== false && (cat.level === 0 || cat.parentId == null)
+      ),
+    [categoryTree]
   );
 
   const q = search.trim();
@@ -208,13 +213,19 @@ export default function CategoriesPage() {
     return words.length ? words : FALLBACK_HINT_WORDS;
   }, [rootCategories]);
 
-  const filtered = search.trim()
-    ? rootCategories.filter((cat) => {
-        const q = search.toLowerCase();
-        if (cat.name.toLowerCase().includes(q)) return true;
-        return (cat.children || []).some((c) => c.name.toLowerCase().includes(q));
-      })
-    : rootCategories;
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rootCategories;
+    return rootCategories.filter((cat) => {
+      if (cat.name.toLowerCase().includes(q)) return true;
+      return (cat.children || []).some((c) => c.name.toLowerCase().includes(q));
+    });
+  }, [rootCategories, search]);
+
+  const aisleSections = useMemo(
+    () => groupCategoriesIntoAisles(filtered),
+    [filtered]
+  );
 
   return (
     <div className="min-h-screen bg-white w-full max-w-full pb-28 pt-[env(safe-area-inset-top,0px)]">
@@ -254,38 +265,53 @@ export default function CategoriesPage() {
         }
       />
 
-      {/* Continuous category grid (no section headers) */}
-      <div className="grid grid-cols-4 gap-x-2.5 gap-y-4 px-4 pt-4 sm:gap-x-3 sm:gap-y-5">
-        {isLoading
-          ? Array.from({ length: 8 }).map((_, i) => (
-              <CategoryCardSkeleton key={i} featured={i === 0} />
-            ))
-          : filtered.length === 0
-          ? (
-            <div className="col-span-4 flex flex-col items-center justify-center py-16 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                </svg>
-              </div>
-              <p className="text-[13px] font-medium text-gray-700 mb-1">No categories found</p>
-              <button
-                onClick={() => setSearch('')}
-                className="text-[12px] text-violet-600 font-medium hover:text-violet-800 transition"
+      {/* Aisle-grouped category grids (same cards / hrefs as before) */}
+      {isLoading ? (
+        <div className="grid grid-cols-4 gap-x-2.5 gap-y-4 px-4 pt-4 sm:gap-x-3 sm:gap-y-5">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <CategoryCardSkeleton key={i} featured={i === 0} />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center px-4 py-16 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100">
+            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+          </div>
+          <p className="mb-1 text-[13px] font-medium text-gray-700">No categories found</p>
+          <button
+            onClick={() => setSearch('')}
+            className="text-[12px] font-medium text-violet-600 transition hover:text-violet-800"
+          >
+            Clear search
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-6 px-4 pt-4 pb-2">
+          {aisleSections.map((section, sectionIndex) => (
+            <section key={section.id} aria-labelledby={`aisle-${section.id}`}>
+              <h2
+                id={`aisle-${section.id}`}
+                className="sticky top-[calc(env(safe-area-inset-top,0px)+3.25rem)] z-[5] -mx-4 mb-3 border-b border-gray-100 bg-white/95 px-4 py-2 text-[13px] font-bold tracking-wide text-gray-900 backdrop-blur-sm sm:text-sm"
               >
-                Clear search
-              </button>
-            </div>
-          )
-          : filtered.map((category, index) => (
-              <CategoryCard
-                key={category.id}
-                category={category}
-                featured={index === 0 && !search.trim()}
-              />
-            ))
-        }
-      </div>
+                {section.title}
+              </h2>
+              <div className="grid grid-cols-4 gap-x-2.5 gap-y-4 sm:gap-x-3 sm:gap-y-5">
+                {section.categories.map((category, index) => (
+                  <CategoryCard
+                    key={category.id}
+                    category={category}
+                    featured={
+                      sectionIndex === 0 && index === 0 && !search.trim()
+                    }
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
 
       {/* Product carousels */}
       {newArrivalsProducts.length > 0 && (
