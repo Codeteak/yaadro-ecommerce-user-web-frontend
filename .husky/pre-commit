@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+
+# Always run from this package root (storefront git repo).
+cd "$(dirname -- "$0")/.." || exit 1
+
+bash scripts/precommit.sh

@@ -1,0 +1,12 @@
+node_modules
+.next
+.next-clean
+out
+build
+dist
+coverage
+.vercel
+.env
+.env*.local
+package-lock.json
+public/sw.js
