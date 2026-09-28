@@ -3,40 +3,47 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { Button } from '@heroui/react';
-import {
-  hasSeenInstallPrompt,
-  isInstallPromptHomePath,
-  markInstallPromptSeen,
-} from '../lib/pwa/installPromptSeen';
+import { hasSeenInstallPrompt, isInstallPromptHomePath } from '../lib/pwa/installPromptSeen';
 import { useUiStore } from '../stores/uiStore';
 import { BRAND_PRIMARY_BTN } from './ui/brandButton';
 
 export default function InstallPrompt() {
   const pathname = usePathname();
   const isHome = isInstallPromptHomePath(pathname);
-  const installPromptDismissed = useUiStore((s) => s.installPromptDismissed);
-  const deferredInstallPrompt = useUiStore((s) => s.deferredInstallPrompt);
-  const setDeferredInstallPrompt = useUiStore((s) => s.setDeferredInstallPrompt);
-  const dismissInstallPrompt = useUiStore((s) => s.dismissInstallPrompt);
-  const clearDeferredInstallPrompt = useUiStore((s) => s.clearDeferredInstallPrompt);
+  const installPromptDismissed = useUiStore(s => s.installPromptDismissed);
+  const deferredInstallPrompt = useUiStore(s => s.deferredInstallPrompt);
+  const setDeferredInstallPrompt = useUiStore(s => s.setDeferredInstallPrompt);
+  const dismissInstallPrompt = useUiStore(s => s.dismissInstallPrompt);
+  const clearDeferredInstallPrompt = useUiStore(s => s.clearDeferredInstallPrompt);
 
   useEffect(() => {
     if (hasSeenInstallPrompt()) {
       dismissInstallPrompt();
+      clearDeferredInstallPrompt();
+      return undefined;
     }
 
-    const onBeforeInstall = (e) => {
+    const onBeforeInstall = e => {
       e.preventDefault();
       if (hasSeenInstallPrompt()) return;
       if (!isInstallPromptHomePath(window.location.pathname)) return;
-      markInstallPromptSeen();
+      // Do not mark seen here — only on Install, Not now, or leaving home after the banner was live.
       setDeferredInstallPrompt(e);
     };
     window.addEventListener('beforeinstallprompt', onBeforeInstall);
     return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall);
-  }, [setDeferredInstallPrompt, dismissInstallPrompt]);
+  }, [setDeferredInstallPrompt, dismissInstallPrompt, clearDeferredInstallPrompt]);
 
-  if (!isHome || installPromptDismissed || !deferredInstallPrompt) return null;
+  // Leaving home while the banner was showing counts as seen so SPA revisits never re-show it.
+  useEffect(() => {
+    if (isHome || !deferredInstallPrompt) return undefined;
+    dismissInstallPrompt();
+    clearDeferredInstallPrompt();
+    return undefined;
+  }, [isHome, deferredInstallPrompt, dismissInstallPrompt, clearDeferredInstallPrompt]);
+
+  const alreadySeen = installPromptDismissed || hasSeenInstallPrompt();
+  if (alreadySeen || !isHome || !deferredInstallPrompt) return null;
 
   const handleInstall = async () => {
     try {
@@ -48,6 +55,11 @@ export default function InstallPrompt() {
     }
   };
 
+  const handleDismiss = () => {
+    clearDeferredInstallPrompt();
+    dismissInstallPrompt();
+  };
+
   return (
     <div className="fixed bottom-20 left-1/2 z-[100] w-[min(92%,22rem)] -translate-x-1/2 rounded-2xl border border-violet-200 bg-white p-4 shadow-xl">
       <p className="text-sm font-semibold text-gray-900">Install app</p>
@@ -55,18 +67,15 @@ export default function InstallPrompt() {
         Add this store to your home screen or desktop for faster access.
       </p>
       <div className="mt-3 flex gap-2">
-        <Button size="sm" variant="primary" className={`flex-1 ${BRAND_PRIMARY_BTN}`} onPress={handleInstall}>
-          Install
-        </Button>
         <Button
           size="sm"
-          variant="ghost"
-          className="flex-1"
-          onPress={() => {
-            clearDeferredInstallPrompt();
-            dismissInstallPrompt();
-          }}
+          variant="primary"
+          className={`flex-1 ${BRAND_PRIMARY_BTN}`}
+          onPress={handleInstall}
         >
+          Install
+        </Button>
+        <Button size="sm" variant="ghost" className="flex-1" onPress={handleDismiss}>
           Not now
         </Button>
       </div>

@@ -182,9 +182,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   const cartUpdateKey = cartLine?.cartItemKey ?? cartLine?.cartItemId ?? cartLine?.id ?? null;
 
   const openWeightChooser = useCallback(() => {
-    // Defer so the ADD click that opened the sheet does not immediately count as
-    // an outside dismiss (Radix Dialog + same pointer gesture).
-    window.setTimeout(() => setWeightChooserOpen(true), 0);
+    setWeightChooserOpen(true);
   }, []);
 
   const chooseCustomWeight = useCallback(

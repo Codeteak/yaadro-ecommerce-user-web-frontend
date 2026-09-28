@@ -35,8 +35,7 @@ export default function WishlistPage() {
 
   const handleAddToCart = product => {
     if (hasCustomWeightStep(product)) {
-      // Defer so the tap does not immediately dismiss the Radix sheet.
-      window.setTimeout(() => setWeightProduct(product), 0);
+      setWeightProduct(product);
       return;
     }
     const sizes = buildAvailableSizes(product);
