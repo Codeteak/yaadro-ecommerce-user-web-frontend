@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -17,15 +16,14 @@ import {
   hasCustomWeightStep,
   sizeAddQuantity,
 } from '../../utils/productSizeSelection';
-import CustomWeightChooser from '../../components/CustomWeightChooser';
 import { playAddTap } from '../../utils/playAddTap';
+import { useUiStore } from '../../stores/uiStore';
 
 export default function WishlistPage() {
   const router = useRouter();
   const { wishlistItems, removeFromWishlist, clearWishlist } = useWishlist();
   const { addToCart } = useCart();
-
-  const [weightProduct, setWeightProduct] = useState(null);
+  const openWeightChooser = useUiStore(s => s.openWeightChooser);
 
   const openProduct = item => {
     const path = getProductDetailPath(item);
@@ -35,31 +33,31 @@ export default function WishlistPage() {
 
   const handleAddToCart = product => {
     if (hasCustomWeightStep(product)) {
-      setWeightProduct(product);
+      openWeightChooser({
+        product,
+        productName: toDisplayText(product?.name),
+        sizes: buildAvailableSizes(product),
+        onSelect: size => {
+          const list = getListPrice(product);
+          const pay = getEffectivePrice(product);
+          addToCart(
+            {
+              ...product,
+              price: pay,
+              ...(list > pay + 1e-9 ? { originalPrice: list } : {}),
+              selectedSize: size,
+              sizeDisplay: size.label,
+            },
+            sizeAddQuantity(product, size)
+          );
+        },
+      });
       return;
     }
     const sizes = buildAvailableSizes(product);
     const size = sizes[0] || product?.selectedSize || null;
     const payload = size ? { ...product, selectedSize: size } : product;
     addToCart(payload, sizeAddQuantity(product, size));
-  };
-
-  const chooseWishlistWeight = size => {
-    const product = weightProduct;
-    if (!product || !size) return;
-    const list = getListPrice(product);
-    const pay = getEffectivePrice(product);
-    addToCart(
-      {
-        ...product,
-        price: pay,
-        ...(list > pay + 1e-9 ? { originalPrice: list } : {}),
-        selectedSize: size,
-        sizeDisplay: size.label,
-      },
-      sizeAddQuantity(product, size)
-    );
-    setWeightProduct(null);
   };
 
   if (wishlistItems.length === 0) {
@@ -230,16 +228,6 @@ export default function WishlistPage() {
           ))}
         </div>
       </Container>
-      <CustomWeightChooser
-        open={Boolean(weightProduct)}
-        onOpenChange={open => {
-          if (!open) setWeightProduct(null);
-        }}
-        product={weightProduct}
-        productName={toDisplayText(weightProduct?.name)}
-        sizes={weightProduct ? buildAvailableSizes(weightProduct) : []}
-        onSelect={chooseWishlistWeight}
-      />
     </div>
   );
 }

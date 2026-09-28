@@ -88,10 +88,43 @@ export function hasCustomWeightStep(product) {
 
 /**
  * Cart +/- step: kg fraction for sold-by-weight, otherwise 1 pack/unit.
- * Prefers `weightStepKg` stored on the cart line (catalog step before persist).
+ * Prefers the purchase unit from the chooser (e.g. 200 g when ×2 was selected)
+ * so +/− does not fall back to the catalog 100 g step.
  */
 export function cartQuantityStep(productOrLine) {
   if (!isSoldByWeightProduct(productOrLine)) return 1;
+
+  const purchaseUnit = Number(
+    productOrLine?.purchaseUnitKg ?? productOrLine?.selectedSize?.purchaseUnitKg
+  );
+  if (Number.isFinite(purchaseUnit) && purchaseUnit > 0) {
+    return Math.round(purchaseUnit * 10000) / 10000;
+  }
+
+  // When selectedSize is a multi-step chip (×2 = 200 g) without purchaseUnitKg.
+  const sel = productOrLine?.selectedSize;
+  if (sel?.weightStep && sel?.weight != null) {
+    const unitMult = Number(sel.unitMultiplier ?? sel.packCount);
+    const catalogStep = Number(productOrLine?.weightStepKg);
+    if (
+      Number.isFinite(unitMult) &&
+      unitMult > 1 &&
+      Number.isFinite(catalogStep) &&
+      catalogStep > 0
+    ) {
+      return Math.round(unitMult * catalogStep * 10000) / 10000;
+    }
+    // Single-unit add: selectedSize.weight is the purchase unit when customerQty is 1.
+    const customerQty = Number(sel.customerQty);
+    const w = Number(sel.weight);
+    if (Number.isFinite(w) && w > 0 && (!Number.isFinite(customerQty) || customerQty <= 1)) {
+      return Math.round(w * 10000) / 10000;
+    }
+    if (Number.isFinite(w) && w > 0 && Number.isFinite(customerQty) && customerQty > 1) {
+      return Math.round((w / customerQty) * 10000) / 10000;
+    }
+  }
+
   const candidates = [
     productOrLine?.weightStepKg,
     productOrLine?.product?.weightStepKg,
@@ -123,11 +156,38 @@ export function cartQuantityStep(productOrLine) {
 }
 
 /**
- * Purchasable step in kg for sold-by-weight (maps to DB custom_weight / unit_size).
+ * Purchasable catalog step in kg for sold-by-weight (DB custom_weight / unit_size).
+ * Always the catalog increment (e.g. 100 g) — not the chooser ×2 purchase unit.
  */
 export function soldByWeightStepKg(productOrLine) {
   if (!isSoldByWeightProduct(productOrLine)) return null;
-  return cartQuantityStep(productOrLine);
+  const candidates = [
+    productOrLine?.weightStepKg,
+    productOrLine?.product?.weightStepKg,
+    productOrLine?.catalogUnitSize,
+    productOrLine?.product?.unit_size,
+    productOrLine?.product?.unitSize,
+  ];
+  const persisted = Number(productOrLine?.unit_size ?? productOrLine?.unitSize);
+  if (!(Number.isFinite(persisted) && Math.abs(persisted - 1) < 1e-9)) {
+    candidates.push(productOrLine?.unit_size, productOrLine?.unitSize);
+  }
+  const unit =
+    productOrLine?.unit ||
+    productOrLine?.base_unit ||
+    productOrLine?.baseUnit ||
+    productOrLine?.product?.unit ||
+    productOrLine?.product?.base_unit ||
+    'kg';
+  for (const raw of candidates) {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || !(n > 0)) continue;
+    const kg = massAmountInKg(n, unit);
+    if (kg != null && kg > 0) return kg;
+    if (n > 20) return Math.round((n / 1000) * 10000) / 10000;
+    return Math.round(n * 10000) / 10000;
+  }
+  return 0.25;
 }
 
 /**
@@ -167,7 +227,7 @@ export function packCountToKgQty(packCount, stepKg) {
 /** Qty control label: pack count for sold-by-weight, otherwise raw qty. */
 export function formatCartQtyControlLabel(productOrLine, kgOrUnitQty) {
   if (isSoldByWeightProduct(productOrLine)) {
-    const step = soldByWeightStepKg(productOrLine);
+    const step = cartQuantityStep(productOrLine);
     return String(kgQtyToPackCount(kgOrUnitQty, step));
   }
   const n = Number(kgOrUnitQty);
@@ -176,22 +236,20 @@ export function formatCartQtyControlLabel(productOrLine, kgOrUnitQty) {
 }
 
 /**
- * Cart/order subtitle: `200 g × 5 · 1 kg` (unit × packs · total weight).
+ * Cart/order subtitle: `200 g × 5 · 1 kg` (purchase unit × packs · total weight).
+ * Uses the chooser purchase unit (×2 = 200 g) when present — not always catalog 100 g.
  */
 export function formatSoldByWeightPurchaseLabel(item, kgQty) {
   if (!isSoldByWeightProduct(item)) return '';
   const qty = Number(kgQty != null ? kgQty : item?.quantity);
   if (!Number.isFinite(qty) || !(qty > 0)) return '';
-  const step = soldByWeightStepKg(item);
-  const totalLabel =
-    formatMassAmountLabel(qty, 'kg') || formatWeightUnitLabel(qty, 'kg');
+  const step = cartQuantityStep(item);
+  const totalLabel = formatMassAmountLabel(qty, 'kg') || formatWeightUnitLabel(qty, 'kg');
   if (!(step > 0)) return totalLabel || '';
   const packs = kgQtyToPackCount(qty, step);
-  const stepLabel =
-    formatMassAmountLabel(step, 'kg') || formatWeightUnitLabel(step, 'kg');
+  const stepLabel = formatMassAmountLabel(step, 'kg') || formatWeightUnitLabel(step, 'kg');
   if (!stepLabel) return totalLabel || '';
   if (!Number.isInteger(packs) || packs <= 0) return totalLabel || '';
-  // Always show step × packs so cart matches the chooser (100 g × 1, 100 g × 2 · 200 g).
   if (packs === 1) return stepLabel;
   if (totalLabel && totalLabel !== stepLabel) {
     return `${stepLabel} × ${packs} · ${totalLabel}`;
@@ -213,10 +271,9 @@ function buildCustomWeightStepSizes(product) {
   const unitPay = getEffectivePrice(product, unitList) || unitList;
   if (!Number.isFinite(unitPay) || unitPay <= 0) return null;
 
-  return WEIGHT_STEP_PACK_COUNTS.map((packCount) => {
+  return WEIGHT_STEP_PACK_COUNTS.map(packCount => {
     const amountKg = Math.round(stepKg * packCount * 10000) / 10000;
-    const label =
-      formatMassAmountLabel(amountKg, 'kg') || formatWeightUnitLabel(amountKg, 'kg');
+    const label = formatMassAmountLabel(amountKg, 'kg') || formatWeightUnitLabel(amountKg, 'kg');
     return {
       packCount,
       weight: amountKg,
@@ -278,7 +335,7 @@ export function resolveSelectedSize(availableSizes, selectedSize) {
   if (!selectedSize) return availableSizes[0];
   const wantPack = packCountOf(selectedSize);
   const match = availableSizes.find(
-    (s) =>
+    s =>
       packCountOf(s) === wantPack &&
       String(s.weight ?? '') === String(selectedSize.weight ?? '') &&
       String(s.unit ?? '') === String(selectedSize.unit ?? '')

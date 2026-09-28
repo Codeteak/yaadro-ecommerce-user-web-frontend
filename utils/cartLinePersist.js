@@ -81,15 +81,12 @@ export function cartLinesMatch(a, b) {
  */
 export function findPaidCartLine(cartItems, productId, selectedSize = null, productHint = null) {
   if (!Array.isArray(cartItems) || productId == null) return null;
-  const soldByWeight =
-    productHint != null && isSoldByWeightProduct(productHint);
+  const soldByWeight = productHint != null && isSoldByWeightProduct(productHint);
   const probe = {
     id: productId,
     productId,
     ...(selectedSize ? { selectedSize } : {}),
-    ...(soldByWeight
-      ? { soldByWeight: true, sold_by_weight: true }
-      : {}),
+    ...(soldByWeight ? { soldByWeight: true, sold_by_weight: true } : {}),
     ...(productHint && typeof productHint === 'object'
       ? {
           weight: productHint.weight,
@@ -100,7 +97,7 @@ export function findPaidCartLine(cartItems, productId, selectedSize = null, prod
       : {}),
   };
   return (
-    cartItems.find((item) => {
+    cartItems.find(item => {
       if (isBundleRewardCartLine(item)) return false;
       return cartLinesMatch(item, probe);
     }) ?? null
@@ -112,15 +109,14 @@ export function findPaidCartLine(cartItems, productId, selectedSize = null, prod
 export function syncPaidCartCacheLines(serverLines, localLines = []) {
   const server = stripPaidCartLinesOnly(serverLines);
   const local = stripPaidCartLinesOnly(localLines);
-  const merged =
-    server.length > 0 ? mergeServerCartWithLocalLines(server, local) : local;
+  const merged = server.length > 0 ? mergeServerCartWithLocalLines(server, local) : local;
   return applyGuestCartBundleQuantities(stripPaidCartLinesOnly(merged));
 }
 
 export function sortCartItemsForDisplay(items) {
   if (!Array.isArray(items) || !items.length) return [];
-  const paid = items.filter((it) => !isBundleRewardCartLine(it));
-  const rewards = items.filter((it) => isBundleRewardCartLine(it));
+  const paid = items.filter(it => !isBundleRewardCartLine(it));
+  const rewards = items.filter(it => isBundleRewardCartLine(it));
   const out = [];
   const usedRewardIds = new Set();
 
@@ -131,10 +127,7 @@ export function sortCartItemsForDisplay(items) {
       const rid = String(r.cartItemId ?? r.id ?? '');
       if (usedRewardIds.has(rid)) continue;
       const src = String(
-        r.bundleSourceCartItemId ??
-          r.bundle_source_item_id ??
-          r.bundle_source_cart_item_id ??
-          ''
+        r.bundleSourceCartItemId ?? r.bundle_source_item_id ?? r.bundle_source_cart_item_id ?? ''
       );
       if (src && parentId && src === parentId) {
         out.push(r);
@@ -163,7 +156,7 @@ export function buildPersistableCartLineFromProduct(product) {
   if (id == null && productId == null) return null;
 
   const urls = getResolvedProductImageUrls(product);
-  const realUrls = urls.filter((u) => u && u !== PRODUCT_IMAGE_PLACEHOLDER);
+  const realUrls = urls.filter(u => u && u !== PRODUCT_IMAGE_PLACEHOLDER);
   const primary = realUrls[0] || urls[0] || PRODUCT_IMAGE_PLACEHOLDER;
 
   const selectedSize = product.selectedSize ?? null;
@@ -184,14 +177,13 @@ export function buildPersistableCartLineFromProduct(product) {
   // ProductCard may already set price=payable and originalPrice=list.
   // BXGY free units are separate; catalog sale still applies on the paid line.
   // Order-level coupons are blocked from stacking with BXGY elsewhere.
-  const sizeOfferRaw =
-    selectedSize?.offerPrice ?? selectedSize?.offerPriceEffective ?? null;
+  const sizeOfferRaw = selectedSize?.offerPrice ?? selectedSize?.offerPriceEffective ?? null;
   const sizeList = Number(
     selectedSize?.originalPrice ??
       selectedSize?.compareAtPrice ??
       selectedSize?.mrp ??
       selectedSize?.listPrice ??
-      0,
+      0
   );
   const sizeTag = Number(selectedSize?.price) || 0;
 
@@ -213,16 +205,11 @@ export function buildPersistableCartLineFromProduct(product) {
     if (n > listed) listed = n;
   }
 
-  const offerRaw =
-    product.offerPrice ?? product.offerPriceEffective ?? sizeOfferRaw;
+  const offerRaw = product.offerPrice ?? product.offerPriceEffective ?? sizeOfferRaw;
   const offerNum = offerRaw != null ? Number(offerRaw) : null;
   const priceAlreadyPayable =
-    Number(
-      product.originalPrice ??
-        product.compareAtPrice ??
-        product.listPrice ??
-        product.mrp,
-    ) > Number(product.price) + 1e-9;
+    Number(product.originalPrice ?? product.compareAtPrice ?? product.listPrice ?? product.mrp) >
+    Number(product.price) + 1e-9;
 
   const price = priceAlreadyPayable
     ? Number(product.price)
@@ -247,7 +234,7 @@ export function buildPersistableCartLineFromProduct(product) {
   const category =
     typeof product.category === 'string'
       ? product.category
-      : product.category?.name ?? product.categoryName ?? undefined;
+      : (product.category?.name ?? product.categoryName ?? undefined);
 
   const { weight, unit } = resolveProductWeightAndUnit(product);
   const packLabel = formatWeightUnitLabel(weight, unit);
@@ -288,7 +275,7 @@ export function buildPersistableCartLineFromProduct(product) {
       ? {
           soldByWeight: true,
           sold_by_weight: true,
-          // Catalog showcasing step (0.25) for cart +/-; unit_size persist is "1".
+          // Catalog order step (e.g. 0.1) for pricing; unit_size persist is "1".
           weightStepKg: (() => {
             const n = Number(unitSize);
             if (!Number.isFinite(n) || !(n > 0)) return 0.25;
@@ -298,6 +285,20 @@ export function buildPersistableCartLineFromProduct(product) {
             if (n > 20) return Math.round((n / 1000) * 10000) / 10000;
             return Math.round(n * 10000) / 10000;
           })(),
+          // Chooser purchase unit (100 g or 200 g) — cart +/- must keep this.
+          ...(Number(selectedSize?.purchaseUnitKg) > 0
+            ? { purchaseUnitKg: Number(selectedSize.purchaseUnitKg) }
+            : Number(selectedSize?.unitMultiplier) > 0 && Number(unitSize) > 0
+              ? {
+                  purchaseUnitKg: (() => {
+                    const mult = Number(selectedSize.unitMultiplier);
+                    const n = Number(unitSize);
+                    const unitHint = product.unit || product.base_unit || product.baseUnit || 'kg';
+                    const stepKg = massAmountInKg(n, unitHint) ?? (n > 20 ? n / 1000 : n);
+                    return Math.round(mult * stepKg * 10000) / 10000;
+                  })(),
+                }
+              : {}),
         }
       : {}),
     brand: product.brand,
@@ -315,10 +316,10 @@ export function addOrMergeCartLine(prevItems, persistableLine, addQty) {
     ? Math.max(0.0001, Math.round((Number.isFinite(raw) ? raw : 0) * 10000) / 10000)
     : Math.max(1, Math.trunc(Number.isFinite(raw) ? raw : 1) || 1);
   const paidOnly = (Array.isArray(prevItems) ? prevItems : []).filter(
-    (it) => !isBundleRewardCartLine(it)
+    it => !isBundleRewardCartLine(it)
   );
   const key = persistableLine.cartItemKey;
-  const idx = paidOnly.findIndex((it) => {
+  const idx = paidOnly.findIndex(it => {
     const ik = it.cartItemKey ?? `${it.id ?? it.productId}_${cartLineSizeKey(it)}`;
     return ik === key;
   });
@@ -350,9 +351,9 @@ export function mergeServerCartWithLocalLines(serverLines, localLines) {
   const client = Array.isArray(localLines) ? localLines : [];
   if (!server.length) return client;
 
-  const enriched = server.map((s) => {
+  const enriched = server.map(s => {
     if (isBundleRewardCartLine(s)) return s;
-    const hint = client.find((c) => cartLinesMatch(s, c));
+    const hint = client.find(c => cartLinesMatch(s, c));
     if (!hint) return s;
     const sSrc = getCartLinePreviewImageSrc(s);
     const hSrc = getCartLinePreviewImageSrc(hint);
@@ -408,25 +409,23 @@ export function mergeServerCartWithLocalLines(serverLines, localLines) {
             image_snapshot: hint.image_snapshot ?? hint.image,
             product:
               typeof hint.product === 'object' && hint.product
-                ? { ...(typeof s.product === 'object' && s.product ? s.product : {}), ...hint.product }
+                ? {
+                    ...(typeof s.product === 'object' && s.product ? s.product : {}),
+                    ...hint.product,
+                  }
                 : s.product,
           };
     return base;
   });
 
-  const pending = client.filter(
-    (c) => !c.cartItemId && !server.some((s) => cartLinesMatch(s, c))
-  );
+  const pending = client.filter(c => !c.cartItemId && !server.some(s => cartLinesMatch(s, c)));
 
   /** Lines already on the API client (have cartItemId) but missing from this server snapshot — e.g. first GET after add before replica catches up. */
-  const orphanWithId = client.filter((c) => {
+  const orphanWithId = client.filter(c => {
     if (!c?.cartItemId) return false;
     const cid = String(c.cartItemId ?? c.id ?? '');
     if (!cid) return false;
-    return !server.some(
-      (s) =>
-        String(s.cartItemId ?? s.id ?? '') === cid || cartLinesMatch(s, c)
-    );
+    return !server.some(s => String(s.cartItemId ?? s.id ?? '') === cid || cartLinesMatch(s, c));
   });
 
   return [...enriched, ...pending, ...orphanWithId];
@@ -446,7 +445,7 @@ export function persistCartLinesImmediate(items, storageKey) {
 export function buildAddRollbackTarget(prevItems, persistableLine, addQty) {
   const key = persistableLine.cartItemKey;
   const prevLine = prevItems.find(
-    (it) => (it.cartItemKey ?? `${it.id ?? it.productId}_${cartLineSizeKey(it)}`) === key
+    it => (it.cartItemKey ?? `${it.id ?? it.productId}_${cartLineSizeKey(it)}`) === key
   );
   if (!prevLine) {
     return { kind: 'removeNew', key };
@@ -457,10 +456,10 @@ export function buildAddRollbackTarget(prevItems, persistableLine, addQty) {
 export function applyAddRollback(prevItems, rollback) {
   if (rollback.kind === 'removeNew') {
     return prevItems.filter(
-      (it) => (it.cartItemKey ?? `${it.id ?? it.productId}_${cartLineSizeKey(it)}`) !== rollback.key
+      it => (it.cartItemKey ?? `${it.id ?? it.productId}_${cartLineSizeKey(it)}`) !== rollback.key
     );
   }
-  return prevItems.map((it) =>
+  return prevItems.map(it =>
     (it.cartItemKey ?? `${it.id ?? it.productId}_${cartLineSizeKey(it)}`) === rollback.key
       ? { ...it, quantity: rollback.qty }
       : it

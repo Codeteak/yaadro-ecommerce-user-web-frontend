@@ -24,6 +24,7 @@ import PWARegistrar from '../components/PWARegistrar';
 import InstallPrompt from '../components/InstallPrompt';
 import ChunkLoadRecovery from '../components/ChunkLoadRecovery';
 import FloatingViewCartPill from '../components/FloatingViewCartPill';
+import WeightChooserHost from '../components/WeightChooserHost';
 
 /**
  * Build-time defaults only (same HTML for every tenant in `out/`).
@@ -72,49 +73,50 @@ export default function RootLayout({ children }) {
       <body className="flex min-h-screen w-full max-w-full flex-col bg-white">
         <div id="app-shell" className="app-shell">
           <ClientOnly fallback={<div className="min-h-screen w-full bg-white" />}>
-          <ShopBrandingProvider>
-            <ToastProvider>
-            <QueryProvider>
-              <CatalogRealtimeProvider>
-              <AuthProvider>
-                <AlertProvider>
-                  <CartProvider>
-                    <WishlistProvider>
-                      <AddressProvider>
-                        <ActivityLogProvider>
-                          <RecentlyViewedProvider>
-                            <OrderProvider>
-                              <BottomNavVisibilityProvider>
-                                <LayoutHeightsProvider>
-                                  <LocationServiceProvider>
-                                    <div id="app-scroll" className="app-scroll">
-                                      <ConditionalLayout>{children}</ConditionalLayout>
-                                    </div>
-                                    <NavigationProgress />
-                                    <MobileBottomNav />
-                                    {/* Once in layout — never remount via createPortal on each page (removeChild crash). */}
-                                    <FloatingViewCartPill />
-                                    <ToastHost />
-                                    <CartSidebar />
-                                    <ServiceAreaBottomSheet />
-                                    <PWARegistrar />
-                                    <ChunkLoadRecovery />
-                                    <InstallPrompt />
-                                  </LocationServiceProvider>
-                                </LayoutHeightsProvider>
-                              </BottomNavVisibilityProvider>
-                            </OrderProvider>
-                          </RecentlyViewedProvider>
-                        </ActivityLogProvider>
-                      </AddressProvider>
-                    </WishlistProvider>
-                  </CartProvider>
-                </AlertProvider>
-              </AuthProvider>
-              </CatalogRealtimeProvider>
-            </QueryProvider>
-            </ToastProvider>
-          </ShopBrandingProvider>
+            <ShopBrandingProvider>
+              <ToastProvider>
+                <QueryProvider>
+                  <CatalogRealtimeProvider>
+                    <AuthProvider>
+                      <AlertProvider>
+                        <CartProvider>
+                          <WishlistProvider>
+                            <AddressProvider>
+                              <ActivityLogProvider>
+                                <RecentlyViewedProvider>
+                                  <OrderProvider>
+                                    <BottomNavVisibilityProvider>
+                                      <LayoutHeightsProvider>
+                                        <LocationServiceProvider>
+                                          <div id="app-scroll" className="app-scroll">
+                                            <ConditionalLayout>{children}</ConditionalLayout>
+                                          </div>
+                                          <NavigationProgress />
+                                          <MobileBottomNav />
+                                          {/* Once in layout — never remount via createPortal on each page (removeChild crash). */}
+                                          <FloatingViewCartPill />
+                                          <ToastHost />
+                                          <CartSidebar />
+                                          <ServiceAreaBottomSheet />
+                                          <PWARegistrar />
+                                          <ChunkLoadRecovery />
+                                          <InstallPrompt />
+                                          <WeightChooserHost />
+                                        </LocationServiceProvider>
+                                      </LayoutHeightsProvider>
+                                    </BottomNavVisibilityProvider>
+                                  </OrderProvider>
+                                </RecentlyViewedProvider>
+                              </ActivityLogProvider>
+                            </AddressProvider>
+                          </WishlistProvider>
+                        </CartProvider>
+                      </AlertProvider>
+                    </AuthProvider>
+                  </CatalogRealtimeProvider>
+                </QueryProvider>
+              </ToastProvider>
+            </ShopBrandingProvider>
           </ClientOnly>
         </div>
         {/*
