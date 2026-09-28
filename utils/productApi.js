@@ -7,18 +7,14 @@ import { api, apiFetchRoot } from './apiClient';
 import { resolveShopId } from './authApi';
 import { mediaObjectToUrl } from './mediaUrl';
 import { normalizeProductImages, PRODUCT_IMAGE_PLACEHOLDER } from './productImages';
-import {
-  parseProductDescription,
-  resolveProductWeightAndUnit,
-} from './productUtils';
+import { parseProductDescription, resolveProductWeightAndUnit } from './productUtils';
 import { normalizeStorefrontProductPricing } from './storefrontProductPricing';
 import { resolveStorefrontProductUpstreamPath } from '../lib/storefrontProductDetail.js';
 import { toDisplayText, sanitizeProductUiFields, resolveProductBrand } from './displayText.js';
 
 export { toDisplayText, sanitizeProductUiFields, resolveProductBrand } from './displayText.js';
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function coerceSoldByWeightFlag(value) {
   if (value === true || value === 1) return true;
@@ -80,11 +76,7 @@ function slugify(input) {
 export function resolveProductDetailSegment(product) {
   if (!product || typeof product !== 'object') return '';
 
-  const rawCandidates = [
-    product.slug,
-    product.product_slug,
-    product.productSlug,
-  ];
+  const rawCandidates = [product.slug, product.product_slug, product.productSlug];
   for (const candidate of rawCandidates) {
     const raw = candidate != null ? String(candidate).trim() : '';
     if (raw && !UUID_RE.test(raw)) return raw;
@@ -106,8 +98,7 @@ export function resolveProductDetailSegment(product) {
 /** @param {object} product */
 export function getProductDetailPath(product) {
   const segment =
-    resolveProductDetailSegment(product) ||
-    (product?.id != null ? String(product.id).trim() : '');
+    resolveProductDetailSegment(product) || (product?.id != null ? String(product.id).trim() : '');
   if (!segment) return '/products/';
 
   // Static export: only pre-built `/products/[id]/` paths exist (`dynamicParams` is false).
@@ -149,7 +140,7 @@ function rememberSlugMapping(apiProduct, slug) {
 function transformProduct(apiProduct) {
   if (!apiProduct) return null;
 
-  const normalizeCategoryName = (cat) => toDisplayText(cat);
+  const normalizeCategoryName = cat => toDisplayText(cat);
 
   // Storefront catalog shape (minor currency units + availability)
   const isStorefrontCatalog =
@@ -222,7 +213,8 @@ function transformProduct(apiProduct) {
       offerPriceMinor: offerLayerMinor,
       promoPriceMinor: promoLayerMinor,
       totalDiscountMinor,
-      category: normalizeCategoryName(apiProduct.category) || toDisplayText(apiProduct.category_slug) || '',
+      category:
+        normalizeCategoryName(apiProduct.category) || toDisplayText(apiProduct.category_slug) || '',
       subcategory: '',
       description: parseProductDescription(apiProduct) || toDisplayText(apiProduct.description),
       image,
@@ -301,9 +293,8 @@ function transformProduct(apiProduct) {
   rememberSlugMapping(apiProduct, slug);
   const legacyWeightUnit = resolveProductWeightAndUnit(apiProduct);
   const legacyPricing = normalizeStorefrontProductPricing(apiProduct);
-  const legacyList = legacyPricing.listPrice > 0
-    ? legacyPricing.listPrice
-    : parseFloat(apiProduct.price) || 0;
+  const legacyList =
+    legacyPricing.listPrice > 0 ? legacyPricing.listPrice : parseFloat(apiProduct.price) || 0;
   const legacyOffer = legacyPricing.offerPrice;
   const legacyHasDiscount = legacyPricing.hasDiscount;
   return sanitizeProductUiFields({
@@ -326,7 +317,10 @@ function transformProduct(apiProduct) {
     offerPrice: legacyOffer,
     offerPriceEffective: legacyOffer,
     totalDiscountMinor: legacyPricing.totalDiscountMinor || undefined,
-    category: normalizeCategoryName(apiProduct.category) || normalizeCategoryName(apiProduct.subcategory) || '',
+    category:
+      normalizeCategoryName(apiProduct.category) ||
+      normalizeCategoryName(apiProduct.subcategory) ||
+      '',
     subcategory: toDisplayText(apiProduct.subcategory),
     description: toDisplayText(apiProduct.description) || parseProductDescription(apiProduct) || '',
     image: firstImage,
@@ -334,7 +328,7 @@ function transformProduct(apiProduct) {
     imageUrls: finalUrls,
     imageUrl: apiProduct.imageUrl ?? apiProduct.image_url ?? null,
     thumbnailUrl: apiProduct.thumbnailUrl || thumbnailUrlStr || null,
-    inStock: apiProduct.inStock !== undefined ? apiProduct.inStock : (apiProduct.stock > 0),
+    inStock: apiProduct.inStock !== undefined ? apiProduct.inStock : apiProduct.stock > 0,
     stock: apiProduct.stock ?? 0,
     minStockAlert: apiProduct.minStockAlert ?? null,
     weight: legacyWeightUnit.weight,
@@ -429,14 +423,17 @@ function transformCategory(apiCategory) {
     children: (apiCategory.children || []).map(transformCategory),
     level: apiCategory.level ?? 0,
     path: apiCategory.path || apiCategory.name,
-    pathArray: apiCategory.pathArray || (apiCategory.path ? apiCategory.path.split(' > ') : [apiCategory.name]),
+    pathArray:
+      apiCategory.pathArray ||
+      (apiCategory.path ? apiCategory.path.split(' > ') : [apiCategory.name]),
     productCount: apiCategory.productCount ?? 0,
     totalProductCount: apiCategory.totalProductCount ?? apiCategory.productCount ?? 0,
     isLeaf: apiCategory.isLeaf ?? !(apiCategory.children && apiCategory.children.length > 0),
     childCount: apiCategory.childCount ?? (apiCategory.children ? apiCategory.children.length : 0),
     offers: apiCategory.offers || null,
     bundleRules: apiCategory.bundle_rules || apiCategory.bundleRules || [],
-    categoryDiscountRules: apiCategory.category_discount_rules || apiCategory.categoryDiscountRules || [],
+    categoryDiscountRules:
+      apiCategory.category_discount_rules || apiCategory.categoryDiscountRules || [],
     createdAt: apiCategory.createdAt || '',
     updatedAt: apiCategory.updatedAt || '',
   };
@@ -463,8 +460,7 @@ function transformCategory(apiCategory) {
  * @returns {Record<string, string|number>}
  */
 export function buildStorefrontProductsQuery(raw = {}) {
-  const UUID =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
   const out = {};
 
@@ -555,9 +551,7 @@ export function buildStorefrontProductsQuery(raw = {}) {
   }
 
   const hasCursor =
-    out.offset === undefined &&
-    raw.cursor != null &&
-    String(raw.cursor).trim().length > 0;
+    out.offset === undefined && raw.cursor != null && String(raw.cursor).trim().length > 0;
 
   if (hasCursor) {
     out.sort_by = 'created_at';
@@ -622,7 +616,9 @@ export async function getProducts(params = {}) {
 
     const shopId = await resolveShopId();
     if (!shopId) {
-      throw new Error('Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/* requests on localhost).');
+      throw new Error(
+        'Missing NEXT_PUBLIC_SHOP_ID (required for /storefront/* requests on localhost).'
+      );
     }
     const headers = shopId ? { 'x-shop-id': shopId } : undefined;
 
@@ -640,7 +636,7 @@ export async function getProducts(params = {}) {
         .map(transformProduct)
         .filter(Boolean)
         // Defense in depth: never surface draft/archived (pending activation) SKUs.
-        .filter((p) => {
+        .filter(p => {
           const status = p.status != null ? String(p.status).toLowerCase() : '';
           return !status || status === 'active';
         }),
@@ -687,7 +683,9 @@ export async function getProductById(productId, options = {}) {
         ? response.product
         : response?.data?.product && typeof response.data.product === 'object'
           ? response.data.product
-          : response?.data && typeof response.data === 'object' && (response.data.id || response.data.name)
+          : response?.data &&
+              typeof response.data === 'object' &&
+              (response.data.id || response.data.name)
             ? response.data
             : response;
 
@@ -699,7 +697,12 @@ export async function getProductById(productId, options = {}) {
     }
     return product;
   } catch (error) {
-    if (!silent) {
+    // Missing / inactive catalog rows are common during sync — avoid noisy console in production.
+    const status = Number(error?.status ?? error?.statusCode);
+    const msg = String(error?.message || '').toLowerCase();
+    const isNotFound =
+      status === 404 || msg.includes('not found') || msg.includes('product not found');
+    if (!silent && !isNotFound) {
       console.error('Error fetching product:', error);
     }
     return null;
@@ -728,7 +731,7 @@ export async function getProductWithRelated(productId) {
       layout: 'flat',
     });
     const relatedProducts = (list?.products || [])
-      .filter((p) => p && p.id !== product.id)
+      .filter(p => p && p.id !== product.id)
       .slice(0, 12);
 
     return { product, relatedProducts };
@@ -818,7 +821,7 @@ export async function getRootCategories() {
     return list
       .map(transformCategory)
       .filter(Boolean)
-      .filter((c) => c.parentId == null && c.isActive !== false);
+      .filter(c => c.parentId == null && c.isActive !== false);
   } catch (error) {
     console.error('Error fetching root categories:', error);
     throw error;
@@ -858,9 +861,9 @@ export async function getCategoriesTree() {
       const list = res?.categories || [];
       const transformed = list.map(transformCategory).filter(Boolean);
       if (transformed.length) {
-        const hasNested = transformed.some((c) => Array.isArray(c.children) && c.children.length > 0);
+        const hasNested = transformed.some(c => Array.isArray(c.children) && c.children.length > 0);
         return hasNested
-          ? transformed.filter((c) => c.parentId == null)
+          ? transformed.filter(c => c.parentId == null)
           : buildTreeFromFlat(transformed);
       }
     } catch {
@@ -877,7 +880,7 @@ export async function getCategoriesTree() {
       const list = res?.categories || [];
       const transformed = list.map(transformCategory).filter(Boolean);
       const withChildren = await Promise.all(
-        transformed.map(async (c) => ({
+        transformed.map(async c => ({
           ...c,
           children: await fetchChildren(c.id),
         }))
@@ -903,11 +906,11 @@ export async function getCategoriesTree() {
 function buildTreeFromFlat(flat, parentId = null) {
   const parentKey = parentId == null ? null : String(parentId);
   return flat
-    .filter((c) => {
+    .filter(c => {
       const pid = c.parentId == null ? null : String(c.parentId);
       return pid === parentKey;
     })
-    .map((node) => ({
+    .map(node => ({
       ...node,
       children: buildTreeFromFlat(flat, node.id),
     }));
@@ -949,9 +952,7 @@ export async function getProductsByCategory(categoryName, limit = null) {
   try {
     // First, try to find category by name
     const categories = await getCategories();
-    const category = categories.find(
-      (cat) => cat.name.toLowerCase() === categoryName.toLowerCase()
-    );
+    const category = categories.find(cat => cat.name.toLowerCase() === categoryName.toLowerCase());
 
     if (!category) {
       return [];
