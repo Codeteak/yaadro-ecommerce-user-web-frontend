@@ -2,7 +2,11 @@
 
 import { useMemo, memo, useEffect, useRef } from 'react';
 import { useInfiniteProducts } from '../../hooks/useProducts';
-import { getProductRating, getProductDiscount, dedupeProductsByVariantGroup } from '../../utils/productUtils';
+import {
+  getProductRating,
+  getProductDiscount,
+  dedupeProductsByVariantGroup,
+} from '../../utils/productUtils';
 import ProductCard from '../ProductCard';
 import InfiniteScrollSentinel from '../InfiniteScrollSentinel';
 import { CATEGORY_ID_UUID, SORT_OPTIONS } from './productsBrowseConstants';
@@ -20,8 +24,8 @@ function isAllCategoryLabel(label) {
 }
 
 export function FilterBar({ filters, onFilterToggle, sortKey, onSortChange, disabled }) {
-  const sortLabel = SORT_OPTIONS.find((s) => s.key === sortKey)?.label || 'Sort';
-  const sortIdx = SORT_OPTIONS.findIndex((s) => s.key === sortKey);
+  const sortLabel = SORT_OPTIONS.find(s => s.key === sortKey)?.label || 'Sort';
+  const sortIdx = SORT_OPTIONS.findIndex(s => s.key === sortKey);
 
   const handleSortClick = () => {
     if (disabled) return;
@@ -108,7 +112,12 @@ export function FilterBar({ filters, onFilterToggle, sortKey, onSortChange, disa
         }`}
       >
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"
+          />
         </svg>
         {sortLabel}
       </button>
@@ -157,16 +166,11 @@ function ProductsListingPanelInner({
     return q;
   }, [urlSearch, filters.inStock, sortKey, categoryId]);
 
-  const {
-    data,
-    isLoading,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-  } = useInfiniteProducts(infiniteParams);
+  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
+    useInfiniteProducts(infiniteParams);
 
   const products = useMemo(
-    () => (data?.pages || []).flatMap((p) => p?.products || []),
+    () => (data?.pages || []).flatMap(p => p?.products || []),
     [data?.pages]
   );
 
@@ -179,14 +183,16 @@ function ProductsListingPanelInner({
   }, [products, sortKey]);
 
   const filtered = useMemo(() => {
-    return sorted.filter((p) => {
+    return sorted.filter(p => {
       if (filters.organic && !p.organicTag) return false;
       if (filters.onSale) {
         const disc = getProductDiscount(p);
         if (!disc || disc <= 0) return false;
       }
       if (
-        String(activeCategory || '').trim().toLowerCase() !== 'all' &&
+        String(activeCategory || '')
+          .trim()
+          .toLowerCase() !== 'all' &&
         !CATEGORY_ID_UUID.test(activeCategory)
       ) {
         if (String(p.category || '') !== activeCategory) return false;
@@ -200,7 +206,7 @@ function ProductsListingPanelInner({
     const list = !q
       ? filtered
       : filtered.filter(
-          (p) =>
+          p =>
             p.name?.toLowerCase().includes(q) ||
             p.brand?.toLowerCase().includes(q) ||
             String(p.category || '')
@@ -233,7 +239,7 @@ function ProductsListingPanelInner({
 
   // Persist scroll before leaving for PDP (capture phase on product links)
   useEffect(() => {
-    const onClick = (e) => {
+    const onClick = e => {
       const a = e.target?.closest?.('a[href*="/products/"]');
       if (!a || typeof window === 'undefined') return;
       try {
@@ -270,10 +276,7 @@ function ProductsListingPanelInner({
     >
       {/* Same fade-in “Browsing {Category}” treatment as HomeCategoryRail */}
       {showBrowsingHero ? (
-        <div
-          key={browseTitle}
-          className="mb-3 animate-fade-in px-0.5 text-left"
-        >
+        <div key={browseTitle} className="mb-3 animate-fade-in px-0.5 text-left">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#902bf5]/80">
             Browsing
           </p>
@@ -283,7 +286,7 @@ function ProductsListingPanelInner({
           {!isLoading && (
             <p className="mt-1.5 text-[11px] text-gray-400">
               {displayProducts.length > 0
-                ? `${displayProducts.length} product${displayProducts.length !== 1 ? 's' : ''}`
+                ? `${displayProducts.length}${hasNextPage ? '+' : ''} product${displayProducts.length !== 1 || hasNextPage ? 's' : ''}`
                 : localInResultsSearch.trim()
                   ? 'No matches'
                   : 'No products'}
@@ -295,7 +298,7 @@ function ProductsListingPanelInner({
           <p className="mb-2 text-[11px] text-gray-400">
             {browseTitle}
             {displayProducts.length > 0
-              ? ` · ${displayProducts.length} product${displayProducts.length !== 1 ? 's' : ''}`
+              ? ` · ${displayProducts.length}${hasNextPage ? '+' : ''} product${displayProducts.length !== 1 || hasNextPage ? 's' : ''}`
               : localInResultsSearch.trim()
                 ? ' · No matches'
                 : ' · No products'}
@@ -303,10 +306,7 @@ function ProductsListingPanelInner({
         )
       )}
 
-      <div
-        key={`${categoryId || 'all'}|${urlSearch || ''}`}
-        className="animate-fade-in"
-      >
+      <div key={`${categoryId || 'all'}|${urlSearch || ''}`} className="animate-fade-in">
         {isLoading ? (
           <ProductGridSkeleton count={8} variant="products" />
         ) : displayProducts.length === 0 ? (
@@ -321,7 +321,7 @@ function ProductsListingPanelInner({
         ) : (
           <>
             <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
-              {displayProducts.map((product) => (
+              {displayProducts.map(product => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
