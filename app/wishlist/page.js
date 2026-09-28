@@ -27,15 +27,16 @@ export default function WishlistPage() {
 
   const [weightProduct, setWeightProduct] = useState(null);
 
-  const openProduct = (item) => {
+  const openProduct = item => {
     const path = getProductDetailPath(item);
     if (path === '/products/') return;
     navigateToProductDetail(router, path);
   };
 
-  const handleAddToCart = (product) => {
+  const handleAddToCart = product => {
     if (hasCustomWeightStep(product)) {
-      setWeightProduct(product);
+      // Defer so the tap does not immediately dismiss the Radix sheet.
+      window.setTimeout(() => setWeightProduct(product), 0);
       return;
     }
     const sizes = buildAvailableSizes(product);
@@ -44,7 +45,7 @@ export default function WishlistPage() {
     addToCart(payload, sizeAddQuantity(product, size));
   };
 
-  const chooseWishlistWeight = (size) => {
+  const chooseWishlistWeight = size => {
     const product = weightProduct;
     if (!product || !size) return;
     const list = getListPrice(product);
@@ -66,7 +67,12 @@ export default function WishlistPage() {
     return (
       <div className="py-16 w-full max-w-full">
         <Container>
-          <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Wishlist', href: '/wishlist' }]} />
+          <Breadcrumbs
+            items={[
+              { label: 'Home', href: '/' },
+              { label: 'Wishlist', href: '/wishlist' },
+            ]}
+          />
           <div className="text-center mt-4">
             <div className="mb-8">
               <svg
@@ -83,7 +89,9 @@ export default function WishlistPage() {
                 />
               </svg>
             </div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mb-4">Your Wishlist is Empty</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+              Your Wishlist is Empty
+            </h1>
             <p className="text-gray-600 mb-8">
               Start adding products to your wishlist to save them for later.
             </p>
@@ -102,7 +110,12 @@ export default function WishlistPage() {
   return (
     <div className="py-4 md:py-6 lg:py-8 w-full max-w-full">
       <Container>
-        <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Wishlist', href: '/wishlist' }]} />
+        <Breadcrumbs
+          items={[
+            { label: 'Home', href: '/' },
+            { label: 'Wishlist', href: '/wishlist' },
+          ]}
+        />
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 md:mb-8 px-4 md:px-0 mt-2">
           <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800">
             My Wishlist ({wishlistItems.length})
@@ -118,14 +131,14 @@ export default function WishlistPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 px-4 md:px-0">
-          {wishlistItems.map((item) => (
+          {wishlistItems.map(item => (
             <div
               key={item.id}
               className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 group relative"
             >
               <Link
                 href={getProductDetailPath(item)}
-                onClick={(e) => {
+                onClick={e => {
                   e.preventDefault();
                   openProduct(item);
                 }}
@@ -140,7 +153,7 @@ export default function WishlistPage() {
                   />
                 </div>
               </Link>
-              
+
               {/* Remove from Wishlist Button */}
               <button
                 onClick={() => removeFromWishlist(item.id)}
@@ -165,7 +178,7 @@ export default function WishlistPage() {
               <div className="p-4 min-w-0">
                 <Link
                   href={getProductDetailPath(item)}
-                  onClick={(e) => {
+                  onClick={e => {
                     e.preventDefault();
                     openProduct(item);
                   }}
@@ -182,13 +195,15 @@ export default function WishlistPage() {
                     ₹{formatRupeeINR(getEffectivePrice(item))}
                   </span>
                   {!item.inStock && (
-                    <span className="text-xs text-red-600 font-semibold whitespace-nowrap flex-shrink-0">Out of Stock</span>
+                    <span className="text-xs text-red-600 font-semibold whitespace-nowrap flex-shrink-0">
+                      Out of Stock
+                    </span>
                   )}
                 </div>
                 <div className="flex gap-2">
                   <Link
                     href={getProductDetailPath(item)}
-                    onClick={(e) => {
+                    onClick={e => {
                       e.preventDefault();
                       openProduct(item);
                     }}
@@ -197,7 +212,7 @@ export default function WishlistPage() {
                     View Details
                   </Link>
                   <button
-                    onClick={(e) => {
+                    onClick={e => {
                       playAddTap(e.currentTarget);
                       handleAddToCart(item);
                     }}
@@ -218,7 +233,7 @@ export default function WishlistPage() {
       </Container>
       <CustomWeightChooser
         open={Boolean(weightProduct)}
-        onOpenChange={(open) => {
+        onOpenChange={open => {
           if (!open) setWeightProduct(null);
         }}
         product={weightProduct}
@@ -229,4 +244,3 @@ export default function WishlistPage() {
     </div>
   );
 }
-

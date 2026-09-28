@@ -17,7 +17,16 @@ import {
   resolveProductWeightAndUnit,
 } from '../utils/productUtils';
 import { getProductOfferDisplay } from '../utils/offerDisplay';
-import { buildAvailableSizes, resolveSelectedSize, sizeAddQuantity, cartQuantityStep, weightStepLinePrices, hasCustomWeightStep, isSoldByWeightProduct, formatCartQtyControlLabel } from '../utils/productSizeSelection';
+import {
+  buildAvailableSizes,
+  resolveSelectedSize,
+  sizeAddQuantity,
+  cartQuantityStep,
+  weightStepLinePrices,
+  hasCustomWeightStep,
+  isSoldByWeightProduct,
+  formatCartQtyControlLabel,
+} from '../utils/productSizeSelection';
 import { playAddTap, playAddTapAndHold } from '../utils/playAddTap';
 import CustomWeightChooser from './CustomWeightChooser';
 import PriceDisplay from './ui/PriceDisplay';
@@ -39,11 +48,10 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   const router = useRouter();
   const { shopId } = useShopBranding();
   const { addToCart, cartItems, updateQuantity, removeFromCart } = useCart();
-  const legacyOriginal =
-    product.originalPrice != null ? parseFloat(product.originalPrice) : null;
-  
+  const legacyOriginal = product.originalPrice != null ? parseFloat(product.originalPrice) : null;
+
   const productImages = useMemo(() => getResolvedProductImageUrls(product), [product]);
-  
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -57,9 +65,9 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       suppressNavClickRef.current = false;
     }, 280);
   }, []);
-  
+
   const imageSrc = productImages[currentImageIndex];
-  
+
   // Get available sizes or use default weight/unit
   const availableSizes = useMemo(() => buildAvailableSizes(product), [product]);
   const customWeight = hasCustomWeightStep(product);
@@ -73,7 +81,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   );
 
   useEffect(() => {
-    setSelectedSize((prev) => resolveSelectedSize(availableSizes, prev));
+    setSelectedSize(prev => resolveSelectedSize(availableSizes, prev));
   }, [availableSizes, product?.id, product?.price, product?.actualPriceMinor]);
 
   const [cartActionLoading, setCartActionLoading] = useState(false);
@@ -105,18 +113,13 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       : legacyOriginal != null && legacyOriginal > currentPrice
         ? legacyOriginal
         : null;
-  const displayListPrice =
-    strikeList ??
-    (basePrice > currentPrice + 1e-9 ? basePrice : null);
+  const displayListPrice = strikeList ?? (basePrice > currentPrice + 1e-9 ? basePrice : null);
   /** Rupee savings for ribbon — mirrors footer line; fallback when strike list logic misses edge cases. */
   const saveRupees = useMemo(() => {
     const fromStrike =
-      strikeList != null && strikeList > currentPrice + 1e-9
-        ? strikeList - currentPrice
-        : 0;
+      strikeList != null && strikeList > currentPrice + 1e-9 ? strikeList - currentPrice : 0;
     if (fromStrike > 0.004) return Math.round(fromStrike * 100) / 100;
-    const fromBase =
-      basePrice > currentPrice + 1e-9 ? basePrice - currentPrice : 0;
+    const fromBase = basePrice > currentPrice + 1e-9 ? basePrice - currentPrice : 0;
     if (fromBase > 0.004) return Math.round(fromBase * 100) / 100;
     return null;
   }, [strikeList, currentPrice, basePrice]);
@@ -168,23 +171,24 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   const paidCartQty = cartLine ? getCartLinePaidQty(cartLine) : 0;
   const displayCartQty = paidCartQty > 0 ? paidCartQty : pendingCartQty;
   const qtyStep = cartQuantityStep(product);
-  const qtyControlLabel = formatCartQtyControlLabel(
-    cartLine || product,
-    displayCartQty
-  );
-  const atMinPack =
-    isSoldByWeightProduct(product)
-      ? displayCartQty <= qtyStep + 1e-9
-      : displayCartQty <= 1;
+  const qtyControlLabel = formatCartQtyControlLabel(cartLine || product, displayCartQty);
+  const atMinPack = isSoldByWeightProduct(product)
+    ? displayCartQty <= qtyStep + 1e-9
+    : displayCartQty <= 1;
 
   useEffect(() => {
     if (paidCartQty > 0) setPendingCartQty(0);
   }, [paidCartQty]);
-  const cartUpdateKey =
-    cartLine?.cartItemKey ?? cartLine?.cartItemId ?? cartLine?.id ?? null;
+  const cartUpdateKey = cartLine?.cartItemKey ?? cartLine?.cartItemId ?? cartLine?.id ?? null;
+
+  const openWeightChooser = useCallback(() => {
+    // Defer so the ADD click that opened the sheet does not immediately count as
+    // an outside dismiss (Radix Dialog + same pointer gesture).
+    window.setTimeout(() => setWeightChooserOpen(true), 0);
+  }, []);
 
   const chooseCustomWeight = useCallback(
-    async (size) => {
+    async size => {
       if (product?.inStock === false) return;
       if (cartActionLoading || !size) return;
       const qtyToAdd = sizeAddQuantity(product, size);
@@ -217,9 +221,10 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     if (String(product?.bxgyShelfRole || '').trim() === 'get') return;
     if (cartActionLoading) return;
     // Press anim first; hold ADD visible so the swap to qty feels smooth.
-    if (customWeight && availableSizes.length > 0) {
+    // Chooser has its own ×1/×2 fallback when availableSizes is empty.
+    if (customWeight) {
       void playAddTap(addBtnRef.current);
-      setWeightChooserOpen(true);
+      openWeightChooser();
       return;
     }
     const shelfBuy = Math.floor(Number(product?.bxgyBuyQty));
@@ -246,6 +251,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     productToAddPayload,
     addQty,
     customWeight,
+    openWeightChooser,
     availableSizes.length,
     product?.inStock,
     product?.bxgyShelfRole,
@@ -253,7 +259,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   ]);
 
   const handleIncrement = useCallback(
-    async (e) => {
+    async e => {
       e.preventDefault();
       e.stopPropagation();
       if (cartActionLoading) return;
@@ -274,20 +280,17 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       }
       if (cartUpdateKey != null && paidCartQty > 0) {
         const step = cartQuantityStep(product);
-        updateQuantity(
-          cartUpdateKey,
-          Math.round((paidCartQty + step) * 10000) / 10000
-        );
+        updateQuantity(cartUpdateKey, Math.round((paidCartQty + step) * 10000) / 10000);
         return;
       }
       if (pendingCartQty > 0) {
         const step = cartQuantityStep(product);
-        setPendingCartQty((q) => Math.round((q + step) * 10000) / 10000);
+        setPendingCartQty(q => Math.round((q + step) * 10000) / 10000);
         setCartActionLoading(true);
         try {
           await addToCart(productToAddPayload, step);
         } catch {
-          setPendingCartQty((q) => Math.max(0, Math.round((q - step) * 10000) / 10000));
+          setPendingCartQty(q => Math.max(0, Math.round((q - step) * 10000) / 10000));
         } finally {
           setCartActionLoading(false);
         }
@@ -309,12 +312,12 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
 
   /** Keep cart taps from activating nested Link navigation; do not stop pointerdown
    *  so SmoothDragRail can still arm horizontal drag when the gesture starts on ADD. */
-  const stopCartBubble = useCallback((e) => {
+  const stopCartBubble = useCallback(e => {
     e.stopPropagation();
   }, []);
 
   const handleDecrement = useCallback(
-    (e) => {
+    e => {
       e.preventDefault();
       e.stopPropagation();
       if (cartActionLoading) return;
@@ -324,10 +327,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         if (paidCartQty <= step + 1e-9) {
           removeFromCart(cartUpdateKey);
         } else {
-          updateQuantity(
-            cartUpdateKey,
-            Math.round((paidCartQty - step) * 10000) / 10000
-          );
+          updateQuantity(cartUpdateKey, Math.round((paidCartQty - step) * 10000) / 10000);
         }
         setPendingCartQty(0);
         return;
@@ -358,9 +358,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   const shelfRole = String(product?.bxgyShelfRole || '').trim();
   const shelfMode = String(product?.bxgyOfferMode || '').trim();
   // Prefer engine role for cross BUY/FREE ribbons on PLP (not only Damaka shelf).
-  const engineRole = bundleRule
-    ? bundleRuleRoleForProduct(bundleRule, product?.id)
-    : 'same';
+  const engineRole = bundleRule ? bundleRuleRoleForProduct(bundleRule, product?.id) : 'same';
   const ribbonRole =
     shelfMode === 'cross_sku' && (shelfRole === 'buy' || shelfRole === 'get')
       ? shelfRole
@@ -378,10 +376,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         })
       : bundleLabel);
 
-  const chromeClass =
-    variant === 'flat'
-      ? 'border-0 bg-transparent shadow-none'
-      : 'bg-white';
+  const chromeClass = variant === 'flat' ? 'border-0 bg-transparent shadow-none' : 'bg-white';
 
   const dietKind = resolveProductDiet(product);
   const unitOverlayLabel = String(displayWeight || '')
@@ -397,38 +392,38 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   // Handle swipe gestures
   const minSwipeDistance = 50;
 
-  const onTouchStart = (e) => {
+  const onTouchStart = e => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
   };
 
-  const onTouchMove = (e) => {
+  const onTouchMove = e => {
     setTouchEnd(e.targetTouches[0].clientX);
   };
 
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
-    
+
     const distance = touchStart - touchEnd;
     const isLeftSwipe = distance > minSwipeDistance;
     const isRightSwipe = distance < -minSwipeDistance;
-    
+
     if (isLeftSwipe && productImages.length > 1) {
-      setCurrentImageIndex((prev) => (prev + 1) % productImages.length);
+      setCurrentImageIndex(prev => (prev + 1) % productImages.length);
       markSwipeSoNavClickIgnored();
     }
     if (isRightSwipe && productImages.length > 1) {
-      setCurrentImageIndex((prev) => (prev - 1 + productImages.length) % productImages.length);
+      setCurrentImageIndex(prev => (prev - 1 + productImages.length) % productImages.length);
       markSwipeSoNavClickIgnored();
     }
   };
 
   // Handle mouse drag (for desktop)
-  const onMouseDown = (e) => {
+  const onMouseDown = e => {
     setTouchStart(e.clientX);
   };
 
-  const onMouseMove = (e) => {
+  const onMouseMove = e => {
     if (touchStart !== null) {
       setTouchEnd(e.clientX);
     }
@@ -439,13 +434,13 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       const distance = touchStart - touchEnd;
       const isLeftSwipe = distance > minSwipeDistance;
       const isRightSwipe = distance < -minSwipeDistance;
-      
+
       if (isLeftSwipe && productImages.length > 1) {
-        setCurrentImageIndex((prev) => (prev + 1) % productImages.length);
+        setCurrentImageIndex(prev => (prev + 1) % productImages.length);
         markSwipeSoNavClickIgnored();
       }
       if (isRightSwipe && productImages.length > 1) {
-        setCurrentImageIndex((prev) => (prev - 1 + productImages.length) % productImages.length);
+        setCurrentImageIndex(prev => (prev - 1 + productImages.length) % productImages.length);
         markSwipeSoNavClickIgnored();
       }
     }
@@ -470,7 +465,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     onMouseEnter: warmProductDetail,
     onFocus: warmProductDetail,
     onTouchStart: warmProductDetail,
-    onClick: (e) => {
+    onClick: e => {
       if (suppressNavClickRef.current) {
         e.preventDefault();
         e.stopPropagation();
@@ -482,17 +477,11 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     },
   };
 
-  const showSaveRibbon =
-    !product?.bxgyShelfRole &&
-    saveRupees != null &&
-    saveRupees >= 0.005;
+  const showSaveRibbon = !product?.bxgyShelfRole && saveRupees != null && saveRupees >= 0.005;
 
   const discountPct = Number(product?.discountPercentage);
   const showPercentOff =
-    showSaveRibbon &&
-    Number.isFinite(discountPct) &&
-    discountPct >= 1 &&
-    discountPct <= 95;
+    showSaveRibbon && Number.isFinite(discountPct) && discountPct >= 1 && discountPct <= 95;
 
   const brandLabel = toDisplayText(product?.brand);
   const productTitle = toDisplayText(product?.name) || 'Product';
@@ -520,7 +509,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     >
       <button
         type="button"
-        onClick={(e) => {
+        onClick={e => {
           playAddTap(e.currentTarget);
           void handleDecrement(e);
         }}
@@ -542,7 +531,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
       </span>
       <button
         type="button"
-        onClick={(e) => {
+        onClick={e => {
           playAddTap(e.currentTarget);
           void handleIncrement(e);
         }}
@@ -556,7 +545,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   ) : (
     <button
       type="button"
-      onClick={(e) => {
+      onClick={e => {
         e.preventDefault();
         e.stopPropagation();
         void handleAddToCart();
@@ -586,188 +575,191 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
 
   return (
     <>
-    <article className={cardShellClass}>
-      <div className="relative w-full shrink-0 overflow-hidden rounded-t-[20px] bg-gray-50">
-        <Link {...navLinkProps} className="block">
-          <div
-            ref={carouselRef}
-            className={`relative aspect-square w-full overflow-hidden bg-gray-50 pointer-events-auto ${
-              inHorizontalRail ? '' : 'cursor-grab active:cursor-grabbing'
-            }`}
-            onTouchStart={inHorizontalRail ? undefined : onTouchStart}
-            onTouchMove={inHorizontalRail ? undefined : onTouchMove}
-            onTouchEnd={inHorizontalRail ? undefined : onTouchEnd}
-            onMouseDown={inHorizontalRail ? undefined : onMouseDown}
-            onMouseMove={inHorizontalRail ? undefined : onMouseMove}
-            onMouseUp={inHorizontalRail ? undefined : onMouseUp}
-            onMouseLeave={inHorizontalRail ? undefined : onMouseUp}
-          >
+      <article className={cardShellClass}>
+        <div className="relative w-full shrink-0 overflow-hidden rounded-t-[20px] bg-gray-50">
+          <Link {...navLinkProps} className="block">
             <div
-              className="relative z-0 flex h-full min-h-0 w-full transition-transform duration-500 ease-in-out"
-              style={{ transform: `translateX(-${currentImageIndex * 100}%)` }}
+              ref={carouselRef}
+              className={`relative aspect-square w-full overflow-hidden bg-gray-50 pointer-events-auto ${
+                inHorizontalRail ? '' : 'cursor-grab active:cursor-grabbing'
+              }`}
+              onTouchStart={inHorizontalRail ? undefined : onTouchStart}
+              onTouchMove={inHorizontalRail ? undefined : onTouchMove}
+              onTouchEnd={inHorizontalRail ? undefined : onTouchEnd}
+              onMouseDown={inHorizontalRail ? undefined : onMouseDown}
+              onMouseMove={inHorizontalRail ? undefined : onMouseMove}
+              onMouseUp={inHorizontalRail ? undefined : onMouseUp}
+              onMouseLeave={inHorizontalRail ? undefined : onMouseUp}
             >
-              {productImages.map((img, idx) => (
-                <div key={`${idx}-${img}`} className="relative h-full min-h-0 w-full flex-shrink-0">
-                  <ProductImageWithFallback
-                    src={img}
-                    alt={`${productTitle} – image ${idx + 1}`}
-                    fill
-                    className={`object-contain object-center ${
-                      isUnavailable ? 'brightness-[0.55] grayscale' : ''
-                    }`}
-                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 50vw, (max-width: 1200px) 33vw, 173px"
-                    placeholderName={productTitle}
-                    placeholderCategory={
-                      toDisplayText(product.categoryName) ||
-                      toDisplayText(product.category?.name) ||
-                      toDisplayText(
-                        typeof product.category === 'string' ? product.category : ''
-                      ) ||
-                      toDisplayText(product.primaryCategoryName) ||
-                      ''
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-
-            {isUnavailable ? (
-              <div className="absolute inset-0 z-[2] flex flex-col justify-end">
-                <div className="bg-gradient-to-t from-black/85 via-black/55 to-transparent px-2 pb-2 pt-10 text-center">
-                  <p className="text-[10px] font-extrabold uppercase leading-tight tracking-[0.08em] text-white">
-                    Out of stock
-                  </p>
-                </div>
-              </div>
-            ) : null}
-
-            {showSaveRibbon ? (
-              showPercentOff ? (
-                <div
-                  className={`pointer-events-none absolute left-0 top-2 z-30 ${
-                    isCarousel ? 'max-w-[85%]' : 'max-w-[90%]'
-                  }`}
-                >
-                  <span className="inline-flex items-center rounded-r-md bg-emerald-600 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-sm">
-                    {Math.round(discountPct)}% OFF
-                  </span>
-                </div>
-              ) : (
-                <OfferRibbon saveRupees={saveRupees} compact={isCarousel} />
-              )
-            ) : null}
-            {bundleRibbonText ? (
-              <BundleOfferRibbon
-                label={bundleRibbonText}
-                compact={isCarousel || isShelf}
-                offset={showSaveRibbon}
-              />
-            ) : null}
-
-            {!isCarousel && productImages.length > 1 ? (
               <div
-                className="absolute right-2 top-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white"
-                aria-label={`Image ${currentImageIndex + 1} of ${productImages.length}`}
+                className="relative z-0 flex h-full min-h-0 w-full transition-transform duration-500 ease-in-out"
+                style={{ transform: `translateX(-${currentImageIndex * 100}%)` }}
               >
-                {currentImageIndex + 1}/{productImages.length}
+                {productImages.map((img, idx) => (
+                  <div
+                    key={`${idx}-${img}`}
+                    className="relative h-full min-h-0 w-full flex-shrink-0"
+                  >
+                    <ProductImageWithFallback
+                      src={img}
+                      alt={`${productTitle} – image ${idx + 1}`}
+                      fill
+                      className={`object-contain object-center ${
+                        isUnavailable ? 'brightness-[0.55] grayscale' : ''
+                      }`}
+                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 50vw, (max-width: 1200px) 33vw, 173px"
+                      placeholderName={productTitle}
+                      placeholderCategory={
+                        toDisplayText(product.categoryName) ||
+                        toDisplayText(product.category?.name) ||
+                        toDisplayText(
+                          typeof product.category === 'string' ? product.category : ''
+                        ) ||
+                        toDisplayText(product.primaryCategoryName) ||
+                        ''
+                      }
+                    />
+                  </div>
+                ))}
               </div>
-            ) : null}
-          </div>
-        </Link>
 
-        {(dietKind || unitOverlayLabel) ? (
-          <div
-            className={`absolute bottom-0 left-0 z-[1] flex items-center gap-1 bg-white py-1.5 pl-2 pr-2.5 ${
-              isUnavailable ? 'opacity-90' : ''
-            }`}
-            style={{ borderTopRightRadius: 12 }}
-          >
-            {dietKind ? <DietIcon isVeg={dietKind === 'veg'} className="size-3.5 shrink-0" /> : null}
-            {unitOverlayLabel ? (
-              <span className="text-[11px] font-bold leading-none text-gray-900">{unitOverlayLabel}</span>
-            ) : null}
-          </div>
-        ) : null}
+              {isUnavailable ? (
+                <div className="absolute inset-0 z-[2] flex flex-col justify-end">
+                  <div className="bg-gradient-to-t from-black/85 via-black/55 to-transparent px-2 pb-2 pt-10 text-center">
+                    <p className="text-[10px] font-extrabold uppercase leading-tight tracking-[0.08em] text-white">
+                      Out of stock
+                    </p>
+                  </div>
+                </div>
+              ) : null}
 
-        {!isUnavailable ? (
-          <div
-            className="absolute z-10 flex justify-end"
-            style={{ right: 10, bottom: 10 }}
-            onClick={stopCartBubble}
-          >
-            {cartControls}
-          </div>
-        ) : null}
-      </div>
+              {showSaveRibbon ? (
+                showPercentOff ? (
+                  <div
+                    className={`pointer-events-none absolute left-0 top-2 z-30 ${
+                      isCarousel ? 'max-w-[85%]' : 'max-w-[90%]'
+                    }`}
+                  >
+                    <span className="inline-flex items-center rounded-r-md bg-emerald-600 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-sm">
+                      {Math.round(discountPct)}% OFF
+                    </span>
+                  </div>
+                ) : (
+                  <OfferRibbon saveRupees={saveRupees} compact={isCarousel} />
+                )
+              ) : null}
+              {bundleRibbonText ? (
+                <BundleOfferRibbon
+                  label={bundleRibbonText}
+                  compact={isCarousel || isShelf}
+                  offset={showSaveRibbon}
+                />
+              ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col px-3 pb-2 pt-1.5">
-        <Link {...navLinkProps} className="block min-w-0" title={productTitle}>
-          {brandLabel ? (
-            <p className="mb-0.5 h-[14px] truncate text-[10px] font-semibold uppercase leading-[14px] tracking-[0.08em] text-gray-500">
-              {brandLabel}
-            </p>
-          ) : inHorizontalRail ? (
-            <p className="mb-0.5 h-[14px]" aria-hidden />
-          ) : null}
-          <h3 className="h-8 line-clamp-2 text-[13px] font-bold leading-4 tracking-tight text-gray-900">
-            {productTitle}
-          </h3>
-          {/* Always reserve offer line height so sale vs non-sale cards stay even */}
-          <p
-            className={`mt-0.5 h-[14px] line-clamp-1 text-[11px] leading-[14px] ${
-              offerDisplay.secondaryText && !bundleRibbonText
-                ? 'text-violet-700'
-                : 'text-transparent'
-            }`}
-          >
-            {offerDisplay.secondaryText && !bundleRibbonText
-              ? offerDisplay.secondaryText
-              : '\u00a0'}
-          </p>
-        </Link>
+              {!isCarousel && productImages.length > 1 ? (
+                <div
+                  className="absolute right-2 top-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white"
+                  aria-label={`Image ${currentImageIndex + 1} of ${productImages.length}`}
+                >
+                  {currentImageIndex + 1}/{productImages.length}
+                </div>
+              ) : null}
+            </div>
+          </Link>
 
-        <Link
-          {...navLinkProps}
-          className="mt-auto flex min-h-5 items-end pt-0.5"
-        >
-          {product?.bxgyShelfRole === 'get' ? (
-            <div className="text-base font-bold leading-5">
-              <span className="text-violet-700">Free</span>
-              {displayListPrice != null && displayListPrice > 0 ? (
-                <span className="ml-1.5 text-xs font-medium text-gray-400 line-through tabular-nums">
-                  ₹{formatRupeeINR(displayListPrice)}
-                </span>
-              ) : currentPrice > 0 ? (
-                <span className="ml-1.5 text-xs font-medium text-gray-400 line-through tabular-nums">
-                  ₹{formatRupeeINR(currentPrice)}
+          {dietKind || unitOverlayLabel ? (
+            <div
+              className={`absolute bottom-0 left-0 z-[1] flex items-center gap-1 bg-white py-1.5 pl-2 pr-2.5 ${
+                isUnavailable ? 'opacity-90' : ''
+              }`}
+              style={{ borderTopRightRadius: 12 }}
+            >
+              {dietKind ? (
+                <DietIcon isVeg={dietKind === 'veg'} className="size-3.5 shrink-0" />
+              ) : null}
+              {unitOverlayLabel ? (
+                <span className="text-[11px] font-bold leading-none text-gray-900">
+                  {unitOverlayLabel}
                 </span>
               ) : null}
             </div>
-          ) : (
-            <PriceDisplay
-              amount={currentPrice}
-              listPrice={displayListPrice}
-              size="sm"
-              suffix={customWeight ? '/kg' : undefined}
-            />
-          )}
-        </Link>
-      </div>
-    </article>
-    {customWeight ? (
-      <CustomWeightChooser
-        open={weightChooserOpen}
-        onOpenChange={setWeightChooserOpen}
-        product={product}
-        productName={productTitle}
-        sizes={availableSizes}
-        busy={cartActionLoading}
-        onSelect={(size) => {
-          void chooseCustomWeight(size);
-        }}
-      />
-    ) : null}
+          ) : null}
+
+          {!isUnavailable ? (
+            <div
+              className="absolute z-10 flex justify-end"
+              style={{ right: 10, bottom: 10 }}
+              onClick={stopCartBubble}
+            >
+              {cartControls}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col px-3 pb-2 pt-1.5">
+          <Link {...navLinkProps} className="block min-w-0" title={productTitle}>
+            {brandLabel ? (
+              <p className="mb-0.5 h-[14px] truncate text-[10px] font-semibold uppercase leading-[14px] tracking-[0.08em] text-gray-500">
+                {brandLabel}
+              </p>
+            ) : inHorizontalRail ? (
+              <p className="mb-0.5 h-[14px]" aria-hidden />
+            ) : null}
+            <h3 className="h-8 line-clamp-2 text-[13px] font-bold leading-4 tracking-tight text-gray-900">
+              {productTitle}
+            </h3>
+            {/* Always reserve offer line height so sale vs non-sale cards stay even */}
+            <p
+              className={`mt-0.5 h-[14px] line-clamp-1 text-[11px] leading-[14px] ${
+                offerDisplay.secondaryText && !bundleRibbonText
+                  ? 'text-violet-700'
+                  : 'text-transparent'
+              }`}
+            >
+              {offerDisplay.secondaryText && !bundleRibbonText
+                ? offerDisplay.secondaryText
+                : '\u00a0'}
+            </p>
+          </Link>
+
+          <Link {...navLinkProps} className="mt-auto flex min-h-5 items-end pt-0.5">
+            {product?.bxgyShelfRole === 'get' ? (
+              <div className="text-base font-bold leading-5">
+                <span className="text-violet-700">Free</span>
+                {displayListPrice != null && displayListPrice > 0 ? (
+                  <span className="ml-1.5 text-xs font-medium text-gray-400 line-through tabular-nums">
+                    ₹{formatRupeeINR(displayListPrice)}
+                  </span>
+                ) : currentPrice > 0 ? (
+                  <span className="ml-1.5 text-xs font-medium text-gray-400 line-through tabular-nums">
+                    ₹{formatRupeeINR(currentPrice)}
+                  </span>
+                ) : null}
+              </div>
+            ) : (
+              <PriceDisplay
+                amount={currentPrice}
+                listPrice={displayListPrice}
+                size="sm"
+                suffix={customWeight ? '/kg' : undefined}
+              />
+            )}
+          </Link>
+        </div>
+      </article>
+      {customWeight ? (
+        <CustomWeightChooser
+          open={weightChooserOpen}
+          onOpenChange={setWeightChooserOpen}
+          product={product}
+          productName={productTitle}
+          sizes={availableSizes}
+          busy={cartActionLoading}
+          onSelect={size => {
+            void chooseCustomWeight(size);
+          }}
+        />
+      ) : null}
     </>
   );
 }
-
