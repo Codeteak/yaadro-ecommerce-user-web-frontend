@@ -46,6 +46,9 @@ export async function placeStorefrontOrder({
     throw err;
   }
 
+  // Cookie must be set for locationGuard. Checkout already verified the same pin
+  // moments earlier — checkDeliveryLocation coalesces/caches identical coords so
+  // this is not a second network hit (was causing 3× location/check then 429).
   let delivery;
   try {
     delivery = await checkDeliveryLocation(latNum, lngNum);
@@ -54,7 +57,7 @@ export async function placeStorefrontOrder({
   }
   if (!delivery.serviceable) {
     const err = new Error(
-      "This address is outside this shop's delivery area. Choose another address or move the map pin.",
+      "This address is outside this shop's delivery area. Choose another address or move the map pin."
     );
     err.code = 'ADDRESS_NOT_SERVICEABLE';
     throw err;
@@ -63,9 +66,21 @@ export async function placeStorefrontOrder({
   const body = {};
   if (notes) body.notes = notes;
   const codes = Array.isArray(couponCodes)
-    ? [...new Set(couponCodes.map((c) => String(c || '').trim().toUpperCase()).filter(Boolean))]
+    ? [
+        ...new Set(
+          couponCodes
+            .map(c =>
+              String(c || '')
+                .trim()
+                .toUpperCase()
+            )
+            .filter(Boolean)
+        ),
+      ]
     : [];
-  const trimmedCode = String(couponCode || '').trim().toUpperCase();
+  const trimmedCode = String(couponCode || '')
+    .trim()
+    .toUpperCase();
   if (codes.length > 1) {
     body.couponCodes = codes;
     body.couponCode = codes[0];
@@ -76,11 +91,11 @@ export async function placeStorefrontOrder({
   }
   const checkoutItems = Array.isArray(items)
     ? items
-        .map((it) => ({
+        .map(it => ({
           productId: String(it?.productId ?? it?.product_id ?? ''),
           quantity: Number(it?.quantity) || 1,
         }))
-        .filter((it) => it.productId && it.quantity > 0)
+        .filter(it => it.productId && it.quantity > 0)
     : [];
   if (checkoutItems.length) {
     body.items = checkoutItems;
