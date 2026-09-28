@@ -2,11 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import {
-  useProduct,
-  useProducts,
-  useRelatedProducts,
-} from '../../../hooks/useProducts';
+import { useProduct, useProducts, useRelatedProducts } from '../../../hooks/useProducts';
 import { useCart } from '../../../context/CartContext';
 import { useRecentlyViewed } from '../../../context/RecentlyViewedContext';
 import { useAlert } from '../../../context/AlertContext';
@@ -30,22 +26,40 @@ import {
   resolveProductWeightAndUnit,
   stripPackFromProductName,
 } from '../../../utils/productUtils';
-import { buildAvailableSizes, resolveSelectedSize, sizePackCount, sizeAddQuantity, cartQuantityStep, weightStepLinePrices, hasCustomWeightStep, formatCartQtyControlLabel } from '../../../utils/productSizeSelection';
+import {
+  buildAvailableSizes,
+  resolveSelectedSize,
+  sizePackCount,
+  sizeAddQuantity,
+  cartQuantityStep,
+  weightStepLinePrices,
+  hasCustomWeightStep,
+  formatCartQtyControlLabel,
+} from '../../../utils/productSizeSelection';
 import { playAddTap, playAddTapAndHold } from '../../../utils/playAddTap';
 import Container from '../../../components/Container';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
 import PdpOfferPanel from '../../../components/promotions/PdpOfferPanel';
+import CustomWeightChooser from '../../../components/CustomWeightChooser';
 import Link from 'next/link';
 import ProductCarousel from '../../../components/ProductCarousel';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import PriceDisplay from '../../../components/ui/PriceDisplay';
 import { PRESSABLE_ICON_BTN_SOFT } from '../../../components/ui/brandButton';
 import { SHOW_PRODUCT_EXTENDED_SECTIONS } from './productDetailFlags';
-import { getResolvedProductImageUrls, PRODUCT_IMAGE_PLACEHOLDER } from '../../../utils/productImages';
+import {
+  getResolvedProductImageUrls,
+  PRODUCT_IMAGE_PLACEHOLDER,
+} from '../../../utils/productImages';
 import ProductImageWithFallback from '../../../components/ProductImageWithFallback';
 import { getCartLinePaidQty, getBundleFreeExtraOnPaidLine } from '../../../utils/cartPromotions';
 import { findPaidCartLine } from '../../../utils/cartLinePersist';
-import { getProductDetailPath, normalizeProductRouteParam, resolveProductDetailSegment, toDisplayText } from '../../../utils/productApi';
+import {
+  getProductDetailPath,
+  normalizeProductRouteParam,
+  resolveProductDetailSegment,
+  toDisplayText,
+} from '../../../utils/productApi';
 import { backFromProductDetail, navigateToProductDetail } from '../../../utils/productNavigation';
 
 function PillTag({ children, color = 'green' }) {
@@ -155,15 +169,12 @@ export default function ProductDetailClient({ productId = null }) {
   const relatedCategoryId =
     product?.categoryId ||
     product?.category_id ||
-    (product?.category && typeof product.category === 'object'
-      ? product.category.id
-      : null) ||
+    (product?.category && typeof product.category === 'object' ? product.category.id : null) ||
     null;
-  const { data: relatedListData } = useRelatedProducts(
-    relatedCategoryId,
-    product?.id,
-    { enabled: !!relatedCategoryId, limit: 12 }
-  );
+  const { data: relatedListData } = useRelatedProducts(relatedCategoryId, product?.id, {
+    enabled: !!relatedCategoryId,
+    limit: 12,
+  });
   const relatedProducts = useMemo(
     () => filterRelatedProducts(relatedListData?.products || [], product?.id, 12),
     [relatedListData?.products, product?.id]
@@ -175,14 +186,11 @@ export default function ProductDetailClient({ productId = null }) {
     let cancelled = false;
 
     (async () => {
-      const segment =
-        resolveProductDetailSegment(product) || resolvedId;
+      const segment = resolveProductDetailSegment(product) || resolvedId;
       const seoResult = await fetchProductSeoMetadata(segment);
       if (cancelled) return;
 
-      const shareUrl =
-        seoResult?.seo?.canonicalUrl ||
-        buildProductShareUrl(product, resolvedId);
+      const shareUrl = seoResult?.seo?.canonicalUrl || buildProductShareUrl(product, resolvedId);
 
       if (seoResult?.seo) {
         applyProductSocialMetaToDocument({
@@ -236,6 +244,8 @@ export default function ProductDetailClient({ productId = null }) {
   const [touchEnd, setTouchEnd] = useState(null);
 
   const availableSizes = useMemo(() => buildAvailableSizes(product), [product]);
+  const customWeight = hasCustomWeightStep(product);
+  const [weightChooserOpen, setWeightChooserOpen] = useState(false);
   const [selectedSize, setSelectedSize] = useState(() => availableSizes[0] || null);
   const activeSize = useMemo(
     () => resolveSelectedSize(availableSizes, selectedSize),
@@ -243,14 +253,14 @@ export default function ProductDetailClient({ productId = null }) {
   );
 
   useEffect(() => {
-    setSelectedSize((prev) => resolveSelectedSize(availableSizes, prev));
+    setSelectedSize(prev => resolveSelectedSize(availableSizes, prev));
   }, [availableSizes, product?.id, product?.price, product?.actualPriceMinor]);
 
   const listUnit = activeSize
     ? parseFloat(activeSize.price)
     : product
-    ? parseFloat(product.price)
-    : 0;
+      ? parseFloat(product.price)
+      : 0;
   const stepLinePrices = weightStepLinePrices(product, activeSize);
   const resolvedPack = product ? resolveProductWeightAndUnit(product) : { weight: null, unit: '' };
   const displayWeight = activeSize?.label
@@ -278,8 +288,10 @@ export default function ProductDetailClient({ productId = null }) {
     const list = sameNameListData?.products || [];
     if (!baseNameKey || list.length === 0) return [];
 
-    const keep = list.filter((p) => {
-      const n = stripPackFromProductName(p?.name || '').trim().toLowerCase();
+    const keep = list.filter(p => {
+      const n = stripPackFromProductName(p?.name || '')
+        .trim()
+        .toLowerCase();
       return n === baseNameKey;
     });
 
@@ -317,10 +329,8 @@ export default function ProductDetailClient({ productId = null }) {
     return out;
   }, [sameNameListData?.products, baseNameKey]);
 
-  const legacyOriginal =
-    product?.originalPrice != null ? parseFloat(product.originalPrice) : null;
+  const legacyOriginal = product?.originalPrice != null ? parseFloat(product.originalPrice) : null;
   // Custom weight: show ₹ for the selected step (250 g), not the full ₹/kg.
-  const customWeight = hasCustomWeightStep(product);
   const perKgList = product ? getListPrice(product) || parseFloat(product.price) || 0 : 0;
   const perKgPay = product ? getEffectivePrice(product, perKgList) || perKgList : 0;
   const effectivePrice = customWeight
@@ -350,9 +360,7 @@ export default function ProductDetailClient({ productId = null }) {
   const allergenText = toDisplayText(product?.allergenInformation);
   const storageInstructions =
     toDisplayText(product?.storageInstructions) ||
-    (product?.storageType
-      ? `Store in ${String(product.storageType).replace('_', ' ')}.`
-      : '');
+    (product?.storageType ? `Store in ${String(product.storageType).replace('_', ' ')}.` : '');
   const ingredientsText = toDisplayText(product?.ingredients);
   const categoryLabel =
     toDisplayText(product?.categoryName) ||
@@ -408,19 +416,53 @@ export default function ProductDetailClient({ productId = null }) {
   const bundleFreeExtra =
     cartLine && !cartLine.isBundleReward ? getBundleFreeExtraOnPaidLine(cartLine) : 0;
   const cartUpdateKey = cartLine
-    ? cartLine.cartItemKey ?? cartLine.cartItemId ?? cartLine.id
+    ? (cartLine.cartItemKey ?? cartLine.cartItemId ?? cartLine.id)
     : null;
 
-  const handleAddToCart = useCallback(async (event) => {
-    if (!productToAddPayload || !product?.inStock || cartActionLoading) return;
-    await playAddTapAndHold(event?.currentTarget);
-    setCartActionLoading(true);
-    try {
-      await addToCart(productToAddPayload, sizeAddQuantity(product, activeSize));
-    } finally {
-      setCartActionLoading(false);
-    }
-  }, [addToCart, productToAddPayload, product, activeSize, cartActionLoading]);
+  const handleAddToCart = useCallback(
+    async event => {
+      if (!productToAddPayload || !product?.inStock || cartActionLoading) return;
+      if (customWeight) {
+        void playAddTap(event?.currentTarget);
+        // Defer so the ADD tap does not immediately dismiss the Radix sheet.
+        window.setTimeout(() => setWeightChooserOpen(true), 0);
+        return;
+      }
+      await playAddTapAndHold(event?.currentTarget);
+      setCartActionLoading(true);
+      try {
+        await addToCart(productToAddPayload, sizeAddQuantity(product, activeSize));
+      } finally {
+        setCartActionLoading(false);
+      }
+    },
+    [addToCart, productToAddPayload, product, activeSize, cartActionLoading, customWeight]
+  );
+
+  const chooseCustomWeight = useCallback(
+    async size => {
+      if (!product?.inStock || cartActionLoading || !size) return;
+      const qtyToAdd = sizeAddQuantity(product, size);
+      const list = getListPrice(product);
+      const pay = getEffectivePrice(product);
+      const payload = {
+        ...product,
+        price: pay,
+        ...(list > pay + 1e-9 ? { originalPrice: list } : {}),
+        selectedSize: size,
+        sizeDisplay: size.label,
+      };
+      setCartActionLoading(true);
+      setSelectedSize(size);
+      try {
+        await addToCart(payload, qtyToAdd);
+        setWeightChooserOpen(false);
+      } finally {
+        setCartActionLoading(false);
+      }
+    },
+    [addToCart, cartActionLoading, product]
+  );
 
   const handleStepperIncrement = useCallback(() => {
     if (cartActionLoading || !productToAddPayload || cartUpdateKey == null) return;
@@ -439,20 +481,23 @@ export default function ProductDetailClient({ productId = null }) {
   }, [cartActionLoading, cartUpdateKey, cartQty, removeFromCart, updateQuantity, product]);
 
   const goToPrevious = () =>
-    setCurrentImageIndex((p) => {
+    setCurrentImageIndex(p => {
       const n = galleryUrls.length;
       if (n < 1) return 0;
       return (p - 1 + n) % n;
     });
   const goToNext = () =>
-    setCurrentImageIndex((p) => {
+    setCurrentImageIndex(p => {
       const n = galleryUrls.length;
       if (n < 1) return 0;
       return (p + 1) % n;
     });
   const minSwipeDistance = 50;
-  const onTouchStart = (e) => { setTouchEnd(null); setTouchStart(e.targetTouches[0].clientX); };
-  const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
+  const onTouchStart = e => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+  const onTouchMove = e => setTouchEnd(e.targetTouches[0].clientX);
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     const d = touchStart - touchEnd;
@@ -460,7 +505,7 @@ export default function ProductDetailClient({ productId = null }) {
     if (d < -minSwipeDistance) goToPrevious();
   };
 
-  const formatDate = (d) => {
+  const formatDate = d => {
     if (!d) return '';
     try {
       const date = new Date(d);
@@ -479,7 +524,9 @@ export default function ProductDetailClient({ productId = null }) {
     return (
       <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
         <h1 className="text-2xl font-semibold text-gray-800 mb-3">Product Not Found</h1>
-        <p className="text-gray-500 text-sm mb-8">The product you&apos;re looking for doesn&apos;t exist.</p>
+        <p className="text-gray-500 text-sm mb-8">
+          The product you&apos;re looking for doesn&apos;t exist.
+        </p>
         <Link
           href="/products"
           className="bg-violet-600 text-white px-6 py-2.5 rounded-full text-sm font-medium hover:bg-violet-700 transition"
@@ -519,10 +566,7 @@ export default function ProductDetailClient({ productId = null }) {
             style={{ transform: `translateX(-${currentImageIndex * 100}%)` }}
           >
             {galleryUrls.map((img, idx) => (
-              <div
-                key={`${idx}-${img}`}
-                className="relative h-full w-full flex-shrink-0 bg-white"
-              >
+              <div key={`${idx}-${img}`} className="relative h-full w-full flex-shrink-0 bg-white">
                 <ProductImageWithFallback
                   src={img}
                   alt={`${productTitle} – image ${idx + 1}`}
@@ -531,16 +575,11 @@ export default function ProductDetailClient({ productId = null }) {
                   sizes="(max-width: 640px) 100vw, 512px"
                   priority={idx === 0}
                   placeholderName={productTitle}
-                  placeholderCategory={
-                    categoryLabel ||
-                    product.primaryCategoryName ||
-                    ''
-                  }
+                  placeholderCategory={categoryLabel || product.primaryCategoryName || ''}
                 />
               </div>
             ))}
           </div>
-
         </div>
 
         <div className="absolute top-0 left-0 right-0 z-20 p-3 flex items-center justify-between">
@@ -550,8 +589,19 @@ export default function ProductDetailClient({ productId = null }) {
             className={`w-9 h-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm border border-gray-100 ${PRESSABLE_ICON_BTN_SOFT}`}
             aria-label="Back"
           >
-            <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <svg
+              className="w-4 h-4 text-gray-800"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
           </button>
 
@@ -560,18 +610,58 @@ export default function ProductDetailClient({ productId = null }) {
 
         {galleryUrls.length > 1 && (
           <>
-            <button type="button" onClick={goToPrevious} className={`absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm z-20 border border-gray-100 ${PRESSABLE_ICON_BTN_SOFT}`} aria-label="Previous">
-              <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            <button
+              type="button"
+              onClick={goToPrevious}
+              className={`absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm z-20 border border-gray-100 ${PRESSABLE_ICON_BTN_SOFT}`}
+              aria-label="Previous"
+            >
+              <svg
+                className="w-4 h-4 text-gray-800"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
             </button>
-            <button type="button" onClick={goToNext} className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm z-20 border border-gray-100 ${PRESSABLE_ICON_BTN_SOFT}`} aria-label="Next">
-              <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <button
+              type="button"
+              onClick={goToNext}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm z-20 border border-gray-100 ${PRESSABLE_ICON_BTN_SOFT}`}
+              aria-label="Next"
+            >
+              <svg
+                className="w-4 h-4 text-gray-800"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
             </button>
           </>
         )}
 
         {galleryUrls.length > 1 && (
           <div className="absolute bottom-2 left-0 right-0 z-20 flex justify-center px-3">
-            <div className="flex max-w-full gap-1.5 overflow-x-auto rounded-xl bg-white/80 px-1.5 py-1 shadow-sm backdrop-blur-md" role="tablist" aria-label="Product images">
+            <div
+              className="flex max-w-full gap-1.5 overflow-x-auto rounded-xl bg-white/80 px-1.5 py-1 shadow-sm backdrop-blur-md"
+              role="tablist"
+              aria-label="Product images"
+            >
               {galleryUrls.map((u, idx) => (
                 <button
                   key={`thumb-${idx}-${u}`}
@@ -581,7 +671,9 @@ export default function ProductDetailClient({ productId = null }) {
                   aria-label={`Show image ${idx + 1}`}
                   onClick={() => setCurrentImageIndex(idx)}
                   className={`relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-md border-2 transition-colors ${
-                    idx === currentImageIndex ? 'border-violet-600 ring-1 ring-violet-500/30' : 'border-white/80 opacity-90 hover:opacity-100'
+                    idx === currentImageIndex
+                      ? 'border-violet-600 ring-1 ring-violet-500/30'
+                      : 'border-white/80 opacity-90 hover:opacity-100'
                   }`}
                 >
                   <ProductImageWithFallback
@@ -705,7 +797,7 @@ export default function ProductDetailClient({ productId = null }) {
                           >
                             <button
                               type="button"
-                              onClick={(e) => {
+                              onClick={e => {
                                 playAddTap(e.currentTarget);
                                 void handleStepperDecrement();
                               }}
@@ -720,7 +812,7 @@ export default function ProductDetailClient({ productId = null }) {
                             </span>
                             <button
                               type="button"
-                              onClick={(e) => {
+                              onClick={e => {
                                 playAddTap(e.currentTarget);
                                 void handleStepperIncrement();
                               }}
@@ -747,7 +839,7 @@ export default function ProductDetailClient({ productId = null }) {
                       ) : (
                         <button
                           type="button"
-                          onClick={(e) => void handleAddToCart(e)}
+                          onClick={e => void handleAddToCart(e)}
                           disabled={!product.inStock || cartActionLoading}
                           className={`flex h-11 min-w-[88px] items-center justify-center gap-1.5 rounded-l-[24px] rounded-r-[12px] px-5 text-[13px] font-bold uppercase leading-none tracking-[0.14em] transition active:scale-[0.97] touch-manipulation ${
                             product.inStock
@@ -776,7 +868,7 @@ export default function ProductDetailClient({ productId = null }) {
                 <DetailSectionTitle>{baseName || 'Available packs'}</DetailSectionTitle>
                 <div className="mt-3 -mx-4 px-4 overflow-x-auto scrollbar-hide">
                   <div className="flex gap-3 w-max pb-2">
-                    {sameNameVariants.map((p) => {
+                    {sameNameVariants.map(p => {
                       const packLabel =
                         p._packLabel ||
                         formatWeightUnitLabel(
@@ -835,20 +927,22 @@ export default function ProductDetailClient({ productId = null }) {
               </>
             ) : null}
 
-            {availableSizes.length > 1 && (
+            {(customWeight ? availableSizes.length > 0 : availableSizes.length > 1) && (
               <>
-                <DetailSectionTitle>Size / Variant</DetailSectionTitle>
+                <DetailSectionTitle>
+                  {customWeight ? 'Weight options' : 'Size / Variant'}
+                </DetailSectionTitle>
                 <div className="flex flex-wrap gap-2 mb-5 mt-3">
                   {availableSizes.map((size, i) => {
                     const isActive =
                       sizePackCount(selectedSize) === sizePackCount(size) &&
                       String(selectedSize?.weight ?? '') === String(size.weight ?? '') &&
                       String(selectedSize?.unit ?? '') === String(size.unit ?? '');
-                    const chipLabel =
-                      size.label || `${size.weight} ${size.unit}`.trim();
+                    const chipLabel = size.label || `${size.weight} ${size.unit}`.trim();
                     return (
                       <button
                         key={i}
+                        type="button"
                         onClick={() => setSelectedSize(size)}
                         className={`px-4 py-1.5 rounded-full border text-sm font-medium transition-all ${
                           isActive
@@ -894,9 +988,7 @@ export default function ProductDetailClient({ productId = null }) {
                   {product.countryOfOrigin && (
                     <InfoCard label="Origin" value={product.countryOfOrigin} />
                   )}
-                  {product.shelfLife && (
-                    <InfoCard label="Shelf life" value={product.shelfLife} />
-                  )}
+                  {product.shelfLife && <InfoCard label="Shelf life" value={product.shelfLife} />}
                   <InfoCard
                     label="Returns"
                     value={product.returnable !== false ? '7-day return' : 'Non-returnable'}
@@ -1063,6 +1155,19 @@ export default function ProductDetailClient({ productId = null }) {
         </Container>
       </div>
 
+      {customWeight ? (
+        <CustomWeightChooser
+          open={weightChooserOpen}
+          onOpenChange={setWeightChooserOpen}
+          product={product}
+          productName={productTitle}
+          sizes={availableSizes}
+          busy={cartActionLoading}
+          onSelect={size => {
+            void chooseCustomWeight(size);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
