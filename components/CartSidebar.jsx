@@ -7,11 +7,12 @@ import { useDrag } from '@use-gesture/react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { formatRupeeINR } from '../utils/productUtils';
+import { getCartBottomBarPricing } from '../utils/cartSavings';
 import { buildCartOfferGroups } from '../utils/offerDisplay';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useAppNavigation } from '../hooks/useAppNavigation';
 import OfferGroupCard from './promotions/OfferGroupCard';
-import { PRESSABLE_ICON_BTN_SOFT } from './ui/brandButton';
+import { BRAND_CHECKOUT_BTN, PRESSABLE_ICON_BTN_SOFT } from './ui/brandButton';
 import { Loading2Regular as Loader2 } from './icons';
 import { lockAppScroll, unlockAppScroll } from '../lib/pwa/appShell';
 
@@ -30,6 +31,11 @@ export default function CartSidebar() {
   const checkoutPendingTimerRef = useRef(null);
 
   const offerGroups = useMemo(() => buildCartOfferGroups(cartItems), [cartItems]);
+  const bottomBarPricing = useMemo(
+    () => getCartBottomBarPricing(cartItems, cartTotal),
+    [cartItems, cartTotal],
+  );
+  const orderSavings = Math.round(bottomBarPricing.savings);
 
   const handleClose = () => setShowSidebarCart(false);
 
@@ -118,7 +124,7 @@ export default function CartSidebar() {
         {...(!showSidebarCart ? { inert: '' } : {})}
       >
         <div className="px-6 py-5 flex items-center justify-between border-b border-gray-100">
-          <h2 className="text-base font-medium text-gray-900">Shopping Cart</h2>
+          <h2 className="text-base font-medium text-gray-900">My cart</h2>
           <button
             type="button"
             onClick={handleClose}
@@ -157,44 +163,66 @@ export default function CartSidebar() {
         </div>
 
         {cartItems.length > 0 && (
-          <div className="border-t border-gray-100 px-6 py-5 space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Subtotal</span>
-                <span className="text-sm text-gray-900 font-medium">₹{formatRupeeINR(cartTotal)}</span>
+          <div className="overflow-hidden border-t border-gray-200/80 bg-white shadow-[0_-8px_32px_rgba(15,23,42,0.08)]">
+            {orderSavings > 0 && (
+              <div
+                className="flex items-center justify-center gap-1.5 px-3 py-2 text-center"
+                style={{ backgroundColor: '#902bf5' }}
+              >
+                <p className="text-[11px] font-semibold leading-tight text-white">
+                  You&apos;re saving ₹{orderSavings.toLocaleString('en-IN')} on this order
+                </p>
               </div>
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>Shipping calculated at checkout</span>
+            )}
+            <div
+              className="space-y-3 px-4 py-3"
+              style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] text-gray-400">Total</p>
+                  <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2">
+                    <p className="text-lg font-semibold tabular-nums text-gray-900">
+                      ₹{formatRupeeINR(bottomBarPricing.payable)}
+                    </p>
+                    {bottomBarPricing.hasOffer && (
+                      <p className="text-sm tabular-nums text-gray-400 line-through">
+                        ₹{formatRupeeINR(bottomBarPricing.mrpTotal)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleProceedToCheckout}
+                  disabled={!authHydrated || checkoutPending}
+                  aria-busy={checkoutPending}
+                  aria-label={checkoutPending ? 'Checking out' : 'Checkout'}
+                  className={`flex h-11 min-w-[44%] flex-1 items-center justify-center gap-2 whitespace-nowrap disabled:opacity-70 ${BRAND_CHECKOUT_BTN}`}
+                >
+                  {checkoutPending ? (
+                    <>
+                      <Loader2 size={16} className="h-4 w-4 animate-spin" aria-hidden />
+                      Checking out…
+                    </>
+                  ) : (
+                    <>
+                      Checkout
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </>
+                  )}
+                </button>
               </div>
+              <Link
+                href="/cart"
+                onClick={handleClose}
+                className="block w-full rounded-full border border-gray-200 py-2.5 text-center text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50"
+              >
+                View cart
+              </Link>
             </div>
-
-            <button
-              type="button"
-              onClick={handleProceedToCheckout}
-              disabled={!authHydrated || checkoutPending}
-              aria-busy={checkoutPending}
-              aria-label={checkoutPending ? 'Checking out' : 'Checkout'}
-              className={`flex w-full touch-manipulation items-center justify-center gap-2 rounded-lg px-4 py-3 text-center text-sm font-medium text-white transition-[transform,background-color,opacity] duration-150 active:scale-[0.98] disabled:opacity-70 motion-reduce:active:scale-100 ${
-                checkoutPending ? 'bg-gray-800' : 'bg-gray-900 hover:bg-gray-800'
-              }`}
-            >
-              {checkoutPending ? (
-                <>
-                  <Loader2 size={16} className="h-4 w-4 animate-spin" aria-hidden />
-                  Checking out…
-                </>
-              ) : (
-                'Checkout'
-              )}
-            </button>
-
-            <Link
-              href="/cart"
-              onClick={handleClose}
-              className="block w-full py-2.5 px-4 text-gray-900 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-center"
-            >
-              View Cart Details
-            </Link>
           </div>
         )}
       </aside>

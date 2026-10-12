@@ -6,6 +6,7 @@ import HomeBxgyShelf from './HomeBxgyShelf';
 import HomeEventCard from './HomeEventCard';
 import HomeProductShelf from './HomeProductShelf';
 import HomeDailyDiary from './HomeDailyDiary';
+import { COUPONS_ONLY } from '../../lib/couponsOnly';
 
 function isDailyDairySection(title) {
   const key = String(title || '')
@@ -38,6 +39,7 @@ export default function HomeSections() {
           return <HomeEventCard key={section.id} section={section} />;
         }
         if (section.type === 'buy_x_get_y') {
+          if (COUPONS_ONLY) return null;
           return (
             <HomeBxgyShelf
               key={section.id}

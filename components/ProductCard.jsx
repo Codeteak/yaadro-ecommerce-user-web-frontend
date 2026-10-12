@@ -31,6 +31,7 @@ import { playAddTap, playAddTapAndHold } from '../utils/playAddTap';
 import PriceDisplay from './ui/PriceDisplay';
 import OfferRibbon from './ui/OfferRibbon';
 import BundleOfferRibbon from './ui/BundleOfferRibbon';
+import { COUPONS_ONLY } from '../lib/couponsOnly';
 import { DietIcon, resolveProductDiet } from './ui/DietIcon';
 import { getResolvedProductImageUrls } from '../utils/productImages';
 import { getCartLinePaidQty } from '../utils/cartPromotions';
@@ -42,6 +43,19 @@ import { getProductDetailPath } from '../utils/productApi';
 import { navigateToProductDetail } from '../utils/productNavigation';
 import { prefetchProductDetail } from '../hooks/useProducts';
 import { useShopBranding } from '../context/ShopBrandingContext';
+import {
+  customWeightListRupees,
+  customWeightStepRupees,
+} from '../lib/customWeightListing';
+
+/** Display shop_products.stock_quantity. Hide when billing has not set a count. */
+function formatStockQuantityLabel(raw) {
+  if (raw == null || String(raw).trim() === '') return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  const text = Number.isInteger(n) ? String(n) : String(Number(n.toFixed(3)));
+  return `Qty ${text}`;
+}
 
 export default function ProductCard({ product, isCarousel = false, variant = 'default' }) {
   const queryClient = useQueryClient();
@@ -71,6 +85,10 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   // Get available sizes or use default weight/unit
   const availableSizes = useMemo(() => buildAvailableSizes(product), [product]);
   const customWeight = hasCustomWeightStep(product);
+  const serverStepPay = customWeightStepRupees(product);
+  const serverStepList = customWeightListRupees(product);
+  const showServerStep =
+    Boolean(product?.customWeightLabel) && serverStepPay != null && serverStepPay > 0;
   const openWeightChooserStore = useUiStore(s => s.openWeightChooser);
   const addBtnRef = useRef(null);
   const [selectedSize, setSelectedSize] = useState(() => availableSizes[0] || null);
@@ -93,17 +111,23 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     [customWeight, product, activeSize]
   );
 
-  // Custom-weight cards show the per-kg price. The step price appears only in the ADD chooser.
-  const basePrice = customWeight
-    ? getListPrice(product) || parseFloat(product.price) || 0
-    : stepLinePrices
-      ? stepLinePrices.list
-      : parseFloat(activeSize ? activeSize.price : product.price) || 0;
-  const currentPrice = customWeight
-    ? getEffectivePrice(product, basePrice) || basePrice
-    : stepLinePrices
-      ? stepLinePrices.pay
-      : getEffectivePrice(product, basePrice);
+  // Custom-weight cards show the server step price (250 g · ₹62.50), not the full ₹/kg.
+  const basePrice = showServerStep
+    ? serverStepList != null && serverStepList > serverStepPay
+      ? serverStepList
+      : serverStepPay
+    : customWeight
+      ? getListPrice(product) || parseFloat(product.price) || 0
+      : stepLinePrices
+        ? stepLinePrices.list
+        : parseFloat(activeSize ? activeSize.price : product.price) || 0;
+  const currentPrice = showServerStep
+    ? serverStepPay
+    : customWeight
+      ? getEffectivePrice(product, basePrice) || basePrice
+      : stepLinePrices
+        ? stepLinePrices.pay
+        : getEffectivePrice(product, basePrice);
   const strikeList = stepLinePrices
     ? stepLinePrices.list > stepLinePrices.pay + 1e-9
       ? stepLinePrices.list
@@ -124,9 +148,11 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     return null;
   }, [strikeList, currentPrice, basePrice]);
   const productPack = useMemo(() => resolveProductWeightAndUnit(product), [product]);
-  const displayWeight = customWeight
-    ? '1 kg'
-    : activeSize?.label
+  const displayWeight = showServerStep
+    ? product.customWeightLabel
+    : customWeight
+      ? '1 kg'
+      : activeSize?.label
       ? activeSize.label
       : activeSize
         ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
@@ -389,6 +415,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
     .trim()
     .replace(/\s+/g, '')
     .toUpperCase();
+  const stockQuantityLabel = formatStockQuantityLabel(product?.stock_quantity ?? product?.stockQuantity);
   const isUnavailable = product?.inStock === false;
 
   useEffect(() => {
@@ -639,7 +666,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
                 </div>
               ) : null}
 
-              {showSaveRibbon ? (
+              {!COUPONS_ONLY && showSaveRibbon ? (
                 showPercentOff ? (
                   <div
                     className={`pointer-events-none absolute left-0 top-2 z-30 ${
@@ -654,7 +681,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
                   <OfferRibbon saveRupees={saveRupees} compact={isCarousel} />
                 )
               ) : null}
-              {bundleRibbonText ? (
+              {!COUPONS_ONLY && bundleRibbonText ? (
                 <BundleOfferRibbon
                   label={bundleRibbonText}
                   compact={isCarousel || isShelf}
@@ -703,6 +730,11 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col px-3 pb-2 pt-1.5">
+          {stockQuantityLabel ? (
+            <p className="mb-1 truncate text-[12px] font-semibold leading-4 text-gray-700">
+              {stockQuantityLabel}
+            </p>
+          ) : null}
           <Link {...navLinkProps} className="block min-w-0" title={productTitle}>
             {brandLabel ? (
               <p className="mb-0.5 h-[14px] truncate text-[10px] font-semibold uppercase leading-[14px] tracking-[0.08em] text-gray-500">
@@ -747,7 +779,7 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
                 amount={currentPrice}
                 listPrice={displayListPrice}
                 size="sm"
-                suffix={customWeight ? '/kg' : undefined}
+                suffix={customWeight && !showServerStep ? '/kg' : undefined}
               />
             )}
           </Link>

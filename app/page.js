@@ -3,32 +3,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
-import { productKeys, useCategoriesTree, useProducts, useRootCategories } from '../hooks/useProducts';
+import { productKeys, useProducts, useRootCategories } from '../hooks/useProducts';
 import { homeSectionKeys } from '../hooks/useHomeSections';
 import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useAppNavigation } from '../hooks/useAppNavigation';
 import { PRESSABLE_ICON_BTN_SOFT } from '../components/ui/brandButton';
-import { useAlert } from '../context/AlertContext';
 import { useLocationService } from '../context/LocationServiceContext';
 import { useAuth } from '../context/AuthContext';
 import { useShopBranding } from '../context/ShopBrandingContext';
 import { useAddress } from '../context/AddressContext';
 import ProductCard from '../components/ProductCard';
-import Container from '../components/Container';
 import BannerCarousel from '../components/BannerCarousel';
 import HomeSections from '../components/home/HomeSections';
-import HomeClientShelves from '../components/home/HomeClientShelves';
 import HomeCategoryRail from '../components/home/HomeCategoryRail';
 import SmoothDragRail from '../components/motion/SmoothDragRail';
 import ProductSearchExperience from '../components/search/ProductSearchExperience';
 import { dedupeProductsByVariantGroup } from '../utils/productUtils';
-import { getCategoryImageUrl, CATEGORY_DUMMY_IMAGE } from '../utils/categoryImage';
-import { formatAddressDisplay } from '../utils/formatAddress';
-import { Bone, ProductCarouselRowSkeleton } from '../components/skeletons/primitives';
+import { Bone } from '../components/skeletons/primitives';
 import { getAppScrollY } from '../lib/pwa/appShell';
 import {
   ArrowRightRegular as ArrowRight,
-  ClassifyFilled as Classify,
   DownRegular as ChevronDown,
   ShopFilled as Shop,
   User1Regular as User,
@@ -39,23 +33,6 @@ import {
   isAllNamedCategory,
 } from '../components/products/productsBrowseConstants';
 
-/** Exact admin category names for Fresh Zone (fixed tab order). */
-const FRESH_ZONE_CATEGORY_NAMES = ['Vegetables', 'Fruits', 'Dairy'];
-
-function flattenCategoryNodes(node) {
-  if (!node) return [];
-  const out = [node];
-  for (const child of node.children || []) {
-    out.push(...flattenCategoryNodes(child));
-  }
-  return out;
-}
-
-function flattenCategoryForest(nodes) {
-  if (!Array.isArray(nodes)) return [];
-  return nodes.flatMap((n) => flattenCategoryNodes(n));
-}
-
 function formatHomeAddressLine(address) {
   if (!address) return '';
   return [address.street || address.line1, address.city]
@@ -64,54 +41,9 @@ function formatHomeAddressLine(address) {
     .join(', ');
 }
 
-/** Depth-first exact name match (`name.trim() === expected`). Skips inactive nodes. */
-function findCategoryByExactName(nodes, name) {
-  if (!Array.isArray(nodes)) return null;
-  for (const node of nodes) {
-    if (node?.isActive === false) continue;
-    if (String(node?.name ?? '').trim() === name) return node;
-    const found = findCategoryByExactName(node.children || [], name);
-    if (found) return found;
-  }
-  return null;
-}
-
-/**
- * Root + all descendants via parent_id links (string-normalized).
- * Survives broken nested `children` arrays as long as flat parent links exist.
- */
-function collectDescendantCategoryIds(flat, rootId) {
-  if (rootId == null || !Array.isArray(flat)) return [];
-  const root = String(rootId);
-  const byParent = new Map();
-  for (const c of flat) {
-    if (!c || c.isActive === false) continue;
-    const id = c.id ?? c._id;
-    if (id == null) continue;
-    const pid = c.parentId != null ? String(c.parentId) : c.parent_id != null ? String(c.parent_id) : null;
-    if (!byParent.has(pid)) byParent.set(pid, []);
-    byParent.get(pid).push(String(id));
-  }
-  const out = [];
-  const stack = [root];
-  const seen = new Set();
-  while (stack.length) {
-    const id = stack.pop();
-    if (seen.has(id)) continue;
-    seen.add(id);
-    out.push(id);
-    const kids = byParent.get(id) || [];
-    for (let i = kids.length - 1; i >= 0; i -= 1) stack.push(kids[i]);
-  }
-  return out;
-}
-
 export default function Home() {
   const queryClient = useQueryClient();
-  const [email, setEmail] = useState('');
   const [searchActive, setSearchActive] = useState(false);
-   
-  const { showAlert } = useAlert();
   const { isAuthenticated } = useAuth();
   const { goToLogin } = useLoginNavigation();
   const { navigate, prefetch } = useAppNavigation();
@@ -178,9 +110,6 @@ export default function Home() {
       recheckLocation?.();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: productKeys.lists(shopId) }),
-        queryClient.invalidateQueries({
-          queryKey: [...productKeys.categories(shopId), 'tree'],
-        }),
         queryClient.invalidateQueries({ queryKey: productKeys.categoryRoots(shopId) }),
         queryClient.invalidateQueries({ queryKey: homeSectionKeys.all }),
       ]);
@@ -192,49 +121,6 @@ export default function Home() {
       }, 450);
     }
   };
-
-  // Catalog for home shelves; Fresh Zone loads from exact Vegetables / Fruits / Dairy categories.
-  // Top Category rail uses roots only — do NOT fetch full tree until Fresh Zone is near viewport
-  // (all=true competes with roots/products and delays the above-the-fold chips).
-  const freshZoneSectionRef = useRef(null);
-  const [freshZoneNear, setFreshZoneNear] = useState(false);
-
-  useEffect(() => {
-    const el = freshZoneSectionRef.current;
-    if (!el) {
-      setFreshZoneNear(true);
-      return undefined;
-    }
-    if (typeof IntersectionObserver === 'undefined') {
-      setFreshZoneNear(true);
-      return undefined;
-    }
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) {
-          setFreshZoneNear(true);
-          io.disconnect();
-        }
-      },
-      { root: null, rootMargin: '320px 0px', threshold: 0.01 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
-  const { data: categoryTree, isLoading: categoryTreeLoading } = useCategoriesTree({
-    enabled: freshZoneNear,
-  });
-  const { data: catalogData } = useProducts({
-    limit: 24,
-    sort_by: 'created_at',
-    sort_order: 'desc',
-  });
-
-  const catalogProducts = useMemo(
-    () => dedupeProductsByVariantGroup(catalogData?.products || []),
-    [catalogData?.products]
-  );
 
   const { data: rootCategoriesData, isLoading: rootCategoriesLoading } = useRootCategories();
   const rootCategories = useMemo(
@@ -289,7 +175,7 @@ export default function Home() {
     limit: 4,
     sort_by: 'created_at',
     sort_order: 'desc',
-    // Only fetch when a real category is selected — "all" already uses catalogData above.
+    // Only fetch when a real category is selected.
     enabled: Boolean(homeShelfCategoryId),
   });
 
@@ -297,114 +183,6 @@ export default function Home() {
     () => dedupeProductsByVariantGroup(homeCategoryProductsData?.products || []).slice(0, 4),
     [homeCategoryProductsData?.products]
   );
-
-  // Fresh Zone category tabs — All reuses home catalog; one tab = one category fetch.
-  const [freshZoneCategoryId, setFreshZoneCategoryId] = useState(null);
-
-  const freshZoneResolved = useMemo(() => {
-    const tree = categoryTree || [];
-    const flat = flattenCategoryForest(tree);
-    return FRESH_ZONE_CATEGORY_NAMES.map((name) => {
-      const category = findCategoryByExactName(tree, name);
-      if (!category) return null;
-      const rootId = category.id ?? category._id;
-      const fromTree = collectDescendantCategoryIds(flat, rootId);
-      // Merge nested children walk if flat missed anything (belt-and-suspenders).
-      const fromNested = flattenCategoryNodes(category)
-        .filter((c) => c?.isActive !== false)
-        .map((c) => c?.id ?? c?._id)
-        .filter((id) => id != null)
-        .map(String);
-      const categoryIds = [...new Set([...fromTree, ...fromNested])];
-      if (!categoryIds.length) return null;
-      return { category, categoryIds, name };
-    }).filter(Boolean);
-  }, [categoryTree]);
-
-  const freshZoneCategoryIdSet = useMemo(() => {
-    const ids = new Set();
-    for (const row of freshZoneResolved) {
-      for (const id of row.categoryIds) ids.add(String(id));
-    }
-    return ids;
-  }, [freshZoneResolved]);
-
-  /** "All" tab: filter home catalog — no parallel Fresh Zone list fan-out. */
-  const freshZoneFromCatalog = useMemo(() => {
-    if (!freshZoneCategoryIdSet.size) return [];
-    return catalogProducts.filter((p) => {
-      const cid = String(p?.category_id ?? p?.categoryId ?? p?.category?.id ?? '');
-      return cid && freshZoneCategoryIdSet.has(cid);
-    });
-  }, [catalogProducts, freshZoneCategoryIdSet]);
-
-  const selectedFreshZoneRootId =
-    freshZoneCategoryId != null && CATEGORY_ID_UUID.test(String(freshZoneCategoryId))
-      ? String(freshZoneCategoryId)
-      : '';
-
-  const {
-    data: freshZoneTabProductsData,
-    isLoading: freshZoneTabLoading,
-  } = useProducts({
-    category_id: selectedFreshZoneRootId || undefined,
-    include_descendants: Boolean(selectedFreshZoneRootId),
-    limit: 12,
-    sort_by: 'created_at',
-    sort_order: 'desc',
-    enabled: Boolean(selectedFreshZoneRootId),
-  });
-
-  const freshZoneTabProducts = useMemo(
-    () => dedupeProductsByVariantGroup(freshZoneTabProductsData?.products || []),
-    [freshZoneTabProductsData?.products],
-  );
-
-  const freshZoneLoading =
-    categoryTreeLoading || (Boolean(selectedFreshZoneRootId) && freshZoneTabLoading);
-
-  const freshZoneDisplayCategories = useMemo(() => {
-    if (!freshZoneFromCatalog.length && !selectedFreshZoneRootId) {
-      // Still show tabs once catalog may be empty but categories resolved (tab fetch can fill).
-      return freshZoneResolved.map((row) => row.category);
-    }
-    return freshZoneResolved
-      .filter((row) => {
-        if (selectedFreshZoneRootId && String(row.category.id ?? row.category._id) === selectedFreshZoneRootId) {
-          return true;
-        }
-        const idSet = new Set(row.categoryIds.map(String));
-        return freshZoneFromCatalog.some((p) => {
-          const cid = String(p?.category_id ?? p?.categoryId ?? p?.category?.id ?? '');
-          return cid && idSet.has(cid);
-        });
-      })
-      .map((row) => row.category);
-  }, [freshZoneFromCatalog, freshZoneResolved, selectedFreshZoneRootId]);
-
-  const freshZoneSelectedCategory =
-    freshZoneCategoryId == null
-      ? null
-      : freshZoneDisplayCategories.find((c) => String(c.id) === String(freshZoneCategoryId)) ||
-        null;
-
-  useEffect(() => {
-    if (freshZoneCategoryId == null) return;
-    const stillExists = freshZoneDisplayCategories.some(
-      (c) => String(c.id) === String(freshZoneCategoryId)
-    );
-    if (!stillExists) setFreshZoneCategoryId(null);
-  }, [freshZoneCategoryId, freshZoneDisplayCategories]);
-
-  const freshZoneDisplayProducts = useMemo(() => {
-    if (freshZoneCategoryId == null) return freshZoneFromCatalog;
-    return freshZoneTabProducts;
-  }, [freshZoneCategoryId, freshZoneFromCatalog, freshZoneTabProducts]);
-
-  const freshZoneSeeAllHref = useMemo(() => {
-    if (!freshZoneSelectedCategory?.id) return '/products';
-    return `/products?category=${encodeURIComponent(String(freshZoneSelectedCategory.id))}`;
-  }, [freshZoneSelectedCategory]);
 
   const locationSubtitle = useMemo(() => {
     if (isLocationChecking) return 'Checking your area…';
@@ -422,12 +200,6 @@ export default function Home() {
     isLocationChecking,
     isServiceable,
   ]);
-
-  const handleNewsletterSubmit = (e) => {
-    e.preventDefault();
-    showAlert('Thank you for subscribing!', 'Success', 'success');
-    setEmail('');
-  };
 
   return (
     <div
@@ -571,18 +343,6 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="mt-5 px-4 sm:px-5">
-          <p className="text-left text-home-hero-headline font-headingnow font-extrabold leading-[0.95] tracking-tight text-gray-900">
-            Groceries to your <span className="text-[#902bf5]">doorstep ..</span>
-          </p>
-          <Link
-            href="/products"
-            className="mt-4 inline-flex items-center justify-center rounded-full bg-[#902bf5] px-6 py-3 text-[13px] font-extrabold tracking-wide text-white shadow-[0_12px_30px_rgba(144,43,245,0.28)] transition hover:bg-[#7d24d6] active:scale-[0.98]"
-          >
-            Shop Now
-          </Link>
-        </div>
-
         {bannerSlotOpen && shopBanners.length > 0 ? (
           <div className="mt-4 px-4 sm:px-5">
             <div className="overflow-hidden rounded-2xl bg-white">
@@ -661,253 +421,6 @@ export default function Home() {
       <div className="relative z-10 mt-2">
         <HomeSections />
       </div>
-
-      <HomeClientShelves products={catalogProducts} slot="featured" />
-
-      {/* Fresh Zone — tree fetch is deferred until this section nears the viewport */}
-      <section
-        ref={freshZoneSectionRef}
-        className="fresh-zone-minh relative overflow-hidden bg-white rounded-none my-4 sm:my-6 min-h-[12rem]"
-      >
-        {freshZoneLoading && freshZoneDisplayProducts.length === 0 && (
-          <Container className="relative z-[2] py-10 sm:py-14">
-            <div className="mb-6 px-3 sm:px-4 md:px-0 text-center">
-              <h2 className="text-3xl font-extrabold text-gray-900 font-headingnow">FRESH ZONE</h2>
-              <p className="text-gray-500 mt-1">Loading daily essentials…</p>
-            </div>
-            <ProductCarouselRowSkeleton count={6} />
-          </Container>
-        )}
-
-        {freshZoneDisplayProducts.length > 0 && (
-          <>
-          {/* Background video */}
-          <div className="pointer-events-none absolute inset-0 z-0">
-            <video
-              className="h-full w-full object-cover object-center"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              aria-hidden="true"
-            >
-              <source
-                src="/From KlickPin CF 26 Fresh romantic date night ideas that are worth saving if you love elegant details and creative inspiration for women who love classy Pinterest - Pin-1123929650777965800.mp4"
-                type="video/mp4"
-              />
-            </video>
-          </div>
-
-          <Container className="relative z-[2] py-10 sm:py-14 md:py-20 lg:py-24 [@media(max-height:720px)]:py-8">
-            <div className="flex flex-col items-center text-center gap-2 mb-6 sm:mb-8 px-3 sm:px-4 md:px-0">
-              <div className="w-full">
-                <h2 className="text-fresh-zone-heading font-extrabold text-white font-headingnow md:text-6xl">
-                  FRESH ZONE
-                </h2>
-                <p className="text-gray-200 mt-1">Handpicked daily essentials</p>
-              </div>
-            </div>
-            {/* Category tabs — same chip selection effect as home / products rail */}
-            {freshZoneDisplayCategories.length > 0 && (
-              <div className="w-full mb-6 sm:mb-8">
-                <SmoothDragRail
-                  className="pb-1"
-                  trackClassName="items-start gap-3 px-4 sm:px-5"
-                  ariaLabel="Fresh zone categories"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setFreshZoneCategoryId(null)}
-                    aria-pressed={freshZoneCategoryId == null}
-                    className={[
-                      'group flex w-[80px] shrink-0 flex-col items-center gap-2',
-                      'touch-manipulation transition-transform duration-200 ease-[cubic-bezier(0.33,1,0.68,1)]',
-                      'active:scale-[0.88]',
-                      freshZoneCategoryId == null ? 'scale-[1.02]' : 'scale-100',
-                    ].join(' ')}
-                  >
-                    <span
-                      className={[
-                        'rounded-[24px] p-[3px] transition-all duration-200',
-                        freshZoneCategoryId == null
-                          ? 'bg-gradient-to-br from-[#902bf5] to-[#c084fc] shadow-[0_10px_24px_rgba(144,43,245,0.35)]'
-                          : 'bg-transparent group-hover:bg-[#902bf5]/15',
-                      ].join(' ')}
-                    >
-                      <span
-                        className={[
-                          'relative flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-[21px] transition-all duration-200',
-                          freshZoneCategoryId == null
-                            ? 'bg-white ring-2 ring-white'
-                            : 'bg-gray-50/90 ring-1 ring-white/40 group-hover:ring-[#902bf5]/25',
-                        ].join(' ')}
-                      >
-                        <Classify size={28} className="text-[#902bf5]" aria-hidden />
-                      </span>
-                    </span>
-                    <span
-                      className={[
-                        'max-w-[80px] truncate text-center text-[11px] font-bold uppercase leading-tight tracking-wide transition-colors duration-200',
-                        freshZoneCategoryId == null ? 'text-white' : 'text-white/80',
-                      ].join(' ')}
-                    >
-                      ALL
-                    </span>
-                    <span
-                      className={[
-                        'h-1 w-6 rounded-full transition-all duration-200',
-                        freshZoneCategoryId == null
-                          ? 'scale-100 bg-white opacity-100'
-                          : 'scale-75 bg-transparent opacity-0',
-                      ].join(' ')}
-                      aria-hidden
-                    />
-                  </button>
-
-                  {freshZoneDisplayCategories.map((cat) => {
-                    const active =
-                      freshZoneCategoryId != null &&
-                      String(freshZoneCategoryId) === String(cat.id);
-                    const src = getCategoryImageUrl(cat) || CATEGORY_DUMMY_IMAGE;
-                    const name = String(cat.name || 'Category').trim();
-                    return (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => setFreshZoneCategoryId(cat.id)}
-                        aria-pressed={active}
-                        aria-label={name}
-                        className={[
-                          'group flex w-[80px] shrink-0 flex-col items-center gap-2',
-                          'touch-manipulation transition-transform duration-200 ease-[cubic-bezier(0.33,1,0.68,1)]',
-                          'active:scale-[0.88]',
-                          active ? 'scale-[1.02]' : 'scale-100',
-                        ].join(' ')}
-                      >
-                        <span
-                          className={[
-                            'rounded-[24px] p-[3px] transition-all duration-200',
-                            active
-                              ? 'bg-gradient-to-br from-[#902bf5] to-[#c084fc] shadow-[0_10px_24px_rgba(144,43,245,0.35)]'
-                              : 'bg-transparent group-hover:bg-[#902bf5]/15',
-                          ].join(' ')}
-                        >
-                          <span
-                            className={[
-                              'relative flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-[21px] transition-all duration-200',
-                              active
-                                ? 'bg-white ring-2 ring-white'
-                                : 'bg-gray-50/90 ring-1 ring-white/40 group-hover:ring-[#902bf5]/25',
-                            ].join(' ')}
-                          >
-                            <img
-                              src={src}
-                              alt=""
-                              className={[
-                                'h-full w-full object-cover object-center transition-transform duration-200 group-active:scale-95',
-                                active ? 'scale-[1.04]' : '',
-                              ].join(' ')}
-                              onError={(e) => {
-                                e.currentTarget.src = CATEGORY_DUMMY_IMAGE;
-                              }}
-                            />
-                            {active ? (
-                              <span
-                                className="pointer-events-none absolute inset-0 rounded-[21px] bg-[#902bf5]/12"
-                                aria-hidden
-                              />
-                            ) : null}
-                          </span>
-                        </span>
-                        <span
-                          className={[
-                            'max-w-[80px] truncate text-center text-[11px] font-bold uppercase leading-tight tracking-wide transition-colors duration-200',
-                            active ? 'text-white' : 'text-white/80',
-                          ].join(' ')}
-                        >
-                          {name}
-                        </span>
-                        <span
-                          className={[
-                            'h-1 w-6 rounded-full transition-all duration-200',
-                            active
-                              ? 'scale-100 bg-white opacity-100'
-                              : 'scale-75 bg-transparent opacity-0',
-                          ].join(' ')}
-                          aria-hidden
-                        />
-                      </button>
-                    );
-                  })}
-                </SmoothDragRail>
-
-                {freshZoneSelectedCategory ? (
-                  <div
-                    key={String(freshZoneSelectedCategory.id)}
-                    className="mt-5 animate-fade-in px-4 text-center sm:px-5"
-                  >
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/75">
-                      Browsing
-                    </p>
-                    <h3 className="mt-1 font-headingnow text-[2rem] font-extrabold uppercase leading-none tracking-wide text-white sm:text-[2.4rem]">
-                      {freshZoneSelectedCategory.name}
-                    </h3>
-                  </div>
-                ) : null}
-              </div>
-            )}
-
-            {/* Products (carousel) — fade in when category changes */}
-            <div
-              key={
-                freshZoneCategoryId == null
-                  ? 'fresh-all'
-                  : String(freshZoneCategoryId)
-              }
-              className="w-full animate-fade-in"
-            >
-              <SmoothDragRail
-                className="pb-3"
-                trackClassName="items-stretch gap-3 px-4"
-                ariaLabel="Fresh zone products"
-              >
-                  {freshZoneDisplayProducts.slice(0, 12).map((product) => (
-                    <div key={product.id} className="flex h-full flex-shrink-0">
-                      <ProductCard product={product} isCarousel />
-                    </div>
-                  ))}
-              </SmoothDragRail>
-              {freshZoneSelectedCategory && freshZoneDisplayProducts.length === 0 && (
-                <div className="px-4 pb-2 text-sm text-white/80">
-                  No products found for <span className="font-semibold text-white">{freshZoneSelectedCategory.name}</span>.
-                </div>
-              )}
-            </div>
-
-            {/* Bottom center "See all →" — opens the active Fresh Zone category */}
-            <div className="mt-10 flex justify-center px-4 md:px-0">
-              <Link
-                href={freshZoneSeeAllHref}
-                className="inline-flex items-center gap-2 text-[13px] font-semibold text-white/90 hover:text-white transition"
-              >
-                <span>See all</span>
-                <ArrowRight size={16} className="h-4 w-4" aria-hidden />
-              </Link>
-            </div>
-          </Container>
-          </>
-        )}
-
-        {!freshZoneLoading && freshZoneDisplayProducts.length === 0 && (
-          <Container className="relative z-[2] py-10 sm:py-14 text-center">
-            <h2 className="text-3xl font-extrabold text-gray-900 font-headingnow">FRESH ZONE</h2>
-            <p className="mt-2 text-gray-500">Fresh picks coming soon.</p>
-          </Container>
-        )}
-      </section>
-
-      <HomeClientShelves products={catalogProducts} slot="afterFresh" />
 
     </div>
   );

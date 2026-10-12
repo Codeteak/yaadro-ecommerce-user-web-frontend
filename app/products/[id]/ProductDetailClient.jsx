@@ -41,6 +41,7 @@ import { playAddTap, playAddTapAndHold } from '../../../utils/playAddTap';
 import Container from '../../../components/Container';
 import ProductDetailSkeleton from '../../../components/ProductDetailSkeleton';
 import PdpOfferPanel from '../../../components/promotions/PdpOfferPanel';
+import { COUPONS_ONLY } from '../../../lib/couponsOnly';
 import Link from 'next/link';
 import ProductCarousel from '../../../components/ProductCarousel';
 import Breadcrumbs from '../../../components/Breadcrumbs';
@@ -48,6 +49,10 @@ import PriceDisplay from '../../../components/ui/PriceDisplay';
 import { PRESSABLE_ICON_BTN_SOFT } from '../../../components/ui/brandButton';
 import { useUiStore } from '../../../stores/uiStore';
 import { SHOW_PRODUCT_EXTENDED_SECTIONS } from './productDetailFlags';
+import {
+  customWeightListRupees,
+  customWeightStepRupees,
+} from '../../../lib/customWeightListing';
 import {
   getResolvedProductImageUrls,
   PRODUCT_IMAGE_PLACEHOLDER,
@@ -246,6 +251,10 @@ export default function ProductDetailClient({ productId = null }) {
 
   const availableSizes = useMemo(() => buildAvailableSizes(product), [product]);
   const customWeight = hasCustomWeightStep(product);
+  const serverStepPay = customWeightStepRupees(product);
+  const serverStepList = customWeightListRupees(product);
+  const showServerStep =
+    Boolean(product?.customWeightLabel) && serverStepPay != null && serverStepPay > 0;
   const openWeightChooserStore = useUiStore(s => s.openWeightChooser);
   const [selectedSize, setSelectedSize] = useState(() => availableSizes[0] || null);
   const activeSize = useMemo(
@@ -264,11 +273,13 @@ export default function ProductDetailClient({ productId = null }) {
       : 0;
   const stepLinePrices = weightStepLinePrices(product, activeSize);
   const resolvedPack = product ? resolveProductWeightAndUnit(product) : { weight: null, unit: '' };
-  const displayWeight = activeSize?.label
-    ? activeSize.label
-    : activeSize
-      ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
-      : formatWeightUnitLabel(resolvedPack.weight, resolvedPack.unit);
+  const displayWeight = showServerStep
+    ? product.customWeightLabel
+    : activeSize?.label
+      ? activeSize.label
+      : activeSize
+        ? formatWeightUnitLabel(activeSize.weight, activeSize.unit)
+        : formatWeightUnitLabel(resolvedPack.weight, resolvedPack.unit);
 
   const descriptionText = toDisplayText(product?.description);
   const productTitle = toDisplayText(product?.name) || 'Product';
@@ -331,21 +342,27 @@ export default function ProductDetailClient({ productId = null }) {
   }, [sameNameListData?.products, baseNameKey]);
 
   const legacyOriginal = product?.originalPrice != null ? parseFloat(product.originalPrice) : null;
-  // Custom weight: show ₹ for the selected step (250 g), not the full ₹/kg.
+  // Custom weight: show ₹ for the catalog step (250 g), not the full ₹/kg.
   const perKgList = product ? getListPrice(product) || parseFloat(product.price) || 0 : 0;
   const perKgPay = product ? getEffectivePrice(product, perKgList) || perKgList : 0;
-  const effectivePrice = customWeight
-    ? perKgPay
-    : stepLinePrices
-      ? stepLinePrices.pay
-      : product
-        ? getEffectivePrice(product, listUnit)
-        : 0;
-  const mrpDisplay = customWeight
-    ? perKgList > perKgPay + 1e-9
-      ? perKgList
+  const effectivePrice = showServerStep
+    ? serverStepPay
+    : customWeight
+      ? perKgPay
+      : stepLinePrices
+        ? stepLinePrices.pay
+        : product
+          ? getEffectivePrice(product, listUnit)
+          : 0;
+  const mrpDisplay = showServerStep
+    ? serverStepList != null && serverStepList > serverStepPay + 1e-9
+      ? serverStepList
       : null
-    : stepLinePrices
+    : customWeight
+      ? perKgList > perKgPay + 1e-9
+        ? perKgList
+        : null
+      : stepLinePrices
       ? stepLinePrices.list > stepLinePrices.pay + 1e-9
         ? stepLinePrices.list
         : null
@@ -810,7 +827,7 @@ export default function ProductDetailClient({ productId = null }) {
                           amount={effectivePrice}
                           listPrice={mrpDisplay}
                           size="lg"
-                          suffix={customWeight ? '/kg' : undefined}
+                          suffix={customWeight && !showServerStep ? '/kg' : undefined}
                         />
                       )}
                     </div>
@@ -892,7 +909,7 @@ export default function ProductDetailClient({ productId = null }) {
                       )}
                     </div>
                   </div>
-                  <PdpOfferPanel product={product} />
+                  {!COUPONS_ONLY ? <PdpOfferPanel product={product} /> : null}
                 </div>
               </div>
             </section>
