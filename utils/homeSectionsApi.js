@@ -2,11 +2,22 @@ import { apiFetchRoot } from './apiClient';
 import { resolveShopId } from './authApi';
 import { PRODUCT_IMAGE_PLACEHOLDER } from './productImages';
 import { normalizeStorefrontProductPricing } from './storefrontProductPricing';
+import { COUPONS_ONLY } from '../lib/couponsOnly';
 
 const SECTION_TYPES = new Set(['product_shelf', 'event_shelf', 'buy_x_get_y']);
 
 function asArray(value) {
   return Array.isArray(value) ? value : [];
+}
+
+function readCatalogStockQuantity(raw) {
+  const value = raw?.stock_quantity ?? raw?.stockQuantity;
+  if (value == null) return null;
+  const text = String(value).trim();
+  if (!text) return null;
+  const n = Number(text);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return text;
 }
 
 function extractSectionsPayload(payload) {
@@ -88,6 +99,7 @@ export function mapHomeSectionProduct(raw) {
     bundleRules,
     inStock: true,
     stock: 1,
+    stock_quantity: readCatalogStockQuantity(raw),
   };
 }
 
@@ -134,6 +146,7 @@ export function normalizeHomeSection(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const type = String(raw.type || '').trim();
   if (!SECTION_TYPES.has(type)) return null;
+  if (COUPONS_ONLY && type === 'buy_x_get_y') return null;
 
   const id = raw.id != null ? String(raw.id).trim() : '';
   if (!id) return null;

@@ -13,6 +13,7 @@ import {
   formatSoldByWeightPurchaseLabel,
 } from '../../utils/productSizeSelection';
 import { lineListUnit, linePayTotal, lineUnitPrice } from '../../utils/offerDisplay';
+import { COUPONS_ONLY } from '../../lib/couponsOnly';
 import { toDisplayText } from '../../utils/productApi';
 
 function OfferBadgePill({ children, tone = 'violet' }) {
@@ -244,16 +245,20 @@ export default function OfferGroupCard({
   onRemove,
   compact = false,
   showStepper = true,
+  tone = 'muted',
 }) {
   if (!group?.parent) return null;
-  const hasChildren = Array.isArray(group.children) && group.children.length > 0;
-  const isBogo = group.offerType === 'buy_x_get_y' || hasChildren;
+  const hasChildren =
+    !COUPONS_ONLY && Array.isArray(group.children) && group.children.length > 0;
+  const isBogo = !COUPONS_ONLY && (group.offerType === 'buy_x_get_y' || hasChildren);
 
   return (
     <div
-      className={`rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] ${
-        compact ? 'p-2.5' : 'p-3'
-      }`}
+      className={`rounded-[18px] border ${
+        tone === 'white'
+          ? 'border-gray-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]'
+          : 'border-[#E5E7EB] bg-[#F9FAFB]'
+      } ${compact ? 'p-2.5' : 'p-3'}`}
     >
       {isBogo && group.bundleLabel ? (
         <p className="mb-1.5 text-[11px] font-semibold text-violet-800">{group.bundleLabel}</p>

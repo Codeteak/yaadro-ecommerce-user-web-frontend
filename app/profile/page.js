@@ -13,6 +13,7 @@ import ConfirmModal from '../../components/ConfirmModal';
 import PhoneChangeOtpSheet from '../../components/PhoneChangeOtpSheet';
 import PageTopBar from '../../components/PageTopBar';
 import ProfileOffersSection from '../../components/profile/ProfileOffersSection';
+import { COUPONS_ONLY } from '../../lib/couponsOnly';
 import ProfileCouponsSection from '../../components/profile/ProfileCouponsSection';
 import ProfileDeliveryShopCard from '../../components/profile/ProfileDeliveryShopCard';
 import ProfileRecentOrdersSection from '../../components/profile/ProfileRecentOrdersSection';
@@ -296,13 +297,14 @@ function ProfilePageContent() {
 
         <ProfileShopContactSection />
 
-        {/* Offers — compact empty states */}
-        <div className="mx-4 mt-4 rounded-2xl border border-gray-100 bg-white px-4 py-3.5 shadow-sm">
-          <h3 className="text-sm font-bold text-gray-900">Category offers</h3>
-          <div className="mt-2">
-            <ProfileOffersSection />
+        {!COUPONS_ONLY ? (
+          <div className="mx-4 mt-4 rounded-2xl border border-gray-100 bg-white px-4 py-3.5 shadow-sm">
+            <h3 className="text-sm font-bold text-gray-900">Category offers</h3>
+            <div className="mt-2">
+              <ProfileOffersSection />
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <div className="mx-4 mt-3 rounded-2xl border border-gray-100 bg-white px-4 py-3.5 shadow-sm">
           <h3 className="text-sm font-bold text-gray-900">Available coupons</h3>

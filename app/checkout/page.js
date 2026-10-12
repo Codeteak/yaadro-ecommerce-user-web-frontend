@@ -46,8 +46,9 @@ import { useLocationService } from "../../context/LocationServiceContext";
 import ConfirmModal from "../../components/ConfirmModal";
 import CheckoutPageSkeleton from "../../components/skeletons/CheckoutPageSkeleton";
 import OfferGroupCard from "../../components/promotions/OfferGroupCard";
+import { COUPONS_ONLY } from "../../lib/couponsOnly";
 import CouponThresholdBanner from "../../components/promotions/CouponThresholdBanner";
-import { BRAND_PRIMARY_BTN, PRESSABLE_ICON_BTN_SOFT } from "../../components/ui/brandButton";
+import { BRAND_CHECKOUT_BTN, PRESSABLE_ICON_BTN_SOFT } from "../../components/ui/brandButton";
 import { formatAddressDisplay } from "../../utils/formatAddress";
 import { AddressCardSkeleton } from "../../components/skeletons/primitives";
 import { useLayoutHeights } from "../../context/LayoutHeightsContext";
@@ -94,16 +95,19 @@ function getCheckoutReadinessIssues({
    Small helpers
 ───────────────────────────────────────────── */
 
-function SectionLabel({ children, optional }) {
+function SectionHeading({ children, aside, optional }) {
   return (
-    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-widest mb-3">
-      {children}
-      {optional && (
-        <span className="normal-case tracking-normal font-normal text-gray-400 ml-1">
-          (optional)
-        </span>
-      )}
-    </p>
+    <div className="mb-3 flex items-baseline justify-between gap-3">
+      <h2 className="text-base font-semibold text-gray-900">
+        {children}
+        {optional ? (
+          <span className="ml-1 text-[12px] font-normal text-gray-400">
+            (optional)
+          </span>
+        ) : null}
+      </h2>
+      {aside}
+    </div>
   );
 }
 
@@ -118,87 +122,18 @@ function hasUserPhone(user) {
 }
 
 /* ─────────────────────────────────────────────
-   Step progress bar
-───────────────────────────────────────────── */
-function StepBar({ current }) {
-  const steps = ["Cart", "Address", "Confirm"];
-  return (
-    <div className="flex items-center px-4 py-3 bg-white border-b border-gray-100">
-      {steps.map((label, i) => {
-        const idx = i + 1;
-        const done = idx < current;
-        const active = idx === current;
-        return (
-          <div key={label} className="flex items-center flex-1 last:flex-none">
-            <div className="flex items-center gap-1.5">
-              <div
-                className={`w-[22px] h-[22px] rounded-full flex items-center justify-center text-[11px] font-medium flex-shrink-0 ${
-                  done || active
-                    ? "bg-violet-600 text-white"
-                    : "bg-gray-100 text-gray-400 border border-gray-200"
-                }`}
-              >
-                {done ? (
-                  <svg
-                    className="w-3 h-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2.5}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                ) : (
-                  idx
-                )}
-              </div>
-              <span
-                className={`text-[11px] font-medium ${
-                  active
-                    ? "text-gray-900"
-                    : done
-                      ? "text-violet-700"
-                      : "text-gray-400"
-                }`}
-              >
-                {label}
-              </span>
-            </div>
-            {i < steps.length - 1 && (
-              <div
-                className={`flex-1 h-px mx-2 ${done ? "bg-violet-500" : "bg-gray-200"}`}
-              />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────
    Address card
 ───────────────────────────────────────────── */
 function AddressCard({ address, selected, onSelect, onEdit }) {
   const { user } = useAuth();
-  const labelColors = {
-    Home: "bg-violet-100 text-violet-800",
-    Work: "bg-blue-100 text-blue-800",
-  };
-  const pill = labelColors[address.label] || "bg-gray-100 text-gray-600";
+  const pill = "bg-gray-100 text-gray-700";
   const addressLine = formatAddressDisplay(address);
 
   return (
     <div
-      className={`w-full rounded-2xl border p-3.5 flex items-start gap-3 transition-all ${
-        selected
-          ? "border-2 border-violet-500"
-          : "border border-gray-100 hover:border-gray-200"
-      } bg-white`}
+      className={`flex w-full items-start gap-3 rounded-[18px] border bg-white p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
+        selected ? "border-[#902bf5]" : "border-gray-200"
+      }`}
     >
       <button
         type="button"
@@ -209,7 +144,7 @@ function AddressCard({ address, selected, onSelect, onEdit }) {
         {/* Radio */}
         <div
           className={`w-[18px] h-[18px] rounded-full border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors ${
-            selected ? "border-violet-500 bg-violet-500" : "border-gray-300"
+            selected ? "border-[#902bf5] bg-[#902bf5]" : "border-gray-300"
           }`}
         >
           {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
@@ -267,10 +202,10 @@ function AddressCard({ address, selected, onSelect, onEdit }) {
 ───────────────────────────────────────────── */
 function CodBadge() {
   return (
-    <div className="bg-violet-50 border-2 border-violet-500 rounded-2xl p-3.5 flex items-center gap-3">
-      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0">
+    <div className="flex items-center gap-3 rounded-[18px] border border-gray-200 bg-white p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gray-50">
         <svg
-          className="w-5 h-5 text-violet-600"
+          className="h-5 w-5 text-gray-700"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -284,14 +219,14 @@ function CodBadge() {
         </svg>
       </div>
       <div className="flex-1">
-        <p className="text-[14px] font-medium text-violet-900">
+        <p className="text-[14px] font-medium text-gray-900">
           Cash on delivery
         </p>
-        <p className="text-[12px] text-violet-700 mt-0.5">
+        <p className="mt-0.5 text-[12px] text-gray-500">
           Pay when your order arrives
         </p>
       </div>
-      <div className="w-5 h-5 rounded-full bg-violet-600 flex items-center justify-center flex-shrink-0">
+      <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[#902bf5]">
         <svg
           className="w-3 h-3 text-white"
           fill="none"
@@ -321,7 +256,6 @@ function OrderSummary({
   linePromoDiscount = 0,
   bundleDiscount = 0,
   promotionDiscount = null,
-  onRemove,
 }) {
   const { mrpTotal, savings } = getCartBottomBarPricing(cartItems, cartTotal);
   const itemPromo =
@@ -335,28 +269,10 @@ function OrderSummary({
     promotionDiscount != null && promotionDiscount > 0.009
       ? promotionDiscount
       : Math.max(0, savings - (couponDiscount > 0.009 ? couponDiscount : 0));
-  const discount = savings > 0.009 ? savings : 0;
   const totalQty = sumCartPaidUnits(cartItems);
-  const offerGroups = buildCartOfferGroups(cartItems);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-4">
-      {/* Item rows */}
-      <div className="space-y-3 mb-4">
-        {offerGroups.map((group) => (
-          <OfferGroupCard
-            key={group.parentLineItemId}
-            group={group}
-            compact
-            showStepper={false}
-            onRemove={onRemove}
-          />
-        ))}
-      </div>
-
-      <Divider />
-
-      {/* Totals */}
+    <div className="rounded-[18px] border border-gray-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <div className="space-y-2 text-[13px]">
         <div className="flex justify-between text-gray-500">
           <span>Subtotal ({totalQty} items)</span>
@@ -366,30 +282,30 @@ function OrderSummary({
         </div>
         <div className="flex justify-between text-gray-500">
           <span>Shipping</span>
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-violet-100 text-violet-800">
+          <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700">
             Free
           </span>
         </div>
         {itemPromo > 0.009 && (
           <div className="flex justify-between text-gray-500">
             <span>Sale price savings</span>
-            <span className="font-medium text-violet-700 tabular-nums">
+            <span className="font-medium tabular-nums text-gray-900">
               −₹{itemPromo.toLocaleString("en-IN")}
             </span>
           </div>
         )}
-        {bundleDiscount > 0.009 && (
+        {!COUPONS_ONLY && bundleDiscount > 0.009 && (
           <div className="flex justify-between text-gray-500">
             <span>Free items (buy more, get free)</span>
-            <span className="font-medium text-violet-700 tabular-nums">
+            <span className="font-medium tabular-nums text-gray-900">
               −₹{bundleDiscount.toLocaleString("en-IN")}
             </span>
           </div>
         )}
-        {autoCartDiscount > 0.009 && (
+        {!COUPONS_ONLY && autoCartDiscount > 0.009 && (
           <div className="flex justify-between text-gray-500">
             <span>Automatic cart discount</span>
-            <span className="font-medium text-violet-700 tabular-nums">
+            <span className="font-medium tabular-nums text-gray-900">
               −₹{autoCartDiscount.toLocaleString("en-IN")}
             </span>
           </div>
@@ -397,7 +313,7 @@ function OrderSummary({
         {couponDiscount > 0.009 && (
           <div className="flex justify-between text-gray-500">
             <span>Coupon</span>
-            <span className="font-medium text-violet-700 tabular-nums">
+            <span className="font-medium tabular-nums text-gray-900">
               −₹{couponDiscount.toLocaleString("en-IN")}
             </span>
           </div>
@@ -408,7 +324,7 @@ function OrderSummary({
           autoCartDiscount <= 0.009 && (
             <div className="flex justify-between text-gray-500">
               <span>Promo savings</span>
-              <span className="font-medium text-violet-700 tabular-nums">
+              <span className="font-medium tabular-nums text-gray-900">
                 −₹{promoDiscount.toLocaleString("en-IN")}
               </span>
             </div>
@@ -439,7 +355,7 @@ function OrderSummary({
 function CheckoutPageState({ title, subtitle }) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-2 px-6">
-      <div className="w-9 h-9 rounded-full border-2 border-violet-200 border-t-violet-600 animate-spin" />
+      <div className="h-9 w-9 animate-spin rounded-full border-2 border-violet-100 border-t-[#902bf5]" />
       {title ? (
         <p className="text-sm font-medium text-gray-900 text-center">{title}</p>
       ) : null}
@@ -472,23 +388,57 @@ function EmptyCheckout() {
         Your cart is empty
       </h2>
       <p className="text-sm text-gray-400 mb-6">
-        Add some items before checkout.
+        Add some fresh products to continue shopping.
       </p>
-      <div className="flex flex-wrap items-center justify-center gap-2.5">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 bg-violet-600 text-white text-sm font-medium px-5 py-2.5 rounded-full hover:bg-violet-700 transition"
-        >
-          Home
-        </Link>
-        <Link
-          href="/products"
-          className="inline-flex items-center gap-2 border border-gray-200 bg-white text-sm font-medium text-gray-800 px-5 py-2.5 rounded-full hover:bg-gray-50 transition"
-        >
-          Shop now
-        </Link>
-      </div>
+      <Link
+        href="/products"
+        className={`inline-flex items-center gap-2 px-5 py-2.5 text-sm ${BRAND_CHECKOUT_BTN}`}
+      >
+        Continue shopping
+      </Link>
     </div>
+  );
+}
+
+function PlaceOrderButton({
+  isSubmitting,
+  isCheckingDelivery,
+  showPriceVaryConfirm,
+  selectedAddressId,
+  selectedAddressCoords,
+  addressesLength,
+  onPress,
+  className = "",
+}) {
+  const blocked =
+    isSubmitting || isCheckingDelivery || showPriceVaryConfirm;
+  const needsAddress = !selectedAddressId || !selectedAddressCoords;
+  return (
+    <Button
+      variant="primary"
+      isDisabled={blocked}
+      isLoading={isSubmitting || isCheckingDelivery}
+      onPress={onPress}
+      className={`flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold ${
+        blocked
+          ? "bg-gray-200 text-gray-400"
+          : needsAddress
+            ? "bg-amber-500 text-white hover:bg-amber-600"
+            : BRAND_CHECKOUT_BTN
+      } ${className}`}
+    >
+      {!isSubmitting && !isCheckingDelivery && !selectedAddressId ? (
+        addressesLength === 0 ? "Add delivery address" : "Select address"
+      ) : !isSubmitting && !isCheckingDelivery && !selectedAddressCoords ? (
+        "Set map pin on address"
+      ) : isCheckingDelivery ? (
+        "Checking delivery…"
+      ) : isSubmitting ? (
+        "Processing order…"
+      ) : (
+        "Place order"
+      )}
+    </Button>
   );
 }
 
@@ -504,6 +454,7 @@ export default function CheckoutPage() {
     cartTotal,
     clearCart,
     removeFromCart,
+    updateQuantity,
     selectedCouponCode,
     setSelectedCouponCode,
     selectedCouponCodes,
@@ -631,6 +582,36 @@ export default function CheckoutPage() {
     cartData?.promotions?.coupon,
   ]);
 
+  const autoCartDiscountMajor = useMemo(() => {
+    if (cartData?.autoCartDiscountMinor > 0) {
+      return minorToMajor(cartData.autoCartDiscountMinor);
+    }
+    if (cartData?.promotions?.auto?.autoCartDiscountMinor > 0) {
+      return minorToMajor(cartData.promotions.auto.autoCartDiscountMinor);
+    }
+    return 0;
+  }, [cartData?.autoCartDiscountMinor, cartData?.promotions?.auto?.autoCartDiscountMinor]);
+
+  const linePromoDiscountMajor = useMemo(() => {
+    if (cartData?.linePromoDiscountMinor > 0) {
+      return minorToMajor(cartData.linePromoDiscountMinor);
+    }
+    if (cartData?.promotions?.auto?.linePromoDiscountMinor > 0) {
+      return minorToMajor(cartData.promotions.auto.linePromoDiscountMinor);
+    }
+    return 0;
+  }, [cartData?.linePromoDiscountMinor, cartData?.promotions?.auto?.linePromoDiscountMinor]);
+
+  const bundleDiscountMajor = useMemo(() => {
+    if (cartData?.bundleDiscountMinor > 0) {
+      return minorToMajor(cartData.bundleDiscountMinor);
+    }
+    if (cartData?.promotions?.auto?.bundleDiscountMinor > 0) {
+      return minorToMajor(cartData.promotions.auto.bundleDiscountMinor);
+    }
+    return 0;
+  }, [cartData?.bundleDiscountMinor, cartData?.promotions?.auto?.bundleDiscountMinor]);
+
   const promotionDiscountMajor = useMemo(() => {
     if (!couponPreviewTrusted) return null;
     if (cartData?.promotionDiscountMinor > 0) {
@@ -651,46 +632,36 @@ export default function CheckoutPage() {
   );
 
   /**
-   * “You might also like” above order summary; other slices below delivery notes.
+   * One suggestion carousel after the order lines.
    * Do not exclude in-cart products — ProductCard must stay mounted to show qty controls.
    */
-  const { checkoutMightLikeSection, checkoutCarouselsBelowNotes } =
-    useMemo(() => {
-      const sections = buildSuggestedProductSections(similarPool, {
-        sections: [
-          {
-            key: "checkout-might-like",
-            title: "You might also like",
-            description: "Add a few more items before you check out.",
-            start: 0,
-            end: 8,
-          },
-          {
-            key: "checkout-trending",
-            title: "Trending picks",
-            description: "Popular choices shoppers add with their orders.",
-            start: 8,
-            end: 16,
-          },
-          {
-            key: "checkout-more",
-            title: "More to explore",
-            description: "Recently listed items worth a quick look.",
-            start: 16,
-            end: 24,
-          },
-        ],
-      });
-      const mightLike =
-        sections.find((s) => s.key === "checkout-might-like") || null;
-      const belowNotes = sections.filter(
-        (s) => s.key !== "checkout-might-like",
-      );
-      return {
-        checkoutMightLikeSection: mightLike,
-        checkoutCarouselsBelowNotes: belowNotes,
-      };
-    }, [similarPool]);
+  const checkoutMightLikeSection = useMemo(() => {
+    const sections = buildSuggestedProductSections(similarPool, {
+      sections: [
+        {
+          key: "checkout-might-like",
+          title: "You might also like",
+          description: "Add a few more items before you check out.",
+          start: 0,
+          end: 8,
+        },
+      ],
+    });
+    return sections[0] || null;
+  }, [similarPool]);
+
+  const offerGroups = useMemo(
+    () => buildCartOfferGroups(cartItems),
+    [cartItems],
+  );
+
+  const handleCheckoutQtyChange = (id, qty) => {
+    if (!(Number(qty) > 0)) {
+      removeFromCart(id);
+      return;
+    }
+    updateQuantity(id, qty);
+  };
 
   const bottomBarPricing = useMemo(
     () => getCartBottomBarPricing(cartItems, displayCartTotal),
@@ -1085,18 +1056,79 @@ export default function CheckoutPage() {
   /* ─────────────────────────────────────────────
      Render
   ───────────────────────────────────────────── */
+  const placeOrder = () => {
+    if (!selectedAddressId) {
+      if (addresses.length === 0) {
+        goToAddAddress();
+      } else {
+        setShowAddressSelector(true);
+      }
+      return;
+    }
+    if (!selectedAddressCoords) {
+      showAlert(
+        "Please select a delivery location on the map.",
+        "Delivery location needed",
+        "warning",
+      );
+      scrollToDeliveryAddress();
+      goToAddAddress(selectedAddressId);
+      return;
+    }
+    const line1 = String(
+      selectedAddress?.line1 || selectedAddress?.street || "",
+    ).trim();
+    if (!line1) {
+      showAlert(
+        "Please enter Address Line 1.",
+        "Address incomplete",
+        "warning",
+      );
+      scrollToDeliveryAddress();
+      goToAddAddress(selectedAddressId);
+      return;
+    }
+    handleSubmit({ preventDefault: () => {} });
+  };
+
+  const renderOrderSummary = () => (
+    <OrderSummary
+      cartItems={cartItems}
+      cartTotal={displayCartTotal}
+      couponDiscount={couponDiscountMajor}
+      autoCartDiscount={autoCartDiscountMajor}
+      linePromoDiscount={linePromoDiscountMajor}
+      bundleDiscount={bundleDiscountMajor}
+      promotionDiscount={promotionDiscountMajor}
+    />
+  );
+
+  const renderPlaceOrderButton = () => (
+    <PlaceOrderButton
+      isSubmitting={isSubmitting}
+      isCheckingDelivery={isCheckingDelivery}
+      showPriceVaryConfirm={showPriceVaryConfirm}
+      selectedAddressId={selectedAddressId}
+      selectedAddressCoords={selectedAddressCoords}
+      addressesLength={addresses.length}
+      onPress={placeOrder}
+      className="w-full"
+    />
+  );
+
+  const paidItemCount = offerGroups.length;
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-36 w-full max-w-full">
-      {/* Top bar */}
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-100">
-        <div className="flex items-center gap-3 px-4 py-3.5">
+    <div className="min-h-screen w-full max-w-full bg-[#F7F7F8] pb-32">
+      <div className="sticky top-0 z-30 border-b border-gray-200 bg-white">
+        <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-3.5">
           <Link
             href="/cart"
-            className={`w-9 h-9 rounded-full border border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0 ${PRESSABLE_ICON_BTN_SOFT}`}
+            className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 ${PRESSABLE_ICON_BTN_SOFT}`}
             aria-label="Back to cart"
           >
             <svg
-              className="w-4 h-4 text-gray-700"
+              className="h-4 w-4 text-gray-700"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -1109,19 +1141,90 @@ export default function CheckoutPage() {
               />
             </svg>
           </Link>
-          <span className="text-base font-medium text-gray-900">Checkout</span>
+          <span className="text-base font-semibold text-gray-900">Checkout</span>
         </div>
-        <StepBar current={2} />
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-0">
-        {/* ── Delivery address ── */}
+      <form
+        onSubmit={handleSubmit}
+        className="mx-auto w-full max-w-6xl"
+      >
+        <div className="min-w-0">
+        <div className="px-4 pt-5 pb-1">
+          <SectionHeading
+            aside={
+              <span className="text-[12px] font-medium text-gray-500">
+                {paidItemCount} {paidItemCount === 1 ? "item" : "items"}
+              </span>
+            }
+          >
+            Your order
+          </SectionHeading>
+          <div className="space-y-2.5">
+            {offerGroups.map((group) => (
+              <OfferGroupCard
+                key={group.parentLineItemId}
+                group={group}
+                tone="white"
+                onQuantityChange={handleCheckoutQtyChange}
+                onRemove={removeFromCart}
+              />
+            ))}
+          </div>
+          <Link
+            href="/products"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-[18px] border border-dashed border-gray-300 bg-white px-4 py-3 text-[13px] font-medium text-gray-700 transition hover:border-gray-400 hover:bg-gray-50"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            Add more items
+          </Link>
+        </div>
+
+        {checkoutMightLikeSection && (
+          <section
+            key={checkoutMightLikeSection.key}
+            className="px-4 pt-6 pb-1"
+            aria-label={checkoutMightLikeSection.title}
+          >
+            <SectionHeading
+              aside={
+                <Link
+                  href="/products"
+                  className="whitespace-nowrap text-[12px] font-medium text-gray-600 hover:text-gray-900"
+                >
+                  See all
+                </Link>
+              }
+            >
+              {checkoutMightLikeSection.title}
+            </SectionHeading>
+            <ProductCarousel
+              products={checkoutMightLikeSection.products}
+              showMoreLink="/products"
+              compact
+            />
+          </section>
+        )}
+
         <div
           ref={addressSectionRef}
-          className="px-4 pt-5 pb-1"
+          className="px-4 pt-6 pb-1"
           aria-busy={isLoadingAddresses && addresses.length === 0}
         >
-          <SectionLabel>Delivery address</SectionLabel>
+          <SectionHeading>Delivery address</SectionHeading>
 
           {checkoutReadinessIssues.length > 0 &&
             !(isLoadingAddresses && addresses.length === 0) && (
@@ -1162,7 +1265,7 @@ export default function CheckoutPage() {
             <button
               type="button"
               onClick={() => goToAddAddress()}
-              className="w-full mt-3 border-2 border-dashed border-gray-200 rounded-2xl py-3 flex items-center justify-center gap-2 text-[13px] font-medium text-gray-500 hover:border-violet-400 hover:text-violet-700 transition"
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-[18px] border border-dashed border-gray-300 bg-white py-3 text-[13px] font-medium text-gray-600 transition hover:border-gray-400 hover:text-gray-900"
             >
               <svg
                 className="w-4 h-4"
@@ -1182,14 +1285,23 @@ export default function CheckoutPage() {
           )}
         </div>
 
-        {/* ── Payment ── */}
-        <div className="px-4 pt-5 pb-1">
-          <SectionLabel>Payment method</SectionLabel>
+        <div className="px-4 pt-6 pb-1">
+          <SectionHeading optional>Delivery notes</SectionHeading>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            placeholder="E.g. leave at door, ring bell twice…"
+            className="w-full resize-none rounded-[18px] border border-gray-200 bg-white px-3.5 py-2.5 text-[13px] leading-relaxed text-gray-900 placeholder-gray-400 transition focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#902bf5]/25"
+          />
+        </div>
+
+        <div className="px-4 pt-6 pb-1">
+          <SectionHeading>Payment</SectionHeading>
           <CodBadge />
         </div>
 
-        {/* ── Coupons (applied at checkout via POST /storefront/checkout) ── */}
-        <div className="px-4 pt-5 pb-1 space-y-2.5">
+        <div className="space-y-2.5 px-4 pt-6 pb-1">
           <CouponThresholdBanner
             hint={
               bxgyBlocksCoupons
@@ -1223,290 +1335,28 @@ export default function CheckoutPage() {
           />
         </div>
 
-        {/* ── You might also like (above order summary) ── */}
-        {checkoutMightLikeSection && (
-          <section
-            key={checkoutMightLikeSection.key}
-            className="px-4 pt-5 pb-1"
-            aria-label={checkoutMightLikeSection.title}
-          >
-            <div className="mb-4 flex items-end justify-between gap-3">
-              <div>
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold leading-[1] text-gray-900 font-headingnow">
-                  {checkoutMightLikeSection.title}
-                </h2>
-                <p className="mt-2 text-[13px] text-gray-500 md:text-sm">
-                  {checkoutMightLikeSection.description}
-                </p>
-              </div>
-              <Link
-                href="/products"
-                className="whitespace-nowrap text-[12px] font-medium text-violet-700 transition hover:text-violet-800"
-              >
-                See all
-              </Link>
-            </div>
-            <ProductCarousel
-              products={checkoutMightLikeSection.products}
-              showMoreLink="/products"
-            />
-          </section>
-        )}
-
-        {/* ── Order items ── */}
-        <div className="px-4 pt-5 pb-1">
-          <SectionLabel>Order summary</SectionLabel>
-          <OrderSummary
-            cartItems={cartItems}
-            cartTotal={displayCartTotal}
-            couponDiscount={couponDiscountMajor}
-            autoCartDiscount={
-              cartData?.autoCartDiscountMinor > 0
-                ? minorToMajor(cartData.autoCartDiscountMinor)
-                : cartData?.promotions?.auto?.autoCartDiscountMinor > 0
-                  ? minorToMajor(cartData.promotions.auto.autoCartDiscountMinor)
-                  : 0
-            }
-            linePromoDiscount={
-              cartData?.linePromoDiscountMinor > 0
-                ? minorToMajor(cartData.linePromoDiscountMinor)
-                : cartData?.promotions?.auto?.linePromoDiscountMinor > 0
-                  ? minorToMajor(
-                      cartData.promotions.auto.linePromoDiscountMinor,
-                    )
-                  : 0
-            }
-            bundleDiscount={
-              cartData?.bundleDiscountMinor > 0
-                ? minorToMajor(cartData.bundleDiscountMinor)
-                : cartData?.promotions?.auto?.bundleDiscountMinor > 0
-                  ? minorToMajor(cartData.promotions.auto.bundleDiscountMinor)
-                  : 0
-            }
-            promotionDiscount={promotionDiscountMajor}
-            onRemove={removeFromCart}
-          />
-
-          {/* Add more items — full-width CTA */}
-          <Link
-            href="/products"
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-violet-300 bg-violet-50/40 px-4 py-3 text-[13px] font-semibold text-violet-800 transition hover:border-violet-500 hover:bg-violet-50 active:scale-[0.99]"
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Add more items
-          </Link>
+        <div className="px-4 pt-6 pb-6">
+          <SectionHeading>Order summary</SectionHeading>
+          {renderOrderSummary()}
         </div>
-
-        {/* ── Delivery notes ── */}
-        <div className="px-4 pt-5 pb-4">
-          <SectionLabel optional>Delivery notes</SectionLabel>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-            placeholder="E.g. leave at door, ring bell twice…"
-            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-[13px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:bg-white resize-none leading-relaxed transition"
-          />
         </div>
-
-        {/* ── Trending / more carousels (below delivery notes) ── */}
-        {checkoutCarouselsBelowNotes.map(
-          ({ key, title, description, products }) => (
-            <section key={key} className="px-4 pt-2 pb-4" aria-label={title}>
-              <div className="mb-4 flex items-end justify-between gap-3">
-                <div>
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold leading-[1] text-gray-900 font-headingnow">
-                    {title}
-                  </h2>
-                  <p className="mt-2 text-[13px] text-gray-500 md:text-sm">
-                    {description}
-                  </p>
-                </div>
-                <Link
-                  href="/products"
-                  className="whitespace-nowrap text-[12px] font-medium text-violet-700 transition hover:text-violet-800"
-                >
-                  See all
-                </Link>
-              </div>
-              <ProductCarousel products={products} showMoreLink="/products" />
-            </section>
-          ),
-        )}
       </form>
 
-      {/* ── Sticky bottom bar ── */}
       <div
-        className="fixed left-0 right-0 z-50 w-full max-w-[100vw] bg-white border-t border-gray-100"
+        className="fixed inset-x-0 z-50 border-t border-gray-200 bg-white shadow-[0_-8px_24px_rgba(15,23,42,0.08)]"
         style={{ bottom: Math.max(Number(siteFooterHeight) || 0, 0) }}
       >
-        <p
-          role="note"
-          className="border-b border-amber-100 bg-amber-50 px-4 py-1.5 text-center text-[11px] font-medium text-amber-900/90"
+        <div
+          className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-3"
+          style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
         >
-          Price may vary
-        </p>
-        <div className="px-4 pt-3 pb-5">
-          <div className="mb-3 flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] text-gray-400">Total payable</p>
-              <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <p className="text-[17px] font-semibold tabular-nums text-gray-900">
-                  ₹{bottomBarPricing.payable.toLocaleString("en-IN")}
-                </p>
-                {bottomBarPricing.hasOffer && (
-                  <>
-                    <p className="text-sm text-gray-400 line-through tabular-nums">
-                      ₹{bottomBarPricing.mrpTotal.toLocaleString("en-IN")}
-                    </p>
-                    <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-800">
-                      Save ₹
-                      {Math.round(bottomBarPricing.savings).toLocaleString(
-                        "en-IN",
-                      )}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-            <span className="flex-shrink-0 rounded-full bg-violet-50 px-3 py-1 text-[12px] font-medium text-violet-700">
-              Cash on delivery
-            </span>
+          <div className="min-w-0">
+            <p className="text-[11px] text-gray-400">Total</p>
+            <p className="text-lg font-semibold tabular-nums text-gray-900">
+              ₹{bottomBarPricing.payable.toLocaleString("en-IN")}
+            </p>
           </div>
-
-          <Button
-            variant="primary"
-            isDisabled={isSubmitting || isCheckingDelivery || showPriceVaryConfirm}
-            isLoading={isSubmitting || isCheckingDelivery}
-            onPress={() => {
-              if (!selectedAddressId) {
-                if (addresses.length === 0) {
-                  goToAddAddress();
-                } else {
-                  setShowAddressSelector(true);
-                }
-                return;
-              }
-              if (!selectedAddressCoords) {
-                showAlert(
-                  "Please select a delivery location on the map.",
-                  "Delivery location needed",
-                  "warning",
-                );
-                scrollToDeliveryAddress();
-                goToAddAddress(selectedAddressId);
-                return;
-              }
-              const line1 = String(
-                selectedAddress?.line1 || selectedAddress?.street || "",
-              ).trim();
-              if (!line1) {
-                showAlert(
-                  "Please enter Address Line 1.",
-                  "Address incomplete",
-                  "warning",
-                );
-                scrollToDeliveryAddress();
-                goToAddAddress(selectedAddressId);
-                return;
-              }
-              handleSubmit({ preventDefault: () => {} });
-            }}
-            className={`w-full h-12 rounded-full text-sm font-medium flex items-center justify-center gap-2 transition active:scale-[0.98] ${
-              isSubmitting || isCheckingDelivery || showPriceVaryConfirm
-                ? "bg-gray-200 text-gray-400"
-                : !selectedAddressId || !selectedAddressCoords
-                  ? "bg-amber-500 text-white hover:bg-amber-600"
-                  : BRAND_PRIMARY_BTN
-            }`}
-          >
-            {!isSubmitting && !isCheckingDelivery && !selectedAddressId ? (
-              <>
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.244-4.243a8 8 0 1111.314 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-                {addresses.length === 0
-                  ? "Add delivery address"
-                  : "Select address"}
-              </>
-            ) : !isSubmitting && !isCheckingDelivery && !selectedAddressCoords ? (
-              <>
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.244-4.243a8 8 0 1111.314 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-                Set map pin on address
-              </>
-            ) : isCheckingDelivery ? (
-              "Checking delivery…"
-            ) : isSubmitting ? (
-              "Processing order…"
-            ) : (
-              <>
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                Place order
-              </>
-            )}
-          </Button>
+          <div className="min-w-0 flex-1">{renderPlaceOrderButton()}</div>
         </div>
       </div>
 

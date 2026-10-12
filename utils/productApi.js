@@ -9,6 +9,7 @@ import { mediaObjectToUrl } from './mediaUrl';
 import { normalizeProductImages, PRODUCT_IMAGE_PLACEHOLDER } from './productImages';
 import { parseProductDescription, resolveProductWeightAndUnit } from './productUtils';
 import { normalizeStorefrontProductPricing } from './storefrontProductPricing';
+import { customWeightListingFields } from '../lib/customWeightListing.js';
 import { resolveStorefrontProductUpstreamPath } from '../lib/storefrontProductDetail.js';
 import { toDisplayText, sanitizeProductUiFields, resolveProductBrand } from './displayText.js';
 
@@ -23,6 +24,17 @@ function coerceSoldByWeightFlag(value) {
     return s === 'true' || s === 't' || s === 'yes' || s === '1';
   }
   return false;
+}
+
+/** shop_products.stock_quantity. Null when billing has not mapped a quantity column. */
+function readCatalogStockQuantity(apiProduct) {
+  const raw = apiProduct?.stock_quantity ?? apiProduct?.stockQuantity;
+  if (raw == null) return null;
+  const text = String(raw).trim();
+  if (!text) return null;
+  const n = Number(text);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return text;
 }
 
 const SLUG_MAP_KEY = 'yaadro_product_slug_by_id_v1';
@@ -137,6 +149,32 @@ function rememberSlugMapping(apiProduct, slug) {
 /**
  * Transform API product to frontend format
  */
+/** Copy server step fields, or fill them when a fallback row only has the flag and unit size. */
+function customWeightUiFields(apiProduct) {
+  const hasServerPrice =
+    apiProduct.custom_weight_price_minor != null || apiProduct.customWeightPriceMinor != null;
+  const source = hasServerPrice ? null : customWeightListingFields(apiProduct);
+  const label = source?.custom_weight_label ?? apiProduct.custom_weight_label ?? apiProduct.customWeightLabel;
+  const pay =
+    source?.custom_weight_price_minor ??
+    apiProduct.custom_weight_price_minor ??
+    apiProduct.customWeightPriceMinor;
+  const list =
+    source?.custom_weight_list_price_minor ??
+    apiProduct.custom_weight_list_price_minor ??
+    apiProduct.customWeightListPriceMinor;
+  if (label == null || pay == null || String(label).trim() === '' || String(pay).trim() === '') {
+    return {};
+  }
+  return {
+    customWeightLabel: String(label).trim(),
+    customWeightPriceMinor: String(pay).trim(),
+    ...(list != null && String(list).trim() !== ''
+      ? { customWeightListPriceMinor: String(list).trim() }
+      : {}),
+  };
+}
+
 function transformProduct(apiProduct) {
   if (!apiProduct) return null;
 
@@ -224,6 +262,7 @@ function transformProduct(apiProduct) {
       thumbnailUrl,
       inStock,
       stock: inStock ? 1 : 0,
+      stock_quantity: readCatalogStockQuantity(apiProduct),
       weight,
       unit,
       unit_size:
@@ -265,6 +304,7 @@ function transformProduct(apiProduct) {
             : apiProduct.unit != null
               ? String(apiProduct.unit).trim()
               : undefined,
+      ...customWeightUiFields(apiProduct),
     });
   }
 
@@ -330,6 +370,7 @@ function transformProduct(apiProduct) {
     thumbnailUrl: apiProduct.thumbnailUrl || thumbnailUrlStr || null,
     inStock: apiProduct.inStock !== undefined ? apiProduct.inStock : apiProduct.stock > 0,
     stock: apiProduct.stock ?? 0,
+    stock_quantity: readCatalogStockQuantity(apiProduct),
     minStockAlert: apiProduct.minStockAlert ?? null,
     weight: legacyWeightUnit.weight,
     grossWeight: apiProduct.grossWeight != null ? parseFloat(apiProduct.grossWeight) : null,
@@ -382,6 +423,7 @@ function transformProduct(apiProduct) {
         : apiProduct.baseUnit != null
           ? String(apiProduct.baseUnit).trim()
           : undefined,
+    ...customWeightUiFields(apiProduct),
   });
 }
 

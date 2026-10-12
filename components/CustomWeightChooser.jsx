@@ -16,6 +16,7 @@ import {
 import { playAddTap } from '../utils/playAddTap';
 import { lockAppScroll, unlockAppScroll } from '../lib/pwa/appShell';
 import { createAppPortal } from '../lib/pwa/safePortal';
+import { customWeightStepRupees } from '../lib/customWeightListing';
 
 /** Chip choices: 1× or 2× the catalog step (e.g. 100 g or 200 g). */
 const UNIT_MULTIPLIERS = [1, 2];
@@ -114,6 +115,7 @@ export default function CustomWeightChooser({
       weight: amountKg,
       unit: 'kg',
     });
+    const serverPay = customWeightStepRupees(product, unitMultiplier * quantity);
     return {
       // Total catalog-step packs (for legacy callers).
       packCount: unitMultiplier * quantity,
@@ -125,7 +127,7 @@ export default function CustomWeightChooser({
       weight: amountKg,
       unit: 'kg',
       price: prices?.list ?? Math.round(listKg * amountKg * 100) / 100,
-      payPrice: prices?.pay ?? Math.round(payKg * amountKg * 100) / 100,
+      payPrice: serverPay ?? prices?.pay ?? Math.round(payKg * amountKg * 100) / 100,
       label: formatMassAmountLabel(amountKg, 'kg') || formatWeightUnitLabel(amountKg, 'kg') || '',
       weightStep: true,
     };
@@ -138,13 +140,15 @@ export default function CustomWeightChooser({
 
   const unitPrice = useMemo(() => {
     if (!(purchaseUnitKg > 0)) return 0;
+    const fromServer = customWeightStepRupees(product, unitMultiplier);
+    if (fromServer != null) return fromServer;
     const one = weightStepLinePrices(product, {
       weightStep: true,
       weight: purchaseUnitKg,
       unit: 'kg',
     });
     return one?.pay ?? 0;
-  }, [product, purchaseUnitKg]);
+  }, [product, purchaseUnitKg, unitMultiplier]);
 
   const close = useCallback(() => {
     onOpenChange?.(false);
@@ -206,7 +210,7 @@ export default function CustomWeightChooser({
               weight: unitKg,
               unit: 'kg',
             });
-            const chipPay = chipPrices?.pay ?? 0;
+            const chipPay = customWeightStepRupees(product, n) ?? chipPrices?.pay ?? 0;
             return (
               <button
                 key={n}

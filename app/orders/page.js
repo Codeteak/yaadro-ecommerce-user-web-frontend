@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useInfiniteOrdersList, orderKeys } from '../../hooks/useOrders';
-import { useProducts } from '../../hooks/useProducts';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { cartKeys } from '../../hooks/useCart';
@@ -13,7 +12,6 @@ import { useAlert } from '../../context/AlertContext';
 import BrowsePageHeader from '../../components/BrowsePageHeader';
 import { useRequireAuth } from '../../hooks/useRequireAuth';
 import GuestAuthPrompt from '../../components/GuestAuthPrompt';
-import ProductCarousel from '../../components/ProductCarousel';
 import InfiniteScrollSentinel from '../../components/InfiniteScrollSentinel';
 import EarlyPrefetchSentinel from '../../components/orders/EarlyPrefetchSentinel';
 import OrderCard from '../../components/orders/OrderCard';
@@ -86,131 +84,7 @@ export default function OrdersPage() {
     () => orders.filter((order) => orderMatchesQuery(order, orderSearch)),
     [orders, orderSearch]
   );
-  const allOrderedItems = useMemo(
-    () => orders.flatMap((o) => (Array.isArray(o.items) ? o.items : [])),
-    [orders]
-  );
   const prefetchIndex = Math.max(0, visibleOrders.length - 5);
-
-  const { data: recommendPoolData } = useProducts({
-    limit: 60,
-    sort_by: 'created_at',
-    sort_order: 'desc',
-    enabled: ok && orders.length > 0,
-  });
-  const recommendPool = recommendPoolData?.products || [];
-  const orderedProductIds = useMemo(
-    () =>
-      new Set(
-        allOrderedItems
-          .map((item) => item?.productId ?? item?.product?.id ?? item?.id)
-          .filter((id) => id != null)
-          .map((id) => String(id))
-      ),
-    [allOrderedItems]
-  );
-  const orderedCategoryNames = useMemo(() => {
-    const names = new Set();
-    allOrderedItems.forEach((item) => {
-      const cat = (
-        item?.category?.name ??
-        item?.category ??
-        item?.categoryName ??
-        item?.product?.category?.name ??
-        item?.product?.category ??
-        ''
-      )
-        .toString()
-        .trim()
-        .toLowerCase();
-      if (cat) names.add(cat);
-    });
-    return names;
-  }, [allOrderedItems]);
-
-  const { similarProducts, buyAgainFavorites, trendingPicks } = useMemo(() => {
-    const empty = { similarProducts: [], buyAgainFavorites: [], trendingPicks: [] };
-    if (!recommendPool.length) return empty;
-
-    const eligible = recommendPool.filter((p) => p?.id != null && !orderedProductIds.has(String(p.id)));
-    if (!eligible.length) return empty;
-
-    const poolIndex = new Map(eligible.map((p, i) => [String(p.id), i]));
-
-    const productCategoryKey = (p) =>
-      (
-        p?.category?.name ??
-        p?.category ??
-        p?.categoryName ??
-        p?.category_name ??
-        ''
-      )
-        .toString()
-        .trim()
-        .toLowerCase();
-
-    const matchesOrderedCategory = (p) => {
-      const c = productCategoryKey(p);
-      return Boolean(c && orderedCategoryNames.has(c));
-    };
-
-    const orderedNameTokens = new Set(
-      allOrderedItems
-        .map((item) => item?.productName ?? item?.name ?? '')
-        .map((name) => String(name).trim().toLowerCase())
-        .filter(Boolean)
-        .flatMap((name) => name.split(/\s+/).filter((w) => w.length >= 4))
-    );
-
-    const nameTokenHits = (p) => {
-      const name = (p?.name ?? '').toString().trim().toLowerCase();
-      if (!name || orderedNameTokens.size === 0) return 0;
-      let hits = 0;
-      for (const t of orderedNameTokens) {
-        if (name.includes(t)) hits += 1;
-      }
-      return hits;
-    };
-
-    const sortByNewest = (a, b) => (poolIndex.get(String(a.id)) ?? 0) - (poolIndex.get(String(b.id)) ?? 0);
-
-    const takeUnique = (sorted, used, limit) => {
-      const out = [];
-      for (const p of sorted) {
-        if (out.length >= limit) break;
-        const id = String(p.id);
-        if (used.has(id)) continue;
-        used.add(id);
-        out.push(p);
-      }
-      return out;
-    };
-
-    const used = new Set();
-
-    const similarCandidates = eligible.filter(matchesOrderedCategory);
-    const similarSorted = [...similarCandidates].sort((a, b) => {
-      const nt = nameTokenHits(b) - nameTokenHits(a);
-      if (nt !== 0) return nt;
-      return sortByNewest(a, b);
-    });
-    const similarProducts = takeUnique(similarSorted, used, 12);
-
-    const remainingAfterSimilar = eligible.filter((p) => !used.has(String(p.id)));
-    const buyAgainScore = (p) => nameTokenHits(p) * 4 + (matchesOrderedCategory(p) ? 1 : 0);
-    const buyAgainSorted = [...remainingAfterSimilar].sort((a, b) => {
-      const s = buyAgainScore(b) - buyAgainScore(a);
-      if (s !== 0) return s;
-      return sortByNewest(a, b);
-    });
-    const buyAgainFavorites = takeUnique(buyAgainSorted, used, 12);
-
-    const remainingAfterBuyAgain = eligible.filter((p) => !used.has(String(p.id)));
-    const trendingSorted = [...remainingAfterBuyAgain].sort(sortByNewest);
-    const trendingPicks = takeUnique(trendingSorted, used, 12);
-
-    return { similarProducts, buyAgainFavorites, trendingPicks };
-  }, [recommendPool, orderedProductIds, orderedCategoryNames, allOrderedItems]);
 
   const orderItemToCartProduct = useCallback((item) => {
     const qty = Number(item?.quantity ?? 1) || 1;
@@ -439,47 +313,6 @@ export default function OrdersPage() {
           </>
         )}
 
-        {orders.length > 0 && similarProducts.length > 0 && (
-          <section className="mt-2" aria-label="Similar products">
-            <div className="px-1 mb-3">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
-                Similar Products
-              </h2>
-              <p className="mt-1.5 text-[13px] text-gray-500">
-                Based on your order history.
-              </p>
-            </div>
-            <ProductCarousel products={similarProducts} showMoreLink="/products" />
-          </section>
-        )}
-
-        {orders.length > 0 && buyAgainFavorites.length > 0 && (
-          <section className="mt-4" aria-label="Buy again favorites">
-            <div className="px-1 mb-3">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
-                Buy Again Favorites
-              </h2>
-              <p className="mt-1.5 text-[13px] text-gray-500">
-                Top picks close to items you already purchased.
-              </p>
-            </div>
-            <ProductCarousel products={buyAgainFavorites} showMoreLink="/products" />
-          </section>
-        )}
-
-        {orders.length > 0 && trendingPicks.length > 0 && (
-          <section className="mt-4" aria-label="Trending picks">
-            <div className="px-1 mb-3">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
-                Trending Picks
-              </h2>
-              <p className="mt-1.5 text-[13px] text-gray-500">
-                New and popular products you might like.
-              </p>
-            </div>
-            <ProductCarousel products={trendingPicks} showMoreLink="/products" />
-          </section>
-        )}
       </div>
     </div>
   );

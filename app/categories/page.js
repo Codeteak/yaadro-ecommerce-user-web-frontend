@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useCategoriesTree, useSearchProducts, useProducts } from '../../hooks/useProducts';
-import ProductCarousel from '../../components/ProductCarousel';
+import { useCategoriesTree, useSearchProducts } from '../../hooks/useProducts';
 import { getResolvedProductImageUrls } from '../../utils/productImages';
 import { getProductDetailPath, toDisplayText } from '../../utils/productApi';
 import { navigateToProductDetail } from '../../utils/productNavigation';
@@ -168,33 +167,8 @@ export default function CategoriesPage() {
 
   const onSearchOpenToggle = useCallback(() => setSearchOpen((v) => !v), []);
 
-  const { data: newArrivalsData } = useProducts({
-    limit: 14,
-    sort_by: 'created_at',
-    sort_order: 'desc',
-  });
-  const { data: valuePicksData } = useProducts({
-    limit: 24,
-    sort_by: 'price',
-    sort_order: 'asc',
-  });
-
-  const newArrivalsProducts = useMemo(
-    () => newArrivalsData?.products?.slice(0, 14) || [],
-    [newArrivalsData?.products]
-  );
-  const valuePickProducts = useMemo(() => {
-    const pool = valuePicksData?.products || [];
-    const skip = new Set(newArrivalsProducts.map((p) => p.id));
-    return pool.filter((p) => !skip.has(p.id)).slice(0, 14);
-  }, [valuePicksData?.products, newArrivalsProducts]);
-
-  const rootCategories = useMemo(
-    () =>
-      (categoryTree || []).filter(
-        (cat) => cat.isActive !== false && (cat.level === 0 || cat.parentId == null)
-      ),
-    [categoryTree]
+  const rootCategories = (categoryTree || []).filter(
+    (cat) => cat.isActive !== false && (cat.level === 0 || cat.parentId == null)
   );
 
   const q = search.trim();
@@ -311,35 +285,6 @@ export default function CategoriesPage() {
             </section>
           ))}
         </div>
-      )}
-
-      {/* Product carousels */}
-      {newArrivalsProducts.length > 0 && (
-        <section className="mt-8 px-4" aria-label="New arrivals">
-          <div className="mb-4">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
-              New arrivals
-            </h2>
-            <p className="mt-2 text-[13px] md:text-sm text-gray-500">
-              Recently added products across the store.
-            </p>
-          </div>
-          <ProductCarousel products={newArrivalsProducts} showMoreLink="/products" />
-        </section>
-      )}
-
-      {valuePickProducts.length > 0 && (
-        <section className="mt-8 px-4" aria-label="Great value picks">
-          <div className="mb-4">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 font-headingnow leading-[1]">
-              Great value picks
-            </h2>
-            <p className="mt-2 text-[13px] md:text-sm text-gray-500">
-              Lower-priced essentials to fill your basket.
-            </p>
-          </div>
-          <ProductCarousel products={valuePickProducts} showMoreLink="/products" />
-        </section>
       )}
 
       {/* Matching products (based on keywords) */}
