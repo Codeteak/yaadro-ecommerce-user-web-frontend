@@ -10,9 +10,21 @@
  * Cap runaway MRP candidates (e.g. sticky selectedSize ₹1023).
  */
 
-import { minorToMajor, parseMinorInt } from './currencyMinor';
+import { minorToMajor, parseMinorInt } from './currencyMinor.js';
 
 const EPS = 0.004;
+
+/**
+ * List is about 1000× pay: a gram pack was priced as if the amount were per kilogram.
+ * That gap is a unit mismatch, not a discount.
+ */
+export function isGramScaleListMismatch(listUnit, payUnit) {
+  const list = Number(listUnit);
+  const pay = Number(payUnit);
+  if (!(list > 0) || !(pay > 0)) return false;
+  const ratio = list / pay;
+  return ratio >= 900 && ratio <= 1100;
+}
 
 export function parseMajorMoney(raw) {
   if (raw == null || raw === '') return null;
@@ -79,6 +91,7 @@ export function catalogOfferSavingsMajor(listUnit, payUnit, paidQty = 1) {
   const pay = Number(payUnit);
   const qty = Number(paidQty);
   if (!(list > 0) || !(pay >= 0) || !(qty > 0)) return 0;
+  if (isGramScaleListMismatch(list, pay)) return 0;
   if (!(list > pay + EPS)) return 0;
   return (list - pay) * qty;
 }
@@ -184,15 +197,18 @@ export function resolveCatalogListAndPay(item, opts = {}) {
     listUnit,
   );
 
+  const scaleMismatch = isGramScaleListMismatch(listUnit, payUnit);
+  const resolvedList = scaleMismatch ? null : listUnit;
   const hasOffer =
+    !scaleMismatch &&
     payUnit != null &&
-    listUnit != null &&
-    listUnit > payUnit + EPS;
+    resolvedList != null &&
+    resolvedList > payUnit + EPS;
 
   return {
-    listUnit,
+    listUnit: resolvedList,
     payUnit,
-    savingsUnit: hasOffer ? listUnit - payUnit : 0,
+    savingsUnit: hasOffer ? resolvedList - payUnit : 0,
     hasOffer,
   };
 }

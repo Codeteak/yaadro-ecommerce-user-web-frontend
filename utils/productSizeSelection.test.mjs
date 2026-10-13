@@ -209,17 +209,13 @@ test('gram-count mislabeled as kg still prices in kg', () => {
   assert.ok(Math.abs(sizes[0].price - 119.625) < 0.01);
 });
 
-test('sellableUnitFactor converts gram-scale packed unit_size for cart', () => {
-  assert.equal(
-    sellableUnitFactor({ unit: 'g', unit_size: 725, price: 165 }),
-    0.725
-  );
-  assert.equal(
-    sellableUnitFactor({ unit: 'kg', unit_size: 725 }),
-    0.725
-  );
-  assert.equal(sellableUnitFactor({ unit: 'kg', unit_size: 0.5 }), 0.5);
-  assert.equal(sellableUnitFactor({ unit: 'piece', unit_size: 2 }), 2);
+test('sellableUnitFactor bills packed goods once and leaves pack size as a label', () => {
+  assert.equal(sellableUnitFactor({ unit: 'g', unit_size: 725, price: 165 }), 1);
+  assert.equal(sellableUnitFactor({ unit: 'kg', unit_size: 725 }), 1);
+  assert.equal(sellableUnitFactor({ unit: 'kg', unit_size: 0.5 }), 1);
+  assert.equal(sellableUnitFactor({ unit: 'piece', unit_size: 2 }), 1);
+  assert.equal(lineTotalFromUnitPricing(50, 1, { unit: 'ml', unit_size: 500 }), 50);
+  assert.equal(lineTotalFromUnitPricing(20, 1, { unit: 'g', unit_size: 55 }), 20);
 });
 
 test('order history shows ordered grams, billed grams, and keeps a matching weight as one label', () => {

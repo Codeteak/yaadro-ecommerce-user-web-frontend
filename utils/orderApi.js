@@ -20,6 +20,7 @@ import {
 } from "./orderPromotions";
 import {
   hasMeaningfulCatalogOfferOnRaw,
+  isGramScaleListMismatch,
   resolveCatalogListAndPay,
   parseMajorMoney,
 } from "./catalogOfferPricing";
@@ -302,6 +303,10 @@ function transformOrderItem(item) {
       : listPriceMinor > 0
         ? minorToMajor(listPriceMinor)
         : listResolved;
+  // A 1000× list is grams priced per kilogram. Keep the stored charge; drop the strike.
+  if (isGramScaleListMismatch(listPrice, unitPrice)) {
+    listPrice = null;
+  }
 
   // Catalog offer / B1G1: charge offer × paid only (free units ₹0).
   if (appliedCatalogOffer || (mixedPaidFree && unitPrice > 0)) {
