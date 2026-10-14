@@ -25,13 +25,14 @@ import InstallPrompt from '../components/InstallPrompt';
 import ChunkLoadRecovery from '../components/ChunkLoadRecovery';
 import FloatingViewCartPill from '../components/FloatingViewCartPill';
 import WeightChooserHost from '../components/WeightChooserHost';
+import { generateShopMetadataForRequest } from '../utils/shopSeoMetadata';
 
 /**
- * Build-time defaults only (same HTML for every tenant in `out/`).
- * Per-domain title, description, OG image → Cloudflare `functions/_middleware.js`
- * (resolve-by-domain + /seo/metadata). In-app → ShopBrandingContext (client).
+ * Defaults when host resolve fails / static export.
+ * EC2 `next start`: `generateMetadata` overlays per-shop OG from resolve-by-domain.
+ * Pages leftover: Cloudflare `functions/_middleware.js`. In-app → ShopBrandingContext.
  */
-export const metadata = {
+const FALLBACK_METADATA = {
   title: {
     default: 'Online Grocery',
     template: '%s | Store',
@@ -59,6 +60,24 @@ export const metadata = {
     locale: 'en_IN',
   },
 };
+
+export async function generateMetadata() {
+  const shopMeta = await generateShopMetadataForRequest();
+  if (!shopMeta) return FALLBACK_METADATA;
+
+  return {
+    ...FALLBACK_METADATA,
+    ...shopMeta,
+    manifest: FALLBACK_METADATA.manifest,
+    icons: FALLBACK_METADATA.icons,
+    openGraph: {
+      ...FALLBACK_METADATA.openGraph,
+      ...(shopMeta.openGraph || {}),
+    },
+    twitter: shopMeta.twitter,
+    appleWebApp: shopMeta.appleWebApp || FALLBACK_METADATA.appleWebApp,
+  };
+}
 
 export const viewport = {
   themeColor: '#902bf5',
