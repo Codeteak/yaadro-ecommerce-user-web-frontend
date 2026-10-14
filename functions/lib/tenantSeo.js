@@ -148,8 +148,8 @@ export async function resolveTenantSeo(hostname, pathname, env) {
   if (!seo && shopName) {
     const origin = `https://${domain}`;
     seo = normalizeSeoBlock({
-      title: `${shopName} – Online Grocery`,
-      description: `Order groceries online from ${shopName}.`,
+      title: shopName,
+      description: shopName,
       canonicalUrl: `${origin}/`,
       locale: 'en_IN',
       og: {

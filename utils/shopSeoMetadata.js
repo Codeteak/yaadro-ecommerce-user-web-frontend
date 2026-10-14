@@ -57,19 +57,35 @@ export async function generateShopMetadataForRequest() {
     const payload = unwrapApiPayload(json);
     const { shopName, shopImage, seo: resolvedSeo } = normalizeShopResolvePayload(payload);
 
+    // Prefer API seo, but never keep generic "Online Grocery" copy when we know the shop.
     let seo = resolvedSeo;
-    if (!seo && shopName) {
+    if (shopName) {
+      const apiTitle = String(seo?.title || '').trim();
+      const apiDesc = String(seo?.description || '').trim();
+      const titleLooksGeneric =
+        !apiTitle ||
+        /online grocery/i.test(apiTitle) ||
+        apiTitle.toLowerCase() === 'online grocery';
+      const descLooksGeneric =
+        !apiDesc ||
+        /order groceries online from (your local store|.*)\.?$/i.test(apiDesc) ||
+        /online grocery/i.test(apiDesc);
+
       seo = normalizeSeoBlock({
-        title: `${shopName} – Online Grocery`,
-        description: `Order groceries online from ${shopName}.`,
-        canonicalUrl: `${siteOrigin}/`,
-        locale: 'en_IN',
+        title: titleLooksGeneric ? shopName : apiTitle,
+        description: descLooksGeneric ? shopName : apiDesc,
+        keywords: seo?.keywords || '',
+        canonicalUrl: seo?.canonicalUrl || `${siteOrigin}/`,
+        locale: seo?.locale || 'en_IN',
+        themeColor: seo?.themeColor,
         og: {
-          type: 'website',
-          image: shopImage || '',
-          imageAlt: shopName,
+          type: seo?.og?.type || 'website',
+          image: seo?.og?.image || shopImage || '',
+          imageWidth: seo?.og?.imageWidth,
+          imageHeight: seo?.og?.imageHeight,
+          imageAlt: seo?.og?.imageAlt || shopName,
         },
-        twitter: { card: 'summary_large_image' },
+        twitter: { card: seo?.twitter?.card || 'summary_large_image' },
       });
     }
 
@@ -98,27 +114,46 @@ export async function generateShopMetadataForRequest() {
       seo = { ...seo, canonicalUrl: `${siteOrigin}/` };
     }
 
+    const siteName = shopName || seo.title;
     const meta = seoBlockToNextMetadata(seo, {
-      siteName: shopName || seo.title,
+      siteName,
       siteOrigin,
       canonicalUrl: seo.canonicalUrl || `${siteOrigin}/`,
     });
 
     if (!meta || (!meta.title && !meta.description)) return null;
 
-    // Root layout uses title.default + template; set both for crawlers and in-app.
-    const titleText = typeof meta.title === 'string' ? meta.title : shopName;
+    // Root layout uses title.default + template; force shop-only branding for crawlers.
+    const titleText = shopName || (typeof meta.title === 'string' ? meta.title : '');
     if (titleText) {
       meta.title = {
         default: titleText,
-        template: `%s | ${shopName || 'Store'}`,
+        template: `%s | ${shopName || titleText}`,
       };
-      meta.applicationName = shopName || titleText;
+      meta.applicationName = titleText;
       meta.appleWebApp = {
         capable: true,
-        title: shopName || titleText,
+        title: titleText,
         statusBarStyle: 'default',
       };
+      const descriptionText =
+        (typeof meta.description === 'string' && meta.description.trim()) || titleText;
+      meta.description = descriptionText;
+      if (meta.openGraph) {
+        meta.openGraph = {
+          ...meta.openGraph,
+          title: titleText,
+          description: descriptionText,
+          siteName: titleText,
+        };
+      }
+      if (meta.twitter) {
+        meta.twitter = {
+          ...meta.twitter,
+          title: titleText,
+          description: descriptionText,
+        };
+      }
     }
 
     return meta;
