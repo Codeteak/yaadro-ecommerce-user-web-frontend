@@ -403,6 +403,7 @@ function EmptyCheckout() {
 function PlaceOrderButton({
   isSubmitting,
   isCheckingDelivery,
+  isApplyingCoupon,
   showPriceVaryConfirm,
   selectedAddressId,
   selectedAddressCoords,
@@ -411,13 +412,13 @@ function PlaceOrderButton({
   className = "",
 }) {
   const blocked =
-    isSubmitting || isCheckingDelivery || showPriceVaryConfirm;
+    isSubmitting || isCheckingDelivery || showPriceVaryConfirm || isApplyingCoupon;
   const needsAddress = !selectedAddressId || !selectedAddressCoords;
   return (
     <Button
       variant="primary"
       isDisabled={blocked}
-      isLoading={isSubmitting || isCheckingDelivery}
+      isLoading={isSubmitting || isCheckingDelivery || isApplyingCoupon}
       onPress={onPress}
       className={`flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold ${
         blocked
@@ -427,10 +428,12 @@ function PlaceOrderButton({
             : BRAND_CHECKOUT_BTN
       } ${className}`}
     >
-      {!isSubmitting && !isCheckingDelivery && !selectedAddressId ? (
+      {!isSubmitting && !isCheckingDelivery && !isApplyingCoupon && !selectedAddressId ? (
         addressesLength === 0 ? "Add delivery address" : "Select address"
-      ) : !isSubmitting && !isCheckingDelivery && !selectedAddressCoords ? (
+      ) : !isSubmitting && !isCheckingDelivery && !isApplyingCoupon && !selectedAddressCoords ? (
         "Set map pin on address"
+      ) : isApplyingCoupon ? (
+        "Applying coupon…"
       ) : isCheckingDelivery ? (
         "Checking delivery…"
       ) : isSubmitting ? (
@@ -480,6 +483,7 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [couponLookupPending, setCouponLookupPending] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
   const [showPhoneSheet, setShowPhoneSheet] = useState(false);
   const [phoneOverride, setPhoneOverride] = useState("");
@@ -565,6 +569,25 @@ export default function CheckoutPage() {
     }
     return Number(cartTotal) || 0;
   }, [couponPreviewTrusted, cartData?.total, cartTotal]);
+
+  const isApplyingCoupon = useMemo(() => {
+    const selected = String(selectedCouponCode || selectedCouponCodes?.[0] || "")
+      .trim()
+      .toUpperCase();
+    if (!selected || !cartQueryFetching) return false;
+    const preview = cartData?.promotions?.coupon;
+    const alreadyApplied =
+      couponPreviewTrusted &&
+      preview?.status === "applied" &&
+      String(preview.code || "").toUpperCase() === selected;
+    return !alreadyApplied;
+  }, [
+    selectedCouponCode,
+    selectedCouponCodes,
+    cartQueryFetching,
+    couponPreviewTrusted,
+    cartData?.promotions?.coupon,
+  ]);
 
   const couponDiscountMajor = useMemo(() => {
     if (!couponPreviewTrusted) return 0;
@@ -1057,6 +1080,7 @@ export default function CheckoutPage() {
      Render
   ───────────────────────────────────────────── */
   const placeOrder = () => {
+    if (isApplyingCoupon || couponLookupPending) return;
     if (!selectedAddressId) {
       if (addresses.length === 0) {
         goToAddAddress();
@@ -1107,6 +1131,7 @@ export default function CheckoutPage() {
     <PlaceOrderButton
       isSubmitting={isSubmitting}
       isCheckingDelivery={isCheckingDelivery}
+      isApplyingCoupon={isApplyingCoupon || couponLookupPending}
       showPriceVaryConfirm={showPriceVaryConfirm}
       selectedAddressId={selectedAddressId}
       selectedAddressCoords={selectedAddressCoords}
@@ -1332,6 +1357,7 @@ export default function CheckoutPage() {
             couponsBlocked={!!bxgyBlocksCoupons}
             couponsBlockedMessage={BXGY_COUPON_BLOCKED_MESSAGE}
             enabled={!!isAuthenticated && cartItems.length > 0}
+            onApplyingChange={setCouponLookupPending}
           />
         </div>
 

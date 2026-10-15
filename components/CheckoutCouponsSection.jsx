@@ -5,7 +5,7 @@ import { Loading2Regular as Loader2, TagRegular as Tag } from './icons';
 import { useStorefrontCoupons } from '../hooks/useCoupons';
 import {
   formatCouponBenefitLabel,
-  formatCouponMinCartHint,
+  formatCouponRuleLines,
 } from '../utils/storefrontCouponsApi';
 import {
   BXGY_COUPON_BLOCKED_MESSAGE,
@@ -15,20 +15,34 @@ import {
 } from '../utils/cartPromotions';
 import { formatInrFromMinor } from '../utils/currencyMinor';
 
-function CouponRow({ coupon, cartSubtotalMinor, selected, onSelect, onClear, multi }) {
+function CouponRow({
+  coupon,
+  cartSubtotalMinor,
+  selected,
+  applied,
+  applying,
+  onSelect,
+  onClear,
+  eligibilityDays,
+  applyFailure,
+}) {
   const applicable = coupon.eligibility?.applicable !== false;
   const benefit =
     coupon.benefits?.length > 0 ? formatCouponBenefitLabel(coupon.benefits[0]) : 'Special offer';
-  const minHint = formatCouponMinCartHint(coupon, cartSubtotalMinor);
+  const rules = formatCouponRuleLines(coupon, { firstCouponEligibilityDays: eligibilityDays });
   const ineligibleHint = !applicable
-    ? formatCouponIneligibilityHint(coupon.eligibility?.ineligibilityCodes)
+    ? formatCouponIneligibilityHint(
+        coupon.eligibility?.ineligibilityCodes,
+        { ...coupon, eligibilityDays },
+        cartSubtotalMinor
+      )
     : null;
   const title = coupon.promotionName || benefit;
 
   return (
     <button
       type="button"
-      disabled={!applicable}
+      disabled={!applicable || applying}
       onClick={() => (selected ? onClear(coupon.code) : onSelect(coupon.code))}
       className={`w-full rounded-2xl border p-3.5 text-left transition ${
         selected
@@ -53,15 +67,24 @@ function CouponRow({ coupon, cartSubtotalMinor, selected, onSelect, onClear, mul
             </span>
             {selected && (
               <span className="text-[10px] font-semibold uppercase tracking-wide text-violet-700">
-                {multi ? 'Applied' : 'Selected'}
+                {applied ? 'Applied' : applying ? 'Applying…' : 'Selected'}
               </span>
             )}
           </div>
           <p className="mt-1 text-[13px] font-medium text-gray-900 line-clamp-1">{title}</p>
           <p className="text-[12px] text-gray-500">{benefit}</p>
-          {minHint && <p className="mt-1 text-[11px] font-medium text-amber-700">{minHint}</p>}
-          {ineligibleHint && !minHint && (
-            <p className="mt-1 text-[11px] font-medium text-amber-700">{ineligibleHint}</p>
+          <ul className="mt-1.5 space-y-0.5">
+            {rules.map((line) => (
+              <li key={line} className="text-[11px] leading-snug text-gray-600">
+                {line}
+              </li>
+            ))}
+          </ul>
+          {ineligibleHint && (
+            <p className="mt-1 text-[11px] font-medium text-amber-800">{ineligibleHint}</p>
+          )}
+          {selected && applyFailure && (
+            <p className="mt-1 text-[11px] font-medium text-red-700">{applyFailure}</p>
           )}
         </div>
       </div>
@@ -69,11 +92,11 @@ function CouponRow({ coupon, cartSubtotalMinor, selected, onSelect, onClear, mul
   );
 }
 
-function SuggestedCouponChip({ code, applicable, onSelect }) {
+function SuggestedCouponChip({ code, applicable, applying, onSelect }) {
   return (
     <button
       type="button"
-      disabled={!applicable}
+      disabled={!applicable || applying}
       onClick={() => onSelect(code)}
       className={`rounded-full border px-3 py-1 font-mono text-[11px] font-semibold tracking-wide transition ${
         applicable
@@ -99,6 +122,7 @@ export default function CheckoutCouponsSection({
   couponsBlocked = false,
   couponsBlockedMessage = '',
   enabled = true,
+  onApplyingChange,
 }) {
   const codesFromProps = useMemo(() => {
     if (Array.isArray(selectedCouponCodes) && selectedCouponCodes.length) {
@@ -156,6 +180,20 @@ export default function CheckoutCouponsSection({
       ? formatInrFromMinor(couponPreview.discountMinor)
       : null;
 
+  const normalizedInput = String(codeInput || '').trim().toUpperCase();
+  const applying =
+    Boolean(lookupCode) ||
+    (Boolean(primaryCode) &&
+      isPreviewLoading &&
+      !previewApplied &&
+      !previewNotApplicable &&
+      normalizedInput === primaryCode);
+  const codeIsApplied = previewApplied && normalizedInput === primaryCode;
+
+  useEffect(() => {
+    if (typeof onApplyingChange === 'function') onApplyingChange(applying);
+  }, [applying, onApplyingChange]);
+
   useEffect(() => {
     if (codesFromProps[0]) {
       setCodeInput(String(codesFromProps[0]).toUpperCase());
@@ -188,13 +226,18 @@ export default function CheckoutCouponsSection({
     );
     if (!match) {
       setCodeLookupError('This coupon code is not available.');
+      setLookupCode(null);
       return;
     }
     if (match.eligibility?.applicable === false) {
       setCodeLookupError(
-        formatCouponIneligibilityHint(match.eligibility?.ineligibilityCodes) ||
-          'This coupon cannot be used on this order.'
+        formatCouponIneligibilityHint(
+          match.eligibility?.ineligibilityCodes,
+          { ...match, eligibilityDays: data?.settings?.firstCouponEligibilityDays },
+          cartSubtotalMinor
+        ) || 'This coupon cannot be used on this order.'
       );
+      setLookupCode(null);
       return;
     }
     setCodeLookupError('');
@@ -208,19 +251,25 @@ export default function CheckoutCouponsSection({
     }
     setLookupCode(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- commit on lookup resolve only
-  }, [lookupCode, coupons, isLoading, isFetching, multi, maxCouponsPerOrder]);
+  }, [lookupCode, coupons, isLoading, isFetching, multi, maxCouponsPerOrder, cartSubtotalMinor, data?.settings?.firstCouponEligibilityDays]);
+
+  useEffect(() => {
+    if (previewNotApplicable && previewFailureMessage) {
+      setCodeLookupError(previewFailureMessage);
+    }
+  }, [previewNotApplicable, previewFailureMessage]);
 
   const handleApplyInput = () => {
-    if (couponsBlocked) return;
+    if (couponsBlocked || applying || codeIsApplied) return;
     const normalized = String(codeInput || '').trim().toUpperCase();
     if (!normalized) return;
-    if (lookupCode) return; // already applying
+    if (lookupCode) return;
     setCodeLookupError('');
     setLookupCode(normalized);
   };
 
   const handleSelect = (code) => {
-    if (couponsBlocked) return;
+    if (couponsBlocked || applying) return;
     const normalized = String(code || '').trim().toUpperCase();
     if (!normalized) return;
     setCodeInput(normalized);
@@ -288,6 +337,7 @@ export default function CheckoutCouponsSection({
               key={row.code}
               code={row.code}
               applicable={row.applicable}
+              applying={applying}
               onSelect={handleSelect}
             />
           ))}
@@ -306,7 +356,8 @@ export default function CheckoutCouponsSection({
             }
           }}
           placeholder="Enter coupon code"
-          className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-[13px] font-mono uppercase tracking-wide text-gray-900 placeholder:normal-case placeholder:font-sans placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+          disabled={applying}
+          className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-[13px] font-mono uppercase tracking-wide text-gray-900 placeholder:normal-case placeholder:font-sans placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-60"
           autoCapitalize="characters"
           autoComplete="off"
           spellCheck={false}
@@ -314,11 +365,24 @@ export default function CheckoutCouponsSection({
         <button
           type="button"
           onClick={handleApplyInput}
-          disabled={!String(codeInput || '').trim() || Boolean(lookupCode)}
-          aria-busy={Boolean(lookupCode)}
-          className="flex-shrink-0 rounded-xl bg-violet-600 px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-violet-700 disabled:opacity-40"
+          disabled={applying || codeIsApplied || !normalizedInput}
+          aria-busy={applying}
+          className={`flex flex-shrink-0 items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-[13px] font-semibold text-white transition ${
+            codeIsApplied
+              ? 'cursor-default bg-emerald-600 disabled:opacity-100'
+              : 'bg-violet-600 hover:bg-violet-700 disabled:opacity-50'
+          }`}
         >
-          {lookupCode ? 'Applying…' : 'Apply'}
+          {applying ? (
+            <>
+              <Loader2 size={14} className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              Applying…
+            </>
+          ) : codeIsApplied ? (
+            'Applied'
+          ) : (
+            'Apply'
+          )}
         </button>
       </div>
 
@@ -326,7 +390,7 @@ export default function CheckoutCouponsSection({
         <div
           className={`mt-3 flex items-center justify-between gap-2 rounded-xl px-3 py-2 ${
             previewApplied
-              ? 'bg-violet-50'
+              ? 'bg-emerald-50'
               : previewNotApplicable
                 ? 'bg-red-50'
                 : 'bg-amber-50'
@@ -335,31 +399,31 @@ export default function CheckoutCouponsSection({
           <p
             className={`text-[12px] ${
               previewApplied
-                ? 'text-violet-900'
+                ? 'text-emerald-950'
                 : previewNotApplicable
                   ? 'text-red-800'
                   : 'text-amber-900'
             }`}
-            role={previewNotApplicable ? 'alert' : undefined}
+            role={previewNotApplicable ? 'alert' : 'status'}
           >
             <span className="font-mono font-semibold">{codesFromProps.join(', ')}</span>
-            {previewApplied && previewDiscountLabel ? (
+            {previewApplied ? (
               <>
                 {' '}
-                — saves {previewDiscountLabel} on this order
+                — Applied
+                {previewDiscountLabel ? `, saves ${previewDiscountLabel} on this order` : ' on this order'}
               </>
             ) : previewNotApplicable && previewFailureMessage ? (
               <> — {previewFailureMessage}</>
-            ) : isPreviewLoading ? (
-              <> — checking coupon…</>
-            ) : (
-              <> — previewing discount…</>
-            )}
+            ) : applying || isPreviewLoading ? (
+              <> — Applying…</>
+            ) : null}
           </p>
           <button
             type="button"
             onClick={() => handleClear()}
-            className="text-[12px] font-medium text-violet-800 hover:text-violet-950"
+            disabled={applying}
+            className="text-[12px] font-medium text-violet-800 hover:text-violet-950 disabled:opacity-40"
           >
             Remove
           </button>
@@ -400,9 +464,20 @@ export default function CheckoutCouponsSection({
               coupon={coupon}
               cartSubtotalMinor={cartSubtotalMinor}
               selected={codesFromProps.includes(String(coupon.code).toUpperCase())}
+              applied={
+                previewApplied &&
+                String(coupon.code).toUpperCase() === primaryCode
+              }
+              applying={applying}
               onSelect={handleSelect}
               onClear={handleClear}
-              multi={multi}
+              eligibilityDays={data?.settings?.firstCouponEligibilityDays}
+              applyFailure={
+                previewNotApplicable &&
+                String(coupon.code).toUpperCase() === String(primaryCode).toUpperCase()
+                  ? previewFailureMessage
+                  : null
+              }
             />
           ))}
         </div>

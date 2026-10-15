@@ -534,8 +534,8 @@ function isMassUnitLabel(unit) {
 }
 
 /**
- * Catalog mass amounts → kg for pricing (storefront prices are per kg).
- * Fixes gram-scale `unit_size` (e.g. 725) × ₹165/kg → ₹119625 on listing/cart.
+ * Catalog mass amounts → kg for sold-by-weight labels and step size.
+ * Packed checkout does not use this as a price multiplier.
  * @param {unknown} amount
  * @param {unknown} unit
  * @returns {number | null}
@@ -560,24 +560,16 @@ export function massAmountInKg(amount, unit) {
 }
 
 /**
- * Amount of the base unit in one cart quantity.
- * Sold-by-weight prices per kg already, so the factor stays 1.
- * Packed mass: normalize gram-scale unit_size to kg before multiplying price.
+ * Packed goods bill once per pack. `unit_size` (55 g, 500 ml) is a label, not a multiplier.
+ * Sold-by-weight quantity is already kilograms, so the factor stays 1 there too.
  */
 export function sellableUnitFactor(item) {
   if (!item || typeof item !== 'object') return 1;
   if (hasSoldByWeightFlag(item)) return 1;
-  const n = parseProductUnitSize(item);
-  if (n == null || !(n > 0)) return 1;
-  const unit = parseProductUnitFromFields(item);
-  const kg = massAmountInKg(n, unit);
-  if (kg != null && (isMassUnitLabel(unit) || (!unit && n > 20))) {
-    return kg;
-  }
-  return n;
+  return 1;
 }
 
-/** Line rupees: packs × unit size × price per base unit. */
+/** Line rupees: pack count × catalog price. Sold-by-weight uses kilograms × price per kg. */
 export function lineTotalFromUnitPricing(unitPrice, quantity, item) {
   const price = Number(unitPrice);
   const qty = Number(quantity);

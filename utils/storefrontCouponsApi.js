@@ -81,6 +81,47 @@ export function formatCouponMinCartHint(coupon, cartSubtotalMinor) {
 }
 
 /**
+ * Eligibility rules shown under a coupon, whether or not it can be used right now.
+ * @param {object} coupon
+ * @param {{ firstCouponEligibilityDays?: number | null }} [options]
+ * @returns {string[]}
+ */
+export function formatCouponRuleLines(coupon, options = {}) {
+  const lines = [];
+  const min = parseMinorInt(coupon?.minSubtotalMinor);
+  if (min > 0) {
+    lines.push(`Order must be at least ${formatInrFromMinor(min)}.`);
+  }
+  if (coupon?.firstOrderOnly) {
+    lines.push('Only on your first order. An order that is still being prepared counts.');
+  }
+  if (coupon?.newCustomerOnly) {
+    const days = Number(options.firstCouponEligibilityDays);
+    lines.push(
+      Number.isFinite(days) && days > 0
+        ? `Only for customers who joined in the last ${Math.floor(days)} days.`
+        : 'Only for new customers.'
+    );
+  }
+  const benefits = Array.isArray(coupon?.benefits) ? coupon.benefits : [];
+  let categoryRule = false;
+  for (const benefit of benefits) {
+    if (benefit?.kind === 'category_percent_off') categoryRule = true;
+    const ruleMin = parseMinorInt(benefit?.minSubtotalMinor);
+    if (ruleMin > 0 && ruleMin !== min) {
+      lines.push(`Discount starts when the order is above ${formatInrFromMinor(ruleMin)}.`);
+    }
+  }
+  if (categoryRule) {
+    lines.push('Only on products in the selected categories.');
+  }
+  if (!lines.length) {
+    lines.push('No minimum order or customer limit.');
+  }
+  return lines;
+}
+
+/**
  * List storefront coupons for checkout.
  *
  * @param {{ cartSubtotalMinor?: number, code?: string, onlyApplicable?: boolean }} params

@@ -12,6 +12,7 @@ import {
 } from './productUtils';
 import { rewardProductIdFromRule } from './bxgyLabels';
 import { pickMergedSellUnderList, pickSaneListUnit } from './catalogOfferPricing';
+import { formatInrFromMinor, parseMinorInt } from './currencyMinor';
 
 export function stripPaidCartLinesOnly(items) {
   return (Array.isArray(items) ? items : []).filter(it => !isBundleRewardCartLine(it));
@@ -671,37 +672,73 @@ export function normalizeCartPromotions(raw) {
 const COUPON_REASON_MESSAGES = {
   COUPON_NO_CART_BENEFIT: 'This coupon has no cart discount rules.',
   COUPON_NOT_FOUND: 'This coupon code was not found.',
-  COUPON_NOT_APPLICABLE: 'This coupon cannot be used on this order.',
+  COUPON_NOT_APPLICABLE: 'This coupon does not discount anything in this cart.',
   COUPON_EXHAUSTED: 'This coupon has reached its usage limit.',
-  MIN_SUBTOTAL_NOT_MET: 'Cart subtotal is below the minimum for this coupon.',
-  FIRST_ORDER_ONLY_NOT_MET: 'Valid on first order only.',
-  NEW_CUSTOMER_ONLY_NOT_MET: 'Valid for new customers only.',
+  MIN_SUBTOTAL_NOT_MET: 'Your order is below the minimum for this coupon.',
+  FIRST_ORDER_ONLY_NOT_MET: 'This coupon is only for your first order.',
+  NEW_CUSTOMER_ONLY_NOT_MET: 'This coupon is only for new customers.',
+  COUPON_NOT_WITH_BUNDLE: 'Coupons cannot be used with Buy X Get Y offers.',
+  COUPON_NOT_AFTER_AUTO: 'This coupon cannot be combined with the automatic cart discount.',
+  COUPON_NOT_WITH_SKU: 'This coupon cannot be combined with product sale prices.',
+  COUPON_NOT_WITH_AUTO_CART:
+    'This category coupon cannot be used with the automatic cart discount.',
+  COUPON_NO_MATCHING_ITEMS: "None of the products in your cart are in this coupon's categories.",
+  COUPON_RULE_SUBTOTAL_NOT_MET: 'Your order is below the amount this discount needs.',
   EMPTY_CART_WITH_COUPON: 'Add items to your cart before applying a coupon.',
 };
+
+const GENERIC_COUPON_MESSAGES = new Set([
+  'coupon cannot be applied to this order.',
+  'coupon cannot be applied to this cart.',
+  'this coupon cannot be applied to your cart.',
+  'this coupon cannot be used on this order.',
+  'this coupon cannot be applied to this order.',
+  'this code cannot be applied at checkout.',
+]);
+
+function isGenericCouponMessage(message) {
+  return GENERIC_COUPON_MESSAGES.has(String(message || '').trim().toLowerCase());
+}
 
 /** User-facing copy for `promotions.coupon` preview from GET /storefront/cart?couponCode= */
 export function formatCartCouponPreviewMessage(coupon) {
   if (!coupon || typeof coupon !== 'object') return null;
   const msg = String(coupon.reasonMessage ?? coupon.reason_message ?? '').trim();
-  if (msg) return msg;
   const code = coupon.reasonCode ?? coupon.reason_code;
-  if (code && COUPON_REASON_MESSAGES[code]) return COUPON_REASON_MESSAGES[code];
+  const mapped = code && COUPON_REASON_MESSAGES[code];
+  if (mapped && (!msg || isGenericCouponMessage(msg))) return mapped;
+  if (msg) return msg;
+  if (mapped) return mapped;
   if (coupon.status === 'not_applicable') return 'This coupon cannot be applied to your cart.';
   return null;
 }
 
-export function formatCouponIneligibilityHint(codes) {
+export function formatCouponIneligibilityHint(codes, coupon, cartSubtotalMinor) {
   const list = Array.isArray(codes) ? codes : codes ? [codes] : [];
   if (!list.length) return null;
+  if (list.includes('MIN_SUBTOTAL_NOT_MET')) {
+    const min = parseMinorInt(coupon?.minSubtotalMinor);
+    const cart = cartSubtotalMinor == null ? null : parseMinorInt(cartSubtotalMinor);
+    if (min > 0 && cart != null && cart < min) {
+      return `Add ${formatInrFromMinor(min - cart)} more. This coupon needs an order of at least ${formatInrFromMinor(min)}.`;
+    }
+    if (min > 0) return `This coupon needs an order of at least ${formatInrFromMinor(min)}.`;
+    return COUPON_REASON_MESSAGES.MIN_SUBTOTAL_NOT_MET;
+  }
+  if (list.includes('FIRST_ORDER_ONLY_NOT_MET')) {
+    return COUPON_REASON_MESSAGES.FIRST_ORDER_ONLY_NOT_MET;
+  }
+  if (list.includes('NEW_CUSTOMER_ONLY_NOT_MET')) {
+    const days = Number(coupon?.eligibilityDays);
+    if (Number.isFinite(days) && days > 0) {
+      return `This coupon is only for customers who joined in the last ${Math.floor(days)} days.`;
+    }
+    return COUPON_REASON_MESSAGES.NEW_CUSTOMER_ONLY_NOT_MET;
+  }
   for (const code of list) {
     if (code && COUPON_REASON_MESSAGES[code]) return COUPON_REASON_MESSAGES[code];
   }
-  if (list.includes('MIN_SUBTOTAL_NOT_MET')) return COUPON_REASON_MESSAGES.MIN_SUBTOTAL_NOT_MET;
-  if (list.includes('FIRST_ORDER_ONLY_NOT_MET'))
-    return COUPON_REASON_MESSAGES.FIRST_ORDER_ONLY_NOT_MET;
-  if (list.includes('NEW_CUSTOMER_ONLY_NOT_MET'))
-    return COUPON_REASON_MESSAGES.NEW_CUSTOMER_ONLY_NOT_MET;
-  return 'Not applicable to this order';
+  return 'This coupon cannot be used on this order.';
 }
 
 /** True when GET cart preview applied the selected coupon (1000 minor = ₹10). */
