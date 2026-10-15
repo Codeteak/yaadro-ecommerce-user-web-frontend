@@ -4,18 +4,14 @@ import { Loading2Regular as Loader2, TagRegular as Tag } from '../icons';
 import { useStorefrontCoupons } from '../../hooks/useCoupons';
 import {
   formatCouponBenefitLabel,
-  formatCouponMinCartHint,
+  formatCouponRuleLines,
 } from '../../utils/storefrontCouponsApi';
-import { formatCouponIneligibilityHint } from '../../utils/cartPromotions';
 
-function CouponCard({ coupon }) {
+function CouponCard({ coupon, eligibilityDays }) {
   const applicable = coupon.eligibility?.applicable !== false;
   const benefit =
     coupon.benefits?.length > 0 ? formatCouponBenefitLabel(coupon.benefits[0]) : 'Special offer';
-  const minHint = formatCouponMinCartHint(coupon, 0);
-  const ineligibleHint = !applicable
-    ? formatCouponIneligibilityHint(coupon.eligibility?.ineligibilityCodes)
-    : null;
+  const rules = formatCouponRuleLines(coupon, { firstCouponEligibilityDays: eligibilityDays });
   const title = coupon.promotionName || benefit;
 
   return (
@@ -40,10 +36,13 @@ function CouponCard({ coupon }) {
           </span>
           <p className="mt-1 text-[13px] font-medium text-gray-900 line-clamp-2">{title}</p>
           <p className="text-[12px] text-gray-500">{benefit}</p>
-          {minHint && <p className="mt-1 text-[11px] font-medium text-amber-700">{minHint}</p>}
-          {ineligibleHint && !minHint && (
-            <p className="mt-1 text-[11px] font-medium text-amber-700">{ineligibleHint}</p>
-          )}
+          <ul className="mt-1.5 space-y-0.5">
+            {rules.map((line) => (
+              <li key={line} className="text-[11px] leading-snug text-gray-600">
+                {line}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>
@@ -54,6 +53,7 @@ export default function ProfileCouponsSection() {
   const { data, isLoading, isError } = useStorefrontCoupons(0, { enabled: true });
 
   const coupons = data?.coupons || [];
+  const eligibilityDays = data?.settings?.firstCouponEligibilityDays;
 
   if (isLoading) {
     return (
@@ -74,7 +74,11 @@ export default function ProfileCouponsSection() {
   return (
     <div className="space-y-2.5">
       {coupons.map((coupon) => (
-        <CouponCard key={coupon.id || coupon.code} coupon={coupon} />
+        <CouponCard
+          key={coupon.id || coupon.code}
+          coupon={coupon}
+          eligibilityDays={eligibilityDays}
+        />
       ))}
     </div>
   );

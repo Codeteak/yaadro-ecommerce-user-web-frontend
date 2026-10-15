@@ -1251,7 +1251,7 @@ async function enrichOrderRawItemsWithCatalogOffers(rawItems) {
 
 /**
  * Align order subtotal/total with line payables.
- * Preserves API total−subtotal gap (order-level coupon / delivery / tax delta).
+ * Preserves API total−subtotal gap (delivery / tax delta).
  */
 function reconcileOrderMoneyFromActiveLines(subtotal, total, activeSum) {
   if (!(activeSum > 0.009)) {
@@ -1414,6 +1414,8 @@ function transformOrder(apiOrder) {
     apiOrder.total_minor != null
       ? minorToMajor(apiOrder.total_minor)
       : parseFloat(apiOrder.total || 0);
+  const storedSubtotal = subtotal;
+  const storedTotal = total;
   ({ subtotal, total } = reconcileOrderMoneyFromActiveLines(
     subtotal,
     total,
@@ -1447,6 +1449,24 @@ function transformOrder(apiOrder) {
     Math.abs(total - subtotal) < 0.05
   ) {
     total = withExtras;
+  }
+
+  // Line totals are pre-coupon. Stored subtotal and total are already net, so
+  // the gap above is ~0 and the line sum would show the undiscounted payable.
+  const couponMajor = minorToMajor(resolvedCouponDiscountMinor);
+  const lineAboveStored = activeSum - storedSubtotal;
+  const storedGap = storedTotal - storedSubtotal;
+  const couponAlreadyInGap =
+    couponMajor > 0.009 && Math.abs(storedGap + couponMajor) < 0.51;
+  if (
+    !hasBxgy &&
+    couponMajor > 0.009 &&
+    storedTotal > 0.009 &&
+    !couponAlreadyInGap &&
+    lineAboveStored + 0.51 >= couponMajor &&
+    lineAboveStored <= couponMajor + Math.abs(storedGap) + 0.51
+  ) {
+    total = Math.max(0, total - couponMajor);
   }
 
   return {
