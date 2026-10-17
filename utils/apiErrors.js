@@ -6,13 +6,22 @@ export function getApiErrorCode(err) {
 
 const CHECKOUT_ERROR_MESSAGES = {
   EMPTY_CART_WITH_COUPON: 'Add items to your cart before applying a coupon.',
-  COUPON_NOT_FOUND: 'This coupon code is not valid.',
-  COUPON_NOT_APPLICABLE: 'This coupon cannot be used on this order.',
-  COUPON_NO_CART_BENEFIT: 'This coupon does not apply a cart discount.',
+  COUPON_NOT_FOUND: 'This coupon code was not found.',
+  COUPON_NOT_APPLICABLE: 'This coupon does not discount anything in this cart.',
+  COUPON_NO_CART_BENEFIT: 'This coupon has no cart discount rules.',
   COUPON_EXHAUSTED: 'This coupon has reached its usage limit.',
-  MIN_SUBTOTAL_NOT_MET: 'Your cart total is below the minimum for this coupon.',
-  FIRST_ORDER_ONLY_NOT_MET: 'This coupon is only valid on your first order.',
+  MIN_SUBTOTAL_NOT_MET: 'Your order is below the minimum for this coupon.',
+  FIRST_ORDER_ONLY_NOT_MET: 'This coupon is only for your first order.',
   NEW_CUSTOMER_ONLY_NOT_MET: 'This coupon is only for new customers.',
+  COUPON_NOT_WITH_BUNDLE: 'Coupons cannot be used with Buy X Get Y offers.',
+  COUPON_NOT_AFTER_AUTO:
+    'This coupon cannot be combined with the automatic cart discount.',
+  COUPON_NOT_WITH_SKU: 'This coupon cannot be combined with product sale prices.',
+  COUPON_NOT_WITH_AUTO_CART:
+    'This category coupon cannot be used with the automatic cart discount.',
+  COUPON_NO_MATCHING_ITEMS:
+    "None of the products in your cart are in this coupon's categories.",
+  COUPON_RULE_SUBTOTAL_NOT_MET: 'Your order is below the amount this discount needs.',
   CART_EMPTY: 'Your cart is empty. Add items before placing an order.',
   CART_NOT_FOUND: 'Your cart could not be found. Please refresh and try again.',
   PRODUCT_UNAVAILABLE:

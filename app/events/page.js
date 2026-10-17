@@ -1,29 +1,61 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Container from '../../components/Container';
 import ProductGrid from '../../components/ProductGrid';
 import ProductListingPageSkeleton from '../../components/skeletons/ProductListingPageSkeleton';
 import { useHomeSections } from '../../hooks/useHomeSections';
-import { findHomeSectionById, formatEventDateRange } from '../../utils/homeSectionsApi';
+import {
+  findEventSectionById,
+  formatEventDateRange,
+  lookupHomeSectionById,
+} from '../../utils/homeSectionsApi';
 import { PRESSABLE_BTN } from '../../components/ui/brandButton';
 
 function EventProductsInner() {
   const searchParams = useSearchParams();
   const eventId = String(searchParams.get('id') || '').trim();
-  const { sections, isLoading } = useHomeSections();
-  const section = findHomeSectionById(sections, eventId);
+  const { sections, isLoading } = useHomeSections({ staleTime: 30_000 });
+  const fromList = findEventSectionById(sections, eventId);
 
-  if (isLoading && !section) {
+  const [lookup, setLookup] = useState(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!eventId || fromList || isLoading) {
+      setLookup(null);
+      setLookupLoading(false);
+      return undefined;
+    }
+    setLookupLoading(true);
+    lookupHomeSectionById(eventId).then((result) => {
+      if (!cancelled) {
+        setLookup(result);
+        setLookupLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId, fromList, isLoading]);
+
+  if ((isLoading || lookupLoading) && !fromList && !lookup?.section) {
     return <ProductListingPageSkeleton titleWidth={180} />;
   }
 
-  const title = section?.title || 'Event';
-  const dateLabel = section ? formatEventDateRange(section.startsAt, section.endsAt) : null;
+  const section = fromList || lookup?.section || null;
+  const title = section?.title || lookup?.title || 'Event';
+  const dateLabel = section
+    ? formatEventDateRange(section.startsAt, section.endsAt)
+    : null;
   const products = section?.products || [];
   const missing = !eventId || !section;
+  const unavailableMessage = !eventId
+    ? 'Open an event from the home page.'
+    : lookup?.message || 'This event is not available right now.';
 
   return (
     <div className="event-theme-wash min-h-screen w-full max-w-full pb-20 md:pb-8">
@@ -44,7 +76,7 @@ function EventProductsInner() {
           </h1>
           <p className="mt-2 mb-6 px-4 md:px-0 text-sm font-medium text-violet-100">
             {missing
-              ? 'This event is not available right now.'
+              ? unavailableMessage
               : dateLabel || 'Event picks from this shop.'}
           </p>
           <div className="px-4 md:px-0">

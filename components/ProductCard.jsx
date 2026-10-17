@@ -495,15 +495,16 @@ export default function ProductCard({ product, isCarousel = false, variant = 'de
   const navLinkProps = {
     href: productDetailHref,
     scroll: true,
-    onMouseEnter: warmProductDetail,
-    onFocus: warmProductDetail,
-    onTouchStart: warmProductDetail,
+    // Viewport Link prefetch can mount PDP work for every card that scrolls into
+    // view; disable. Hover/touch warm was also firing detail APIs while scrolling.
+    prefetch: false,
     onClick: e => {
       if (suppressNavClickRef.current) {
         e.preventDefault();
         e.stopPropagation();
         return;
       }
+      // Warm cache only when the user intentionally opens the product.
       warmProductDetail();
       e.preventDefault();
       navigateToProductDetail(router, productDetailHref);

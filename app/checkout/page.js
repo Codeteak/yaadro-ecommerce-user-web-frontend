@@ -46,7 +46,11 @@ import { useLocationService } from "../../context/LocationServiceContext";
 import ConfirmModal from "../../components/ConfirmModal";
 import CheckoutPageSkeleton from "../../components/skeletons/CheckoutPageSkeleton";
 import OfferGroupCard from "../../components/promotions/OfferGroupCard";
-import { COUPONS_ONLY } from "../../lib/couponsOnly";
+import { ALLOW_AUTO_CART, COUPONS_ONLY } from "../../lib/couponsOnly";
+import {
+  categoryProductsHref,
+  getPrimaryAppliedAutoCartOffer,
+} from "../../utils/autoCartOffers";
 import CouponThresholdBanner from "../../components/promotions/CouponThresholdBanner";
 import { BRAND_CHECKOUT_BTN, PRESSABLE_ICON_BTN_SOFT } from "../../components/ui/brandButton";
 import { formatAddressDisplay } from "../../utils/formatAddress";
@@ -253,6 +257,7 @@ function OrderSummary({
   cartTotal,
   couponDiscount = 0,
   autoCartDiscount = 0,
+  autoCartOffer = null,
   linePromoDiscount = 0,
   bundleDiscount = 0,
   promotionDiscount = null,
@@ -302,12 +307,29 @@ function OrderSummary({
             </span>
           </div>
         )}
-        {!COUPONS_ONLY && autoCartDiscount > 0.009 && (
-          <div className="flex justify-between text-gray-500">
-            <span>Automatic cart discount</span>
-            <span className="font-medium tabular-nums text-gray-900">
-              −₹{autoCartDiscount.toLocaleString("en-IN")}
-            </span>
+        {ALLOW_AUTO_CART && autoCartDiscount > 0.009 && (
+          <div className="rounded-xl bg-emerald-50 px-3 py-2.5">
+            <div className="flex justify-between gap-3 text-emerald-900">
+              <span className="font-medium">
+                {autoCartOffer?.title || "Automatic discount"}
+              </span>
+              <span className="font-semibold tabular-nums">
+                −₹{autoCartDiscount.toLocaleString("en-IN")}
+              </span>
+            </div>
+            <p className="mt-0.5 text-[11px] leading-snug text-emerald-800/90">
+              {autoCartOffer?.message ||
+                "Applied automatically — no coupon code needed."}
+            </p>
+            {autoCartOffer?.kind === "category_percent_off" &&
+            autoCartOffer.categoryId ? (
+              <Link
+                href={categoryProductsHref(autoCartOffer.categoryId)}
+                className="mt-1.5 inline-block text-[11px] font-semibold text-emerald-900 underline underline-offset-2"
+              >
+                Shop more in {autoCartOffer.categoryName || "this category"}
+              </Link>
+            ) : null}
           </div>
         )}
         {couponDiscount > 0.009 && (
@@ -924,6 +946,12 @@ export default function CheckoutPage() {
         "FIRST_ORDER_ONLY_NOT_MET",
         "NEW_CUSTOMER_ONLY_NOT_MET",
         "EMPTY_CART_WITH_COUPON",
+        "COUPON_NOT_WITH_BUNDLE",
+        "COUPON_NOT_AFTER_AUTO",
+        "COUPON_NOT_WITH_SKU",
+        "COUPON_NOT_WITH_AUTO_CART",
+        "COUPON_NO_MATCHING_ITEMS",
+        "COUPON_RULE_SUBTOTAL_NOT_MET",
       ]);
       if (couponCodes.has(code)) {
         setSelectedCouponCodes([]);
@@ -1115,12 +1143,17 @@ export default function CheckoutPage() {
     handleSubmit({ preventDefault: () => {} });
   };
 
+  const appliedAutoCartOffer = ALLOW_AUTO_CART
+    ? getPrimaryAppliedAutoCartOffer(cartData?.promotions)
+    : null;
+
   const renderOrderSummary = () => (
     <OrderSummary
       cartItems={cartItems}
       cartTotal={displayCartTotal}
       couponDiscount={couponDiscountMajor}
-      autoCartDiscount={autoCartDiscountMajor}
+      autoCartDiscount={ALLOW_AUTO_CART ? autoCartDiscountMajor : 0}
+      autoCartOffer={appliedAutoCartOffer}
       linePromoDiscount={linePromoDiscountMajor}
       bundleDiscount={bundleDiscountMajor}
       promotionDiscount={promotionDiscountMajor}
@@ -1356,6 +1389,20 @@ export default function CheckoutPage() {
             }
             couponsBlocked={!!bxgyBlocksCoupons}
             couponsBlockedMessage={BXGY_COUPON_BLOCKED_MESSAGE}
+            autoCartDiscountMinor={
+              ALLOW_AUTO_CART
+                ? Number(
+                    cartData?.autoCartDiscountMinor ??
+                      cartData?.promotions?.auto?.autoCartDiscountMinor ??
+                      0
+                  ) || 0
+                : 0
+            }
+            autoCartPromotions={
+              ALLOW_AUTO_CART && couponPreviewTrusted
+                ? cartData?.promotions?.auto ?? null
+                : null
+            }
             enabled={!!isAuthenticated && cartItems.length > 0}
             onApplyingChange={setCouponLookupPending}
           />
