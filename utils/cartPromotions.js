@@ -633,8 +633,67 @@ export function normalizeCartPromotions(raw) {
     ? topPromotionIds
     : (autoRaw?.applied_promotion_ids ?? autoRaw?.appliedPromotionIds ?? []);
 
+  const mapAutoOffer = (row) => {
+    if (!row || typeof row !== 'object') return null;
+    return {
+      kind: row.kind ?? null,
+      status: row.status ?? null,
+      promotionId: row.promotion_id ?? row.promotionId ?? null,
+      promotionName: row.promotion_name ?? row.promotionName ?? null,
+      categoryId: row.category_id ?? row.categoryId ?? null,
+      categoryName: row.category_name ?? row.categoryName ?? null,
+      percentBps:
+        row.percent_bps != null
+          ? Number(row.percent_bps)
+          : row.percentBps != null
+            ? Number(row.percentBps)
+            : null,
+      amountMinor:
+        row.amount_minor != null
+          ? Number(row.amount_minor)
+          : row.amountMinor != null
+            ? Number(row.amountMinor)
+            : null,
+      minSubtotalMinor:
+        row.min_subtotal_minor != null
+          ? Number(row.min_subtotal_minor)
+          : row.minSubtotalMinor != null
+            ? Number(row.minSubtotalMinor)
+            : null,
+      remainingMinor:
+        row.remaining_minor != null
+          ? Number(row.remaining_minor)
+          : row.remainingMinor != null
+            ? Number(row.remainingMinor)
+            : null,
+      discountMinor: Number(row.discount_minor ?? row.discountMinor ?? 0) || 0,
+      title: row.title ?? null,
+      message: row.message ?? null,
+    };
+  };
+
+  const appliedOffers = (
+    Array.isArray(autoRaw?.applied_offers)
+      ? autoRaw.applied_offers
+      : Array.isArray(autoRaw?.appliedOffers)
+        ? autoRaw.appliedOffers
+        : []
+  )
+    .map(mapAutoOffer)
+    .filter(Boolean);
+
+  const suggestedOffers = (
+    Array.isArray(autoRaw?.suggested_offers)
+      ? autoRaw.suggested_offers
+      : Array.isArray(autoRaw?.suggestedOffers)
+        ? autoRaw.suggestedOffers
+        : []
+  )
+    .map(mapAutoOffer)
+    .filter(Boolean);
+
   const auto =
-    autoRaw || types.length || appliedPromotionIds.length
+    autoRaw || types.length || appliedPromotionIds.length || appliedOffers.length || suggestedOffers.length
       ? {
           appliedPromotionIds,
           bundleDiscountMinor:
@@ -645,7 +704,12 @@ export function normalizeCartPromotions(raw) {
             Number(autoRaw?.auto_cart_discount_minor ?? autoRaw?.autoCartDiscountMinor ?? 0) || 0,
           hasSkuPromo: types.includes('sku') || !!(autoRaw?.has_sku_promo ?? autoRaw?.hasSkuPromo),
           hasBundle: types.includes('bundle') || !!(autoRaw?.has_bundle ?? autoRaw?.hasBundle),
-          hasAutoCart: !!(autoRaw?.has_auto_cart ?? autoRaw?.hasAutoCart),
+          hasAutoCart:
+            types.includes('auto_cart') ||
+            !!(autoRaw?.has_auto_cart ?? autoRaw?.hasAutoCart) ||
+            Number(autoRaw?.auto_cart_discount_minor ?? autoRaw?.autoCartDiscountMinor ?? 0) > 0,
+          appliedOffers,
+          suggestedOffers,
         }
       : null;
 
@@ -657,6 +721,9 @@ export function normalizeCartPromotions(raw) {
     hasSku: types.includes('sku'),
     hasBundle: types.includes('bundle'),
     hasCoupon: types.includes('coupon'),
+    hasAutoCart:
+      types.includes('auto_cart') ||
+      !!(auto && (auto.hasAutoCart || auto.autoCartDiscountMinor > 0)),
     auto,
     coupon: {
       code: couponRaw.code ? String(couponRaw.code).toUpperCase() : null,

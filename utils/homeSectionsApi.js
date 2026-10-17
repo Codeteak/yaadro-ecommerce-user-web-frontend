@@ -97,8 +97,8 @@ export function mapHomeSectionProduct(raw) {
     offerPriceMinor: offerPriceMinor || undefined,
     promoPriceMinor: promoPriceMinor || undefined,
     bundleRules,
-    inStock: true,
-    stock: 1,
+    inStock: raw.inStock !== false && raw.availability !== 'out_of_stock',
+    stock: raw.inStock === false || raw.availability === 'out_of_stock' ? 0 : 1,
     stock_quantity: readCatalogStockQuantity(raw),
   };
 }
@@ -131,13 +131,16 @@ export function formatEventDateRange(startsAt, endsAt) {
 
 function isSectionInDateWindow(startsAt, endsAt) {
   const now = Date.now();
-  if (startsAt) {
+  if (startsAt != null && String(startsAt).trim() !== '') {
     const t = new Date(startsAt).getTime();
-    if (Number.isFinite(t) && t > now) return false;
+    // Reject malformed dates (previously treated as "in window").
+    if (!Number.isFinite(t)) return false;
+    if (t > now) return false;
   }
-  if (endsAt) {
+  if (endsAt != null && String(endsAt).trim() !== '') {
     const t = new Date(endsAt).getTime();
-    if (Number.isFinite(t) && t < now) return false;
+    if (!Number.isFinite(t)) return false;
+    if (t < now) return false;
   }
   return true;
 }
@@ -320,4 +323,78 @@ export function findHomeSectionById(sections, id) {
   const needle = id != null ? String(id).trim() : '';
   if (!needle) return null;
   return (Array.isArray(sections) ? sections : []).find((s) => String(s.id) === needle) || null;
+}
+
+/** Only event shelves may open the /events deep-link page. */
+export function findEventSectionById(sections, id) {
+  const section = findHomeSectionById(sections, id);
+  if (!section || section.type !== 'event_shelf') return null;
+  return section;
+}
+
+const EVENT_UNAVAILABLE_COPY = {
+  not_found: 'This event was not found.',
+  deleted: 'This event is no longer available.',
+  wrong_type: 'This link is not an event.',
+  disabled: 'This event is turned off right now.',
+  scheduled: 'This event has not started yet.',
+  expired: 'This event has ended.',
+  empty: 'No products are available in this event right now.',
+};
+
+/**
+ * GET /storefront/home-sections/:id — status for deep links when not in the home list.
+ */
+export async function lookupHomeSectionById(sectionId) {
+  const id = sectionId != null ? String(sectionId).trim() : '';
+  if (!id) {
+    return {
+      status: 'not_found',
+      section: null,
+      title: null,
+      message: EVENT_UNAVAILABLE_COPY.not_found,
+    };
+  }
+  try {
+    const shopId = await resolveShopId();
+    if (!shopId) {
+      return {
+        status: 'not_found',
+        section: null,
+        title: null,
+        message: EVENT_UNAVAILABLE_COPY.not_found,
+      };
+    }
+    const response = await apiFetchRoot(
+      `/storefront/home-sections/${encodeURIComponent(id)}`,
+      {
+        method: 'GET',
+        headers: { 'x-shop-id': shopId },
+        omitTenantHeader: true,
+      }
+    );
+    const raw = response?.data ?? response ?? {};
+    const status = String(raw.status || 'not_found');
+    let section = null;
+    if (status === 'ok' && raw.section) {
+      section = normalizeHomeSection(raw.section);
+    }
+    return {
+      status,
+      section,
+      title: raw.title != null ? String(raw.title) : null,
+      type: raw.type != null ? String(raw.type) : null,
+      message:
+        EVENT_UNAVAILABLE_COPY[status] ||
+        'This event is not available right now.',
+    };
+  } catch (error) {
+    console.warn('[home-sections lookup]', error?.message || error);
+    return {
+      status: 'not_found',
+      section: null,
+      title: null,
+      message: EVENT_UNAVAILABLE_COPY.not_found,
+    };
+  }
 }

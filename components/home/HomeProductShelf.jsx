@@ -1,6 +1,7 @@
 'use client';
 
 import ProductCarousel from '../ProductCarousel';
+import HeadingNowTitle from './HeadingNowTitle';
 
 export default function HomeProductShelf({ title, subtitle, products, tone = 'gradient' }) {
   if (!products?.length) return null;
@@ -9,9 +10,9 @@ export default function HomeProductShelf({ title, subtitle, products, tone = 'gr
     return (
       <section className="py-6 sm:py-8 md:py-10 [@media(max-height:720px)]:py-5">
         <div className="mb-4 md:mb-5 px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+          <HeadingNowTitle className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
             {title}
-          </h2>
+          </HeadingNowTitle>
           {subtitle ? (
             <p className="mt-2 text-[13px] md:text-sm text-gray-500">{subtitle}</p>
           ) : null}
@@ -31,9 +32,9 @@ export default function HomeProductShelf({ title, subtitle, products, tone = 'gr
         }}
       >
         <div className="mb-4 sm:mb-5 px-4 text-center">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
+          <HeadingNowTitle className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-gray-900 font-headingnow leading-[1]">
             {title}
-          </h2>
+          </HeadingNowTitle>
           {subtitle ? (
             <p className="mt-2 text-[13px] md:text-sm text-blue-900/70">{subtitle}</p>
           ) : null}

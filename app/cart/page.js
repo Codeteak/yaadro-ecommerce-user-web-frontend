@@ -28,6 +28,11 @@ import {
   buildCartOfferGroups,
   getCouponThresholdHint,
 } from "../../utils/offerDisplay";
+import { ALLOW_AUTO_CART } from "../../lib/couponsOnly";
+import {
+  categoryProductsHref,
+  getPrimaryAppliedAutoCartOffer,
+} from "../../utils/autoCartOffers";
 import ConfirmModal from "../../components/ConfirmModal";
 import ProductCarousel from "../../components/ProductCarousel";
 import CheckoutCouponsSection from "../../components/CheckoutCouponsSection";
@@ -120,6 +125,7 @@ function SummaryCard({
   totalQty: totalQtyProp,
   couponDiscount = 0,
   autoCartDiscount = 0,
+  autoCartOffer = null,
   bundleDiscount = 0,
   linePromoDiscount = 0,
 }) {
@@ -173,12 +179,29 @@ function SummaryCard({
             </span>
           </div>
         )}
-        {autoCartDiscount > 0.009 && (
-          <div className="flex justify-between py-2.5 text-gray-500">
-            <span>Automatic cart discount</span>
-            <span className="font-medium text-violet-700 tabular-nums">
-              −₹{autoCartDiscount.toLocaleString("en-IN")}
-            </span>
+        {ALLOW_AUTO_CART && autoCartDiscount > 0.009 && (
+          <div className="rounded-xl bg-emerald-50 px-3 py-2.5 my-1">
+            <div className="flex justify-between gap-3 text-emerald-900">
+              <span className="font-medium">
+                {autoCartOffer?.title || "Automatic discount"}
+              </span>
+              <span className="font-semibold text-emerald-800 tabular-nums">
+                −₹{autoCartDiscount.toLocaleString("en-IN")}
+              </span>
+            </div>
+            <p className="mt-0.5 text-[11px] leading-snug text-emerald-800/90">
+              {autoCartOffer?.message ||
+                "Applied automatically — no coupon code needed."}
+            </p>
+            {autoCartOffer?.kind === "category_percent_off" &&
+            autoCartOffer.categoryId ? (
+              <Link
+                href={categoryProductsHref(autoCartOffer.categoryId)}
+                className="mt-1.5 inline-block text-[11px] font-semibold text-emerald-900 underline underline-offset-2"
+              >
+                Shop more in {autoCartOffer.categoryName || "this category"}
+              </Link>
+            ) : null}
           </div>
         )}
         {couponDiscount > 0.009 && (
@@ -761,6 +784,20 @@ function CartPageContent() {
                   }
                   couponsBlocked={!!bxgyBlocksCoupons}
                   couponsBlockedMessage={BXGY_COUPON_BLOCKED_MESSAGE}
+                  autoCartDiscountMinor={
+                    ALLOW_AUTO_CART
+                      ? Number(
+                          cartData?.autoCartDiscountMinor ??
+                            cartData?.promotions?.auto?.autoCartDiscountMinor ??
+                            0
+                        ) || 0
+                      : 0
+                  }
+                  autoCartPromotions={
+                    ALLOW_AUTO_CART && couponPreviewTrusted
+                      ? cartData?.promotions?.auto ?? null
+                      : null
+                  }
                   enabled={cartItems.length > 0}
                 />
               </div>
@@ -784,7 +821,12 @@ function CartPageContent() {
               cartTotal={displayCartTotal}
               totalQty={totalQty}
               couponDiscount={couponDiscountMajor}
-              autoCartDiscount={autoCartDiscountMajor}
+              autoCartDiscount={ALLOW_AUTO_CART ? autoCartDiscountMajor : 0}
+              autoCartOffer={
+                ALLOW_AUTO_CART
+                  ? getPrimaryAppliedAutoCartOffer(cartData?.promotions)
+                  : null
+              }
               bundleDiscount={bundleDiscountMajor}
               linePromoDiscount={
                 couponPreviewTrusted && cartData?.linePromoDiscountMinor > 0

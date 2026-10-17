@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { Loading2Regular as Loader2, TagRegular as Tag } from './icons';
 import { useStorefrontCoupons } from '../hooks/useCoupons';
 import {
@@ -13,6 +14,12 @@ import {
   formatCouponIneligibilityHint,
   isCartCouponPreviewApplied,
 } from '../utils/cartPromotions';
+import {
+  categoryProductsHref,
+  formatAutoCartOfferPercent,
+  getAppliedAutoCartOffers,
+  getSuggestedAutoCartOffers,
+} from '../utils/autoCartOffers';
 import { formatInrFromMinor } from '../utils/currencyMinor';
 
 function CouponRow({
@@ -121,9 +128,23 @@ export default function CheckoutCouponsSection({
   promotionsPaused: promotionsPausedFromCart = false,
   couponsBlocked = false,
   couponsBlockedMessage = '',
+  /** Paise amount of automatic cart discount already applied (no code). */
+  autoCartDiscountMinor = 0,
+  /** Normalized promotions.auto from cart preview (applied/suggested offers). */
+  autoCartPromotions = null,
   enabled = true,
   onApplyingChange,
 }) {
+  const autoCartApplied =
+    Number.isFinite(Number(autoCartDiscountMinor)) && Number(autoCartDiscountMinor) > 0;
+  const appliedAutoOffers = getAppliedAutoCartOffers(
+    autoCartPromotions ? { auto: autoCartPromotions } : null
+  );
+  const suggestedAutoOffers = getSuggestedAutoCartOffers(
+    autoCartPromotions ? { auto: autoCartPromotions } : null
+  );
+  const primaryApplied =
+    appliedAutoOffers.find((o) => o.kind === 'category_percent_off') || appliedAutoOffers[0] || null;
   const codesFromProps = useMemo(() => {
     if (Array.isArray(selectedCouponCodes) && selectedCouponCodes.length) {
       return [
@@ -298,6 +319,65 @@ export default function CheckoutCouponsSection({
     setCodeLookupError('');
   };
 
+  const autoCartNotice = autoCartApplied ? (
+    <div
+      className="mb-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5"
+      role="status"
+    >
+      <p className="text-[12px] font-semibold text-emerald-900">
+        {primaryApplied?.title
+          ? `${primaryApplied.title} — ${formatInrFromMinor(autoCartDiscountMinor)} saved`
+          : `Automatic discount applied — ${formatInrFromMinor(autoCartDiscountMinor)} off`}
+      </p>
+      <p className="mt-0.5 text-[11px] leading-snug text-emerald-800/90">
+        {primaryApplied?.message ||
+          'This cart offer was applied automatically. No coupon code needed.'}
+      </p>
+      {primaryApplied?.kind === 'category_percent_off' && primaryApplied.categoryId ? (
+        <Link
+          href={categoryProductsHref(primaryApplied.categoryId)}
+          className="mt-1.5 inline-block text-[11px] font-semibold text-emerald-900 underline underline-offset-2"
+        >
+          Shop more in {primaryApplied.categoryName || 'this category'}
+        </Link>
+      ) : null}
+    </div>
+  ) : null;
+
+  const suggestedAutoNotice =
+    suggestedAutoOffers.length > 0 ? (
+      <div className="mb-3 space-y-2" role="status">
+        <p className="text-[11px] font-medium uppercase tracking-widest text-gray-400">
+          Category offers
+        </p>
+        {suggestedAutoOffers.map((offer) => {
+          const pct = formatAutoCartOfferPercent(offer);
+          const key = `${offer.kind}:${offer.categoryId || offer.promotionId || offer.title}`;
+          return (
+            <div
+              key={key}
+              className="rounded-xl border border-amber-100 bg-amber-50/80 px-3 py-2.5"
+            >
+              <p className="text-[12px] font-semibold text-amber-950">
+                {offer.title || (pct ? `${pct} category offer` : 'Category offer')}
+              </p>
+              <p className="mt-0.5 text-[11px] leading-snug text-amber-900/90">
+                {offer.message || 'Add items from this category to unlock the offer.'}
+              </p>
+              {offer.categoryId ? (
+                <Link
+                  href={categoryProductsHref(offer.categoryId)}
+                  className="mt-1.5 inline-block text-[11px] font-semibold text-amber-950 underline underline-offset-2"
+                >
+                  Browse {offer.categoryName || 'category'}
+                </Link>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    ) : null;
+
   if (couponsBlocked) {
     return (
       <div className="rounded-2xl border border-amber-100 bg-amber-50/80 p-4">
@@ -305,6 +385,8 @@ export default function CheckoutCouponsSection({
           <Tag size={16} className="h-4 w-4 text-amber-700" aria-hidden />
           <p className="text-[13px] font-medium text-amber-950">Coupons & offers</p>
         </div>
+        {autoCartNotice}
+        {suggestedAutoNotice}
         <p className="text-[12px] leading-snug text-amber-900" role="status">
           {couponsBlockedMessage || BXGY_COUPON_BLOCKED_MESSAGE}
         </p>
@@ -326,6 +408,9 @@ export default function CheckoutCouponsSection({
           <Loader2 size={14} className="ml-auto h-3.5 w-3.5 animate-spin text-gray-400" aria-hidden />
         )}
       </div>
+
+      {autoCartNotice}
+      {suggestedAutoNotice}
 
       {suggestedCoupons.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-2">

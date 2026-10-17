@@ -11,13 +11,14 @@ export const homeSectionKeys = {
  * Storefront home shelves (admin sortOrder). Empty list on API miss.
  */
 export function useHomeSections(options = {}) {
-  const { enabled = true } = options;
+  const { enabled = true, staleTime = 60 * 1000 } = options;
   const { ready, shopId } = useStorefrontShopGate();
   const query = useQuery({
     queryKey: homeSectionKeys.list(shopId),
     queryFn: getHomeSections,
     enabled: enabled && ready,
-    staleTime: 2 * 60 * 1000,
+    staleTime,
+    refetchOnMount: 'always',
     retry: 1,
   });
 
