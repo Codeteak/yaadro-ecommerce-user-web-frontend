@@ -9,8 +9,11 @@ const jakarta = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   applicationName: "Yaadro",
-  title: "Yaadro",
-  description: "Start building the Yaadro grocery storefront.",
+  title: {
+    default: "Yaadro",
+    template: "%s · Yaadro",
+  },
+  description: "Fresh groceries, right at your door.",
   icons: {
     icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
@@ -21,7 +24,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#1f7a3a",
+  themeColor: "#22c55e",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

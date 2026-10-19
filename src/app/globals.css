@@ -1,10 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --paper: #f6f3ec;
-  --ink: #1c2416;
-  --muted: #6d7564;
-  --leaf: #1f7a3a;
+  --paper: #f7fbf7;
+  --ink: #064e3b;
+  --muted: #6b7280;
+  --leaf: #16a34a;
+  --leaf-bright: #22c55e;
+  --mint: #dcfce7;
+  --forest: #064e3b;
+  --track: #0a2a1f;
   --background: var(--paper);
   --foreground: var(--ink);
 }
@@ -14,6 +18,10 @@
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-leaf: var(--leaf);
+  --color-leaf-bright: var(--leaf-bright);
+  --color-mint: var(--mint);
+  --color-forest: var(--forest);
+  --color-track: var(--track);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-jakarta);
@@ -28,4 +36,177 @@ body {
 
 body {
   font-family: var(--font-jakarta), sans-serif;
+}
+
+@keyframes onboarding-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(2deg);
+  }
+}
+
+@keyframes onboarding-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes onboarding-hero-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    /* Matches py-1.5 buffer on the hero slot — no clip */
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes swipe-handle-hint {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  40% {
+    transform: translateX(10px);
+  }
+  60% {
+    transform: translateX(6px);
+  }
+}
+
+@keyframes swipe-track-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.35);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+@keyframes verified-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes verified-check-draw {
+  from {
+    stroke-dashoffset: 28;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes verified-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.onboarding-float {
+  animation: onboarding-float 5s ease-in-out infinite;
+}
+
+.onboarding-fade-up {
+  animation: onboarding-fade-up 0.65s ease-out both;
+}
+
+.onboarding-fade-up-delay {
+  animation: onboarding-fade-up 0.7s ease-out 0.1s both;
+}
+
+.onboarding-fade-up-delay-2 {
+  animation: onboarding-fade-up 0.75s ease-out 0.18s both;
+}
+
+.onboarding-hero-float {
+  animation: onboarding-hero-float 4.8s ease-in-out infinite;
+  will-change: transform;
+}
+
+.swipe-handle-hint {
+  animation: swipe-handle-hint 2.4s ease-in-out infinite;
+}
+
+.swipe-track-pulse {
+  animation: swipe-track-pulse 0.55s ease-out;
+}
+
+.verified-pop {
+  animation: verified-pop 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.verified-check-draw {
+  stroke-dasharray: 28;
+  stroke-dashoffset: 28;
+  animation: verified-check-draw 0.45s ease-out 0.2s forwards;
+}
+
+.verified-fade-in {
+  animation: verified-fade-in 0.4s ease-out 0.25s both;
+}
+
+@keyframes login-panel-enter {
+  from {
+    opacity: 0.92;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login-panel-enter {
+  animation: login-panel-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-float,
+  .onboarding-hero-float,
+  .swipe-handle-hint,
+  .swipe-track-pulse,
+  .onboarding-fade-up,
+  .onboarding-fade-up-delay,
+  .onboarding-fade-up-delay-2,
+  .verified-pop,
+  .verified-check-draw,
+  .verified-fade-in,
+  .login-panel-enter {
+    animation: none !important;
+  }
+
+  .verified-check-draw {
+    stroke-dashoffset: 0;
+  }
 }
