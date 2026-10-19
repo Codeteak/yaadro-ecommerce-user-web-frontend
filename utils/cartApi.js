@@ -394,10 +394,15 @@ function parseStorefrontCartResponse(response) {
     .filter(Boolean);
 
   const summary = response.summary || {};
-  const subtotalMinor = parseMinorInt(summary.subtotal_minor ?? summary.subtotalMinor);
-  const subtotalBeforeCouponMinor = parseMinorInt(
-    summary.subtotal_before_coupon_minor ?? summary.subtotalBeforeCouponMinor
-  );
+  // Trust API summary when the field is present — including payable ₹0 after 100% off.
+  const rawSubtotalMinor = summary.subtotal_minor ?? summary.subtotalMinor;
+  const hasTrustedSubtotal = rawSubtotalMinor != null && rawSubtotalMinor !== '';
+  const subtotalMinor = parseMinorInt(rawSubtotalMinor);
+  const rawBeforeCouponMinor =
+    summary.subtotal_before_coupon_minor ?? summary.subtotalBeforeCouponMinor;
+  const hasTrustedBeforeCoupon =
+    rawBeforeCouponMinor != null && rawBeforeCouponMinor !== '';
+  const subtotalBeforeCouponMinor = parseMinorInt(rawBeforeCouponMinor);
   const couponDiscountMinor = parseMinorInt(
     summary.coupon_discount_minor ?? summary.couponDiscountMinor
   );
@@ -415,15 +420,14 @@ function parseStorefrontCartResponse(response) {
     if (Number.isFinite(line) && line >= 0) return sum + line;
     return sum + (Number(it.price) || 0) * (Number(it.quantity) || 0);
   }, 0);
-  const subtotal =
-    subtotalMinor > 0
-      ? minorToMajor(subtotalMinor)
-      : totalOffer > 0
-        ? totalOffer
-        : payableFromLines > 0
-          ? payableFromLines
-          : subtotalFromSummary;
-  const total = subtotalMinor > 0 ? minorToMajor(subtotalMinor) : subtotal;
+  const subtotal = hasTrustedSubtotal
+    ? minorToMajor(subtotalMinor)
+    : totalOffer > 0
+      ? totalOffer
+      : payableFromLines > 0
+        ? payableFromLines
+        : subtotalFromSummary;
+  const total = hasTrustedSubtotal ? minorToMajor(subtotalMinor) : subtotal;
 
   const displayUnitsTotal = parseMinorInt(
     summary.units_display_total ??
@@ -433,12 +437,11 @@ function parseStorefrontCartResponse(response) {
   const resolvedDisplayUnits =
     displayUnitsTotal > 0 ? displayUnitsTotal : sumCartDisplayUnits(items);
 
-  const eligibilityMinor =
-    subtotalBeforeCouponMinor > 0
-      ? subtotalBeforeCouponMinor
-      : subtotalMinor > 0
-        ? subtotalMinor
-        : Math.round(subtotal * 100);
+  const eligibilityMinor = hasTrustedBeforeCoupon
+    ? subtotalBeforeCouponMinor
+    : hasTrustedSubtotal
+      ? subtotalMinor
+      : Math.round(subtotal * 100);
 
   const promotions = normalizeCartPromotions(response.promotions);
 
@@ -447,7 +450,7 @@ function parseStorefrontCartResponse(response) {
     items,
     subtotal,
     total,
-    subtotalMinor: subtotalMinor > 0 ? subtotalMinor : Math.round(subtotal * 100),
+    subtotalMinor: hasTrustedSubtotal ? subtotalMinor : Math.round(subtotal * 100),
     subtotalBeforeCouponMinor: eligibilityMinor,
     couponDiscountMinor,
     bundleDiscountMinor,
