@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { BackButton } from "@/components/navigation/BackButton";
 import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
 import { LoginForm } from "@/features/auth/LoginForm";
 
@@ -16,12 +17,12 @@ export default function LoginPage() {
 
       <div className="relative z-10 mx-auto flex h-dvh w-full max-w-md flex-col px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
         <header className="relative flex h-11 w-full shrink-0 items-center">
-          <Link
+          {/* Variant: track — closest to the black reference, in theme deep green */}
+          <BackButton
             href="/"
-            className="absolute top-1/2 left-0 z-10 -translate-y-1/2 text-sm font-semibold text-muted transition hover:text-leaf focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-          >
-            Back
-          </Link>
+            variant="track"
+            className="absolute top-1/2 left-0 z-10 -translate-y-1/2"
+          />
           <Image
             src="/onboarding/brand-logo.svg"
             alt="Yaadro"
@@ -53,9 +54,9 @@ export default function LoginPage() {
         </div>
 
         {/* Content-height panel pinned to bottom — do not use flex-1 or it climbs the screen */}
-        <section className="login-panel-enter relative w-full shrink-0 rounded-t-[1.75rem] bg-paper px-1 pt-3 pb-1 shadow-[0_-12px_40px_rgba(6,78,59,0.1)] ring-1 ring-black/5">
+        <section className="login-panel-enter relative -mx-3 shrink-0 rounded-t-[1.75rem] bg-paper px-1 pt-3 pb-1 shadow-[0_-12px_40px_rgba(6,78,59,0.1)] ring-1 ring-black/5">
           <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-ink/15" aria-hidden />
-          <div className="px-1 pb-2">
+          <div className="px-4 pb-2">
             <LoginForm />
             <Link
               href="/home"

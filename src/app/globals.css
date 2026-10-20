@@ -38,16 +38,6 @@ body {
   font-family: var(--font-jakarta), sans-serif;
 }
 
-@keyframes onboarding-float {
-  0%,
-  100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-8px) rotate(2deg);
-  }
-}
-
 @keyframes onboarding-fade-up {
   from {
     opacity: 0;
@@ -133,10 +123,6 @@ body {
   }
 }
 
-.onboarding-float {
-  animation: onboarding-float 5s ease-in-out infinite;
-}
-
 .onboarding-fade-up {
   animation: onboarding-fade-up 0.65s ease-out both;
 }
@@ -192,7 +178,6 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .onboarding-float,
   .onboarding-hero-float,
   .swipe-handle-hint,
   .swipe-track-pulse,

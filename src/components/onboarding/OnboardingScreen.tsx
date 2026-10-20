@@ -10,36 +10,6 @@ export function OnboardingScreen() {
     <main className="relative flex min-h-dvh flex-col overflow-hidden bg-paper">
       <GreenCornerAccents intensity="soft" />
 
-      <Image
-        src="/onboarding/leaf-accent.svg"
-        alt=""
-        width={56}
-        height={74}
-        unoptimized
-        aria-hidden
-        className="pointer-events-none absolute top-[18%] left-[4%] opacity-40 blur-[1.5px] onboarding-float sm:left-[10%]"
-      />
-      <Image
-        src="/onboarding/leaf-accent.svg"
-        alt=""
-        width={44}
-        height={58}
-        unoptimized
-        aria-hidden
-        className="pointer-events-none absolute top-[42%] right-[3%] rotate-12 opacity-35 blur-[2px] onboarding-float sm:right-[12%]"
-        style={{ animationDelay: "1.4s" }}
-      />
-      <Image
-        src="/onboarding/leaf-accent.svg"
-        alt=""
-        width={36}
-        height={48}
-        unoptimized
-        aria-hidden
-        className="pointer-events-none absolute bottom-[22%] left-[8%] -rotate-12 opacity-30 blur-[2.5px] onboarding-float sm:left-[16%]"
-        style={{ animationDelay: "0.7s" }}
-      />
-
       <div className="relative z-10 mx-auto flex h-dvh w-full max-w-xl flex-col items-center px-3 pt-[max(2.75rem,calc(env(safe-area-inset-top)+2rem))] pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:max-w-2xl sm:px-6">
         <header className="onboarding-fade-up flex w-full shrink-0 flex-col items-center px-2">
           <Image

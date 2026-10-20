@@ -1,16 +1,19 @@
 import type { MetadataRoute } from "next";
+import { getShopSeo } from "@/lib/shop-seo";
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const shop = await getShopSeo();
+
   return {
-    name: "Yaadro Groceries",
-    short_name: "Yaadro",
-    description: "Fresh groceries in a mobile storefront.",
+    name: shop.name,
+    short_name: shop.name.slice(0, 12),
+    description: shop.description,
     start_url: "/",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#f6f3ec",
-    theme_color: "#1f7a3a",
+    background_color: "#f7fbf7",
+    theme_color: "#064e3b",
     icons: [
       {
         src: "/icons/icon-192.png",
