@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function CategoriesPage() {
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-paper px-5 pt-[max(1rem,env(safe-area-inset-top))]">
+    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-paper px-5">
       <PageHeader backHref="/home" />
       <PullToRefresh>
         <p className="mt-6 text-[13px] font-semibold tracking-[0.14em] text-leaf uppercase">

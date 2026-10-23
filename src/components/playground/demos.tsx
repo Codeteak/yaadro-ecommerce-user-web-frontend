@@ -28,6 +28,7 @@ import { SwipeToLogin } from "@/components/onboarding/SwipeToLogin";
 import { OnboardingScreen } from "@/components/onboarding/OnboardingScreen";
 import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
 import { ComingSoonPage } from "@/components/storefront/ComingSoonPage";
+import { CouponsPageContent } from "@/components/coupons/CouponsPageContent";
 import { PhoneInput } from "@/features/auth/PhoneInput";
 import { OtpInput } from "@/features/auth/OtpInput";
 import { LoginForm } from "@/features/auth/LoginForm";
@@ -172,9 +173,18 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "page-header": () => (
-    <DemoFrame note="Uses shared BackButton (black arrow on green squircle).">
-      <div className="px-5 pt-4 pb-6">
+    <DemoFrame note="Sticky header: scroll to hide the title — back stays visible and usable.">
+      <div className="relative max-h-[22rem] overflow-y-auto overscroll-contain bg-paper px-5 pb-8">
         <PageHeader backHref="/playground" title="Sample title" />
+        <p className="mt-4 text-sm leading-6 text-muted">
+          Scroll this panel. The header sticks; the title fades and only the back
+          button remains tappable.
+        </p>
+        {Array.from({ length: 12 }, (_, i) => (
+          <p key={i} className="mt-4 text-sm text-ink">
+            Sample scroll block {i + 1} — keep going to collapse the title.
+          </p>
+        ))}
       </div>
     </DemoFrame>
   ),
@@ -274,56 +284,64 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "empty-cart": () => (
-    <DemoFrame>
-      <div className="flex flex-col items-center px-5 py-12 text-center">
-        <Image
-          src="/cart/empty-cart-smooth.png"
-          alt=""
-          width={1024}
-          height={1024}
-          className="h-auto w-44"
-        />
-        <h2 className="mt-5 text-xl font-extrabold text-ink">Your cart is empty</h2>
-        <p className="mt-2 max-w-60 text-sm leading-6 text-muted">
-          Add something fresh from the store to see it here.
-        </p>
-        <Link
-          href="/home"
-          className="mt-6 inline-flex h-12 items-center rounded-full bg-track px-6 text-sm font-semibold text-black transition hover:bg-leaf-bright"
-        >
-          Shop now
-        </Link>
+    <DemoFrame note="Same empty layout as /cart — centered block, w-52 art.">
+      <div className="flex min-h-[28rem] flex-col bg-paper px-5">
+        <PageHeader backHref="/playground" title="Cart" />
+        <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
+          <Image
+            src="/cart/empty-cart-smooth.png"
+            alt=""
+            width={1024}
+            height={1024}
+            className="h-auto w-52 max-w-full"
+          />
+          <h2 className="mt-5 text-xl font-extrabold text-ink">Your cart is empty</h2>
+          <p className="mt-2 max-w-60 text-sm leading-6 text-muted">
+            Add something fresh from the store to see it here.
+          </p>
+          <Link
+            href="/home"
+            className="mt-6 inline-flex h-12 items-center rounded-full bg-track px-6 text-sm font-semibold text-black transition hover:bg-leaf-bright"
+          >
+            Shop now
+          </Link>
+        </div>
       </div>
     </DemoFrame>
   ),
   "empty-wishlist": () => (
-    <DemoFrame>
-      <div className="flex flex-col items-center px-5 py-12 text-center">
-        <Image
-          src="/wishlist/empty-wishlist.png"
-          alt=""
-          width={1310}
-          height={1200}
-          className="h-auto w-52"
-        />
-        <h2 className="mt-5 text-xl font-extrabold text-ink">
-          Your wishlist is empty
-        </h2>
-        <p className="mt-2 max-w-60 text-sm leading-6 text-muted">
-          Tap the heart on a product to save it here for later.
-        </p>
-        <Link
-          href="/home"
-          className="mt-6 inline-flex h-12 items-center rounded-full bg-track px-6 text-sm font-semibold text-black transition hover:bg-leaf-bright"
-        >
-          Shop now
-        </Link>
+    <DemoFrame note="Same empty layout as /wishlist — centered block, w-52 art.">
+      <div className="flex min-h-[28rem] flex-col bg-paper px-5">
+        <PageHeader backHref="/playground" title="Wishlist" />
+        <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
+          <Image
+            src="/wishlist/empty-wishlist.png"
+            alt=""
+            width={1310}
+            height={1200}
+            className="h-auto w-52 max-w-full"
+          />
+          <h2 className="mt-5 text-xl font-extrabold text-ink">
+            Your wishlist is empty
+          </h2>
+          <p className="mt-2 max-w-60 text-sm leading-6 text-muted">
+            Tap the heart on a product to save it here for later.
+          </p>
+          <Link
+            href="/home"
+            className="mt-6 inline-flex h-12 items-center rounded-full bg-track px-6 text-sm font-semibold text-black transition hover:bg-leaf-bright"
+          >
+            Shop now
+          </Link>
+        </div>
       </div>
     </DemoFrame>
   ),
   "cart-page": () => (
-    <DemoFrame note="Same CartPageContent as /cart: green pay bar, black type, animated Together to pay, Clear basket.">
-      <CartPageContent />
+    <DemoFrame note="Same as /cart: Deliver to Change opens address sheet; promo, totals + pay; no bottom nav.">
+      <div className="relative h-[75vh] overflow-y-auto overscroll-contain">
+        <CartPageContent chromePosition="inline" />
+      </div>
       <WeightCustomizer />
     </DemoFrame>
   ),
@@ -370,12 +388,72 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "coming-soon": () => (
-    <DemoFrame note="Shared stub used by coupons, orders, addresses, etc.">
+    <DemoFrame note="Shared stub used by orders, addresses, settings, etc.">
       <ComingSoonPage
         title="Sample stub"
         description="This is the ComingSoonPage shell used across unfinished storefront routes."
         backHref="/playground"
       />
+    </DemoFrame>
+  ),
+  "coupons-list": () => (
+    <DemoFrame note="Same CouponsPageContent as /coupons. Sample data; apply-on-checkout still planned.">
+      <CouponsPageContent backHref="/playground" />
+    </DemoFrame>
+  ),
+  "coupons-empty": () => (
+    <DemoFrame note="Same empty UI as /coupons when there are no coupons. Force-empty here for review.">
+      <CouponsPageContent backHref="/playground" coupons={[]} />
+    </DemoFrame>
+  ),
+  "profile-header": () => (
+    <DemoFrame note="Hero sticky: transparent bar — only back stays; title hides; avatar not covered.">
+      <div className="max-h-[28rem] overflow-y-auto overscroll-contain bg-paper">
+        <section className="relative rounded-b-[2.5rem] bg-gradient-to-b from-mint via-[#eef6ee] to-paper">
+          <div
+            className="pointer-events-none absolute inset-0 overflow-hidden rounded-b-[2.5rem]"
+            aria-hidden
+          >
+            <div className="absolute -top-20 -right-16 size-52 rounded-full bg-leaf/10" />
+          </div>
+          <div className="relative px-5 pb-16">
+            <PageHeader
+              surface="hero"
+              backHref="/playground"
+              title="Profile"
+            />
+            <div className="relative mt-5 flex flex-col items-center text-center">
+              <div className="flex size-28 items-center justify-center rounded-full bg-white shadow-[0_10px_30px_rgba(47,107,47,0.12)] ring-1 ring-leaf/15">
+                <Image
+                  src="/onboarding/brand-mark-white-y.svg"
+                  alt=""
+                  width={58}
+                  height={69}
+                  unoptimized
+                  className="h-16 w-auto object-contain"
+                />
+              </div>
+              <h2 className="mt-4 text-[22px] leading-7 font-bold tracking-tight text-forest">
+                Guest User
+              </h2>
+              <p className="mt-1 max-w-[260px] text-sm leading-5 text-muted">
+                Sign in to sync your orders, coupons and wishlist.
+              </p>
+              <Link
+                href="/login"
+                className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-track px-6 text-sm font-semibold text-black transition hover:bg-leaf-bright"
+              >
+                Sign in
+              </Link>
+            </div>
+          </div>
+        </section>
+        {Array.from({ length: 10 }, (_, i) => (
+          <p key={i} className="px-5 py-3 text-sm text-muted">
+            Scroll block {i + 1} — back button stays sticky; title fades.
+          </p>
+        ))}
+      </div>
     </DemoFrame>
   ),
 };

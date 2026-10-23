@@ -233,3 +233,81 @@
 
 - `npx eslint` on touched cart / home / demos / auth files
 - Manual: `/cart`, `/home`, `/profile`, `/login`
+
+## 2026-10-23 — Coupons list playground (details + copy)
+
+### What changed
+
+- Sample coupons + `CouponsPageContent`: sectioned cards, status pills, bottom sheet details, Copy code
+- Playground entry `coupons-list` (built); `/coupons` storefront still Coming soon until promote
+
+### Verification
+
+- `npx eslint` on coupons + demos + sample-coupons
+- Manual: `/playground/coupons-list`
+
+## 2026-10-23 — Coupons list to storefront
+
+### What changed
+
+- `/coupons` uses shared `CouponsPageContent` (back to `/profile`); sample data until API
+
+### Verification
+
+- Manual: `/coupons` from profile Voucher / Coupons
+
+## 2026-10-23 — Coupons empty illustration (playground)
+
+### What changed
+
+- `public/coupons/empty-coupons.png` + empty state in `CouponsPageContent`
+- Playground `coupons-empty` with `coupons={[]}`; storefront list still sample data
+
+### Verification
+
+- Manual: `/playground/coupons-empty`
+
+## 2026-10-23 — Coupons empty to storefront
+
+### What changed
+
+- Confirmed: `/coupons` uses shared empty illustration whenever `coupons` is empty (sample list still default until API)
+
+### Verification
+
+- Empty path covered by `CouponsPageContent`; list path still sample data on `/coupons`
+
+## 2026-10-23 — Cart promo + totals playground preview
+
+### What changed
+
+- `previewSummary` on `CartPageContent`: promo Apply (sample codes), Subtotal / You save / Total, Clear basket above pay bar
+- `applySamplePromo` helpers on sample coupons; `/cart` unchanged until promote
+
+### Verification
+
+- Manual: `/playground/cart-page` (add items, try `FRESH10`)
+
+## 2026-10-23 — Cart promo + totals to storefront
+
+### What changed
+
+- Removed `previewSummary` gate; `/cart` has Clear, promo Apply, Subtotal/You save/Total, docked Together to pay
+- Sample promo only until coupons API
+
+### Verification
+
+- Manual: `/cart` with items
+
+## 2026-10-23 — Cart mt-auto pay + sticky back-only header
+
+### What changed
+
+- Cart totals + Together to pay in-flow with `mt-auto` (not fixed); above bottom nav via layout padding
+- `PageHeader` sticky; title/center hide on scroll; back stays usable; owns safe-area
+- Playground `page-header` / `cart-page` updated
+
+### Verification
+
+- `npx eslint` + `tsc --noEmit`
+- Manual: `/cart`, `/wishlist`, `/playground/page-header`, `/playground/cart-page`

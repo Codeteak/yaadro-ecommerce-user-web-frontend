@@ -1,7 +1,5 @@
-import { BottomNav } from "@/components/navigation/BottomNav";
 import { CartProvider } from "@/components/cart/CartContext";
-import { ViewCartBar } from "@/components/cart/ViewCartBar";
-import { WeightCustomizer } from "@/components/cart/WeightCustomizer";
+import { StorefrontChrome } from "@/components/storefront/StorefrontChrome";
 
 export default function StorefrontLayout({
   children,
@@ -10,12 +8,7 @@ export default function StorefrontLayout({
 }) {
   return (
     <CartProvider>
-      <div className="min-h-dvh overscroll-y-none pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
-        {children}
-      </div>
-      <BottomNav />
-      <ViewCartBar />
-      <WeightCustomizer />
+      <StorefrontChrome>{children}</StorefrontChrome>
     </CartProvider>
   );
 }

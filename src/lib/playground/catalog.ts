@@ -29,7 +29,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "PageHeader",
     status: "built",
     group: "Navigation",
-    description: "Standard back + optional title / center slot row.",
+    description:
+      "Sticky top bar; title hides on scroll, back button stays usable.",
     wiresTo: "Most storefront pages",
   },
   {
@@ -64,7 +65,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "HomeTopBar",
     status: "built",
     group: "Home",
-    description: "Shop avatar, deliver-to row, address bottom sheet.",
+    description: "Shop avatar + name, Deliver to, Sign in; address bottom sheet.",
     wiresTo: "/home hero",
   },
   {
@@ -155,7 +156,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Cart list, Edit weight, remove/clear, green pay bar with animated Together to pay. Checkout not faked.",
+      "Cart list, Deliver to Change → address sheet, promo Apply, totals; no bottom nav. Checkout not faked.",
     wiresTo: "/cart",
   },
   {
@@ -225,8 +226,35 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "ComingSoonPage",
     status: "built",
     group: "Storefront chrome",
-    description: "Shared placeholder for stubs (coupons, orders, settings…).",
-    wiresTo: "/coupons, /orders, profile/* stubs",
+    description: "Shared placeholder for stubs (orders, settings…).",
+    wiresTo: "/orders, profile/* stubs",
+  },
+  {
+    slug: "coupons-list",
+    title: "Coupons list",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Voucher-style cards, details sheet, copy code (same component as /coupons; sample data).",
+    wiresTo: "/coupons",
+  },
+  {
+    slug: "coupons-empty",
+    title: "Coupons empty",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Empty coupons illustration + copy (same empty UI as /coupons when list is empty).",
+    wiresTo: "/coupons",
+  },
+  {
+    slug: "profile-header",
+    title: "Profile header",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Mint hero with transparent PageHeader (surface=hero); same as /profile.",
+    wiresTo: "/profile",
   },
 
   // ── Planned (implement here first, then wire) ───────────────────────
@@ -275,7 +303,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "Coupons apply",
     status: "planned",
     group: "Planned",
-    description: "List + apply coupon on cart/checkout.",
+    description:
+      "Server-authoritative apply on checkout. Local promo UI preview lives on playground cart-page.",
     wiresTo: "/coupons, checkout",
   },
   {

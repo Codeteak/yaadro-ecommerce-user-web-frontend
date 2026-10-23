@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
-import { ComingSoonPage } from "@/components/storefront/ComingSoonPage";
+import { CouponsPageContent } from "@/components/coupons/CouponsPageContent";
 
 export const metadata: Metadata = {
   title: "Coupons",
   description: "Your Yaadro vouchers and coupons.",
 };
 
+/**
+ * Coupons list + details / copy. Storefront shows empty until a coupons API
+ * is connected (sample list remains on playground `coupons-list`).
+ * Apply-on-checkout remains planned (playground `coupons-apply`).
+ */
 export default function CouponsPage() {
-  return (
-    <ComingSoonPage
-      title="Coupons"
-      description="Your vouchers and coupon offers will appear here once coupons are connected."
-    />
-  );
+  return <CouponsPageContent backHref="/profile" coupons={[]} />;
 }

@@ -1,59 +1,140 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, MapPin, Minus, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowRight,
+  MapPin,
+  Minus,
+  Plus,
+  TicketPercent,
+  Trash2,
+  X,
+} from "lucide-react";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { PullToRefresh } from "@/components/navigation/PullToRefresh";
 import {
   getProduct,
   itemBadge,
+  lineMrp,
+  lineSave,
   lineTotal,
   useCart,
 } from "@/components/cart/CartContext";
+import { DeliveryAddressSheet } from "@/components/delivery/DeliveryAddressSheet";
+import { cn } from "@/lib/cn";
+import {
+  formatDeliveryAddressLabel,
+  readDeliveryAddress,
+  subscribeDeliveryAddress,
+} from "@/lib/delivery-address";
+import {
+  applySamplePromo,
+  type SampleCoupon,
+} from "@/lib/sample-coupons";
 
-const ADDRESS_KEY = "yaadro-delivery-address";
+type CartPageContentProps = {
+  /**
+   * `page` — storefront full viewport.
+   * `inline` — playground frame (`h-full` + back to /playground).
+   */
+  chromePosition?: "page" | "inline";
+};
+
+/** Totals-style card shell for Deliver to (and similar rows). */
+const CARD =
+  "rounded-2xl bg-white shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10";
 
 /**
  * Cart page content (reference-style list, Yaadro colours).
- * Checkout is intentionally NOT faked: the pay bar states that
- * checkout arrives in the next phase until a real orders API exists.
+ * Promo apply is sample-local until a coupons API exists.
+ * Totals + Together to pay sit at the bottom of the layout (mt-auto),
+ * above the bottom nav — not fixed/sticky.
+ * Checkout is intentionally NOT faked.
  */
-export function CartPageContent() {
-  const { items, setQty, setWeight, setCustomizing, clear, subtotal, savings } =
-    useCart();
+export function CartPageContent({
+  chromePosition = "page",
+}: CartPageContentProps) {
+  const inline = chromePosition === "inline";
+  const {
+    items,
+    setQty,
+    setWeight,
+    setCustomizing,
+    clear,
+    subtotal,
+    mrpTotal,
+    savings,
+  } = useCart();
   const [checkoutNote, setCheckoutNote] = useState(false);
+  const [promoInput, setPromoInput] = useState("");
+  const [applied, setApplied] = useState<SampleCoupon | null>(null);
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [promoMessage, setPromoMessage] = useState<string | null>(null);
+  const [addressSheetOpen, setAddressSheetOpen] = useState(false);
 
   const removeItem = (productId: string, isWeight: boolean) => {
     if (isWeight) setWeight(productId, null);
     else setQty(productId, 0);
   };
 
-  // Saved delivery address (same localStorage key as the home sheet).
-  const addressRaw = useSyncExternalStore(
-    (onChange) => {
-      window.addEventListener("storage", onChange);
-      return () => window.removeEventListener("storage", onChange);
+  const addressLabel = useSyncExternalStore(
+    subscribeDeliveryAddress,
+    () => {
+      const saved = readDeliveryAddress();
+      if (!saved) return null;
+      return formatDeliveryAddressLabel(saved) || null;
     },
-    () => window.localStorage.getItem(ADDRESS_KEY),
     () => null,
   );
-  const addressLabel = useMemo(() => {
-    if (!addressRaw) return null;
-    try {
-      const a = JSON.parse(addressRaw) as Record<string, string>;
-      return [a.house, a.street, a.city].filter(Boolean).join(", ") || null;
-    } catch {
-      return null;
+
+  // Subtotal = MRP; You save = MRP gap + promo; Total = selling − promo.
+  const totalSaved = savings + promoDiscount;
+  const totalDue = Math.max(0, subtotal - promoDiscount);
+
+  const onApplyPromo = () => {
+    const result = applySamplePromo(promoInput, subtotal);
+    if (!result.ok) {
+      setApplied(null);
+      setPromoDiscount(0);
+      setPromoMessage(result.message);
+      return;
     }
-  }, [addressRaw]);
+    setApplied(result.coupon);
+    setPromoDiscount(result.discount);
+    setPromoInput(result.coupon.code);
+    setPromoMessage(`Applied ${result.coupon.code} — you save ₹${result.discount}`);
+  };
+
+  const clearPromo = () => {
+    setApplied(null);
+    setPromoDiscount(0);
+    setPromoInput("");
+    setPromoMessage(null);
+  };
+
+  const clearBasket = () => {
+    clear();
+    clearPromo();
+  };
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-paper px-5 pt-[max(1rem,env(safe-area-inset-top))]">
-      <PageHeader backHref="/home" title="Cart" />
+    <>
+    <main
+      className={cn(
+        "mx-auto flex w-full max-w-lg flex-col bg-paper px-5",
+        inline ? "h-full min-h-0" : "min-h-dvh",
+      )}
+    >
+      <PageHeader backHref={inline ? "/playground" : "/home"} title="Cart" />
 
-      <PullToRefresh className="flex flex-1 flex-col">
+      <PullToRefresh
+        className={cn(
+          "flex min-h-0 flex-1 flex-col",
+          inline && "overflow-y-auto",
+        )}
+      >
         {items.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
             <Image
@@ -61,7 +142,7 @@ export function CartPageContent() {
               alt=""
               width={1024}
               height={1024}
-              className="h-auto w-44 max-w-full"
+              className="h-auto w-52 max-w-full"
               priority
             />
             <h2 className="mt-5 text-xl font-extrabold text-ink">Your cart is empty</h2>
@@ -77,28 +158,37 @@ export function CartPageContent() {
           </div>
         ) : (
           <>
-            {/* Deliver-to row */}
-            <div className="mt-4 flex items-center gap-2.5 rounded-2xl bg-white px-4 py-3 ring-1 ring-leaf/15">
-              <MapPin className="h-4.5 w-4.5 shrink-0 text-leaf" aria-hidden />
-              <p className="min-w-0 flex-1 truncate text-[13px] font-semibold">
-                <span className="font-bold text-black">Deliver to: </span>
-                <span className="text-leaf">
-                  {addressLabel ?? "Choose your location from Home"}
-                </span>
-              </p>
-              <Link
-                href="/home"
-                className="shrink-0 text-[13px] font-semibold text-black transition hover:text-black/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+            <div className={cn("mt-4 flex items-start gap-3 px-4 py-3.5", CARD)}>
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-mint text-black">
+                <MapPin className="h-4.5 w-4.5 text-black" aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">
+                  Deliver to
+                </p>
+                <p className="mt-0.5 truncate text-[13px] font-semibold text-black">
+                  {addressLabel ?? "Add your delivery address"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddressSheetOpen(true)}
+                className="shrink-0 cursor-pointer rounded-full bg-mint px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
               >
                 Change
-              </Link>
+              </button>
             </div>
 
-            {/* Items */}
             <ul className="mt-2 divide-y divide-forest/8">
               {items.map((item) => {
                 const product = getProduct(item.productId);
                 const isWeight = Boolean(item.weightKg);
+                const selling = lineTotal(item);
+                const mrp = lineMrp(item);
+                const save = lineSave(item);
+                const unitHint = isWeight
+                  ? `By weight, ₹${product.price} / kg`
+                  : `₹${product.price} / ${product.unit}`;
                 return (
                   <li key={item.productId} className="flex items-center gap-3 py-4">
                     <div className="relative shrink-0">
@@ -118,16 +208,30 @@ export function CartPageContent() {
                       <h3 className="truncate text-[15px] font-bold text-ink">
                         {product.name}
                       </h3>
-                      <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5">
-                        <span className="text-[15px] font-extrabold text-black">
-                          ₹{lineTotal(item)}
+                      <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                        <span className="text-[15px] font-extrabold text-black tabular-nums">
+                          ₹{selling}
                         </span>
-                        <span className="text-xs font-medium text-muted">
-                          {isWeight
-                            ? `By weight, ₹${product.price} / kg`
-                            : `₹${product.price} / ${product.unit}`}
-                        </span>
+                        {save > 0 ? (
+                          <>
+                            <span className="text-xs font-medium text-muted tabular-nums line-through">
+                              ₹{mrp}
+                            </span>
+                            <span className="text-xs font-semibold text-leaf">
+                              Save ₹{save}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-xs font-medium text-muted">
+                            {unitHint}
+                          </span>
+                        )}
                       </p>
+                      {save > 0 ? (
+                        <p className="mt-0.5 text-xs font-medium text-muted">
+                          {unitHint}
+                        </p>
+                      ) : null}
                     </div>
 
                     <div className="flex shrink-0 items-center gap-1.5">
@@ -180,21 +284,97 @@ export function CartPageContent() {
               })}
             </ul>
 
-            {savings > 0 && (
-              <p className="mt-1 text-sm font-bold text-leaf">
-                You save ₹{savings} on this order
-              </p>
-            )}
+            <div className="mt-6 flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={clearBasket}
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black shadow-[0_8px_20px_rgba(47,107,47,0.18)] ring-2 ring-black/15 transition hover:ring-black/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+              >
+                <Trash2 className="h-4 w-4 text-black" aria-hidden />
+                Clear basket
+              </button>
 
-            {/* Pay bar — green + black type; soft pulse on Together to pay only */}
-            <div className="sticky bottom-[6.75rem] z-30 mt-6 pb-4">
+              <div className="flex items-center gap-2 rounded-2xl bg-white px-3 py-2.5 ring-1 ring-forest/10">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mint text-forest">
+                  <TicketPercent className="h-4 w-4" aria-hidden />
+                </span>
+                <input
+                  type="text"
+                  value={promoInput}
+                  onChange={(e) => {
+                    setPromoInput(e.target.value.toUpperCase());
+                    setPromoMessage(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      onApplyPromo();
+                    }
+                  }}
+                  placeholder="Apply a promo code"
+                  aria-label="Promo code"
+                  disabled={Boolean(applied)}
+                  className="min-w-0 flex-1 bg-transparent text-sm font-medium text-ink placeholder:text-muted outline-none disabled:opacity-70"
+                />
+                {applied ? (
+                  <button
+                    type="button"
+                    onClick={clearPromo}
+                    aria-label="Remove promo code"
+                    className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-xl bg-black/[0.06] px-3 text-xs font-semibold text-muted transition hover:bg-black/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+                  >
+                    <X className="h-3.5 w-3.5" aria-hidden />
+                    Remove
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onApplyPromo}
+                    className="h-9 shrink-0 cursor-pointer rounded-xl bg-track px-4 text-sm font-semibold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+                  >
+                    Apply
+                  </button>
+                )}
+              </div>
+              {promoMessage && (
+                <p
+                  className={cn(
+                    "text-center text-[13px] font-medium",
+                    applied ? "text-forest" : "text-red-600",
+                  )}
+                  role="status"
+                >
+                  {promoMessage}
+                </p>
+              )}
+            </div>
+
+            {/* In-flow bottom: short cart → sits low via mt-auto; long cart → follows list */}
+            <div className="mt-auto flex flex-col gap-3 pt-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              <div className="rounded-2xl bg-white px-4 py-1 shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10">
+                <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
+                  <span className="text-muted">Subtotal</span>
+                  <span className="font-bold text-black">₹{mrpTotal}</span>
+                </div>
+                <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
+                  <span className="text-muted">You save</span>
+                  <span className="font-bold text-leaf">
+                    {totalSaved > 0 ? `₹${totalSaved}` : "₹0"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-3 text-sm">
+                  <span className="font-bold text-black">Total</span>
+                  <span className="font-extrabold text-leaf">₹{totalDue}</span>
+                </div>
+              </div>
+
               <div className="flex items-center justify-between rounded-[1.25rem] bg-track px-5 py-4 text-black shadow-[0_18px_36px_rgba(47,107,47,0.35)]">
                 <div>
                   <p className="together-pay-label text-xs font-medium text-black/75">
                     Together to pay
                   </p>
                   <p className="text-xl leading-tight font-extrabold text-black">
-                    ₹{subtotal}
+                    ₹{totalDue}
                   </p>
                 </div>
                 <button
@@ -207,22 +387,19 @@ export function CartPageContent() {
                 </button>
               </div>
               {checkoutNote && (
-                <p className="mt-2 text-center text-[13px] font-medium text-muted" role="status">
+                <p className="text-center text-[13px] font-medium text-muted" role="status">
                   Checkout arrives in the next phase — your basket is saved on this device.
                 </p>
               )}
-              <button
-                type="button"
-                onClick={clear}
-                className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black shadow-[0_8px_20px_rgba(47,107,47,0.18)] ring-2 ring-black/15 transition hover:ring-black/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-              >
-                <Trash2 className="h-4 w-4 text-black" aria-hidden />
-                Clear basket
-              </button>
             </div>
           </>
         )}
       </PullToRefresh>
     </main>
+    <DeliveryAddressSheet
+      open={addressSheetOpen}
+      onOpenChange={setAddressSheetOpen}
+    />
+    </>
   );
 }

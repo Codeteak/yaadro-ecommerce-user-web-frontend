@@ -15,7 +15,7 @@ export default function LoginPage() {
     <main className="relative flex min-h-dvh flex-col overflow-hidden bg-paper">
       <GreenCornerAccents intensity="soft" />
 
-      <div className="relative z-10 mx-auto flex h-dvh w-full max-w-md flex-col px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="relative z-10 mx-auto flex h-dvh w-full max-w-md flex-col px-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <PageHeader
           backHref="/"
           center={

@@ -62,10 +62,15 @@ export function lineTotal(item: CartItem): number {
   return item.qty * product.price;
 }
 
-function lineMrp(item: CartItem): number {
+export function lineMrp(item: CartItem): number {
   const product = getProduct(item.productId);
   if (item.weightKg) return Math.round(item.weightKg * product.mrp);
   return item.qty * product.mrp;
+}
+
+/** Selling vs MRP gap for one cart line (0 if no discount). */
+export function lineSave(item: CartItem): number {
+  return Math.max(0, lineMrp(item) - lineTotal(item));
 }
 
 /** Badge text for cart rows: "3.5 kg" or "×2". */
