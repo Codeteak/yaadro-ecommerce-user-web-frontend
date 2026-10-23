@@ -5,7 +5,7 @@ export function VerifiedSuccess() {
       role="status"
       aria-live="polite"
     >
-      <div className="verified-pop flex h-24 w-24 items-center justify-center rounded-full bg-leaf shadow-[0_12px_40px_rgba(22,163,74,0.35)]">
+      <div className="verified-pop flex h-24 w-24 items-center justify-center rounded-full bg-leaf shadow-[0_12px_40px_rgba(92,184,92,0.35)]">
         <svg
           width="44"
           height="44"

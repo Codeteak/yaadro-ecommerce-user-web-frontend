@@ -132,14 +132,15 @@ export function SwipeToLogin({
     <div
       ref={trackRef}
       className={cn(
-        "relative h-[56px] w-full select-none overflow-hidden rounded-full bg-track shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]",
+        "relative h-[56px] w-full select-none overflow-hidden rounded-full bg-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]",
         completed && "swipe-track-pulse",
       )}
       role="group"
       aria-label={label}
     >
+      {/* Solid brand fill grows with the handle (rail stays ink for contrast) */}
       <div
-        className="pointer-events-none absolute top-0 bottom-0 left-0 rounded-full bg-gradient-to-r from-leaf/50 to-leaf-bright/35"
+        className="pointer-events-none absolute top-0 bottom-0 left-0 rounded-full bg-leaf"
         style={{
           width: fillWidth,
           transition: dragging ? "none" : "width 0.28s ease",

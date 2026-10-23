@@ -155,3 +155,81 @@
 ### Verification
 
 - `npx next build` — pass
+
+## 2026-10-23 — Playground Product Detail (PDP)
+
+### What was built
+
+- `ProductDetail` + peeking `ProductGallery` (scroll-snap, dark-green pill dots)
+- Optional sample fields: `images`, `description`, `ingredients`, `rating`
+- Playground demo at `/playground/product-detail` (sample switcher; weight → ruler)
+- Catalog entry moved from planned → built (Product & cart)
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/product/ProductDetail.tsx` | PDP composition |
+| `src/components/product/ProductGallery.tsx` | Peeking image carousel |
+| `src/lib/sample-products.ts` | Optional PDP fields + sample copy |
+| `src/lib/playground/catalog.ts` | `product-detail` built |
+| `src/components/playground/demos.tsx` | Demo + sample chips |
+
+### Verification
+
+- `npx eslint` on touched files — pass
+- `npx next build` — pass
+
+### Next
+
+- Wire PDP to a real `/product/[id]` route when catalog API exists
+
+## 2026-10-23 — Storefront PDP route
+
+### What was built
+
+- `/product/[id]` under storefront layout (sample catalog, `notFound` for unknown ids)
+- `ProductCard` photo + name link to PDP; add / weight controls unchanged
+- Shared local cart + ViewCartBar + WeightCustomizer from storefront layout
+
+### Verification
+
+- `npx eslint` on touched files; `npx next build`
+
+## 2026-10-23 — Cart remove / clear + weight Edit (ecom)
+
+### What was built
+
+- Per-line trash + bottom **Clear basket** on shared `CartPageContent` (`/cart` + playground)
+- Weight **Edit** sheet portals to `document.body`; playground cart demo mounts `WeightCustomizer`
+
+### Verification
+
+- Storefront `/cart` uses the same `CartPageContent`; layout already mounts `WeightCustomizer`
+
+## 2026-10-23 — Brand green theme to storefront
+
+### What changed
+
+- `:root` tokens → leaf `#5CB85C`, track/forest/ink `#2A6B2A` / `#2F6B2F`, mint `#E3F5E3`
+- PWA `theme_color` / viewport `themeColor` aligned
+- Hardcoded offer banner/flyer greens updated
+
+### Verification
+
+- Visual check `/`, `/home`, `/cart`, `/playground/swipe-to-login`
+
+## 2026-10-23 — Cart chrome + black CTA type to storefront
+
+### What changed
+
+- `/cart` pay bar: green (`bg-track`) + black type; soft pulse on **Together to pay** only
+- Clear basket: white surface + ring for visibility
+- Empty Shop now + home/profile/wishlist/login green CTAs: `text-black`
+- Home top-bar Sign in: green pill + black label
+- Removed playground `previewChrome` / `previewSignIn` gates
+
+### Verification
+
+- `npx eslint` on touched cart / home / demos / auth files
+- Manual: `/cart`, `/home`, `/profile`, `/login`

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { BackButton } from "@/components/navigation/BackButton";
+import { PageHeader } from "@/components/navigation/PageHeader";
 import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
 import { LoginForm } from "@/features/auth/LoginForm";
 
@@ -15,24 +15,21 @@ export default function LoginPage() {
     <main className="relative flex min-h-dvh flex-col overflow-hidden bg-paper">
       <GreenCornerAccents intensity="soft" />
 
-      <div className="relative z-10 mx-auto flex h-dvh w-full max-w-md flex-col px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <header className="relative flex h-11 w-full shrink-0 items-center">
-          {/* Variant: track — closest to the black reference, in theme deep green */}
-          <BackButton
-            href="/"
-            variant="track"
-            className="absolute top-1/2 left-0 z-10 -translate-y-1/2"
-          />
-          <Image
-            src="/onboarding/brand-logo.svg"
-            alt="Yaadro"
-            width={40}
-            height={48}
-            priority
-            unoptimized
-            className="mx-auto h-9 w-auto object-contain"
-          />
-        </header>
+      <div className="relative z-10 mx-auto flex h-dvh w-full max-w-md flex-col px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <PageHeader
+          backHref="/"
+          center={
+            <Image
+              src="/onboarding/brand-logo.svg"
+              alt="Yaadro"
+              width={40}
+              height={48}
+              priority
+              unoptimized
+              className="h-9 w-auto object-contain"
+            />
+          }
+        />
 
         {/* Hero fills leftover space above the content-sized login panel */}
         <div className="relative mt-1 mb-2 min-h-0 w-full flex-1">
@@ -48,13 +45,13 @@ export default function LoginPage() {
               priority
               unoptimized
               sizes="(max-width: 768px) 100vw, 420px"
-              className="object-contain drop-shadow-[0_10px_20px_rgba(6,78,59,0.1)]"
+              className="object-contain drop-shadow-[0_10px_20px_rgba(47,107,47,0.1)]"
             />
           </div>
         </div>
 
         {/* Content-height panel pinned to bottom — do not use flex-1 or it climbs the screen */}
-        <section className="login-panel-enter relative -mx-3 shrink-0 rounded-t-[1.75rem] bg-paper px-1 pt-3 pb-1 shadow-[0_-12px_40px_rgba(6,78,59,0.1)] ring-1 ring-black/5">
+        <section className="login-panel-enter relative -mx-3 shrink-0 rounded-t-[1.75rem] bg-paper px-1 pt-3 pb-1 shadow-[0_-12px_40px_rgba(47,107,47,0.1)] ring-1 ring-black/5">
           <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-ink/15" aria-hidden />
           <div className="px-4 pb-2">
             <LoginForm />

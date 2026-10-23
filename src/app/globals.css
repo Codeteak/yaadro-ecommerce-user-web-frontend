@@ -1,14 +1,17 @@
 @import "tailwindcss";
 
 :root {
+  /* Brand green family (welcome swatch ~#5CB85C) */
   --paper: #f7fbf7;
-  --ink: #064e3b;
+  --ink: #2f6b2f;
   --muted: #6b7280;
-  --leaf: #16a34a;
-  --leaf-bright: #22c55e;
-  --mint: #dcfce7;
-  --forest: #064e3b;
-  --track: #0a2a1f;
+  --leaf: #5cb85c;
+  --leaf-bright: #6fcf6f;
+  --mint: #e3f5e3;
+  /* Mid green for hovers / secondary chrome */
+  --forest: #3d8f3d;
+  /* Primary actions = brand green (same family as leaf) */
+  --track: #5cb85c;
   --background: var(--paper);
   --foreground: var(--ink);
 }
@@ -162,6 +165,83 @@ body {
   animation: verified-fade-in 0.4s ease-out 0.25s both;
 }
 
+@keyframes sheet-rise {
+  from {
+    transform: translateY(102%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.sheet-rise {
+  animation: sheet-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes qty-pop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.4;
+  }
+  55% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.qty-pop {
+  display: inline-block;
+  animation: qty-pop 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Soft pulse on cart “Together to pay” label only */
+@keyframes together-pay-label {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+}
+
+.together-pay-label {
+  display: inline-block;
+  animation: together-pay-label 2.2s ease-in-out infinite;
+}
+
+@keyframes category-pop {
+  0% {
+    transform: scale(0.94);
+  }
+  60% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1.06);
+  }
+}
+
+.category-selected-pop {
+  animation: category-pop 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes ptr-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ptr-spin {
+  animation: ptr-spin 0.7s linear infinite;
+}
+
 @keyframes login-panel-enter {
   from {
     opacity: 0.92;
@@ -187,7 +267,11 @@ body {
   .verified-pop,
   .verified-check-draw,
   .verified-fade-in,
-  .login-panel-enter {
+  .login-panel-enter,
+  .category-selected-pop,
+  .sheet-rise,
+  .qty-pop,
+  .together-pay-label {
     animation: none !important;
   }
 

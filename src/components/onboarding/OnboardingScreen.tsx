@@ -43,7 +43,7 @@ export function OnboardingScreen() {
               priority
               unoptimized
               sizes="100vw"
-              className="object-contain drop-shadow-[0_12px_24px_rgba(6,78,59,0.1)]"
+              className="object-contain drop-shadow-[0_12px_24px_rgba(47,107,47,0.1)]"
             />
           </div>
         </div>

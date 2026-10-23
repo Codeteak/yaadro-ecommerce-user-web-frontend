@@ -101,7 +101,7 @@ export function LoginForm() {
           <button
             type="submit"
             disabled={pending || phone.length !== 10}
-            className="inline-flex h-12 w-full items-center justify-center rounded-full bg-track text-sm font-semibold text-white transition hover:bg-forest disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+            className="inline-flex h-12 w-full items-center justify-center rounded-full bg-track text-sm font-semibold text-black transition hover:bg-leaf-bright disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
           >
             {pending ? "Sending…" : "Send OTP"}
           </button>
@@ -134,7 +134,7 @@ export function LoginForm() {
           <button
             type="submit"
             disabled={pending || otp.length !== 4}
-            className="inline-flex h-12 w-full items-center justify-center rounded-full bg-track text-sm font-semibold text-white transition hover:bg-forest disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+            className="inline-flex h-12 w-full items-center justify-center rounded-full bg-track text-sm font-semibold text-black transition hover:bg-leaf-bright disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
           >
             {pending ? "Verifying…" : "Verify & continue"}
           </button>

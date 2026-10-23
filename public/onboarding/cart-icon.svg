@@ -1,23 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
   <path
     d="M3.75 5.5H6.1l.55.7"
-    stroke="#16a34a"
+    stroke="#5CB85C"
     stroke-width="1.65"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
   <path
     d="M6.6 7.4h12.05l-1.2 7.55H8.05L6.6 7.4Z"
-    stroke="#16a34a"
+    stroke="#5CB85C"
     stroke-width="1.65"
     stroke-linejoin="round"
   />
   <path
     d="M8.7 11.35h7.55M8.95 13.85h7.05"
-    stroke="#16a34a"
+    stroke="#5CB85C"
     stroke-width="1.45"
     stroke-linecap="round"
   />
-  <circle cx="9.2" cy="18.55" r="1.25" fill="#16a34a" />
-  <circle cx="16.55" cy="18.55" r="1.25" fill="#16a34a" />
+  <circle cx="9.2" cy="18.55" r="1.25" fill="#5CB85C" />
+  <circle cx="16.55" cy="18.55" r="1.25" fill="#5CB85C" />
 </svg>
