@@ -12,6 +12,7 @@ import {
   resolveCartLineImageUrls,
 } from './productImages';
 import { minorToMajor, parseMinorInt } from './currencyMinor';
+import { parseMinPurchaseFromSummary } from './minPurchase';
 import {
   getPaidCartItemId,
   isBundleRewardCartLine,
@@ -444,6 +445,7 @@ function parseStorefrontCartResponse(response) {
       : Math.round(subtotal * 100);
 
   const promotions = normalizeCartPromotions(response.promotions);
+  const minPurchase = parseMinPurchaseFromSummary(summary);
 
   return {
     cartId: response.cartId ?? response.cart_id ?? null,
@@ -451,6 +453,8 @@ function parseStorefrontCartResponse(response) {
     subtotal,
     total,
     subtotalMinor: hasTrustedSubtotal ? subtotalMinor : Math.round(subtotal * 100),
+    minPurchaseMinor: minPurchase.minPurchaseMinor,
+    minPurchaseRemainingMinor: minPurchase.minPurchaseRemainingMinor,
     subtotalBeforeCouponMinor: eligibilityMinor,
     couponDiscountMinor,
     bundleDiscountMinor,

@@ -13,6 +13,8 @@ import { useLoginNavigation } from '../hooks/useLoginNavigation';
 import { useAppNavigation } from '../hooks/useAppNavigation';
 import OfferGroupCard from './promotions/OfferGroupCard';
 import { BRAND_CHECKOUT_BTN, PRESSABLE_ICON_BTN_SOFT } from './ui/brandButton';
+import MinPurchaseBanner from './MinPurchaseBanner';
+import { minPurchaseBannerMessage } from '../utils/minPurchase';
 import { Loading2Regular as Loader2 } from './icons';
 import { lockAppScroll, unlockAppScroll } from '../lib/pwa/appShell';
 
@@ -22,8 +24,16 @@ function normalizePath(pathname) {
 
 export default function CartSidebar() {
   const pathname = usePathname();
-  const { cartItems, cartTotal, showSidebarCart, setShowSidebarCart, updateQuantity, removeFromCart } =
-    useCart();
+  const {
+    cartItems,
+    cartTotal,
+    showSidebarCart,
+    setShowSidebarCart,
+    updateQuantity,
+    removeFromCart,
+    minPurchaseMinor,
+    minPurchaseRemainingMinor,
+  } = useCart();
   const { isAuthenticated, authHydrated } = useAuth();
   const { goToLogin } = useLoginNavigation();
   const { navigate, prefetch } = useAppNavigation();
@@ -36,6 +46,11 @@ export default function CartSidebar() {
     [cartItems, cartTotal],
   );
   const orderSavings = Math.round(bottomBarPricing.savings);
+  const minPurchaseMessage = useMemo(
+    () => minPurchaseBannerMessage(minPurchaseMinor, minPurchaseRemainingMinor),
+    [minPurchaseMinor, minPurchaseRemainingMinor],
+  );
+  const minPurchaseBlocksCheckout = minPurchaseRemainingMinor > 0;
 
   const handleClose = () => setShowSidebarCart(false);
 
@@ -74,7 +89,7 @@ export default function CartSidebar() {
   );
 
   const handleProceedToCheckout = () => {
-    if (!authHydrated || checkoutPending) return;
+    if (!authHydrated || checkoutPending || minPurchaseBlocksCheckout) return;
     setCheckoutPending(true);
     if (checkoutPendingTimerRef.current) clearTimeout(checkoutPendingTimerRef.current);
     checkoutPendingTimerRef.current = setTimeout(() => {
@@ -178,6 +193,7 @@ export default function CartSidebar() {
               className="space-y-3 px-4 py-3"
               style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
             >
+              {minPurchaseMessage ? <MinPurchaseBanner message={minPurchaseMessage} /> : null}
               <div className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] text-gray-400">Total</p>
@@ -195,7 +211,7 @@ export default function CartSidebar() {
                 <button
                   type="button"
                   onClick={handleProceedToCheckout}
-                  disabled={!authHydrated || checkoutPending}
+                  disabled={!authHydrated || checkoutPending || minPurchaseBlocksCheckout}
                   aria-busy={checkoutPending}
                   aria-label={checkoutPending ? 'Checking out' : 'Checkout'}
                   className={`flex h-11 min-w-[44%] flex-1 items-center justify-center gap-2 whitespace-nowrap disabled:opacity-70 ${BRAND_CHECKOUT_BTN}`}

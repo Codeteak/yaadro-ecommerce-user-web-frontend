@@ -52,6 +52,8 @@ import {
   getPrimaryAppliedAutoCartOffer,
 } from "../../utils/autoCartOffers";
 import CouponThresholdBanner from "../../components/promotions/CouponThresholdBanner";
+import MinPurchaseBanner from "../../components/MinPurchaseBanner";
+import { minPurchaseBannerMessage } from "../../utils/minPurchase";
 import { BRAND_CHECKOUT_BTN, PRESSABLE_ICON_BTN_SOFT } from "../../components/ui/brandButton";
 import { formatAddressDisplay } from "../../utils/formatAddress";
 import { AddressCardSkeleton } from "../../components/skeletons/primitives";
@@ -430,11 +432,16 @@ function PlaceOrderButton({
   selectedAddressId,
   selectedAddressCoords,
   addressesLength,
+  minPurchaseBlocked,
   onPress,
   className = "",
 }) {
   const blocked =
-    isSubmitting || isCheckingDelivery || showPriceVaryConfirm || isApplyingCoupon;
+    isSubmitting ||
+    isCheckingDelivery ||
+    showPriceVaryConfirm ||
+    isApplyingCoupon ||
+    minPurchaseBlocked;
   const needsAddress = !selectedAddressId || !selectedAddressCoords;
   return (
     <Button
@@ -490,6 +497,8 @@ export default function CheckoutPage() {
     cartData,
     cartQueryFetching,
     couponPreviewTrusted,
+    minPurchaseMinor,
+    minPurchaseRemainingMinor,
   } = useCart();
   const {
     addresses,
@@ -933,7 +942,8 @@ export default function CheckoutPage() {
         code === "PRODUCT_UNAVAILABLE" ||
         code === "PRICE_CHANGED" ||
         code === "CART_EMPTY" ||
-        code === "CART_NOT_FOUND"
+        code === "CART_NOT_FOUND" ||
+        code === "MIN_PURCHASE_NOT_MET"
       ) {
         await queryClient.invalidateQueries({ queryKey: cartKeys.all });
       }
@@ -961,6 +971,8 @@ export default function CheckoutPage() {
           ? "Price or Quantity updated"
           : code === "PRODUCT_UNAVAILABLE"
             ? "Item or Quantity unavailable"
+            : code === "MIN_PURCHASE_NOT_MET"
+              ? "Minimum order"
             : code === "ADDRESS_REQUIRED" ||
                 code === "ADDRESS_COORDINATES_REQUIRED"
               ? "Delivery address"
@@ -978,6 +990,7 @@ export default function CheckoutPage() {
     e?.preventDefault();
 
     if (isSubmitting || isCheckingDelivery) return;
+    if (minPurchaseRemainingMinor > 0) return;
 
     if (!isAuthenticated) {
       goToLogin("/checkout");
@@ -1109,6 +1122,7 @@ export default function CheckoutPage() {
   ───────────────────────────────────────────── */
   const placeOrder = () => {
     if (isApplyingCoupon || couponLookupPending) return;
+    if (minPurchaseRemainingMinor > 0) return;
     if (!selectedAddressId) {
       if (addresses.length === 0) {
         goToAddAddress();
@@ -1160,6 +1174,12 @@ export default function CheckoutPage() {
     />
   );
 
+  const minPurchaseMessage = minPurchaseBannerMessage(
+    minPurchaseMinor,
+    minPurchaseRemainingMinor,
+  );
+  const minPurchaseBlocked = minPurchaseRemainingMinor > 0;
+
   const renderPlaceOrderButton = () => (
     <PlaceOrderButton
       isSubmitting={isSubmitting}
@@ -1169,6 +1189,7 @@ export default function CheckoutPage() {
       selectedAddressId={selectedAddressId}
       selectedAddressCoords={selectedAddressCoords}
       addressesLength={addresses.length}
+      minPurchaseBlocked={minPurchaseBlocked}
       onPress={placeOrder}
       className="w-full"
     />
@@ -1360,6 +1381,9 @@ export default function CheckoutPage() {
         </div>
 
         <div className="space-y-2.5 px-4 pt-6 pb-1">
+          {minPurchaseMessage ? (
+            <MinPurchaseBanner message={minPurchaseMessage} />
+          ) : null}
           <CouponThresholdBanner
             hint={
               bxgyBlocksCoupons
