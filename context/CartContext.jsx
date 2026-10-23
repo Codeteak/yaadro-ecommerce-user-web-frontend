@@ -802,6 +802,8 @@ export function CartProvider({ children }) {
       cartData: cartDataForUi,
       couponPreviewTrusted,
       cartPreviewTrusted,
+      minPurchaseMinor: cartPreviewData?.minPurchaseMinor ?? 0,
+      minPurchaseRemainingMinor: cartPreviewData?.minPurchaseRemainingMinor ?? 0,
       /** Always true — cart UI reads from localStorage (layout) + query merge; no full-page cart gate. */
       isCartReady: true,
     }),
@@ -837,6 +839,8 @@ export function CartProvider({ children }) {
       cartDataForUi,
       couponPreviewTrusted,
       cartPreviewTrusted,
+      cartPreviewData?.minPurchaseMinor,
+      cartPreviewData?.minPurchaseRemainingMinor,
     ],
   );
 

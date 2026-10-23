@@ -9,6 +9,7 @@ import {
 } from '../lib/catalogRealtimeSocket';
 import { scheduleCoalescedCatalogRefetch } from '../lib/coalesceCatalogRefetch';
 import { startCatalogRevisionPoll } from '../lib/catalogRevisionPoll';
+import { cartKeys } from '../hooks/useCart';
 
 /** @typedef {'idle' | 'disabled' | 'connecting' | 'connected' | 'disconnected'} CatalogRealtimePhase */
 
@@ -42,6 +43,14 @@ export function CatalogRealtimeProvider({ children }) {
       scheduleCoalescedCatalogRefetch(queryClient, payload);
     };
 
+    const onMinPurchaseUpdated = (payload) => {
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.info('[catalog.realtime] shop.min_purchase.updated', payload);
+      }
+      void queryClient.invalidateQueries({ queryKey: cartKeys.all });
+    };
+
     const connectWithShopId = (shopId) => {
       if (cancelled || !shopId) {
         setPhase('disabled');
@@ -53,6 +62,7 @@ export function CatalogRealtimeProvider({ children }) {
       disconnect = connectCatalogRealtimeSocket({
         shopId,
         onEvent: onCatalogInvalidated,
+        onMinPurchaseUpdated,
         onPhase: (nextPhase, detail) => {
           setPhase(nextPhase);
           setLastError(detail || null);

@@ -1,3 +1,5 @@
+import { minPurchaseUserMessage } from './minPurchase';
+
 /** Extract storefront `error.code` from a thrown apiFetch / apiFetchRoot error. */
 export function getApiErrorCode(err) {
   const code = err?.data?.error?.code ?? err?.data?.code ?? err?.code;
@@ -22,6 +24,8 @@ const CHECKOUT_ERROR_MESSAGES = {
   COUPON_NO_MATCHING_ITEMS:
     "None of the products in your cart are in this coupon's categories.",
   COUPON_RULE_SUBTOTAL_NOT_MET: 'Your order is below the amount this discount needs.',
+  MIN_PURCHASE_NOT_MET:
+    "Add more items to meet this shop's minimum order.",
   CART_EMPTY: 'Your cart is empty. Add items before placing an order.',
   CART_NOT_FOUND: 'Your cart could not be found. Please refresh and try again.',
   PRODUCT_UNAVAILABLE:
@@ -108,6 +112,15 @@ export function getCheckoutErrorMessage(err) {
   }
 
   const code = getApiErrorCode(err);
+  if (code === 'MIN_PURCHASE_NOT_MET') {
+    const details = err?.data?.error?.details ?? err?.details;
+    const remaining = Number(details?.remainingMinor);
+    const min = Number(details?.minPurchaseMinor);
+    if (Number.isFinite(remaining) && remaining > 0 && Number.isFinite(min) && min > 0) {
+      return minPurchaseUserMessage(min, remaining);
+    }
+    if (typeof err?.message === 'string' && err.message.trim()) return err.message.trim();
+  }
   if (code && CHECKOUT_ERROR_MESSAGES[code]) return CHECKOUT_ERROR_MESSAGES[code];
   const msg = err?.message;
   return typeof msg === 'string' && msg.trim()

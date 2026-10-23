@@ -39,6 +39,8 @@ import CheckoutCouponsSection from "../../components/CheckoutCouponsSection";
 import CartPageSkeleton from "../../components/skeletons/CartPageSkeleton";
 import OfferGroupCard from "../../components/promotions/OfferGroupCard";
 import CouponThresholdBanner from "../../components/promotions/CouponThresholdBanner";
+import MinPurchaseBanner from "../../components/MinPurchaseBanner";
+import { minPurchaseBannerMessage } from "../../utils/minPurchase";
 import { BRAND_CHECKOUT_BTN, PRESSABLE_ICON_BTN_SOFT, PRESSABLE_BTN } from "../../components/ui/brandButton";
 import { useLayoutHeights } from "../../context/LayoutHeightsContext";
 import {
@@ -430,6 +432,8 @@ function CartPageContent() {
     cartData,
     cartQueryFetching,
     couponPreviewTrusted,
+    minPurchaseMinor,
+    minPurchaseRemainingMinor,
   } = useCart();
   const queryClient = useQueryClient();
 
@@ -547,6 +551,12 @@ function CartPageContent() {
     [displayCartItems],
   );
 
+  const minPurchaseMessage = useMemo(
+    () => minPurchaseBannerMessage(minPurchaseMinor, minPurchaseRemainingMinor),
+    [minPurchaseMinor, minPurchaseRemainingMinor],
+  );
+  const minPurchaseBlocksCheckout = minPurchaseRemainingMinor > 0;
+
   const couponThresholdHint = useMemo(
     () =>
       bxgyBlocksCoupons
@@ -655,7 +665,7 @@ function CartPageContent() {
   );
 
   const handleProceedToCheckout = () => {
-    if (!authHydrated || checkoutPending) return;
+    if (!authHydrated || checkoutPending || minPurchaseBlocksCheckout) return;
     setCheckoutPending(true);
     if (checkoutPendingTimerRef.current) {
       clearTimeout(checkoutPendingTimerRef.current);
@@ -719,6 +729,9 @@ function CartPageContent() {
           {/* 1. Cart items */}
           <div className="px-4 pt-4 space-y-2.5">
             <SectionLabel>Items</SectionLabel>
+            {minPurchaseMessage ? (
+              <MinPurchaseBanner message={minPurchaseMessage} />
+            ) : null}
             {couponThresholdHint ? (
               <CouponThresholdBanner hint={couponThresholdHint} />
             ) : null}
@@ -904,7 +917,7 @@ function CartPageContent() {
             <Button
               variant="primary"
               onPress={handleProceedToCheckout}
-              isDisabled={!authHydrated || checkoutPending}
+              isDisabled={!authHydrated || checkoutPending || minPurchaseBlocksCheckout}
               isLoading={checkoutPending}
               aria-busy={checkoutPending}
               aria-label={checkoutPending ? "Checking out" : "Checkout"}

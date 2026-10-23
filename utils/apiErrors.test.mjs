@@ -43,6 +43,17 @@ test('getCheckoutErrorMessage maps known codes and network failures', () => {
     getCheckoutErrorMessage({ status: 401, message: 'Unauthorized' }),
     'Your session expired. Please sign in again.',
   );
+  assert.equal(
+    getCheckoutErrorMessage({
+      data: {
+        error: {
+          code: 'MIN_PURCHASE_NOT_MET',
+          details: { minPurchaseMinor: 20000, remainingMinor: 150 },
+        },
+      },
+    }),
+    "Add ₹1.50 more to meet this shop's ₹200 minimum order.",
+  );
 });
 
 test('getAddressSaveErrorMessage preserves form-recovery copy for network and validation', () => {
