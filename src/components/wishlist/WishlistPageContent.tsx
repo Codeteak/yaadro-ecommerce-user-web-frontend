@@ -19,6 +19,7 @@ type WishlistPageContentProps = {
 /**
  * Wishlist list + empty state. Hearts on cards remove items when signed in.
  * Guests see a sign-in empty state (add-from-catalog requires login).
+ * Ids/mutations: WishlistContext; future API: `src/lib/api/wishlist.ts`.
  */
 export function WishlistPageContent({
   chromePosition = "page",

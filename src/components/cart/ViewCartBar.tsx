@@ -34,6 +34,9 @@ export function ViewCartBar({ position = "fixed" }: ViewCartBarProps) {
 
   return (
     <div
+      style={
+        inline ? undefined : { viewTransitionName: "storefront-view-cart" }
+      }
       className={cn(
         "z-40 transition-all duration-300 ease-out",
         inline
@@ -48,6 +51,7 @@ export function ViewCartBar({ position = "fixed" }: ViewCartBarProps) {
     >
       <Link
         href="/cart"
+        transitionTypes={["nav-forward"]}
         aria-label={`View cart, ${count} ${count === 1 ? "item" : "items"}, total ₹${totalDue}`}
         className={cn(
           "relative flex h-14 items-center rounded-full bg-track text-black shadow-[0_18px_36px_rgba(47,107,47,0.4)] transition-all duration-300 ease-out hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",

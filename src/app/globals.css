@@ -257,6 +257,59 @@ body {
   animation: login-panel-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* ——— Storefront view transitions (Next.js + React ViewTransition) ——— */
+:root {
+  --vt-duration: 180ms;
+}
+
+/* Clicks pass through the VT overlay to the live page */
+::view-transition {
+  pointer-events: none;
+}
+
+@keyframes vt-opacity {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes vt-rise {
+  from {
+    translate: 0 8px;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+
+/* Concurrent opacity crossfade; new page rises slightly (no blur / no sideways slide) */
+::view-transition-old(.page-crossfade) {
+  animation: var(--vt-duration) ease-out both vt-opacity reverse;
+}
+::view-transition-new(.page-crossfade) {
+  animation:
+    var(--vt-duration) ease-out both vt-opacity,
+    var(--vt-duration) ease-out both vt-rise;
+}
+
+/* Keep bottom nav + cart shortcut anchored while pages swap */
+::view-transition-group(storefront-bottom-nav),
+::view-transition-group(storefront-view-cart) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(storefront-bottom-nav),
+::view-transition-old(storefront-view-cart) {
+  display: none;
+}
+::view-transition-new(storefront-bottom-nav),
+::view-transition-new(storefront-view-cart) {
+  animation: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .onboarding-hero-float,
   .swipe-handle-hint,
@@ -277,5 +330,11 @@ body {
 
   .verified-check-draw {
     stroke-dashoffset: 0;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }

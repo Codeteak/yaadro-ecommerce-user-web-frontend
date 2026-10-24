@@ -9,12 +9,17 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { WISHLIST_STORAGE_KEY } from "@/lib/api/wishlist";
 import {
   SAMPLE_PRODUCTS,
   type SampleProduct,
 } from "@/lib/sample-products";
 
-const STORAGE_KEY = "yaadro-wishlist-v1";
+/**
+ * Wishlist mutations live here (localStorage) until a wishlist API exists.
+ * See `src/lib/api/wishlist.ts` for the read façade + future sync notes.
+ */
+const STORAGE_KEY = WISHLIST_STORAGE_KEY;
 const WISHLIST_EVENT = "yaadro-wishlist";
 
 type WishlistContextValue = {

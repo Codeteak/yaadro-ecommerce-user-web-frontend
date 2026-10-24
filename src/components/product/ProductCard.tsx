@@ -114,6 +114,7 @@ export function ProductCard({ product }: { product: SampleProduct }) {
       {/* Photo + title → PDP; cart controls stay outside the link */}
       <Link
         href={`/product/${product.id}`}
+        transitionTypes={["nav-forward"]}
         className="block rounded-2xl outline-offset-2 focus-visible:outline-2 focus-visible:outline-leaf"
       >
         <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-[#f4f6f8]">

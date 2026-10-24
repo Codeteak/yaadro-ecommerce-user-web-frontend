@@ -289,7 +289,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Order history cards with status chips; tap opens /orders/[id]. Sample data.",
+      "Same as /orders: grocery cards — status chip, thumbs +N, View Details → /orders/[id].",
     wiresTo: "/orders",
   },
   {
@@ -298,7 +298,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Timeline, address, line items, price details. Same as /orders/[id].",
+      "Same as /orders/[id]: ORDER STATUS vertical steps + Lucide icons + times.",
     wiresTo: "/orders/[id]",
   },
   {

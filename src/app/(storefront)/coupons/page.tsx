@@ -7,10 +7,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * Coupons list + details / copy. Storefront shows empty until a coupons API
- * is connected (sample list remains on playground `coupons-list`).
- * Apply-on-checkout remains planned (playground `coupons-apply`).
+ * Coupons list + details / copy. Data via `listCoupons()` façade
+ * (sample until a coupons API exists).
  */
 export default function CouponsPage() {
-  return <CouponsPageContent backHref="/profile" coupons={[]} />;
+  return <CouponsPageContent backHref="/profile" />;
 }

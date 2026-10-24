@@ -31,6 +31,9 @@ export function BottomNav({ position = "fixed" }: BottomNavProps) {
     <nav
       aria-label="Primary"
       aria-hidden={hide || undefined}
+      style={
+        inline ? undefined : { viewTransitionName: "storefront-bottom-nav" }
+      }
       className={cn(
         "flex justify-center px-4 transition-all duration-300 ease-out",
         inline
@@ -54,12 +57,13 @@ export function BottomNav({ position = "fixed" }: BottomNavProps) {
             <li key={href} className="flex min-w-0 flex-1 justify-center">
               <Link
                 href={href}
+                transitionTypes={["nav-tab"]}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "inline-flex h-11 items-center justify-center gap-2 rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
+                  "relative inline-flex h-11 items-center justify-center gap-2 rounded-full transition-[padding,width,background-color,box-shadow,color] duration-300 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
                   active
                     ? "bg-track px-4 text-black shadow-sm"
-                    : "w-11 text-black hover:text-black/70",
+                    : "w-11 px-0 text-black hover:text-black/70",
                 )}
               >
                 <Icon
@@ -67,13 +71,18 @@ export function BottomNav({ position = "fixed" }: BottomNavProps) {
                   className="size-[22px] shrink-0 text-black"
                   strokeWidth={active ? 2.25 : 1.75}
                 />
-                {active ? (
-                  <span className="text-[13px] font-semibold tracking-tight text-black">
-                    {label}
-                  </span>
-                ) : (
-                  <span className="sr-only">{label}</span>
-                )}
+                <span
+                  className={cn(
+                    "overflow-hidden text-[13px] font-semibold tracking-tight whitespace-nowrap transition-all duration-300 ease-out",
+                    active
+                      ? "max-w-[7.5rem] opacity-100"
+                      : "max-w-0 opacity-0",
+                  )}
+                  aria-hidden={!active}
+                >
+                  {label}
+                </span>
+                {!active ? <span className="sr-only">{label}</span> : null}
               </Link>
             </li>
           );

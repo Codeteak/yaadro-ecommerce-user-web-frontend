@@ -28,6 +28,24 @@ export type OrderTimelineStep = {
   at?: string;
 };
 
+/** Detail tracker steps for the ORDER STATUS card. */
+export type OrderProgressId =
+  | "received"
+  | "confirmed"
+  | "processed"
+  | "shipped"
+  | "delivered"
+  | "cancelled";
+
+export type OrderProgressStep = {
+  id: OrderProgressId;
+  /** First line e.g. "Order" */
+  eyebrow: string;
+  /** Second line e.g. "Received" */
+  title: string;
+  at?: string;
+};
+
 export type SampleOrder = {
   id: string;
   /** Short display id e.g. YAD-1042 */
@@ -47,6 +65,8 @@ export type SampleOrder = {
   /** Final amount due / paid. */
   totalDue: number;
   timeline: OrderTimelineStep[];
+  /** Times for the 5-step ORDER STATUS card (playground preview). */
+  progressTimes?: Partial<Record<OrderProgressId, string>>;
 };
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -111,6 +131,86 @@ export function orderTimelineIndex(status: OrderStatus): number {
   return Math.max(0, order.indexOf(status));
 }
 
+const PROGRESS_DEFS: Omit<OrderProgressStep, "at">[] = [
+  { id: "received", eyebrow: "Order", title: "Received" },
+  { id: "confirmed", eyebrow: "Order", title: "Confirmed" },
+  { id: "processed", eyebrow: "Order", title: "Processed" },
+  { id: "shipped", eyebrow: "Order", title: "Shipped" },
+  { id: "delivered", eyebrow: "Order", title: "Delivered" },
+];
+
+/** Current step index 0–4 for the ORDER STATUS card (−1 if cancelled). */
+export function orderProgressIndex(status: OrderStatus): number {
+  if (status === "cancelled") return -1;
+  if (status === "placed") return 1;
+  if (status === "packed") return 2;
+  if (status === "out_for_delivery") return 3;
+  if (status === "delivered") return 4;
+  return 0;
+}
+
+export type BuiltOrderProgressStep = OrderProgressStep & {
+  done: boolean;
+  current: boolean;
+};
+
+/**
+ * ORDER STATUS steps. Cancelled: only steps that happened, then terminal Cancelled
+ * (no pending Processed / Shipped / Delivered).
+ */
+export function buildOrderProgress(order: SampleOrder): BuiltOrderProgressStep[] {
+  const times = order.progressTimes ?? {};
+  const fallback = (key: OrderStatus) =>
+    order.timeline.find((s) => s.key === key)?.at;
+
+  const atFor = (id: OrderProgressId): string | undefined => {
+    if (id === "cancelled") {
+      return order.timeline.find((s) => s.key === "cancelled")?.at;
+    }
+    if (times[id]) return times[id];
+    if (id === "received") return fallback("placed");
+    if (id === "confirmed") return times.confirmed ?? fallback("placed");
+    if (id === "processed") return fallback("packed");
+    if (id === "shipped") return fallback("out_for_delivery");
+    if (id === "delivered") return fallback("delivered");
+    return undefined;
+  };
+
+  if (order.status === "cancelled") {
+    const completed: BuiltOrderProgressStep[] = [];
+    for (const step of PROGRESS_DEFS) {
+      // Only steps with an explicit progress time (or placed → received) happened.
+      const at =
+        times[step.id] ??
+        (step.id === "received" ? fallback("placed") : undefined);
+      if (!at) break;
+      completed.push({
+        ...step,
+        at,
+        done: true,
+        current: false,
+      });
+    }
+    completed.push({
+      id: "cancelled",
+      eyebrow: "Order",
+      title: "Cancelled",
+      at: atFor("cancelled"),
+      done: true,
+      current: true,
+    });
+    return completed;
+  }
+
+  const idx = orderProgressIndex(order.status);
+  return PROGRESS_DEFS.map((step, i) => ({
+    ...step,
+    at: atFor(step.id),
+    done: idx >= 0 && i <= idx,
+    current: idx >= 0 && i === idx,
+  }));
+}
+
 export const SAMPLE_ORDERS: SampleOrder[] = [
   {
     id: "ord-1042",
@@ -152,6 +252,12 @@ export const SAMPLE_ORDERS: SampleOrder[] = [
       { key: "out_for_delivery", label: "Out for delivery", at: "Today · 12:10 PM" },
       { key: "delivered", label: "Delivered" },
     ],
+    progressTimes: {
+      received: "Today · 11:20 AM",
+      confirmed: "Today · 11:28 AM",
+      processed: "Today · 11:45 AM",
+      shipped: "Today · 12:10 PM",
+    },
   },
   {
     id: "ord-1038",
@@ -177,6 +283,13 @@ export const SAMPLE_ORDERS: SampleOrder[] = [
       { key: "out_for_delivery", label: "Out for delivery", at: "22 Oct · 7:30 PM" },
       { key: "delivered", label: "Delivered", at: "22 Oct · 8:10 PM" },
     ],
+    progressTimes: {
+      received: "22 Oct · 6:40 PM",
+      confirmed: "22 Oct · 6:48 PM",
+      processed: "22 Oct · 7:05 PM",
+      shipped: "22 Oct · 7:30 PM",
+      delivered: "22 Oct · 8:10 PM",
+    },
   },
   {
     id: "ord-1021",
@@ -198,6 +311,10 @@ export const SAMPLE_ORDERS: SampleOrder[] = [
       { key: "placed", label: "Order placed", at: "18 Oct · 2:15 PM" },
       { key: "cancelled", label: "Cancelled", at: "18 Oct · 2:40 PM" },
     ],
+    progressTimes: {
+      received: "18 Oct · 2:15 PM",
+      confirmed: "18 Oct · 2:22 PM",
+    },
   },
 ];
 

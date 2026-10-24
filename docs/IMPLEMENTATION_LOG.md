@@ -371,3 +371,30 @@
 ### Verification
 
 - Manual: `/orders` → tap YAD-1042 → timeline + coupon line; empty demo in playground
+
+## 2026-10-24 — Promote orders UI + sample API façades
+
+### What changed
+
+- Removed `previewOrderStyle` / legacy order detail; ecom + playground use grocery list cards + vertical ORDER STATUS only
+- Added `src/lib/api/orders.ts`, `coupons.ts`, `wishlist.ts` — pages call façades instead of sample arrays directly
+- Wired `/orders`, `/orders/[id]`, `CouponsPageContent`, wishlist comments/storage key
+
+### Verification
+
+- `npx tsc --noEmit`
+- Manual: `/orders` → detail; `/coupons`; `/wishlist`
+
+## 2026-10-24 — Storefront page + navbar view transitions
+
+### What changed
+
+- `(storefront)/template.tsx` — React `ViewTransition` page fade / forward / back
+- Bottom nav pinned during VT; active pill morph + label width ease; `nav-tab` types
+- Back → `nav-back`; product / order detail / cart bar → `nav-forward`
+- Light `(storefront)/loading.tsx`; VT CSS + reduced-motion in `globals.css`
+
+### Verification
+
+- `npx tsc --noEmit`
+- Manual: tab between Home / Wishlist / Profile; open a product; back

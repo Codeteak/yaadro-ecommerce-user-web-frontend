@@ -11,9 +11,9 @@ import {
   ticketStatusChip,
 } from "@/components/coupons/CouponTicketCard";
 import { cn } from "@/lib/cn";
+import { listCoupons } from "@/lib/api/coupons";
 import {
   couponsBySection,
-  SAMPLE_COUPONS,
   type SampleCoupon,
 } from "@/lib/sample-coupons";
 
@@ -28,11 +28,11 @@ type CouponsPageContentProps = {
 
 /**
  * Coupons list (ticket cards + status themes) + details sheet with copy code.
- * Sample data only — no checkout apply until coupons API exists.
+ * Data from `listCoupons()` until a real coupons API exists.
  */
 export function CouponsPageContent({
   backHref = "/profile",
-  coupons = SAMPLE_COUPONS,
+  coupons = listCoupons(),
 }: CouponsPageContentProps) {
   const [selected, setSelected] = useState<SampleCoupon | null>(null);
   const [copied, setCopied] = useState(false);

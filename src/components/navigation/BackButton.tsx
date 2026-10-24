@@ -48,7 +48,12 @@ export function BackButton({
 
   if (href) {
     return (
-      <Link href={href} aria-label={label} className={classes}>
+      <Link
+        href={href}
+        transitionTypes={["nav-back"]}
+        aria-label={label}
+        className={classes}
+      >
         {content}
       </Link>
     );

@@ -364,14 +364,14 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "orders-list": () => (
-    <DemoFrame note="Same as /orders — tap a card to open /orders/[id].">
+    <DemoFrame note="Same as /orders: grocery cards (status chip, thumbs +N, View Details). Tap → /orders/[id].">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain">
         <OrdersPageContent chromePosition="inline" />
       </div>
     </DemoFrame>
   ),
   "order-detail": () => (
-    <DemoFrame note="Sample active order (YAD-1042) — timeline + items + totals.">
+    <DemoFrame note="Same as /orders/[id]: ORDER STATUS card (received→confirmed→processed→shipped→delivered) + times.">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain">
         <OrderDetailPageContent
           chromePosition="inline"
