@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { PageHeader } from "@/components/navigation/PageHeader";
+import { BackButton } from "@/components/navigation/BackButton";
 import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
 import { LoginForm } from "@/features/auth/LoginForm";
 
@@ -15,21 +15,23 @@ export default function LoginPage() {
     <main className="relative flex min-h-dvh flex-col overflow-hidden bg-paper">
       <GreenCornerAccents intensity="soft" />
 
-      <div className="relative z-10 mx-auto flex h-dvh w-full max-w-md flex-col px-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <PageHeader
-          backHref="/"
-          center={
-            <Image
-              src="/onboarding/brand-logo.svg"
-              alt="Yaadro"
-              width={40}
-              height={48}
-              priority
-              unoptimized
-              className="h-9 w-auto object-contain"
-            />
-          }
-        />
+      <div className="relative z-10 mx-auto flex h-dvh w-full max-w-md flex-col px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+        {/* Fixed chrome — login does not scroll; avoid sticky PageHeader. */}
+        <header className="relative flex h-11 w-full shrink-0 items-center">
+          <BackButton
+            href="/"
+            className="absolute top-1/2 left-0 z-10 -translate-y-1/2"
+          />
+          <Image
+            src="/onboarding/brand-logo.svg"
+            alt="Yaadro"
+            width={40}
+            height={48}
+            priority
+            unoptimized
+            className="mx-auto h-9 w-auto object-contain"
+          />
+        </header>
 
         {/* Hero fills leftover space above the content-sized login panel */}
         <div className="relative mt-1 mb-2 min-h-0 w-full flex-1">

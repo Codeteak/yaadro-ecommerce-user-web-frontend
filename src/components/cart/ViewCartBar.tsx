@@ -21,15 +21,15 @@ type ViewCartBarProps = {
  * - While scrolling: expands into the full "View cart • ₹total" bar,
  *   shrinking back ~1s after scrolling stops.
  * It also drops lower when the bottom nav hides on scroll-down.
- * Only appears when the basket has items; hidden on /cart itself.
+ * Only appears when the basket has items; hidden on /cart and /checkout.
  */
 export function ViewCartBar({ position = "fixed" }: ViewCartBarProps) {
   const pathname = usePathname();
-  const { count, subtotal } = useCart();
+  const { count, totalDue } = useCart();
   const { navHidden, scrolling } = useScrollDirection();
   const inline = position === "inline";
 
-  if (count === 0 || pathname === "/cart") return null;
+  if (count === 0 || pathname === "/cart" || pathname === "/checkout") return null;
   const expanded = scrolling;
 
   return (
@@ -48,7 +48,7 @@ export function ViewCartBar({ position = "fixed" }: ViewCartBarProps) {
     >
       <Link
         href="/cart"
-        aria-label={`View cart, ${count} ${count === 1 ? "item" : "items"}, total ₹${subtotal}`}
+        aria-label={`View cart, ${count} ${count === 1 ? "item" : "items"}, total ₹${totalDue}`}
         className={cn(
           "relative flex h-14 items-center rounded-full bg-track text-black shadow-[0_18px_36px_rgba(47,107,47,0.4)] transition-all duration-300 ease-out hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
           expanded
@@ -85,7 +85,7 @@ export function ViewCartBar({ position = "fixed" }: ViewCartBarProps) {
             expanded ? "max-w-44 opacity-100" : "max-w-0 opacity-0",
           )}
         >
-          View cart • ₹{subtotal}
+          View cart • ₹{totalDue}
           <ArrowRight className="h-4.5 w-4.5 shrink-0 text-black" aria-hidden />
         </span>
       </Link>

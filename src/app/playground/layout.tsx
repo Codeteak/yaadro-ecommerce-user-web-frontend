@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CartProvider } from "@/components/cart/CartContext";
 import { PlaygroundShell } from "@/components/playground/PlaygroundShell";
+import { WishlistProvider } from "@/components/wishlist/WishlistContext";
 
 export const metadata: Metadata = {
   title: "Playground",
@@ -9,8 +10,9 @@ export const metadata: Metadata = {
 
 /**
  * In-app component lab — development only (middleware 404s in production).
- * CartProvider is included so ProductCard / ViewCartBar / WeightCustomizer
- * demos work without the storefront layout.
+ * Cart + Wishlist providers so product / cart / wishlist demos work.
+ * Default wishlist is guest (heart → /login) for the guest-heart demo;
+ * list / empty demos nest signed-in providers. Storefront uses signed-in.
  */
 export default function PlaygroundLayout({
   children,
@@ -19,7 +21,9 @@ export default function PlaygroundLayout({
 }) {
   return (
     <CartProvider>
-      <PlaygroundShell>{children}</PlaygroundShell>
+      <WishlistProvider>
+        <PlaygroundShell>{children}</PlaygroundShell>
+      </WishlistProvider>
     </CartProvider>
   );
 }

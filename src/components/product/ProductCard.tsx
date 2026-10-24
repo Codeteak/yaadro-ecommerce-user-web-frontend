@@ -3,9 +3,11 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Heart, Minus, Plus } from "lucide-react";
 import type { SampleProduct } from "@/lib/sample-products";
 import { useCart } from "@/components/cart/CartContext";
+import { useWishlistOptional } from "@/components/wishlist/WishlistContext";
 
 /**
  * Hanging ribbon with an exact vector finish: the path's arc is a
@@ -48,11 +50,28 @@ function Ribbon({
  * exists, qty/wishlist lift into it without changing this layout.
  */
 export function ProductCard({ product }: { product: SampleProduct }) {
-  const [wishlisted, setWishlisted] = useState(false);
+  const router = useRouter();
+  const wishlist = useWishlistOptional();
+  const [localWishlisted, setLocalWishlisted] = useState(false);
   const { getItem, setQty, setCustomizing } = useCart();
   const cartItem = getItem(product.id);
   const qty = cartItem?.qty ?? 0;
   const weightKg = cartItem?.weightKg;
+  const wishlisted = wishlist
+    ? wishlist.signedIn && wishlist.has(product.id)
+    : localWishlisted;
+
+  const onWishlistClick = () => {
+    if (!wishlist) {
+      setLocalWishlisted((w) => !w);
+      return;
+    }
+    if (!wishlist.signedIn) {
+      router.push("/login");
+      return;
+    }
+    wishlist.toggle(product.id);
+  };
 
   const discount =
     product.mrp > product.price
@@ -72,12 +91,18 @@ export function ProductCard({ product }: { product: SampleProduct }) {
         <Ribbon fill="#dc2626" line1={`${discount}%`} line2="OFF" />
       ) : null}
 
-      {/* Wishlist heart (white circle keeps it visible on any photo) */}
+      {/* Wishlist heart — guest → login when WishlistProvider is present */}
       <button
         type="button"
-        onClick={() => setWishlisted((w) => !w)}
+        onClick={onWishlistClick}
         aria-pressed={wishlisted}
-        aria-label={wishlisted ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
+        aria-label={
+          wishlist && !wishlist.signedIn
+            ? `Sign in to save ${product.name}`
+            : wishlisted
+              ? `Remove ${product.name} from wishlist`
+              : `Add ${product.name} to wishlist`
+        }
         className="absolute top-[1.125rem] right-[1.125rem] z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white shadow-[0_4px_12px_rgba(47,107,47,0.16)] transition hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
       >
         <Heart

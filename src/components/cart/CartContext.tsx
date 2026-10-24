@@ -13,6 +13,10 @@ import {
   SAMPLE_PRODUCTS,
   type SampleProduct,
 } from "@/lib/sample-products";
+import {
+  applySamplePromo,
+  type SampleCoupon,
+} from "@/lib/sample-coupons";
 
 /**
  * Shared basket (sample phase).
@@ -33,6 +37,7 @@ export type CartItem = {
 };
 
 const STORAGE_KEY = "yaadro-cart-v1";
+const PROMO_STORAGE_KEY = "yaadro-cart-promo-v1";
 
 type CartContextValue = {
   items: CartItem[];
@@ -42,9 +47,23 @@ type CartContextValue = {
   clear: () => void;
   /** Total number of purchasable units (packs + weight lines). */
   count: number;
+  /** Selling-price sum before promo. */
   subtotal: number;
   mrpTotal: number;
+  /** MRP − selling (item savings only). */
   savings: number;
+  appliedPromo: SampleCoupon | null;
+  promoDiscount: number;
+  /** savings + promoDiscount */
+  totalSaved: number;
+  /** subtotal − promoDiscount */
+  totalDue: number;
+  applyPromo: (
+    code: string,
+  ) =>
+    | { ok: true; message: string; code: string }
+    | { ok: false; message: string };
+  clearPromo: () => void;
   /** Product whose weight customizer sheet is open, if any. */
   customizing: SampleProduct | null;
   setCustomizing: (product: SampleProduct | null) => void;
@@ -84,8 +103,45 @@ export function itemBadge(item: CartItem): string {
   return `×${item.qty}`;
 }
 
+function readPromoCode(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(PROMO_STORAGE_KEY);
+    if (!raw) return null;
+    const code = JSON.parse(raw) as unknown;
+    return typeof code === "string" && code.length > 0 ? code : null;
+  } catch {
+    return null;
+  }
+}
+
+function writePromoCode(code: string | null) {
+  try {
+    if (!code) window.localStorage.removeItem(PROMO_STORAGE_KEY);
+    else window.localStorage.setItem(PROMO_STORAGE_KEY, JSON.stringify(code));
+  } catch {
+    // best-effort
+  }
+  window.dispatchEvent(new Event("yaadro-cart-promo"));
+}
+
+function subscribePromo(onChange: () => void) {
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === PROMO_STORAGE_KEY || e.key === null) onChange();
+  };
+  window.addEventListener("storage", onStorage);
+  window.addEventListener("yaadro-cart-promo", onChange);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener("yaadro-cart-promo", onChange);
+  };
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const [override, setOverride] = useState<CartItem[] | null>(null);
+  const [promoOverride, setPromoOverride] = useState<string | null | undefined>(
+    undefined,
+  );
   const [customizing, setCustomizing] = useState<SampleProduct | null>(null);
 
   // Persisted basket, read hydration-safely (same pattern as address).
@@ -107,6 +163,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [storedRaw]);
   const items = override ?? storedItems;
+
+  const storedPromoRaw = useSyncExternalStore(
+    subscribePromo,
+    () => window.localStorage.getItem(PROMO_STORAGE_KEY),
+    () => null,
+  );
+  const storedPromoCode = useMemo(() => {
+    if (storedPromoRaw == null) return null;
+    try {
+      const code = JSON.parse(storedPromoRaw) as unknown;
+      return typeof code === "string" && code.length > 0 ? code : null;
+    } catch {
+      return null;
+    }
+  }, [storedPromoRaw]);
+  const promoCode =
+    promoOverride !== undefined ? promoOverride : storedPromoCode;
 
   const update = useCallback((next: CartItem[]) => {
     setOverride(next);
@@ -142,7 +215,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [items, update],
   );
 
-  const clear = useCallback(() => update([]), [update]);
+  const clearPromo = useCallback(() => {
+    setPromoOverride(null);
+    writePromoCode(null);
+  }, []);
+
+  const clear = useCallback(() => {
+    update([]);
+    clearPromo();
+  }, [update, clearPromo]);
 
   const { count, subtotal, mrpTotal } = useMemo(() => {
     let c = 0;
@@ -156,6 +237,35 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return { count: c, subtotal: sub, mrpTotal: mrp };
   }, [items]);
 
+  const savings = Math.max(0, mrpTotal - subtotal);
+
+  const { appliedPromo, promoDiscount } = useMemo(() => {
+    if (!promoCode) return { appliedPromo: null, promoDiscount: 0 };
+    const result = applySamplePromo(promoCode, subtotal);
+    if (!result.ok) return { appliedPromo: null, promoDiscount: 0 };
+    return { appliedPromo: result.coupon, promoDiscount: result.discount };
+  }, [promoCode, subtotal]);
+
+  const applyPromo = useCallback(
+    (code: string) => {
+      const result = applySamplePromo(code, subtotal);
+      if (!result.ok) {
+        return { ok: false as const, message: result.message };
+      }
+      setPromoOverride(result.coupon.code);
+      writePromoCode(result.coupon.code);
+      return {
+        ok: true as const,
+        code: result.coupon.code,
+        message: `Applied ${result.coupon.code} — you save ₹${result.discount}`,
+      };
+    },
+    [subtotal],
+  );
+
+  const totalSaved = savings + promoDiscount;
+  const totalDue = Math.max(0, subtotal - promoDiscount);
+
   const value: CartContextValue = {
     items,
     getItem,
@@ -165,7 +275,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     count,
     subtotal,
     mrpTotal,
-    savings: Math.max(0, mrpTotal - subtotal),
+    savings,
+    appliedPromo,
+    promoDiscount,
+    totalSaved,
+    totalDue,
+    applyPromo,
+    clearPromo,
     customizing,
     setCustomizing,
   };
@@ -177,4 +293,9 @@ export function useCart() {
   const ctx = useContext(CartContext);
   if (!ctx) throw new Error("useCart must be used within CartProvider");
   return ctx;
+}
+
+/** Exposed for rare reads / tests. */
+export function peekCartPromoCode(): string | null {
+  return readPromoCode();
 }

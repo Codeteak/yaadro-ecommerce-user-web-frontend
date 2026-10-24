@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { PlaygroundDemo } from "@/components/playground/demos";
 import { PlaygroundBackLink } from "@/components/playground/PlaygroundBackLink";
@@ -7,15 +8,26 @@ import {
   PLAYGROUND_ENTRIES,
 } from "@/lib/playground/catalog";
 
+type PlaygroundEntryPageProps = {
+  params: Promise<{ slug: string }>;
+};
+
 export function generateStaticParams() {
   return PLAYGROUND_ENTRIES.map((e) => ({ slug: e.slug }));
 }
 
-export default async function PlaygroundEntryPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+function PlaygroundEntryFallback() {
+  return (
+    <div className="mx-auto max-w-3xl" aria-busy aria-label="Loading demo">
+      <div className="h-4 w-24 animate-pulse rounded bg-mint/50" />
+      <div className="mt-3 h-8 w-48 animate-pulse rounded-lg bg-mint/60" />
+      <div className="mt-2 h-4 w-full max-w-xl animate-pulse rounded bg-mint/40" />
+      <div className="mt-8 h-64 w-full animate-pulse rounded-2xl bg-mint/30" />
+    </div>
+  );
+}
+
+async function PlaygroundEntryContent({ params }: PlaygroundEntryPageProps) {
   const { slug } = await params;
   const entry = getPlaygroundEntry(slug);
   if (!entry) notFound();
@@ -51,5 +63,19 @@ export default async function PlaygroundEntryPage({
         <PlaygroundDemo slug={entry.slug} />
       </div>
     </div>
+  );
+}
+
+/**
+ * `params` resolve behind Suspense so the Instant shell stays valid
+ * (same pattern as storefront product/[id]).
+ */
+export default function PlaygroundEntryPage({
+  params,
+}: PlaygroundEntryPageProps) {
+  return (
+    <Suspense fallback={<PlaygroundEntryFallback />}>
+      <PlaygroundEntryContent params={params} />
+    </Suspense>
   );
 }

@@ -311,3 +311,51 @@
 
 - `npx eslint` + `tsc --noEmit`
 - Manual: `/cart`, `/wishlist`, `/playground/page-header`, `/playground/cart-page`
+
+## 2026-10-24 — Wishlist guest-gate on storefront
+
+### What changed
+
+- `WishlistProvider` (guest) on storefront layout — ProductCard / PDP hearts → `/login`
+- `/wishlist` stays empty-only until wishlist API; playground `wishlist-list` keeps signed-in grid
+
+### Verification
+
+- `npx tsc --noEmit`
+- Manual: `/home` heart → `/login`; `/wishlist` empty; `/playground/wishlist-list` grid
+
+## 2026-10-24 — Promote wishlist grid to storefront
+
+### What changed
+
+- Storefront `WishlistProvider previewSignedIn` — hearts save to `localStorage`
+- `/wishlist` uses `WishlistPageContent` (empty or product grid)
+- Playground guest-heart demo still uses guest layout provider
+
+### Verification
+
+- Manual: heart on `/home` or PDP → item on `/wishlist`; heart again removes
+
+## 2026-10-24 — Checkout playground (COD + confirmed mascot)
+
+### What changed
+
+- `public/checkout/order-confirmed-mascot.png` (w-52 display, cutout)
+- `CheckoutPageContent`: address (Edit sheet), COD only, amount due from cart, Place Order → confirmed + mascot
+- Playground slug `checkout` built; no `/checkout` route yet; does not submit a real order
+
+### Verification
+
+- Manual: `/playground/checkout` — add address, Place Order → mascot; empty cart shows error
+
+## 2026-10-24 — Shared promo + promote checkout to ecom
+
+### What changed
+
+- Promo code lifted into `CartContext` (localStorage); cart + checkout share coupon line / totalDue
+- `/checkout` route; cart Checkout → `/checkout` (playground → `/playground/checkout`)
+- Bottom nav hidden on `/checkout`
+
+### Verification
+
+- Manual: apply FRESH10 on `/cart` → see Coupon on `/checkout` Amount due; Place Order → tick → mascot

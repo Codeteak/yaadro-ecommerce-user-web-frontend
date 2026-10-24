@@ -21,8 +21,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "BackButton",
     status: "built",
     group: "Navigation",
-    description: "Green squircle back control with black arrow (PageHeader, cart, profile).",
-    wiresTo: "PageHeader, login, profile, /cart",
+    description: "Green squircle back control with black arrow (PageHeader, login, cart, profile).",
+    wiresTo: "PageHeader, /login, profile, /cart",
   },
   {
     slug: "page-header",
@@ -156,7 +156,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Cart list, Deliver to Change → address sheet, promo Apply, totals; no bottom nav. Checkout not faked.",
+      "Cart list, discount field (green shell), coupon in totals, 3D Checkout pill. Checkout not faked.",
     wiresTo: "/cart",
   },
   {
@@ -235,7 +235,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Voucher-style cards, details sheet, copy code (same component as /coupons; sample data).",
+      "Ticket coupons with per-id colours, Active/Used/Expired themes; tap for details/copy.",
     wiresTo: "/coupons",
   },
   {
@@ -277,9 +277,10 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
   {
     slug: "checkout",
     title: "Checkout flow",
-    status: "planned",
-    group: "Planned",
-    description: "Address, slot, payment, place order (server-authoritative).",
+    status: "built",
+    group: "Product & cart",
+    description:
+      "Address, COD, price details + coupon, Place Order → tick → mascot. Same as /checkout.",
     wiresTo: "/checkout",
   },
   {
@@ -304,16 +305,26 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "planned",
     group: "Planned",
     description:
-      "Server-authoritative apply on checkout. Local promo UI preview lives on playground cart-page.",
+      "Server-authoritative apply on checkout (promo UI removed from cart; build with checkout flow).",
     wiresTo: "/coupons, checkout",
   },
   {
     slug: "wishlist-list",
     title: "Wishlist list",
-    status: "planned",
-    group: "Planned",
-    description: "Persisted wishlist products with add-to-cart.",
+    status: "built",
+    group: "Product & cart",
+    description:
+      "Signed-in grid; heart removes. Same WishlistPageContent as /wishlist (demo is seeded).",
     wiresTo: "/wishlist",
+  },
+  {
+    slug: "wishlist-guest-heart",
+    title: "Wishlist guest heart",
+    status: "built",
+    group: "Product & cart",
+    description:
+      "Playground guest path: heart → /login. Storefront saves locally until session API.",
+    wiresTo: "ProductCard, /login",
   },
   {
     slug: "skeletons",

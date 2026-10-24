@@ -3,21 +3,17 @@
 import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import {
-  Check,
-  CheckCircle2,
-  Copy,
-  TicketPercent,
-  X,
-  XCircle,
-} from "lucide-react";
+import { Check, Copy, X } from "lucide-react";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { PullToRefresh } from "@/components/navigation/PullToRefresh";
+import {
+  CouponTicketCard,
+  ticketStatusChip,
+} from "@/components/coupons/CouponTicketCard";
 import { cn } from "@/lib/cn";
 import {
   couponsBySection,
   SAMPLE_COUPONS,
-  type CouponStatus,
   type SampleCoupon,
 } from "@/lib/sample-coupons";
 
@@ -30,30 +26,8 @@ type CouponsPageContentProps = {
   coupons?: SampleCoupon[];
 };
 
-function statusMeta(status: CouponStatus) {
-  if (status === "active") {
-    return {
-      label: "Active",
-      className: "bg-mint text-forest",
-      Icon: CheckCircle2,
-    };
-  }
-  if (status === "used") {
-    return {
-      label: "Used",
-      className: "bg-black/[0.06] text-muted",
-      Icon: CheckCircle2,
-    };
-  }
-  return {
-    label: "Expired",
-    className: "bg-red-50 text-red-700",
-    Icon: XCircle,
-  };
-}
-
 /**
- * Coupons list (voucher-history style) + details sheet with copy code.
+ * Coupons list (ticket cards + status themes) + details sheet with copy code.
  * Sample data only — no checkout apply until coupons API exists.
  */
 export function CouponsPageContent({
@@ -225,17 +199,15 @@ export function CouponsPageContent({
                     <dt className="text-muted">Status</dt>
                     <dd>
                       {(() => {
-                        const meta = statusMeta(selected.status);
-                        const StatusIcon = meta.Icon;
+                        const chip = ticketStatusChip(selected.status);
                         return (
                           <span
                             className={cn(
-                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
-                              meta.className,
+                              "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-extrabold tracking-wide uppercase",
+                              chip.className,
                             )}
                           >
-                            <StatusIcon className="h-3 w-3" aria-hidden />
-                            {meta.label}
+                            {chip.label}
                           </span>
                         );
                       })()}
@@ -286,45 +258,14 @@ export function CouponsPageContent({
                   {section}
                 </h2>
                 <ul className="flex flex-col gap-3">
-                  {items.map((coupon) => {
-                    const meta = statusMeta(coupon.status);
-                    const StatusIcon = meta.Icon;
-                    return (
-                      <li key={coupon.id}>
-                        <button
-                          type="button"
-                          onClick={() => openCoupon(coupon)}
-                          className="flex w-full cursor-pointer items-start gap-3 rounded-2xl bg-white px-3.5 py-3.5 text-left shadow-[0_8px_24px_rgba(47,107,47,0.08)] ring-1 ring-forest/8 transition hover:ring-leaf/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-                        >
-                          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-mint text-forest">
-                            <TicketPercent className="h-5 w-5" aria-hidden />
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-start justify-between gap-2">
-                              <span className="text-[15px] font-bold text-ink">
-                                {coupon.title}
-                              </span>
-                              <span
-                                className={cn(
-                                  "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
-                                  meta.className,
-                                )}
-                              >
-                                <StatusIcon className="h-3 w-3" aria-hidden />
-                                {meta.label}
-                              </span>
-                            </span>
-                            <span className="mt-0.5 block truncate text-[13px] font-medium text-ink/80">
-                              {coupon.subtitle}
-                            </span>
-                            <span className="mt-1.5 block text-[12px] text-muted">
-                              {coupon.issuedLabel}
-                            </span>
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
+                  {items.map((coupon) => (
+                    <li key={coupon.id}>
+                      <CouponTicketCard
+                        coupon={coupon}
+                        onClick={() => openCoupon(coupon)}
+                      />
+                    </li>
+                  ))}
                 </ul>
               </section>
             ))}

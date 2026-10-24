@@ -24,11 +24,14 @@ import { ViewCartBar } from "@/components/cart/ViewCartBar";
 import { WeightCustomizer } from "@/components/cart/WeightCustomizer";
 import { CartPageContent } from "@/components/cart/CartPageContent";
 import { useCart } from "@/components/cart/CartContext";
+import { CheckoutPageContent } from "@/components/checkout/CheckoutPageContent";
 import { SwipeToLogin } from "@/components/onboarding/SwipeToLogin";
 import { OnboardingScreen } from "@/components/onboarding/OnboardingScreen";
 import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
 import { ComingSoonPage } from "@/components/storefront/ComingSoonPage";
 import { CouponsPageContent } from "@/components/coupons/CouponsPageContent";
+import { WishlistPageContent } from "@/components/wishlist/WishlistPageContent";
+import { WishlistProvider } from "@/components/wishlist/WishlistContext";
 import { PhoneInput } from "@/features/auth/PhoneInput";
 import { OtpInput } from "@/features/auth/OtpInput";
 import { LoginForm } from "@/features/auth/LoginForm";
@@ -40,6 +43,8 @@ import {
 import { getPlaygroundEntry } from "@/lib/playground/catalog";
 import { DemoFrame } from "./DemoFrame";
 import { PlannedStub } from "./PlannedStub";
+
+const WISHLIST_SEED_IDS = ["fr-1", "vg-1", "sn-1", "bv-1"];
 
 const PDP_SAMPLES = SAMPLE_PRODUCTS.filter(
   (p) => p.id === "vg-3" || p.id === "fr-4" || p.id === "sn-3" || p.id === "fr-1",
@@ -310,39 +315,50 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "empty-wishlist": () => (
-    <DemoFrame note="Same empty layout as /wishlist — centered block, w-52 art.">
-      <div className="flex min-h-[28rem] flex-col bg-paper px-5">
-        <PageHeader backHref="/playground" title="Wishlist" />
-        <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
-          <Image
-            src="/wishlist/empty-wishlist.png"
-            alt=""
-            width={1310}
-            height={1200}
-            className="h-auto w-52 max-w-full"
-          />
-          <h2 className="mt-5 text-xl font-extrabold text-ink">
-            Your wishlist is empty
-          </h2>
-          <p className="mt-2 max-w-60 text-sm leading-6 text-muted">
-            Tap the heart on a product to save it here for later.
-          </p>
-          <Link
-            href="/home"
-            className="mt-6 inline-flex h-12 items-center rounded-full bg-track px-6 text-sm font-semibold text-black transition hover:bg-leaf-bright"
-          >
-            Shop now
-          </Link>
+    <DemoFrame note="Signed-in empty — same art as storefront empty state.">
+      <WishlistProvider previewSignedIn initialIds={[]}>
+        <div className="relative max-h-[70vh] overflow-y-auto overscroll-contain">
+          <WishlistPageContent chromePosition="inline" />
         </div>
+      </WishlistProvider>
+    </DemoFrame>
+  ),
+  "wishlist-list": () => (
+    <DemoFrame note="Same as /wishlist when signed in (seeded). Heart removes from list.">
+      <WishlistProvider previewSignedIn initialIds={WISHLIST_SEED_IDS}>
+        <div className="relative h-[75vh] overflow-y-auto overscroll-contain">
+          <WishlistPageContent chromePosition="inline" />
+        </div>
+        <WeightCustomizer />
+      </WishlistProvider>
+    </DemoFrame>
+  ),
+  "wishlist-guest-heart": () => (
+    <DemoFrame note="Playground guest provider — heart → /login. Storefront hearts save locally.">
+      <div className="mx-auto max-w-xs p-4">
+        <ProductCard product={SAMPLE_PRODUCTS[0]} />
       </div>
     </DemoFrame>
   ),
   "cart-page": () => (
-    <DemoFrame note="Same as /cart: Deliver to Change opens address sheet; promo, totals + pay; no bottom nav.">
-      <div className="relative h-[75vh] overflow-y-auto overscroll-contain">
+    <DemoFrame
+      surface="bare"
+      note="Same as /cart: discount field (green shell), totals update on Apply (try FRESH10), 3D Checkout pill."
+    >
+      <div className="relative h-[75vh] bg-paper">
         <CartPageContent chromePosition="inline" />
       </div>
       <WeightCustomizer />
+    </DemoFrame>
+  ),
+  checkout: () => (
+    <DemoFrame
+      surface="bare"
+      note="Same as /checkout: COD, price details + coupon from cart, Place Order → tick → mascot. Needs cart + address."
+    >
+      <div className="relative h-[75vh] bg-paper">
+        <CheckoutPageContent chromePosition="inline" />
+      </div>
     </DemoFrame>
   ),
   "product-detail": () => <ProductDetailDemo />,
@@ -397,8 +413,10 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "coupons-list": () => (
-    <DemoFrame note="Same CouponsPageContent as /coupons. Sample data; apply-on-checkout still planned.">
-      <CouponsPageContent backHref="/playground" />
+    <DemoFrame note="Same as /coupons: ticket silhouette, status themes, tap → details + copy.">
+      <div className="max-h-[75vh] overflow-y-auto overscroll-contain">
+        <CouponsPageContent backHref="/playground" />
+      </div>
     </DemoFrame>
   ),
   "coupons-empty": () => (

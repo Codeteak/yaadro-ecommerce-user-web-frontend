@@ -8,12 +8,12 @@ import { WeightCustomizer } from "@/components/cart/WeightCustomizer";
 import { cn } from "@/lib/cn";
 
 /**
- * Storefront shell chrome. Bottom nav is hidden on /cart so checkout
- * chrome can sit at the bottom without a second bar.
+ * Storefront shell chrome. Bottom nav is hidden on /cart and /checkout
+ * so action chrome can sit at the bottom without a second bar.
  */
 export function StorefrontChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const hideNav = pathname === "/cart";
+  const hideNav = pathname === "/cart" || pathname === "/checkout";
 
   return (
     <>

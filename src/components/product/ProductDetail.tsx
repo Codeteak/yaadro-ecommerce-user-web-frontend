@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Heart, Minus, Plus, Star } from "lucide-react";
 import { BackButton } from "@/components/navigation/BackButton";
 import { useCart } from "@/components/cart/CartContext";
+import { useWishlistOptional } from "@/components/wishlist/WishlistContext";
 import {
   productImages,
   resolveProductDescription,
@@ -43,8 +45,10 @@ export function ProductDetail({
   backHref,
   onBackClick,
 }: ProductDetailProps) {
+  const router = useRouter();
+  const wishlist = useWishlistOptional();
   const { getItem, setQty, setCustomizing } = useCart();
-  const [wishlisted, setWishlisted] = useState(false);
+  const [localWishlisted, setLocalWishlisted] = useState(false);
 
   const cartItem = getItem(product.id);
   const qty = cartItem?.qty ?? 0;
@@ -56,6 +60,21 @@ export function ProductDetail({
     product.mrp > product.price
       ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
       : 0;
+  const wishlisted = wishlist
+    ? wishlist.signedIn && wishlist.has(product.id)
+    : localWishlisted;
+
+  const onWishlistClick = () => {
+    if (!wishlist) {
+      setLocalWishlisted((w) => !w);
+      return;
+    }
+    if (!wishlist.signedIn) {
+      router.push("/login");
+      return;
+    }
+    wishlist.toggle(product.id);
+  };
 
   return (
     <div className="flex flex-col bg-paper pb-8">
@@ -71,12 +90,14 @@ export function ProductDetail({
           </h1>
           <button
             type="button"
-            onClick={() => setWishlisted((w) => !w)}
+            onClick={onWishlistClick}
             aria-pressed={wishlisted}
             aria-label={
-              wishlisted
-                ? `Remove ${product.name} from wishlist`
-                : `Add ${product.name} to wishlist`
+              wishlist && !wishlist.signedIn
+                ? `Sign in to save ${product.name}`
+                : wishlisted
+                  ? `Remove ${product.name} from wishlist`
+                  : `Add ${product.name} to wishlist`
             }
             className="ml-auto flex size-11 cursor-pointer items-center justify-center rounded-full text-forest transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
           >

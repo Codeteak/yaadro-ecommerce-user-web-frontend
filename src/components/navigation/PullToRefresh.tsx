@@ -62,6 +62,7 @@ export const PullToRefresh = forwardRef<PullToRefreshHandle, PullToRefreshProps>
       () => false,
     );
 
+    const rootRef = useRef<HTMLDivElement>(null);
     const startY = useRef(0);
     const startX = useRef(0);
     const pulling = useRef(false);
@@ -107,9 +108,22 @@ export const PullToRefresh = forwardRef<PullToRefreshHandle, PullToRefreshProps>
     );
 
     useEffect(() => {
+      /**
+       * Only treat this wrapper as the scroller when it actually overflows.
+       * Cart used to set overflow-y-auto while the box grew with content —
+       * scrollTop stayed 0 and PTR blocked window/page scroll.
+       */
+      const scrollTop = () => {
+        const el = rootRef.current;
+        if (el && el.scrollHeight > el.clientHeight + 1) {
+          return el.scrollTop;
+        }
+        return window.scrollY;
+      };
+
       const onTouchStart = (e: TouchEvent) => {
         if (disabledRef.current || refreshingRef.current) return;
-        if (window.scrollY > 0) {
+        if (scrollTop() > 0) {
           armed.current = false;
           return;
         }
@@ -124,7 +138,7 @@ export const PullToRefresh = forwardRef<PullToRefreshHandle, PullToRefreshProps>
         if (disabledRef.current || !armed.current || refreshingRef.current) {
           return;
         }
-        if (window.scrollY > 0) {
+        if (scrollTop() > 0) {
           armed.current = false;
           pulling.current = false;
           setDragging(false);
@@ -195,7 +209,7 @@ export const PullToRefresh = forwardRef<PullToRefreshHandle, PullToRefreshProps>
     const spinning = refreshing || pull >= THRESHOLD;
 
     return (
-      <div className={className}>
+      <div ref={rootRef} className={className}>
         <div
           className="pointer-events-none flex items-end justify-center overflow-hidden"
           style={{
