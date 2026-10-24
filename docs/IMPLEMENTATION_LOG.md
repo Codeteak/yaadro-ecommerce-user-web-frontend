@@ -359,3 +359,15 @@
 ### Verification
 
 - Manual: apply FRESH10 on `/cart` → see Coupon on `/checkout` Amount due; Place Order → tick → mascot
+
+## 2026-10-24 — Order history list + detail
+
+### What changed
+
+- `sample-orders.ts` — 3 sample orders (out for delivery, delivered, cancelled)
+- `/orders` list cards; `/orders/[id]` timeline, address, items, price details
+- Playground: `orders-list`, `order-detail`, `empty-orders`
+
+### Verification
+
+- Manual: `/orders` → tap YAD-1042 → timeline + coupon line; empty demo in playground

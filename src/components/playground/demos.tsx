@@ -25,6 +25,8 @@ import { WeightCustomizer } from "@/components/cart/WeightCustomizer";
 import { CartPageContent } from "@/components/cart/CartPageContent";
 import { useCart } from "@/components/cart/CartContext";
 import { CheckoutPageContent } from "@/components/checkout/CheckoutPageContent";
+import { OrdersPageContent } from "@/components/orders/OrdersPageContent";
+import { OrderDetailPageContent } from "@/components/orders/OrderDetailPageContent";
 import { SwipeToLogin } from "@/components/onboarding/SwipeToLogin";
 import { OnboardingScreen } from "@/components/onboarding/OnboardingScreen";
 import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
@@ -358,6 +360,30 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     >
       <div className="relative h-[75vh] bg-paper">
         <CheckoutPageContent chromePosition="inline" />
+      </div>
+    </DemoFrame>
+  ),
+  "orders-list": () => (
+    <DemoFrame note="Same as /orders — tap a card to open /orders/[id].">
+      <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain">
+        <OrdersPageContent chromePosition="inline" />
+      </div>
+    </DemoFrame>
+  ),
+  "order-detail": () => (
+    <DemoFrame note="Sample active order (YAD-1042) — timeline + items + totals.">
+      <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain">
+        <OrderDetailPageContent
+          chromePosition="inline"
+          orderId="ord-1042"
+        />
+      </div>
+    </DemoFrame>
+  ),
+  "empty-orders": () => (
+    <DemoFrame note="Empty orders state.">
+      <div className="relative max-h-[70vh] overflow-y-auto overscroll-contain">
+        <OrdersPageContent chromePosition="inline" orders={[]} />
       </div>
     </DemoFrame>
   ),

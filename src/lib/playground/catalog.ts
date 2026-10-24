@@ -284,11 +284,29 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     wiresTo: "/checkout",
   },
   {
-    slug: "order-tracking",
-    title: "Order tracking",
-    status: "planned",
-    group: "Planned",
-    description: "Order list + status timeline.",
+    slug: "orders-list",
+    title: "Orders list",
+    status: "built",
+    group: "Product & cart",
+    description:
+      "Order history cards with status chips; tap opens /orders/[id]. Sample data.",
+    wiresTo: "/orders",
+  },
+  {
+    slug: "order-detail",
+    title: "Order detail",
+    status: "built",
+    group: "Product & cart",
+    description:
+      "Timeline, address, line items, price details. Same as /orders/[id].",
+    wiresTo: "/orders/[id]",
+  },
+  {
+    slug: "empty-orders",
+    title: "Empty orders state",
+    status: "built",
+    group: "Product & cart",
+    description: "No orders yet empty state + Shop now.",
     wiresTo: "/orders",
   },
   {
