@@ -114,6 +114,12 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
     ingredients: "Banana, orange, apple, seasonal melon (varies by harvest).",
     rating: { value: 4.5, count: 92 },
   },
+  { id: "fr-5", category: "Fruits", name: "Alphonso Mango", unit: "per kg", price: 320, mrp: 380, image: "/categories/fruits.jpg", customization: BY_WEIGHT },
+  { id: "fr-6", category: "Fruits", name: "Pomegranate", unit: "per kg", price: 180, mrp: 220, image: "/products/oranges.jpg", customization: BY_WEIGHT },
+  { id: "fr-7", category: "Fruits", name: "Watermelon", unit: "per kg", price: 35, mrp: 45, image: "/categories/fruits.jpg", customization: BY_WEIGHT },
+  { id: "fr-8", category: "Fruits", name: "Mosambi", unit: "per kg", price: 95, mrp: 120, image: "/products/oranges.jpg", customization: BY_WEIGHT },
+  { id: "fr-9", category: "Fruits", name: "Papaya", unit: "per kg", price: 48, mrp: 60, image: "/categories/fruits.jpg", customization: BY_WEIGHT },
+  { id: "fr-10", category: "Fruits", name: "Guava", unit: "per kg", price: 70, mrp: 90, image: "/products/green-apples.jpg", customization: BY_WEIGHT },
 
   // Vegetables (loose vegetables by weight — custom option, price per kg)
   { id: "vg-1", category: "Vegetables", name: "Fresh Broccoli", unit: "per kg", price: 110, mrp: 140, image: "/products/broccoli.jpg", customization: BY_WEIGHT },
@@ -148,6 +154,12 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
     description: "Fragrant coriander leaves, washed and bunched for daily cooking.",
     ingredients: "Fresh coriander (coriander leaves).",
   },
+  { id: "vg-5", category: "Vegetables", name: "Onion", unit: "per kg", price: 38, mrp: 48, image: "/categories/vegetables.jpg", customization: BY_WEIGHT },
+  { id: "vg-6", category: "Vegetables", name: "Potato", unit: "per kg", price: 32, mrp: 40, image: "/products/tomatoes.jpg", customization: BY_WEIGHT },
+  { id: "vg-7", category: "Vegetables", name: "Carrot", unit: "per kg", price: 55, mrp: 70, image: "/products/broccoli.jpg", customization: BY_WEIGHT },
+  { id: "vg-8", category: "Vegetables", name: "Cucumber", unit: "per kg", price: 40, mrp: 55, image: "/categories/vegetables.jpg", customization: BY_WEIGHT },
+  { id: "vg-9", category: "Vegetables", name: "Spinach Bunch", unit: "250 g", price: 25, mrp: 35, image: "/products/herbs.jpg" },
+  { id: "vg-10", category: "Vegetables", name: "Cauliflower", unit: "per kg", price: 45, mrp: 60, image: "/products/broccoli.jpg", customization: BY_WEIGHT },
 
   // Bakery
   {

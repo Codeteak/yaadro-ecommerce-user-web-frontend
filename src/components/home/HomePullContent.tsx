@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
 import { ProductSection } from "@/components/home/ProductSection";
 import { PullToRefresh } from "@/components/navigation/PullToRefresh";
 
 /**
- * Home product grid below the category rail. Pull-to-refresh is UI-only
- * for now (remounts the grid); real catalog refetch plugs into onRefresh later.
+ * Home body below the category rail: compact category products, then
+ * fruits & veggies band. Pull-to-refresh is UI-only for now (remounts
+ * both); real catalog refetch plugs into onRefresh later.
  * Offer banners sit above the rail on `/home`, not here.
  */
 export function HomePullContent() {
@@ -21,6 +23,7 @@ export function HomePullContent() {
     <PullToRefresh onRefresh={onRefresh}>
       <div key={refreshKey}>
         <ProductSection />
+        <FruitsVeggiesSection className="mt-2" />
       </div>
     </PullToRefresh>
   );

@@ -79,7 +79,7 @@ export function ProductCard({ product }: { product: SampleProduct }) {
       : 0;
 
   return (
-    <article className="relative flex flex-col rounded-[1.5rem] bg-white p-2.5 shadow-[0_8px_24px_rgba(47,107,47,0.08)] ring-1 ring-black/5">
+    <article className="relative isolate flex h-full flex-col rounded-[1.5rem] bg-white p-2.5 shadow-[0_1px_2px_rgba(47,107,47,0.06),0_8px_20px_rgba(47,107,47,0.1)] ring-1 ring-black/[0.06]">
       {/* Ribbon: badge (purple) takes priority, else auto % OFF (red) */}
       {product.badge ? (
         <Ribbon

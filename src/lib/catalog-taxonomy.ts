@@ -255,3 +255,17 @@ export function getCatalogCategory(slug: string): CatalogCategory | undefined {
 export function getDefaultCatalogSlug(): string {
   return "fruits";
 }
+
+/** Primary PLP slug for each home-rail category (not secondary hub tiles). */
+const HOME_TO_SLUG: Record<HomeCategory, string> = {
+  Fruits: "fruits",
+  Vegetables: "vegetables",
+  Bakery: "bakery",
+  "Dairy & Eggs": "dairy-eggs",
+  Beverages: "beverages",
+  Snacks: "snacks",
+};
+
+export function catalogSlugForHomeCategory(name: HomeCategory): string {
+  return HOME_TO_SLUG[name];
+}

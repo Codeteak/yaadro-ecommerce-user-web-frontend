@@ -151,7 +151,17 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "ProductSection",
     status: "built",
     group: "Home",
-    description: "Sample product grid for the selected home category.",
+    description:
+      "Max 10 cards; two independent scroll rows; ~172px slots. Show all → /categories/[slug].",
+    wiresTo: "/home, /categories/[slug]",
+  },
+  {
+    slug: "fruits-veggies-section",
+    title: "Fruits & veggies section",
+    status: "built",
+    group: "Home",
+    description:
+      "Produce BG + All/Fruits/Vegetables (10); Browse all → /categories. Same band under ProductSection on /home.",
     wiresTo: "/home",
   },
   {
@@ -159,7 +169,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "HomePullContent",
     status: "built",
     group: "Home",
-    description: "Product grid + pull-to-refresh under categories.",
+    description:
+      "Compact ProductSection (2-row scroll) + FruitsVeggiesSection + PTR.",
     wiresTo: "/home",
   },
 
@@ -169,8 +180,9 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "ProductCard",
     status: "built",
     group: "Product & cart",
-    description: "Card with ribbon, wishlist heart, add / weight stepper.",
-    wiresTo: "ProductSection, /product/[id]",
+    description:
+      "Elevated white card (clean dual shadow + ring), ribbon, heart, add / weight stepper.",
+    wiresTo: "ProductSection, /home, /product/[id]",
   },
   {
     slug: "view-cart-bar",

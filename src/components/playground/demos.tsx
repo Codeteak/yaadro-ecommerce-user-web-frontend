@@ -18,6 +18,7 @@ import { CategoryRail } from "@/components/home/CategoryRail";
 import { OfferBanners } from "@/components/home/OfferBanners";
 import { OfferFlyer } from "@/components/home/OfferFlyer";
 import { ProductSection } from "@/components/home/ProductSection";
+import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
 import { HomePullContent } from "@/components/home/HomePullContent";
 import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 import { CategoriesHub } from "@/components/categories/CategoriesHub";
@@ -384,22 +385,36 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "product-section": () => (
-    <DemoFrame>
+    <DemoFrame note="Same as /home: max 10 · two independent rows · ~172px slots. Show all → /categories/[slug] for the selected rail.">
       <HomeCategoryProvider>
-        <ProductSection />
+        <div className="pb-4">
+          <ProductSection />
+          <WeightCustomizer />
+        </div>
       </HomeCategoryProvider>
     </DemoFrame>
   ),
+  "fruits-veggies-section": () => (
+    <DemoFrame
+      surface="bare"
+      note="Same as /home produce band: dark scrims, All/Fruits/Vegetables (10); Browse all → /categories."
+    >
+      <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
+        <FruitsVeggiesSection />
+        <WeightCustomizer />
+      </div>
+    </DemoFrame>
+  ),
   "home-pull-content": () => (
-    <DemoFrame note="Product grid + PTR under the category rail (banners are above the rail on /home).">
+    <DemoFrame note="Same as /home: ProductSection (2 independent scroll rows, max 10) + FruitsVeggiesSection + PTR.">
       <HomeCategoryProvider>
         <HomePullContent />
       </HomeCategoryProvider>
     </DemoFrame>
   ),
   "product-card": () => (
-    <DemoFrame note="Offer price + add/weight/qty controls use black on the green button.">
-      <div className="grid grid-cols-2 gap-4 p-4">
+    <DemoFrame note="Clean elevated card (dual shadow + ring). Offer price + add/weight use black on green.">
+      <div className="grid grid-cols-2 gap-4 bg-paper p-4">
         {SAMPLE_PRODUCTS.slice(0, 4).map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}
