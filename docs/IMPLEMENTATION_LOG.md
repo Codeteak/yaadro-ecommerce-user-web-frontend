@@ -1,5 +1,29 @@
 # Implementation Log
 
+## 2026-10-26 — Categories hub + PLP wired to storefront
+
+### What was built
+
+- `/categories` hub (search, Fresh rect-first / Drinks square-then-rect grids)
+- `/categories/[slug]` PLP (filters, left subcategory rail, 2-col ProductCard grid)
+- Home search gateway → `/categories?focus=search`
+- Playground demos remain (`categories-hub`, `category-plp`, `home-search-categories`)
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/app/(storefront)/categories/page.tsx` | Hub page |
+| `src/app/(storefront)/categories/[slug]/page.tsx` | PLP route |
+| `src/components/categories/*` | Hub, listing, page content |
+| `src/lib/catalog-taxonomy.ts` | Sample sections / slugs |
+| `src/app/(storefront)/home/page.tsx` | `activateHref` on search |
+| `docs/PROJECT_STATUS.md` | Routes |
+
+### Verification
+
+- `npx tsc --noEmit` — pass
+
 ## 2026-10-19 — Onboarding home-login UI
 
 ### What was built

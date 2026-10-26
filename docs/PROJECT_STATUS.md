@@ -13,7 +13,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Storefront UI (home, ca
 |------|--------|--------|
 | Onboarding `/` | Done | Hero, swipe CTA, guest link |
 | Login `/login` | UI done | Phone +91 / OTP; API pending |
-| Home / catalog | Sample | Categories, product cards, PDP |
+| Home / catalog | Sample | Categories hub + PLP, product cards, PDP |
 | Cart `/cart` | UI done | List, promo field, 3D Checkout pill (checkout not faked) |
 | Coupons `/coupons` | UI done | Ticket cards via `lib/api/coupons`; Active/Used/Expired |
 | Wishlist `/wishlist` | UI done | Local signed-in scaffold; façade `lib/api/wishlist` |
@@ -27,7 +27,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Storefront UI (home, ca
 
 - `/` — onboarding
 - `/login` — login stub
-- `/home`, `/categories`, `/wishlist`, `/profile`, `/cart`, `/coupons`, `/checkout`, `/orders`
+- `/home`, `/categories`, `/categories/[slug]`, `/wishlist`, `/profile`, `/cart`, `/coupons`, `/checkout`, `/orders`
 - `/orders/[id]` — order detail (sample)
 - `/product/[id]` — PDP
 - `/playground` — UI demos

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { X } from "lucide-react";
+import { CloseButton } from "@/components/navigation/CloseButton";
 
 /**
  * Special-campaign pop-up flyer (Home only).
@@ -70,14 +70,9 @@ export function OfferFlyer() {
         className="absolute inset-0 h-full w-full cursor-default bg-track/55 backdrop-blur-[2px]"
       />
       <div className="verified-pop relative w-full max-w-sm overflow-hidden rounded-[2rem] bg-gradient-to-b from-[#3d8f3d] to-[#2f6b2f] shadow-[0_32px_64px_rgba(47,107,47,0.45)]">
-        <button
-          type="button"
-          onClick={() => setVisible(false)}
-          aria-label="Close"
-          className="absolute top-3 right-3 z-10 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white/15 text-white backdrop-blur transition hover:bg-white/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-        >
-          <X className="h-4.5 w-4.5" aria-hidden />
-        </button>
+        <div className="absolute top-3 right-3 z-10">
+          <CloseButton onClick={() => setVisible(false)} />
+        </div>
 
         <div className="flex flex-col items-center px-6 pt-8 pb-7 text-center">
           <div className="w-52">

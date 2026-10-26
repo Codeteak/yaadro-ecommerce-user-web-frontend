@@ -1,4 +1,4 @@
-import type { HomeCategory } from "@/components/home/CategoryRail";
+import type { HomeCategory } from "@/lib/home-categories";
 
 /**
  * ⚠️ SAMPLE DATA — UI development only.
@@ -352,4 +352,21 @@ export function getProductsByCategory(category: HomeCategory): SampleProduct[] {
 
 export function getSampleProduct(id: string): SampleProduct | undefined {
   return SAMPLE_PRODUCTS.find((p) => p.id === id);
+}
+
+/**
+ * Local product search for categories hub (sample data until catalog API).
+ * Matches name, category, unit, and optional description.
+ */
+export function searchSampleProducts(query: string): SampleProduct[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return SAMPLE_PRODUCTS.filter((p) => {
+    if (p.name.toLowerCase().includes(q)) return true;
+    if (p.category.toLowerCase().includes(q)) return true;
+    if (p.unit.toLowerCase().includes(q)) return true;
+    if (p.description?.toLowerCase().includes(q)) return true;
+    if (p.badge?.toLowerCase().includes(q)) return true;
+    return false;
+  });
 }

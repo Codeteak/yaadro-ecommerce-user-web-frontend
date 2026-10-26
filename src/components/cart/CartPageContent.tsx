@@ -28,6 +28,11 @@ type CartPageContentProps = {
    * `inline` — playground frame (`h-full` + back to /playground).
    */
   chromePosition?: "page" | "inline";
+  /**
+   * Tap coupon field → browse/select coupons, then return
+   * (e.g. `/coupons?from=cart` or playground coupons-apply).
+   */
+  couponPickerHref?: string;
 };
 
 /**
@@ -37,6 +42,7 @@ type CartPageContentProps = {
  */
 export function CartPageContent({
   chromePosition = "page",
+  couponPickerHref,
 }: CartPageContentProps) {
   const inline = chromePosition === "inline";
   const {
@@ -243,42 +249,61 @@ export function CartPageContent({
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mint text-forest">
                   <TicketPercent className="h-4 w-4" aria-hidden />
                 </span>
-                <input
-                  type="text"
-                  value={promoInput}
-                  onChange={(e) => {
-                    setPromoInput(e.target.value.toUpperCase());
-                    setPromoMessage(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      onApplyPromo();
-                    }
-                  }}
-                  placeholder="Enter discount code"
-                  aria-label="Discount code"
-                  disabled={Boolean(applied)}
-                  className="min-w-0 flex-1 bg-transparent text-sm font-medium text-ink placeholder:text-muted outline-none disabled:opacity-70"
-                />
-                  {applied ? (
-                  <button
-                    type="button"
-                    onClick={onClearPromo}
-                    aria-label="Remove promo code"
-                    className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-xl bg-black/[0.06] px-3 text-xs font-semibold text-muted transition hover:bg-black/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-                  >
-                    <X className="h-3.5 w-3.5" aria-hidden />
-                    Remove
-                  </button>
+                {couponPickerHref && !applied ? (
+                  <>
+                    <Link
+                      href={couponPickerHref}
+                      className="min-w-0 flex-1 truncate text-left text-sm font-medium text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+                    >
+                      Select a coupon
+                    </Link>
+                    <Link
+                      href={couponPickerHref}
+                      className="h-9 shrink-0 cursor-pointer rounded-xl bg-track px-4 text-sm font-semibold leading-9 text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+                    >
+                      Select
+                    </Link>
+                  </>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={onApplyPromo}
-                    className="h-9 shrink-0 cursor-pointer rounded-xl bg-track px-4 text-sm font-semibold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-                  >
-                    Apply
-                  </button>
+                  <>
+                    <input
+                      type="text"
+                      value={promoInput}
+                      onChange={(e) => {
+                        setPromoInput(e.target.value.toUpperCase());
+                        setPromoMessage(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          onApplyPromo();
+                        }
+                      }}
+                      placeholder="Enter discount code"
+                      aria-label="Discount code"
+                      disabled={Boolean(applied)}
+                      className="min-w-0 flex-1 bg-transparent text-sm font-medium text-ink placeholder:text-muted outline-none disabled:opacity-70"
+                    />
+                    {applied ? (
+                      <button
+                        type="button"
+                        onClick={onClearPromo}
+                        aria-label="Remove promo code"
+                        className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-xl bg-black/[0.06] px-3 text-xs font-semibold text-muted transition hover:bg-black/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+                      >
+                        <X className="h-3.5 w-3.5" aria-hidden />
+                        Remove
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={onApplyPromo}
+                        className="h-9 shrink-0 cursor-pointer rounded-xl bg-track px-4 text-sm font-semibold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+                      >
+                        Apply
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
               {promoMessage ? (

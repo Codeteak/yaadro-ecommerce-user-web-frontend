@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSyncExternalStore, useState } from "react";
 import { ChevronDown, MapPin } from "lucide-react";
-import { DeliveryAddressSheet } from "@/components/delivery/DeliveryAddressSheet";
+import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import {
   formatDeliveryAddressLabel,
   readDeliveryAddress,
@@ -74,7 +74,7 @@ export function HomeTopBar({
               aria-haspopup="dialog"
               aria-expanded={sheetOpen}
             >
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-leaf" aria-hidden />
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-black" aria-hidden />
               <span className="min-w-0">
                 <span className="block text-[9px] font-bold tracking-[0.16em] text-black uppercase">
                   Deliver to
@@ -100,7 +100,7 @@ export function HomeTopBar({
         </Link>
       </header>
 
-      <DeliveryAddressSheet open={sheetOpen} onOpenChange={setSheetOpen} />
+      <AddressBookSheet open={sheetOpen} onOpenChange={setSheetOpen} />
     </>
   );
 }

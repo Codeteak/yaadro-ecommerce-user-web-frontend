@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ComingSoonPage } from "@/components/storefront/ComingSoonPage";
+import { AddressesPageContent } from "@/components/delivery/AddressesPageContent";
 
 export const metadata: Metadata = {
   title: "Addresses",
@@ -7,10 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function AddressesPage() {
-  return (
-    <ComingSoonPage
-      title="Addresses"
-      description="Saved delivery addresses will appear here once address management is connected."
-    />
-  );
+  return <AddressesPageContent />;
 }

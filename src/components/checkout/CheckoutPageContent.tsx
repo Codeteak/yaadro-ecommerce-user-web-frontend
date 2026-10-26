@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Banknote, Check, MapPin } from "lucide-react";
 import { PageHeader } from "@/components/navigation/PageHeader";
-import { DeliveryAddressSheet } from "@/components/delivery/DeliveryAddressSheet";
+import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { useCart } from "@/components/cart/CartContext";
 import { cn } from "@/lib/cn";
 import {
@@ -213,7 +213,7 @@ export function CheckoutPageContent({
           </h2>
           <div className="mt-3 rounded-2xl bg-white p-3.5 shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10">
             <div className="flex items-start gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-mint text-forest">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-mint text-black">
                 <MapPin className="h-5 w-5" aria-hidden />
               </span>
               <div className="min-w-0 flex-1">
@@ -336,7 +336,7 @@ export function CheckoutPageContent({
         )}
       </div>
 
-      <DeliveryAddressSheet open={sheetOpen} onOpenChange={setSheetOpen} />
+      <AddressBookSheet open={sheetOpen} onOpenChange={setSheetOpen} />
     </main>
   );
 }

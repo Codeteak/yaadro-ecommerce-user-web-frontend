@@ -7,8 +7,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * Coupons list + details / copy. Data via `listCoupons()` façade
- * (sample until a coupons API exists).
+ * Coupons list + details. From profile: copy code.
+ * From cart (`?from=cart`): Apply to cart and return to `/cart`.
  */
 export default function CouponsPage() {
   return <CouponsPageContent backHref="/profile" />;

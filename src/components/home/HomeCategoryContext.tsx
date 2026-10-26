@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { HomeCategory } from "@/components/home/CategoryRail";
+import type { HomeCategory } from "@/lib/home-categories";
 
 type HomeCategoryContextValue = {
   selected: HomeCategory;

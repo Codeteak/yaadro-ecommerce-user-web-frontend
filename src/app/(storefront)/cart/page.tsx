@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function CartPage() {
-  return <CartPageContent />;
+  return <CartPageContent couponPickerHref="/coupons?from=cart" />;
 }

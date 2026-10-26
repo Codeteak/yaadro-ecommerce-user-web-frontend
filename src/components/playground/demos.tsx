@@ -4,6 +4,7 @@ import { useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { BackButton } from "@/components/navigation/BackButton";
+import { CloseButton } from "@/components/navigation/CloseButton";
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import {
@@ -12,12 +13,15 @@ import {
 } from "@/components/navigation/PullToRefresh";
 import { ScrollToTopOnLoad } from "@/components/navigation/ScrollToTopOnLoad";
 import { HomeTopBar } from "@/components/home/HomeTopBar";
+import { HomeSearchBar } from "@/components/home/HomeSearchBar";
 import { CategoryRail } from "@/components/home/CategoryRail";
 import { OfferBanners } from "@/components/home/OfferBanners";
 import { OfferFlyer } from "@/components/home/OfferFlyer";
 import { ProductSection } from "@/components/home/ProductSection";
 import { HomePullContent } from "@/components/home/HomePullContent";
 import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
+import { CategoriesHub } from "@/components/categories/CategoriesHub";
+import { CategoryListing } from "@/components/categories/CategoryListing";
 import { ProductCard } from "@/components/product/ProductCard";
 import { ProductDetail } from "@/components/product/ProductDetail";
 import { ViewCartBar } from "@/components/cart/ViewCartBar";
@@ -25,6 +29,9 @@ import { WeightCustomizer } from "@/components/cart/WeightCustomizer";
 import { CartPageContent } from "@/components/cart/CartPageContent";
 import { useCart } from "@/components/cart/CartContext";
 import { CheckoutPageContent } from "@/components/checkout/CheckoutPageContent";
+import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
+import { SavedAddressesManageList } from "@/components/delivery/SavedAddressesManageList";
+import { getDefaultCatalogSlug } from "@/lib/catalog-taxonomy";
 import { OrdersPageContent } from "@/components/orders/OrdersPageContent";
 import { OrderDetailPageContent } from "@/components/orders/OrderDetailPageContent";
 import { SwipeToLogin } from "@/components/onboarding/SwipeToLogin";
@@ -171,11 +178,120 @@ function PullDemo() {
   );
 }
 
+function CategoriesFlowDemo({
+  start,
+}: {
+  start: "hub" | "plp" | "home-search";
+}) {
+  const [view, setView] = useState<"home-search" | "hub" | "plp">(
+    start === "plp" ? "plp" : start === "home-search" ? "home-search" : "hub",
+  );
+  const [slug, setSlug] = useState(getDefaultCatalogSlug());
+  const [focusSearch, setFocusSearch] = useState(start === "home-search");
+
+  if (view === "home-search") {
+    return (
+      <DemoFrame note="Same as /home: tap search → /categories?focus=search (demo stays in playground).">
+        <div className="bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8] px-5 pt-6 pb-10">
+          <p className="text-[13px] font-bold text-forest">Home (demo)</p>
+          <HomeSearchBar
+            className="mt-4"
+            onActivate={() => {
+              setFocusSearch(true);
+              setView("hub");
+            }}
+          />
+        </div>
+      </DemoFrame>
+    );
+  }
+
+  if (view === "plp") {
+    return (
+      <DemoFrame
+        surface="bare"
+        note="PLP: PageHeader-style title (no location), Filter/Brands/Type, left rail, 2-col grid."
+      >
+        <div className="relative h-[78vh] overflow-hidden rounded-2xl bg-[#f7f8f7] ring-1 ring-black/5">
+          <CategoryListing
+            slug={slug}
+            onBack={() => setView("hub")}
+            onSearchClick={() => {
+              setFocusSearch(true);
+              setView("hub");
+            }}
+          />
+          <WeightCustomizer />
+        </div>
+      </DemoFrame>
+    );
+  }
+
+  return (
+    <DemoFrame note="Fresh: first tile rectangle, rest squares. Drinks: first square, then rectangle. Tap → PLP.">
+      <div className="relative max-h-[78vh] overflow-y-auto overscroll-contain rounded-2xl bg-paper ring-1 ring-black/5">
+        <CategoriesHub
+          focusSearch={focusSearch}
+          onSelectCategory={(cat) => {
+            setSlug(cat.slug);
+            setFocusSearch(false);
+            setView("plp");
+          }}
+        />
+      </div>
+    </DemoFrame>
+  );
+}
+
+function AddressBookDemo({
+  initialStep,
+  note,
+}: {
+  initialStep: "list" | "map" | "details";
+  note?: string;
+}) {
+  const [open, setOpen] = useState(true);
+  return (
+    <DemoFrame
+      note={
+        note ??
+        "Saved list (green selected + star default) → Add → stub map + Detect → details. No live Maps API."
+      }
+    >
+      <div className="relative flex min-h-[20rem] flex-col items-center justify-center gap-3 bg-paper px-5 py-10">
+        <p className="text-center text-sm text-muted">
+          Sheet opens over the playground. Close and reopen to reset.
+        </p>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="h-11 rounded-full bg-track px-5 text-sm font-semibold text-black"
+        >
+          Open address flow
+        </button>
+      </div>
+      <AddressBookSheet
+        open={open}
+        onOpenChange={setOpen}
+        initialStep={initialStep === "details" ? "map" : initialStep}
+      />
+    </DemoFrame>
+  );
+}
+
 const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "back-button": () => (
     <DemoFrame note="Green squircle + black arrow — same default as storefront PageHeader / cart / profile.">
       <div className="flex h-16 items-center px-5">
         <BackButton href="/playground" />
+      </div>
+    </DemoFrame>
+  ),
+  "close-button": () => (
+    <DemoFrame note="Pair to BackButton: green squircle + black X. Used on address / coupon / weight / flyer sheets.">
+      <div className="flex h-16 items-center justify-center gap-6 bg-paper px-5">
+        <BackButton href="/playground" />
+        <CloseButton onClick={() => undefined} />
       </div>
     </DemoFrame>
   ),
@@ -220,8 +336,8 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "home-top-bar": () => (
-    <DemoFrame note="Uses Yaadro fallback avatar (no shop-profile API yet).">
-      <div className="bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8] px-5 pt-4 pb-8">
+    <DemoFrame note="Shop avatar + Deliver to + Sign in on mint hero (same as /home).">
+      <div className="bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8] px-5 pt-4 pb-6">
         <HomeTopBar
           shopName="Yaadro"
           shopImage="/onboarding/brand-mark-white-y.svg"
@@ -239,9 +355,23 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "offer-banners": () => (
-    <DemoFrame>
+    <DemoFrame note="Same OfferBanners as /home (under search).">
       <div className="py-4">
         <OfferBanners />
+      </div>
+    </DemoFrame>
+  ),
+  search: () => (
+    <DemoFrame note="Pill search + green filter chip (Yaadro theme). Same as /home above banners. Submit/filter UI-only.">
+      <div className="bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8] px-5 pt-4 pb-8">
+        <HomeTopBar
+          shopName="Yaadro"
+          shopImage="/onboarding/brand-mark-white-y.svg"
+        />
+        <HomeSearchBar className="mt-4" navigateOnSubmit={false} />
+        <div className="mt-4 -mx-5">
+          <OfferBanners />
+        </div>
       </div>
     </DemoFrame>
   ),
@@ -261,7 +391,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "home-pull-content": () => (
-    <DemoFrame note="Same block that sits under the category rail on /home.">
+    <DemoFrame note="Product grid + PTR under the category rail (banners are above the rail on /home).">
       <HomeCategoryProvider>
         <HomePullContent />
       </HomeCategoryProvider>
@@ -345,10 +475,13 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "cart-page": () => (
     <DemoFrame
       surface="bare"
-      note="Same as /cart: discount field (green shell), totals update on Apply (try FRESH10), 3D Checkout pill."
+      note="Same as /cart: Select a coupon → apply → back with code. Add items first (min order)."
     >
       <div className="relative h-[75vh] bg-paper">
-        <CartPageContent chromePosition="inline" />
+        <CartPageContent
+          chromePosition="inline"
+          couponPickerHref="/playground/coupons-apply"
+        />
       </div>
       <WeightCustomizer />
     </DemoFrame>
@@ -356,13 +489,31 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   checkout: () => (
     <DemoFrame
       surface="bare"
-      note="Same as /checkout: COD, price details + coupon from cart, Place Order → tick → mascot. Needs cart + address."
+      note="Playground: Edit/Add address opens saved list → stub map + Detect → details. COD + Place Order stub."
     >
       <div className="relative h-[75vh] bg-paper">
         <CheckoutPageContent chromePosition="inline" />
       </div>
     </DemoFrame>
   ),
+  "address-book": () => <AddressBookDemo initialStep="list" />,
+  "address-manage": () => (
+    <DemoFrame note="Same as /profile/addresses: black pin, star / edit / delete, Add New Address. Home Deliver to pin is black too.">
+      <div className="bg-paper px-5 py-6">
+        <h2 className="text-xl font-extrabold text-black">Address management</h2>
+        <p className="mt-1 text-[13px] text-muted">
+          Star a default, edit details, or remove an address.
+        </p>
+        <SavedAddressesManageList className="mt-5" />
+      </div>
+    </DemoFrame>
+  ),
+  "address-map": () => <AddressBookDemo initialStep="map" />,
+  "address-details": () => <AddressBookDemo initialStep="map" note="Detect or search, Confirm → details form." />,
+  "categories-hub": () => <CategoriesFlowDemo start="hub" />,
+  "category-grid": () => <CategoriesFlowDemo start="hub" />,
+  "category-plp": () => <CategoriesFlowDemo start="plp" />,
+  "home-search-categories": () => <CategoriesFlowDemo start="home-search" />,
   "orders-list": () => (
     <DemoFrame note="Same as /orders: grocery cards (status chip, thumbs +N, View Details). Tap → /orders/[id].">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain">
@@ -442,6 +593,16 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     <DemoFrame note="Same as /coupons: ticket silhouette, status themes, tap → details + copy.">
       <div className="max-h-[75vh] overflow-y-auto overscroll-contain">
         <CouponsPageContent backHref="/playground" />
+      </div>
+    </DemoFrame>
+  ),
+  "coupons-apply": () => (
+    <DemoFrame note="From cart Select: tap active ticket → Apply to cart → returns to cart-page with promo applied. Used/Expired cannot apply.">
+      <div className="max-h-[75vh] overflow-y-auto overscroll-contain">
+        <CouponsPageContent
+          backHref="/playground/cart-page"
+          applyReturnHref="/playground/cart-page"
+        />
       </div>
     </DemoFrame>
   ),

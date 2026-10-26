@@ -1,15 +1,25 @@
 "use client";
 
-import { useEffect, useId, useState, useSyncExternalStore } from "react";
+import {
+  Suspense,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { Check, Copy, X } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Check, Copy, TicketPercent } from "lucide-react";
+import { CloseButton } from "@/components/navigation/CloseButton";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { PullToRefresh } from "@/components/navigation/PullToRefresh";
 import {
   CouponTicketCard,
   ticketStatusChip,
 } from "@/components/coupons/CouponTicketCard";
+import { useCart } from "@/components/cart/CartContext";
 import { cn } from "@/lib/cn";
 import { listCoupons } from "@/lib/api/coupons";
 import {
@@ -24,18 +34,51 @@ function subscribeNever() {
 type CouponsPageContentProps = {
   backHref?: string;
   coupons?: SampleCoupon[];
+  /**
+   * Select mode: Apply active coupon via CartContext, then navigate here
+   * (e.g. `/cart` or `/playground/cart-page`). Also enabled when
+   * `?from=cart` is present (ecom cart → coupons flow).
+   */
+  applyReturnHref?: string;
 };
 
 /**
- * Coupons list (ticket cards + status themes) + details sheet with copy code.
- * Data from `listCoupons()` until a real coupons API exists.
+ * Coupons list + details sheet. `?from=cart` or `applyReturnHref` → Apply
+ * and return; otherwise Copy code. Data from `listCoupons()`.
  */
-export function CouponsPageContent({
+export function CouponsPageContent(props: CouponsPageContentProps) {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-[12rem] animate-pulse rounded-2xl bg-mint/40" />
+      }
+    >
+      <CouponsPageBody {...props} />
+    </Suspense>
+  );
+}
+
+function CouponsPageBody({
   backHref = "/profile",
   coupons = listCoupons(),
+  applyReturnHref: applyReturnHrefProp,
 }: CouponsPageContentProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { applyPromo } = useCart();
+
+  const applyReturnHref = useMemo(() => {
+    if (applyReturnHrefProp) return applyReturnHrefProp;
+    if (searchParams.get("from") === "cart") return "/cart";
+    return undefined;
+  }, [applyReturnHrefProp, searchParams]);
+
+  const selectMode = Boolean(applyReturnHref);
+  const resolvedBackHref =
+    selectMode && applyReturnHref ? applyReturnHref : backHref;
   const [selected, setSelected] = useState<SampleCoupon | null>(null);
   const [copied, setCopied] = useState(false);
+  const [applyMessage, setApplyMessage] = useState<string | null>(null);
   const titleId = useId();
   const sections = couponsBySection(coupons);
   const mounted = useSyncExternalStore(
@@ -43,7 +86,7 @@ export function CouponsPageContent({
     () => true,
     () => false,
   );
-  const canCopy = selected?.status === "active";
+  const canUse = selected?.status === "active";
 
   useEffect(() => {
     if (!selected) return;
@@ -53,6 +96,7 @@ export function CouponsPageContent({
       if (e.key === "Escape") {
         setSelected(null);
         setCopied(false);
+        setApplyMessage(null);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -64,12 +108,14 @@ export function CouponsPageContent({
 
   const openCoupon = (coupon: SampleCoupon) => {
     setCopied(false);
+    setApplyMessage(null);
     setSelected(coupon);
   };
 
   const closeSheet = () => {
     setSelected(null);
     setCopied(false);
+    setApplyMessage(null);
   };
 
   const copyCode = async () => {
@@ -80,6 +126,17 @@ export function CouponsPageContent({
     } catch {
       setCopied(false);
     }
+  };
+
+  const applyToCart = () => {
+    if (!selected || !applyReturnHref || selected.status !== "active") return;
+    const result = applyPromo(selected.code);
+    if (!result.ok) {
+      setApplyMessage(result.message);
+      return;
+    }
+    closeSheet();
+    router.push(applyReturnHref);
   };
 
   const sheet =
@@ -111,14 +168,7 @@ export function CouponsPageContent({
                     </h2>
                     <p className="mt-0.5 text-sm text-muted">{selected.subtitle}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={closeSheet}
-                    aria-label="Close"
-                    className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white text-forest ring-1 ring-leaf/15 transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-                  >
-                    <X className="h-4.5 w-4.5" aria-hidden />
-                  </button>
+                  <CloseButton onClick={closeSheet} />
                 </div>
 
                 <div className="mt-5 rounded-2xl bg-white px-4 py-4 ring-1 ring-leaf/15">
@@ -128,51 +178,95 @@ export function CouponsPageContent({
                   <p
                     className={cn(
                       "mt-1 font-mono text-2xl font-extrabold tracking-wider",
-                      canCopy ? "text-black" : "text-muted",
+                      canUse ? "text-black" : "text-muted",
                     )}
                   >
                     {selected.code}
                   </p>
-                  <button
-                    type="button"
-                    onClick={copyCode}
-                    disabled={!canCopy}
-                    aria-disabled={!canCopy}
-                    className={cn(
-                      "mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
-                      canCopy
-                        ? "cursor-pointer bg-track text-black hover:bg-leaf-bright"
-                        : "cursor-not-allowed bg-black/[0.06] text-muted",
-                    )}
-                  >
-                    {canCopy ? (
-                      copied ? (
-                        <>
-                          <Check className="h-4 w-4" aria-hidden />
-                          Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-4 w-4" aria-hidden />
-                          Copy code
-                        </>
-                      )
-                    ) : (
-                      <>
-                        <Copy className="h-4 w-4 opacity-50" aria-hidden />
-                        {selected.status === "used"
-                          ? "Already used"
-                          : "Expired"}
-                      </>
-                    )}
-                  </button>
-                  {copied && canCopy && (
-                    <p
-                      className="mt-2 text-center text-[13px] font-medium text-forest"
-                      role="status"
-                    >
-                      Code copied to clipboard
-                    </p>
+                  {selectMode ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={applyToCart}
+                        disabled={!canUse}
+                        aria-disabled={!canUse}
+                        className={cn(
+                          "mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
+                          canUse
+                            ? "cursor-pointer bg-track text-black hover:bg-leaf-bright"
+                            : "cursor-not-allowed bg-black/[0.06] text-muted",
+                        )}
+                      >
+                        {canUse ? (
+                          <>
+                            <TicketPercent className="h-4 w-4" aria-hidden />
+                            Apply to cart
+                          </>
+                        ) : (
+                          <>
+                            <TicketPercent
+                              className="h-4 w-4 opacity-50"
+                              aria-hidden
+                            />
+                            {selected.status === "used"
+                              ? "Already used"
+                              : "Expired"}
+                          </>
+                        )}
+                      </button>
+                      {applyMessage ? (
+                        <p
+                          className="mt-2 text-center text-[13px] font-medium text-red-600"
+                          role="status"
+                        >
+                          {applyMessage}
+                        </p>
+                      ) : null}
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={copyCode}
+                        disabled={!canUse}
+                        aria-disabled={!canUse}
+                        className={cn(
+                          "mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
+                          canUse
+                            ? "cursor-pointer bg-track text-black hover:bg-leaf-bright"
+                            : "cursor-not-allowed bg-black/[0.06] text-muted",
+                        )}
+                      >
+                        {canUse ? (
+                          copied ? (
+                            <>
+                              <Check className="h-4 w-4" aria-hidden />
+                              Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-4 w-4" aria-hidden />
+                              Copy code
+                            </>
+                          )
+                        ) : (
+                          <>
+                            <Copy className="h-4 w-4 opacity-50" aria-hidden />
+                            {selected.status === "used"
+                              ? "Already used"
+                              : "Expired"}
+                          </>
+                        )}
+                      </button>
+                      {copied && canUse && (
+                        <p
+                          className="mt-2 text-center text-[13px] font-medium text-forest"
+                          role="status"
+                        >
+                          Code copied to clipboard
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -232,7 +326,7 @@ export function CouponsPageContent({
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-paper px-5">
-      <PageHeader backHref={backHref} title="Coupons" />
+      <PageHeader backHref={resolvedBackHref} title="Coupons" />
 
       <PullToRefresh className="flex flex-1 flex-col pb-8">
         {coupons.length === 0 ? (

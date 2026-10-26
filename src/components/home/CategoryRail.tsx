@@ -3,21 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useHomeCategoryOptional } from "@/components/home/HomeCategoryContext";
+import {
+  HOME_CATEGORIES,
+  type HomeCategory,
+} from "@/lib/home-categories";
+
+export { HOME_CATEGORIES, type HomeCategory } from "@/lib/home-categories";
 
 /**
  * UI-only category rail (static data — replaced when the catalog API lands).
  * Real-photo crops live in `public/categories/`.
  */
-export const HOME_CATEGORIES = [
-  { name: "Fruits", image: "/categories/fruits.jpg" },
-  { name: "Vegetables", image: "/categories/vegetables.jpg" },
-  { name: "Bakery", image: "/categories/bakery.jpg" },
-  { name: "Dairy & Eggs", image: "/categories/dairy-eggs.jpg" },
-  { name: "Beverages", image: "/categories/beverages.jpg" },
-  { name: "Snacks", image: "/categories/snacks.jpg" },
-] as const;
-
-export type HomeCategory = (typeof HOME_CATEGORIES)[number]["name"];
 
 const COUNT = HOME_CATEGORIES.length;
 

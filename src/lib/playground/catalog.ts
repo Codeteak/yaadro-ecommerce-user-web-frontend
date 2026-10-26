@@ -25,6 +25,15 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     wiresTo: "PageHeader, /login, profile, /cart",
   },
   {
+    slug: "close-button",
+    title: "CloseButton",
+    status: "built",
+    group: "Navigation",
+    description:
+      "Green squircle + black X — sheets (address, coupons, weight, flyer).",
+    wiresTo: "AddressBookSheet, Coupons, WeightCustomizer, OfferFlyer",
+  },
+  {
     slug: "page-header",
     title: "PageHeader",
     status: "built",
@@ -66,7 +75,52 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description: "Shop avatar + name, Deliver to, Sign in; address bottom sheet.",
-    wiresTo: "/home hero",
+    wiresTo: "/home",
+  },
+  {
+    slug: "search",
+    title: "Search",
+    status: "built",
+    group: "Home",
+    description:
+      "Pill search + green filter chip. On /home, tap opens /categories?focus=search.",
+    wiresTo: "/home → /categories?focus=search",
+  },
+  {
+    slug: "home-search-categories",
+    title: "Home search → categories",
+    status: "built",
+    group: "Home",
+    description:
+      "Tap home search → categories hub with search focused. Same as /home.",
+    wiresTo: "/home → /categories?focus=search",
+  },
+  {
+    slug: "categories-hub",
+    title: "Categories hub",
+    status: "built",
+    group: "Home",
+    description:
+      "Fresh: rect-first + squares. Drinks: square then rect. Same as /categories.",
+    wiresTo: "/categories",
+  },
+  {
+    slug: "category-grid",
+    title: "Category grid / PLP",
+    status: "built",
+    group: "Home",
+    description:
+      "Alias of categories-hub (featured rectangles + PLP flow).",
+    wiresTo: "/categories",
+  },
+  {
+    slug: "category-plp",
+    title: "Category PLP",
+    status: "built",
+    group: "Home",
+    description:
+      "PageHeader title, filters, left rail, 2-col grid. Same as /categories/[slug].",
+    wiresTo: "/categories/[slug]",
   },
   {
     slug: "category-rail",
@@ -74,15 +128,15 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description: "Infinite horizontal category circles with center selection.",
-    wiresTo: "/home under hero curve",
+    wiresTo: "/home under banners",
   },
   {
     slug: "offer-banners",
     title: "OfferBanners",
     status: "built",
     group: "Home",
-    description: "Sample offer carousel (transform-based loop).",
-    wiresTo: "/home below categories",
+    description: "Sample offer carousel under search on /home.",
+    wiresTo: "/home",
   },
   {
     slug: "offer-flyer",
@@ -105,7 +159,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "HomePullContent",
     status: "built",
     group: "Home",
-    description: "Banners + products wrapped in pull-to-refresh (under categories).",
+    description: "Product grid + pull-to-refresh under categories.",
     wiresTo: "/home",
   },
 
@@ -259,22 +313,6 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
 
   // ── Planned (implement here first, then wire) ───────────────────────
   {
-    slug: "category-grid",
-    title: "Category grid / PLP",
-    status: "planned",
-    group: "Planned",
-    description: "Full category browse + product listing from catalog API.",
-    wiresTo: "/categories",
-  },
-  {
-    slug: "search",
-    title: "Search",
-    status: "planned",
-    group: "Planned",
-    description: "Search field, suggestions, results list.",
-    wiresTo: "/search",
-  },
-  {
     slug: "checkout",
     title: "Checkout flow",
     status: "built",
@@ -311,20 +349,48 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
   },
   {
     slug: "address-book",
-    title: "Address book CRUD",
-    status: "planned",
-    group: "Planned",
-    description: "Saved addresses with detect / map (beyond localStorage).",
+    title: "Saved addresses",
+    status: "built",
+    group: "Product & cart",
+    description:
+      "List + select + star + Add; same AddressBookSheet as /checkout, home Deliver to, /profile/addresses.",
+    wiresTo: "/checkout, /home, /profile/addresses",
+  },
+  {
+    slug: "address-manage",
+    title: "Address management",
+    status: "built",
+    group: "Product & cart",
+    description:
+      "Manage list: black pin, Default, star / edit / delete, Add New Address. Same as /profile/addresses.",
     wiresTo: "/profile/addresses",
+  },
+  {
+    slug: "address-map",
+    title: "Address map (stub)",
+    status: "built",
+    group: "Product & cart",
+    description:
+      "Stub map + search + Detect my location (no live Maps API). Confirm → details.",
+    wiresTo: "AddressBookSheet",
+  },
+  {
+    slug: "address-details",
+    title: "Address details",
+    status: "built",
+    group: "Product & cart",
+    description:
+      "House/Office/Other, save name, building, default, instructions → save to book.",
+    wiresTo: "AddressBookSheet",
   },
   {
     slug: "coupons-apply",
     title: "Coupons apply",
-    status: "planned",
-    group: "Planned",
+    status: "built",
+    group: "Product & cart",
     description:
-      "Server-authoritative apply on checkout (promo UI removed from cart; build with checkout flow).",
-    wiresTo: "/coupons, checkout",
+      "Select active coupon → Apply to cart → return. Same as ecom /coupons?from=cart.",
+    wiresTo: "/coupons?from=cart, /cart",
   },
   {
     slug: "wishlist-list",

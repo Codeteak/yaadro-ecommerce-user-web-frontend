@@ -1,14 +1,13 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { OfferBanners } from "@/components/home/OfferBanners";
 import { ProductSection } from "@/components/home/ProductSection";
 import { PullToRefresh } from "@/components/navigation/PullToRefresh";
 
 /**
- * Home content below the category rail. Pull-to-refresh is UI-only for
- * now (remounts the product grid); real catalog refetch plugs into
- * onRefresh later.
+ * Home product grid below the category rail. Pull-to-refresh is UI-only
+ * for now (remounts the grid); real catalog refetch plugs into onRefresh later.
+ * Offer banners sit above the rail on `/home`, not here.
  */
 export function HomePullContent() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -20,7 +19,6 @@ export function HomePullContent() {
 
   return (
     <PullToRefresh onRefresh={onRefresh}>
-      <OfferBanners />
       <div key={refreshKey}>
         <ProductSection />
       </div>

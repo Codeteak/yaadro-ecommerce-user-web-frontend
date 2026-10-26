@@ -6,7 +6,8 @@ import {
   useState,
   type ChangeEvent,
 } from "react";
-import { LocateFixed, X } from "lucide-react";
+import { LocateFixed } from "lucide-react";
+import { CloseButton } from "@/components/navigation/CloseButton";
 import {
   EMPTY_DELIVERY_ADDRESS,
   readDeliveryAddress,
@@ -203,16 +204,9 @@ export function DeliveryAddressSheet({
       />
       <div className="sheet-rise absolute inset-x-0 bottom-0 mx-auto max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] bg-paper px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-[0_-24px_48px_rgba(47,107,47,0.35)]">
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-forest/15" aria-hidden />
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-ink">Delivery address</h2>
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            aria-label="Close"
-            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white text-forest ring-1 ring-leaf/15 transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-          >
-            <X className="h-4.5 w-4.5" aria-hidden />
-          </button>
+          <CloseButton onClick={() => onOpenChange(false)} />
         </div>
 
         <button

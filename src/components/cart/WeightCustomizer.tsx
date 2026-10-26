@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { X } from "lucide-react";
+import { CloseButton } from "@/components/navigation/CloseButton";
 import { useCart } from "@/components/cart/CartContext";
 
 function subscribeNever() {
@@ -113,14 +113,7 @@ export function WeightCustomizer() {
             </p>
           </div>
           <p className="text-lg font-extrabold text-black">₹{total}</p>
-          <button
-            type="button"
-            onClick={() => setCustomizing(null)}
-            aria-label="Close"
-            className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white text-forest ring-1 ring-leaf/15 transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-          >
-            <X className="h-4.5 w-4.5" aria-hidden />
-          </button>
+          <CloseButton onClick={() => setCustomizing(null)} />
         </div>
 
         {/* Tick ruler: scroll to slide weights under the centre pointer */}
