@@ -19,6 +19,7 @@ import { OfferBanners } from "@/components/home/OfferBanners";
 import { OfferFlyer } from "@/components/home/OfferFlyer";
 import { ProductSection } from "@/components/home/ProductSection";
 import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
+import { HomeProductShelves } from "@/components/home/HomeProductShelves";
 import { HomePullContent } from "@/components/home/HomePullContent";
 import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 import { CategoriesHub } from "@/components/categories/CategoriesHub";
@@ -405,8 +406,19 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </div>
     </DemoFrame>
   ),
+  "home-product-shelves": () => (
+    <DemoFrame
+      surface="bare"
+      note="Same shelves as /home under produce: Featured / Most ordered / Favourites — vertical 2-col."
+    >
+      <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain bg-paper">
+        <HomeProductShelves />
+        <WeightCustomizer />
+      </div>
+    </DemoFrame>
+  ),
   "home-pull-content": () => (
-    <DemoFrame note="Same as /home: ProductSection (2 independent scroll rows, max 10) + FruitsVeggiesSection + PTR.">
+    <DemoFrame note="Same as /home: ProductSection + FruitsVeggies + Featured/Most ordered/Favourites + PTR.">
       <HomeCategoryProvider>
         <HomePullContent />
       </HomeCategoryProvider>
@@ -436,27 +448,29 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "empty-cart": () => (
-    <DemoFrame note="Same empty layout as /cart — centered block, w-52 art.">
-      <div className="flex min-h-[28rem] flex-col bg-paper px-5">
-        <PageHeader backHref="/playground" title="Cart" />
-        <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
-          <Image
-            src="/cart/empty-cart-smooth.png"
-            alt=""
-            width={1024}
-            height={1024}
-            className="h-auto w-52 max-w-full"
-          />
-          <h2 className="mt-5 text-xl font-extrabold text-ink">Your cart is empty</h2>
-          <p className="mt-2 max-w-60 text-sm leading-6 text-muted">
-            Add something fresh from the store to see it here.
-          </p>
-          <Link
-            href="/home"
-            className="mt-6 inline-flex h-12 items-center rounded-full bg-track px-6 text-sm font-semibold text-black transition hover:bg-leaf-bright"
-          >
-            Shop now
-          </Link>
+    <DemoFrame note="Same empty layout as /cart — vertically centered like wishlist.">
+      <div className="relative h-[75vh] overflow-hidden bg-paper">
+        <div className="mx-auto flex h-full w-full max-w-lg flex-col px-5">
+          <PageHeader backHref="/playground" title="Cart" />
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-16 text-center">
+            <Image
+              src="/cart/empty-cart-smooth.png"
+              alt=""
+              width={1024}
+              height={1024}
+              className="h-auto w-52 max-w-full"
+            />
+            <h2 className="mt-5 text-xl font-extrabold text-ink">Your cart is empty</h2>
+            <p className="mt-2 max-w-60 text-sm leading-6 text-muted">
+              Add something fresh from the store to see it here.
+            </p>
+            <Link
+              href="/home"
+              className="mt-6 inline-flex h-12 items-center rounded-full bg-track px-6 text-sm font-semibold text-black transition hover:bg-leaf-bright"
+            >
+              Shop now
+            </Link>
+          </div>
         </div>
       </div>
     </DemoFrame>

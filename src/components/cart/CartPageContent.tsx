@@ -100,6 +100,8 @@ export function CartPageContent({
       <div
         className={cn(
           "min-h-0 flex-1 overflow-y-auto overscroll-y-contain -mx-4 px-4",
+          // Flex column when empty so justify-center matches wishlist empty.
+          !hasItems && "flex flex-col",
           hasItems && "pb-36",
         )}
       >

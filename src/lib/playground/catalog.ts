@@ -165,12 +165,21 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     wiresTo: "/home",
   },
   {
+    slug: "home-product-shelves",
+    title: "Home product shelves",
+    status: "built",
+    group: "Home",
+    description:
+      "Featured, Most ordered, Favourites — vertical 2-col under produce on /home.",
+    wiresTo: "/home",
+  },
+  {
     slug: "home-pull-content",
     title: "HomePullContent",
     status: "built",
     group: "Home",
     description:
-      "Compact ProductSection (2-row scroll) + FruitsVeggiesSection + PTR.",
+      "ProductSection + FruitsVeggies + merch shelves + PTR on /home.",
     wiresTo: "/home",
   },
 
@@ -205,7 +214,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "Empty cart state",
     status: "built",
     group: "Product & cart",
-    description: "Smooth cutout illustration + empty copy + Shop now.",
+    description:
+      "Vertically centered empty state (same as wishlist) + Shop now.",
     wiresTo: "/cart",
   },
   {

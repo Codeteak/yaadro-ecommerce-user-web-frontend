@@ -2,14 +2,14 @@
 
 import { useCallback, useState } from "react";
 import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
+import { HomeProductShelves } from "@/components/home/HomeProductShelves";
 import { ProductSection } from "@/components/home/ProductSection";
 import { PullToRefresh } from "@/components/navigation/PullToRefresh";
 
 /**
- * Home body below the category rail: compact category products, then
- * fruits & veggies band. Pull-to-refresh is UI-only for now (remounts
- * both); real catalog refetch plugs into onRefresh later.
- * Offer banners sit above the rail on `/home`, not here.
+ * Home body below the category rail: category products → produce band →
+ * Featured / Most ordered / Favourites. PTR remounts all; real catalog
+ * refetch plugs into onRefresh later. Offer banners sit above the rail.
  */
 export function HomePullContent() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -24,6 +24,7 @@ export function HomePullContent() {
       <div key={refreshKey}>
         <ProductSection />
         <FruitsVeggiesSection className="mt-2" />
+        <HomeProductShelves className="mt-2" />
       </div>
     </PullToRefresh>
   );
