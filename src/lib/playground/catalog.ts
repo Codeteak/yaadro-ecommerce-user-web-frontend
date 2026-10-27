@@ -165,6 +165,15 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     wiresTo: "/home",
   },
   {
+    slug: "type-scale",
+    title: "Type scale (spec)",
+    status: "built",
+    group: "Home",
+    description:
+      "Heading size/weight specimen — same spec scale on /home and /categories (card names stay legacy).",
+    wiresTo: "/home, /categories",
+  },
+  {
     slug: "home-product-shelves",
     title: "Home product shelves",
     status: "built",
@@ -179,8 +188,16 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "ProductSection + FruitsVeggies + merch shelves + PTR on /home.",
+      "ProductSection + FruitsVeggies + merch shelves + BrandFooter + PTR on /home.",
     wiresTo: "/home",
+  },
+  {
+    slug: "brand-footer",
+    title: "BrandFooter",
+    status: "built",
+    group: "Home",
+    description: "Muted D + yaadro wordmark at the end of /home and /profile.",
+    wiresTo: "/home, /profile",
   },
 
   // ── Product & cart ──────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ProductCard } from "@/components/product/ProductCard";
+import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { cn } from "@/lib/cn";
 import { homeCategoryImage } from "@/lib/home-categories";
 import { PRODUCT_CAROUSEL_SLOT } from "@/lib/product-card-layout";
@@ -46,6 +47,7 @@ const LIMIT = 10;
  * Dark scrims + light type keep headings readable on the busy photo.
  */
 export function FruitsVeggiesSection({ className }: { className?: string }) {
+  const t = useTypeScale();
   const [filter, setFilter] = useState<ProduceFilter>("All");
 
   const products = useMemo(() => {
@@ -159,12 +161,15 @@ export function FruitsVeggiesSection({ className }: { className?: string }) {
           </div>
 
           <div className="flex min-h-0 flex-col gap-3 rounded-[1.35rem] bg-black/25 p-3 ring-1 ring-white/15 backdrop-blur-[2px] sm:p-3.5">
-            <div className="flex items-end justify-between gap-3 px-0.5">
+            <div
+              className={cn(
+                "flex items-end justify-between px-0.5",
+                t.homeShowAllGap,
+              )}
+            >
               <div className="min-w-0">
-                <h3 className="truncate text-[15px] font-extrabold text-white drop-shadow-sm">
-                  {listTitle}
-                </h3>
-                <p className="mt-0.5 text-[12px] font-semibold text-white/80">
+                <h3 className={t.homeCompactHeading}>{listTitle}</h3>
+                <p className={t.homeCompactSubtitle}>
                   {products.length}{" "}
                   {products.length === 1 ? "item" : "items"} · swipe →
                 </p>

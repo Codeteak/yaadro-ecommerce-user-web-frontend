@@ -1,6 +1,7 @@
 "use client";
 
 import { ProductCard } from "@/components/product/ProductCard";
+import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { cn } from "@/lib/cn";
 import {
   productsForShelf,
@@ -18,6 +19,7 @@ export function HomeProductShelf({
   shelf: HomeShelfDef;
   className?: string;
 }) {
+  const t = useTypeScale();
   const products = productsForShelf(shelf);
 
   if (products.length === 0) return null;
@@ -27,16 +29,14 @@ export function HomeProductShelf({
       aria-labelledby={`home-shelf-${shelf.id}`}
       className={cn("mx-auto w-full max-w-lg px-5", className)}
     >
-      <div className="mb-3">
+      <div className={t.homeSectionHeaderWrap}>
         <h2
           id={`home-shelf-${shelf.id}`}
-          className="text-lg font-extrabold tracking-tight text-ink"
+          className={t.homeSectionHeading}
         >
           {shelf.title}
         </h2>
-        <p className="mt-0.5 text-[12px] font-medium text-muted">
-          {shelf.subtitle}
-        </p>
+        <p className={t.homeSectionSubtitle}>{shelf.subtitle}</p>
       </div>
       <ul className="grid grid-cols-2 gap-3">
         {products.map((product) => (

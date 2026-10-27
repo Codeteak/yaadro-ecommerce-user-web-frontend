@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Heart, Minus, Plus } from "lucide-react";
 import type { SampleProduct } from "@/lib/sample-products";
 import { useCart } from "@/components/cart/CartContext";
+import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { useWishlistOptional } from "@/components/wishlist/WishlistContext";
 
 /**
@@ -51,6 +52,7 @@ function Ribbon({
  */
 export function ProductCard({ product }: { product: SampleProduct }) {
   const router = useRouter();
+  const t = useTypeScale();
   const wishlist = useWishlistOptional();
   const [localWishlisted, setLocalWishlisted] = useState(false);
   const { getItem, setQty, setCustomizing } = useCart();
@@ -126,9 +128,7 @@ export function ProductCard({ product }: { product: SampleProduct }) {
             className="h-full w-full object-cover"
           />
         </div>
-        <h3 className="mt-3 line-clamp-2 min-h-10 text-[15px] leading-5 font-bold text-ink">
-          {product.name}
-        </h3>
+        <h3 className={t.productCardName}>{product.name}</h3>
         <p className="mt-0.5 text-xs font-medium text-muted">{product.unit}</p>
       </Link>
 

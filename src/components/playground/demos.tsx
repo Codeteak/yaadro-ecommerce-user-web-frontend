@@ -39,6 +39,7 @@ import { OrderDetailPageContent } from "@/components/orders/OrderDetailPageConte
 import { SwipeToLogin } from "@/components/onboarding/SwipeToLogin";
 import { OnboardingScreen } from "@/components/onboarding/OnboardingScreen";
 import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
+import { BrandFooter } from "@/components/storefront/BrandFooter";
 import { ComingSoonPage } from "@/components/storefront/ComingSoonPage";
 import { CouponsPageContent } from "@/components/coupons/CouponsPageContent";
 import { WishlistPageContent } from "@/components/wishlist/WishlistPageContent";
@@ -52,6 +53,8 @@ import {
   type SampleProduct,
 } from "@/lib/sample-products";
 import { getPlaygroundEntry } from "@/lib/playground/catalog";
+import { useTypeScale } from "@/components/ui/TypeScaleContext";
+import { TYPE_SCALE } from "@/lib/type-scale";
 import { DemoFrame } from "./DemoFrame";
 import { PlannedStub } from "./PlannedStub";
 
@@ -108,6 +111,73 @@ function MiniPhoneOtp() {
       <PhoneInput value={phone} onChange={setPhone} />
       <OtpInput value={otp} onChange={setOtp} />
     </div>
+  );
+}
+
+function TypeScaleSpecimen() {
+  const t = useTypeScale();
+  const rows: { label: string; className: string; sample: string }[] = [
+    {
+      label: "Home section",
+      className: t.homeSectionHeading,
+      sample: "Featured products",
+    },
+    {
+      label: "Home compact",
+      className: t.homeCompactHeading.replace(/text-white/g, "text-ink"),
+      sample: "Fruits & Vegetables",
+    },
+    {
+      label: "PLP page title",
+      className: t.plpPageTitle
+        .replace("absolute left-1/2 max-w-[58%] -translate-x-1/2 text-center ", "")
+        .replace("truncate ", ""),
+      sample: "Fresh vegetables",
+    },
+    {
+      label: "Category grid",
+      className: t.categoryGridHeading,
+      sample: "Grocery staples",
+    },
+    {
+      label: "Search results",
+      className: t.searchResultsHeading,
+      sample: "Products",
+    },
+    {
+      label: "PLP filter",
+      className: t.plpFilterHeading,
+      sample: "All items",
+    },
+    {
+      label: "Product card name",
+      className: t.productCardName.replace("mt-3 line-clamp-2 min-h-10 ", ""),
+      sample: "Bell Peppers Trio",
+    },
+  ];
+
+  return (
+    <DemoFrame
+      note={`TypeScale “spec” on playground + storefront (${Object.keys(TYPE_SCALE.spec).length} tokens). Card names stay legacy.`}
+    >
+      <div className="space-y-6 bg-paper px-5 py-6">
+        {rows.map((row) => (
+          <div key={row.label} className="border-b border-black/[0.06] pb-4">
+            <p className="mb-2 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
+              {row.label}
+            </p>
+            <p className={row.className}>{row.sample}</p>
+          </div>
+        ))}
+        <p className="text-[12px] leading-5 text-muted">
+          Also preview on{" "}
+          <span className="font-semibold text-ink">home-product-shelves</span>,{" "}
+          <span className="font-semibold text-ink">home-pull-content</span>,{" "}
+          <span className="font-semibold text-ink">categories-hub</span>, and{" "}
+          <span className="font-semibold text-ink">category-listing</span>.
+        </p>
+      </div>
+    </DemoFrame>
   );
 }
 
@@ -406,10 +476,11 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </div>
     </DemoFrame>
   ),
+  "type-scale": () => <TypeScaleSpecimen />,
   "home-product-shelves": () => (
     <DemoFrame
       surface="bare"
-      note="Same shelves as /home under produce: Featured / Most ordered / Favourites — vertical 2-col."
+      note="Spec type scale (playground only): Featured / Most ordered / Favourites — larger headings + spacing."
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain bg-paper">
         <HomeProductShelves />
@@ -418,10 +489,17 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "home-pull-content": () => (
-    <DemoFrame note="Same as /home: ProductSection + FruitsVeggies + Featured/Most ordered/Favourites + PTR.">
+    <DemoFrame note="Same as /home: ProductSection + FruitsVeggies + shelves + BrandFooter + PTR (spec type scale).">
       <HomeCategoryProvider>
         <HomePullContent />
       </HomeCategoryProvider>
+    </DemoFrame>
+  ),
+  "brand-footer": () => (
+    <DemoFrame note="Muted D + yaadro wordmark — same as /home and /profile scroll end.">
+      <div className="bg-paper px-5">
+        <BrandFooter />
+      </div>
     </DemoFrame>
   ),
   "product-card": () => (

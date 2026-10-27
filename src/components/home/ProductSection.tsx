@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { useHomeCategory } from "@/components/home/HomeCategoryContext";
 import { ProductCard } from "@/components/product/ProductCard";
+import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { cn } from "@/lib/cn";
 import { catalogSlugForHomeCategory } from "@/lib/catalog-taxonomy";
 import { PRODUCT_CAROUSEL_SLOT } from "@/lib/product-card-layout";
@@ -25,6 +26,7 @@ const ROW_SCROLL =
  * Sample data until the catalog API lands.
  */
 export function ProductSection() {
+  const t = useTypeScale();
   const { selected } = useHomeCategory();
   const products = getProductsByCategory(selected).slice(0, HOME_PRODUCT_LIMIT);
   const mid = Math.ceil(products.length / 2);
@@ -36,10 +38,15 @@ export function ProductSection() {
       aria-label={`${selected} products`}
       className="mx-auto w-full max-w-lg px-5 pt-6"
     >
-      <div className="flex items-end justify-between gap-3">
+      <div
+        className={cn(
+          "flex items-end justify-between",
+          t.homeShowAllGap,
+        )}
+      >
         <div>
-          <h2 className="text-lg font-extrabold text-ink">{selected}</h2>
-          <p className="mt-0.5 text-xs text-muted">
+          <h2 className={t.homeSectionHeading}>{selected}</h2>
+          <p className={t.homeSectionSubtitle}>
             Sample products — real catalog coming soon
           </p>
         </div>
@@ -53,7 +60,13 @@ export function ProductSection() {
         </Link>
       </div>
 
-      <div key={selected} className="onboarding-fade-up mt-3 flex flex-col gap-1">
+      <div
+        key={selected}
+        className={cn(
+          "onboarding-fade-up flex flex-col gap-1",
+          t.homeSectionToGrid,
+        )}
+      >
         <ProductScrollRow
           products={rowTop}
           label={`${selected} row 1`}

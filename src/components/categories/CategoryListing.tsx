@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { BackButton } from "@/components/navigation/BackButton";
 import { ProductCard } from "@/components/product/ProductCard";
+import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { cn } from "@/lib/cn";
 import { getCatalogCategory } from "@/lib/catalog-taxonomy";
 import { getProductsByCategory } from "@/lib/sample-products";
@@ -34,6 +35,7 @@ export function CategoryListing({
   backHref = "/categories",
   onSearchClick,
 }: CategoryListingProps) {
+  const t = useTypeScale();
   const router = useRouter();
   const category = getCatalogCategory(slug);
   const [sub, setSub] = useState("All");
@@ -71,9 +73,7 @@ export function CategoryListing({
           ) : (
             <BackButton href={backHref} />
           )}
-          <h1 className="absolute left-1/2 max-w-[58%] -translate-x-1/2 truncate text-center text-lg font-bold tracking-tight text-forest">
-            {category.name}
-          </h1>
+          <h1 className={t.plpPageTitle}>{category.name}</h1>
           <button
             type="button"
             onClick={handleSearch}
@@ -177,8 +177,8 @@ export function CategoryListing({
         </nav>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-paper px-2 py-2.5">
-          <div className="mb-2 flex items-baseline justify-between gap-2 px-0.5">
-            <p className="text-[12px] font-extrabold text-ink">
+          <div className={t.plpFilterHeaderWrap}>
+            <p className={t.plpFilterHeading}>
               {sub === "All" ? "All items" : sub}
             </p>
             <p className="text-[11px] font-semibold text-muted tabular-nums">
@@ -192,7 +192,7 @@ export function CategoryListing({
               No products in this category yet.
             </p>
           ) : (
-            <ul className="grid grid-cols-2 gap-2">
+            <ul className={t.plpGridGap}>
               {products.map((p) => (
                 <li key={p.id} className="min-w-0">
                   <ProductCard product={p} />

@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { HomeSearchBar } from "@/components/home/HomeSearchBar";
 import { ProductCard } from "@/components/product/ProductCard";
+import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { cn } from "@/lib/cn";
 import {
   CATALOG_SECTIONS,
@@ -57,6 +58,7 @@ export function CategoriesHub({
   onSelectCategory,
   categoryHref,
 }: CategoriesHubProps) {
+  const t = useTypeScale();
   const [internalQuery, setInternalQuery] = useState("");
   const query = queryProp ?? internalQuery;
   const popular = useMemo(() => hubPopularProducts(), []);
@@ -111,15 +113,11 @@ export function CategoriesHub({
         ) : null}
 
         {sections.map((section) => (
-          <section key={section.id} className="mt-5 first:mt-3">
-            <div className="mb-2.5">
-              <h2 className="text-lg font-bold tracking-tight text-black">
-                {section.title}
-              </h2>
+          <section key={section.id} className={t.categorySectionGap}>
+            <div className={t.categoryGridHeaderWrap}>
+              <h2 className={t.categoryGridHeading}>{section.title}</h2>
               {section.subtitle && !isSearching ? (
-                <p className="mt-0.5 text-[12px] leading-4 font-medium text-muted">
-                  {section.subtitle}
-                </p>
+                <p className={t.categoryGridSubtitle}>{section.subtitle}</p>
               ) : null}
             </div>
 
@@ -158,14 +156,17 @@ export function CategoriesHub({
 
         {productHits.length > 0 ? (
           <section className={cn(sections.length > 0 ? "mt-8" : "mt-5")}>
-            <h2 className="text-lg font-bold tracking-tight text-black">
-              Products
-            </h2>
-            <p className="mt-0.5 text-[12px] leading-4 font-medium text-muted">
+            <h2 className={t.searchResultsHeading}>Products</h2>
+            <p className={t.searchResultsSubtitle}>
               {productHits.length}{" "}
               {productHits.length === 1 ? "result" : "results"} for “{trimmed}”
             </p>
-            <ul className="mt-3 grid grid-cols-2 gap-2.5">
+            <ul
+              className={cn(
+                "grid grid-cols-2 gap-2.5",
+                t.searchResultsToGrid,
+              )}
+            >
               {productHits.map((product) => (
                 <li key={product.id} className="min-w-0">
                   <ProductCard product={product} />
@@ -177,13 +178,16 @@ export function CategoriesHub({
 
         {showPopular ? (
           <section className="mt-8">
-            <h2 className="text-lg font-bold tracking-tight text-black">
-              Popular picks
-            </h2>
-            <p className="mt-0.5 text-[12px] leading-4 font-medium text-muted">
+            <h2 className={t.searchResultsHeading}>Popular picks</h2>
+            <p className={t.searchResultsSubtitle}>
               Quick adds from across the store
             </p>
-            <ul className="mt-3 grid grid-cols-2 gap-2.5">
+            <ul
+              className={cn(
+                "grid grid-cols-2 gap-2.5",
+                t.searchResultsToGrid,
+              )}
+            >
               {popular.map((product) => (
                 <li key={product.id} className="min-w-0">
                   <ProductCard product={product} />

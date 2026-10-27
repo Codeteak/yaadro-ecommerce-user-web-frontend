@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { HomeProductShelf } from "@/components/home/HomeProductShelf";
+import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { useWishlistOptional } from "@/components/wishlist/WishlistContext";
 import { cn } from "@/lib/cn";
 import {
@@ -16,6 +17,7 @@ import {
  * Live under FruitsVeggiesSection on /home (and playground demo).
  */
 export function HomeProductShelves({ className }: { className?: string }) {
+  const t = useTypeScale();
   const wishlist = useWishlistOptional();
 
   const shelves = useMemo((): HomeShelfDef[] => {
@@ -33,7 +35,7 @@ export function HomeProductShelves({ className }: { className?: string }) {
   }, [wishlist?.signedIn, wishlist?.products]);
 
   return (
-    <div className={cn("flex flex-col gap-8 pb-8 pt-2", className)}>
+    <div className={cn(t.homeShelvesStack, className)}>
       {shelves.map((shelf) => {
         const products = productsForShelf(shelf);
         if (products.length === 0) return null;
