@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { PlaygroundCodePanel } from "@/components/playground/PlaygroundCodePanel";
 import { PlaygroundDemo } from "@/components/playground/demos";
 import { PlaygroundBackLink } from "@/components/playground/PlaygroundBackLink";
 import { PlaygroundSlugTracker } from "@/components/playground/PlaygroundSlugTracker";
@@ -7,6 +8,8 @@ import {
   getPlaygroundEntry,
   PLAYGROUND_ENTRIES,
 } from "@/lib/playground/catalog";
+import { loadPlaygroundSources } from "@/lib/playground/load-sources";
+import { getPlaygroundUsage } from "@/lib/playground/usage";
 
 type PlaygroundEntryPageProps = {
   params: Promise<{ slug: string }>;
@@ -31,6 +34,10 @@ async function PlaygroundEntryContent({ params }: PlaygroundEntryPageProps) {
   const { slug } = await params;
   const entry = getPlaygroundEntry(slug);
   if (!entry) notFound();
+  const usage = getPlaygroundUsage(entry.slug);
+  const sources = usage
+    ? await loadPlaygroundSources(usage.files)
+    : [];
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -62,6 +69,10 @@ async function PlaygroundEntryContent({ params }: PlaygroundEntryPageProps) {
       <div className="mt-8">
         <PlaygroundDemo slug={entry.slug} />
       </div>
+
+      {usage ? (
+        <PlaygroundCodePanel usage={usage} sources={sources} />
+      ) : null}
     </div>
   );
 }

@@ -119,7 +119,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "PageHeader title, filters, left rail, 2-col grid. Same as /categories/[slug].",
+      "PLP filters/sort sheets (Filter, Brands, Type, Sort) + left rail + grid. Same as /categories/[slug].",
     wiresTo: "/categories/[slug]",
   },
   {
@@ -161,8 +161,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Produce BG + All/Fruits/Vegetables (10); Browse all → /categories. Same band under ProductSection on /home.",
-    wiresTo: "/home",
+      "Produce BG + All/Fruits/Vegetables (10); Browse all → /categories/fruits or /vegetables. Same on /home.",
+    wiresTo: "/home, /categories/fruits|/vegetables",
   },
   {
     slug: "type-scale",
@@ -323,6 +323,15 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     wiresTo: "/orders, profile/* stubs",
   },
   {
+    slug: "not-found",
+    title: "404 not found",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Lost-explorer illustration + Page not found + Refresh — same as global app/not-found.",
+    wiresTo: "app/not-found.tsx",
+  },
+  {
     slug: "coupons-list",
     title: "Coupons list",
     status: "built",
@@ -452,10 +461,11 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
   {
     slug: "skeletons",
     title: "Loading skeletons",
-    status: "planned",
-    group: "Planned",
-    description: "Card / list / hero skeletons for API waits.",
-    wiresTo: "Catalog surfaces",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Shared pulse bones — same as storefront loading.tsx + product/PLP/hub/order Suspense.",
+    wiresTo: "loading.tsx, /product, /categories, /orders/[id]",
   },
   {
     slug: "toasts",

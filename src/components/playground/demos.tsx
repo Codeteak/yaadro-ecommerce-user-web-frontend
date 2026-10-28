@@ -41,6 +41,17 @@ import { OnboardingScreen } from "@/components/onboarding/OnboardingScreen";
 import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
 import { BrandFooter } from "@/components/storefront/BrandFooter";
 import { ComingSoonPage } from "@/components/storefront/ComingSoonPage";
+import { NotFoundContent } from "@/components/storefront/NotFoundContent";
+import {
+  CategoriesHubSkeleton,
+  CategoryPlpSkeleton,
+  HomeShelfSkeleton,
+  ProductCardSkeleton,
+  ProductDetailSkeleton,
+  ProductGridSkeleton,
+  ProductRailSkeleton,
+  StorefrontPageSkeleton,
+} from "@/components/ui/skeletons";
 import { CouponsPageContent } from "@/components/coupons/CouponsPageContent";
 import { WishlistPageContent } from "@/components/wishlist/WishlistPageContent";
 import { WishlistProvider } from "@/components/wishlist/WishlistContext";
@@ -468,7 +479,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "fruits-veggies-section": () => (
     <DemoFrame
       surface="bare"
-      note="Same as /home produce band: dark scrims, All/Fruits/Vegetables (10); Browse all → /categories."
+      note="Same as /home: All/Fruits → /categories/fruits; Vegetables → /categories/vegetables."
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
         <FruitsVeggiesSection />
@@ -694,6 +705,82 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
         description="This is the ComingSoonPage shell used across unfinished storefront routes."
         backHref="/playground"
       />
+    </DemoFrame>
+  ),
+  "not-found": () => (
+    <DemoFrame
+      surface="bare"
+      note="Same as global app/not-found — Page not found + Refresh."
+    >
+      <div className="max-h-[85vh] overflow-y-auto overscroll-contain rounded-[1.75rem] ring-1 ring-forest/10">
+        <NotFoundContent className="min-h-[32rem]" />
+      </div>
+    </DemoFrame>
+  ),
+  skeletons: () => (
+    <DemoFrame
+      surface="bare"
+      note="Same skeletons as storefront loading.tsx + product / PLP / hub / order Suspense."
+    >
+      <div className="max-h-[85vh] space-y-10 overflow-y-auto overscroll-contain bg-paper px-4 py-6">
+        <section>
+          <p className="mb-3 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
+            Product card
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <ProductCardSkeleton />
+            <ProductCardSkeleton />
+          </div>
+        </section>
+        <section>
+          <p className="mb-3 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
+            Product grid
+          </p>
+          <ProductGridSkeleton count={4} />
+        </section>
+        <section>
+          <p className="mb-3 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
+            Product rail
+          </p>
+          <ProductRailSkeleton count={3} />
+        </section>
+        <section>
+          <p className="mb-3 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
+            Home shelf
+          </p>
+          <HomeShelfSkeleton className="!px-0" />
+        </section>
+        <section>
+          <p className="mb-3 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
+            Categories hub
+          </p>
+          <CategoriesHubSkeleton className="!px-0" />
+        </section>
+        <section>
+          <p className="mb-3 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
+            Category PLP
+          </p>
+          <div className="overflow-hidden rounded-2xl ring-1 ring-black/5">
+            <CategoryPlpSkeleton />
+          </div>
+        </section>
+        <section>
+          <p className="mb-3 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
+            Product detail
+          </p>
+          <div className="overflow-hidden rounded-2xl ring-1 ring-black/5">
+            <ProductDetailSkeleton />
+          </div>
+        </section>
+        <section>
+          <p className="mb-3 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
+            Storefront page shell
+          </p>
+          <div className="overflow-hidden rounded-2xl ring-1 ring-black/5">
+            <StorefrontPageSkeleton className="min-h-0 pt-6 pb-6" />
+          </div>
+        </section>
+      </div>
     </DemoFrame>
   ),
   "coupons-list": () => (

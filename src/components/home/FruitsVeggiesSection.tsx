@@ -42,13 +42,17 @@ const LIMIT = 10;
 /**
  * Home produce band (after ProductSection on `/home`): full-section
  * card with BG image, All / Fruits / Vegetables filters (local only),
- * product rail, and Browse all → `/categories`.
+ * product rail, and Browse all → produce PLP (`/categories/fruits` or
+ * `/categories/vegetables` from the active chip; All → fruits).
  *
  * Dark scrims + light type keep headings readable on the busy photo.
  */
 export function FruitsVeggiesSection({ className }: { className?: string }) {
   const t = useTypeScale();
   const [filter, setFilter] = useState<ProduceFilter>("All");
+
+  const browseHref =
+    filter === "Vegetables" ? "/categories/vegetables" : "/categories/fruits";
 
   const products = useMemo(() => {
     if (filter === "Fruits") {
@@ -112,7 +116,7 @@ export function FruitsVeggiesSection({ className }: { className?: string }) {
               Fruits &amp; veggies
             </h2>
             <p className="mx-auto mt-2 max-w-[16rem] text-[13px] leading-5 font-medium text-white/90 drop-shadow-[0_1px_3px_rgba(0,0,0,0.55)]">
-              Pick a category below — Browse all opens the full categories page.
+              Pick a category below — Browse all opens that produce aisle.
             </p>
 
             <div
@@ -175,7 +179,7 @@ export function FruitsVeggiesSection({ className }: { className?: string }) {
                 </p>
               </div>
               <Link
-                href="/categories"
+                href={browseHref}
                 className="shrink-0 rounded-full bg-white px-3.5 py-2 text-[13px] font-bold text-leaf shadow-sm transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
                 Browse all

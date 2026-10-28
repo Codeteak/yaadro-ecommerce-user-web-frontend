@@ -9,11 +9,23 @@ import {
   Search,
   SlidersHorizontal,
 } from "lucide-react";
+import {
+  PlpFilterSheets,
+  type PlpSheetKind,
+} from "@/components/categories/PlpFilterSheets";
 import { BackButton } from "@/components/navigation/BackButton";
 import { ProductCard } from "@/components/product/ProductCard";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { cn } from "@/lib/cn";
 import { getCatalogCategory } from "@/lib/catalog-taxonomy";
+import {
+  applyPlpFilters,
+  DEFAULT_PLP_FILTERS,
+  plpBrand,
+  plpType,
+  uniqueSorted,
+  type PlpFilterState,
+} from "@/lib/plp-filters";
 import { getProductsByCategory } from "@/lib/sample-products";
 
 export type CategoryListingProps = {
@@ -39,6 +51,8 @@ export function CategoryListing({
   const router = useRouter();
   const category = getCatalogCategory(slug);
   const [sub, setSub] = useState("All");
+  const [filters, setFilters] = useState<PlpFilterState>(DEFAULT_PLP_FILTERS);
+  const [sheet, setSheet] = useState<PlpSheetKind>(null);
 
   const handleSearch = () => {
     if (onSearchClick) {
@@ -48,10 +62,31 @@ export function CategoryListing({
     router.push("/categories?focus=search");
   };
 
-  const products = useMemo(() => {
+  const catalogProducts = useMemo(() => {
     if (!category?.homeCategory) return [];
     return getProductsByCategory(category.homeCategory);
   }, [category]);
+
+  const brandOptions = useMemo(
+    () => uniqueSorted(catalogProducts.map(plpBrand)),
+    [catalogProducts],
+  );
+  const typeOptions = useMemo(
+    () => uniqueSorted(catalogProducts.map(plpType)),
+    [catalogProducts],
+  );
+
+  const products = useMemo(
+    () => applyPlpFilters(catalogProducts, filters),
+    [catalogProducts, filters],
+  );
+
+  const facetsActive =
+    filters.onOffer ||
+    filters.byWeight ||
+    filters.bestSeller ||
+    filters.brands.length > 0 ||
+    filters.types.length > 0;
 
   if (!category) {
     return (
@@ -63,10 +98,13 @@ export function CategoryListing({
     );
   }
 
+  /** Mock look: Filter always green; others always white — active = red badge only. */
+  const chipSecondary =
+    "flex h-9 shrink-0 cursor-pointer items-center gap-1 rounded-full bg-white px-3.5 text-[13px] leading-none font-semibold text-leaf ring-1 ring-black/[0.08] transition hover:bg-mint/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf";
+
   return (
     <div className={cn("flex h-full min-h-0 flex-col bg-paper", className)}>
       <header className="shrink-0 border-b border-black/[0.05] bg-paper/95 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2.5 backdrop-blur-sm">
-        {/* Same layout as PageHeader: back · centered title · trailing slot */}
         <div className="relative flex h-11 shrink-0 items-center">
           {onBack ? (
             <BackButton onClick={onBack} />
@@ -84,35 +122,45 @@ export function CategoryListing({
           </button>
         </div>
 
-        <div className="mt-2.5 flex items-center gap-2">
+        <div className="mt-2 flex items-center gap-2 overflow-x-auto py-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <button
             type="button"
-            className="relative flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-track px-3.5 text-[13px] leading-none font-bold text-black shadow-[0_4px_12px_rgba(47,107,47,0.22)]"
+            onClick={() => setSheet("filter")}
+            aria-expanded={sheet === "filter"}
+            className="relative flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-track px-3.5 text-[13px] leading-none font-bold text-black shadow-[0_4px_12px_rgba(47,107,47,0.22)] transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
           >
             <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" aria-hidden />
             Filter
-            <span
-              className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-paper"
-              aria-hidden
-            />
+            {facetsActive ? (
+              <span
+                className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-paper"
+                aria-hidden
+              />
+            ) : null}
           </button>
           <button
             type="button"
-            className="flex h-9 shrink-0 items-center gap-1 rounded-full bg-white px-3.5 text-[13px] leading-none font-semibold text-leaf ring-1 ring-black/[0.08]"
+            onClick={() => setSheet("brands")}
+            aria-expanded={sheet === "brands"}
+            className={chipSecondary}
           >
             Brands
             <ChevronDown className="h-3.5 w-3.5 text-leaf/70" aria-hidden />
           </button>
           <button
             type="button"
-            className="flex h-9 shrink-0 items-center gap-1 rounded-full bg-white px-3.5 text-[13px] leading-none font-semibold text-leaf ring-1 ring-black/[0.08]"
+            onClick={() => setSheet("types")}
+            aria-expanded={sheet === "types"}
+            className={chipSecondary}
           >
             Type
             <ChevronDown className="h-3.5 w-3.5 text-leaf/70" aria-hidden />
           </button>
           <button
             type="button"
-            className="ml-auto flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-white px-3 text-[13px] leading-none font-semibold text-leaf ring-1 ring-black/[0.08]"
+            onClick={() => setSheet("sort")}
+            aria-expanded={sheet === "sort"}
+            className={cn(chipSecondary, "ml-auto gap-1.5 px-3")}
           >
             <ArrowUpDown className="h-3.5 w-3.5" aria-hidden />
             Sort
@@ -121,7 +169,6 @@ export function CategoryListing({
       </header>
 
       <div className="flex min-h-0 flex-1 items-stretch">
-        {/* Full-height rail — same paper as page (no white “card” that cuts off). */}
         <nav
           aria-label="Subcategories"
           className="flex h-full min-h-0 w-[5.75rem] shrink-0 flex-col self-stretch overflow-y-auto overscroll-contain border-r border-black/[0.06] bg-paper py-2"
@@ -172,7 +219,6 @@ export function CategoryListing({
               </button>
             );
           })}
-          {/* Keeps rail paint continuous when few subs */}
           <div className="min-h-0 flex-1" aria-hidden />
         </nav>
 
@@ -188,9 +234,19 @@ export function CategoryListing({
           </div>
 
           {products.length === 0 ? (
-            <p className="px-2 py-8 text-center text-sm text-muted">
-              No products in this category yet.
-            </p>
+            <div className="px-2 py-10 text-center">
+              <p className="text-sm font-semibold text-ink">No matches</p>
+              <p className="mt-1 text-[12px] text-muted">
+                Try clearing filters or changing sort.
+              </p>
+              <button
+                type="button"
+                onClick={() => setFilters(DEFAULT_PLP_FILTERS)}
+                className="mt-4 inline-flex h-10 cursor-pointer items-center rounded-full bg-track px-4 text-[13px] font-semibold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+              >
+                Clear all filters
+              </button>
+            </div>
           ) : (
             <ul className={t.plpGridGap}>
               {products.map((p) => (
@@ -204,13 +260,22 @@ export function CategoryListing({
           {sub !== "All" ? (
             <p className="mt-5 px-1 pb-4 text-center text-[11px] leading-4 text-muted">
               Showing all {category.shortName ?? category.name} items —
-              “{sub}” filtering arrives with the catalog API.
+              “{sub}” rail filtering arrives with the catalog API.
             </p>
           ) : (
             <div className="h-6" />
           )}
         </div>
       </div>
+
+      <PlpFilterSheets
+        open={sheet}
+        onClose={() => setSheet(null)}
+        value={filters}
+        onChange={setFilters}
+        brandOptions={brandOptions}
+        typeOptions={typeOptions}
+      />
     </div>
   );
 }

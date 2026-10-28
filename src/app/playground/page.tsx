@@ -21,7 +21,10 @@ export default function PlaygroundIndexPage() {
         </h1>
         <p className="mt-3 max-w-xl text-[15px] leading-6 text-muted">
           Build and review UI here, then wire the same components into the live
-          ecom routes. This area is{" "}
+          ecom routes. Each demo includes{" "}
+          <span className="font-semibold text-ink">Source</span> (full file) and{" "}
+          <span className="font-semibold text-ink">Usage</span> with Copy for
+          handoff. This area is{" "}
           <span className="font-semibold text-ink">dev-only</span> — middleware
           returns 404 in production.
         </p>

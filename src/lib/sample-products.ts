@@ -44,6 +44,10 @@ export type SampleProduct = {
   ingredients?: string;
   rating?: SampleProductRating;
   customization?: WeightCustomization;
+  /** Optional PLP brand facet — otherwise derived in `plpBrand()`. */
+  brand?: string;
+  /** Optional PLP type facet — otherwise derived in `plpType()`. */
+  productType?: string;
 };
 
 /** Gallery sources for a product (primary + extras). */
@@ -263,6 +267,8 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
     unit: "750 ml",
     price: 40,
     mrp: 45,
+    brand: "Coca-Cola",
+    productType: "Soft drink",
     image: "/categories/beverages.jpg",
     description: "Chilled classic cola — crisp and refreshing.",
     ingredients:
@@ -275,6 +281,8 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
     unit: "750 ml",
     price: 40,
     mrp: 45,
+    brand: "Sprite",
+    productType: "Soft drink",
     image: "/products/sprite.jpg",
     description: "Lemon-lime soda with a clean, sparkling finish.",
     ingredients:

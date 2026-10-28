@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { CategoriesHub } from "@/components/categories/CategoriesHub";
+import { CategoriesHubSkeleton } from "@/components/ui/skeletons";
 
 function CategoriesHubBody() {
   const searchParams = useSearchParams();
@@ -29,17 +30,8 @@ export function CategoriesPageContent() {
       </div>
       <Suspense
         fallback={
-          <div className="px-3 py-8" aria-busy aria-label="Loading categories">
-            <div className="h-14 animate-pulse rounded-full bg-mint/50" />
-            <div className="mt-6 h-5 w-24 animate-pulse rounded bg-mint/40" />
-            <div className="mt-4 grid grid-cols-4 gap-2">
-              {Array.from({ length: 8 }, (_, i) => (
-                <div
-                  key={i}
-                  className="h-[6.25rem] animate-pulse rounded-[1.15rem] bg-mint/30"
-                />
-              ))}
-            </div>
+          <div className="py-4" aria-busy aria-label="Loading categories">
+            <CategoriesHubSkeleton />
           </div>
         }
       >
