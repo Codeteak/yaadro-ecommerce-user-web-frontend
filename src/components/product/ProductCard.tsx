@@ -12,20 +12,43 @@ import { useWishlistOptional } from "@/components/wishlist/WishlistContext";
 import { cn } from "@/lib/cn";
 
 /**
- * Hanging ribbon with an exact vector finish: the path's arc is a
- * true 24px radius matching the card's rounded-[1.5rem] corner,
- * and the bottom is a precise V notch. (A clip-path polygon can only
- * approximate the arc with facets, which left a white bite.)
+ * Hanging ribbon with an exact vector finish: arc radius matches the card
+ * corner (24px default / 12px compact), V notch at the bottom.
  */
 function Ribbon({
   fill,
   line1,
   line2,
+  compact,
 }: {
   fill: string;
   line1: string;
   line2: string;
+  compact?: boolean;
 }) {
+  if (compact) {
+    return (
+      <span
+        className="absolute top-0 left-0 z-10 block h-11 w-9"
+        aria-hidden
+      >
+        <svg
+          viewBox="0 0 36 44"
+          className="absolute inset-0 h-full w-full drop-shadow-[0_2px_4px_rgba(0,0,0,0.2)]"
+        >
+          <path
+            d="M0 12 A12 12 0 0 1 12 0 H36 V44 L18 34 L0 44 Z"
+            fill={fill}
+          />
+        </svg>
+        <span className="absolute inset-x-0 top-0 flex h-9 flex-col items-center justify-center text-center text-[8px] leading-[1.15] font-bold text-white">
+          <span>{line1}</span>
+          <span>{line2}</span>
+        </span>
+      </span>
+    );
+  }
+
   return (
     <span className="absolute top-0 left-0 z-10 block h-14 w-11" aria-hidden>
       <svg
@@ -38,25 +61,6 @@ function Ribbon({
         <span>{line1}</span>
         <span>{line2}</span>
       </span>
-    </span>
-  );
-}
-
-/** Inset pill for compact cards — no hanging edge clip. */
-function CompactBadge({
-  fill,
-  label,
-}: {
-  fill: string;
-  label: string;
-}) {
-  return (
-    <span
-      className="absolute top-2 left-2 z-10 max-w-[calc(100%-2.75rem)] truncate rounded-md px-1.5 py-0.5 text-[9px] leading-none font-extrabold text-white shadow-sm"
-      style={{ backgroundColor: fill }}
-      aria-hidden
-    >
-      {label}
     </span>
   );
 }
@@ -118,20 +122,20 @@ export function ProductCard({
           : "h-full rounded-[1.5rem] p-2.5 shadow-[0_1px_2px_rgba(47,107,47,0.06),0_8px_20px_rgba(47,107,47,0.1)]",
       )}
     >
-      {compact ? (
-        product.badge ? (
-          <CompactBadge fill="#6a32e1" label={product.badge} />
-        ) : discount > 0 ? (
-          <CompactBadge fill="#dc2626" label={`${discount}% OFF`} />
-        ) : null
-      ) : product.badge ? (
+      {product.badge ? (
         <Ribbon
+          compact={compact}
           fill="#6a32e1"
           line1={product.badge.split(" ")[0]}
           line2={product.badge.split(" ").slice(1).join(" ")}
         />
       ) : discount > 0 ? (
-        <Ribbon fill="#dc2626" line1={`${discount}%`} line2="OFF" />
+        <Ribbon
+          compact={compact}
+          fill="#dc2626"
+          line1={`${discount}%`}
+          line2="OFF"
+        />
       ) : null}
 
       <button
