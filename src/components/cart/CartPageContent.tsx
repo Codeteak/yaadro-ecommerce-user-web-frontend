@@ -20,6 +20,7 @@ import {
   lineTotal,
   useCart,
 } from "@/components/cart/CartContext";
+import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import { cn } from "@/lib/cn";
 
 type CartPageContentProps = {
@@ -33,6 +34,8 @@ type CartPageContentProps = {
    * (e.g. `/coupons?from=cart` or playground coupons-apply).
    */
   couponPickerHref?: string;
+  /** Show “Prices may vary…” above the bill summary. */
+  showPriceMayVary?: boolean;
 };
 
 /**
@@ -43,6 +46,7 @@ type CartPageContentProps = {
 export function CartPageContent({
   chromePosition = "page",
   couponPickerHref,
+  showPriceMayVary = false,
 }: CartPageContentProps) {
   const inline = chromePosition === "inline";
   const {
@@ -321,7 +325,16 @@ export function CartPageContent({
               ) : null}
             </div>
 
-            <div className="mt-6 rounded-2xl bg-white px-4 py-1 shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10">
+            {showPriceMayVary ? (
+              <PriceMayVaryNotice className="mt-6" />
+            ) : null}
+
+            <div
+              className={cn(
+                "rounded-2xl bg-white px-4 py-1 shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10",
+                showPriceMayVary ? "mt-3" : "mt-6",
+              )}
+            >
               <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
                 <span className="text-muted">Subtotal</span>
                 <span className="font-bold text-black">₹{mrpTotal}</span>

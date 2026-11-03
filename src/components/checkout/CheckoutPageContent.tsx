@@ -7,6 +7,7 @@ import { Banknote, Check, MapPin } from "lucide-react";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { useCart } from "@/components/cart/CartContext";
+import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import { cn } from "@/lib/cn";
 import {
   DELIVERY_ADDRESS_KEY,
@@ -22,6 +23,8 @@ type CheckoutPageContentProps = {
    * `inline` — playground frame.
    */
   chromePosition?: "page" | "inline";
+  /** Show “Prices may vary…” above the sticky price summary. */
+  showPriceMayVary?: boolean;
 };
 
 type CheckoutPhase = "form" | "tick" | "confirmed";
@@ -48,6 +51,7 @@ function formatFullAddress(a: DeliveryAddress): string {
  */
 export function CheckoutPageContent({
   chromePosition = "page",
+  showPriceMayVary = false,
 }: CheckoutPageContentProps) {
   const inline = chromePosition === "inline";
   const {
@@ -279,6 +283,7 @@ export function CheckoutPageContent({
             : "fixed inset-x-0 bottom-0 mx-auto w-full max-w-lg px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]",
         )}
       >
+        {showPriceMayVary ? <PriceMayVaryNotice /> : null}
         <div className="rounded-2xl bg-white px-4 py-1 shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10">
           <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
             <span className="text-muted">Subtotal</span>

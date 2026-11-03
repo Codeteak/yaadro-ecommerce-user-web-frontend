@@ -254,8 +254,11 @@ import { WishlistProvider } from "@/components/wishlist/WishlistContext";
   "cart-page": U(
     `import { CartPageContent } from "@/components/cart/CartPageContent";
 
-<CartPageContent />`,
-    ["src/components/cart/CartPageContent.tsx"],
+<CartPageContent showPriceMayVary couponPickerHref="/coupons?from=cart" />`,
+    [
+      "src/components/cart/CartPageContent.tsx",
+      "src/components/storefront/PriceMayVaryNotice.tsx",
+    ],
   ),
   "product-detail": U(
     `import { ProductDetail } from "@/components/product/ProductDetail";
@@ -359,8 +362,11 @@ export default function NotFound() {
   checkout: U(
     `import { CheckoutPageContent } from "@/components/checkout/CheckoutPageContent";
 
-<CheckoutPageContent />`,
-    ["src/components/checkout/CheckoutPageContent.tsx"],
+<CheckoutPageContent showPriceMayVary />`,
+    [
+      "src/components/checkout/CheckoutPageContent.tsx",
+      "src/components/storefront/PriceMayVaryNotice.tsx",
+    ],
   ),
   "orders-list": U(
     `import { OrdersPageContent } from "@/components/orders/OrdersPageContent";

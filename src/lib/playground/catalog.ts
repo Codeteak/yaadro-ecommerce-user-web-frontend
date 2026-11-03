@@ -249,7 +249,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Cart list, discount field (green shell), coupon in totals, 3D Checkout pill. Checkout not faked.",
+      "Cart list, “Prices may vary…” warning banner, coupon shell, Checkout pill. Same as /cart.",
     wiresTo: "/cart",
   },
   {
@@ -366,7 +366,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Address, COD, price details + coupon, Place Order → tick → mascot. Same as /checkout.",
+      "Address, COD, “Prices may vary…” warning banner, totals, Place Order stub. Same as /checkout.",
     wiresTo: "/checkout",
   },
   {

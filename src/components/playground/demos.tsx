@@ -593,12 +593,13 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "cart-page": () => (
     <DemoFrame
       surface="bare"
-      note="Same as /cart: Select a coupon → apply → back with code. Add items first (min order)."
+      note="Same as /cart: “Prices may vary…” above bill summary + coupon Select + Checkout."
     >
       <div className="relative h-[75vh] bg-paper">
         <CartPageContent
           chromePosition="inline"
           couponPickerHref="/playground/coupons-apply"
+          showPriceMayVary
         />
       </div>
       <WeightCustomizer />
@@ -607,10 +608,10 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   checkout: () => (
     <DemoFrame
       surface="bare"
-      note="Playground: Edit/Add address opens saved list → stub map + Detect → details. COD + Place Order stub."
+      note="Same as /checkout: “Prices may vary…” above sticky totals + COD + Place Order stub."
     >
       <div className="relative h-[75vh] bg-paper">
-        <CheckoutPageContent chromePosition="inline" />
+        <CheckoutPageContent chromePosition="inline" showPriceMayVary />
       </div>
     </DemoFrame>
   ),

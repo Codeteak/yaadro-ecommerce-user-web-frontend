@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function CheckoutPage() {
-  return <CheckoutPageContent />;
+  return <CheckoutPageContent showPriceMayVary />;
 }
