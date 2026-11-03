@@ -254,9 +254,19 @@ import { WishlistProvider } from "@/components/wishlist/WishlistContext";
   "cart-page": U(
     `import { CartPageContent } from "@/components/cart/CartPageContent";
 
-<CartPageContent showPriceMayVary couponPickerHref="/coupons?from=cart" />`,
+// Storefront /cart (and playground) — suggestions + Add more under cart lines
+<CartPageContent
+  showPriceMayVary
+  showCartSuggestions
+  couponPickerHref="/coupons?from=cart"
+/>`,
     [
+      "src/app/(storefront)/cart/page.tsx",
       "src/components/cart/CartPageContent.tsx",
+      "src/components/cart/CartSuggestions.tsx",
+      "src/components/product/ProductCard.tsx",
+      "src/lib/cart-suggestions.ts",
+      "src/lib/product-card-layout.ts",
       "src/components/storefront/PriceMayVaryNotice.tsx",
     ],
   ),

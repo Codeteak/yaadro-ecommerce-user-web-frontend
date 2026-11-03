@@ -249,7 +249,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Cart list, “Prices may vary…” warning banner, coupon shell, Checkout pill. Same as /cart.",
+      "Cart list, Add more + suggestions (playground), prices-may-vary, coupon, Checkout. Wire suggestions when ready.",
     wiresTo: "/cart",
   },
   {

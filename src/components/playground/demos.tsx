@@ -593,13 +593,14 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "cart-page": () => (
     <DemoFrame
       surface="bare"
-      note="Same as /cart: “Prices may vary…” above bill summary + coupon Select + Checkout."
+      note="Playground: Add more + compact suggestion cards (~150×216). Wire to /cart when ready."
     >
       <div className="relative h-[75vh] bg-paper">
         <CartPageContent
           chromePosition="inline"
           couponPickerHref="/playground/coupons-apply"
           showPriceMayVary
+          showCartSuggestions
         />
       </div>
       <WeightCustomizer />

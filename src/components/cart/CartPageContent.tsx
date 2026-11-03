@@ -20,6 +20,7 @@ import {
   lineTotal,
   useCart,
 } from "@/components/cart/CartContext";
+import { CartSuggestions } from "@/components/cart/CartSuggestions";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import { cn } from "@/lib/cn";
 
@@ -36,6 +37,8 @@ type CartPageContentProps = {
   couponPickerHref?: string;
   /** Show “Prices may vary…” above the bill summary. */
   showPriceMayVary?: boolean;
+  /** “Add more products” + You may also like rail under the cart list. */
+  showCartSuggestions?: boolean;
 };
 
 /**
@@ -47,6 +50,7 @@ export function CartPageContent({
   chromePosition = "page",
   couponPickerHref,
   showPriceMayVary = false,
+  showCartSuggestions = false,
 }: CartPageContentProps) {
   const inline = chromePosition === "inline";
   const {
@@ -236,6 +240,13 @@ export function CartPageContent({
                 );
               })}
             </ul>
+
+            {showCartSuggestions ? (
+              <CartSuggestions
+                cartProductIds={items.map((i) => i.productId)}
+                shopHref={inline ? "/playground" : "/home"}
+              />
+            ) : null}
 
             <button
               type="button"

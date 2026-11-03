@@ -11,6 +11,7 @@ export default function CartPage() {
     <CartPageContent
       couponPickerHref="/coupons?from=cart"
       showPriceMayVary
+      showCartSuggestions
     />
   );
 }
