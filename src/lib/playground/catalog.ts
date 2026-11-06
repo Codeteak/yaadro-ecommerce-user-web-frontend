@@ -101,7 +101,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Fresh: rect-first + squares. Drinks: square then rect. Same as /categories.",
+      "Fresh: rect-first + squares. Drinks: square then rect. A “No photo” tile shows the category placeholder used on the shop.",
     wiresTo: "/categories",
   },
   {
@@ -127,7 +127,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "CategoryRail",
     status: "built",
     group: "Home",
-    description: "Infinite horizontal category circles with center selection.",
+    description:
+      "Infinite horizontal category circles with center selection. The last circle has no photo and shows the category placeholder.",
     wiresTo: "/home under banners",
   },
   {

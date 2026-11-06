@@ -183,7 +183,7 @@ export function ProductCard({
           className={cn(
             "overflow-hidden",
             photoIsPlaceholder ? "bg-white" : "bg-[#f4f6f8]",
-            compact ? "h-[105px] w-full rounded-lg" : "aspect-[4/3] rounded-2xl",
+            compact ? "h-[105px] w-full rounded-lg" : "aspect-square rounded-2xl",
           )}
         >
           <CatalogImage
@@ -191,10 +191,8 @@ export function ProductCard({
             alt={product.name}
             width={compact ? 220 : 300}
             height={compact ? 105 : 300}
-            className={cn(
-              "h-full w-full",
-              photoIsPlaceholder ? "bg-white object-contain" : "object-cover",
-            )}
+            style={{ objectFit: "contain" }}
+            className="h-full w-full bg-white object-contain"
           />
         </div>
         <h3

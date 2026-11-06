@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import { useHomeCategoryOptional } from "@/components/home/HomeCategoryContext";
 import { HOME_CATEGORIES } from "@/lib/home-categories";
+import {
+  CATEGORY_IMAGE_FALLBACK,
+  isCategoryImageFallback,
+} from "@/lib/category-image";
 
 export { HOME_CATEGORIES, type HomeCategory } from "@/lib/home-categories";
 
@@ -20,7 +24,7 @@ const SAMPLE_RAIL: RailCategory[] = HOME_CATEGORIES.map((category) => ({
   image: category.image,
 }));
 
-const FALLBACK_IMAGE = "/icons/icon-192.png";
+const FALLBACK_IMAGE = CATEGORY_IMAGE_FALLBACK;
 
 /** Vertical offsets so the circles ride the hero's curve (ends up, middle dipped). */
 const CURVE_OFFSETS = [0, 10, 18, 18, 10, 0];
@@ -32,6 +36,8 @@ type CategoryRailProps = {
   initialSlug?: string;
   /** Fires with the centered category key whenever the selection changes. */
   onSelectChange?: (slug: string) => void;
+  /** Used when a category has no image. */
+  imageFallback?: string;
 };
 
 function CategorySet({
@@ -39,11 +45,13 @@ function CategorySet({
   activeGlobal,
   onSelect,
   categories,
+  imageFallback,
 }: {
   copyIndex: number;
   activeGlobal: number | null;
   onSelect: (categoryIndex: number) => void;
   categories: RailCategory[];
+  imageFallback: string;
 }) {
   const count = categories.length;
   const hidden = copyIndex !== 1;
@@ -76,11 +84,15 @@ function CategorySet({
               }`}
             >
               <CatalogImage
-                src={category.image || FALLBACK_IMAGE}
+                src={category.image || imageFallback}
                 alt=""
                 width={144}
                 height={144}
-                className="h-full w-full object-cover"
+                className={
+                  isCategoryImageFallback(category.image || imageFallback)
+                    ? "h-full w-full bg-white object-contain"
+                    : "h-full w-full object-cover"
+                }
               />
             </span>
             <span
@@ -117,6 +129,7 @@ export function CategoryRail({
   categories = SAMPLE_RAIL,
   initialSlug,
   onSelectChange,
+  imageFallback = FALLBACK_IMAGE,
 }: CategoryRailProps) {
   const homeCategory = useHomeCategoryOptional();
   const railRef = useRef<HTMLDivElement>(null);
@@ -255,6 +268,7 @@ export function CategoryRail({
             activeGlobal={activeGlobal}
             onSelect={centerCategory}
             categories={categories}
+            imageFallback={imageFallback}
           />
         ))}
       </div>

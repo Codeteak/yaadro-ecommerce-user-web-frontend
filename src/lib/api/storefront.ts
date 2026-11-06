@@ -1,5 +1,6 @@
 import { cacheLife } from "next/cache";
 import { mapCatalogProduct } from "@/lib/catalog-map";
+import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
 import type { SampleProduct } from "@/lib/sample-products";
 
 const UUID_RE =
@@ -89,7 +90,7 @@ function mapCategory(value: unknown): StoreCategory | null {
     name,
     slug,
     parentId: typeof parent === "string" && parent ? parent : null,
-    image: imageUrl(row.image),
+    image: imageUrl(row.image) || CATEGORY_IMAGE_FALLBACK,
     sortOrder: typeof row.sort_order === "number" ? row.sort_order : 0,
   };
 }

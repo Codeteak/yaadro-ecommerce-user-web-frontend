@@ -69,13 +69,14 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
             )}
             aria-hidden={peek ? i !== index : undefined}
           >
-            <div className="relative aspect-[4/3] w-full bg-white">
+            <div className="relative aspect-square w-full bg-white">
               <CatalogImage
                 src={src}
                 alt={i === 0 ? alt : `${alt} photo ${i + 1}`}
                 fill
                 sizes="(max-width: 512px) 88vw, 420px"
-                className={placeholder ? "bg-white object-contain" : "object-cover"}
+                className="bg-white object-contain"
+                style={{ objectFit: "contain" }}
                 priority={i === 0}
               />
             </div>

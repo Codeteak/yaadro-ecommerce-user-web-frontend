@@ -16,6 +16,10 @@ import { BackButton } from "@/components/navigation/BackButton";
 import { ProductCard } from "@/components/product/ProductCard";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
+import {
+  CATEGORY_IMAGE_FALLBACK,
+  isCategoryImageFallback,
+} from "@/lib/category-image";
 import { cn } from "@/lib/cn";
 import { getCatalogCategory } from "@/lib/catalog-taxonomy";
 import {
@@ -67,13 +71,13 @@ export function CategoryListing({
     ? {
         name: live.name,
         slug: live.slug,
-        image: live.image || "/icons/icon-192.png",
+        image: live.image || CATEGORY_IMAGE_FALLBACK,
         shortName: live.name,
         subcategories: [
-          { name: "All", image: live.image || "/icons/icon-192.png" },
+          { name: "All", image: live.image || CATEGORY_IMAGE_FALLBACK },
           ...live.subcategories.map((row) => ({
             name: row.name,
-            image: row.image || live.image || "/icons/icon-192.png",
+            image: row.image || live.image || CATEGORY_IMAGE_FALLBACK,
           })),
         ],
       }
@@ -236,7 +240,8 @@ export function CategoryListing({
                 ) : null}
                 <span
                   className={cn(
-                    "relative h-12 w-12 overflow-hidden rounded-full bg-[#efe6da] ring-2 transition",
+                    "relative h-12 w-12 overflow-hidden rounded-full ring-2 transition",
+                    isCategoryImageFallback(row.image) ? "bg-white" : "bg-[#efe6da]",
                     isActive
                       ? "shadow-[0_4px_12px_rgba(47,107,47,0.22)] ring-leaf"
                       : "ring-black/[0.04]",
@@ -247,7 +252,11 @@ export function CategoryListing({
                     alt=""
                     fill
                     sizes="48px"
-                    className="object-cover"
+                    className={
+                      isCategoryImageFallback(row.image)
+                        ? "bg-white object-contain"
+                        : "object-cover"
+                    }
                   />
                 </span>
                 <span

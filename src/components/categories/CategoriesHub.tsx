@@ -6,6 +6,10 @@ import { CatalogImage } from "@/components/ui/CatalogImage";
 import { HomeSearchBar } from "@/components/home/HomeSearchBar";
 import { ProductCard } from "@/components/product/ProductCard";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
+import {
+  CATEGORY_IMAGE_FALLBACK,
+  isCategoryImageFallback,
+} from "@/lib/category-image";
 import { cn } from "@/lib/cn";
 import {
   CATALOG_SECTIONS,
@@ -49,6 +53,10 @@ export type CategoriesHubProps = {
   /** Live products used for search and popular picks. */
   products?: SampleProduct[];
   error?: string | null;
+  /** Used when a category has no image. */
+  imageFallback?: string;
+  /** Playground only: append one empty-image tile so the fallback is visible. */
+  previewMissingPhoto?: boolean;
 };
 
 /**
@@ -65,6 +73,8 @@ export function CategoriesHub({
   categories,
   products,
   error,
+  imageFallback = CATEGORY_IMAGE_FALLBACK,
+  previewMissingPhoto = false,
 }: CategoriesHubProps) {
   const t = useTypeScale();
   const [internalQuery, setInternalQuery] = useState("");
@@ -83,17 +93,28 @@ export function CategoriesHub({
   const trimmed = query.trim();
   const isSearching = trimmed.length > 0;
 
-  const sourceSections = categories
-    ? [
-        {
-          id: "shop",
-          title: "Shop by category",
-          subtitle: "Everything in this store",
-          layout: "uniform" as const,
-          categories,
-        },
-      ]
-    : CATALOG_SECTIONS;
+  const sourceSections = useMemo(() => {
+    const base = categories
+      ? [
+          {
+            id: "shop",
+            title: "Shop by category",
+            subtitle: "Everything in this store",
+            layout: "uniform" as const,
+            categories,
+          },
+        ]
+      : CATALOG_SECTIONS;
+    if (!previewMissingPhoto || categories) return base;
+    return base.map((section, index) =>
+      index === 0
+        ? {
+            ...section,
+            categories: [...section.categories, MISSING_PHOTO_CATEGORY],
+          }
+        : section,
+    );
+  }, [categories, previewMissingPhoto]);
 
   const sections = useMemo(() => {
     if (!isSearching) return sourceSections;
@@ -181,6 +202,7 @@ export function CategoriesHub({
                       category={cat}
                       shape={shape}
                       href={categoryHref?.(cat)}
+                      imageFallback={imageFallback}
                       onSelect={() => onSelectCategory?.(cat)}
                     />
                   </li>
@@ -240,34 +262,51 @@ export function CategoriesHub({
 /** Shared tile height so rect and square align in a row. */
 const TILE_H = "h-[6.25rem]";
 
+const MISSING_PHOTO_CATEGORY: CatalogCategory = {
+  slug: "no-photo",
+  name: "No photo",
+  shortName: "No photo",
+  image: "",
+  subcategories: [],
+};
+
 function HubTile({
   category,
   shape,
   href,
   onSelect,
+  imageFallback,
 }: {
   category: CatalogCategory;
   shape: CatalogTileShape;
   href?: string;
   onSelect: () => void;
+  imageFallback: string;
 }) {
   const label =
     shape === "rect" ? category.name : (category.shortName ?? category.name);
+  const src = category.image || imageFallback;
+  const placeholder = isCategoryImageFallback(src);
 
   const body = (
     <>
       <span
         className={cn(
-          "relative block w-full overflow-hidden rounded-[1.15rem] bg-[#efe6da] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.04)]",
+          "relative block w-full overflow-hidden rounded-[1.15rem] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.04)]",
+          placeholder ? "bg-white" : "bg-[#efe6da]",
           TILE_H,
         )}
       >
         <CatalogImage
-          src={category.image || "/icons/icon-192.png"}
+          src={src}
           alt=""
           fill
           sizes={shape === "rect" ? "66vw" : "25vw"}
-          className="object-cover transition duration-300 group-hover:scale-[1.04]"
+          className={
+            placeholder
+              ? "bg-white object-contain"
+              : "object-cover transition duration-300 group-hover:scale-[1.04]"
+          }
         />
       </span>
       <span className="mt-1.5 line-clamp-2 min-h-[2.1rem] w-full text-center text-[12px] leading-tight font-extrabold text-forest">

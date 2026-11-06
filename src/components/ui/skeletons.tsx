@@ -12,7 +12,7 @@ export function ProductCardSkeleton({ className }: { className?: string }) {
       )}
       aria-hidden
     >
-      <Skeleton className="aspect-[4/3] w-full rounded-2xl bg-mint/40" />
+      <Skeleton className="aspect-square w-full rounded-2xl bg-mint/40" />
       <Skeleton className="mt-3 h-4 w-[88%] bg-mint/45" />
       <Skeleton className="mt-2 h-3 w-16 bg-mint/35" />
       <div className="mt-auto flex items-center justify-between gap-2 pt-3">
@@ -150,7 +150,7 @@ export function ProductDetailSkeleton({ className }: { className?: string }) {
       <div className="flex h-11 items-center">
         <Skeleton className="h-11 w-11 rounded-[13px] bg-mint/70" />
       </div>
-      <Skeleton className="mx-auto mt-2 aspect-[4/3] w-full max-w-md rounded-[2rem] bg-mint/50" />
+      <Skeleton className="mx-auto mt-2 aspect-square w-full max-w-md rounded-[2rem] bg-mint/50" />
       <Skeleton className="mt-5 h-7 w-2/3 bg-mint/55" />
       <Skeleton className="mt-2 h-4 w-20 bg-mint/35" />
       <Skeleton className="mt-3 h-8 w-28 bg-mint/50" />

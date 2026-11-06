@@ -10,6 +10,8 @@ import {
 } from "@/lib/playground/catalog";
 import { loadPlaygroundSources } from "@/lib/playground/load-sources";
 import { getPlaygroundUsage } from "@/lib/playground/usage";
+import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
+import { getShopSeo } from "@/lib/shop-seo";
 
 type PlaygroundEntryPageProps = {
   params: Promise<{ slug: string }>;
@@ -35,6 +37,7 @@ async function PlaygroundEntryContent({ params }: PlaygroundEntryPageProps) {
   const entry = getPlaygroundEntry(slug);
   if (!entry) notFound();
   const usage = getPlaygroundUsage(entry.slug);
+  const shop = await getShopSeo();
   const sources = usage
     ? await loadPlaygroundSources(usage.files)
     : [];
@@ -67,7 +70,9 @@ async function PlaygroundEntryContent({ params }: PlaygroundEntryPageProps) {
       ) : null}
 
       <div className="mt-8">
-        <PlaygroundDemo slug={entry.slug} />
+        <ShopNameProvider name={shop.name}>
+          <PlaygroundDemo slug={entry.slug} />
+        </ShopNameProvider>
       </div>
 
       {usage ? (

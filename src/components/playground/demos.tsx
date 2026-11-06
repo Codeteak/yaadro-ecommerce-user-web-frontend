@@ -16,6 +16,8 @@ import { ScrollToTopOnLoad } from "@/components/navigation/ScrollToTopOnLoad";
 import { HomeTopBar } from "@/components/home/HomeTopBar";
 import { HomeSearchBar } from "@/components/home/HomeSearchBar";
 import { CategoryRail } from "@/components/home/CategoryRail";
+import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
+import { HOME_CATEGORIES } from "@/lib/home-categories";
 import { OfferBanners } from "@/components/home/OfferBanners";
 import { OfferFlyer } from "@/components/home/OfferFlyer";
 import { ProductSection } from "@/components/home/ProductSection";
@@ -330,7 +332,10 @@ function CategoriesFlowDemo({
       <div className="relative max-h-[78vh] overflow-y-auto overscroll-contain rounded-2xl bg-paper ring-1 ring-black/5">
         <CategoriesHub
           focusSearch={focusSearch}
+          imageFallback={CATEGORY_IMAGE_FALLBACK}
+          previewMissingPhoto
           onSelectCategory={(cat) => {
+            if (cat.slug === "no-photo") return;
             setSlug(cat.slug);
             setFocusSearch(false);
             setView("plp");
@@ -455,10 +460,20 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "category-rail": () => (
-    <DemoFrame>
+    <DemoFrame note="The last circle has no photo, so it uses the same category placeholder as the shop.">
       <HomeCategoryProvider>
         <div className="pt-6 pb-4">
-          <CategoryRail />
+          <CategoryRail
+            imageFallback={CATEGORY_IMAGE_FALLBACK}
+            categories={[
+              ...HOME_CATEGORIES.map((category) => ({
+                name: category.name,
+                slug: category.name,
+                image: category.image,
+              })),
+              { name: "No photo", slug: "No photo", image: "" },
+            ]}
+          />
         </div>
       </HomeCategoryProvider>
     </DemoFrame>

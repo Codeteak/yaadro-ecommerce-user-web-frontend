@@ -1,5 +1,64 @@
 # Implementation Log
 
+## 2026-11-06 — Category placeholder on the shop
+
+### What changed
+
+A shop category with no photo now uses the white grocery-bag image on the home rail, the categories hub, and the category listing rail. The image stays `object-contain` on white. Categories that already have a photo still fill their frame.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/lib/api/storefront.ts` | Map a missing category image to the bag |
+| `src/app/(storefront)/categories/page.tsx` | Same fallback on the hub |
+| `src/components/home/CategoryRail.tsx` | Default fallback is the bag |
+| `src/components/categories/CategoriesHub.tsx` | Default fallback is the bag |
+| `src/components/categories/CategoryListing.tsx` | Listing rail uses the bag |
+
+## 2026-11-06 — Ticket download matches the on-screen bill
+
+### What changed
+
+Download on the playground orders list saves the ticket at the card’s own width (352px, written at 2×). The total rule sits above TOTAL and the amount. The file name stays `{shop name}-{bill number}.png`. The same bill component is used on `/orders`.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/orders/lead-order-shared.tsx` | Draw the PNG from the ticket layout instead of a 760px canvas |
+
+## 2026-11-06 — Category placeholder sits on white without cropping
+
+### What changed
+
+The playground category bag now has a white background and is scaled to fit inside the circle and hub tile. Fallback images use `object-contain` on a white frame, so the bag keeps its shape. Real category photos still use `object-cover`.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `public/categories/no-image.png` | White-background bag, full artwork visible |
+| `src/lib/category-image.ts` | Point the playground fallback at the png |
+| `src/components/home/CategoryRail.tsx` | Contain the placeholder |
+| `src/components/categories/CategoriesHub.tsx` | White tile and contain the placeholder |
+
+## 2026-11-06 — Category placeholder preview in the playground
+
+### What changed
+
+A category with no photo can use `public/categories/no-image.jpg` (the bag on a black background). The playground category rail and categories hub pass that file and include one empty-image category so it is visible. Storefront category tiles still fall back to `/icons/icon-192.png` until this look is approved for the shop.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `public/categories/no-image.jpg` | Black-background bag |
+| `src/lib/category-image.ts` | Playground and storefront fallback paths |
+| `src/components/home/CategoryRail.tsx` | Optional `imageFallback` |
+| `src/components/categories/CategoriesHub.tsx` | Optional fallback and a playground-only empty tile |
+| `src/components/playground/demos.tsx` | Show the placeholder on the rail and hub |
+
 ## 2026-11-06 — Grocery-bag placeholder for products with no photo
 
 ### What changed

@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { OrderDetailPlayground } from "@/components/orders/OrderDetailPlayground";
+import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
 import { OrderDetailSkeleton } from "@/components/ui/skeletons";
 import { getOrder, listOrders } from "@/lib/api/orders";
+import { getShopSeo } from "@/lib/shop-seo";
 
 type OrderPageProps = {
   params: Promise<{ id: string }>;
@@ -28,8 +30,11 @@ export async function generateMetadata({
 async function OrderDetailContent({ params }: OrderPageProps) {
   const { id } = await params;
   if (!getOrder(id)) notFound();
+  const shop = await getShopSeo();
   return (
-    <OrderDetailPlayground orderId={id} backHref="/orders" shopHref="/home" />
+    <ShopNameProvider name={shop.name}>
+      <OrderDetailPlayground orderId={id} backHref="/orders" shopHref="/home" />
+    </ShopNameProvider>
   );
 }
 

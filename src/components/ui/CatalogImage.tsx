@@ -23,13 +23,14 @@ type CatalogImageProps = Omit<ImageProps, "src" | "alt"> & {
  * next/image for shop media we allowlisted, plain img for other catalog CDNs
  * so a new image host does not crash the product card.
  */
-export function CatalogImage({ src, alt, className, fill, ...rest }: CatalogImageProps) {
+export function CatalogImage({ src, alt, className, fill, style, ...rest }: CatalogImageProps) {
   if (!allowedRemote(src)) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
         alt={alt}
+        style={style}
         className={
           fill
             ? `absolute inset-0 h-full w-full ${className ?? ""}`
@@ -39,5 +40,5 @@ export function CatalogImage({ src, alt, className, fill, ...rest }: CatalogImag
     );
   }
 
-  return <Image src={src} alt={alt} className={className} fill={fill} {...rest} />;
+  return <Image src={src} alt={alt} className={className} fill={fill} style={style} {...rest} />;
 }
