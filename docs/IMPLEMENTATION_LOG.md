@@ -1,5 +1,17 @@
 # Implementation Log
 
+## 2026-11-06 — Copy puts the bill image on the clipboard
+
+### What changed
+
+Copy on the ticket bill writes the same PNG that Download saves, instead of the plain-text receipt. Playground and `/orders` share that bill.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/orders/lead-order-shared.tsx` | Clipboard item is `image/png` from the ticket canvas |
+
 ## 2026-11-06 — Category placeholder on the shop
 
 ### What changed

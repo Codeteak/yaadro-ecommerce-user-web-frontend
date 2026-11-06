@@ -472,14 +472,20 @@ export function OrderTicketBill({
   const shopName = useShopName();
   const charge = deliveryCharge(order);
   const total = billedTotal(order);
-  const text = billPlainText(order, shopName);
 
   const ticketRef = useRef<HTMLElement>(null);
 
   const copy = () => {
-    void navigator.clipboard?.writeText(text);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+    const ticket = ticketRef.current;
+    const canvas = ticket ? paintTicketPng(ticket, order, shopName) : null;
+    if (!canvas || !navigator.clipboard?.write) return;
+    const png = new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("bill png"))), "image/png");
+    });
+    void navigator.clipboard.write([new ClipboardItem({ "image/png": png })]).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    });
   };
 
   const download = () => {
@@ -602,27 +608,6 @@ function BillAction({
   );
 }
 
-function billPlainText(order: SampleOrder, shopName: string): string {
-  const charge = deliveryCharge(order);
-  return [
-    shopName,
-    order.addressDetail,
-    `Bill  ${order.number}`,
-    `Date  ${order.placedAtLabel}`,
-    `Payment  ${order.paymentLabel}`,
-    "",
-    ...order.lines.map(
-      (line) =>
-        `${line.isWeight ? orderLineLabel(line) : `${line.qty}×`} ${lineName(line)}  ${inr(line.lineTotal)}`,
-    ),
-    "",
-    `Subtotal  ${inr(order.subtotal)}`,
-    ...(order.promoDiscount > 0 ? [`Promo  −${inr(order.promoDiscount)}`] : []),
-    `Shipping  ${inr(charge)}`,
-    `Total  ${inr(billedTotal(order))}`,
-  ].join("\n");
-}
-
 const YAADRO_MARK =
   "M12.65 1.19L47.35 1.49L56.38 3.30L63.84 5.99L69.29 8.71L74.66 12.29L79.51 16.23L83.77 20.49L89.50 28.02L94.01 36.46L96.70 43.92L98.21 50.56L98.81 55.63L98.81 65.26L98.21 70.34L97.00 75.78L94.61 82.95L89.79 92.28L85.26 98.32L79.22 104.37L76.23 106.75L71.68 109.79L65.93 112.82L58.17 115.50L50.63 117.01L47.05 117.31L13.54 117.31L8.99 116.10L6.23 114.57L4.29 112.95L1.81 109.22L1.19 107.05L1.25 51.96L10.04 52.24L16.08 53.45L21.46 55.24L25.41 57.07L32.28 61.25L37.43 65.49L41.14 69.51L41.49 72.13L40.26 73.41L36.60 73.73L23.99 73.43L22.50 74.51L22.39 90.93L23.69 92.24L37.20 92.24L42.87 91.34L47.13 90.13L51.90 88.04L56.75 85.02L61.68 80.71L64.72 77.05L66.81 73.77L70.13 65.93L71.64 57.80L71.64 34.74L71.23 33.92L70.11 33.15L55.34 33.13L54.44 33.62L54.03 34.44L54.03 42.57L53.73 43.10L54.03 51.23L53.68 52.28L52.57 53.38L50.26 53.43L37.95 43.94L31.98 40.35L26.83 37.93L20.56 35.54L14.81 34.03L9.74 33.13L1.38 32.72L1.49 12.05L2.41 8.69L3.94 5.63L6.23 3.34L8.40 2.11L12.57 1.21Z";
 
@@ -654,7 +639,7 @@ function fitLine(ctx: CanvasRenderingContext2D, text: string, maxWidth: number):
  * PNG of the on-screen ticket at that card's width.
  * The total rule is drawn, then the amount is painted below it.
  */
-function saveTicketPng(ticket: HTMLElement, order: SampleOrder, shopName: string): boolean {
+function paintTicketPng(ticket: HTMLElement, order: SampleOrder, shopName: string): HTMLCanvasElement | null {
   const width = Math.max(280, Math.ceil(ticket.offsetWidth));
   const scale = 2;
   const font = getComputedStyle(ticket).fontFamily || "system-ui, sans-serif";
@@ -666,7 +651,7 @@ function saveTicketPng(ticket: HTMLElement, order: SampleOrder, shopName: string
   scratch.width = width * scale;
   scratch.height = 1800 * scale;
   const ctx = scratch.getContext("2d");
-  if (!ctx) return false;
+  if (!ctx) return null;
   ctx.scale(scale, scale);
   ctx.textBaseline = "top";
   ctx.fillStyle = "#FDFBF7";
@@ -836,9 +821,15 @@ function saveTicketPng(ticket: HTMLElement, order: SampleOrder, shopName: string
   out.width = width * scale;
   out.height = height * scale;
   const outCtx = out.getContext("2d");
-  if (!outCtx) return false;
+  if (!outCtx) return null;
   outCtx.drawImage(scratch, 0, 0, out.width, out.height, 0, 0, out.width, out.height);
-  const url = out.toDataURL("image/png");
+  return out;
+}
+
+function saveTicketPng(ticket: HTMLElement, order: SampleOrder, shopName: string): boolean {
+  const canvas = paintTicketPng(ticket, order, shopName);
+  if (!canvas) return false;
+  const url = canvas.toDataURL("image/png");
   const link = document.createElement("a");
   link.href = url;
   link.download = `${shopName.replace(/[^\w]+/g, "-")}-${order.number}.png`;
