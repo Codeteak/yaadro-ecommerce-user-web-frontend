@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { Suspense } from "react";
+import { ShopMetadataMarker } from "@/components/seo/ShopMetadataMarker";
 import { getShopSeo } from "@/lib/shop-seo";
 import "./globals.css";
 
@@ -62,7 +64,12 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${jakarta.variable} h-full antialiased`}>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        {children}
+        <Suspense>
+          <ShopMetadataMarker />
+        </Suspense>
+      </body>
     </html>
   );
 }

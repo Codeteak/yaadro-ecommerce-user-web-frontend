@@ -7,6 +7,7 @@ import {
   productsForShelf,
   type HomeShelfDef,
 } from "@/lib/home-shelves";
+import type { SampleProduct } from "@/lib/sample-products";
 
 /**
  * Vertical 2-col product shelf for home (Featured / Most ordered /
@@ -15,12 +16,15 @@ import {
 export function HomeProductShelf({
   shelf,
   className,
+  products: productsProp,
 }: {
-  shelf: HomeShelfDef;
+  shelf: { id: string; title: string; subtitle?: string };
   className?: string;
+  /** Live shelf products. Omit to resolve the sample shelf by id. */
+  products?: SampleProduct[];
 }) {
   const t = useTypeScale();
-  const products = productsForShelf(shelf);
+  const products = productsProp ?? productsForShelf(shelf as HomeShelfDef);
 
   if (products.length === 0) return null;
 

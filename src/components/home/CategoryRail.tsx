@@ -1,47 +1,56 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
+import { CatalogImage } from "@/components/ui/CatalogImage";
 import { useHomeCategoryOptional } from "@/components/home/HomeCategoryContext";
-import {
-  HOME_CATEGORIES,
-  type HomeCategory,
-} from "@/lib/home-categories";
+import { HOME_CATEGORIES } from "@/lib/home-categories";
 
 export { HOME_CATEGORIES, type HomeCategory } from "@/lib/home-categories";
 
-/**
- * UI-only category rail (static data — replaced when the catalog API lands).
- * Real-photo crops live in `public/categories/`.
- */
+export type RailCategory = {
+  name: string;
+  /** Sample mode uses the aisle name; live catalog uses the slug. */
+  slug: string;
+  image: string;
+};
 
-const COUNT = HOME_CATEGORIES.length;
+const SAMPLE_RAIL: RailCategory[] = HOME_CATEGORIES.map((category) => ({
+  name: category.name,
+  slug: category.name,
+  image: category.image,
+}));
 
-/** Category centered + selected when Home first opens (Vegetables). */
-const DEFAULT_CATEGORY_INDEX = 1;
+const FALLBACK_IMAGE = "/icons/icon-192.png";
 
 /** Vertical offsets so the circles ride the hero's curve (ends up, middle dipped). */
 const CURVE_OFFSETS = [0, 10, 18, 18, 10, 0];
 
 type CategoryRailProps = {
-  /** Fires with the centered category whenever the selection changes. */
-  onSelectChange?: (category: HomeCategory) => void;
+  /** Live shop categories. Omitted in the playground, which keeps the sample rail. */
+  categories?: RailCategory[];
+  /** Slug (or sample aisle name) centered when the rail first opens. */
+  initialSlug?: string;
+  /** Fires with the centered category key whenever the selection changes. */
+  onSelectChange?: (slug: string) => void;
 };
 
 function CategorySet({
   copyIndex,
   activeGlobal,
   onSelect,
+  categories,
 }: {
   copyIndex: number;
   activeGlobal: number | null;
   onSelect: (categoryIndex: number) => void;
+  categories: RailCategory[];
 }) {
+  const count = categories.length;
   const hidden = copyIndex !== 1;
   return (
     <div className="flex shrink-0 gap-5 pr-5" aria-hidden={hidden || undefined}>
-      {HOME_CATEGORIES.map((category, index) => {
-        const globalIndex = copyIndex * COUNT + index;
+      {categories.map((category, index) => {
+        const globalIndex = copyIndex * count + index;
         const isActive = activeGlobal === globalIndex;
         return (
           <button
@@ -55,7 +64,9 @@ function CategorySet({
             className={`group flex w-[4.75rem] shrink-0 cursor-pointer flex-col items-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-leaf ${
               isActive ? "relative z-10" : ""
             }`}
-            style={{ transform: `translateY(${CURVE_OFFSETS[index]}px)` }}
+            style={{
+              transform: `translateY(${CURVE_OFFSETS[index % CURVE_OFFSETS.length]}px)`,
+            }}
           >
             <span
               className={`block h-[4.5rem] w-[4.5rem] overflow-hidden rounded-full bg-white ring-4 transition duration-300 ${
@@ -64,8 +75,8 @@ function CategorySet({
                   : "shadow-[0_10px_24px_rgba(47,107,47,0.18)] ring-white group-hover:-translate-y-1 group-hover:ring-mint"
               }`}
             >
-              <Image
-                src={category.image}
+              <CatalogImage
+                src={category.image || FALLBACK_IMAGE}
                 alt=""
                 width={144}
                 height={144}
@@ -102,13 +113,25 @@ function CategorySet({
  *   the product preview below the hero will react to the selection).
  * It never scrolls on its own.
  */
-export function CategoryRail({ onSelectChange }: CategoryRailProps) {
+export function CategoryRail({
+  categories = SAMPLE_RAIL,
+  initialSlug,
+  onSelectChange,
+}: CategoryRailProps) {
   const homeCategory = useHomeCategoryOptional();
   const railRef = useRef<HTMLDivElement>(null);
   const setWidthRef = useRef(0);
   const [activeGlobal, setActiveGlobal] = useState<number | null>(null);
   const activeGlobalRef = useRef<number | null>(null);
   const onSelectChangeRef = useRef(onSelectChange);
+  const categoriesRef = useRef(categories);
+  categoriesRef.current = categories;
+  const count = categories.length;
+  const namedIndex = categories.findIndex((category) => category.slug === initialSlug);
+  const vegetablesIndex = categories.findIndex(
+    (category) => category.slug === "Vegetables" || category.slug === "vegetables",
+  );
+  const initialIndex = namedIndex >= 0 ? namedIndex : Math.max(0, vegetablesIndex);
   useEffect(() => {
     onSelectChangeRef.current = onSelectChange;
   }, [onSelectChange]);
@@ -120,7 +143,8 @@ export function CategoryRail({ onSelectChange }: CategoryRailProps) {
   /** Select whichever physical circle sits nearest the rail's center. */
   const updateActive = () => {
     const rail = railRef.current;
-    if (!rail) return;
+    const railCategories = categoriesRef.current;
+    if (!rail || railCategories.length === 0) return;
     const center = rail.scrollLeft + rail.clientWidth / 2;
     let nearest: number | null = null;
     let nearestDistance = Infinity;
@@ -135,11 +159,10 @@ export function CategoryRail({ onSelectChange }: CategoryRailProps) {
     if (nearest !== null && nearest !== activeGlobalRef.current) {
       activeGlobalRef.current = nearest;
       setActiveGlobal(nearest);
-      // Category index is modulo the set size, so a full cycle of 6
-      // returns the selection to the category you started from.
-      const categoryName = HOME_CATEGORIES[nearest % COUNT].name;
-      onSelectChangeRef.current?.(categoryName);
-      setSelectedRef.current?.(categoryName);
+      const category = railCategories[nearest % railCategories.length];
+      if (!category) return;
+      onSelectChangeRef.current?.(category.slug);
+      setSelectedRef.current?.(category.slug);
     }
   };
 
@@ -156,7 +179,7 @@ export function CategoryRail({ onSelectChange }: CategoryRailProps) {
     const setWidth = setWidthRef.current;
     for (let copy = 0; copy < 3; copy++) {
       const item = rail.querySelector<HTMLElement>(
-        `[data-global-index="${copy * COUNT + categoryIndex}"]`,
+        `[data-global-index="${copy * categoriesRef.current.length + categoryIndex}"]`,
       );
       if (!item) continue;
       const target =
@@ -179,10 +202,9 @@ export function CategoryRail({ onSelectChange }: CategoryRailProps) {
     if (setWidth === 0) return;
     setWidthRef.current = setWidth;
 
-    // Start on the middle copy so both directions have a copy to wrap into,
-    // with Vegetables (index 1) selected exactly at the center.
+    // Start on the middle copy so both directions have a copy to wrap into.
     rail.scrollLeft = setWidth;
-    centerCategory(DEFAULT_CATEGORY_INDEX, "auto");
+    centerCategory(initialIndex, "auto");
     updateActive();
 
     let raf = 0;
@@ -205,7 +227,7 @@ export function CategoryRail({ onSelectChange }: CategoryRailProps) {
           item.offsetLeft + item.offsetWidth / 2 -
             (rail.scrollLeft + rail.clientWidth / 2),
         );
-        if (distance > 2) centerCategory(active % COUNT, "smooth");
+        if (distance > 2) centerCategory(active % categoriesRef.current.length, "smooth");
       }, 150);
     };
     rail.addEventListener("scroll", handleScroll, { passive: true });
@@ -216,7 +238,9 @@ export function CategoryRail({ onSelectChange }: CategoryRailProps) {
       rail.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", updateActive);
     };
-  }, []);
+  }, [count, initialIndex]);
+
+  if (count === 0) return null;
 
   return (
     <div
@@ -230,6 +254,7 @@ export function CategoryRail({ onSelectChange }: CategoryRailProps) {
             copyIndex={copyIndex}
             activeGlobal={activeGlobal}
             onSelect={centerCategory}
+            categories={categories}
           />
         ))}
       </div>

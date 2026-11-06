@@ -12,7 +12,13 @@ import {
 import {
   SAMPLE_PRODUCTS,
   type SampleProduct,
+  type WeightCustomization,
 } from "@/lib/sample-products";
+import {
+  productFromSnapshot,
+  recallProduct,
+  type ProductSnapshot,
+} from "@/lib/product-snapshots";
 import {
   applySamplePromo,
   type SampleCoupon,
@@ -34,6 +40,8 @@ export type CartItem = {
   qty: number;
   /** Weight-customized goods: chosen kilograms (qty stays 0). */
   weightKg?: number;
+  /** Display copy captured when the item was added, so live products survive refresh. */
+  snapshot?: ProductSnapshot;
 };
 
 const STORAGE_KEY = "yaadro-cart-v1";
@@ -71,18 +79,39 @@ type CartContextValue = {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
+function missingProduct(productId: string): SampleProduct {
+  return {
+    id: productId,
+    category: "Grocery",
+    name: "Product",
+    unit: "",
+    price: 0,
+    mrp: 0,
+    image: "/products/no-image.jpg",
+  };
+}
+
 export function getProduct(productId: string): SampleProduct {
-  return SAMPLE_PRODUCTS.find((p) => p.id === productId) ?? SAMPLE_PRODUCTS[0];
+  return (
+    recallProduct(productId) ??
+    SAMPLE_PRODUCTS.find((product) => product.id === productId) ??
+    missingProduct(productId)
+  );
+}
+
+export function resolveCartProduct(item: CartItem): SampleProduct {
+  if (item.snapshot) return productFromSnapshot(item.productId, item.snapshot);
+  return getProduct(item.productId);
 }
 
 export function lineTotal(item: CartItem): number {
-  const product = getProduct(item.productId);
+  const product = resolveCartProduct(item);
   if (item.weightKg) return Math.round(item.weightKg * product.price);
   return item.qty * product.price;
 }
 
 export function lineMrp(item: CartItem): number {
-  const product = getProduct(item.productId);
+  const product = resolveCartProduct(item);
   if (item.weightKg) return Math.round(item.weightKg * product.mrp);
   return item.qty * product.mrp;
 }
@@ -195,24 +224,67 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [items],
   );
 
+  const snapshotFor = useCallback(
+    (productId: string, previous?: ProductSnapshot): ProductSnapshot | undefined => {
+      if (previous) return previous;
+      const recalled = recallProduct(productId);
+      if (!recalled) return undefined;
+      const customization: WeightCustomization | undefined = recalled.customization;
+      return {
+        name: recalled.name,
+        unit: recalled.unit,
+        price: recalled.price,
+        mrp: recalled.mrp,
+        image: recalled.image,
+        category: recalled.category,
+        categoryId: recalled.categoryId,
+        categorySlug: recalled.categorySlug,
+        description: recalled.description,
+        customization,
+      };
+    },
+    [],
+  );
+
   const setQty = useCallback(
     (productId: string, qty: number) => {
-      const rest = items.filter((i) => i.productId !== productId);
-      update(qty > 0 ? [...rest, { productId, qty }] : rest);
+      const previous = items.find((item) => item.productId === productId);
+      const rest = items.filter((item) => item.productId !== productId);
+      update(
+        qty > 0
+          ? [
+              ...rest,
+              {
+                productId,
+                qty,
+                snapshot: snapshotFor(productId, previous?.snapshot),
+              },
+            ]
+          : rest,
+      );
     },
-    [items, update],
+    [items, snapshotFor, update],
   );
 
   const setWeight = useCallback(
     (productId: string, weightKg: number | null) => {
-      const rest = items.filter((i) => i.productId !== productId);
+      const previous = items.find((item) => item.productId === productId);
+      const rest = items.filter((item) => item.productId !== productId);
       update(
         weightKg && weightKg > 0
-          ? [...rest, { productId, qty: 0, weightKg }]
+          ? [
+              ...rest,
+              {
+                productId,
+                qty: 0,
+                weightKg,
+                snapshot: snapshotFor(productId, previous?.snapshot),
+              },
+            ]
           : rest,
       );
     },
-    [items, update],
+    [items, snapshotFor, update],
   );
 
   const clearPromo = useCallback(() => {

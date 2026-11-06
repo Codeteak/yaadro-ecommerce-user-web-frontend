@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Heart, Minus, Plus, Star } from "lucide-react";
 import { BackButton } from "@/components/navigation/BackButton";
 import { useCart } from "@/components/cart/CartContext";
+import { rememberProduct } from "@/lib/product-snapshots";
 import { useWishlistOptional } from "@/components/wishlist/WishlistContext";
 import {
   productImages,
@@ -173,7 +174,10 @@ export function ProductDetail({
           {product.customization ? (
             <button
               type="button"
-              onClick={() => setCustomizing(product)}
+              onClick={() => {
+                rememberProduct(product);
+                setCustomizing(product);
+              }}
               aria-label={
                 weightKg
                   ? `Change weight of ${product.name}, currently ${weightKg} kilograms`
@@ -186,7 +190,10 @@ export function ProductDetail({
           ) : qty === 0 ? (
             <button
               type="button"
-              onClick={() => setQty(product.id, 1)}
+              onClick={() => {
+                rememberProduct(product);
+                setQty(product.id, 1);
+              }}
               aria-label={`Add ${product.name} to cart`}
               className="flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-2xl bg-track px-4 text-sm font-semibold text-black shadow-[0_12px_28px_rgba(47,107,47,0.28)] transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
             >

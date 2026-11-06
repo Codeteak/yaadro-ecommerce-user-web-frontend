@@ -7,11 +7,16 @@ import { ProductCard } from "@/components/product/ProductCard";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { cn } from "@/lib/cn";
 import { catalogSlugForHomeCategory } from "@/lib/catalog-taxonomy";
+import { HOME_CATEGORIES, type HomeCategory } from "@/lib/home-categories";
 import { PRODUCT_CAROUSEL_SLOT } from "@/lib/product-card-layout";
 import {
   getProductsByCategory,
   type SampleProduct,
 } from "@/lib/sample-products";
+
+function isHomeCategory(value: string): value is HomeCategory {
+  return HOME_CATEGORIES.some((category) => category.name === value);
+}
 
 const HOME_PRODUCT_LIMIT = 10;
 
@@ -25,17 +30,31 @@ const ROW_SCROLL =
  * horizontal rows (~172px compact slots) above FruitsVeggiesSection.
  * Sample data until the catalog API lands.
  */
-export function ProductSection() {
+export function ProductSection({
+  productsBySlug,
+  categoryNames,
+}: {
+  /** Live products keyed by category slug. Omit to keep the sample aisle. */
+  productsBySlug?: Record<string, SampleProduct[]>;
+  categoryNames?: Record<string, string>;
+}) {
   const t = useTypeScale();
   const { selected } = useHomeCategory();
-  const products = getProductsByCategory(selected).slice(0, HOME_PRODUCT_LIMIT);
+  const live = productsBySlug != null;
+  const products = (
+    live
+      ? (productsBySlug[selected] ?? [])
+      : isHomeCategory(selected)
+        ? getProductsByCategory(selected)
+        : []
+  ).slice(0, HOME_PRODUCT_LIMIT);
   const mid = Math.ceil(products.length / 2);
   const rowTop = products.slice(0, mid);
   const rowBottom = products.slice(mid);
 
   return (
     <section
-      aria-label={`${selected} products`}
+      aria-label={`${categoryNames?.[selected] ?? selected} products`}
       className="mx-auto w-full max-w-lg px-5 pt-6"
     >
       <div
@@ -45,13 +64,21 @@ export function ProductSection() {
         )}
       >
         <div>
-          <h2 className={t.homeSectionHeading}>{selected}</h2>
+          <h2 className={t.homeSectionHeading}>
+            {categoryNames?.[selected] ?? selected}
+          </h2>
           <p className={t.homeSectionSubtitle}>
-            Sample products — real catalog coming soon
+            {live ? "From this shop" : "Sample products — real catalog coming soon"}
           </p>
         </div>
         <Link
-          href={`/categories/${catalogSlugForHomeCategory(selected)}`}
+          href={
+            live
+              ? `/categories/${selected}`
+              : isHomeCategory(selected)
+                ? `/categories/${catalogSlugForHomeCategory(selected)}`
+                : "/categories"
+          }
           transitionTypes={["nav-forward"]}
           className="flex shrink-0 items-center gap-1 text-sm font-semibold text-leaf transition hover:text-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
         >
@@ -67,6 +94,11 @@ export function ProductSection() {
           t.homeSectionToGrid,
         )}
       >
+        {products.length === 0 ? (
+          <p className="py-6 text-sm font-medium text-muted">
+            Nothing in this aisle yet.
+          </p>
+        ) : null}
         <ProductScrollRow
           products={rowTop}
           label={`${selected} row 1`}

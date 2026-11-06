@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { CatalogImage } from "@/components/ui/CatalogImage";
 
 /**
  * Offer banner slideshow (UI-only placeholder creative — real shop
@@ -16,7 +16,16 @@ import Link from "next/link";
  * while touched/hovered and when the tab is hidden; manual for
  * reduced-motion users. Swipe and dots work anytime.
  */
-const BANNERS = [
+export type OfferBanner = {
+  id: string;
+  title: string;
+  subtitle: string;
+  image: string;
+  href?: string;
+  gradient?: string;
+};
+
+const SAMPLE_BANNERS: OfferBanner[] = [
   {
     id: "fresh-picks",
     title: "Fresh picks of the day",
@@ -38,35 +47,37 @@ const BANNERS = [
     image: "/categories/snacks.jpg",
     gradient: "from-[#1e1b4b] via-[#4338ca] to-[#7c3aed]",
   },
-] as const;
+];
 
-const COUNT = BANNERS.length;
 const SLIDE_MS = 4000;
 const TRANSITION = "transform 700ms cubic-bezier(0.22, 1, 0.36, 1)";
 
-export function OfferBanners() {
-  /** Track position 0..COUNT, where COUNT is the cloned first slide. */
+export function OfferBanners({ banners }: { banners?: OfferBanner[] }) {
+  const slides = banners && banners.length > 0 ? banners : SAMPLE_BANNERS;
+  const live = banners != null && banners.length > 0;
+  const count = slides.length;
+  /** Track position 0..count, where count is the cloned first slide. */
   const [position, setPosition] = useState(0);
   const [transitionOn, setTransitionOn] = useState(true);
   const pausedRef = useRef(false);
   const dragStartXRef = useRef<number | null>(null);
   const suppressClickRef = useRef(false);
 
-  const active = position % COUNT;
+  const active = position % count;
 
   const next = () => {
     setTransitionOn(true);
-    setPosition((p) => Math.min(p + 1, COUNT));
+    setPosition((p) => Math.min(p + 1, count));
   };
 
   const prev = () => {
     if (position === 0) {
       // Jump (invisibly) to the clone of the first slide, then glide back.
       setTransitionOn(false);
-      setPosition(COUNT);
+      setPosition(count);
       window.setTimeout(() => {
         setTransitionOn(true);
-        setPosition(COUNT - 1);
+        setPosition(count - 1);
       }, 60);
       return;
     }
@@ -78,7 +89,7 @@ export function OfferBanners() {
   // first slide with the transition off — identical pixels, invisible.
   const handleTransitionEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
     if (e.propertyName !== "transform") return;
-    if (position === COUNT) {
+    if (position === count) {
       setTransitionOn(false);
       setPosition(0);
     }
@@ -155,42 +166,54 @@ export function OfferBanners() {
           }}
           onTransitionEnd={handleTransitionEnd}
         >
-          {[...BANNERS, BANNERS[0]].map((banner, index) => (
+          {[...slides, slides[0]].map((banner, index) => (
             <article
               key={`${banner.id}-${index}`}
-              aria-hidden={index === COUNT || undefined}
-              className={`relative aspect-[2.2/1] w-full shrink-0 overflow-hidden bg-gradient-to-r ${banner.gradient}`}
+              aria-hidden={index === count || undefined}
+              className={`relative aspect-[2.2/1] w-full shrink-0 overflow-hidden bg-gradient-to-r ${banner.gradient ?? "from-[#2f6b2f] via-[#3d8f3d] to-[#5cb85c]"}`}
             >
-              <Image
-                src={banner.image}
-                alt=""
-                width={240}
-                height={240}
-                className="absolute top-1/2 right-4 h-[78%] w-auto -translate-y-1/2 rounded-full object-cover ring-4 ring-white/25"
-              />
+              {live ? (
+                <CatalogImage
+                  src={banner.image}
+                  alt=""
+                  fill
+                  sizes="(max-width: 512px) 100vw, 512px"
+                  className="object-cover"
+                />
+              ) : (
+                <CatalogImage
+                  src={banner.image}
+                  alt=""
+                  width={240}
+                  height={240}
+                  className="absolute top-1/2 right-4 h-[78%] w-auto -translate-y-1/2 rounded-full object-cover ring-4 ring-white/25"
+                />
+              )}
               <div className="relative flex h-full max-w-[62%] flex-col justify-center pr-2 pl-5">
                 <h2 className="text-lg leading-snug font-extrabold text-white">
                   {banner.title}
                 </h2>
                 <p className="mt-1 text-xs leading-4 text-white/80">{banner.subtitle}</p>
                 <Link
-                  href="/categories"
-                  tabIndex={index === COUNT ? -1 : undefined}
+                  href={banner.href ?? "/categories"}
+                  tabIndex={index === count ? -1 : undefined}
                   className="mt-3 inline-flex h-8 w-fit items-center rounded-full bg-white px-3.5 text-xs font-bold text-forest transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 >
                   Shop now
                 </Link>
               </div>
-              <span className="absolute top-3 right-3 rounded-full bg-black/30 px-2 py-0.5 text-[9px] font-bold tracking-[0.14em] text-white/85 uppercase">
-                Sample
-              </span>
+              {!live ? (
+                <span className="absolute top-3 right-3 rounded-full bg-black/30 px-2 py-0.5 text-[9px] font-bold tracking-[0.14em] text-white/85 uppercase">
+                  Sample
+                </span>
+              ) : null}
             </article>
           ))}
         </div>
       </div>
 
       <div className="mt-3 flex justify-center gap-1.5" role="tablist" aria-label="Banner navigation">
-        {BANNERS.map((banner, index) => (
+        {slides.map((banner, index) => (
           <button
             key={banner.id}
             type="button"

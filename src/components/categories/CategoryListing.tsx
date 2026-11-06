@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   ArrowUpDown,
@@ -15,6 +14,7 @@ import {
 } from "@/components/categories/PlpFilterSheets";
 import { BackButton } from "@/components/navigation/BackButton";
 import { ProductCard } from "@/components/product/ProductCard";
+import { CatalogImage } from "@/components/ui/CatalogImage";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { cn } from "@/lib/cn";
 import { getCatalogCategory } from "@/lib/catalog-taxonomy";
@@ -26,7 +26,15 @@ import {
   uniqueSorted,
   type PlpFilterState,
 } from "@/lib/plp-filters";
-import { getProductsByCategory } from "@/lib/sample-products";
+import { getProductsByCategory, type SampleProduct } from "@/lib/sample-products";
+
+export type LiveCategoryListing = {
+  name: string;
+  slug: string;
+  image: string;
+  subcategories: { id: string; name: string; image: string }[];
+  products: SampleProduct[];
+};
 
 export type CategoryListingProps = {
   slug: string;
@@ -34,6 +42,9 @@ export type CategoryListingProps = {
   onBack?: () => void;
   backHref?: string;
   onSearchClick?: () => void;
+  /** Live category. Omit to keep the sample listing. */
+  live?: LiveCategoryListing;
+  error?: string | null;
 };
 
 /**
@@ -46,10 +57,27 @@ export function CategoryListing({
   onBack,
   backHref = "/categories",
   onSearchClick,
+  live,
+  error,
 }: CategoryListingProps) {
   const t = useTypeScale();
   const router = useRouter();
-  const category = getCatalogCategory(slug);
+  const sampleCategory = live ? undefined : getCatalogCategory(slug);
+  const category = live
+    ? {
+        name: live.name,
+        slug: live.slug,
+        image: live.image || "/icons/icon-192.png",
+        shortName: live.name,
+        subcategories: [
+          { name: "All", image: live.image || "/icons/icon-192.png" },
+          ...live.subcategories.map((row) => ({
+            name: row.name,
+            image: row.image || live.image || "/icons/icon-192.png",
+          })),
+        ],
+      }
+    : sampleCategory;
   const [sub, setSub] = useState("All");
   const [filters, setFilters] = useState<PlpFilterState>(DEFAULT_PLP_FILTERS);
   const [sheet, setSheet] = useState<PlpSheetKind>(null);
@@ -63,9 +91,15 @@ export function CategoryListing({
   };
 
   const catalogProducts = useMemo(() => {
-    if (!category?.homeCategory) return [];
-    return getProductsByCategory(category.homeCategory);
-  }, [category]);
+    if (live) {
+      if (sub === "All") return live.products;
+      const child = live.subcategories.find((row) => row.name === sub);
+      if (!child) return live.products;
+      return live.products.filter((product) => product.categoryId === child.id);
+    }
+    if (!sampleCategory?.homeCategory) return [];
+    return getProductsByCategory(sampleCategory.homeCategory);
+  }, [live, sampleCategory, sub]);
 
   const brandOptions = useMemo(
     () => uniqueSorted(catalogProducts.map(plpBrand)),
@@ -87,6 +121,14 @@ export function CategoryListing({
     filters.bestSeller ||
     filters.brands.length > 0 ||
     filters.types.length > 0;
+
+  if (error) {
+    return (
+      <div className={cn("bg-paper px-5 py-10", className)}>
+        <p className="text-sm font-semibold text-muted">{error}</p>
+      </div>
+    );
+  }
 
   if (!category) {
     return (
@@ -200,7 +242,7 @@ export function CategoryListing({
                       : "ring-black/[0.04]",
                   )}
                 >
-                  <Image
+                  <CatalogImage
                     src={row.image}
                     alt=""
                     fill
@@ -257,7 +299,7 @@ export function CategoryListing({
             </ul>
           )}
 
-          {sub !== "All" ? (
+          {sub !== "All" && !live ? (
             <p className="mt-5 px-1 pb-4 text-center text-[11px] leading-4 text-muted">
               Showing all {category.shortName ?? category.name} items —
               “{sub}” rail filtering arrives with the catalog API.

@@ -1,29 +1,63 @@
 "use client";
 
+import { startTransition, useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { ProductCard } from "@/components/product/ProductCard";
 import { cn } from "@/lib/cn";
+import { suggestCartProducts } from "@/lib/api/suggest-cart-products";
 import { cartSuggestions } from "@/lib/cart-suggestions";
+import type { SampleProduct } from "@/lib/sample-products";
 import {
   CART_SUGGESTION_GAP,
   CART_SUGGESTION_SLOT,
 } from "@/lib/product-card-layout";
 
 /**
- * “Add more products” + compact suggestion rail for filled cart.
- * Opt in via CartPageContent `showCartSuggestions` (storefront /cart + playground).
+ * “Add more products” + compact suggestion rail for a filled cart.
+ * Storefront loads the live catalog. Playground keeps the sample rail
+ * when the basket has no category ids.
  */
 export function CartSuggestions({
   cartProductIds,
+  categoryIds = [],
+  sampleFallback = false,
   shopHref = "/home",
   className,
 }: {
   cartProductIds: readonly string[];
+  categoryIds?: readonly string[];
+  sampleFallback?: boolean;
   shopHref?: string;
   className?: string;
 }) {
-  const suggestions = cartSuggestions(cartProductIds);
+  const idsKey = cartProductIds.join("\0");
+  const categoriesKey = categoryIds.join("\0");
+  const [suggestions, setSuggestions] = useState<SampleProduct[]>([]);
+
+  useEffect(() => {
+    const productIds = idsKey ? idsKey.split("\0") : [];
+    const categories = categoriesKey ? categoriesKey.split("\0") : [];
+    if (sampleFallback && categories.length === 0) {
+      setSuggestions(cartSuggestions(productIds));
+      return;
+    }
+
+    let cancelled = false;
+    startTransition(() => {
+      void suggestCartProducts(categories, productIds).then(
+        (products) => {
+          if (!cancelled) setSuggestions(products);
+        },
+        () => {
+          if (!cancelled) setSuggestions([]);
+        },
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [idsKey, categoriesKey, sampleFallback]);
 
   return (
     <section className={cn("mt-6", className)} aria-label="Add more products">

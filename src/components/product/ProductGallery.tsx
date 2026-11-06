@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
+import { CatalogImage } from "@/components/ui/CatalogImage";
+import { cn } from "@/lib/cn";
+import { isProductImageFallback } from "@/lib/product-image";
 
 type ProductGalleryProps = {
   images: string[];
@@ -55,28 +57,31 @@ export function ProductGallery({ images, alt }: ProductGalleryProps) {
         aria-roledescription={peek ? "carousel" : undefined}
         aria-label={`${alt} photos`}
       >
-        {images.map((src, i) => (
+        {images.map((src, i) => {
+          const placeholder = isProductImageFallback(src);
+          return (
           <div
             key={`${src}-${i}`}
-            className={
-              peek
-                ? "w-[88%] shrink-0 snap-center overflow-hidden rounded-[2rem] bg-gradient-to-b from-mint/40 to-white ring-1 ring-forest/8"
-                : "w-full max-w-md overflow-hidden rounded-[2rem] bg-gradient-to-b from-mint/40 to-white ring-1 ring-forest/8"
-            }
+            className={cn(
+              "overflow-hidden rounded-[2rem] ring-1 ring-forest/8",
+              peek ? "w-[88%] shrink-0 snap-center" : "w-full max-w-md",
+              placeholder ? "bg-white" : "bg-gradient-to-b from-mint/40 to-white",
+            )}
             aria-hidden={peek ? i !== index : undefined}
           >
-            <div className="relative aspect-[4/3] w-full">
-              <Image
+            <div className="relative aspect-[4/3] w-full bg-white">
+              <CatalogImage
                 src={src}
                 alt={i === 0 ? alt : `${alt} photo ${i + 1}`}
                 fill
                 sizes="(max-width: 512px) 88vw, 420px"
-                className="object-cover"
+                className={placeholder ? "bg-white object-contain" : "object-cover"}
                 priority={i === 0}
               />
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {peek ? (

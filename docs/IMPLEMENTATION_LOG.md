@@ -1,5 +1,65 @@
 # Implementation Log
 
+## 2026-11-06 — Grocery-bag placeholder for products with no photo
+
+### What changed
+
+A product with no image uses `public/products/no-image.jpg` on the product card and the detail gallery, instead of the app icon. The catalog mapper applies the same file. The playground ProductCard and product-detail demos include a “No photo yet” row so the placeholder can be reviewed.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `public/products/no-image.jpg` | Bag illustration |
+| `src/lib/product-image.ts` | Shared fallback path |
+| `src/components/product/ProductCard.tsx` | Use the fallback |
+| `src/components/product/ProductGallery.tsx` | Use the fallback |
+| `src/components/playground/demos.tsx` | No-photo card and detail chip |
+
+## 2026-11-06 — Cart suggestions use the live catalog
+
+### What changed
+
+`/cart` “You may also like” no longer reads `SAMPLE_PRODUCTS`. It loads the shop catalog for the basket’s categories, then fills any remaining slots with other shop products, and skips items already in the cart. The playground cart still uses the sample rail when its demo products have no category id.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/lib/api/suggest-cart-products.ts` | Server function for live suggestions |
+| `src/components/cart/CartSuggestions.tsx` | Load live products on the storefront |
+| `src/components/cart/CartPageContent.tsx` | Pass category ids from cart snapshots |
+| `src/components/product/ProductDetail.tsx` | Remember the product when it is added, so the cart has its category |
+
+## 2026-11-06 — Unblock static routes whose metadata reads the shop host
+
+### What changed
+
+Root `generateMetadata()` calls `getShopSeo()`, which reads `headers()` so the title can follow the shop domain. With Cache Components, an otherwise static page such as `/cart` then fails prerender with “runtime data in `generateMetadata()`”. A null `connection()` marker in the root layout, inside `<Suspense>`, tells Next.js that this request-time metadata is intentional. Page HTML still prerenders; the shop title streams with the request.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/seo/ShopMetadataMarker.tsx` | Suspended `connection()` marker |
+| `src/app/layout.tsx` | Render the marker under `<Suspense>` |
+
+## 2026-11-06 — Public catalog API on home, categories, and PDP
+
+### What was built
+
+- Storefront client for shop resolve, SEO, categories, products, and home sections (`src/lib/api/storefront.ts`)
+- Prices converted from minor units onto the existing product card shape
+- `/home`, `/categories`, `/categories/[slug]`, and `/product/[id]` use the live shop (`NEXT_PUBLIC_API_URL` + `NEXT_PUBLIC_SHOP_ID`)
+- Cart and wishlist keep a display snapshot so a live product is not replaced by a sample row
+- Playground demos still use sample data when no live props are passed
+
+### Verification
+
+- Live API: categories, products, home sections, and shop SEO return 200 for the configured shop
+- Dev server: `/home` shows GreenLeaf Mumbai, shop categories, Soya chunks ₹49, Festive shelf; `/categories/fruits` lists green apple ₹250; `/product/green-apple` shows that product and related items
+- `npx tsc --noEmit` — no new errors in these files (pre-existing order playground type errors remain)
+
 ## 2026-10-26 — Categories hub + PLP wired to storefront
 
 ### What was built

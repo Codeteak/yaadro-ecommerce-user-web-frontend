@@ -1,4 +1,5 @@
 import type { HomeCategory } from "@/lib/home-categories";
+import { productPhoto } from "@/lib/product-image";
 
 /**
  * ⚠️ SAMPLE DATA — UI development only.
@@ -29,7 +30,12 @@ export type SampleProductRating = {
 
 export type SampleProduct = {
   id: string;
-  category: HomeCategory;
+  /** Sample aisle name, or the live catalog category name. */
+  category: string;
+  /** Live catalog category id, when this row came from the API. */
+  categoryId?: string;
+  /** Live catalog category slug, when this row came from the API. */
+  categorySlug?: string;
   name: string;
   unit: string;
   price: number;
@@ -50,10 +56,11 @@ export type SampleProduct = {
   productType?: string;
 };
 
-/** Gallery sources for a product (primary + extras). */
+/** Gallery sources for a product (primary + extras). Blank photos use the bag placeholder. */
 export function productImages(product: SampleProduct): string[] {
-  if (product.images && product.images.length > 0) return product.images;
-  return [product.image];
+  const extras = (product.images ?? []).map((src) => src.trim()).filter(Boolean);
+  if (extras.length > 0) return extras;
+  return [productPhoto(product.image)];
 }
 
 /**

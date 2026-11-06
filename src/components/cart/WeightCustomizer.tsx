@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import Image from "next/image";
+import { CatalogImage } from "@/components/ui/CatalogImage";
+import { productPhoto } from "@/lib/product-image";
 import { CloseButton } from "@/components/navigation/CloseButton";
 import { useCart } from "@/components/cart/CartContext";
 
@@ -99,8 +100,8 @@ export function WeightCustomizer() {
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-forest/15" aria-hidden />
 
         <div className="flex items-center gap-3">
-          <Image
-            src={product.image}
+          <CatalogImage
+            src={productPhoto(product.image)}
             alt=""
             width={112}
             height={112}

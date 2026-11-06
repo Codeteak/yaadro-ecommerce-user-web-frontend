@@ -7,11 +7,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { HomeCategory } from "@/lib/home-categories";
-
 type HomeCategoryContextValue = {
-  selected: HomeCategory;
-  setSelected: (category: HomeCategory) => void;
+  /** Sample aisle name, or a live category slug. */
+  selected: string;
+  setSelected: (category: string) => void;
 };
 
 const HomeCategoryContext = createContext<HomeCategoryContextValue | null>(null);
@@ -20,9 +19,15 @@ const HomeCategoryContext = createContext<HomeCategoryContextValue | null>(null)
  * Shares the rail's centered category with the home product section.
  * Defaults to Vegetables to match the rail's initial centering.
  */
-export function HomeCategoryProvider({ children }: { children: ReactNode }) {
-  const [selected, setSelectedState] = useState<HomeCategory>("Vegetables");
-  const setSelected = useCallback((category: HomeCategory) => {
+export function HomeCategoryProvider({
+  children,
+  initialSlug = "Vegetables",
+}: {
+  children: ReactNode;
+  initialSlug?: string;
+}) {
+  const [selected, setSelectedState] = useState(initialSlug);
+  const setSelected = useCallback((category: string) => {
     setSelectedState(category);
   }, []);
 

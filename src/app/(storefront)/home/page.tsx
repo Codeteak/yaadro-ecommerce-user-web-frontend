@@ -7,6 +7,7 @@ import { OfferFlyer } from "@/components/home/OfferFlyer";
 import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 import { HomePullContent } from "@/components/home/HomePullContent";
 import { ScrollToTopOnLoad } from "@/components/navigation/ScrollToTopOnLoad";
+import { loadHomeCatalog } from "@/lib/api/storefront";
 import { getShopSeo } from "@/lib/shop-seo";
 
 export const metadata: Metadata = {
@@ -15,14 +16,16 @@ export const metadata: Metadata = {
 };
 
 export default async function StorefrontHomePage() {
-  const shop = await getShopSeo();
-  // Until the shop-profile API exists there is no per-shop photo, so the
-  // avatar uses the white-Y D mark instead of the wide OG banner.
-  const shopImage = process.env.NEXT_PUBLIC_SHOP_PROFILE_URL
-    ? shop.image
-    : "/onboarding/brand-mark-white-y.svg";
+  const [shop, catalog] = await Promise.all([getShopSeo(), loadHomeCatalog()]);
+  const initialSlug =
+    catalog.categories.find((category) => category.slug === "vegetables")?.slug ??
+    catalog.categories[0]?.slug ??
+    "Vegetables";
+  const categoryNames = Object.fromEntries(
+    catalog.categories.map((category) => [category.slug, category.name]),
+  );
   return (
-    <HomeCategoryProvider>
+    <HomeCategoryProvider initialSlug={initialSlug}>
       <ScrollToTopOnLoad />
       <main className="relative min-h-dvh overflow-x-clip bg-paper">
         <section className="relative">
@@ -42,7 +45,7 @@ export default async function StorefrontHomePage() {
             />
 
             <div className="relative mx-auto w-full max-w-lg px-5 pt-[max(1rem,env(safe-area-inset-top))]">
-              <HomeTopBar shopName={shop.name} shopImage={shopImage} />
+              <HomeTopBar shopName={shop.name} shopImage={shop.image} />
               <HomeSearchBar
                 className="mt-4"
                 activateHref="/categories?focus=search"
@@ -50,7 +53,9 @@ export default async function StorefrontHomePage() {
             </div>
 
             <div className="relative mt-4 pb-16">
-              <OfferBanners />
+              <OfferBanners
+                banners={shop.banners.length > 0 ? shop.banners : undefined}
+              />
             </div>
 
             {/* curved bottom edge — ends higher, middle dipped */}
@@ -69,11 +74,33 @@ export default async function StorefrontHomePage() {
 
           {/* category circles riding the curve */}
           <div className="relative z-10 mx-auto -mt-[4.25rem] w-full max-w-lg">
-            <CategoryRail />
+            <CategoryRail
+              categories={catalog.categories.map((category) => ({
+                name: category.name,
+                slug: category.slug,
+                image: category.image,
+              }))}
+              initialSlug={initialSlug}
+            />
           </div>
         </section>
 
-        <HomePullContent />
+        <HomePullContent
+          productsBySlug={catalog.ok ? catalog.productsBySlug : {}}
+          categoryNames={categoryNames}
+          fruits={catalog.ok ? catalog.fruits : []}
+          vegetables={catalog.ok ? catalog.vegetables : []}
+          shelves={
+            catalog.ok
+              ? catalog.shelves.map((shelf) => ({
+                  id: shelf.id,
+                  title: shelf.title,
+                  products: shelf.products,
+                }))
+              : []
+          }
+          catalogError={catalog.error}
+        />
 
         <OfferFlyer />
       </main>

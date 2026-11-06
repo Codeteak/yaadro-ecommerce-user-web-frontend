@@ -379,23 +379,35 @@ export default function NotFound() {
     ],
   ),
   "orders-list": U(
-    `import { OrdersPageContent } from "@/components/orders/OrdersPageContent";
+    `import { OrdersListPlayground } from "@/components/orders/OrdersListPlayground";
 
-<OrdersPageContent />`,
-    ["src/components/orders/OrdersPageContent.tsx"],
+// Storefront /orders
+<OrdersListPlayground />`,
+    [
+      "src/app/(storefront)/orders/page.tsx",
+      "src/components/orders/OrdersListPlayground.tsx",
+      "src/components/orders/lead-order-shared.tsx",
+    ],
   ),
   "order-detail": U(
-    `import { OrderDetailPageContent } from "@/components/orders/OrderDetailPageContent";
+    `import { OrderDetailPlayground } from "@/components/orders/OrderDetailPlayground";
 
-<OrderDetailPageContent orderId="sample-1" />`,
-    ["src/components/orders/OrderDetailPageContent.tsx"],
+// Storefront /orders/[id]
+<OrderDetailPlayground orderId="ord-1042" backHref="/orders" shopHref="/home" />`,
+    [
+      "src/app/(storefront)/orders/[id]/page.tsx",
+      "src/components/orders/OrderDetailPlayground.tsx",
+      "src/components/orders/lead-order-shared.tsx",
+    ],
   ),
   "empty-orders": U(
-    `import { OrdersPageContent } from "@/components/orders/OrdersPageContent";
+    `import { OrdersListPlayground } from "@/components/orders/OrdersListPlayground";
 
-// Empty when there are no sample/API orders
-<OrdersPageContent />`,
-    ["src/components/orders/OrdersPageContent.tsx"],
+<OrdersListPlayground orders={[]} />`,
+    [
+      "src/app/(storefront)/orders/page.tsx",
+      "src/components/orders/OrdersListPlayground.tsx",
+    ],
   ),
   "address-book": U(
     `import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";

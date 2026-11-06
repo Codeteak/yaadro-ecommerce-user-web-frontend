@@ -11,6 +11,11 @@ import {
 } from "react";
 import { WISHLIST_STORAGE_KEY } from "@/lib/api/wishlist";
 import {
+  recallProduct,
+  readSnapshotsRaw,
+  subscribeSnapshots,
+} from "@/lib/product-snapshots";
+import {
   SAMPLE_PRODUCTS,
   type SampleProduct,
 } from "@/lib/sample-products";
@@ -110,6 +115,11 @@ export function WishlistProvider({
   }, [storedRaw]);
 
   const ids = ephemeral ? ephemeralIds : storedIds;
+  const snapshotsRaw = useSyncExternalStore(
+    subscribeSnapshots,
+    readSnapshotsRaw,
+    () => null,
+  );
 
   const toggle = useCallback(
     (productId: string) => {
@@ -128,9 +138,12 @@ export function WishlistProvider({
   const products = useMemo(
     () =>
       ids
-        .map((id) => SAMPLE_PRODUCTS.find((p) => p.id === id))
-        .filter((p): p is SampleProduct => Boolean(p)),
-    [ids],
+        .map(
+          (id) =>
+            recallProduct(id) ?? SAMPLE_PRODUCTS.find((product) => product.id === id),
+        )
+        .filter((product): product is SampleProduct => Boolean(product)),
+    [ids, snapshotsRaw],
   );
 
   const value = useMemo<WishlistContextValue>(

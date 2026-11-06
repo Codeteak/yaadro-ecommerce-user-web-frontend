@@ -4,8 +4,8 @@ import {
 } from "@/lib/sample-products";
 
 /**
- * Sample “you may also like” for cart — prefers categories already in the
- * basket, skips ids already carted. Stable order (no shuffle).
+ * Playground-only sample rail. The storefront cart uses
+ * `suggestCartProducts` and the live catalog instead.
  */
 export function cartSuggestions(
   cartProductIds: readonly string[],

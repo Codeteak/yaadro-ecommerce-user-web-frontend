@@ -207,7 +207,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Elevated white card (clean dual shadow + ring), ribbon, heart, add / weight stepper.",
+      "Elevated white card (clean dual shadow + ring), ribbon, heart, add / weight stepper. Missing photos use the grocery-bag placeholder.",
     wiresTo: "ProductSection, /home, /product/[id]",
   },
   {
@@ -258,7 +258,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Peeking gallery, price, optional description/ingredients, qty, related.",
+      "Peeking gallery, price, optional description/ingredients, qty, related. Includes a no-photo product that shows the grocery-bag placeholder.",
     wiresTo: "/product/[id]",
   },
 
@@ -375,7 +375,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Same as /orders: grocery cards — status chip, thumbs +N, View Details → /orders/[id].",
+      "Same as /orders: green Orders header, ticket cards, steps, Review and bill.",
     wiresTo: "/orders",
   },
   {
@@ -384,7 +384,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Same as /orders/[id]: ORDER STATUS vertical steps + Lucide icons + times.",
+      "Same as /orders/[id]: forest header, 3 steps, bill, partner, timeline, review.",
     wiresTo: "/orders/[id]",
   },
   {
@@ -392,7 +392,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "Empty orders state",
     status: "built",
     group: "Product & cart",
-    description: "No orders yet empty state + Shop now.",
+    description: "Same empty state as /orders when there are no orders.",
     wiresTo: "/orders",
   },
   {

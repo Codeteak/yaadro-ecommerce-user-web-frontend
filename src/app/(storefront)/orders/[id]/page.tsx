@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { OrderDetailPageContent } from "@/components/orders/OrderDetailPageContent";
+import { OrderDetailPlayground } from "@/components/orders/OrderDetailPlayground";
 import { OrderDetailSkeleton } from "@/components/ui/skeletons";
 import { getOrder, listOrders } from "@/lib/api/orders";
 
@@ -28,7 +28,9 @@ export async function generateMetadata({
 async function OrderDetailContent({ params }: OrderPageProps) {
   const { id } = await params;
   if (!getOrder(id)) notFound();
-  return <OrderDetailPageContent orderId={id} />;
+  return (
+    <OrderDetailPlayground orderId={id} backHref="/orders" shopHref="/home" />
+  );
 }
 
 /**

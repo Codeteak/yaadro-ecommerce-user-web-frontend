@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { OrdersPageContent } from "@/components/orders/OrdersPageContent";
+import { OrdersListPlayground } from "@/components/orders/OrdersListPlayground";
 
 export const metadata: Metadata = {
   title: "Orders",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function OrdersPage() {
-  return <OrdersPageContent />;
+  return <OrdersListPlayground />;
 }

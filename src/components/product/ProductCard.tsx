@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { CatalogImage } from "@/components/ui/CatalogImage";
+import { rememberProduct } from "@/lib/product-snapshots";
 import { useRouter } from "next/navigation";
 import { Heart, Minus, Plus } from "lucide-react";
 import type { SampleProduct } from "@/lib/sample-products";
@@ -10,6 +11,7 @@ import { useCart } from "@/components/cart/CartContext";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { useWishlistOptional } from "@/components/wishlist/WishlistContext";
 import { cn } from "@/lib/cn";
+import { isProductImageFallback, productPhoto } from "@/lib/product-image";
 
 /**
  * Hanging ribbon with an exact vector finish: arc radius matches the card
@@ -101,6 +103,7 @@ export function ProductCard({
       router.push("/login");
       return;
     }
+    rememberProduct(product);
     wishlist.toggle(product.id);
   };
 
@@ -108,6 +111,8 @@ export function ProductCard({
     product.mrp > product.price
       ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
       : 0;
+  const photo = productPhoto(product.image);
+  const photoIsPlaceholder = isProductImageFallback(photo);
 
   const addBtn = compact
     ? "grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-lg bg-track text-black shadow-[0_4px_12px_rgba(47,107,47,0.3)] transition hover:bg-leaf-bright active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
@@ -176,16 +181,20 @@ export function ProductCard({
       >
         <div
           className={cn(
-            "overflow-hidden bg-[#f4f6f8]",
+            "overflow-hidden",
+            photoIsPlaceholder ? "bg-white" : "bg-[#f4f6f8]",
             compact ? "h-[105px] w-full rounded-lg" : "aspect-[4/3] rounded-2xl",
           )}
         >
-          <Image
-            src={product.image}
+          <CatalogImage
+            src={photo}
             alt={product.name}
             width={compact ? 220 : 300}
             height={compact ? 105 : 300}
-            className="h-full w-full object-cover"
+            className={cn(
+              "h-full w-full",
+              photoIsPlaceholder ? "bg-white object-contain" : "object-cover",
+            )}
           />
         </div>
         <h3
@@ -232,7 +241,10 @@ export function ProductCard({
         {product.customization ? (
           <button
             type="button"
-            onClick={() => setCustomizing(product)}
+            onClick={() => {
+              rememberProduct(product);
+              setCustomizing(product);
+            }}
             aria-label={
               weightKg
                 ? `Change weight of ${product.name}, currently ${weightKg} kilograms`
@@ -264,7 +276,10 @@ export function ProductCard({
         ) : qty === 0 ? (
           <button
             type="button"
-            onClick={() => setQty(product.id, 1)}
+            onClick={() => {
+              rememberProduct(product);
+              setQty(product.id, 1);
+            }}
             aria-label={`Add ${product.name} to cart`}
             className={addBtn}
           >

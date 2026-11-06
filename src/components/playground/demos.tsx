@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { Suspense, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { BackButton } from "@/components/navigation/BackButton";
 import { CloseButton } from "@/components/navigation/CloseButton";
 import { BottomNav } from "@/components/navigation/BottomNav";
@@ -34,8 +35,8 @@ import { CheckoutPageContent } from "@/components/checkout/CheckoutPageContent";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { SavedAddressesManageList } from "@/components/delivery/SavedAddressesManageList";
 import { getDefaultCatalogSlug } from "@/lib/catalog-taxonomy";
-import { OrdersPageContent } from "@/components/orders/OrdersPageContent";
-import { OrderDetailPageContent } from "@/components/orders/OrderDetailPageContent";
+import { OrdersListPlayground } from "@/components/orders/OrdersListPlayground";
+import { OrderDetailPlayground } from "@/components/orders/OrderDetailPlayground";
 import { SwipeToLogin } from "@/components/onboarding/SwipeToLogin";
 import { OnboardingScreen } from "@/components/onboarding/OnboardingScreen";
 import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
@@ -71,9 +72,23 @@ import { PlannedStub } from "./PlannedStub";
 
 const WISHLIST_SEED_IDS = ["fr-1", "vg-1", "sn-1", "bv-1"];
 
-const PDP_SAMPLES = SAMPLE_PRODUCTS.filter(
-  (p) => p.id === "vg-3" || p.id === "fr-4" || p.id === "sn-3" || p.id === "fr-1",
-);
+/** Playground-only row so the missing-photo placeholder can be reviewed. */
+const NO_PHOTO_PRODUCT: SampleProduct = {
+  id: "playground-no-photo",
+  category: "Grocery",
+  name: "No photo yet",
+  unit: "1 pc",
+  price: 40,
+  mrp: 40,
+  image: "",
+};
+
+const PDP_SAMPLES = [
+  ...SAMPLE_PRODUCTS.filter(
+    (p) => p.id === "vg-3" || p.id === "fr-4" || p.id === "sn-3" || p.id === "fr-1",
+  ),
+  NO_PHOTO_PRODUCT,
+];
 
 function ProductDetailDemo() {
   const [product, setProduct] = useState<SampleProduct>(
@@ -362,6 +377,17 @@ function AddressBookDemo({
   );
 }
 
+function OrderDetailLeadDemo() {
+  const id = useSearchParams().get("id") ?? "ord-1042";
+  return (
+    <DemoFrame note="Same as /orders/[id]. Receipt opens the ticket bill with Download.">
+      <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain bg-white">
+        <OrderDetailPlayground orderId={id} ticketBill />
+      </div>
+    </DemoFrame>
+  );
+}
+
 const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "back-button": () => (
     <DemoFrame note="Green squircle + black arrow — same default as storefront PageHeader / cart / profile.">
@@ -514,11 +540,12 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "product-card": () => (
-    <DemoFrame note="Clean elevated card (dual shadow + ring). Offer price + add/weight use black on green.">
+    <DemoFrame note="Clean elevated card (dual shadow + ring). Offer price + add/weight use black on green. The last card has no photo and shows the grocery-bag placeholder.">
       <div className="grid grid-cols-2 gap-4 bg-paper p-4">
-        {SAMPLE_PRODUCTS.slice(0, 4).map((p) => (
+        {SAMPLE_PRODUCTS.slice(0, 3).map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}
+        <ProductCard product={NO_PHOTO_PRODUCT} />
       </div>
       <WeightCustomizer />
     </DemoFrame>
@@ -635,26 +662,32 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "category-plp": () => <CategoriesFlowDemo start="plp" />,
   "home-search-categories": () => <CategoriesFlowDemo start="home-search" />,
   "orders-list": () => (
-    <DemoFrame note="Same as /orders: grocery cards (status chip, thumbs +N, View Details). Tap → /orders/[id].">
-      <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain">
-        <OrdersPageContent chromePosition="inline" />
-      </div>
-    </DemoFrame>
-  ),
-  "order-detail": () => (
-    <DemoFrame note="Same as /orders/[id]: ORDER STATUS card (received→confirmed→processed→shipped→delivered) + times.">
-      <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain">
-        <OrderDetailPageContent
+    <DemoFrame note="Same as /orders. Download bill opens the ticket with Copy, Download, and Done.">
+      <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain bg-paper">
+        <OrdersListPlayground
           chromePosition="inline"
-          orderId="ord-1042"
+          backHref="/playground"
+          shopHref="/playground"
+          ticketBill
+          detailHref={(id) => `/playground/order-detail?id=${id}`}
         />
       </div>
     </DemoFrame>
   ),
+  "order-detail": () => (
+    <Suspense fallback={null}>
+      <OrderDetailLeadDemo />
+    </Suspense>
+  ),
   "empty-orders": () => (
-    <DemoFrame note="Empty orders state.">
-      <div className="relative max-h-[70vh] overflow-y-auto overscroll-contain">
-        <OrdersPageContent chromePosition="inline" orders={[]} />
+    <DemoFrame note="Same empty state as /orders when there are no orders.">
+      <div className="relative max-h-[70vh] overflow-y-auto overscroll-contain bg-paper">
+        <OrdersListPlayground
+          orders={[]}
+          chromePosition="inline"
+          backHref="/playground"
+          shopHref="/playground"
+        />
       </div>
     </DemoFrame>
   ),

@@ -5,8 +5,18 @@ import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { CategoriesHub } from "@/components/categories/CategoriesHub";
 import { CategoriesHubSkeleton } from "@/components/ui/skeletons";
+import type { CatalogCategory } from "@/lib/catalog-taxonomy";
+import type { SampleProduct } from "@/lib/sample-products";
 
-function CategoriesHubBody() {
+function CategoriesHubBody({
+  categories,
+  products,
+  error,
+}: {
+  categories?: CatalogCategory[];
+  products?: SampleProduct[];
+  error?: string | null;
+}) {
   const searchParams = useSearchParams();
   const focusSearch = searchParams.get("focus") === "search";
 
@@ -14,6 +24,9 @@ function CategoriesHubBody() {
     <CategoriesHub
       focusSearch={focusSearch}
       categoryHref={(cat) => `/categories/${cat.slug}`}
+      categories={categories}
+      products={products}
+      error={error}
     />
   );
 }
@@ -22,7 +35,15 @@ function CategoriesHubBody() {
  * Storefront `/categories` — hub browse + search (home search lands with
  * `?focus=search`). Tiles link to `/categories/[slug]`.
  */
-export function CategoriesPageContent() {
+export function CategoriesPageContent({
+  categories,
+  products,
+  error,
+}: {
+  categories?: CatalogCategory[];
+  products?: SampleProduct[];
+  error?: string | null;
+}) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-paper">
       <div className="px-5">
@@ -35,7 +56,11 @@ export function CategoriesPageContent() {
           </div>
         }
       >
-        <CategoriesHubBody />
+        <CategoriesHubBody
+          categories={categories}
+          products={products}
+          error={error}
+        />
       </Suspense>
     </main>
   );

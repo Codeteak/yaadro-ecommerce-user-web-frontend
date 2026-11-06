@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { CatalogImage } from "@/components/ui/CatalogImage";
 import { HomeSearchBar } from "@/components/home/HomeSearchBar";
 import { ProductCard } from "@/components/product/ProductCard";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
@@ -44,6 +44,11 @@ export type CategoriesHubProps = {
   onQueryChange?: (q: string) => void;
   onSelectCategory?: (category: CatalogCategory) => void;
   categoryHref?: (category: CatalogCategory) => string;
+  /** Live shop categories. Omit to keep the sample hub. */
+  categories?: CatalogCategory[];
+  /** Live products used for search and popular picks. */
+  products?: SampleProduct[];
+  error?: string | null;
 };
 
 /**
@@ -57,11 +62,18 @@ export function CategoriesHub({
   onQueryChange,
   onSelectCategory,
   categoryHref,
+  categories,
+  products,
+  error,
 }: CategoriesHubProps) {
   const t = useTypeScale();
   const [internalQuery, setInternalQuery] = useState("");
   const query = queryProp ?? internalQuery;
-  const popular = useMemo(() => hubPopularProducts(), []);
+  const live = categories != null;
+  const popular = useMemo(
+    () => (products ? products.slice(0, 6) : hubPopularProducts()),
+    [products],
+  );
 
   const setQuery = (next: string) => {
     if (queryProp === undefined) setInternalQuery(next);
@@ -71,10 +83,22 @@ export function CategoriesHub({
   const trimmed = query.trim();
   const isSearching = trimmed.length > 0;
 
+  const sourceSections = categories
+    ? [
+        {
+          id: "shop",
+          title: "Shop by category",
+          subtitle: "Everything in this store",
+          layout: "uniform" as const,
+          categories,
+        },
+      ]
+    : CATALOG_SECTIONS;
+
   const sections = useMemo(() => {
-    if (!isSearching) return CATALOG_SECTIONS;
+    if (!isSearching) return sourceSections;
     const q = trimmed.toLowerCase();
-    return CATALOG_SECTIONS.map((section) => ({
+    return sourceSections.map((section) => ({
       ...section,
       categories: section.categories.filter(
         (c) =>
@@ -82,12 +106,16 @@ export function CategoriesHub({
           c.shortName?.toLowerCase().includes(q),
       ),
     })).filter((s) => s.categories.length > 0);
-  }, [isSearching, trimmed]);
+  }, [isSearching, trimmed, sourceSections]);
 
-  const productHits = useMemo(
-    () => (isSearching ? searchSampleProducts(trimmed) : []),
-    [isSearching, trimmed],
-  );
+  const productHits = useMemo(() => {
+    if (!isSearching) return [];
+    if (products) {
+      const q = trimmed.toLowerCase();
+      return products.filter((product) => product.name.toLowerCase().includes(q));
+    }
+    return searchSampleProducts(trimmed);
+  }, [isSearching, products, trimmed]);
 
   const showPopular = !isSearching && popular.length > 0;
   const noResults =
@@ -106,6 +134,14 @@ export function CategoriesHub({
       </div>
 
       <div className="w-full px-3 pb-10 sm:px-4">
+        {error ? (
+          <p className="mt-8 text-center text-sm font-medium text-muted">{error}</p>
+        ) : null}
+        {live && !error && categories.length === 0 ? (
+          <p className="mt-8 text-center text-sm font-medium text-muted">
+            No categories yet.
+          </p>
+        ) : null}
         {noResults ? (
           <p className="mt-10 text-center text-sm font-medium text-muted">
             No categories or products match “{trimmed}”.
@@ -226,8 +262,8 @@ function HubTile({
           TILE_H,
         )}
       >
-        <Image
-          src={category.image}
+        <CatalogImage
+          src={category.image || "/icons/icon-192.png"}
           alt=""
           fill
           sizes={shape === "rect" ? "66vw" : "25vw"}

@@ -47,7 +47,16 @@ const LIMIT = 10;
  *
  * Dark scrims + light type keep headings readable on the busy photo.
  */
-export function FruitsVeggiesSection({ className }: { className?: string }) {
+export function FruitsVeggiesSection({
+  className,
+  fruits,
+  vegetables,
+}: {
+  className?: string;
+  /** Live produce. Pass both (even empty) to leave the sample aisle. */
+  fruits?: SampleProduct[];
+  vegetables?: SampleProduct[];
+}) {
   const t = useTypeScale();
   const [filter, setFilter] = useState<ProduceFilter>("All");
 
@@ -55,22 +64,20 @@ export function FruitsVeggiesSection({ className }: { className?: string }) {
     filter === "Vegetables" ? "/categories/vegetables" : "/categories/fruits";
 
   const products = useMemo(() => {
-    if (filter === "Fruits") {
-      return getProductsByCategory("Fruits").slice(0, LIMIT);
-    }
-    if (filter === "Vegetables") {
-      return getProductsByCategory("Vegetables").slice(0, LIMIT);
-    }
-    const fruits = getProductsByCategory("Fruits").slice(0, LIMIT);
-    const veggies = getProductsByCategory("Vegetables").slice(0, LIMIT);
+    const fruitList = fruits ?? getProductsByCategory("Fruits");
+    const vegList = vegetables ?? getProductsByCategory("Vegetables");
+    if (filter === "Fruits") return fruitList.slice(0, LIMIT);
+    if (filter === "Vegetables") return vegList.slice(0, LIMIT);
+    const fruitsPage = fruitList.slice(0, LIMIT);
+    const veggies = vegList.slice(0, LIMIT);
     const mixed: SampleProduct[] = [];
-    const n = Math.max(fruits.length, veggies.length);
+    const n = Math.max(fruitsPage.length, veggies.length);
     for (let i = 0; i < n; i++) {
-      if (fruits[i]) mixed.push(fruits[i]);
+      if (fruitsPage[i]) mixed.push(fruitsPage[i]);
       if (veggies[i]) mixed.push(veggies[i]);
     }
     return mixed.slice(0, LIMIT);
-  }, [filter]);
+  }, [filter, fruits, vegetables]);
 
   const listTitle =
     filter === "All"

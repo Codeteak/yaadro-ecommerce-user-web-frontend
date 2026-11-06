@@ -1,11 +1,11 @@
 # Yaadro Storefront — Project Status
 
 **Branch:** `fayad`  
-**Updated:** 2026-10-24
+**Updated:** 2026-11-06
 
 ## Current stage
 
-Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Storefront UI (home, cart, coupons, wishlist) is scaffolded with sample data; auth API and checkout are not implemented.
+Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Home, categories, and the product page read the public customer catalog. Auth, cart pricing, coupons, and checkout are still local/sample.
 
 ## Implemented
 
@@ -13,8 +13,8 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Storefront UI (home, ca
 |------|--------|--------|
 | Onboarding `/` | Done | Hero, swipe CTA, guest link |
 | Login `/login` | UI done | Phone +91 / OTP; API pending |
-| Home / catalog | Sample | Categories hub + PLP, product cards, PDP |
-| Cart `/cart` | UI done | List, promo field, 3D Checkout pill (checkout not faked) |
+| Home / catalog | Live public API | Shop SEO, categories, products, home shelves. Sample banners stay when the shop has none. Playground still uses samples. |
+| Cart `/cart` | UI done | List, promo field, 3D Checkout pill (checkout not faked). “You may also like” uses the live catalog. |
 | Coupons `/coupons` | UI done | Ticket cards via `lib/api/coupons`; Active/Used/Expired |
 | Wishlist `/wishlist` | UI done | Local signed-in scaffold; façade `lib/api/wishlist` |
 | Checkout `/checkout` | UI done | COD only; sample promo; Place Order is UI stub |

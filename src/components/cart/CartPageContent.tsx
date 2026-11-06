@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { CatalogImage } from "@/components/ui/CatalogImage";
 import {
   ArrowRight,
   Minus,
@@ -13,7 +14,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import {
-  getProduct,
+  resolveCartProduct,
   itemBadge,
   lineMrp,
   lineSave,
@@ -23,6 +24,7 @@ import {
 import { CartSuggestions } from "@/components/cart/CartSuggestions";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import { cn } from "@/lib/cn";
+import { isProductImageFallback, productPhoto } from "@/lib/product-image";
 
 type CartPageContentProps = {
   /**
@@ -138,7 +140,8 @@ export function CartPageContent({
           <>
             <ul className="mt-4 divide-y divide-forest/8">
               {items.map((item) => {
-                const product = getProduct(item.productId);
+                const product = resolveCartProduct(item);
+                const photo = productPhoto(product.image);
                 const isWeight = Boolean(item.weightKg);
                 const selling = lineTotal(item);
                 const mrp = lineMrp(item);
@@ -149,12 +152,17 @@ export function CartPageContent({
                 return (
                   <li key={item.productId} className="flex items-center gap-3 py-4">
                     <div className="relative shrink-0">
-                      <Image
-                        src={product.image}
+                      <CatalogImage
+                        src={photo}
                         alt=""
                         width={128}
                         height={128}
-                        className="h-16 w-16 rounded-2xl object-cover"
+                        className={cn(
+                          "h-16 w-16 rounded-2xl",
+                          isProductImageFallback(photo)
+                            ? "object-contain"
+                            : "object-cover",
+                        )}
                       />
                       <span className="absolute top-1/2 -right-2 -translate-y-1/2 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-extrabold whitespace-nowrap text-black shadow-[0_4px_10px_rgba(47,107,47,0.22)] ring-1 ring-leaf/20">
                         {itemBadge(item)}
@@ -243,7 +251,12 @@ export function CartPageContent({
 
             {showCartSuggestions ? (
               <CartSuggestions
-                cartProductIds={items.map((i) => i.productId)}
+                cartProductIds={items.map((item) => item.productId)}
+                categoryIds={items.flatMap((item) => {
+                  const categoryId = resolveCartProduct(item).categoryId;
+                  return categoryId ? [categoryId] : [];
+                })}
+                sampleFallback={inline}
                 shopHref={inline ? "/playground" : "/home"}
               />
             ) : null}
