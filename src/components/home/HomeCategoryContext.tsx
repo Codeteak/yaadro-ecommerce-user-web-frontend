@@ -7,6 +7,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { ALL_CATEGORY_SLUG } from "@/lib/home-categories";
+
 type HomeCategoryContextValue = {
   /** Sample aisle name, or a live category slug. */
   selected: string;
@@ -16,12 +18,12 @@ type HomeCategoryContextValue = {
 const HomeCategoryContext = createContext<HomeCategoryContextValue | null>(null);
 
 /**
- * Shares the rail's centered category with the home product section.
- * Defaults to Vegetables to match the rail's initial centering.
+ * Shares the rail's selected category with the home product section.
+ * Defaults to All, which lists every product already loaded on the page.
  */
 export function HomeCategoryProvider({
   children,
-  initialSlug = "Vegetables",
+  initialSlug = ALL_CATEGORY_SLUG,
 }: {
   children: ReactNode;
   initialSlug?: string;
