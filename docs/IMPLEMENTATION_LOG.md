@@ -1,5 +1,33 @@
 # Implementation Log
 
+## 2026-11-06 — Shop category grid leads with a wide tile
+
+### What changed
+
+The live “Shop by category” grid uses the same first-tile rectangle as the playground Fresh section. The first category spans two columns. The rest stay squares.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/categories/CategoriesHub.tsx` | Shop section layout is `rect-first` |
+| `src/components/playground/demos.tsx` | Note matches the shop grid |
+| `src/lib/playground/catalog.ts` | Describe the shared rectangle |
+
+## 2026-11-06 — Home product shelf uses one row until 11 products
+
+### What changed
+
+The home category shelf keeps 10 or fewer products in one horizontal row. More than 10 split evenly into two scrolling rows. The playground product section shows both: Vegetables (10) and a 12-product shelf.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/home/ProductSection.tsx` | Row count follows the product count |
+| `src/components/playground/demos.tsx` | Show the one-row and two-row shelves |
+| `src/lib/playground/catalog.ts` | Describe the row rule |
+
 ## 2026-11-06 — Copy puts the bill image on the clipboard
 
 ### What changed

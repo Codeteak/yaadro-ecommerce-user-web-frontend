@@ -37,6 +37,7 @@ import { CheckoutPageContent } from "@/components/checkout/CheckoutPageContent";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { SavedAddressesManageList } from "@/components/delivery/SavedAddressesManageList";
 import { getDefaultCatalogSlug } from "@/lib/catalog-taxonomy";
+import { getProductsByCategory } from "@/lib/sample-products";
 import { OrdersListPlayground } from "@/components/orders/OrdersListPlayground";
 import { OrderDetailPlayground } from "@/components/orders/OrderDetailPlayground";
 import { SwipeToLogin } from "@/components/onboarding/SwipeToLogin";
@@ -328,7 +329,7 @@ function CategoriesFlowDemo({
   }
 
   return (
-    <DemoFrame note="Fresh: first tile rectangle, rest squares. Drinks: first square, then rectangle. Tap → PLP.">
+    <DemoFrame note="Same as /categories. Fresh: first tile is the wide rectangle, then squares. Drinks: first square, then the wide rectangle. Tap → PLP.">
       <div className="relative max-h-[78vh] overflow-y-auto overscroll-contain rounded-2xl bg-paper ring-1 ring-black/5">
         <CategoriesHub
           focusSearch={focusSearch}
@@ -507,16 +508,30 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </div>
     </DemoFrame>
   ),
-  "product-section": () => (
-    <DemoFrame note="Same as /home: max 10 · two independent rows · ~172px slots. Show all → /categories/[slug] for the selected rail.">
-      <HomeCategoryProvider>
-        <div className="pb-4">
+  "product-section": () => {
+    const wideAisle = [
+      ...getProductsByCategory("Vegetables"),
+      ...getProductsByCategory("Fruits")
+        .slice(0, 2)
+        .map((product) => ({ ...product, id: `wide-${product.id}` })),
+    ];
+    return (
+      <DemoFrame note="Same as /home. Vegetables has 10 products, so one row. The second shelf has 12, so two rows.">
+        <HomeCategoryProvider>
           <ProductSection />
-          <WeightCustomizer />
-        </div>
-      </HomeCategoryProvider>
-    </DemoFrame>
-  ),
+        </HomeCategoryProvider>
+        <HomeCategoryProvider initialSlug="wide">
+          <div className="pb-4">
+            <ProductSection
+              productsBySlug={{ wide: wideAisle }}
+              categoryNames={{ wide: "More than 10" }}
+            />
+            <WeightCustomizer />
+          </div>
+        </HomeCategoryProvider>
+      </DemoFrame>
+    );
+  },
   "fruits-veggies-section": () => (
     <DemoFrame
       surface="bare"

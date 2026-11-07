@@ -18,7 +18,8 @@ function isHomeCategory(value: string): value is HomeCategory {
   return HOME_CATEGORIES.some((category) => category.name === value);
 }
 
-const HOME_PRODUCT_LIMIT = 10;
+/** One scrolling row up to this count. More than this splits into two rows. */
+const ONE_ROW_MAX = 10;
 
 /** Horizontal rail — py so ProductCard shadows aren’t clipped by overflow. */
 const ROW_SCROLL =
@@ -26,9 +27,8 @@ const ROW_SCROLL =
 
 /**
  * Home product listing for the category selected (centered) in the
- * rail above. Caps at 10 cards across two independently scrollable
- * horizontal rows (~172px compact slots) above FruitsVeggiesSection.
- * Sample data until the catalog API lands.
+ * rail above. Ten products or fewer stay in one horizontal row. More
+ * than ten split evenly across two independently scrollable rows.
  */
 export function ProductSection({
   productsBySlug,
@@ -41,16 +41,15 @@ export function ProductSection({
   const t = useTypeScale();
   const { selected } = useHomeCategory();
   const live = productsBySlug != null;
-  const products = (
-    live
-      ? (productsBySlug[selected] ?? [])
-      : isHomeCategory(selected)
-        ? getProductsByCategory(selected)
-        : []
-  ).slice(0, HOME_PRODUCT_LIMIT);
-  const mid = Math.ceil(products.length / 2);
+  const products = live
+    ? (productsBySlug[selected] ?? [])
+    : isHomeCategory(selected)
+      ? getProductsByCategory(selected)
+      : [];
+  const twoRows = products.length > ONE_ROW_MAX;
+  const mid = twoRows ? Math.ceil(products.length / 2) : products.length;
   const rowTop = products.slice(0, mid);
-  const rowBottom = products.slice(mid);
+  const rowBottom = twoRows ? products.slice(mid) : [];
 
   return (
     <section
@@ -98,11 +97,12 @@ export function ProductSection({
           <p className="py-6 text-sm font-medium text-muted">
             Nothing in this aisle yet.
           </p>
-        ) : null}
+        ) : (
         <ProductScrollRow
           products={rowTop}
-          label={`${selected} row 1`}
+          label={twoRows ? `${selected} row 1` : selected}
         />
+        )}
         {rowBottom.length > 0 ? (
           <ProductScrollRow
             products={rowBottom}

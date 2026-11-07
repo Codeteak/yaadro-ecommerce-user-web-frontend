@@ -101,7 +101,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Fresh: rect-first + squares. Drinks: square then rect. A “No photo” tile shows the category placeholder used on the shop.",
+      "Fresh and the shop list: first tile is the wide rectangle, the rest are squares. Drinks: square then rectangle. A “No photo” tile shows the category placeholder.",
     wiresTo: "/categories",
   },
   {
@@ -153,7 +153,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Max 10 cards; two independent scroll rows; ~172px slots. Show all → /categories/[slug].",
+      "10 or fewer products in one scrolling row. More than 10 split into two rows. Show all → /categories/[slug].",
     wiresTo: "/home, /categories/[slug]",
   },
   {
