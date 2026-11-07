@@ -1,15 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { SwipeAction } from "@/components/ui/SwipeAction";
 import { validateLoginPhone, validateOtp } from "@/lib/validations/auth";
 import { OtpInput } from "./OtpInput";
 import { PhoneInput } from "./PhoneInput";
-import { VerifiedSuccess } from "./VerifiedSuccess";
 
-type Step = "phone" | "otp" | "verified";
-
-const VERIFIED_HOLD_MS = 1200;
+type Step = "phone" | "otp";
 
 export function LoginForm() {
   const router = useRouter();
@@ -23,14 +21,6 @@ export function LoginForm() {
   const maskedPhone = phone
     ? `+91 ${phone.slice(0, 2)}****${phone.slice(-4)}`
     : "";
-
-  useEffect(() => {
-    if (step !== "verified") return;
-    const timer = window.setTimeout(() => {
-      router.push("/home");
-    }, VERIFIED_HOLD_MS);
-    return () => window.clearTimeout(timer);
-  }, [step, router]);
 
   const onSendOtp = async () => {
     const error = validateLoginPhone(phone);
@@ -49,18 +39,15 @@ export function LoginForm() {
   const onVerifyOtp = async () => {
     const error = validateOtp(otp);
     setOtpError(error);
-    if (error) return;
+    if (error) return false;
 
     setPending(true);
     // UI-only stub — real verifyOtp + session handling will replace this later.
     await new Promise((resolve) => setTimeout(resolve, 350));
     setPending(false);
-    setStep("verified");
+    router.push("/home", { transitionTypes: ["login-forward"] });
+    return true;
   };
-
-  if (step === "verified") {
-    return <VerifiedSuccess />;
-  }
 
   return (
     <form
@@ -131,13 +118,11 @@ export function LoginForm() {
             }}
           />
 
-          <button
-            type="submit"
+          <SwipeAction
+            label="Swipe to login"
             disabled={pending || otp.length !== 4}
-            className="inline-flex h-12 w-full items-center justify-center rounded-full bg-track text-sm font-semibold text-black transition hover:bg-leaf-bright disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-          >
-            {pending ? "Verifying…" : "Verify & continue"}
-          </button>
+            onComplete={onVerifyOtp}
+          />
 
           <div className="flex flex-col items-center gap-2 text-sm">
             <button

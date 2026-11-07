@@ -16,6 +16,7 @@ export default function StorefrontTemplate({
         "nav-forward": "page-crossfade",
         "nav-back": "page-crossfade",
         "nav-tab": "page-crossfade",
+        "login-forward": "login-forward",
         default: "page-crossfade",
       }}
       exit={{

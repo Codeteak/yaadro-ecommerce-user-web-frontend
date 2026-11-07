@@ -295,6 +295,28 @@ body {
     var(--vt-duration) ease-out both vt-rise;
 }
 
+/* Login swipe finishes, then Home slides in from the right */
+::view-transition-old(.login-forward) {
+  animation: 320ms cubic-bezier(0.4, 0, 0.2, 1) both vt-login-out;
+}
+::view-transition-new(.login-forward) {
+  animation: 460ms cubic-bezier(0.22, 1, 0.36, 1) both vt-login-in;
+}
+@keyframes vt-login-out {
+  to {
+    translate: -22%;
+    opacity: 0;
+  }
+}
+@keyframes vt-login-in {
+  from {
+    translate: 100%;
+  }
+  to {
+    translate: 0;
+  }
+}
+
 /* Keep bottom nav + cart shortcut anchored while pages swap */
 ::view-transition-group(storefront-bottom-nav),
 ::view-transition-group(storefront-view-cart) {
