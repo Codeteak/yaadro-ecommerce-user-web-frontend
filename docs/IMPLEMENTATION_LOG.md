@@ -1,5 +1,19 @@
 # Implementation Log
 
+## 2026-11-07 — Fix comma-joined catalog image URLs
+
+### What changed
+
+Product (and category) image fields that dump several absolute URLs in one comma-joined string now keep each URL separate and use the first for the card. Google Shopping thumbs on gstatic load with a plain `img` so `/_next/image` is not asked to fetch URLs that return 404.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/lib/catalog-map.ts` | Split comma-joined image strings |
+| `src/lib/api/storefront.ts` | Same split for category images |
+| `src/components/ui/CatalogImage.tsx` | Skip next/image for gstatic |
+
 ## 2026-11-06 — Shop category grid leads with a wide tile
 
 ### What changed

@@ -1,12 +1,14 @@
 import Image, { type ImageProps } from "next/image";
 
-const ALLOWED_HOSTS = ["media.yaadro.online", "amazonaws.com", "gstatic.com"];
+/** Hosts that next/image can fetch server-side. gstatic Shopping thumbs often
+ *  block the optimizer, so those load with a plain img in the browser. */
+const OPTIMIZED_HOSTS = ["media.yaadro.online", "amazonaws.com"];
 
-function allowedRemote(src: string): boolean {
+function useOptimizedImage(src: string): boolean {
   if (src.startsWith("/")) return true;
   try {
     const host = new URL(src).hostname;
-    return ALLOWED_HOSTS.some(
+    return OPTIMIZED_HOSTS.some(
       (allowed) => host === allowed || host.endsWith(`.${allowed}`),
     );
   } catch {
@@ -24,7 +26,7 @@ type CatalogImageProps = Omit<ImageProps, "src" | "alt"> & {
  * so a new image host does not crash the product card.
  */
 export function CatalogImage({ src, alt, className, fill, style, ...rest }: CatalogImageProps) {
-  if (!allowedRemote(src)) {
+  if (!useOptimizedImage(src)) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img

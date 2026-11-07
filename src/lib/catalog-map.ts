@@ -38,19 +38,38 @@ export function rupeesFromMinor(minor: number): number {
   return Math.round(minor) / 100;
 }
 
-function imageUrl(value: unknown): string | null {
-  if (typeof value === "string" && value.trim()) return value.trim();
+/**
+ * Catalog fields sometimes dump several absolute URLs in one comma-joined
+ * string (common with Google Shopping thumbs). Split those into separate URLs.
+ */
+function splitImageUrls(value: string): string[] {
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+  if (/,https?:\/\//i.test(trimmed)) {
+    return trimmed
+      .split(/,(?=https?:\/\/)/i)
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+  return [trimmed];
+}
+
+function imageUrls(value: unknown): string[] {
+  if (typeof value === "string") return splitImageUrls(value);
   const record = asRecord(value);
-  if (!record) return null;
-  return pickString(record.url, record.imageUrl, record.src);
+  if (!record) return [];
+  const single = pickString(record.url, record.imageUrl, record.src);
+  return single ? splitImageUrls(single) : [];
 }
 
 function imageList(value: unknown): string[] {
+  if (typeof value === "string") return splitImageUrls(value);
   if (!Array.isArray(value)) return [];
   const urls: string[] = [];
   for (const item of value) {
-    const url = imageUrl(item);
-    if (url && !urls.includes(url)) urls.push(url);
+    for (const url of imageUrls(item)) {
+      if (!urls.includes(url)) urls.push(url);
+    }
   }
   return urls;
 }
@@ -106,9 +125,9 @@ export function mapCatalogProduct({
 
   const images = [
     ...imageList(row.images),
-    ...[imageUrl(row.thumbnail), imageUrl(row.image), pickString(row.imageUrl)].filter(
-      (url): url is string => Boolean(url),
-    ),
+    ...imageUrls(row.thumbnail),
+    ...imageUrls(row.image),
+    ...imageUrls(row.imageUrl),
   ].filter((url, index, all) => all.indexOf(url) === index);
 
   const soldByWeight = row.sold_by_weight === true || row.soldByWeight === true;
