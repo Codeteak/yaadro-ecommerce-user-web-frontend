@@ -65,8 +65,12 @@ import { shouldHideStorefrontNav } from "@/lib/storefront-nav";
   "home-top-bar": U(
     `import { HomeTopBar } from "@/components/home/HomeTopBar";
 
-<HomeTopBar />`,
-    ["src/components/home/HomeTopBar.tsx"],
+<HomeTopBar shopName="Yaadro" shopImage="/onboarding/brand-mark-white-y.svg" />
+<HomeTopBar shopName="Yaadro" shopImage="/onboarding/brand-mark-white-y.svg" signedIn />`,
+    [
+      "src/components/home/HomeTopBar.tsx",
+      "public/icons/profile-signed-in.svg",
+    ],
   ),
   search: U(
     `import { HomeSearchBar } from "@/components/home/HomeSearchBar";
@@ -367,13 +371,21 @@ export default function NotFound() {
     ["src/components/coupons/CouponsPageContent.tsx"],
   ),
   "profile-header": U(
-    `import { PageHeader } from "@/components/navigation/PageHeader";
+    `import { ProfileHero } from "@/components/profile/ProfileHero";
+import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
+import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
 
-// Hero profile: transparent header over mint
-<PageHeader backHref="/home" title="Profile" surface="hero" />`,
+<ProfileHero />
+{/* Falls back to "{shopName} Member" until auth provides a real name */}
+<ShopNameProvider name="Green Basket">
+  <ProfileHero signedIn userId="user-123" />
+</ShopNameProvider>
+<ProfileHero signedIn userId="user-123" displayName="Priya Nair" />`,
     [
-      "src/components/navigation/PageHeader.tsx",
-      "src/app/(storefront)/profile/page.tsx",
+      "src/components/profile/ProfileHero.tsx",
+      "src/components/shop/ShopNameProvider.tsx",
+      "src/lib/default-profile-avatar.ts",
+      "public/avatars/",
     ],
   ),
   checkout: U(

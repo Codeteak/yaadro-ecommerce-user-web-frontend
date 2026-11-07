@@ -74,7 +74,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "HomeTopBar",
     status: "built",
     group: "Home",
-    description: "Shop avatar + name, Deliver to, Sign in; address bottom sheet.",
+    description:
+      "Guest Sign in vs signed-in profile-tick icon (no round background). Storefront stays guest until auth.",
     wiresTo: "/home",
   },
   {
@@ -356,7 +357,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Mint hero with transparent PageHeader (surface=hero); same as /profile.",
+      "Guest Sign in vs signed-in default avatar. Title is `{shopName} Member` per supermarket (or real displayName). Same on /profile.",
     wiresTo: "/profile",
   },
 

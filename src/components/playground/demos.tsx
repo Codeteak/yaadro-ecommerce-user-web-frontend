@@ -41,6 +41,9 @@ import { getProductsByCategory } from "@/lib/sample-products";
 import { STOREFRONT_NAV_HIDDEN_PATHS } from "@/lib/storefront-nav";
 import { OrdersListPlayground } from "@/components/orders/OrdersListPlayground";
 import { OrderDetailPlayground } from "@/components/orders/OrderDetailPlayground";
+import { ProfileHero } from "@/components/profile/ProfileHero";
+import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
+import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
 import { SwipeToLogin } from "@/components/onboarding/SwipeToLogin";
 import { OnboardingScreen } from "@/components/onboarding/OnboardingScreen";
 import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
@@ -460,12 +463,27 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "home-top-bar": () => (
-    <DemoFrame note="Shop avatar + Deliver to + Sign in on mint hero (same as /home).">
-      <div className="bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8] px-5 pt-4 pb-6">
-        <HomeTopBar
-          shopName="Yaadro"
-          shopImage="/onboarding/brand-mark-white-y.svg"
-        />
+    <DemoFrame note="Guest shows Sign in (same as /home). Signed in replaces it with the profile-tick icon — no round background. Storefront stays guest until auth.">
+      <div className="space-y-6 bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8] px-5 pt-4 pb-6">
+        <div>
+          <p className="mb-2 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Guest
+          </p>
+          <HomeTopBar
+            shopName="Yaadro"
+            shopImage="/onboarding/brand-mark-white-y.svg"
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Signed in
+          </p>
+          <HomeTopBar
+            shopName="Yaadro"
+            shopImage="/onboarding/brand-mark-white-y.svg"
+            signedIn
+          />
+        </div>
       </div>
     </DemoFrame>
   ),
@@ -880,52 +898,60 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "profile-header": () => (
-    <DemoFrame note="Hero sticky: transparent bar — only back stays; title hides; avatar not covered.">
-      <div className="max-h-[28rem] overflow-y-auto overscroll-contain bg-paper">
-        <section className="relative rounded-b-[2.5rem] bg-gradient-to-b from-mint via-[#eef6ee] to-paper">
-          <div
-            className="pointer-events-none absolute inset-0 overflow-hidden rounded-b-[2.5rem]"
-            aria-hidden
-          >
-            <div className="absolute -top-20 -right-16 size-52 rounded-full bg-leaf/10" />
-          </div>
-          <div className="relative px-5 pb-16">
-            <PageHeader
-              surface="hero"
-              backHref="/playground"
-              title="Profile"
-            />
-            <div className="relative mt-5 flex flex-col items-center text-center">
-              <div className="flex size-28 items-center justify-center rounded-full bg-white shadow-[0_10px_30px_rgba(47,107,47,0.12)] ring-1 ring-leaf/15">
-                <Image
-                  src="/onboarding/brand-mark-white-y.svg"
-                  alt=""
-                  width={58}
-                  height={69}
-                  unoptimized
-                  className="h-16 w-auto object-contain"
-                />
-              </div>
-              <h2 className="mt-4 text-[22px] leading-7 font-bold tracking-tight text-forest">
-                Guest User
-              </h2>
-              <p className="mt-1 max-w-[260px] text-sm leading-5 text-muted">
-                Sign in to sync your orders, coupons and wishlist.
-              </p>
-              <Link
-                href="/login"
-                className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-track px-6 text-sm font-semibold text-black transition hover:bg-leaf-bright"
-              >
-                Sign in
-              </Link>
-            </div>
-          </div>
-        </section>
-        {Array.from({ length: 10 }, (_, i) => (
-          <p key={i} className="px-5 py-3 text-sm text-muted">
-            Scroll block {i + 1} — back button stays sticky; title fades.
+    <DemoFrame note="Guest Sign in vs signed-in default avatar. Title falls back to `{shopName} Member` (supermarket brand). Pass displayName when auth has a real user name.">
+      <div className="max-h-[36rem] space-y-8 overflow-y-auto overscroll-contain bg-paper pb-6">
+        <div>
+          <p className="px-5 pt-3 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Guest
           </p>
-        ))}
+          <ProfileHero backHref="/playground" />
+        </div>
+        <div>
+          <p className="px-5 pt-1 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Signed in · Green Basket
+          </p>
+          <ShopNameProvider name="Green Basket">
+            <ProfileHero
+              backHref="/playground"
+              signedIn
+              userId="playground-demo-user"
+            />
+          </ShopNameProvider>
+        </div>
+        <div>
+          <p className="px-5 pt-1 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Signed in · City Mart
+          </p>
+          <ShopNameProvider name="City Mart">
+            <ProfileHero
+              backHref="/playground"
+              signedIn
+              userId="playground-shop-b"
+            />
+          </ShopNameProvider>
+        </div>
+        <div className="px-5">
+          <p className="text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Other seeds (random pick)
+          </p>
+          <ul className="mt-3 flex flex-wrap gap-3">
+            {["user-a", "user-b", "user-c", "user-d", "user-e", "user-f"].map(
+              (seed) => (
+                <li key={seed} className="flex flex-col items-center gap-1">
+                  <Image
+                    src={pickDefaultProfileAvatar(seed)}
+                    alt=""
+                    width={56}
+                    height={56}
+                    unoptimized
+                    className="size-14 object-cover"
+                  />
+                  <span className="font-mono text-[10px] text-muted">{seed}</span>
+                </li>
+              ),
+            )}
+          </ul>
+        </div>
       </div>
     </DemoFrame>
   ),

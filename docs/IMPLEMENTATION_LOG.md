@@ -1,5 +1,65 @@
 # Implementation Log
 
+## 2026-11-07 — Shop-scoped profile member title
+
+### What changed
+
+Signed-in `ProfileHero` falls back to `{shopName} Member` (from `ShopNameProvider` / `getShopSeo`), not “Yaadro Member”. `/profile` wraps with the live shop name. Playground shows Green Basket and City Mart examples.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/profile/ProfileHero.tsx` | Default title from `useShopName()` |
+| `src/app/(storefront)/profile/page.tsx` | `ShopNameProvider` + `getShopSeo` |
+| `src/components/playground/demos.tsx` | Two shop-scoped signed-in previews |
+| `src/lib/playground/usage.ts` / `catalog.ts` | Docs |
+
+## 2026-11-07 — Wire ProfileHero signed-in preview to /profile
+
+### What changed
+
+`/profile` uses `ProfileHero` with a local signed-in preview (seeded default avatar), matching the wishlist scaffold until a session API exists. Home still shows Sign in; the tick stays playground-only. Playground profile header still shows guest and signed-in.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/app/(storefront)/profile/page.tsx` | Use `ProfileHero` signed-in preview |
+| `src/components/profile/ProfileHero.tsx` | Storefront-friendly signed-in subtitle |
+| `src/lib/playground/catalog.ts` | Note wires to `/profile` |
+
+## 2026-11-07 — Default profile avatars (playground signed-in)
+
+### What changed
+
+Sixteen default avatars live under `public/avatars/`. `pickDefaultProfileAvatar(userId)` picks one stably from the seed. The playground profile header shows guest vs signed-in with that avatar. Home top bar still uses only the tick icon. `/profile` now uses the signed-in preview (see entry above).
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `public/avatars/avatar-01.svg` … `avatar-16.svg` | Default avatar set |
+| `src/lib/default-profile-avatar.ts` | Seeded random pick |
+| `src/components/profile/ProfileHero.tsx` | Guest / signed-in hero |
+| `src/components/playground/demos.tsx` | Profile header preview |
+| `src/lib/playground/catalog.ts` | Describe the preview |
+
+## 2026-11-07 — Signed-in HomeTopBar preview in the playground
+
+### What changed
+
+`HomeTopBar` accepts `signedIn`. Guest keeps the Sign in pill. Signed in shows the profile-tick icon with no round background, linking to `/profile`. The playground home-top-bar demo shows both. `/home` stays guest until auth exists.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `public/icons/profile-signed-in.svg` | Transparent profile-tick icon |
+| `src/components/home/HomeTopBar.tsx` | Optional `signedIn` prop |
+| `src/components/playground/demos.tsx` | Guest + signed-in bars |
+| `src/lib/playground/catalog.ts` | Describe the preview |
+
 ## 2026-11-07 — Hide bottom nav on focused storefront screens
 
 ### What changed
