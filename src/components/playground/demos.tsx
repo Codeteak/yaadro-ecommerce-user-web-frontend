@@ -38,6 +38,7 @@ import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { SavedAddressesManageList } from "@/components/delivery/SavedAddressesManageList";
 import { getDefaultCatalogSlug } from "@/lib/catalog-taxonomy";
 import { getProductsByCategory } from "@/lib/sample-products";
+import { STOREFRONT_NAV_HIDDEN_PATHS } from "@/lib/storefront-nav";
 import { OrdersListPlayground } from "@/components/orders/OrdersListPlayground";
 import { OrderDetailPlayground } from "@/components/orders/OrderDetailPlayground";
 import { SwipeToLogin } from "@/components/onboarding/SwipeToLogin";
@@ -386,7 +387,7 @@ function AddressBookDemo({
 function OrderDetailLeadDemo() {
   const id = useSearchParams().get("id") ?? "ord-1042";
   return (
-    <DemoFrame note="Same as /orders/[id]. Receipt opens the ticket bill with Download.">
+    <DemoFrame note="Same as /orders/[id]. No bottom nav on this page. Receipt opens the ticket bill with Download.">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain bg-white">
         <OrderDetailPlayground orderId={id} ticketBill />
       </div>
@@ -427,8 +428,16 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "bottom-nav": () => (
-    <DemoFrame note="Green active pill; Home icon + label black. Inactive icons black. Same BottomNav as storefront.">
-      <div className="relative h-[140px] bg-paper">
+    <DemoFrame note="Same as storefront. Shown on Home, Categories, Wishlist, Profile, Orders, Coupons. Hidden on cart, checkout, order detail, profile edit, addresses, settings, and support.">
+      <div className="relative bg-paper px-4 pb-[5.5rem] pt-4">
+        <p className="text-[13px] font-semibold text-forest">Hidden on</p>
+        <ul className="mt-2 space-y-1 text-[12px] text-muted">
+          {STOREFRONT_NAV_HIDDEN_PATHS.map((path) => (
+            <li key={path} className="font-mono">
+              {path}
+            </li>
+          ))}
+        </ul>
         <BottomNav position="inline" />
       </div>
     </DemoFrame>
@@ -650,7 +659,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "cart-page": () => (
     <DemoFrame
       surface="bare"
-      note="Playground: Add more + compact suggestion cards (~150×216). Wire to /cart when ready."
+      note="Same as /cart: no bottom nav. Add more + compact suggestion cards (~150×216)."
     >
       <div className="relative h-[75vh] bg-paper">
         <CartPageContent
@@ -666,7 +675,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   checkout: () => (
     <DemoFrame
       surface="bare"
-      note="Same as /checkout: “Prices may vary…” above sticky totals + COD + Place Order stub."
+      note="Same as /checkout: no bottom nav. “Prices may vary…” above sticky totals + COD + Place Order stub."
     >
       <div className="relative h-[75vh] bg-paper">
         <CheckoutPageContent chromePosition="inline" showPriceMayVary />
@@ -675,7 +684,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   ),
   "address-book": () => <AddressBookDemo initialStep="list" />,
   "address-manage": () => (
-    <DemoFrame note="Same as /profile/addresses: black pin, star / edit / delete, Add New Address. Home Deliver to pin is black too.">
+    <DemoFrame note="Same as /profile/addresses: no bottom nav. Black pin, star / edit / delete, Add New Address.">
       <div className="bg-paper px-5 py-6">
         <h2 className="text-xl font-extrabold text-black">Address management</h2>
         <p className="mt-1 text-[13px] text-muted">

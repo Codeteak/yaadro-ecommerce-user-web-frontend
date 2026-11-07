@@ -37,9 +37,16 @@ export const PLAYGROUND_USAGE: Record<string, PlaygroundUsage> = {
   ),
   "bottom-nav": U(
     `import { BottomNav } from "@/components/navigation/BottomNav";
+import { shouldHideStorefrontNav } from "@/lib/storefront-nav";
 
+// Hidden on /cart, /checkout, /orders/[id],
+// /profile/edit|addresses|settings|support
 <BottomNav />`,
-    ["src/components/navigation/BottomNav.tsx"],
+    [
+      "src/components/navigation/BottomNav.tsx",
+      "src/lib/storefront-nav.ts",
+      "src/components/storefront/StorefrontChrome.tsx",
+    ],
   ),
   "pull-to-refresh": U(
     `import { PullToRefresh } from "@/components/navigation/PullToRefresh";

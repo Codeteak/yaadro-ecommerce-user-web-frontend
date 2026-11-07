@@ -48,7 +48,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Navigation",
     description:
-      "Floating pill nav — green active pill, black icons/labels (storefront layout).",
+      "Floating pill on main tabs. Hidden on cart, checkout, order detail, profile edit/addresses/settings/support.",
     wiresTo: "Storefront layout (BottomNav)",
   },
   {

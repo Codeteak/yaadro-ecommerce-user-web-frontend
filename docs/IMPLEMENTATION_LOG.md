@@ -1,5 +1,20 @@
 # Implementation Log
 
+## 2026-11-07 — Hide bottom nav on focused storefront screens
+
+### What changed
+
+Bottom nav stays on Home, Categories, Wishlist, Profile, Orders, Coupons, category PLP, and product detail. It is removed on cart, checkout, order detail, and profile edit / addresses / settings / support. The playground BottomNav demo lists those paths.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/lib/storefront-nav.ts` | Shared hide-path helper |
+| `src/components/storefront/StorefrontChrome.tsx` | Use the helper |
+| `src/components/playground/demos.tsx` | BottomNav demo + related notes |
+| `src/lib/playground/catalog.ts` | Describe where the nav hides |
+
 ## 2026-11-07 — Fix comma-joined catalog image URLs
 
 ### What changed
