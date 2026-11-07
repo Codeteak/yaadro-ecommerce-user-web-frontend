@@ -296,10 +296,19 @@ export async function resolveShopByDomain(domain: string): Promise<ResolvedShop 
   };
 }
 
+export type CategoryBranch = {
+  id: string;
+  name: string;
+  slug: string;
+  image: string;
+  children: { id: string; name: string; slug: string; image: string }[];
+};
+
 export type HomeCatalog = {
   ok: boolean;
   error: string | null;
   categories: StoreCategory[];
+  branches: CategoryBranch[];
   productsBySlug: Record<string, SampleProduct[]>;
   shelves: StoreShelf[];
   fruits: SampleProduct[];
@@ -311,6 +320,7 @@ const EMPTY_HOME: HomeCatalog = {
   ok: false,
   error: null,
   categories: [],
+  branches: [],
   productsBySlug: {},
   shelves: [],
   fruits: [],
@@ -372,10 +382,26 @@ export async function loadHomeCatalog(): Promise<HomeCatalog> {
       productsBySlug[root.slug] = bucket;
     }
 
+    const branches: CategoryBranch[] = roots.map((root) => ({
+      id: root.id,
+      name: root.name,
+      slug: root.slug,
+      image: root.image,
+      children: categories
+        .filter((row) => row.parentId === root.id)
+        .map((row) => ({
+          id: row.id,
+          name: row.name,
+          slug: row.slug,
+          image: row.image,
+        })),
+    }));
+
     return {
       ok: true,
       error: null,
       categories: roots,
+      branches,
       productsBySlug,
       shelves,
       fruits: productsBySlug.fruits ?? [],

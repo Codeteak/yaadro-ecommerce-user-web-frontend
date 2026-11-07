@@ -1,15 +1,10 @@
 "use client";
 
-import { LayoutGrid } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CatalogImage } from "@/components/ui/CatalogImage";
+import { CategoryTile } from "@/components/home/CategoryTile";
 import { useHomeCategoryOptional } from "@/components/home/HomeCategoryContext";
 import { ALL_CATEGORY_SLUG, HOME_CATEGORIES } from "@/lib/home-categories";
-import {
-  CATEGORY_IMAGE_FALLBACK,
-  isCategoryImageFallback,
-} from "@/lib/category-image";
-import { cn } from "@/lib/cn";
+import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
 
 export { HOME_CATEGORIES, type HomeCategory } from "@/lib/home-categories";
 
@@ -128,54 +123,20 @@ export function CategoryRail({
       className="relative overflow-x-auto scroll-smooth overscroll-x-contain snap-x snap-proximity [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       <div className="flex w-max gap-4 px-5 py-3">
-        {items.map((category) => {
-          const active = selected === category.slug;
-          const image = category.image || (category.slug === ALL_CATEGORY_SLUG ? "" : imageFallback);
-          return (
-            <button
-              key={category.slug}
-              type="button"
-              data-slug={category.slug}
-              aria-pressed={active}
-              aria-label={`Show ${category.name}`}
-              onClick={() => choose(category.slug)}
-              className="flex w-[4.5rem] shrink-0 snap-start cursor-pointer flex-col items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-leaf"
-            >
-              <span
-                className={cn(
-                  "grid h-[4.75rem] w-[4.5rem] place-items-center overflow-hidden rounded-2xl bg-white shadow-[0_8px_18px_rgba(47,107,47,0.14)] ring-2 transition duration-300",
-                  active
-                    ? "category-selected-pop ring-leaf"
-                    : "ring-white",
-                )}
-              >
-                {category.slug === ALL_CATEGORY_SLUG ? (
-                  <LayoutGrid aria-hidden className="size-7 text-leaf" strokeWidth={2.25} />
-                ) : (
-                  <CatalogImage
-                    src={image}
-                    alt=""
-                    width={136}
-                    height={136}
-                    className={
-                      isCategoryImageFallback(image)
-                        ? "h-full w-full bg-white object-contain"
-                        : "h-full w-full object-cover"
-                    }
-                  />
-                )}
-              </span>
-              <span
-                className={cn(
-                  "w-full truncate text-center text-xs text-black",
-                  active ? "font-bold" : "font-medium",
-                )}
-              >
-                {category.name}
-              </span>
-            </button>
-          );
-        })}
+        {items.map((category) => (
+          <CategoryTile
+            key={category.slug}
+            name={category.name}
+            slug={category.slug}
+            image={
+              category.slug === ALL_CATEGORY_SLUG
+                ? ""
+                : category.image || imageFallback
+            }
+            active={selected === category.slug}
+            onClick={() => choose(category.slug)}
+          />
+        ))}
       </div>
     </div>
   );

@@ -232,6 +232,21 @@ body {
   animation: category-pop 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+@keyframes category-switch {
+  from {
+    opacity: 0;
+    translate: 18px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+.category-switch {
+  animation: category-switch 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @keyframes ptr-spin {
   to {
     transform: rotate(360deg);
@@ -344,6 +359,7 @@ body {
   .verified-fade-in,
   .login-panel-enter,
   .category-selected-pop,
+  .category-switch,
   .sheet-rise,
   .qty-pop,
   .together-pay-label {

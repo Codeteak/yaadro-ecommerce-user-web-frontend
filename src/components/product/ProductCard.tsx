@@ -183,7 +183,7 @@ export function ProductCard({
           className={cn(
             "overflow-hidden",
             photoIsPlaceholder ? "bg-white" : "bg-[#f4f6f8]",
-            compact ? "h-[105px] w-full rounded-lg" : "aspect-square rounded-2xl",
+            compact ? "h-[105px] w-full rounded-lg" : "h-[5.5rem] w-full rounded-2xl",
           )}
         >
           <CatalogImage
@@ -212,7 +212,7 @@ export function ProductCard({
       <div
         className={cn(
           "mt-auto flex flex-nowrap items-center justify-between",
-          compact ? "gap-1 pt-1.5" : "gap-2 pt-3",
+          compact ? "gap-1 pt-1.5" : "gap-2 pt-2",
         )}
       >
         <p className="flex min-w-0 flex-col">
