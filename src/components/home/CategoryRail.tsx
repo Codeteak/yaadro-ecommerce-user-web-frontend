@@ -37,7 +37,7 @@ type CategoryRailProps = {
 
 /**
  * Flat category strip. All is first and selected on open.
- * The circle at the front is highlighted; scrolling or tapping updates it.
+ * The tile at the front is highlighted; scrolling or tapping updates it.
  */
 export function CategoryRail({
   categories = SAMPLE_RAIL,
@@ -139,11 +139,11 @@ export function CategoryRail({
               aria-pressed={active}
               aria-label={`Show ${category.name}`}
               onClick={() => choose(category.slug)}
-              className="flex w-[4.25rem] shrink-0 snap-start cursor-pointer flex-col items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-leaf"
+              className="flex w-[4.5rem] shrink-0 snap-start cursor-pointer flex-col items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-leaf"
             >
               <span
                 className={cn(
-                  "grid size-[4.25rem] place-items-center overflow-hidden rounded-full bg-white shadow-[0_8px_18px_rgba(47,107,47,0.14)] ring-2 transition duration-300",
+                  "grid h-[4.75rem] w-[4.5rem] place-items-center overflow-hidden rounded-2xl bg-white shadow-[0_8px_18px_rgba(47,107,47,0.14)] ring-2 transition duration-300",
                   active
                     ? "category-selected-pop ring-leaf"
                     : "ring-white",
@@ -167,8 +167,8 @@ export function CategoryRail({
               </span>
               <span
                 className={cn(
-                  "w-full truncate text-center text-xs transition-colors duration-300",
-                  active ? "font-bold text-leaf" : "font-medium text-forest",
+                  "w-full truncate text-center text-xs text-black",
+                  active ? "font-bold" : "font-medium",
                 )}
               >
                 {category.name}
