@@ -1,7 +1,7 @@
+import { CustomerSession } from "@/components/auth/CustomerSession";
 import { CartProvider } from "@/components/cart/CartContext";
 import { StorefrontChrome } from "@/components/storefront/StorefrontChrome";
 import { TypeScaleProvider } from "@/components/ui/TypeScaleContext";
-import { WishlistProvider } from "@/components/wishlist/WishlistContext";
 
 export default function StorefrontLayout({
   children,
@@ -10,13 +10,11 @@ export default function StorefrontLayout({
 }) {
   return (
     <CartProvider>
-      {/* Local signed-in scaffold until a real session API exists.
-          Hearts save to localStorage; /wishlist shows the product grid. */}
-      <WishlistProvider previewSignedIn>
+      <CustomerSession>
         <TypeScaleProvider scale="spec">
           <StorefrontChrome>{children}</StorefrontChrome>
         </TypeScaleProvider>
-      </WishlistProvider>
+      </CustomerSession>
     </CartProvider>
   );
 }

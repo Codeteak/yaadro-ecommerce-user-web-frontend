@@ -1,15 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { SwipeAction } from "@/components/ui/SwipeAction";
+import {
+  AuthApiError,
+  requestCustomerOtp,
+  saveCustomerSession,
+  verifyCustomerOtp,
+} from "@/lib/api/auth";
 import { validateLoginPhone, validateOtp } from "@/lib/validations/auth";
 import { OtpInput } from "./OtpInput";
 import { PhoneInput } from "./PhoneInput";
-import { VerifiedSuccess } from "./VerifiedSuccess";
 
-type Step = "phone" | "otp" | "verified";
-
-const VERIFIED_HOLD_MS = 1200;
+type Step = "phone" | "otp";
 
 export function LoginForm() {
   const router = useRouter();
@@ -24,43 +28,51 @@ export function LoginForm() {
     ? `+91 ${phone.slice(0, 2)}****${phone.slice(-4)}`
     : "";
 
-  useEffect(() => {
-    if (step !== "verified") return;
-    const timer = window.setTimeout(() => {
-      router.push("/home");
-    }, VERIFIED_HOLD_MS);
-    return () => window.clearTimeout(timer);
-  }, [step, router]);
-
   const onSendOtp = async () => {
     const error = validateLoginPhone(phone);
     setPhoneError(error);
     if (error) return;
 
     setPending(true);
-    // UI-only stub — real requestOtp API will replace this later.
-    await new Promise((resolve) => setTimeout(resolve, 350));
-    setPending(false);
-    setOtp("");
-    setOtpError(null);
-    setStep("otp");
+    try {
+      await requestCustomerOtp(phone);
+      setOtp("");
+      setOtpError(null);
+      setStep("otp");
+    } catch (err) {
+      const message =
+        err instanceof AuthApiError
+          ? err.message
+          : "Could not send the OTP. Try again.";
+      if (step === "otp") setOtpError(message);
+      else setPhoneError(message);
+    } finally {
+      setPending(false);
+    }
   };
 
   const onVerifyOtp = async () => {
     const error = validateOtp(otp);
     setOtpError(error);
-    if (error) return;
+    if (error) return false;
 
     setPending(true);
-    // UI-only stub — real verifyOtp + session handling will replace this later.
-    await new Promise((resolve) => setTimeout(resolve, 350));
-    setPending(false);
-    setStep("verified");
+    try {
+      const session = await verifyCustomerOtp(phone, otp);
+      saveCustomerSession(session);
+      router.push("/home", { transitionTypes: ["login-forward"] });
+      return true;
+    } catch (err) {
+      setOtpError(
+        err instanceof AuthApiError
+          ? err.message
+          : "Could not verify the OTP. Try again.",
+      );
+      return false;
+    } finally {
+      setPending(false);
+    }
   };
-
-  if (step === "verified") {
-    return <VerifiedSuccess />;
-  }
 
   return (
     <form
@@ -84,7 +96,7 @@ export function LoginForm() {
               Welcome back
             </h1>
             <p className="mt-2 text-[15px] leading-6 text-muted">
-              Enter your mobile number to receive a one-time password.
+              Enter your mobile number. A new number is registered when the code is verified.
             </p>
           </div>
 
@@ -131,13 +143,11 @@ export function LoginForm() {
             }}
           />
 
-          <button
-            type="submit"
+          <SwipeAction
+            label="Swipe to login"
             disabled={pending || otp.length !== 4}
-            className="inline-flex h-12 w-full items-center justify-center rounded-full bg-track text-sm font-semibold text-black transition hover:bg-leaf-bright disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-          >
-            {pending ? "Verifying…" : "Verify & continue"}
-          </button>
+            onComplete={onVerifyOtp}
+          />
 
           <div className="flex flex-col items-center gap-2 text-sm">
             <button

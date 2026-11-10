@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { CategoriesPageContent } from "@/components/categories/CategoriesPageContent";
 import { loadHomeCatalog } from "@/lib/api/storefront";
-import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
-import type { CatalogCategory } from "@/lib/catalog-taxonomy";
 
 export const metadata: Metadata = {
   title: "Categories",
@@ -11,16 +9,10 @@ export const metadata: Metadata = {
 
 export default async function CategoriesPage() {
   const catalog = await loadHomeCatalog();
-  const categories: CatalogCategory[] = catalog.categories.map((category) => ({
-    slug: category.slug,
-    name: category.name,
-    image: category.image || CATEGORY_IMAGE_FALLBACK,
-    subcategories: [],
-  }));
 
   return (
     <CategoriesPageContent
-      categories={catalog.ok ? categories : []}
+      branches={catalog.ok ? catalog.branches : []}
       products={catalog.ok ? catalog.products : []}
       error={catalog.error}
     />

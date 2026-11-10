@@ -7,15 +7,29 @@ import { ProductCard } from "@/components/product/ProductCard";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { cn } from "@/lib/cn";
 import { catalogSlugForHomeCategory } from "@/lib/catalog-taxonomy";
-import { HOME_CATEGORIES, type HomeCategory } from "@/lib/home-categories";
+import { ALL_CATEGORY_SLUG, HOME_CATEGORIES, type HomeCategory } from "@/lib/home-categories";
 import { PRODUCT_CAROUSEL_SLOT } from "@/lib/product-card-layout";
 import {
   getProductsByCategory,
+  SAMPLE_PRODUCTS,
   type SampleProduct,
 } from "@/lib/sample-products";
 
 function isHomeCategory(value: string): value is HomeCategory {
   return HOME_CATEGORIES.some((category) => category.name === value);
+}
+
+function productsForAll(productsBySlug: Record<string, SampleProduct[]>) {
+  const seen = new Set<string>();
+  const products: SampleProduct[] = [];
+  for (const bucket of Object.values(productsBySlug)) {
+    for (const product of bucket) {
+      if (seen.has(product.id)) continue;
+      seen.add(product.id);
+      products.push(product);
+    }
+  }
+  return products;
 }
 
 /** One scrolling row up to this count. More than this splits into two rows. */
@@ -26,9 +40,9 @@ const ROW_SCROLL =
   "flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-0.5 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 /**
- * Home product listing for the category selected (centered) in the
- * rail above. Ten products or fewer stay in one horizontal row. More
- * than ten split evenly across two independently scrollable rows.
+ * Home product listing for the category selected in the rail above.
+ * All uses the products already loaded. Ten or fewer stay in one row.
+ * More than ten split across two rows.
  */
 export function ProductSection({
   productsBySlug,
@@ -41,11 +55,16 @@ export function ProductSection({
   const t = useTypeScale();
   const { selected } = useHomeCategory();
   const live = productsBySlug != null;
-  const products = live
-    ? (productsBySlug[selected] ?? [])
-    : isHomeCategory(selected)
-      ? getProductsByCategory(selected)
-      : [];
+  const showingAll = selected === ALL_CATEGORY_SLUG;
+  const products = showingAll
+    ? live
+      ? productsForAll(productsBySlug)
+      : SAMPLE_PRODUCTS
+    : live
+      ? (productsBySlug[selected] ?? [])
+      : isHomeCategory(selected)
+        ? getProductsByCategory(selected)
+        : [];
   const twoRows = products.length > ONE_ROW_MAX;
   const mid = twoRows ? Math.ceil(products.length / 2) : products.length;
   const rowTop = products.slice(0, mid);
@@ -72,11 +91,13 @@ export function ProductSection({
         </div>
         <Link
           href={
-            live
-              ? `/categories/${selected}`
-              : isHomeCategory(selected)
-                ? `/categories/${catalogSlugForHomeCategory(selected)}`
-                : "/categories"
+            showingAll
+              ? "/categories"
+              : live
+                ? `/categories/${selected}`
+                : isHomeCategory(selected)
+                  ? `/categories/${catalogSlugForHomeCategory(selected)}`
+                  : "/categories"
           }
           transitionTypes={["nav-forward"]}
           className="flex shrink-0 items-center gap-1 text-sm font-semibold text-leaf transition hover:text-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"

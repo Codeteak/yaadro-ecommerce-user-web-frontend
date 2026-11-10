@@ -3,6 +3,9 @@
  * Lives in `lib/` (not a client component) so server modules like
  * `catalog-taxonomy` can import without a Turbopack client-boundary TDZ.
  */
+/** Slug for the home rail item that shows every loaded product. */
+export const ALL_CATEGORY_SLUG = "all";
+
 export const HOME_CATEGORIES = [
   { name: "Fruits", image: "/categories/fruits.jpg" },
   { name: "Vegetables", image: "/categories/vegetables.jpg" },

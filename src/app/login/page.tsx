@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { ViewTransition } from "react";
 import { BackButton } from "@/components/navigation/BackButton";
 import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
 import { LoginForm } from "@/features/auth/LoginForm";
@@ -12,6 +13,13 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
+    <ViewTransition
+      exit={{
+        "login-forward": "login-forward",
+        "nav-back": "page-crossfade",
+      }}
+      default="none"
+    >
     <main className="relative flex min-h-dvh flex-col overflow-hidden bg-paper">
       <GreenCornerAccents intensity="soft" />
 
@@ -19,7 +27,7 @@ export default function LoginPage() {
         {/* Fixed chrome — login does not scroll; avoid sticky PageHeader. */}
         <header className="relative flex h-11 w-full shrink-0 items-center">
           <BackButton
-            href="/"
+            href="/home"
             className="absolute top-1/2 left-0 z-10 -translate-y-1/2"
           />
           <Image
@@ -67,5 +75,6 @@ export default function LoginPage() {
         </section>
       </div>
     </main>
+    </ViewTransition>
   );
 }

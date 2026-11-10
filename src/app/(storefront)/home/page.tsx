@@ -8,6 +8,7 @@ import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 import { HomePullContent } from "@/components/home/HomePullContent";
 import { ScrollToTopOnLoad } from "@/components/navigation/ScrollToTopOnLoad";
 import { loadHomeCatalog } from "@/lib/api/storefront";
+import { ALL_CATEGORY_SLUG } from "@/lib/home-categories";
 import { getShopSeo } from "@/lib/shop-seo";
 
 export const metadata: Metadata = {
@@ -17,15 +18,14 @@ export const metadata: Metadata = {
 
 export default async function StorefrontHomePage() {
   const [shop, catalog] = await Promise.all([getShopSeo(), loadHomeCatalog()]);
-  const initialSlug =
-    catalog.categories.find((category) => category.slug === "vegetables")?.slug ??
-    catalog.categories[0]?.slug ??
-    "Vegetables";
-  const categoryNames = Object.fromEntries(
-    catalog.categories.map((category) => [category.slug, category.name]),
-  );
+  const categoryNames = {
+    [ALL_CATEGORY_SLUG]: "All",
+    ...Object.fromEntries(
+      catalog.categories.map((category) => [category.slug, category.name]),
+    ),
+  };
   return (
-    <HomeCategoryProvider initialSlug={initialSlug}>
+    <HomeCategoryProvider>
       <ScrollToTopOnLoad />
       <main className="relative min-h-dvh overflow-x-clip bg-paper">
         <section className="relative">
@@ -52,7 +52,7 @@ export default async function StorefrontHomePage() {
               />
             </div>
 
-            <div className="relative mt-4 pb-16">
+            <div className="relative mt-4 pb-6">
               <OfferBanners
                 banners={shop.banners.length > 0 ? shop.banners : undefined}
               />
@@ -72,15 +72,13 @@ export default async function StorefrontHomePage() {
             </svg>
           </div>
 
-          {/* category circles riding the curve */}
-          <div className="relative z-10 mx-auto -mt-[4.25rem] w-full max-w-lg">
+          <div className="relative z-10 mx-auto mt-2 w-full max-w-lg">
             <CategoryRail
               categories={catalog.categories.map((category) => ({
                 name: category.name,
                 slug: category.slug,
                 image: category.image,
               }))}
-              initialSlug={initialSlug}
             />
           </div>
         </section>
