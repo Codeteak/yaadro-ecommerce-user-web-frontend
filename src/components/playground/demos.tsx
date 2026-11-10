@@ -26,7 +26,9 @@ import { HomeProductShelves } from "@/components/home/HomeProductShelves";
 import { HomePullContent } from "@/components/home/HomePullContent";
 import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 import { CategoriesHub } from "@/components/categories/CategoriesHub";
+import { CategoryBrowser } from "@/components/categories/CategoryBrowser";
 import { CategoryListing } from "@/components/categories/CategoryListing";
+import type { CategoryBranch } from "@/lib/api/storefront";
 import { ProductCard } from "@/components/product/ProductCard";
 import { ProductDetail } from "@/components/product/ProductDetail";
 import { ViewCartBar } from "@/components/cart/ViewCartBar";
@@ -37,7 +39,11 @@ import { CheckoutPageContent } from "@/components/checkout/CheckoutPageContent";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { SavedAddressesManageList } from "@/components/delivery/SavedAddressesManageList";
 import { getDefaultCatalogSlug } from "@/lib/catalog-taxonomy";
-import { getProductsByCategory } from "@/lib/sample-products";
+import {
+  getProductsByCategory,
+  SAMPLE_PRODUCTS,
+  type SampleProduct,
+} from "@/lib/sample-products";
 import { STOREFRONT_NAV_HIDDEN_PATHS } from "@/lib/storefront-nav";
 import { OrdersListPlayground } from "@/components/orders/OrdersListPlayground";
 import { OrderDetailPlayground } from "@/components/orders/OrderDetailPlayground";
@@ -67,10 +73,6 @@ import { PhoneInput } from "@/features/auth/PhoneInput";
 import { OtpInput } from "@/features/auth/OtpInput";
 import { LoginForm } from "@/features/auth/LoginForm";
 import { VerifiedSuccess } from "@/features/auth/VerifiedSuccess";
-import {
-  SAMPLE_PRODUCTS,
-  type SampleProduct,
-} from "@/lib/sample-products";
 import { getPlaygroundEntry } from "@/lib/playground/catalog";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { TYPE_SCALE } from "@/lib/type-scale";
@@ -431,16 +433,33 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "bottom-nav": () => (
-    <DemoFrame note="Same as storefront. Shown on Home, Categories, Wishlist, Profile, Orders, Coupons. Hidden on cart, checkout, order detail, profile edit, addresses, settings, and support.">
-      <div className="relative bg-paper px-4 pb-[5.5rem] pt-4">
-        <p className="text-[13px] font-semibold text-forest">Hidden on</p>
-        <ul className="mt-2 space-y-1 text-[12px] text-muted">
-          {STOREFRONT_NAV_HIDDEN_PATHS.map((path) => (
-            <li key={path} className="font-mono">
-              {path}
-            </li>
+    <DemoFrame note="Path-hidden on cart/checkout/order detail/profile tasks. Also slides away on scroll-down (window or nested overflow) — scroll this panel to try.">
+      <div className="relative max-h-[28rem] overflow-hidden rounded-2xl bg-paper ring-1 ring-black/5">
+        <div
+          data-storefront-scroll
+          className="max-h-[28rem] overflow-y-auto overscroll-contain px-4 pt-4 pb-[5.5rem]"
+        >
+          <p className="text-[13px] font-semibold text-forest">Hidden on routes</p>
+          <ul className="mt-2 space-y-1 text-[12px] text-muted">
+            {STOREFRONT_NAV_HIDDEN_PATHS.map((path) => (
+              <li key={path} className="font-mono">
+                {path}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 text-[13px] font-semibold text-forest">
+            Scroll to hide
+          </p>
+          <p className="mt-1 text-[12px] leading-5 text-muted">
+            Scroll down — the pill slides off. Scroll up or return near the top —
+            it comes back. Same hook as /categories nested panels.
+          </p>
+          {Array.from({ length: 14 }, (_, i) => (
+            <p key={i} className="mt-3 text-sm text-ink">
+              Scroll block {i + 1}
+            </p>
           ))}
-        </ul>
+        </div>
         <BottomNav position="inline" />
       </div>
     </DemoFrame>
@@ -488,7 +507,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "category-rail": () => (
-    <DemoFrame note="The last circle has no photo, so it uses the same category placeholder as the shop.">
+    <DemoFrame note="Flat category strip (All first). px-5 + scroll-px-5 keep the first tile off the wall when snap fires.">
       <HomeCategoryProvider>
         <div className="pt-6 pb-4">
           <CategoryRail
@@ -543,7 +562,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
         .map((product) => ({ ...product, id: `wide-${product.id}` })),
     ];
     return (
-      <DemoFrame note="Same as /home. Vegetables has 10 products, so one row. The second shelf has 12, so two rows.">
+      <DemoFrame note="Same as /home: denser 3:2 cards in ~152px slots; rails keep px-5 gutter. ≤10 → one row; >10 → two rows.">
         <HomeCategoryProvider>
           <ProductSection />
         </HomeCategoryProvider>
@@ -597,12 +616,34 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "product-card": () => (
-    <DemoFrame note="Clean elevated card (dual shadow + ring). Offer price + add/weight use black on green. The last card has no photo and shows the grocery-bag placeholder.">
-      <div className="grid grid-cols-2 gap-4 bg-paper p-4">
-        {SAMPLE_PRODUCTS.slice(0, 3).map((p) => (
-          <ProductCard key={p.id} product={p} />
-        ))}
-        <ProductCard product={NO_PHOTO_PRODUCT} />
+    <DemoFrame note="Default = 3:2 photo + denser title/price (home rails ~152px wide). Compact = cart Add more. Rails keep px-5 + scroll-px-5.">
+      <div className="space-y-6 bg-paper p-4">
+        <div>
+          <p className="mb-2 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Default
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            {SAMPLE_PRODUCTS.slice(0, 3).map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+            <ProductCard product={NO_PHOTO_PRODUCT} />
+          </div>
+        </div>
+        <div>
+          <p className="mb-2 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Compact
+          </p>
+          <div className="flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {SAMPLE_PRODUCTS.slice(0, 4).map((p) => (
+              <div
+                key={`compact-${p.id}`}
+                className="w-[9.375rem] shrink-0"
+              >
+                <ProductCard product={p} size="compact" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
       <WeightCustomizer />
     </DemoFrame>
@@ -718,6 +759,41 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "category-grid": () => <CategoriesFlowDemo start="hub" />,
   "category-plp": () => <CategoriesFlowDemo start="plp" />,
   "home-search-categories": () => <CategoriesFlowDemo start="home-search" />,
+  "category-browser": () => {
+    const branches: CategoryBranch[] = HOME_CATEGORIES.map((category) => ({
+      id: category.name,
+      name: category.name,
+      slug: category.name.toLowerCase().replace(/\s+/g, "-"),
+      image: category.image,
+      children: [],
+    }));
+    // Enough rows to scroll the product column (nav hide needs nested scroll).
+    const products = [...SAMPLE_PRODUCTS, ...SAMPLE_PRODUCTS].map(
+      (product, index) => {
+        const branch = branches[index % branches.length]!;
+        return {
+          ...product,
+          id: `${product.id}-pg-${index}`,
+          categorySlug: branch.slug,
+        };
+      },
+    );
+    return (
+      <DemoFrame
+        note="Same as /categories. Sidebar selection = mint wash + leaf ring (no green side bar). Scroll products to hide bottom nav."
+      >
+        <div className="relative flex h-[36rem] flex-col overflow-hidden rounded-2xl bg-paper ring-1 ring-black/5">
+          <div className="px-5 pt-3">
+            <p className="text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+              Categories
+            </p>
+          </div>
+          <CategoryBrowser branches={branches} products={products} />
+          <BottomNav position="inline" />
+        </div>
+      </DemoFrame>
+    );
+  },
   "orders-list": () => (
     <DemoFrame note="Same as /orders. Download bill opens the ticket with Copy, Download, and Done.">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain bg-paper">

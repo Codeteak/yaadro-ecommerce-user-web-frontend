@@ -38,12 +38,14 @@ export const PLAYGROUND_USAGE: Record<string, PlaygroundUsage> = {
   "bottom-nav": U(
     `import { BottomNav } from "@/components/navigation/BottomNav";
 import { shouldHideStorefrontNav } from "@/lib/storefront-nav";
+import { useScrollDirection } from "@/components/navigation/useScrollDirection";
 
-// Hidden on /cart, /checkout, /orders/[id],
-// /profile/edit|addresses|settings|support
+// Path-hidden on /cart, /checkout, /orders/[id], profile tasks
+// Scroll-hidden via useScrollDirection (window + nested overflow)
 <BottomNav />`,
     [
       "src/components/navigation/BottomNav.tsx",
+      "src/components/navigation/useScrollDirection.ts",
       "src/lib/storefront-nav.ts",
       "src/components/storefront/StorefrontChrome.tsx",
     ],
@@ -104,6 +106,17 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
     [
       "src/components/categories/CategoriesHub.tsx",
       "src/lib/catalog-taxonomy.ts",
+    ],
+  ),
+  "category-browser": U(
+    `import { CategoryBrowser } from "@/components/categories/CategoryBrowser";
+
+<CategoryBrowser branches={branches} products={products} />
+// Sidebar tiles: <CategoryTile size="sidebar" /> — mint active, no side bar`,
+    [
+      "src/components/categories/CategoryBrowser.tsx",
+      "src/components/home/CategoryTile.tsx",
+      "src/app/(storefront)/categories/page.tsx",
     ],
   ),
   "category-grid": U(
@@ -213,7 +226,10 @@ import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
     `import { ProductCard } from "@/components/product/ProductCard";
 import { SAMPLE_PRODUCTS } from "@/lib/sample-products";
 
+{/* Default — 3:2 denser photo (home / PLP / playground) */}
 <ProductCard product={SAMPLE_PRODUCTS[0]} />
+{/* Compact — cart “Add more” rail */}
+<ProductCard product={SAMPLE_PRODUCTS[0]} size="compact" />
 // Needs CartProvider (+ optional WishlistProvider)`,
     [
       "src/components/product/ProductCard.tsx",

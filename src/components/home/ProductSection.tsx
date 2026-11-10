@@ -35,9 +35,12 @@ function productsForAll(productsBySlug: Record<string, SampleProduct[]>) {
 /** One scrolling row up to this count. More than this splits into two rows. */
 const ONE_ROW_MAX = 10;
 
-/** Horizontal rail — py so ProductCard shadows aren’t clipped by overflow. */
+/**
+ * Horizontal rail — same px-5 / scroll-px-5 gutter as CategoryRail so
+ * snap-start never pins the first card to the screen edge.
+ */
 const ROW_SCROLL =
-  "flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-0.5 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+  "flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-5 scroll-px-5 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 /**
  * Home product listing for the category selected in the rail above.
@@ -73,11 +76,11 @@ export function ProductSection({
   return (
     <section
       aria-label={`${categoryNames?.[selected] ?? selected} products`}
-      className="mx-auto w-full max-w-lg px-5 pt-6"
+      className="mx-auto w-full max-w-lg pt-6"
     >
       <div
         className={cn(
-          "flex items-end justify-between",
+          "flex items-end justify-between px-5",
           t.homeShowAllGap,
         )}
       >
@@ -115,7 +118,7 @@ export function ProductSection({
         )}
       >
         {products.length === 0 ? (
-          <p className="py-6 text-sm font-medium text-muted">
+          <p className="px-5 py-6 text-sm font-medium text-muted">
             Nothing in this aisle yet.
           </p>
         ) : (
@@ -159,7 +162,6 @@ function ProductScrollRow({
           <ProductCard product={product} />
         </div>
       ))}
-      <div className="w-1 shrink-0" aria-hidden />
     </div>
   );
 }

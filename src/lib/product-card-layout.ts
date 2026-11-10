@@ -1,9 +1,8 @@
 /**
  * Compact carousel slot width for home rails / horizontal product strips.
- * ~172px — mid compact (150–190) and near mobile (160–185) guidance so
- * titles stay readable without a separate ProductCard variant.
+ * ~152px — denser than the old ~172px so more cards peek in the rail.
  */
-export const PRODUCT_CAROUSEL_SLOT = "w-[10.75rem]";
+export const PRODUCT_CAROUSEL_SLOT = "w-[9.5rem]";
 
 /**
  * Cart “You may also like” slot — 140–155px card width guidance.

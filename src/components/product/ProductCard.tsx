@@ -124,7 +124,7 @@ export function ProductCard({
         "relative isolate flex flex-col bg-white ring-1 ring-black/[0.06]",
         compact
           ? "h-[13.5rem] rounded-xl p-2 shadow-[0_1px_2px_rgba(47,107,47,0.06),0_4px_12px_rgba(47,107,47,0.08)]"
-          : "h-full rounded-[1.5rem] p-2.5 shadow-[0_1px_2px_rgba(47,107,47,0.06),0_8px_20px_rgba(47,107,47,0.1)]",
+          : "h-full rounded-[1.5rem] p-2 shadow-[0_1px_2px_rgba(47,107,47,0.06),0_8px_20px_rgba(47,107,47,0.1)]",
       )}
     >
       {product.badge ? (
@@ -158,7 +158,7 @@ export function ProductCard({
           "absolute z-10 flex cursor-pointer items-center justify-center rounded-full bg-white transition hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
           compact
             ? "top-2 right-2 h-7 w-7 shadow-[0_2px_8px_rgba(47,107,47,0.14)]"
-            : "top-[1.125rem] right-[1.125rem] h-8 w-8 shadow-[0_4px_12px_rgba(47,107,47,0.16)]",
+            : "top-2.5 right-2.5 h-8 w-8 shadow-[0_4px_12px_rgba(47,107,47,0.16)]",
         )}
       >
         <Heart
@@ -183,14 +183,16 @@ export function ProductCard({
           className={cn(
             "overflow-hidden",
             photoIsPlaceholder ? "bg-white" : "bg-[#f4f6f8]",
-            compact ? "h-[105px] w-full rounded-lg" : "h-[5.5rem] w-full rounded-2xl",
+            compact
+              ? "h-[105px] w-full rounded-lg"
+              : "aspect-[3/2] w-full rounded-2xl",
           )}
         >
           <CatalogImage
             src={photo}
             alt={product.name}
             width={compact ? 220 : 300}
-            height={compact ? 105 : 300}
+            height={compact ? 105 : 200}
             style={{ objectFit: "contain" }}
             className="h-full w-full bg-white object-contain"
           />
@@ -219,7 +221,7 @@ export function ProductCard({
           <span
             className={cn(
               "leading-tight font-extrabold whitespace-nowrap text-black tabular-nums",
-              compact ? "text-[15px]" : "text-lg",
+              compact ? "text-[15px]" : "text-base",
             )}
           >
             ₹{product.price}

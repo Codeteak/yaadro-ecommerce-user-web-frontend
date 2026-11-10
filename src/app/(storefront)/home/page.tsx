@@ -52,27 +52,28 @@ export default async function StorefrontHomePage() {
               />
             </div>
 
-            <div className="relative mt-4 pb-6">
+            {/* pb only clears the curve — keep CategoryRail placement as-is. */}
+            <div className="relative mt-4 pb-3">
               <OfferBanners
                 banners={shop.banners.length > 0 ? shop.banners : undefined}
               />
             </div>
 
-            {/* curved bottom edge — ends higher, middle dipped */}
+            {/* curved bottom edge — shorter so less dead paper under the dots */}
             <svg
-              className="absolute inset-x-0 bottom-0 h-[64px] w-full text-paper"
-              viewBox="0 0 1440 70"
+              className="absolute inset-x-0 bottom-0 h-[36px] w-full text-paper"
+              viewBox="0 0 1440 40"
               preserveAspectRatio="none"
               aria-hidden
             >
               <path
-                d="M0 18 C 360 66, 1080 66, 1440 18 L1440 70 L0 70 Z"
+                d="M0 10 C 360 36, 1080 36, 1440 10 L1440 40 L0 40 Z"
                 fill="currentColor"
               />
             </svg>
           </div>
 
-          <div className="relative z-10 mx-auto mt-2 w-full max-w-lg">
+          <div className="relative z-10 mx-auto w-full max-w-lg">
             <CategoryRail
               categories={catalog.categories.map((category) => ({
                 name: category.name,

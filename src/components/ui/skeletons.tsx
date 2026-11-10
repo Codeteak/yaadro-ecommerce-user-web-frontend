@@ -12,10 +12,10 @@ export function ProductCardSkeleton({ className }: { className?: string }) {
       )}
       aria-hidden
     >
-      <Skeleton className="h-[5.5rem] w-full rounded-2xl bg-mint/40" />
-      <Skeleton className="mt-2 h-4 w-[88%] bg-mint/45" />
-      <Skeleton className="mt-2 h-3 w-16 bg-mint/35" />
-      <div className="mt-auto flex items-center justify-between gap-2 pt-3">
+      <Skeleton className="aspect-[3/2] w-full rounded-2xl bg-mint/40" />
+      <Skeleton className="mt-1.5 h-3.5 w-[88%] bg-mint/45" />
+      <Skeleton className="mt-1 h-3 w-14 bg-mint/35" />
+      <div className="mt-auto flex items-center justify-between gap-2 pt-2">
         <div className="space-y-1.5">
           <Skeleton className="h-5 w-14 bg-mint/50" />
           <Skeleton className="h-3 w-10 bg-mint/30" />

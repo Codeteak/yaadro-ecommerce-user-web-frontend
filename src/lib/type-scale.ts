@@ -62,7 +62,7 @@ export const TYPE_SCALE: Record<TypeScaleId, TypeScaleTokens> = {
     searchResultsSubtitle: "mt-0.5 text-[12px] leading-4 font-medium text-muted",
     searchResultsToGrid: "mt-3",
     productCardName:
-      "mt-1.5 line-clamp-2 text-[15px] leading-5 font-bold text-ink",
+      "mt-1.5 line-clamp-2 min-h-[2.25rem] text-[13px] leading-4 font-bold text-ink",
   },
   spec: {
     homeSectionHeading:
@@ -90,8 +90,8 @@ export const TYPE_SCALE: Record<TypeScaleId, TypeScaleTokens> = {
       "text-xl font-semibold tracking-tight text-black sm:text-2xl sm:font-bold",
     searchResultsSubtitle: "mt-1.5 text-[12px] leading-4 font-medium text-muted",
     searchResultsToGrid: "mt-4",
-    /* Keep card name at legacy weight/size — only headings/spacing use spec. */
+    /* Keep card name denser on home rails / grids — headings still use spec. */
     productCardName:
-      "mt-1.5 line-clamp-2 text-[15px] leading-5 font-bold text-ink",
+      "mt-1.5 line-clamp-2 min-h-[2.25rem] text-[13px] leading-4 font-bold text-ink",
   },
 };

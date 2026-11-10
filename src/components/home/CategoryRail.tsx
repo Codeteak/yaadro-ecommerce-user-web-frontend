@@ -120,8 +120,9 @@ export function CategoryRail({
   return (
     <div
       ref={railRef}
-      className="relative overflow-x-auto scroll-smooth overscroll-x-contain snap-x snap-proximity [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="relative overflow-x-auto scroll-smooth overscroll-x-contain snap-x snap-proximity scroll-px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
+      {/* px-5 + scroll-px-5 keep All off the wall when snap-start fires */}
       <div className="flex w-max gap-4 px-5 py-3">
         {items.map((category) => (
           <CategoryTile

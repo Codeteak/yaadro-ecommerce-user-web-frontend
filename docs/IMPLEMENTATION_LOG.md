@@ -1,5 +1,82 @@
 # Implementation Log
 
+## 2026-11-10 — Denser home product cards
+
+### What changed
+
+Home rail slot narrowed to ~152px. Default ProductCard photo is `3:2` with smaller title/price so home (and shared grids) read shorter. Playground product-card / product-section notes updated.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/lib/product-card-layout.ts` | `PRODUCT_CAROUSEL_SLOT` → `9.5rem` |
+| `src/components/product/ProductCard.tsx` | `aspect-[3/2]`, `text-base` price |
+| `src/lib/type-scale.ts` / `skeletons.tsx` | Denser title |
+| Playground demos / catalog / usage | Notes |
+
+## 2026-11-10 — Hide bottom nav on nested category scroll
+
+### What changed
+
+`useScrollDirection` listens in the capture phase so nested `/categories` overflow panels hide the bottom nav on scroll-down. Playground `bottom-nav` and `category-browser` demos show the same behavior with inline BottomNav.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/navigation/useScrollDirection.ts` | Capture nested scroll |
+| `src/components/navigation/BottomNav.tsx` | Hide on scroll in inline demos too |
+| `src/components/categories/CategoryBrowser.tsx` | `data-storefront-scroll` markers |
+| `src/components/playground/demos.tsx` (+ catalog/usage) | Scroll-hide demos |
+
+## 2026-11-10 — Polish CategoryBrowser (keep vertical-tile layout)
+
+### What changed
+
+Kept the developer’s `/categories` browser layout. Sidebar tiles use `CategoryTile size="sidebar"` (smaller, mint active + leaf bar). Full-height rail divider, aligned search/product gutters. Playground entry `category-browser` mirrors `/categories`.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/home/CategoryTile.tsx` | `size="sidebar"` variant |
+| `src/components/categories/CategoryBrowser.tsx` | Finished gutters / divider / counts |
+| `src/components/playground/demos.tsx` (+ catalog/usage) | New demo |
+
+## 2026-11-10 — Shorter default cards + keep rails off the wall
+
+### What changed
+
+Default product photo is `aspect-[4/3]` (shorter than square) with tighter title/price spacing. Category + product rails use `scroll-px-5` with `px-5` so `snap-start` no longer pins the first tile/card to the screen edge. Playground product-card / product-section notes updated.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/product/ProductCard.tsx` | 4:3 photo, tighter padding |
+| `src/lib/type-scale.ts` / `skeletons.tsx` | Match shorter card |
+| `src/components/home/CategoryRail.tsx` | `scroll-px-5` gutter |
+| `src/components/home/ProductSection.tsx` | `scroll-px-5` + `px-5` |
+| `src/components/playground/demos.tsx` (+ catalog/usage) | Notes |
+
+## 2026-11-10 — Restore default ProductCard size + align home product rail
+
+### What changed
+
+Reverted the short default product image (`h-[5.5rem]`) back to square photos with reserved title height. Home product rails use the same `px-5` side inset as the category strip. Banner curve dead space tightened; CategoryRail left as the other developer designed it. Playground product-card demo shows default + compact.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/product/ProductCard.tsx` | Default image `aspect-square`, price `pt-3` |
+| `src/lib/type-scale.ts` | Restore `min-h-10` card title |
+| `src/components/ui/skeletons.tsx` | Square skeleton photo |
+| `src/components/home/ProductSection.tsx` | Rail `px-5` matches CategoryRail |
+| `src/app/(storefront)/home/page.tsx` | Shorter curve / less gap under banners |
+| `src/components/playground/demos.tsx` (+ catalog/usage) | Default + compact demo |
+
 ## 2026-11-07 — Shop-scoped profile member title
 
 ### What changed

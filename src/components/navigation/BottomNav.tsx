@@ -25,7 +25,8 @@ export function BottomNav({ position = "fixed" }: BottomNavProps) {
   const pathname = usePathname();
   const { navHidden } = useScrollDirection();
   const inline = position === "inline";
-  const hide = !inline && navHidden;
+  // Hide on scroll-down for storefront and playground (nested panels included).
+  const hide = navHidden;
 
   return (
     <nav

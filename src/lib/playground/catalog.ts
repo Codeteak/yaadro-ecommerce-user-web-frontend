@@ -48,7 +48,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Navigation",
     description:
-      "Floating pill on main tabs. Hidden on cart, checkout, order detail, profile edit/addresses/settings/support.",
+      "Floating pill on main tabs. Path-hidden on cart/checkout/order detail/profile tasks. Also hides on scroll-down (window or nested panels like /categories).",
     wiresTo: "Storefront layout (BottomNav)",
   },
   {
@@ -102,7 +102,16 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Fresh and the shop list: first tile is the wide rectangle, the rest are squares. Drinks: square then rectangle. A “No photo” tile shows the category placeholder.",
+      "Featured rectangle tiles + squares (older hub composition). Live /categories now uses category-browser.",
+    wiresTo: "Playground reference; see category-browser",
+  },
+  {
+    slug: "category-browser",
+    title: "Category browser",
+    status: "built",
+    group: "Home",
+    description:
+      "Live /categories: search + sidebar tiles + products. Active = mint + ring (no side bar). Scroll to hide bottom nav.",
     wiresTo: "/categories",
   },
   {
@@ -112,7 +121,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     group: "Home",
     description:
       "Alias of categories-hub (featured rectangles + PLP flow).",
-    wiresTo: "/categories",
+    wiresTo: "Playground reference; see category-browser",
   },
   {
     slug: "category-plp",
@@ -129,7 +138,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Infinite horizontal category circles with center selection. The last circle has no photo and shows the category placeholder.",
+      "Flat category strip (All first). Side gutter via px-5 + scroll-px-5. Missing photos use the category placeholder.",
     wiresTo: "/home under banners",
   },
   {
@@ -209,8 +218,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Elevated white card (clean dual shadow + ring), ribbon, heart, add / weight stepper. Missing photos use the grocery-bag placeholder.",
-    wiresTo: "ProductSection, /home, /product/[id]",
+      "Default 3:2 denser card (home rails ~152px) + compact cart size. Ribbon, heart, add/weight stepper. Missing photos use the grocery-bag placeholder.",
+    wiresTo: "ProductSection, /home, /product/[id], cart suggestions",
   },
   {
     slug: "view-cart-bar",
