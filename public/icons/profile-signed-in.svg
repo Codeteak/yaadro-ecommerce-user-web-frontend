@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <!-- Matches the provided profile-tick mark: head + shoulders, check cut out of the torso. -->
+  <circle cx="12" cy="5.8" r="3.7" fill="#1F1C18"/>
+  <path
+    fill="#1F1C18"
+    fill-rule="evenodd"
+    d="M3.5 18.75c0-3.9 3.4-6.45 8.5-6.45s8.5 2.55 8.5 6.45c0 .97-.78 1.75-1.75 1.75H5.25c-.97 0-1.75-.78-1.75-1.75Zm11.35-2.2-2.85 2.85c-.35.35-.92.35-1.27 0l-1.5-1.5a.9.9 0 0 1 1.27-1.27l.87.86 2.21-2.21a.9.9 0 1 1 1.27 1.27Z"
+  />
+</svg>

@@ -100,7 +100,7 @@ export function CategoriesHub({
             id: "shop",
             title: "Shop by category",
             subtitle: "Everything in this store",
-            layout: "uniform" as const,
+            layout: "rect-first" as const,
             categories,
           },
         ]

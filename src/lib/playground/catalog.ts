@@ -48,7 +48,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Navigation",
     description:
-      "Floating pill nav — green active pill, black icons/labels (storefront layout).",
+      "Floating pill on main tabs. Hidden on cart, checkout, order detail, profile edit/addresses/settings/support.",
     wiresTo: "Storefront layout (BottomNav)",
   },
   {
@@ -74,7 +74,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "HomeTopBar",
     status: "built",
     group: "Home",
-    description: "Shop avatar + name, Deliver to, Sign in; address bottom sheet.",
+    description:
+      "Guest Sign in vs signed-in profile-tick icon (no round background). Storefront stays guest until auth.",
     wiresTo: "/home",
   },
   {
@@ -101,7 +102,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Fresh: rect-first + squares. Drinks: square then rect. A “No photo” tile shows the category placeholder used on the shop.",
+      "Fresh and the shop list: first tile is the wide rectangle, the rest are squares. Drinks: square then rectangle. A “No photo” tile shows the category placeholder.",
     wiresTo: "/categories",
   },
   {
@@ -153,7 +154,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Max 10 cards; two independent scroll rows; ~172px slots. Show all → /categories/[slug].",
+      "10 or fewer products in one scrolling row. More than 10 split into two rows. Show all → /categories/[slug].",
     wiresTo: "/home, /categories/[slug]",
   },
   {
@@ -356,7 +357,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Mint hero with transparent PageHeader (surface=hero); same as /profile.",
+      "Guest Sign in vs signed-in default avatar. Title is `{shopName} Member` per supermarket (or real displayName). Same on /profile.",
     wiresTo: "/profile",
   },
 

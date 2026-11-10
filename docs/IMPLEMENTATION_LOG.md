@@ -1,5 +1,122 @@
 # Implementation Log
 
+## 2026-11-07 — Shop-scoped profile member title
+
+### What changed
+
+Signed-in `ProfileHero` falls back to `{shopName} Member` (from `ShopNameProvider` / `getShopSeo`), not “Yaadro Member”. `/profile` wraps with the live shop name. Playground shows Green Basket and City Mart examples.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/profile/ProfileHero.tsx` | Default title from `useShopName()` |
+| `src/app/(storefront)/profile/page.tsx` | `ShopNameProvider` + `getShopSeo` |
+| `src/components/playground/demos.tsx` | Two shop-scoped signed-in previews |
+| `src/lib/playground/usage.ts` / `catalog.ts` | Docs |
+
+## 2026-11-07 — Wire ProfileHero signed-in preview to /profile
+
+### What changed
+
+`/profile` uses `ProfileHero` with a local signed-in preview (seeded default avatar), matching the wishlist scaffold until a session API exists. Home still shows Sign in; the tick stays playground-only. Playground profile header still shows guest and signed-in.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/app/(storefront)/profile/page.tsx` | Use `ProfileHero` signed-in preview |
+| `src/components/profile/ProfileHero.tsx` | Storefront-friendly signed-in subtitle |
+| `src/lib/playground/catalog.ts` | Note wires to `/profile` |
+
+## 2026-11-07 — Default profile avatars (playground signed-in)
+
+### What changed
+
+Sixteen default avatars live under `public/avatars/`. `pickDefaultProfileAvatar(userId)` picks one stably from the seed. The playground profile header shows guest vs signed-in with that avatar. Home top bar still uses only the tick icon. `/profile` now uses the signed-in preview (see entry above).
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `public/avatars/avatar-01.svg` … `avatar-16.svg` | Default avatar set |
+| `src/lib/default-profile-avatar.ts` | Seeded random pick |
+| `src/components/profile/ProfileHero.tsx` | Guest / signed-in hero |
+| `src/components/playground/demos.tsx` | Profile header preview |
+| `src/lib/playground/catalog.ts` | Describe the preview |
+
+## 2026-11-07 — Signed-in HomeTopBar preview in the playground
+
+### What changed
+
+`HomeTopBar` accepts `signedIn`. Guest keeps the Sign in pill. Signed in shows the profile-tick icon with no round background, linking to `/profile`. The playground home-top-bar demo shows both. `/home` stays guest until auth exists.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `public/icons/profile-signed-in.svg` | Transparent profile-tick icon |
+| `src/components/home/HomeTopBar.tsx` | Optional `signedIn` prop |
+| `src/components/playground/demos.tsx` | Guest + signed-in bars |
+| `src/lib/playground/catalog.ts` | Describe the preview |
+
+## 2026-11-07 — Hide bottom nav on focused storefront screens
+
+### What changed
+
+Bottom nav stays on Home, Categories, Wishlist, Profile, Orders, Coupons, category PLP, and product detail. It is removed on cart, checkout, order detail, and profile edit / addresses / settings / support. The playground BottomNav demo lists those paths.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/lib/storefront-nav.ts` | Shared hide-path helper |
+| `src/components/storefront/StorefrontChrome.tsx` | Use the helper |
+| `src/components/playground/demos.tsx` | BottomNav demo + related notes |
+| `src/lib/playground/catalog.ts` | Describe where the nav hides |
+
+## 2026-11-07 — Fix comma-joined catalog image URLs
+
+### What changed
+
+Product (and category) image fields that dump several absolute URLs in one comma-joined string now keep each URL separate and use the first for the card. Google Shopping thumbs on gstatic load with a plain `img` so `/_next/image` is not asked to fetch URLs that return 404.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/lib/catalog-map.ts` | Split comma-joined image strings |
+| `src/lib/api/storefront.ts` | Same split for category images |
+| `src/components/ui/CatalogImage.tsx` | Skip next/image for gstatic |
+
+## 2026-11-06 — Shop category grid leads with a wide tile
+
+### What changed
+
+The live “Shop by category” grid uses the same first-tile rectangle as the playground Fresh section. The first category spans two columns. The rest stay squares.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/categories/CategoriesHub.tsx` | Shop section layout is `rect-first` |
+| `src/components/playground/demos.tsx` | Note matches the shop grid |
+| `src/lib/playground/catalog.ts` | Describe the shared rectangle |
+
+## 2026-11-06 — Home product shelf uses one row until 11 products
+
+### What changed
+
+The home category shelf keeps 10 or fewer products in one horizontal row. More than 10 split evenly into two scrolling rows. The playground product section shows both: Vegetables (10) and a 12-product shelf.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/home/ProductSection.tsx` | Row count follows the product count |
+| `src/components/playground/demos.tsx` | Show the one-row and two-row shelves |
+| `src/lib/playground/catalog.ts` | Describe the row rule |
+
 ## 2026-11-06 — Copy puts the bill image on the clipboard
 
 ### What changed

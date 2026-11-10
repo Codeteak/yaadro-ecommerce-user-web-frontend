@@ -22,15 +22,19 @@ function getClientLabel() {
 }
 
 /**
- * Hero top bar: shop avatar + name, Deliver to under the name, Sign in.
- * Tapping the location line opens the shared address sheet.
+ * Hero top bar: shop avatar + name, Deliver to under the name, Sign in
+ * (or a signed-in profile icon). Tapping the location line opens the
+ * address sheet. Pass `signedIn` in the playground until auth is live.
  */
 export function HomeTopBar({
   shopName,
   shopImage,
+  signedIn = false,
 }: {
   shopName: string;
   shopImage: string;
+  /** Playground preview. Storefront stays guest until session API. */
+  signedIn?: boolean;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -92,12 +96,30 @@ export function HomeTopBar({
             </button>
           </div>
         </div>
-        <Link
-          href="/login"
-          className="shrink-0 rounded-full bg-track px-4 py-2 text-sm font-semibold text-black shadow-sm transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-        >
-          Sign in
-        </Link>
+        {signedIn ? (
+          <Link
+            href="/profile"
+            className="shrink-0 self-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+            aria-label="Profile"
+          >
+            {/* Same footprint as the shop avatar (h-11). No round / pill background. */}
+            <Image
+              src="/icons/profile-signed-in.svg"
+              alt=""
+              width={44}
+              height={44}
+              unoptimized
+              className="h-11 w-11 object-contain"
+            />
+          </Link>
+        ) : (
+          <Link
+            href="/login"
+            className="shrink-0 rounded-full bg-track px-4 py-2 text-sm font-semibold text-black shadow-sm transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+          >
+            Sign in
+          </Link>
+        )}
       </header>
 
       <AddressBookSheet open={sheetOpen} onOpenChange={setSheetOpen} />

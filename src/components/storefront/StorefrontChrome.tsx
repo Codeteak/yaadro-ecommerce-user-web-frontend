@@ -6,6 +6,7 @@ import { BottomNav } from "@/components/navigation/BottomNav";
 import { ViewCartBar } from "@/components/cart/ViewCartBar";
 import { WeightCustomizer } from "@/components/cart/WeightCustomizer";
 import { cn } from "@/lib/cn";
+import { shouldHideStorefrontNav } from "@/lib/storefront-nav";
 
 /**
  * Path-dependent chrome. `usePathname` suspends on dynamic routes
@@ -14,7 +15,7 @@ import { cn } from "@/lib/cn";
  */
 function StorefrontPathChrome() {
   const pathname = usePathname();
-  const hideNav = pathname === "/cart" || pathname === "/checkout";
+  const hideNav = shouldHideStorefrontNav(pathname);
 
   return (
     <>
@@ -27,8 +28,10 @@ function StorefrontPathChrome() {
 }
 
 /**
- * Storefront shell chrome. Bottom nav is hidden on /cart and /checkout
- * so action chrome can sit at the bottom without a second bar.
+ * Storefront shell chrome. Bottom nav stays on Home, Categories,
+ * Wishlist, Profile, Orders, Coupons, and product/PLP pages.
+ * It hides on cart, checkout, order detail, and profile task screens
+ * (edit, addresses, settings, support) so the back header owns the page.
  * Page content stays outside the pathname Suspense boundary.
  */
 export function StorefrontChrome({ children }: { children: ReactNode }) {

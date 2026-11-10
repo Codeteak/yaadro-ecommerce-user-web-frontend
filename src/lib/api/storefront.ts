@@ -72,9 +72,16 @@ function pickString(...values: unknown[]): string | null {
 }
 
 function imageUrl(value: unknown): string {
-  if (typeof value === "string") return value;
-  const record = asRecord(value);
-  return pickString(record?.url, record?.imageUrl) ?? "";
+  const raw =
+    typeof value === "string"
+      ? value.trim()
+      : (pickString(asRecord(value)?.url, asRecord(value)?.imageUrl) ?? "");
+  if (!raw) return "";
+  // Same comma-joined dump the product mapper already splits.
+  if (/,https?:\/\//i.test(raw)) {
+    return raw.split(/,(?=https?:\/\/)/i)[0]?.trim() ?? "";
+  }
+  return raw;
 }
 
 function mapCategory(value: unknown): StoreCategory | null {

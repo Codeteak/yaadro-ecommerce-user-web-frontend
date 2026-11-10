@@ -37,8 +37,13 @@ import { CheckoutPageContent } from "@/components/checkout/CheckoutPageContent";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { SavedAddressesManageList } from "@/components/delivery/SavedAddressesManageList";
 import { getDefaultCatalogSlug } from "@/lib/catalog-taxonomy";
+import { getProductsByCategory } from "@/lib/sample-products";
+import { STOREFRONT_NAV_HIDDEN_PATHS } from "@/lib/storefront-nav";
 import { OrdersListPlayground } from "@/components/orders/OrdersListPlayground";
 import { OrderDetailPlayground } from "@/components/orders/OrderDetailPlayground";
+import { ProfileHero } from "@/components/profile/ProfileHero";
+import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
+import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
 import { SwipeToLogin } from "@/components/onboarding/SwipeToLogin";
 import { OnboardingScreen } from "@/components/onboarding/OnboardingScreen";
 import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
@@ -328,7 +333,7 @@ function CategoriesFlowDemo({
   }
 
   return (
-    <DemoFrame note="Fresh: first tile rectangle, rest squares. Drinks: first square, then rectangle. Tap → PLP.">
+    <DemoFrame note="Same as /categories. Fresh: first tile is the wide rectangle, then squares. Drinks: first square, then the wide rectangle. Tap → PLP.">
       <div className="relative max-h-[78vh] overflow-y-auto overscroll-contain rounded-2xl bg-paper ring-1 ring-black/5">
         <CategoriesHub
           focusSearch={focusSearch}
@@ -385,7 +390,7 @@ function AddressBookDemo({
 function OrderDetailLeadDemo() {
   const id = useSearchParams().get("id") ?? "ord-1042";
   return (
-    <DemoFrame note="Same as /orders/[id]. Receipt opens the ticket bill with Download.">
+    <DemoFrame note="Same as /orders/[id]. No bottom nav on this page. Receipt opens the ticket bill with Download.">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain bg-white">
         <OrderDetailPlayground orderId={id} ticketBill />
       </div>
@@ -426,8 +431,16 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "bottom-nav": () => (
-    <DemoFrame note="Green active pill; Home icon + label black. Inactive icons black. Same BottomNav as storefront.">
-      <div className="relative h-[140px] bg-paper">
+    <DemoFrame note="Same as storefront. Shown on Home, Categories, Wishlist, Profile, Orders, Coupons. Hidden on cart, checkout, order detail, profile edit, addresses, settings, and support.">
+      <div className="relative bg-paper px-4 pb-[5.5rem] pt-4">
+        <p className="text-[13px] font-semibold text-forest">Hidden on</p>
+        <ul className="mt-2 space-y-1 text-[12px] text-muted">
+          {STOREFRONT_NAV_HIDDEN_PATHS.map((path) => (
+            <li key={path} className="font-mono">
+              {path}
+            </li>
+          ))}
+        </ul>
         <BottomNav position="inline" />
       </div>
     </DemoFrame>
@@ -450,12 +463,27 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "home-top-bar": () => (
-    <DemoFrame note="Shop avatar + Deliver to + Sign in on mint hero (same as /home).">
-      <div className="bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8] px-5 pt-4 pb-6">
-        <HomeTopBar
-          shopName="Yaadro"
-          shopImage="/onboarding/brand-mark-white-y.svg"
-        />
+    <DemoFrame note="Guest shows Sign in (same as /home). Signed in replaces it with the profile-tick icon — no round background. Storefront stays guest until auth.">
+      <div className="space-y-6 bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8] px-5 pt-4 pb-6">
+        <div>
+          <p className="mb-2 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Guest
+          </p>
+          <HomeTopBar
+            shopName="Yaadro"
+            shopImage="/onboarding/brand-mark-white-y.svg"
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Signed in
+          </p>
+          <HomeTopBar
+            shopName="Yaadro"
+            shopImage="/onboarding/brand-mark-white-y.svg"
+            signedIn
+          />
+        </div>
       </div>
     </DemoFrame>
   ),
@@ -507,16 +535,30 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </div>
     </DemoFrame>
   ),
-  "product-section": () => (
-    <DemoFrame note="Same as /home: max 10 · two independent rows · ~172px slots. Show all → /categories/[slug] for the selected rail.">
-      <HomeCategoryProvider>
-        <div className="pb-4">
+  "product-section": () => {
+    const wideAisle = [
+      ...getProductsByCategory("Vegetables"),
+      ...getProductsByCategory("Fruits")
+        .slice(0, 2)
+        .map((product) => ({ ...product, id: `wide-${product.id}` })),
+    ];
+    return (
+      <DemoFrame note="Same as /home. Vegetables has 10 products, so one row. The second shelf has 12, so two rows.">
+        <HomeCategoryProvider>
           <ProductSection />
-          <WeightCustomizer />
-        </div>
-      </HomeCategoryProvider>
-    </DemoFrame>
-  ),
+        </HomeCategoryProvider>
+        <HomeCategoryProvider initialSlug="wide">
+          <div className="pb-4">
+            <ProductSection
+              productsBySlug={{ wide: wideAisle }}
+              categoryNames={{ wide: "More than 10" }}
+            />
+            <WeightCustomizer />
+          </div>
+        </HomeCategoryProvider>
+      </DemoFrame>
+    );
+  },
   "fruits-veggies-section": () => (
     <DemoFrame
       surface="bare"
@@ -635,7 +677,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "cart-page": () => (
     <DemoFrame
       surface="bare"
-      note="Playground: Add more + compact suggestion cards (~150×216). Wire to /cart when ready."
+      note="Same as /cart: no bottom nav. Add more + compact suggestion cards (~150×216)."
     >
       <div className="relative h-[75vh] bg-paper">
         <CartPageContent
@@ -651,7 +693,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   checkout: () => (
     <DemoFrame
       surface="bare"
-      note="Same as /checkout: “Prices may vary…” above sticky totals + COD + Place Order stub."
+      note="Same as /checkout: no bottom nav. “Prices may vary…” above sticky totals + COD + Place Order stub."
     >
       <div className="relative h-[75vh] bg-paper">
         <CheckoutPageContent chromePosition="inline" showPriceMayVary />
@@ -660,7 +702,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   ),
   "address-book": () => <AddressBookDemo initialStep="list" />,
   "address-manage": () => (
-    <DemoFrame note="Same as /profile/addresses: black pin, star / edit / delete, Add New Address. Home Deliver to pin is black too.">
+    <DemoFrame note="Same as /profile/addresses: no bottom nav. Black pin, star / edit / delete, Add New Address.">
       <div className="bg-paper px-5 py-6">
         <h2 className="text-xl font-extrabold text-black">Address management</h2>
         <p className="mt-1 text-[13px] text-muted">
@@ -856,52 +898,60 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "profile-header": () => (
-    <DemoFrame note="Hero sticky: transparent bar — only back stays; title hides; avatar not covered.">
-      <div className="max-h-[28rem] overflow-y-auto overscroll-contain bg-paper">
-        <section className="relative rounded-b-[2.5rem] bg-gradient-to-b from-mint via-[#eef6ee] to-paper">
-          <div
-            className="pointer-events-none absolute inset-0 overflow-hidden rounded-b-[2.5rem]"
-            aria-hidden
-          >
-            <div className="absolute -top-20 -right-16 size-52 rounded-full bg-leaf/10" />
-          </div>
-          <div className="relative px-5 pb-16">
-            <PageHeader
-              surface="hero"
-              backHref="/playground"
-              title="Profile"
-            />
-            <div className="relative mt-5 flex flex-col items-center text-center">
-              <div className="flex size-28 items-center justify-center rounded-full bg-white shadow-[0_10px_30px_rgba(47,107,47,0.12)] ring-1 ring-leaf/15">
-                <Image
-                  src="/onboarding/brand-mark-white-y.svg"
-                  alt=""
-                  width={58}
-                  height={69}
-                  unoptimized
-                  className="h-16 w-auto object-contain"
-                />
-              </div>
-              <h2 className="mt-4 text-[22px] leading-7 font-bold tracking-tight text-forest">
-                Guest User
-              </h2>
-              <p className="mt-1 max-w-[260px] text-sm leading-5 text-muted">
-                Sign in to sync your orders, coupons and wishlist.
-              </p>
-              <Link
-                href="/login"
-                className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-track px-6 text-sm font-semibold text-black transition hover:bg-leaf-bright"
-              >
-                Sign in
-              </Link>
-            </div>
-          </div>
-        </section>
-        {Array.from({ length: 10 }, (_, i) => (
-          <p key={i} className="px-5 py-3 text-sm text-muted">
-            Scroll block {i + 1} — back button stays sticky; title fades.
+    <DemoFrame note="Guest Sign in vs signed-in default avatar. Title falls back to `{shopName} Member` (supermarket brand). Pass displayName when auth has a real user name.">
+      <div className="max-h-[36rem] space-y-8 overflow-y-auto overscroll-contain bg-paper pb-6">
+        <div>
+          <p className="px-5 pt-3 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Guest
           </p>
-        ))}
+          <ProfileHero backHref="/playground" />
+        </div>
+        <div>
+          <p className="px-5 pt-1 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Signed in · Green Basket
+          </p>
+          <ShopNameProvider name="Green Basket">
+            <ProfileHero
+              backHref="/playground"
+              signedIn
+              userId="playground-demo-user"
+            />
+          </ShopNameProvider>
+        </div>
+        <div>
+          <p className="px-5 pt-1 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Signed in · City Mart
+          </p>
+          <ShopNameProvider name="City Mart">
+            <ProfileHero
+              backHref="/playground"
+              signedIn
+              userId="playground-shop-b"
+            />
+          </ShopNameProvider>
+        </div>
+        <div className="px-5">
+          <p className="text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Other seeds (random pick)
+          </p>
+          <ul className="mt-3 flex flex-wrap gap-3">
+            {["user-a", "user-b", "user-c", "user-d", "user-e", "user-f"].map(
+              (seed) => (
+                <li key={seed} className="flex flex-col items-center gap-1">
+                  <Image
+                    src={pickDefaultProfileAvatar(seed)}
+                    alt=""
+                    width={56}
+                    height={56}
+                    unoptimized
+                    className="size-14 object-cover"
+                  />
+                  <span className="font-mono text-[10px] text-muted">{seed}</span>
+                </li>
+              ),
+            )}
+          </ul>
+        </div>
       </div>
     </DemoFrame>
   ),
