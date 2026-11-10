@@ -3,6 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { SwipeAction } from "@/components/ui/SwipeAction";
+import {
+  AuthApiError,
+  requestCustomerOtp,
+  saveCustomerSession,
+  verifyCustomerOtp,
+} from "@/lib/api/auth";
 import { validateLoginPhone, validateOtp } from "@/lib/validations/auth";
 import { OtpInput } from "./OtpInput";
 import { PhoneInput } from "./PhoneInput";
@@ -28,12 +34,21 @@ export function LoginForm() {
     if (error) return;
 
     setPending(true);
-    // UI-only stub — real requestOtp API will replace this later.
-    await new Promise((resolve) => setTimeout(resolve, 350));
-    setPending(false);
-    setOtp("");
-    setOtpError(null);
-    setStep("otp");
+    try {
+      await requestCustomerOtp(phone);
+      setOtp("");
+      setOtpError(null);
+      setStep("otp");
+    } catch (err) {
+      const message =
+        err instanceof AuthApiError
+          ? err.message
+          : "Could not send the OTP. Try again.";
+      if (step === "otp") setOtpError(message);
+      else setPhoneError(message);
+    } finally {
+      setPending(false);
+    }
   };
 
   const onVerifyOtp = async () => {
@@ -42,11 +57,21 @@ export function LoginForm() {
     if (error) return false;
 
     setPending(true);
-    // UI-only stub — real verifyOtp + session handling will replace this later.
-    await new Promise((resolve) => setTimeout(resolve, 350));
-    setPending(false);
-    router.push("/home", { transitionTypes: ["login-forward"] });
-    return true;
+    try {
+      const session = await verifyCustomerOtp(phone, otp);
+      saveCustomerSession(session);
+      router.push("/home", { transitionTypes: ["login-forward"] });
+      return true;
+    } catch (err) {
+      setOtpError(
+        err instanceof AuthApiError
+          ? err.message
+          : "Could not verify the OTP. Try again.",
+      );
+      return false;
+    } finally {
+      setPending(false);
+    }
   };
 
   return (
@@ -71,7 +96,7 @@ export function LoginForm() {
               Welcome back
             </h1>
             <p className="mt-2 text-[15px] leading-6 text-muted">
-              Enter your mobile number to receive a one-time password.
+              Enter your mobile number. A new number is registered when the code is verified.
             </p>
           </div>
 
