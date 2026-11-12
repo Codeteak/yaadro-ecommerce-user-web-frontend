@@ -20,8 +20,14 @@ type HomeSearchBarProps = {
    */
   navigateOnSubmit?: boolean;
   placeholder?: string;
-  /** Filter control — UI stub until filters exist. */
+  /** Opens filters (categories browser / hub). */
   onFilterClick?: () => void;
+  /** Navigate when filter is tapped (e.g. home → categories with chips open). */
+  filterHref?: string;
+  /** Shows a red badge on the filter chip when facets are active. */
+  filterActive?: boolean;
+  /** When the filter chip row is expanded under the search bar. */
+  filterExpanded?: boolean;
   /**
    * Gateway mode: focus / click opens categories search (or custom handler)
    * instead of typing on home.
@@ -46,6 +52,9 @@ export function HomeSearchBar({
   navigateOnSubmit = false,
   placeholder = "Type to search",
   onFilterClick,
+  filterHref,
+  filterActive = false,
+  filterExpanded,
   onActivate,
   activateHref,
   value: valueProp,
@@ -135,11 +144,25 @@ export function HomeSearchBar({
         />
         <button
           type="button"
-          onClick={onFilterClick}
+          onClick={() => {
+            if (onFilterClick) {
+              onFilterClick();
+              return;
+            }
+            if (filterHref) router.push(filterHref);
+          }}
           aria-label="Filters"
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-track text-black shadow-[0_4px_12px_rgba(47,107,47,0.28)] transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf active:scale-95"
+          aria-pressed={filterActive || undefined}
+          aria-expanded={filterExpanded}
+          className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-track text-black shadow-[0_4px_12px_rgba(47,107,47,0.28)] transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf active:scale-95"
         >
           <SlidersHorizontal className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+          {filterActive ? (
+            <span
+              className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"
+              aria-hidden
+            />
+          ) : null}
         </button>
       </div>
     </form>

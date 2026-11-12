@@ -49,6 +49,7 @@ export default async function StorefrontHomePage() {
               <HomeSearchBar
                 className="mt-4"
                 activateHref="/categories?focus=search"
+                filterHref="/categories?focus=search&chips=1"
               />
             </div>
 

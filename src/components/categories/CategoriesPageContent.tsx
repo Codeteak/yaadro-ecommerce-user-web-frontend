@@ -24,6 +24,7 @@ function CategoriesBody({
       products={products}
       error={error}
       focusSearch={searchParams.get("focus") === "search"}
+      initialChipsOpen={searchParams.get("chips") === "1"}
     />
   );
 }

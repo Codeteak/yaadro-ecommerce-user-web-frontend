@@ -84,8 +84,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Pill search + green filter chip. On /home, tap opens /categories?focus=search.",
-    wiresTo: "/home → /categories?focus=search",
+      "Pill search + green filter chip. Home: search → categories focus; filter → categories with chips open. Categories: filter toggles chip row.",
+    wiresTo: "/home, /categories",
   },
   {
     slug: "home-search-categories",
@@ -111,7 +111,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Live /categories: search + sidebar tiles + products. Active = mint + ring (no side bar). Scroll to hide bottom nav.",
+      "Live /categories: search filter toggles Filter/Brands/Type/Sort chips; each opens its sheet. Sidebar tiles + products.",
     wiresTo: "/categories",
   },
   {
@@ -129,7 +129,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "PLP filters/sort sheets (Filter, Brands, Type, Sort) + left rail + grid. Same as /categories/[slug].",
+      "Shared Filter/Brands/Type/Sort chips + sidebar tiles. Same as /categories/[slug] (Fruits/Veggies Browse all).",
     wiresTo: "/categories/[slug]",
   },
   {

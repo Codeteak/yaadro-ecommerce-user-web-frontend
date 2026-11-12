@@ -1,5 +1,63 @@
 # Implementation Log
 
+## 2026-11-12 — Wire category filters to storefront home
+
+### What changed
+
+`/categories` already uses `CategoryBrowser` (collapsible chips). Home search filter now goes to `/categories?focus=search&chips=1` so the chip row opens on arrival. `initialChipsOpen` reads `chips=1`.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/app/(storefront)/home/page.tsx` | `filterHref` with chips=1 |
+| `src/components/home/HomeSearchBar.tsx` | `filterHref` nav |
+| `src/components/categories/CategoriesPageContent.tsx` | Pass `initialChipsOpen` |
+| `src/components/categories/CategoryBrowser.tsx` | `initialChipsOpen` prop |
+
+## 2026-11-12 — Shared Filter/Brands/Type/Sort chips on categories
+
+### What changed
+
+Extracted `PlpFilterChips` (same pill row as Fruits PLP). `/categories` shows it under search; PLP reuses it. Filter sheet is toggles-only again; Brands/Type/Sort open their own sheets. Playground notes updated.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/categories/PlpFilterChips.tsx` | Shared chip row |
+| `src/components/categories/CategoryBrowser.tsx` | Chips under search |
+| `src/components/categories/CategoryListing.tsx` | Uses shared chips |
+| `src/components/categories/PlpFilterSheets.tsx` | FilterBody toggles only |
+
+## 2026-11-12 — Categories search filter chip opens PLP sheets
+
+### What changed
+
+`/categories` search filter button opens the same `PlpFilterSheets` as Fruits/Veggies PLP. Active filters show a red badge on the chip and filter the product grid. Playground `category-browser` note updated.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/categories/CategoryBrowser.tsx` | Filter state + sheets |
+| `src/components/home/HomeSearchBar.tsx` | `filterActive` badge |
+| Playground catalog / demos / usage | Notes |
+
+## 2026-11-12 — PLP sidebar matches category browser
+
+### What changed
+
+`/categories/[slug]` (Fruits/Veggies Browse all) left rail now uses `CategoryTile size="sidebar"` like `/categories` — square tiles, mint active, no green side bar / circles. Skeleton + playground PLP notes updated.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/categories/CategoryListing.tsx` | Sidebar tiles + gutters |
+| `src/components/ui/skeletons.tsx` | Square sidebar placeholders |
+| Playground demos / catalog / usage | PLP notes |
+
 ## 2026-11-10 — Denser home product cards
 
 ### What changed

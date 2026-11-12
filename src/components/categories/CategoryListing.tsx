@@ -2,30 +2,24 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowUpDown,
-  ChevronDown,
-  Search,
-  SlidersHorizontal,
-} from "lucide-react";
+import { Search } from "lucide-react";
+import { PlpFilterChips } from "@/components/categories/PlpFilterChips";
 import {
   PlpFilterSheets,
   type PlpSheetKind,
 } from "@/components/categories/PlpFilterSheets";
 import { BackButton } from "@/components/navigation/BackButton";
+import { CategoryTile } from "@/components/home/CategoryTile";
 import { ProductCard } from "@/components/product/ProductCard";
-import { CatalogImage } from "@/components/ui/CatalogImage";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
-import {
-  CATEGORY_IMAGE_FALLBACK,
-  isCategoryImageFallback,
-} from "@/lib/category-image";
+import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
 import { cn } from "@/lib/cn";
 import { getCatalogCategory } from "@/lib/catalog-taxonomy";
 import {
   applyPlpFilters,
   DEFAULT_PLP_FILTERS,
   plpBrand,
+  plpFiltersActive,
   plpType,
   uniqueSorted,
   type PlpFilterState,
@@ -52,8 +46,8 @@ export type CategoryListingProps = {
 };
 
 /**
- * Category PLP: PageHeader-style chrome (no location), filters, left
- * subcategory rail, 2-col product grid. Sample data until catalog API.
+ * Category PLP: header + filters, left subcategory rail (same sidebar
+ * tiles as `/categories` CategoryBrowser), 2-col product grid.
  */
 export function CategoryListing({
   slug,
@@ -119,12 +113,7 @@ export function CategoryListing({
     [catalogProducts, filters],
   );
 
-  const facetsActive =
-    filters.onOffer ||
-    filters.byWeight ||
-    filters.bestSeller ||
-    filters.brands.length > 0 ||
-    filters.types.length > 0;
+  const facetsActive = plpFiltersActive(filters);
 
   if (error) {
     return (
@@ -143,10 +132,6 @@ export function CategoryListing({
       </div>
     );
   }
-
-  /** Mock look: Filter always green; others always white — active = red badge only. */
-  const chipSecondary =
-    "flex h-9 shrink-0 cursor-pointer items-center gap-1 rounded-full bg-white px-3.5 text-[13px] leading-none font-semibold text-leaf ring-1 ring-black/[0.08] transition hover:bg-mint/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf";
 
   return (
     <div className={cn("flex h-full min-h-0 flex-col bg-paper", className)}>
@@ -168,113 +153,49 @@ export function CategoryListing({
           </button>
         </div>
 
-        <div className="mt-2 flex items-center gap-2 overflow-x-auto py-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <button
-            type="button"
-            onClick={() => setSheet("filter")}
-            aria-expanded={sheet === "filter"}
-            className="relative flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-track px-3.5 text-[13px] leading-none font-bold text-black shadow-[0_4px_12px_rgba(47,107,47,0.22)] transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            Filter
-            {facetsActive ? (
-              <span
-                className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-paper"
-                aria-hidden
-              />
-            ) : null}
-          </button>
-          <button
-            type="button"
-            onClick={() => setSheet("brands")}
-            aria-expanded={sheet === "brands"}
-            className={chipSecondary}
-          >
-            Brands
-            <ChevronDown className="h-3.5 w-3.5 text-leaf/70" aria-hidden />
-          </button>
-          <button
-            type="button"
-            onClick={() => setSheet("types")}
-            aria-expanded={sheet === "types"}
-            className={chipSecondary}
-          >
-            Type
-            <ChevronDown className="h-3.5 w-3.5 text-leaf/70" aria-hidden />
-          </button>
-          <button
-            type="button"
-            onClick={() => setSheet("sort")}
-            aria-expanded={sheet === "sort"}
-            className={cn(chipSecondary, "ml-auto gap-1.5 px-3")}
-          >
-            <ArrowUpDown className="h-3.5 w-3.5" aria-hidden />
-            Sort
-          </button>
-        </div>
+        <PlpFilterChips
+          className="mt-2"
+          open={sheet}
+          onOpen={setSheet}
+          filterActive={facetsActive}
+        />
       </header>
 
-      <div className="flex min-h-0 flex-1 items-stretch">
-        <nav
+      <div className="flex min-h-0 flex-1 items-stretch border-t border-black/[0.06]">
+        {/* Same sidebar tile rail as CategoryBrowser (no circle rail / no green side bar). */}
+        <aside
           aria-label="Subcategories"
-          className="flex h-full min-h-0 w-[5.75rem] shrink-0 flex-col self-stretch overflow-y-auto overscroll-contain border-r border-black/[0.06] bg-paper py-2"
+          className="flex w-[5.75rem] shrink-0 flex-col self-stretch border-r border-black/[0.06] bg-paper"
         >
-          {category.subcategories.map((row) => {
-            const isActive = row.name === sub;
-            return (
-              <button
-                key={row.name}
-                type="button"
-                onClick={() => setSub(row.name)}
-                aria-current={isActive ? "true" : undefined}
-                className={cn(
-                  "relative flex flex-col items-center gap-1.5 px-1.5 py-3 text-center transition",
-                  isActive ? "bg-mint/55" : "hover:bg-mint/30",
-                )}
-              >
-                {isActive ? (
-                  <span
-                    className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-track"
-                    aria-hidden
-                  />
-                ) : null}
-                <span
-                  className={cn(
-                    "relative h-12 w-12 overflow-hidden rounded-full ring-2 transition",
-                    isCategoryImageFallback(row.image) ? "bg-white" : "bg-[#efe6da]",
-                    isActive
-                      ? "shadow-[0_4px_12px_rgba(47,107,47,0.22)] ring-leaf"
-                      : "ring-black/[0.04]",
-                  )}
-                >
-                  <CatalogImage
-                    src={row.image}
-                    alt=""
-                    fill
-                    sizes="48px"
-                    className={
-                      isCategoryImageFallback(row.image)
-                        ? "bg-white object-contain"
-                        : "object-cover"
-                    }
-                  />
-                </span>
-                <span
-                  className={cn(
-                    "line-clamp-2 w-full px-0.5 text-[11px] leading-tight font-extrabold",
-                    isActive ? "text-leaf" : "text-ink",
-                  )}
-                >
-                  {row.name}
-                </span>
-              </button>
-            );
-          })}
-          <div className="min-h-0 flex-1" aria-hidden />
-        </nav>
+          <div
+            data-storefront-scroll
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5 pt-2 pb-28"
+          >
+            <div className="flex flex-col gap-1">
+              {category.subcategories.map((row) => (
+                <CategoryTile
+                  key={row.name}
+                  size="sidebar"
+                  name={row.name}
+                  image={
+                    row.name === "All"
+                      ? ""
+                      : row.image || CATEGORY_IMAGE_FALLBACK
+                  }
+                  active={sub === row.name}
+                  onClick={() => setSub(row.name)}
+                />
+              ))}
+            </div>
+          </div>
+        </aside>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-paper px-2 py-2.5">
-          <div className={t.plpFilterHeaderWrap}>
+        <section
+          aria-label={`${sub === "All" ? "All items" : sub} products`}
+          data-storefront-scroll
+          className="min-w-0 flex-1 overflow-y-auto overscroll-contain bg-paper px-3 pt-3 pb-28"
+        >
+          <div className="mb-3 flex items-baseline justify-between gap-2">
             <p className={t.plpFilterHeading}>
               {sub === "All" ? "All items" : sub}
             </p>
@@ -285,7 +206,7 @@ export function CategoryListing({
           </div>
 
           {products.length === 0 ? (
-            <div className="px-2 py-10 text-center">
+            <div className="py-10 text-center">
               <p className="text-sm font-semibold text-ink">No matches</p>
               <p className="mt-1 text-[12px] text-muted">
                 Try clearing filters or changing sort.
@@ -299,7 +220,7 @@ export function CategoryListing({
               </button>
             </div>
           ) : (
-            <ul className={t.plpGridGap}>
+            <ul className="grid grid-cols-2 gap-2.5">
               {products.map((p) => (
                 <li key={p.id} className="min-w-0">
                   <ProductCard product={p} />
@@ -316,7 +237,7 @@ export function CategoryListing({
           ) : (
             <div className="h-6" />
           )}
-        </div>
+        </section>
       </div>
 
       <PlpFilterSheets

@@ -122,21 +122,21 @@ export function CategoryPlpSkeleton({ className }: { className?: string }) {
           <Skeleton className="h-9 w-16 rounded-full bg-mint/30" />
         </div>
       </div>
-      <div className="flex min-h-0 flex-1">
-        <div className="flex w-[4.75rem] shrink-0 flex-col gap-3 border-r border-black/[0.04] bg-white px-1.5 py-3">
+      <div className="flex min-h-0 flex-1 border-t border-black/[0.06]">
+        <div className="flex w-[5.75rem] shrink-0 flex-col gap-1 border-r border-black/[0.06] bg-paper px-1.5 py-2">
           {Array.from({ length: 5 }, (_, i) => (
-            <div key={i} className="flex flex-col items-center gap-1.5">
-              <Skeleton className="h-12 w-12 rounded-full bg-mint/40" />
+            <div key={i} className="flex flex-col items-center gap-1 rounded-2xl px-1 py-2.5">
+              <Skeleton className="size-12 rounded-xl bg-mint/40" />
               <Skeleton className="h-2.5 w-10 bg-mint/30" />
             </div>
           ))}
         </div>
-        <div className="min-w-0 flex-1 px-2 py-2.5">
-          <div className="mb-4 flex justify-between px-0.5">
+        <div className="min-w-0 flex-1 px-3 pt-3">
+          <div className="mb-3 flex justify-between">
             <Skeleton className="h-4 w-20 bg-mint/45" />
             <Skeleton className="h-3 w-14 bg-mint/30" />
           </div>
-          <ProductGridSkeleton count={4} className="gap-4" />
+          <ProductGridSkeleton count={4} className="gap-2.5" />
         </div>
       </div>
     </div>

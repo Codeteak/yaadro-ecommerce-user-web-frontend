@@ -317,7 +317,7 @@ function CategoriesFlowDemo({
     return (
       <DemoFrame
         surface="bare"
-        note="PLP: PageHeader-style title (no location), Filter/Brands/Type, left rail, 2-col grid."
+        note="PLP: shared Filter/Brands/Type/Sort chips + sidebar tiles (same as /categories). Fruits/Veggies Browse all."
       >
         <div className="relative h-[78vh] overflow-hidden rounded-2xl bg-[#f7f8f7] ring-1 ring-black/5">
           <CategoryListing
@@ -533,13 +533,18 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   search: () => (
-    <DemoFrame note="Pill search + green filter chip (Yaadro theme). Same as /home above banners. Submit/filter UI-only.">
+    <DemoFrame note="Same as /home: search → /categories?focus=search; filter chip → categories with chips expanded (&chips=1).">
       <div className="bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8] px-5 pt-4 pb-8">
         <HomeTopBar
           shopName="Yaadro"
           shopImage="/onboarding/brand-mark-white-y.svg"
         />
-        <HomeSearchBar className="mt-4" navigateOnSubmit={false} />
+        <HomeSearchBar
+          className="mt-4"
+          navigateOnSubmit={false}
+          activateHref="/categories?focus=search"
+          filterHref="/categories?focus=search&chips=1"
+        />
         <div className="mt-4 -mx-5">
           <OfferBanners />
         </div>
@@ -581,7 +586,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "fruits-veggies-section": () => (
     <DemoFrame
       surface="bare"
-      note="Same as /home: All/Fruits → /categories/fruits; Vegetables → /categories/vegetables."
+      note="Same as /home: Browse all → /categories/fruits or /vegetables (PLP sidebar tiles match category browser)."
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
         <FruitsVeggiesSection />
@@ -780,7 +785,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     );
     return (
       <DemoFrame
-        note="Same as /categories. Sidebar selection = mint wash + leaf ring (no green side bar). Scroll products to hide bottom nav."
+        note="Same as /categories: tap search filter to expand/collapse Filter·Brands·Type·Sort chips; each chip opens its sheet."
       >
         <div className="relative flex h-[36rem] flex-col overflow-hidden rounded-2xl bg-paper ring-1 ring-black/5">
           <div className="px-5 pt-3">

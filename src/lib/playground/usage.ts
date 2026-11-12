@@ -78,9 +78,8 @@ import { useScrollDirection } from "@/components/navigation/useScrollDirection";
     `import { HomeSearchBar } from "@/components/home/HomeSearchBar";
 
 <HomeSearchBar
-  value={query}
-  onChange={setQuery}
-  onSubmit={() => router.push("/categories?focus=search")}
+  activateHref="/categories?focus=search"
+  filterHref="/categories?focus=search&chips=1"
 />`,
     ["src/components/home/HomeSearchBar.tsx"],
   ),
@@ -112,10 +111,14 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
     `import { CategoryBrowser } from "@/components/categories/CategoryBrowser";
 
 <CategoryBrowser branches={branches} products={products} />
-// Sidebar tiles: <CategoryTile size="sidebar" /> — mint active, no side bar`,
+// Search filter toggles PlpFilterChips (expand/collapse)
+// Chips open Filter / Brands / Type / Sort sheets`,
     [
       "src/components/categories/CategoryBrowser.tsx",
+      "src/components/categories/PlpFilterChips.tsx",
+      "src/components/categories/PlpFilterSheets.tsx",
       "src/components/home/CategoryTile.tsx",
+      "src/components/home/HomeSearchBar.tsx",
       "src/app/(storefront)/categories/page.tsx",
     ],
   ),
@@ -129,10 +132,13 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
   "category-plp": U(
     `import { CategoryListing } from "@/components/categories/CategoryListing";
 
+{/* Shared PlpFilterChips + CategoryTile size="sidebar" */}
 <CategoryListing slug="vegetables" backHref="/categories" />
-// Filter / Brands / Type / Sort open bottom sheets (sample facets)`,
+// Filter / Brands / Type / Sort → PlpFilterSheets`,
     [
       "src/components/categories/CategoryListing.tsx",
+      "src/components/categories/PlpFilterChips.tsx",
+      "src/components/home/CategoryTile.tsx",
       "src/components/categories/PlpFilterSheets.tsx",
       "src/lib/plp-filters.ts",
       "src/lib/catalog-taxonomy.ts",
