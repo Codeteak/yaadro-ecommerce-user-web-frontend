@@ -392,7 +392,7 @@ function AddressBookDemo({
 function OrderDetailLeadDemo() {
   const id = useSearchParams().get("id") ?? "ord-1042";
   return (
-    <DemoFrame note="Same as /orders/[id]. No bottom nav on this page. Receipt opens the ticket bill with Download.">
+    <DemoFrame note="Same as /orders/[id]. Bill line pills show qty with units from the product (kg, g, each, ml, l). Receipt opens the ticket bill with Download.">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain bg-white">
         <OrderDetailPlayground orderId={id} ticketBill />
       </div>

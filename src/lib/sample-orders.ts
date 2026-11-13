@@ -1,3 +1,4 @@
+import { formatQtyBadge } from "@/lib/qty-label";
 import { getSampleProduct } from "@/lib/sample-products";
 
 /**
@@ -353,10 +354,13 @@ export function getSampleOrder(id: string): SampleOrder | undefined {
   return HYDRATED.find((o) => o.id === id);
 }
 
-export function orderLineLabel(line: SampleOrderLine): string {
-  if (line.isWeight) {
-    const kg = Number.isInteger(line.qty) ? String(line.qty) : line.qty.toFixed(1);
-    return `${kg} kg`;
-  }
-  return `×${line.qty}`;
+export function orderLineLabel(
+  line: SampleOrderLine,
+  unit?: string | null,
+): string {
+  return formatQtyBadge({
+    qty: line.qty,
+    isWeight: line.isWeight,
+    unit: unit ?? getSampleProduct(line.productId)?.unit,
+  });
 }

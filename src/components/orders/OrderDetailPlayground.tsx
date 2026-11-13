@@ -31,7 +31,11 @@ import {
   leadStepIndex,
   lineName,
 } from "@/components/orders/lead-order-shared";
-import type { SampleOrder, SampleOrderLine } from "@/lib/sample-orders";
+import {
+  orderLineLabel,
+  type SampleOrder,
+  type SampleOrderLine,
+} from "@/lib/sample-orders";
 import { cn } from "@/lib/cn";
 
 export type OrderDetailPlaygroundProps = {
@@ -414,8 +418,8 @@ function BillLine({ line }: { line: SampleOrderLine }) {
       ) : null}
       <div className="flex min-w-0 flex-1 items-start gap-2">
         <p className="line-clamp-2 text-sm font-semibold text-black">{lineName(line)}</p>
-        <span className="mt-0.5 rounded-full bg-track px-1.5 py-0.5 text-[10px] leading-none font-extrabold text-black">
-          {line.qty}
+        <span className="mt-0.5 rounded-full bg-track px-1.5 py-0.5 text-[10px] leading-none font-extrabold whitespace-nowrap text-black">
+          {orderLineLabel(line, product?.unit)}
         </span>
       </div>
       <p className="text-sm font-bold text-black">{inr(line.lineTotal)}</p>

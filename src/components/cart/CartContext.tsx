@@ -23,6 +23,7 @@ import {
   applySamplePromo,
   type SampleCoupon,
 } from "@/lib/sample-coupons";
+import { formatQtyBadge } from "@/lib/qty-label";
 
 /**
  * Shared basket (sample phase).
@@ -121,15 +122,14 @@ export function lineSave(item: CartItem): number {
   return Math.max(0, lineMrp(item) - lineTotal(item));
 }
 
-/** Badge text for cart rows: "3.5 kg" or "×2". */
+/** Badge text for cart rows: "3.5 kg", "500 g", "2 each", "2×750ml". */
 export function itemBadge(item: CartItem): string {
-  if (item.weightKg) {
-    const kg = Number.isInteger(item.weightKg)
-      ? String(item.weightKg)
-      : item.weightKg.toFixed(1);
-    return `${kg} kg`;
-  }
-  return `×${item.qty}`;
+  const product = resolveCartProduct(item);
+  return formatQtyBadge({
+    qty: item.weightKg ?? item.qty,
+    isWeight: Boolean(item.weightKg),
+    unit: product.unit,
+  });
 }
 
 function readPromoCode(): string | null {

@@ -395,7 +395,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Same as /orders/[id]: forest header, 3 steps, bill, partner, timeline, review.",
+      "Same as /orders/[id]: forest header, 3 steps, bill with qty units (kg/g/each/ml/l), partner, timeline, review.",
     wiresTo: "/orders/[id]",
   },
   {

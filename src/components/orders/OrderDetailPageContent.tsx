@@ -277,8 +277,8 @@ function OrderDetailBody({
                       {product.unit}
                     </p>
                   </div>
-                  <span className="shrink-0 rounded-full bg-mint px-2.5 py-1 text-[12px] font-extrabold text-forest">
-                    {orderLineLabel(line)}
+                  <span className="shrink-0 rounded-full bg-mint px-2.5 py-1 text-[12px] font-extrabold whitespace-nowrap text-forest">
+                    {orderLineLabel(line, product.unit)}
                   </span>
                   <div className="w-14 shrink-0 text-right">
                     <p className="text-sm font-extrabold text-black">

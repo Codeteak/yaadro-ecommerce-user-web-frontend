@@ -432,13 +432,17 @@ import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
   ),
   "order-detail": U(
     `import { OrderDetailPlayground } from "@/components/orders/OrderDetailPlayground";
+import { orderLineLabel } from "@/lib/sample-orders";
 
-// Storefront /orders/[id]
-<OrderDetailPlayground orderId="ord-1042" backHref="/orders" shopHref="/home" />`,
+// Storefront /orders/[id] — bill pills use orderLineLabel (kg/g/each/ml/l)
+<OrderDetailPlayground orderId="ord-1042" backHref="/orders" shopHref="/home" />
+// e.g. orderLineLabel(line) → "1.5 kg" | "500 g" | "2 each" | "2×750ml"`,
     [
       "src/app/(storefront)/orders/[id]/page.tsx",
       "src/components/orders/OrderDetailPlayground.tsx",
       "src/components/orders/lead-order-shared.tsx",
+      "src/lib/qty-label.ts",
+      "src/lib/sample-orders.ts",
     ],
   ),
   "empty-orders": U(
