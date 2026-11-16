@@ -640,7 +640,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "product-card": () => (
-    <DemoFrame note="Default = 3:2 photo + denser title/price (home rails ~152px wide). Compact = cart Add more. Rails keep px-5 + scroll-px-5.">
+    <DemoFrame note="Default = 3:2 photo + denser title/price (home rails ~152px). Flat on paper (ring, no drop shadow). Compact = cart Add more.">
       <div className="space-y-6 bg-paper p-4">
         <div>
           <p className="mb-2 text-[11px] font-bold tracking-wide text-forest/70 uppercase">

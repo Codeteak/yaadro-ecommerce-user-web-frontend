@@ -121,10 +121,9 @@ export function ProductCard({
   return (
     <article
       className={cn(
+        /* Flat on paper — ring only, no drop shadow (same idea as pill rail) */
         "relative isolate flex flex-col bg-white ring-1 ring-black/[0.06]",
-        compact
-          ? "h-[13.5rem] rounded-xl p-2 shadow-[0_1px_2px_rgba(47,107,47,0.06),0_4px_12px_rgba(47,107,47,0.08)]"
-          : "h-full rounded-[1.5rem] p-2 shadow-[0_1px_2px_rgba(47,107,47,0.06),0_8px_20px_rgba(47,107,47,0.1)]",
+        compact ? "h-[13.5rem] rounded-xl p-2" : "h-full rounded-[1.5rem] p-2",
       )}
     >
       {product.badge ? (

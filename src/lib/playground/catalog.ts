@@ -227,7 +227,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Default 3:2 denser card (home rails ~152px) + compact cart size. Ribbon, heart, add/weight stepper. Missing photos use the grocery-bag placeholder.",
+      "Default 3:2 denser card (home rails ~152px) + compact cart size. Flat on paper (ring, no drop shadow). Ribbon, heart, add/weight stepper.",
     wiresTo: "ProductSection, /home, /product/[id], cart suggestions",
   },
   {
