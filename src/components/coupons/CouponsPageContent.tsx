@@ -20,6 +20,7 @@ import {
   ticketStatusChip,
 } from "@/components/coupons/CouponTicketCard";
 import { useCart } from "@/components/cart/CartContext";
+import { useToastOptional } from "@/components/ui/ToastContext";
 import { cn } from "@/lib/cn";
 import { listCoupons } from "@/lib/api/coupons";
 import {
@@ -66,6 +67,7 @@ function CouponsPageBody({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { applyPromo } = useCart();
+  const toast = useToastOptional();
 
   const applyReturnHref = useMemo(() => {
     if (applyReturnHrefProp) return applyReturnHrefProp;
@@ -123,8 +125,10 @@ function CouponsPageBody({
     try {
       await navigator.clipboard.writeText(selected.code);
       setCopied(true);
+      toast?.success("Copied");
     } catch {
       setCopied(false);
+      toast?.error("Couldn’t copy");
     }
   };
 
@@ -133,8 +137,10 @@ function CouponsPageBody({
     const result = applyPromo(selected.code);
     if (!result.ok) {
       setApplyMessage(result.message);
+      toast?.error(result.message);
       return;
     }
+    toast?.success(result.message);
     closeSheet();
     router.push(applyReturnHref);
   };

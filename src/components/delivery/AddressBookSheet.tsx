@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { BackButton } from "@/components/navigation/BackButton";
 import { CloseButton } from "@/components/navigation/CloseButton";
+import { useToastOptional } from "@/components/ui/ToastContext";
 import { cn } from "@/lib/cn";
 import {
   detectMyPlace,
@@ -72,6 +73,7 @@ export function AddressBookSheet({
   initialStep = "list",
   editId = null,
 }: AddressBookSheetProps) {
+  const toast = useToastOptional();
   const [step, setStep] = useState<Step>(initialStep);
   const [draftPlace, setDraftPlace] = useState<DetectedPlace | null>(null);
   const [editing, setEditing] = useState<SavedAddress | null>(null);
@@ -206,7 +208,10 @@ export function AddressBookSheet({
                 selectSavedAddress(id);
                 onOpenChange(false);
               }}
-              onStar={setDefaultSavedAddress}
+              onStar={(id) => {
+                setDefaultSavedAddress(id);
+                toast?.success("Default address updated");
+              }}
               onAdd={goMap}
             />
           ) : null}
@@ -518,6 +523,7 @@ function DetailsStep({
   const [instructions, setInstructions] = useState(
     editing?.instructions ?? "",
   );
+  const toast = useToastOptional();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -528,7 +534,9 @@ function DetailsStep({
 
   const save = () => {
     if (!label.trim() || !building.trim()) {
-      setError("Save name and building / floor are required.");
+      const message = "Save name and building / floor are required.";
+      setError(message);
+      toast?.error(message);
       return;
     }
     upsertSavedAddress({
@@ -546,6 +554,7 @@ function DetailsStep({
       lat: place.lat ?? editing?.lat,
       lng: place.lng ?? editing?.lng,
     });
+    toast?.success(editing ? "Address updated" : "Address saved");
     onSaved();
   };
 

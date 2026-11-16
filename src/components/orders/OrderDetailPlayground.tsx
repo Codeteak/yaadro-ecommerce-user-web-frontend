@@ -14,6 +14,7 @@ import {
   Star,
 } from "lucide-react";
 import { BackButton } from "@/components/navigation/BackButton";
+import { useToastOptional } from "@/components/ui/ToastContext";
 import { getOrder, listOrders } from "@/lib/api/orders";
 import { getSampleProduct } from "@/lib/sample-products";
 import {
@@ -98,6 +99,7 @@ function OrderDetailBody({
   ticketBill: boolean;
   className?: string;
 }) {
+  const toast = useToastOptional();
   const [review, setReview] = useState(false);
   const [bill, setBill] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -113,9 +115,18 @@ function OrderDetailBody({
   const done = order.timeline.find((step) => step.key === "delivered")?.at;
 
   const copyId = () => {
-    void navigator.clipboard?.writeText(order.number);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
+    if (!navigator.clipboard?.writeText) {
+      toast?.error("Couldn’t copy");
+      return;
+    }
+    void navigator.clipboard.writeText(order.number).then(
+      () => {
+        setCopied(true);
+        toast?.success("Copied");
+        window.setTimeout(() => setCopied(false), 1400);
+      },
+      () => toast?.error("Couldn’t copy"),
+    );
   };
 
   return (
@@ -231,8 +242,8 @@ function OrderDetailBody({
             <LeadAction
               label="Track order"
               filled
+              href={`/orders/${order.id}/track`}
               icon={<DeliveryScooter className="h-8 w-8" />}
-              onClick={() => setNote("Live tracking isn’t connected on this preview.")}
             />
           )}
         </div>

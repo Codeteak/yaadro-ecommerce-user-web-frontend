@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { MapPin, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
+import { useToastOptional } from "@/components/ui/ToastContext";
 import { cn } from "@/lib/cn";
 import {
   deleteSavedAddress,
@@ -30,6 +31,7 @@ export function SavedAddressesManageList({
 }: {
   className?: string;
 }) {
+  const toast = useToastOptional();
   const raw = useSyncExternalStore(subscribe, getSnapshot, () => "[]");
   const list = JSON.parse(raw) as SavedAddress[];
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -74,7 +76,12 @@ export function SavedAddressesManageList({
                   <div className="flex shrink-0 items-center gap-0.5">
                     <button
                       type="button"
-                      onClick={() => setDefaultSavedAddress(addr.id)}
+                      onClick={() => {
+                        setDefaultSavedAddress(addr.id);
+                        if (!addr.isDefault) {
+                          toast?.success("Default address updated");
+                        }
+                      }}
                       aria-label={
                         addr.isDefault
                           ? `${addr.label} is default`
@@ -181,6 +188,7 @@ export function SavedAddressesManageList({
                 onClick={() => {
                   deleteSavedAddress(pendingDelete.id);
                   setPendingDelete(null);
+                  toast?.info("Address deleted");
                 }}
                 className="h-11 flex-1 rounded-full bg-track text-sm font-semibold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
               >

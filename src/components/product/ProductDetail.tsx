@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Heart, Minus, Plus, Star } from "lucide-react";
 import { BackButton } from "@/components/navigation/BackButton";
 import { useCart } from "@/components/cart/CartContext";
+import { useToastOptional } from "@/components/ui/ToastContext";
 import { rememberProduct } from "@/lib/product-snapshots";
 import { useWishlistOptional } from "@/components/wishlist/WishlistContext";
 import {
@@ -48,6 +49,7 @@ export function ProductDetail({
 }: ProductDetailProps) {
   const router = useRouter();
   const wishlist = useWishlistOptional();
+  const toast = useToastOptional();
   const { getItem, setQty, setCustomizing } = useCart();
   const [localWishlisted, setLocalWishlisted] = useState(false);
 
@@ -67,14 +69,24 @@ export function ProductDetail({
 
   const onWishlistClick = () => {
     if (!wishlist) {
-      setLocalWishlisted((w) => !w);
+      setLocalWishlisted((w) => {
+        const next = !w;
+        if (next) toast?.success("Saved to wishlist");
+        else toast?.info("Removed from wishlist");
+        return next;
+      });
       return;
     }
     if (!wishlist.signedIn) {
+      toast?.info("Sign in to save favourites");
       router.push("/login");
       return;
     }
+    const wasSaved = wishlist.has(product.id);
+    rememberProduct(product);
     wishlist.toggle(product.id);
+    if (wasSaved) toast?.info("Removed from wishlist");
+    else toast?.success("Saved to wishlist");
   };
 
   return (

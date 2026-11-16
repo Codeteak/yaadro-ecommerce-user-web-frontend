@@ -1,5 +1,81 @@
 # Implementation Log
 
+## 2026-11-16 — Live track: Packed phase + mascot cut fix
+
+### What changed
+
+Added Packed between Accepted and Out for delivery. Grocery-bag mascot → `packed.png`; new scooter mascot → `out-for-delivery.png`. Re-keyed all four phase PNGs with a strict black flood (hard ≤3) so dark pants stay opaque; soft fringe only on silhouette. Playground chips: Accepted / Packed / Out for Delivery / Delivered.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `public/orders/live-track/{packed,out-for-delivery,order-accepted,delivered}.png` | Transparent mattes, pants preserved |
+| `src/lib/live-order-track.ts` | `phase: "packed"` + sample |
+| `src/components/orders/LiveOrderTrack.tsx` | Packed chip + shared `StatusMascotArt` |
+| Playground usage / demos | Packed asset + note |
+
+## 2026-11-16 — Order placed confirmation (mascot + bill card)
+
+### What changed
+
+Checkout confirmed phase and new playground `/playground/order-placed`: keep `order-confirmed-mascot.png`, add bill summary (Confirmed / Delivery), View Order + Back to home.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/checkout/OrderPlacedContent.tsx` | Shared confirmation UI |
+| `src/components/checkout/CheckoutPageContent.tsx` | Confirmed phase uses it |
+| Playground catalog / demos / usage | `order-placed` entry |
+
+## 2026-11-16 — Live order track: inline progress + Maps Embed
+
+### What changed
+
+Order Progress is inline on the same page (no sheet). Live Track map uses Google Maps Embed when `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is set; otherwise shows “Map API not configured”.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/orders/LiveOrderTrack.tsx` | Inline progress; Embed map panel |
+| `src/lib/live-track-map.ts` | Embed URL helper |
+| `src/lib/live-order-track.ts` | Map lat/lng on sample |
+| `.env.example` | Note Embed + Geocoding |
+
+## 2026-11-16 — Live order track playground (green theme)
+
+### What changed
+
+New playground demo `/playground/live-order-track`: screenshot-inspired live tracking (Accepted / Out for Delivery), Yaadro green + INR. Not wired to `/orders`.
+
+## 2026-11-16 — Fix toast visibility (portal + root provider)
+
+### What changed
+
+Some toasts were hidden under sheets (`z-70`/`z-80`) or cleared when navigating to `/login` (outside storefront layout). Viewport now portals to `document.body` at `z-[110]`. Single `ToastProvider` on the root layout.
+
+## 2026-11-16 — Wire island toasts to storefront
+
+### What changed
+
+Mounted `ToastProvider` on the storefront layout. Hooked planned copy into cart promo/clear, wishlist hearts, coupons apply/copy, address save/update/delete/default, order copy/download, and checkout place-order stub. Playground notes updated.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/app/(storefront)/layout.tsx` | ToastProvider |
+| `src/components/ui/ToastContext.tsx` | Bottom offset for nav |
+| `src/components/cart/CartPageContent.tsx` | Promo / clear toasts |
+| `src/components/product/ProductCard.tsx` | Wishlist toasts |
+| `src/components/product/ProductDetail.tsx` | Wishlist toasts |
+| `src/components/coupons/CouponsPageContent.tsx` | Apply / copy toasts |
+| `src/components/delivery/*` | Address toasts |
+| `src/components/checkout/CheckoutPageContent.tsx` | Place-order toasts |
+| `src/components/orders/*` | Copy / download toasts |
+
 ## 2026-11-12 — Wire category filters to storefront home
 
 ### What changed

@@ -12,6 +12,7 @@ import {
 } from "@/lib/sample-orders";
 import { BrandFooter } from "@/components/storefront/BrandFooter";
 import { useShopName } from "@/components/shop/ShopNameProvider";
+import { useToastOptional } from "@/components/ui/ToastContext";
 import { cn } from "@/lib/cn";
 
 /**
@@ -353,6 +354,7 @@ export function OrderReceiptDialog({
   order: SampleOrder;
   onClose: () => void;
 }) {
+  const toast = useToastOptional();
   const [copied, setCopied] = useState(false);
   const charge = deliveryCharge(order);
   const total = billedTotal(order);
@@ -433,9 +435,18 @@ export function OrderReceiptDialog({
           <button
             type="button"
             onClick={() => {
-              void navigator.clipboard?.writeText(text);
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 1600);
+              if (!navigator.clipboard?.writeText) {
+                toast?.error("Couldn’t copy");
+                return;
+              }
+              void navigator.clipboard.writeText(text).then(
+                () => {
+                  setCopied(true);
+                  toast?.success("Copied");
+                  window.setTimeout(() => setCopied(false), 1600);
+                },
+                () => toast?.error("Couldn’t copy"),
+              );
             }}
             className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-[18px] bg-white text-[13px] font-bold text-black ring-1 ring-[#E6E6EA]"
           >
@@ -467,6 +478,7 @@ export function OrderTicketBill({
   order: SampleOrder;
   onClose: () => void;
 }) {
+  const toast = useToastOptional();
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const shopName = useShopName();
@@ -478,20 +490,31 @@ export function OrderTicketBill({
   const copy = () => {
     const ticket = ticketRef.current;
     const canvas = ticket ? paintTicketPng(ticket, order, shopName) : null;
-    if (!canvas || !navigator.clipboard?.write) return;
+    if (!canvas || !navigator.clipboard?.write) {
+      toast?.error("Couldn’t copy");
+      return;
+    }
     const png = new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("bill png"))), "image/png");
     });
-    void navigator.clipboard.write([new ClipboardItem({ "image/png": png })]).then(() => {
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
-    });
+    void navigator.clipboard.write([new ClipboardItem({ "image/png": png })]).then(
+      () => {
+        setCopied(true);
+        toast?.success("Copied");
+        window.setTimeout(() => setCopied(false), 1600);
+      },
+      () => toast?.error("Couldn’t copy"),
+    );
   };
 
   const download = () => {
     const ticket = ticketRef.current;
-    if (!ticket || !saveTicketPng(ticket, order, shopName)) return;
+    if (!ticket || !saveTicketPng(ticket, order, shopName)) {
+      toast?.error("Something went wrong. Try again.");
+      return;
+    }
     setSaved(true);
+    toast?.success("Download started");
     window.setTimeout(() => setSaved(false), 1600);
   };
 

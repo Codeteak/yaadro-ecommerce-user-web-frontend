@@ -47,6 +47,12 @@ export type OrderProgressStep = {
   at?: string;
 };
 
+export type SampleOrderRider = {
+  name: string;
+  initial: string;
+  phone: string;
+};
+
 export type SampleOrder = {
   id: string;
   /** Short display id e.g. YAD-1042 */
@@ -68,6 +74,13 @@ export type SampleOrder = {
   timeline: OrderTimelineStep[];
   /** Times for the 5-step ORDER STATUS card (playground preview). */
   progressTimes?: Partial<Record<OrderProgressId, string>>;
+  /** Optional live-track fields (separate from classic order detail). */
+  receiverName?: string;
+  contactPhone?: string;
+  shopContact?: string;
+  rider?: SampleOrderRider;
+  mapOrigin?: { lat: number; lng: number };
+  mapDestination?: { lat: number; lng: number };
 };
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -259,6 +272,16 @@ export const SAMPLE_ORDERS: SampleOrder[] = [
       processed: "Today · 11:45 AM",
       shipped: "Today · 12:10 PM",
     },
+    receiverName: "Max",
+    contactPhone: "+91 98765 43210",
+    shopContact: "+91 80 4567 8901",
+    rider: {
+      name: "Abhinav Aneesh",
+      initial: "A",
+      phone: "+91 98765 01234",
+    },
+    mapOrigin: { lat: 12.891, lng: 77.641 },
+    mapDestination: { lat: 12.877, lng: 77.632 },
   },
   {
     id: "ord-1038",

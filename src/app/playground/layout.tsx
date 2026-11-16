@@ -13,6 +13,7 @@ export const metadata: Metadata = {
  * In-app component lab — development only (middleware 404s in production).
  * Cart + Wishlist providers so product / cart / wishlist demos work.
  * TypeScale `spec` matches storefront heading sizes.
+ * ToastProvider lives on the root layout.
  * Default wishlist is guest (heart → /login) for the guest-heart demo;
  * list / empty demos nest signed-in providers. Storefront uses signed-in.
  */

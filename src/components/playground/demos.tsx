@@ -37,6 +37,10 @@ import { WeightCustomizer } from "@/components/cart/WeightCustomizer";
 import { CartPageContent } from "@/components/cart/CartPageContent";
 import { useCart } from "@/components/cart/CartContext";
 import { CheckoutPageContent } from "@/components/checkout/CheckoutPageContent";
+import {
+  OrderPlacedContent,
+  SAMPLE_ORDER_PLACED,
+} from "@/components/checkout/OrderPlacedContent";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { SavedAddressesManageList } from "@/components/delivery/SavedAddressesManageList";
 import { getDefaultCatalogSlug } from "@/lib/catalog-taxonomy";
@@ -48,6 +52,7 @@ import {
 import { STOREFRONT_NAV_HIDDEN_PATHS } from "@/lib/storefront-nav";
 import { OrdersListPlayground } from "@/components/orders/OrdersListPlayground";
 import { OrderDetailPlayground } from "@/components/orders/OrderDetailPlayground";
+import { LiveOrderTrackDemo } from "@/components/orders/LiveOrderTrack";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
 import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
@@ -77,6 +82,7 @@ import { VerifiedSuccess } from "@/features/auth/VerifiedSuccess";
 import { getPlaygroundEntry } from "@/lib/playground/catalog";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { TYPE_SCALE } from "@/lib/type-scale";
+import { ToastDemo } from "@/components/playground/ToastDemo";
 import { DemoFrame } from "./DemoFrame";
 import { PlannedStub } from "./PlannedStub";
 
@@ -640,7 +646,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "product-card": () => (
-    <DemoFrame note="Default = 3:2 photo + denser title/price (home rails ~152px). Flat on paper (ring, no drop shadow). Compact = cart Add more.">
+    <DemoFrame note="Default = home + cart “You may also like” (~152px, flat ring). Compact = optional denser size (shown for reference).">
       <div className="space-y-6 bg-paper p-4">
         <div>
           <p className="mb-2 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
@@ -758,10 +764,24 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   checkout: () => (
     <DemoFrame
       surface="bare"
-      note="Same as /checkout: no bottom nav. “Prices may vary…” above sticky totals + COD + Place Order stub."
+      note="Same as /checkout: Place Order → tick → Order placed (mascot + bill card + View Order / Back home)."
     >
-      <div className="relative h-[75vh] bg-paper">
+      <div className="relative h-[75vh] overflow-y-auto bg-paper">
         <CheckoutPageContent chromePosition="inline" showPriceMayVary />
+      </div>
+    </DemoFrame>
+  ),
+  "order-placed": () => (
+    <DemoFrame
+      surface="bare"
+      note="Same confirmation as after Place Order: keep mascot PNG, bill summary, View Order + Back to home."
+    >
+      <div className="max-h-[85vh] overflow-y-auto overscroll-contain rounded-[1.75rem] bg-paper ring-1 ring-forest/10">
+        <OrderPlacedContent
+          summary={SAMPLE_ORDER_PLACED}
+          viewOrderHref="/playground/order-detail"
+          homeHref="/playground"
+        />
       </div>
     </DemoFrame>
   ),
@@ -835,6 +855,14 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     <Suspense fallback={null}>
       <OrderDetailLeadDemo />
     </Suspense>
+  ),
+  "live-order-track": () => (
+    <DemoFrame
+      surface="bare"
+      note="Progress: Order placed → Accepted → Packed → Out for delivery → Delivered. Live Track map only on Out for delivery. Hard-refresh if mascot PNGs look cached."
+    >
+      <LiveOrderTrackDemo />
+    </DemoFrame>
   ),
   "empty-orders": () => (
     <DemoFrame note="Same empty state as /orders when there are no orders.">
@@ -995,6 +1023,16 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "coupons-empty": () => (
     <DemoFrame note="Same empty UI as /coupons when there are no coupons. Force-empty here for review.">
       <CouponsPageContent backHref="/playground" coupons={[]} />
+    </DemoFrame>
+  ),
+  toasts: () => (
+    <DemoFrame
+      surface="bare"
+      note="Floating island snackbars + SVG Repo icons. Root ToastProvider (body portal). Auto-dismiss ~3.2s."
+    >
+      <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
+        <ToastDemo />
+      </div>
     </DemoFrame>
   ),
   "profile-header": () => (

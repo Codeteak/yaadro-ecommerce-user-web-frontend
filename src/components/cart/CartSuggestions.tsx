@@ -8,13 +8,11 @@ import { cn } from "@/lib/cn";
 import { suggestCartProducts } from "@/lib/api/suggest-cart-products";
 import { cartSuggestions } from "@/lib/cart-suggestions";
 import type { SampleProduct } from "@/lib/sample-products";
-import {
-  CART_SUGGESTION_GAP,
-  CART_SUGGESTION_SLOT,
-} from "@/lib/product-card-layout";
+import { PRODUCT_CAROUSEL_SLOT } from "@/lib/product-card-layout";
 
 /**
- * “Add more products” + compact suggestion rail for a filled cart.
+ * “Add more products” + suggestion rail for a filled cart.
+ * Cards match the home product rail (default ProductCard).
  * Storefront loads the live catalog. Playground keeps the sample rail
  * when the basket has no category ids.
  */
@@ -72,18 +70,13 @@ export function CartSuggestions({
       {suggestions.length > 0 ? (
         <div className="mt-5">
           <h3 className="text-base font-extrabold text-ink">You may also like</h3>
-          <ul
-            className={cn(
-              "mt-3 -mx-1 flex overflow-x-auto px-1 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-              CART_SUGGESTION_GAP,
-            )}
-          >
+          <ul className="mt-3 -mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {suggestions.map((product) => (
               <li
                 key={product.id}
-                className={cn(CART_SUGGESTION_SLOT, "shrink-0")}
+                className={cn(PRODUCT_CAROUSEL_SLOT, "shrink-0 snap-start")}
               >
-                <ProductCard product={product} size="compact" />
+                <ProductCard product={product} />
               </li>
             ))}
           </ul>

@@ -259,9 +259,9 @@ import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
     `import { ProductCard } from "@/components/product/ProductCard";
 import { SAMPLE_PRODUCTS } from "@/lib/sample-products";
 
-{/* Default — 3:2 denser photo (home / PLP / playground) */}
+{/* Default — home rails + cart “You may also like” */}
 <ProductCard product={SAMPLE_PRODUCTS[0]} />
-{/* Compact — cart “Add more” rail */}
+{/* Compact — optional denser size (not used on cart rail anymore) */}
 <ProductCard product={SAMPLE_PRODUCTS[0]} size="compact" />
 // Needs CartProvider (+ optional WishlistProvider)`,
     [
@@ -439,11 +439,30 @@ import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
   ),
   checkout: U(
     `import { CheckoutPageContent } from "@/components/checkout/CheckoutPageContent";
+// Confirmed phase uses OrderPlacedContent (mascot + bill card + CTAs)
 
 <CheckoutPageContent showPriceMayVary />`,
     [
       "src/components/checkout/CheckoutPageContent.tsx",
+      "src/components/checkout/OrderPlacedContent.tsx",
       "src/components/storefront/PriceMayVaryNotice.tsx",
+      "public/checkout/order-confirmed-mascot.png",
+    ],
+  ),
+  "order-placed": U(
+    `import {
+  OrderPlacedContent,
+  SAMPLE_ORDER_PLACED,
+} from "@/components/checkout/OrderPlacedContent";
+
+<OrderPlacedContent
+  summary={SAMPLE_ORDER_PLACED}
+  viewOrderHref="/playground/order-detail"
+  homeHref="/playground"
+/>`,
+    [
+      "src/components/checkout/OrderPlacedContent.tsx",
+      "public/checkout/order-confirmed-mascot.png",
     ],
   ),
   "orders-list": U(
@@ -470,6 +489,23 @@ import { orderLineLabel } from "@/lib/sample-orders";
       "src/components/orders/lead-order-shared.tsx",
       "src/lib/qty-label.ts",
       "src/lib/sample-orders.ts",
+    ],
+  ),
+  "live-order-track": U(
+    `import { LiveOrderTrack } from "@/components/orders/LiveOrderTrack";
+
+// Playground only — Accepted / Out for Delivery samples
+// Live map: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY + Maps Embed API enabled
+<LiveOrderTrack phase="accepted" />
+<LiveOrderTrack phase="out_for_delivery" />`,
+    [
+      "src/components/orders/LiveOrderTrack.tsx",
+      "src/lib/live-order-track.ts",
+      "src/lib/live-track-map.ts",
+      "public/orders/live-track/order-accepted.png",
+      "public/orders/live-track/packed.png",
+      "public/orders/live-track/out-for-delivery.png",
+      "public/orders/live-track/delivered.png",
     ],
   ),
   "empty-orders": U(
@@ -554,8 +590,26 @@ import {
     ["src/components/ui/Skeleton.tsx", "src/components/ui/skeletons.tsx"],
   ),
   toasts: U(
-    `// Planned — toast / snackbar system
-// Add when implementing toast components.`,
+    `import { ToastProvider, useToast } from "@/components/ui/ToastContext";
+
+// Root layout wraps ToastProvider (survives route changes).
+function Example() {
+  const toast = useToast();
+  return (
+    <button type="button" onClick={() => toast.success("Saved to wishlist")}>
+      Save
+    </button>
+  );
+}`,
+    [
+      "src/components/ui/ToastContext.tsx",
+      "src/components/playground/ToastDemo.tsx",
+      "src/app/layout.tsx",
+      "public/toasts/success.svg",
+      "public/toasts/error.svg",
+      "public/toasts/info.svg",
+      "public/toasts/warning.svg",
+    ],
   ),
 };
 

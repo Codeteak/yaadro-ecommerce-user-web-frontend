@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import Image from "next/image";
-import Link from "next/link";
 import { Banknote, Check, MapPin } from "lucide-react";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { useCart } from "@/components/cart/CartContext";
+import {
+  OrderPlacedContent,
+  type OrderPlacedSummary,
+} from "@/components/checkout/OrderPlacedContent";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
+import { useToastOptional } from "@/components/ui/ToastContext";
 import { cn } from "@/lib/cn";
 import {
   DELIVERY_ADDRESS_KEY,
@@ -16,6 +19,9 @@ import {
   subscribeDeliveryAddress,
   type DeliveryAddress,
 } from "@/lib/delivery-address";
+
+/** Sample COD delivery fee until checkout API returns one. */
+const SAMPLE_DELIVERY_FEE = 25;
 
 type CheckoutPageContentProps = {
   /**
@@ -57,14 +63,19 @@ export function CheckoutPageContent({
   const {
     mrpTotal,
     items,
+    count,
+    subtotal,
     appliedPromo,
     promoDiscount,
     totalSaved,
     totalDue,
   } = useCart();
+  const toast = useToastOptional();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [phase, setPhase] = useState<CheckoutPhase>("form");
   const [placeError, setPlaceError] = useState<string | null>(null);
+  const [placedSummary, setPlacedSummary] =
+    useState<OrderPlacedSummary | null>(null);
 
   const addressRaw = useSyncExternalStore(
     subscribeDeliveryAddress,
@@ -100,15 +111,30 @@ export function CheckoutPageContent({
   const onPlaceOrder = () => {
     setPlaceError(null);
     if (!hasItems) {
-      setPlaceError("Your basket is empty — add items before placing an order.");
+      const message =
+        "Your basket is empty — add items before placing an order.";
+      setPlaceError(message);
+      toast?.error("Couldn’t place order. Try again.");
       return;
     }
     if (!hasAddress) {
       setPlaceError("Add a delivery address to continue.");
+      toast?.error("Couldn’t place order. Try again.");
       setSheetOpen(true);
       return;
     }
     // UI-only confirmation — no order or payment is submitted.
+    const billNo = `#YAD-${10000 + Math.floor(Math.random() * 90000)}`;
+    setPlacedSummary({
+      billNo,
+      itemCount: count,
+      subtotal,
+      deliveryFee: SAMPLE_DELIVERY_FEE,
+      total: Math.max(0, totalDue + SAMPLE_DELIVERY_FEE),
+      fulfillment: "Delivery",
+      statusLabel: "Confirmed",
+    });
+    toast?.success("Order placed");
     setPhase("tick");
   };
 
@@ -151,52 +177,33 @@ export function CheckoutPageContent({
     );
   }
 
-  if (phase === "confirmed") {
+  if (phase === "confirmed" && placedSummary) {
     return (
       <main
         className={cn(
-          "mx-auto flex w-full max-w-lg flex-col bg-paper px-5",
+          "mx-auto flex w-full max-w-lg flex-col overflow-y-auto bg-paper",
           inline ? "min-h-full" : "min-h-dvh",
         )}
       >
-        <PageHeader backHref={backHref} title="Order confirmed" />
-        <div className="flex flex-1 flex-col items-center justify-center py-12 text-center">
-          <Image
-            src="/checkout/order-confirmed-mascot.png"
-            alt=""
-            width={813}
-            height={665}
-            className="h-auto w-52 max-w-full"
-            priority
-          />
-          <h2 className="mt-5 text-xl font-extrabold text-ink">
-            Order confirmed
-          </h2>
-          <p className="mt-2 max-w-64 text-sm leading-6 text-muted">
-            Pay with Cash on Delivery when your groceries arrive.
-          </p>
-          <p
-            className="mt-3 max-w-64 text-[13px] font-medium text-muted"
-            role="status"
-          >
-            Preview only — no order was sent to the store yet.
-          </p>
-          <Link
-            href={inline ? "/playground" : "/home"}
-            className="mt-6 inline-flex h-12 items-center rounded-full bg-track px-6 text-sm font-semibold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-          >
-            Continue shopping
-          </Link>
-          {inline ? (
-            <button
-              type="button"
-              onClick={() => setPhase("form")}
-              className="mt-3 cursor-pointer text-sm font-semibold text-leaf underline underline-offset-4 transition hover:text-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-            >
-              Back to checkout form
-            </button>
-          ) : null}
+        <div className="px-5 pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <PageHeader backHref={backHref} title="Order placed" />
         </div>
+        <OrderPlacedContent
+          summary={placedSummary}
+          viewOrderHref={inline ? "/playground/order-detail" : "/orders"}
+          homeHref={inline ? "/playground" : "/home"}
+          footer={
+            inline ? (
+              <button
+                type="button"
+                onClick={() => setPhase("form")}
+                className="mt-4 cursor-pointer text-sm font-semibold text-leaf underline underline-offset-4 transition hover:text-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+              >
+                Back to checkout form
+              </button>
+            ) : null
+          }
+        />
       </main>
     );
   }

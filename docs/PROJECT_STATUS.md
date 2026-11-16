@@ -17,8 +17,11 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Home, categories, and t
 | Cart `/cart` | UI done | List, promo field, 3D Checkout pill (checkout not faked). “You may also like” uses the live catalog. |
 | Coupons `/coupons` | UI done | Ticket cards via `lib/api/coupons`; Active/Used/Expired |
 | Wishlist `/wishlist` | UI done | Local signed-in scaffold; façade `lib/api/wishlist` |
-| Checkout `/checkout` | UI done | COD only; sample promo; Place Order is UI stub |
+| Checkout `/checkout` | UI done | COD only; Place Order → Order placed (mascot + bill card + View Order / Back home); stub only |
+| Order placed | Done | Shared `OrderPlacedContent`; playground `/playground/order-placed` |
 | Orders `/orders` | UI done | Grocery cards + ORDER STATUS detail via `lib/api/orders` |
+| Toasts | Done | Island snackbars + SVG Repo icons; storefront + playground |
+| Live order track | Playground | `/playground/live-order-track` — green theme; not on `/orders` yet |
 | Bottom nav | Done | Home, Categories, Wishlist, Profile |
 | Auth / session | Missing | Wishlist uses `previewSignedIn` until session API |
 | Payment / real place-order | Missing | — |

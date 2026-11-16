@@ -227,8 +227,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Default 3:2 denser card (home rails ~152px) + compact cart size. Flat on paper (ring, no drop shadow). Ribbon, heart, add/weight stepper.",
-    wiresTo: "ProductSection, /home, /product/[id], cart suggestions",
+      "Default 3:2 denser card (~152px) on home + cart “You may also like”. Flat on paper (ring, no drop shadow). Compact size kept for reference.",
+    wiresTo: "ProductSection, /home, /cart, /product/[id]",
   },
   {
     slug: "view-cart-bar",
@@ -269,7 +269,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Cart list, Add more + suggestions (playground), prices-may-vary, coupon, Checkout. Wire suggestions when ready.",
+      "Cart list, Add more + suggestions (same default ProductCard as home), prices-may-vary, coupon, Checkout.",
     wiresTo: "/cart",
   },
   {
@@ -386,8 +386,17 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Address, COD, “Prices may vary…” warning banner, totals, Place Order stub. Same as /checkout.",
+      "Address, COD, prices-may-vary, Place Order → Order placed (mascot + bill card + View Order / Back home).",
     wiresTo: "/checkout",
+  },
+  {
+    slug: "order-placed",
+    title: "Order placed",
+    status: "built",
+    group: "Product & cart",
+    description:
+      "Post-checkout confirmation: existing mascot PNG, bill summary, View Order + Back to home. Same as checkout confirmed phase.",
+    wiresTo: "/checkout (after Place Order)",
   },
   {
     slug: "orders-list",
@@ -406,6 +415,15 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     description:
       "Same as /orders/[id]: forest header, 3 steps, bill with qty units (kg/g/each/ml/l), partner, timeline, review.",
     wiresTo: "/orders/[id]",
+  },
+  {
+    slug: "live-order-track",
+    title: "Live order track",
+    status: "built",
+    group: "Product & cart",
+    description:
+      "Playground-only live tracking. Progress: Order placed → Accepted → Packed → Out for delivery → Delivered. Map via Google Maps Embed. Yaadro green + INR.",
+    wiresTo: "Playground only — not on /orders yet",
   },
   {
     slug: "empty-orders",
@@ -490,10 +508,11 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
   {
     slug: "toasts",
     title: "Toast / snackbar",
-    status: "planned",
-    group: "Planned",
-    description: "Success / error feedback for cart and forms.",
-    wiresTo: "Global chrome",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Island snackbars (success/error/info/warning). SVG Repo icons in /public/toasts. Root ToastProvider (body portal, above sheets).",
+    wiresTo: "app/layout.tsx ToastProvider",
   },
 ];
 
