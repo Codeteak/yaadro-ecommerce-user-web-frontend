@@ -20,8 +20,8 @@ const TICKET_W = 360;
 const STUB_X = 58;
 
 /**
- * `compact` — current ecom 3-band layout.
- * `comfortable` — playground: fewer stacked bands, quieter footer (confirm before wiring).
+ * `comfortable` — default storefront/playground (simpler body).
+ * `compact` — legacy 3-band layout (optional).
  */
 export type CouponTicketDensity = "compact" | "comfortable";
 
@@ -91,10 +91,7 @@ const MASK_COMFORTABLE = ticketMaskDataUri(148);
 type CouponTicketCardProps = {
   coupon: SampleCoupon;
   onClick: () => void;
-  /**
-   * `compact` — current ecom card.
-   * `comfortable` — playground preview (simplified inner layout).
-   */
+  /** Default `comfortable`. Use `compact` for the legacy 3-band body. */
   density?: CouponTicketDensity;
 };
 
@@ -111,7 +108,7 @@ type ToneColors = {
 export function CouponTicketCard({
   coupon,
   onClick,
-  density = "compact",
+  density = "comfortable",
 }: CouponTicketCardProps) {
   const height = density === "comfortable" ? 148 : 128;
   const mask = density === "comfortable" ? MASK_COMFORTABLE : MASK_COMPACT;

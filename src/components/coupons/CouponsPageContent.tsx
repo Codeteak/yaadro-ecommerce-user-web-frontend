@@ -43,8 +43,8 @@ type CouponsPageContentProps = {
    */
   applyReturnHref?: string;
   /**
-   * Ticket inner spacing. Default `compact` (ecom).
-   * Playground can preview `comfortable` before wiring ecom.
+   * Ticket body layout. Default `comfortable` (storefront + playground).
+   * Pass `compact` only to compare the old 3-band card.
    */
   ticketDensity?: CouponTicketDensity;
 };
@@ -69,7 +69,7 @@ function CouponsPageBody({
   backHref = "/profile",
   coupons = listCoupons(),
   applyReturnHref: applyReturnHrefProp,
-  ticketDensity = "compact",
+  ticketDensity = "comfortable",
 }: CouponsPageContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();

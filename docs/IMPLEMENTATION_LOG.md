@@ -1,18 +1,32 @@
 # Implementation Log
 
-## 2026-11-16 — Coupon ticket comfortable density (playground only)
+## 2026-11-16 — Wire comfortable coupon tickets to ecom
 
 ### What changed
 
-Ticket silhouette unchanged. Added `density: compact | comfortable` on `CouponTicketCard`. Playground coupons-list / coupons-apply use **comfortable** (taller card, more padding/gaps). Ecom `/coupons` stays **compact** until confirmed and wired.
+Default ticket body is **comfortable** (discount → title → code/until; no stub dashed box). Wired on `/coupons` and playground. Legacy `compact` still available via prop.
 
 ### Files
 
 | Path | Change |
 |------|--------|
-| `src/components/coupons/CouponTicketCard.tsx` | Density tokens + taller mask |
+| `src/app/(storefront)/coupons/page.tsx` | Comfortable density |
+| `src/components/coupons/CouponTicketCard.tsx` | Default comfortable |
+| `src/components/coupons/CouponsPageContent.tsx` | Default comfortable |
+| Playground catalog / demos / usage | Match ecom |
+
+## 2026-11-16 — Coupon ticket comfortable density (playground only)
+
+### What changed
+
+Ticket silhouette unchanged. Added `density: compact | comfortable` on `CouponTicketCard`. Playground preview first; later wired to ecom (see entry above).
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/coupons/CouponTicketCard.tsx` | Density layouts |
 | `src/components/coupons/CouponsPageContent.tsx` | `ticketDensity` prop |
-| Playground demos / catalog | Comfortable preview |
 
 ## 2026-11-16 — Track page Download Bill = order-details ticket
 

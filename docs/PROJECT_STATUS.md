@@ -15,7 +15,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Home, categories, and t
 | Login `/login` | UI done | Phone +91 / OTP; API pending |
 | Home / catalog | Live public API | Shop SEO, categories, products, home shelves. A category with no photo uses the grocery-bag placeholder. Sample banners stay when the shop has none. Playground still uses samples. |
 | Cart `/cart` | UI done | List, promo field, 3D Checkout pill (checkout not faked). “You may also like” uses the live catalog. |
-| Coupons `/coupons` | UI done | Ticket cards via `lib/api/coupons`; Active/Used/Expired |
+| Coupons `/coupons` | UI done | Comfortable ticket body (discount → title → code); sample via `lib/api/coupons` |
 | Wishlist `/wishlist` | UI done | Local signed-in scaffold; façade `lib/api/wishlist` |
 | Checkout `/checkout` | UI done | COD only; Place Order → Order placed (mascot + bill card + View Order / Back home); stub only |
 | Order placed | Done | Shared `OrderPlacedContent`; playground `/playground/order-placed` |

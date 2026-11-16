@@ -399,11 +399,12 @@ export default function NotFound() {
   "coupons-list": U(
     `import { CouponsPageContent } from "@/components/coupons/CouponsPageContent";
 
-// Playground preview — confirm, then wire ticketDensity to /coupons
-<CouponsPageContent ticketDensity="comfortable" />`,
+// Same default as /coupons (comfortable ticket body)
+<CouponsPageContent />`,
     [
       "src/components/coupons/CouponsPageContent.tsx",
       "src/components/coupons/CouponTicketCard.tsx",
+      "src/app/(storefront)/coupons/page.tsx",
     ],
   ),
   "coupons-empty": U(
@@ -420,7 +421,6 @@ export default function NotFound() {
 <CouponsPageContent
   backHref="/cart"
   applyReturnHref="/cart"
-  ticketDensity="comfortable"
 />`,
     ["src/components/coupons/CouponsPageContent.tsx"],
   ),

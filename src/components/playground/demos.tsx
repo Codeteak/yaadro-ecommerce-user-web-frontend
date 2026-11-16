@@ -1005,22 +1005,18 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "coupons-list": () => (
-    <DemoFrame note="Playground preview: simplified ticket body (discount → title → code/until). No crowded 3-band stack. Ecom still compact until wired.">
+    <DemoFrame note="Same as /coupons: simplified ticket body (discount → title → code/until). Stub label without dashed box.">
       <div className="max-h-[75vh] overflow-y-auto overscroll-contain">
-        <CouponsPageContent
-          backHref="/playground"
-          ticketDensity="comfortable"
-        />
+        <CouponsPageContent backHref="/playground" />
       </div>
     </DemoFrame>
   ),
   "coupons-apply": () => (
-    <DemoFrame note="Same simplified tickets as coupons-list. Tap active → Apply → cart-page. Used/Expired cannot apply.">
+    <DemoFrame note="Same as /coupons?from=cart. Tap active → Apply → cart-page. Used/Expired cannot apply.">
       <div className="max-h-[75vh] overflow-y-auto overscroll-contain">
         <CouponsPageContent
           backHref="/playground/cart-page"
           applyReturnHref="/playground/cart-page"
-          ticketDensity="comfortable"
         />
       </div>
     </DemoFrame>

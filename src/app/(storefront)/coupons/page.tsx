@@ -11,5 +11,5 @@ export const metadata: Metadata = {
  * From cart (`?from=cart`): Apply to cart and return to `/cart`.
  */
 export default function CouponsPage() {
-  return <CouponsPageContent backHref="/profile" />;
+  return <CouponsPageContent backHref="/profile" ticketDensity="comfortable" />;
 }

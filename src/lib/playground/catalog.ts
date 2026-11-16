@@ -357,8 +357,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Ticket coupons (comfortable layout preview — simpler body, less stacked copy). Confirm, then wire to /coupons.",
-    wiresTo: "/coupons (compact until wired)",
+      "Same as /coupons: simplified ticket body (discount → title → code/until), Active/Used/Expired themes.",
+    wiresTo: "/coupons",
   },
   {
     slug: "coupons-empty",
