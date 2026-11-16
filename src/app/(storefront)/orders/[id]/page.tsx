@@ -29,7 +29,7 @@ export async function generateMetadata({
 
 async function OrderDetailContent({ params }: OrderPageProps) {
   const { id } = await params;
-  if (!getOrder(id)) notFound();
+  if (!getOrder(id) && !/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const shop = await getShopSeo();
   return (
     <ShopNameProvider name={shop.name}>

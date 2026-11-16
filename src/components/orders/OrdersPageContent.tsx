@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Package } from "lucide-react";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { listOrders } from "@/lib/api/orders";
+import { listCustomerOrders } from "@/lib/api/customer-orders";
+import { ApiError } from "@/lib/api/errors";
+import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
 import {
   OrderHistoryCard,
   OrderReceiptDialog,
@@ -24,6 +28,8 @@ export type OrdersPageContentProps = {
   chromePosition?: "page" | "inline";
   /** Centered ticket bill with download. On for storefront and playground. */
   ticketBill?: boolean;
+  /** Load the signed-in customer's orders from the shop. Playground stays on samples. */
+  live?: boolean;
   className?: string;
 };
 
@@ -38,10 +44,17 @@ export function OrdersPageContent({
   backHref = "/profile",
   chromePosition = "page",
   ticketBill = true,
+  live = false,
   className,
 }: OrdersPageContentProps) {
   const inline = chromePosition === "inline";
-  const list = orders ?? listOrders();
+  const signedIn = useSyncExternalStore(subscribeCustomerSession, hasCustomerSession, () => false);
+  const account = useQuery({
+    queryKey: ["orders"],
+    queryFn: ({ signal }) => listCustomerOrders(signal),
+    enabled: live && signedIn,
+  });
+  const list = live ? (account.data ?? []) : (orders ?? listOrders());
   const [reviewFor, setReviewFor] = useState<string | null>(null);
   const [billFor, setBillFor] = useState<SampleOrder | null>(null);
 
@@ -55,7 +68,31 @@ export function OrdersPageContent({
     >
       <PageHeader backHref={backHref} title="Orders" />
 
-      {list.length === 0 ? (
+      {live && !signedIn ? (
+        <p className="px-6 py-16 text-center text-sm font-medium text-muted">
+          <Link href="/login?next=/orders" className="font-bold text-leaf">
+            Sign in
+          </Link>{" "}
+          to see your orders.
+        </p>
+      ) : live && account.isPending ? (
+        <div className="mt-4 h-28 animate-pulse rounded-2xl bg-mint/50" />
+      ) : live && account.isError ? (
+        <div className="px-6 py-16 text-center">
+          <p className="text-sm font-medium text-muted">
+            {account.error instanceof ApiError
+              ? account.error.message
+              : "We couldn't load your orders. Check your connection and try again."}
+          </p>
+          <button
+            type="button"
+            onClick={() => void account.refetch()}
+            className="mt-4 text-sm font-bold text-leaf"
+          >
+            Try again
+          </button>
+        </div>
+      ) : list.length === 0 ? (
         <div className="flex flex-col items-center px-6 py-16 text-center">
           <span className="grid h-16 w-16 place-items-center rounded-full bg-mint text-forest">
             <Package className="h-8 w-8" aria-hidden />

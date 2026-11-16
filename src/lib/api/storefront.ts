@@ -1,4 +1,6 @@
 import { cacheLife, cacheTag } from "next/cache";
+import { publicGet } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/errors";
 import { mapCatalogProduct } from "@/lib/catalog-map";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
 import type { SampleProduct } from "@/lib/sample-products";
@@ -37,26 +39,30 @@ export type ResolvedShop = {
   banners: ShopBanner[];
 };
 
-function apiOrigin(): string {
-  const raw = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, "") ?? "";
-  if (!raw) throw new Error("NEXT_PUBLIC_API_URL is not set");
-  return raw.endsWith("/api") ? raw.slice(0, -4) : raw;
-}
-
 function shopHeader(): string {
   return process.env.NEXT_PUBLIC_SHOP_ID?.trim() ?? "";
 }
 
 async function apiGet(path: string, shopId = shopHeader()): Promise<unknown> {
-  const headers: Record<string, string> = { accept: "application/json" };
-  if (shopId) headers["x-shop-id"] = shopId;
-  const response = await fetch(`${apiOrigin()}${path}`, { headers });
-  if (!response.ok) {
-    const error = new Error(`${path} failed (${response.status})`);
-    (error as Error & { status?: number }).status = response.status;
+  const queryStart = path.indexOf("?");
+  const pathname = queryStart === -1 ? path : path.slice(0, queryStart);
+  const query: Record<string, string> = {};
+  if (queryStart !== -1) {
+    const params = new URLSearchParams(path.slice(queryStart + 1));
+    params.forEach((value, key) => {
+      query[key] = value;
+    });
+  }
+  try {
+    return await publicGet(pathname, { query, shopId: shopId || null });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      const wrapped = new Error(error.message) as Error & { status?: number };
+      wrapped.status = error.status;
+      throw wrapped;
+    }
     throw error;
   }
-  return response.json();
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

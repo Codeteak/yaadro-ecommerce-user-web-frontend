@@ -1,10 +1,17 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Banknote, Check, MapPin } from "lucide-react";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { useCart } from "@/components/cart/CartContext";
+import { saveMyAddress } from "@/lib/api/address";
+import { placeCheckoutOrder } from "@/lib/api/checkout";
+import { ApiError } from "@/lib/api/errors";
+import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
+import { showToast } from "@/components/ui/Toast";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import { cn } from "@/lib/cn";
 import {
@@ -40,16 +47,24 @@ function formatFullAddress(a: DeliveryAddress): string {
     .join(", ");
 }
 
+const PRODUCT_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 /**
- * Checkout UI: address, COD only, price details + amount due,
- * Place Order stays disabled until the shop accepts orders.
+ * Checkout UI: address, COD only, price details + amount due.
+ * Place Order sends the on-device basket to the shop. The shop sets the total.
  */
 export function CheckoutPageContent({
   chromePosition = "page",
   showPriceMayVary = false,
 }: CheckoutPageContentProps) {
   const inline = chromePosition === "inline";
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const signedIn = useSyncExternalStore(subscribeCustomerSession, hasCustomerSession, () => false);
   const {
+    items,
+    clear,
     mrpTotal,
     appliedPromo,
     promoDiscount,
@@ -57,6 +72,9 @@ export function CheckoutPageContent({
     totalDue,
   } = useCart();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [placeError, setPlaceError] = useState<string | null>(null);
+  const idempotencyKey = useRef<string | null>(null);
 
   const addressRaw = useSyncExternalStore(
     subscribeDeliveryAddress,
@@ -80,7 +98,65 @@ export function CheckoutPageContent({
   const hasAddress = Boolean(
     address && formatDeliveryAddressLabel(address).length > 0,
   );
+  const orderLines = items
+    .map((item) => ({
+      productId: item.productId,
+      quantity: item.weightKg && item.weightKg > 0 ? item.weightKg : item.qty,
+    }))
+    .filter((item) => PRODUCT_UUID.test(item.productId) && item.quantity > 0);
   const backHref = inline ? "/playground" : "/cart";
+
+  const placeOrder = async () => {
+    if (!signedIn) {
+      router.push("/login?next=/checkout");
+      return;
+    }
+    if (!hasAddress || !address) {
+      setPlaceError("Add a delivery address first.");
+      return;
+    }
+    if (orderLines.length === 0) {
+      setPlaceError("Add a shop product before placing the order.");
+      return;
+    }
+    if (!idempotencyKey.current) idempotencyKey.current = crypto.randomUUID();
+    setPending(true);
+    setPlaceError(null);
+    try {
+      await saveMyAddress({
+        line1: address.house || address.street,
+        line2: address.street || null,
+        landmark: address.landmark || null,
+        city: address.city || null,
+        raw: formatFullAddress(address),
+      });
+      const order = await placeCheckoutOrder({
+        items: orderLines,
+        couponCode: appliedPromo?.code ?? null,
+        idempotencyKey: idempotencyKey.current,
+      });
+      clear();
+      idempotencyKey.current = null;
+      await queryClient.invalidateQueries({ queryKey: ["orders"] });
+      showToast("success", `Order ${order.orderNumber} placed. Pay when it arrives.`);
+      router.push("/orders");
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : "We couldn't place the order. Check your connection and try again.";
+      setPlaceError(
+        error instanceof ApiError && error.requestId
+          ? `${message} Reference ${error.requestId}.`
+          : message,
+      );
+      if (error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 429) {
+        idempotencyKey.current = null;
+      }
+    } finally {
+      setPending(false);
+    }
+  };
 
   return (
     <main
@@ -197,16 +273,19 @@ export function CheckoutPageContent({
 
         <button
           type="button"
-          disabled
-          aria-label="Place order is unavailable until checkout is connected"
-          className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-full bg-track px-5 py-4 text-base font-extrabold text-black opacity-50 shadow-[0_7px_0_0_#1f5c1f]"
+          disabled={pending || (signedIn && (!hasAddress || orderLines.length === 0))}
+          onClick={() => void placeOrder()}
+          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-track px-5 py-4 text-base font-extrabold text-black shadow-[0_7px_0_0_#1f5c1f] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Place Order
+          {pending ? "Placing order…" : signedIn ? "Place Order" : "Sign in to place order"}
           <Check className="h-5 w-5" aria-hidden />
         </button>
 
         <p className="text-center text-[13px] font-medium text-muted" role="status">
-          Place Order stays off until the shop can accept the order.
+          {placeError ??
+            (signedIn
+              ? "Cash on delivery. The shop confirms the final amount."
+              : "Sign in so we can send this order to the shop.")}
         </p>
       </div>
 

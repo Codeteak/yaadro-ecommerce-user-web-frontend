@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -16,6 +17,9 @@ import {
 import { BackButton } from "@/components/navigation/BackButton";
 import { useToastOptional } from "@/components/ui/ToastContext";
 import { getOrder, listOrders } from "@/lib/api/orders";
+import { getCustomerOrder } from "@/lib/api/customer-orders";
+import { ApiError } from "@/lib/api/errors";
+import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
 import { getSampleProduct } from "@/lib/sample-products";
 import {
   LeadAction,
@@ -59,7 +63,46 @@ export function OrderDetailPageContent({
   ticketBill = true,
   className,
 }: OrderDetailPageContentProps) {
-  const order = orderId ? getOrder(orderId) : listOrders()[0];
+  const sample = orderId ? getOrder(orderId) : listOrders()[0];
+  const signedIn = useSyncExternalStore(subscribeCustomerSession, hasCustomerSession, () => false);
+  const remote = useQuery({
+    queryKey: ["order", orderId],
+    queryFn: ({ signal }) => getCustomerOrder(orderId ?? "", signal),
+    enabled: Boolean(orderId) && !sample && signedIn,
+  });
+  const order = sample ?? remote.data ?? null;
+
+  if (!sample && orderId && !signedIn) {
+    return (
+      <div className={cn("flex min-h-full flex-col bg-white px-5", className)}>
+        <p className="py-16 text-center text-sm font-semibold text-muted">
+          <Link href={`/login?next=/orders/${orderId}`} className="font-bold text-leaf">
+            Sign in
+          </Link>{" "}
+          to see this order.
+        </p>
+      </div>
+    );
+  }
+
+  if (!sample && remote.isPending) {
+    return <div className="m-5 h-40 animate-pulse rounded-2xl bg-mint/50" />;
+  }
+
+  if (!sample && remote.isError) {
+    const message =
+      remote.error instanceof ApiError
+        ? remote.error.message
+        : "We couldn't load this order. Check your connection and try again.";
+    return (
+      <div className={cn("flex min-h-full flex-col bg-white px-5", className)}>
+        <p className="py-16 text-center text-sm font-semibold text-muted">{message}</p>
+        <button type="button" onClick={() => void remote.refetch()} className="text-sm font-bold text-leaf">
+          Try again
+        </button>
+      </div>
+    );
+  }
 
   if (!order) {
     return (

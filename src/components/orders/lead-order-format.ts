@@ -42,11 +42,12 @@ export function orderItemCount(order: SampleOrder): number {
 }
 
 export function lineName(line: SampleOrderLine): string {
-  return getSampleProduct(line.productId)?.name ?? "Item";
+  return line.name ?? getSampleProduct(line.productId)?.name ?? "Item";
 }
 
-/** Sample delivery fee until an orders API returns one. */
+/** Sample orders use a placeholder fee. Live orders use the shop's fee. */
 export function deliveryCharge(order: SampleOrder): number {
+  if (typeof order.deliveryFee === "number") return order.deliveryFee;
   return order.status === "cancelled" ? 0 : 25;
 }
 

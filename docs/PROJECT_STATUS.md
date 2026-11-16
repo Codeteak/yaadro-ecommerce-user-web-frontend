@@ -1,11 +1,10 @@
 # Yaadro Storefront — Project Status
 
-**Branch:** `fayad`  
-**Updated:** 2026-11-06
+**Updated:** 2026-11-16
 
 ## Current stage
 
-Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Home, categories, and the product page read the public customer catalog. Auth, cart pricing, coupons, and checkout are still local/sample.
+Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, profile, coupons, orders, and checkout call the customer API on branch `alan-new`. The basket and wishlist stay on the device. Server cart writes are retired (410).
 
 ## Implemented
 

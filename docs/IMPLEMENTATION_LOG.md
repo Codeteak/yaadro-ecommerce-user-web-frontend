@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-16 — Customer API client
+
+Connected the storefront to `ecommerce_clientside_backend` branch `alan-new`. One fetch client normalizes errors, refreshes a 401 once, and retries only safe GETs. Login, profile, address, coupons, orders, and checkout call the shop. The basket stays on the device because server cart writes return 410. Wishlist has no endpoint.
+
 ## 2026-11-16 — Wire comfortable coupon tickets to ecom
 
 ### What changed

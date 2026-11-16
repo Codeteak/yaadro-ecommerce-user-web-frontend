@@ -15,6 +15,8 @@ export type OrderStatus =
 
 export type SampleOrderLine = {
   productId: string;
+  /** Set when the line came from the shop API. */
+  name?: string;
   /** Packs, or kg for weight products. */
   qty: number;
   isWeight?: boolean;
@@ -71,6 +73,8 @@ export type SampleOrder = {
   promoDiscount: number;
   /** Final amount due / paid. */
   totalDue: number;
+  /** Shop delivery fee in rupees. Sample orders omit this and use a placeholder. */
+  deliveryFee?: number;
   timeline: OrderTimelineStep[];
   /** Times for the 5-step ORDER STATUS card (playground preview). */
   progressTimes?: Partial<Record<OrderProgressId, string>>;
