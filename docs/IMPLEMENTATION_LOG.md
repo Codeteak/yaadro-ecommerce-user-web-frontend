@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-16 — Delivery-area check before checkout
+
+Place Order calls `POST /api/storefront/location/check` with the address pin. If the address has no pin, the browser is asked up to three times for the device location. A random pin is never invented. The order is sent only when the shop says the location is serviceable. `npm test` runs from the Husky pre-commit hook.
+
 ## 2026-11-16 — Customer API client
 
 Connected the storefront to `ecommerce_clientside_backend` branch `alan-new`. One fetch client normalizes errors, refreshes a 401 once, and retries only safe GETs. Login, profile, address, coupons, orders, and checkout call the shop. The basket stays on the device because server cart writes return 410. Wishlist has no endpoint.

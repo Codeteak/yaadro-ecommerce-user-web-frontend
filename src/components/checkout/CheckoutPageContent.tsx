@@ -7,7 +7,7 @@ import { Banknote, Check, MapPin } from "lucide-react";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { useCart } from "@/components/cart/CartContext";
-import { saveMyAddress } from "@/lib/api/address";
+import { checkDeliveryLocation, saveMyAddress } from "@/lib/api/address";
 import { placeCheckoutOrder } from "@/lib/api/checkout";
 import { ApiError } from "@/lib/api/errors";
 import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
@@ -19,8 +19,15 @@ import {
   EMPTY_DELIVERY_ADDRESS,
   formatDeliveryAddressLabel,
   subscribeDeliveryAddress,
+  writeDeliveryAddress,
   type DeliveryAddress,
 } from "@/lib/delivery-address";
+import {
+  askUntilLocation,
+  deliveryAreaBlock,
+  isLatLng,
+  readBrowserPosition,
+} from "@/lib/delivery-location";
 
 type CheckoutPageContentProps = {
   /**
@@ -73,6 +80,7 @@ export function CheckoutPageContent({
   } = useCart();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pending, setPending] = useState(false);
+  const [pendingLabel, setPendingLabel] = useState("Placing order…");
   const [placeError, setPlaceError] = useState<string | null>(null);
   const idempotencyKey = useRef<string | null>(null);
 
@@ -123,13 +131,32 @@ export function CheckoutPageContent({
     setPending(true);
     setPlaceError(null);
     try {
+      setPendingLabel(isLatLng(address) ? "Checking delivery…" : "Asking for your location…");
+      const pin = isLatLng(address)
+        ? { lat: address.lat, lng: address.lng }
+        : await askUntilLocation(readBrowserPosition, 3);
+      if (!pin) {
+        setPlaceError("Allow location so we can check if this shop delivers to you, then try again.");
+        return;
+      }
+      if (!isLatLng(address)) writeDeliveryAddress({ ...address, ...pin });
+      setPendingLabel("Checking delivery…");
+      const area = await checkDeliveryLocation(pin.lat, pin.lng);
+      const blocked = deliveryAreaBlock(area);
+      if (blocked) {
+        setPlaceError(blocked);
+        return;
+      }
       await saveMyAddress({
         line1: address.house || address.street,
         line2: address.street || null,
         landmark: address.landmark || null,
         city: address.city || null,
+        lat: pin.lat,
+        lng: pin.lng,
         raw: formatFullAddress(address),
       });
+      setPendingLabel("Placing order…");
       const order = await placeCheckoutOrder({
         items: orderLines,
         couponCode: appliedPromo?.code ?? null,
@@ -277,14 +304,18 @@ export function CheckoutPageContent({
           onClick={() => void placeOrder()}
           className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-track px-5 py-4 text-base font-extrabold text-black shadow-[0_7px_0_0_#1f5c1f] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {pending ? "Placing order…" : signedIn ? "Place Order" : "Sign in to place order"}
+          {pending ? pendingLabel : signedIn ? "Place Order" : "Sign in to place order"}
           <Check className="h-5 w-5" aria-hidden />
         </button>
 
         <p className="text-center text-[13px] font-medium text-muted" role="status">
           {placeError ??
             (signedIn
-              ? "Cash on delivery. The shop confirms the final amount."
+              ? !hasAddress
+                ? "Add a delivery address, then we'll check that we deliver there."
+                : isLatLng(address)
+                  ? "Cash on delivery. We'll confirm this location before the order is sent."
+                  : "We'll ask for your location before placing the order."
               : "Sign in so we can send this order to the shop.")}
         </p>
       </div>

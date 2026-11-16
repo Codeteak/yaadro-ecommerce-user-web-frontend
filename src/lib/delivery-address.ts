@@ -4,6 +4,9 @@ export type DeliveryAddress = {
   landmark: string;
   city: string;
   pin: string;
+  /** Device pin used for the delivery-area check. */
+  lat?: number;
+  lng?: number;
 };
 
 export const EMPTY_DELIVERY_ADDRESS: DeliveryAddress = {

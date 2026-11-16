@@ -141,6 +141,8 @@ export function DeliveryAddressSheet({
             landmark: pickAcross("neighborhood", "premise"),
             city: pickAcross("locality"),
             pin: pickAcross("postal_code"),
+            lat: latitude,
+            lng: longitude,
           }));
           setNotice(
             streetFound
@@ -178,6 +180,9 @@ export function DeliveryAddressSheet({
       landmark: form.landmark.trim(),
       city: form.city.trim(),
       pin: form.pin.trim(),
+      ...(typeof form.lat === "number" && typeof form.lng === "number"
+        ? { lat: form.lat, lng: form.lng }
+        : {}),
     };
     writeDeliveryAddress(trimmed);
     onSaved?.(trimmed);

@@ -13,7 +13,7 @@ Customer calls go through `src/lib/api/client.ts`. Domain helpers live next to i
 - Base URL is `NEXT_PUBLIC_API_URL`. Shop id is `NEXT_PUBLIC_SHOP_ID` (`x-shop-id`). Timeout is `NEXT_PUBLIC_API_TIMEOUT_MS`.
 - Every call sends `X-Request-ID`. Signed-in calls send `Authorization: Bearer`. The access token stays in memory. The refresh token stays in `sessionStorage` for this tab, because the API returns tokens in JSON and the browser cannot set an httpOnly cookie. Logout in one tab clears the others via a non-secret storage flag. A 401 refreshes once, then replays the call. If refresh fails, the shopper returns to `/login?next=`.
 - Errors become `{ status, code, message, details, requestId }`. Shopper copy is in `src/lib/api/errors.ts`. GET calls retry on network errors, 408, 429, and 5xx. Checkout is not retried; it sends `Idempotency-Key`.
-- Server cart item routes return 410. The basket stays on the device. Checkout sends those lines and the shop prices them.
+- Server cart item routes return 410. The basket stays on the device. Checkout asks for a real device location when the address has no pin, calls `POST /api/storefront/location/check`, and sends the order only when the shop can deliver there.
 - Wishlist has no shop endpoint, so it stays on this device.
 - Catalog cache invalidation uses a server secret and is not called from the browser.
 
