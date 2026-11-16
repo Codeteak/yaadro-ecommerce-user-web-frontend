@@ -81,6 +81,7 @@ export function OrderLiveTrackPage({
   return (
     <LiveOrderTrack
       sample={sample}
+      order={order}
       backHref={detailHref}
       className={className}
     />

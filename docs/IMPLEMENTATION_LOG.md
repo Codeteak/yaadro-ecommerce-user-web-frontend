@@ -1,5 +1,51 @@
 # Implementation Log
 
+## 2026-11-16 — Coupon ticket comfortable density (playground only)
+
+### What changed
+
+Ticket silhouette unchanged. Added `density: compact | comfortable` on `CouponTicketCard`. Playground coupons-list / coupons-apply use **comfortable** (taller card, more padding/gaps). Ecom `/coupons` stays **compact** until confirmed and wired.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/coupons/CouponTicketCard.tsx` | Density tokens + taller mask |
+| `src/components/coupons/CouponsPageContent.tsx` | `ticketDensity` prop |
+| Playground demos / catalog | Comfortable preview |
+
+## 2026-11-16 — Track page Download Bill = order-details ticket
+
+### What changed
+
+Live track **Download Bill** opens the same `OrderTicketBill` as order details / history. Resolves order from prop, tracking number, or sample fallback (`ord-1042` / `ord-1038`). Playground live-order-track demo updated (default OFD, bill note, catalog/usage).
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/orders/LiveOrderTrack.tsx` | `resolveBillOrder` + ticket dialog |
+| `src/lib/api/orders.ts` | `getOrderByNumber` |
+| Playground catalog / demos / usage | Track + bill notes |
+
+## 2026-11-16 — Separate ecom tracking route (not order details)
+
+### What changed
+
+Live tracking stays its own page. Classic `/orders/[id]` unchanged. New shareable `/orders/[id]/track` maps sample orders → `LiveOrderTrack`. Order detail **Track order** and checkout confirmation **Track order** link there. Playground `/playground/live-order-track` remains the phase demo.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/app/(storefront)/orders/[id]/track/page.tsx` | Ecom tracking route |
+| `src/components/orders/OrderLiveTrackPage.tsx` | Order → live-track sample |
+| `src/components/orders/LiveOrderTrack.tsx` | Accepts `sample` + `backHref` |
+| `src/lib/order-live-track.ts` | Mapper (already present; used) |
+| `src/components/orders/OrderDetailPlayground.tsx` | Track → `/orders/[id]/track` |
+| `src/components/checkout/OrderPlacedContent.tsx` | Track CTA separate from details |
+| `src/lib/storefront-nav.ts` | Hide bottom nav on track |
+
 ## 2026-11-16 — Live track: Packed phase + mascot cut fix
 
 ### What changed

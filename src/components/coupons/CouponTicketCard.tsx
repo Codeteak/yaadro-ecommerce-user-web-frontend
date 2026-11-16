@@ -17,8 +17,13 @@ const TONES = [
 ] as const;
 
 const TICKET_W = 360;
-const TICKET_H = 128;
 const STUB_X = 58;
+
+/**
+ * `compact` — current ecom 3-band layout.
+ * `comfortable` — playground: fewer stacked bands, quieter footer (confirm before wiring).
+ */
+export type CouponTicketDensity = "compact" | "comfortable";
 
 export function couponTicketTone(id: string) {
   let hash = 0;
@@ -62,41 +67,61 @@ export function ticketStatusChip(status: CouponStatus): {
 }
 
 /** SVG mask: left bite, junction notches, serrated right edge. */
-function ticketMaskDataUri() {
+function ticketMaskDataUri(height: number) {
   const scallops: string[] = [];
-  for (let y = 18; y <= TICKET_H - 18; y += 12) {
+  for (let y = 18; y <= height - 18; y += 12) {
     scallops.push(
       `<circle cx="${TICKET_W - 2}" cy="${y}" r="5.5" fill="black"/>`,
     );
   }
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TICKET_W} ${TICKET_H}">
-    <rect width="${TICKET_W}" height="${TICKET_H}" fill="black"/>
-    <rect x="2" y="4" width="${TICKET_W - 4}" height="${TICKET_H - 8}" rx="10" fill="white"/>
-    <circle cx="2" cy="${TICKET_H / 2}" r="14" fill="black"/>
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TICKET_W} ${height}">
+    <rect width="${TICKET_W}" height="${height}" fill="black"/>
+    <rect x="2" y="4" width="${TICKET_W - 4}" height="${height - 8}" rx="10" fill="white"/>
+    <circle cx="2" cy="${height / 2}" r="14" fill="black"/>
     <circle cx="${STUB_X}" cy="4" r="9" fill="black"/>
-    <circle cx="${STUB_X}" cy="${TICKET_H - 4}" r="9" fill="black"/>
+    <circle cx="${STUB_X}" cy="${height - 4}" r="9" fill="black"/>
     ${scallops.join("")}
   </svg>`;
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
-const TICKET_MASK = ticketMaskDataUri();
+const MASK_COMPACT = ticketMaskDataUri(128);
+const MASK_COMFORTABLE = ticketMaskDataUri(148);
 
 type CouponTicketCardProps = {
   coupon: SampleCoupon;
   onClick: () => void;
+  /**
+   * `compact` — current ecom card.
+   * `comfortable` — playground preview (simplified inner layout).
+   */
+  density?: CouponTicketDensity;
+};
+
+type ToneColors = {
+  stub: string;
+  soft: string;
+  ink: string;
 };
 
 /**
  * Ticket coupon matching reference silhouette: left bite, junction notches,
  * serrated right edge, floating drop-shadow. Click → details + copy.
  */
-export function CouponTicketCard({ coupon, onClick }: CouponTicketCardProps) {
+export function CouponTicketCard({
+  coupon,
+  onClick,
+  density = "compact",
+}: CouponTicketCardProps) {
+  const height = density === "comfortable" ? 148 : 128;
+  const mask = density === "comfortable" ? MASK_COMFORTABLE : MASK_COMPACT;
   const tone = couponTicketTone(coupon.id);
   const muted = coupon.status !== "active";
-  const stub = muted ? "#9ca3af" : tone.stub;
-  const soft = muted ? "#f3f4f6" : tone.soft;
-  const ink = muted ? "#6b7280" : tone.ink;
+  const colors: ToneColors = {
+    stub: muted ? "#9ca3af" : tone.stub,
+    soft: muted ? "#f3f4f6" : tone.soft,
+    ink: muted ? "#6b7280" : tone.ink,
+  };
   const headline = couponDiscountHeadline(coupon);
   const statusChip = ticketStatusChip(coupon.status);
 
@@ -104,7 +129,6 @@ export function CouponTicketCard({ coupon, onClick }: CouponTicketCardProps) {
     <div
       className={cn(
         "relative w-full",
-        // Drop-shadow follows the masked silhouette
         "[filter:drop-shadow(0_8px_6px_rgba(0,0,0,0.1))_drop-shadow(0_16px_24px_rgba(0,0,0,0.16))]",
         muted && "opacity-90",
       )}
@@ -116,95 +140,186 @@ export function CouponTicketCard({ coupon, onClick }: CouponTicketCardProps) {
         className="relative flex w-full cursor-pointer text-left [mask-mode:luminance] [-webkit-mask-source-type:luminance] transition focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-leaf"
         style={
           {
-            WebkitMaskImage: TICKET_MASK,
-            maskImage: TICKET_MASK,
+            WebkitMaskImage: mask,
+            maskImage: mask,
             WebkitMaskSize: "100% 100%",
             maskSize: "100% 100%",
             WebkitMaskRepeat: "no-repeat",
             maskRepeat: "no-repeat",
-            aspectRatio: `${TICKET_W} / ${TICKET_H}`,
+            aspectRatio: `${TICKET_W} / ${height}`,
           } as CSSProperties
         }
       >
-        {/* Stub */}
         <span
           className="relative flex w-[16%] shrink-0 flex-col items-center justify-center"
-          style={{ backgroundColor: stub }}
+          style={{ backgroundColor: colors.stub }}
           aria-hidden
         >
           <span
-            className="border border-dashed border-white/85 px-1 py-2.5 text-[10px] font-extrabold tracking-[0.22em] text-white uppercase"
+            className="px-1 py-2.5 text-[10px] font-extrabold tracking-[0.22em] text-white uppercase"
             style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
           >
             Coupon
           </span>
         </span>
 
-        {/* Dashed perforation at stub | body */}
         <span
           className="absolute top-[14%] bottom-[14%] z-10 w-0 border-l border-dashed"
-          style={{ left: "16%", borderColor: `${stub}aa` }}
+          style={{ left: "16%", borderColor: `${colors.stub}aa` }}
           aria-hidden
         />
 
-        {/* Cream body */}
-        <span
-          className="relative flex min-w-0 flex-1 flex-col justify-between px-3.5 py-3 pr-5"
-          style={{ backgroundColor: soft }}
-        >
-          <span className="flex items-start justify-between gap-2">
-            <span
-              className="text-[1.65rem] leading-none font-extrabold tracking-tight"
-              style={{ color: ink }}
-            >
-              {headline}
-            </span>
-            <span
-              className={cn(
-                "shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold tracking-wide uppercase",
-                statusChip.className,
-              )}
-            >
-              {statusChip.label}
-            </span>
-          </span>
-
-          <span
-            className="my-1.5 border-t border-b border-dashed py-1.5"
-            style={{ borderColor: `${stub}55` }}
-          >
-            <span className="block truncate text-[13px] font-bold text-ink">
-              {coupon.title}
-            </span>
-            <span className="mt-0.5 block truncate text-[11px] text-muted">
-              {coupon.subtitle}
-            </span>
-          </span>
-
-          <span className="flex items-end justify-between gap-2">
-            <span
-              className="max-w-[55%] truncate rounded-md px-2 py-1 text-[9px] font-semibold text-white"
-              style={{ backgroundColor: stub }}
-            >
-              {coupon.validUntilLabel}
-            </span>
-            <span className="min-w-0 text-right">
-              <span
-                className="block text-[8px] font-bold tracking-[0.14em] uppercase"
-                style={{ color: ink }}
-              >
-                Redeem code
-              </span>
-              <span
-                className="block truncate font-mono text-[12px] font-extrabold tracking-wider"
-                style={{ color: ink }}
-              >
-                {coupon.code}
-              </span>
-            </span>
-          </span>
-        </span>
+        {density === "comfortable" ? (
+          <ComfortableBody
+            coupon={coupon}
+            headline={headline}
+            statusChip={statusChip}
+            colors={colors}
+          />
+        ) : (
+          <CompactBody
+            coupon={coupon}
+            headline={headline}
+            statusChip={statusChip}
+            colors={colors}
+          />
+        )}
       </button>
     </div>
+  );
+}
+
+function CompactBody({
+  coupon,
+  headline,
+  statusChip,
+  colors,
+}: {
+  coupon: SampleCoupon;
+  headline: string;
+  statusChip: { label: string; className: string };
+  colors: ToneColors;
+}) {
+  return (
+    <span
+      className="relative flex min-w-0 flex-1 flex-col justify-between px-3.5 py-3 pr-5"
+      style={{ backgroundColor: colors.soft }}
+    >
+      <span className="flex items-start justify-between gap-2">
+        <span
+          className="text-[1.65rem] leading-none font-extrabold tracking-tight"
+          style={{ color: colors.ink }}
+        >
+          {headline}
+        </span>
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold tracking-wide uppercase",
+            statusChip.className,
+          )}
+        >
+          {statusChip.label}
+        </span>
+      </span>
+
+      <span
+        className="my-1.5 border-t border-b border-dashed py-1.5"
+        style={{ borderColor: `${colors.stub}55` }}
+      >
+        <span className="block truncate text-[13px] font-bold text-ink">
+          {coupon.title}
+        </span>
+        <span className="mt-0.5 block truncate text-[11px] text-muted">
+          {coupon.subtitle}
+        </span>
+      </span>
+
+      <span className="flex items-end justify-between gap-2">
+        <span
+          className="max-w-[55%] truncate rounded-md px-2 py-1 text-[9px] font-semibold text-white"
+          style={{ backgroundColor: colors.stub }}
+        >
+          {coupon.validUntilLabel}
+        </span>
+        <span className="min-w-0 text-right">
+          <span
+            className="block text-[8px] font-bold tracking-[0.14em] uppercase"
+            style={{ color: colors.ink }}
+          >
+            Redeem code
+          </span>
+          <span
+            className="block truncate font-mono text-[12px] font-extrabold tracking-wider"
+            style={{ color: colors.ink }}
+          >
+            {coupon.code}
+          </span>
+        </span>
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Playground layout: one story per band.
+ * Discount + status → title (subtitle quiet) → code + validity as text (no pill pile-up).
+ */
+function ComfortableBody({
+  coupon,
+  headline,
+  statusChip,
+  colors,
+}: {
+  coupon: SampleCoupon;
+  headline: string;
+  statusChip: { label: string; className: string };
+  colors: ToneColors;
+}) {
+  return (
+    <span
+      className="relative flex min-w-0 flex-1 flex-col justify-center gap-2.5 px-4 py-3.5 pr-6"
+      style={{ backgroundColor: colors.soft }}
+    >
+      <span className="flex items-center justify-between gap-3">
+        <span
+          className="text-[1.5rem] leading-none font-extrabold tracking-tight"
+          style={{ color: colors.ink }}
+        >
+          {headline}
+        </span>
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-extrabold tracking-wide uppercase",
+            statusChip.className,
+          )}
+        >
+          {statusChip.label}
+        </span>
+      </span>
+
+      <span className="min-w-0">
+        <span className="block truncate text-[14px] leading-snug font-bold text-ink">
+          {coupon.title}
+        </span>
+        <span className="mt-1 block truncate text-[12px] leading-snug text-muted">
+          {coupon.subtitle}
+        </span>
+      </span>
+
+      <span
+        className="flex items-center justify-between gap-3 border-t border-dashed pt-2.5"
+        style={{ borderColor: `${colors.stub}44` }}
+      >
+        <span
+          className="truncate font-mono text-[13px] font-extrabold tracking-wider"
+          style={{ color: colors.ink }}
+        >
+          {coupon.code}
+        </span>
+        <span className="shrink-0 text-[11px] font-semibold text-muted">
+          {coupon.validUntilLabel.replace(/^Valid until\s+/i, "Until ")}
+        </span>
+      </span>
+    </span>
   );
 }

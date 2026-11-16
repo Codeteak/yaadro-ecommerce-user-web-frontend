@@ -18,3 +18,10 @@ export function listOrders(): SampleOrder[] {
 export function getOrder(id: string): SampleOrder | undefined {
   return getSampleOrder(id);
 }
+
+/** Lookup by display number (e.g. YAD-1042) or `#YAD-1042`. */
+export function getOrderByNumber(number: string): SampleOrder | undefined {
+  const normalized = number.trim().replace(/^#/, "").toUpperCase();
+  if (!normalized) return undefined;
+  return listSampleOrders().find((o) => o.number.toUpperCase() === normalized);
+}

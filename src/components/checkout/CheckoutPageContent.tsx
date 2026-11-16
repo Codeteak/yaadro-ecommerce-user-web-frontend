@@ -190,7 +190,12 @@ export function CheckoutPageContent({
         </div>
         <OrderPlacedContent
           summary={placedSummary}
-          viewOrderHref={inline ? "/playground/order-detail" : "/orders"}
+          viewOrderHref={
+            inline ? "/playground/order-detail" : "/orders/ord-1042"
+          }
+          trackOrderHref={
+            inline ? "/playground/live-order-track" : "/orders/ord-1042/track"
+          }
           homeHref={inline ? "/playground" : "/home"}
           footer={
             inline ? (

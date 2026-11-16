@@ -357,8 +357,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Ticket coupons with per-id colours, Active/Used/Expired themes; tap for details/copy.",
-    wiresTo: "/coupons",
+      "Ticket coupons (comfortable layout preview — simpler body, less stacked copy). Confirm, then wire to /coupons.",
+    wiresTo: "/coupons (compact until wired)",
   },
   {
     slug: "coupons-empty",
@@ -413,7 +413,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Same as /orders/[id]: forest header, 3 steps, bill with qty units (kg/g/each/ml/l), partner, timeline, review.",
+      "Same as /orders/[id]: forest header, 3 steps, Track order → /orders/[id]/track, ticket bill, review.",
     wiresTo: "/orders/[id]",
   },
   {
@@ -422,8 +422,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Playground-only live tracking. Progress: Order placed → Accepted → Packed → Out for delivery → Delivered. Map via Google Maps Embed. Yaadro green + INR.",
-    wiresTo: "Playground only — not on /orders yet",
+      "Tracking UI (mascots, progress, OFD map, partner call). Download Bill = same ticket as order details. Ecom: /orders/[id]/track (separate from details).",
+    wiresTo: "/orders/[id]/track",
   },
   {
     slug: "empty-orders",

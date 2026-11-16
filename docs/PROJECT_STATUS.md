@@ -31,7 +31,8 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Home, categories, and t
 - `/` — onboarding
 - `/login` — login stub
 - `/home`, `/categories`, `/categories/[slug]`, `/wishlist`, `/profile`, `/cart`, `/coupons`, `/checkout`, `/orders`
-- `/orders/[id]` — order detail (sample)
+- `/orders/[id]` — classic order detail (sample)
+- `/orders/[id]/track` — live tracking (separate from order details)
 - `/product/[id]` — PDP
 - `/playground` — UI demos
 - `/manifest.webmanifest` — from `src/app/manifest.ts`

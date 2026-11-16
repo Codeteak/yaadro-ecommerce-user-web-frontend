@@ -399,7 +399,7 @@ function AddressBookDemo({
 function OrderDetailLeadDemo() {
   const id = useSearchParams().get("id") ?? "ord-1042";
   return (
-    <DemoFrame note="Same as /orders/[id]. Bill line pills show qty with units from the product (kg, g, each, ml, l). Receipt opens the ticket bill with Download.">
+    <DemoFrame note="Same as /orders/[id]. Track order → /orders/[id]/track. Receipt / Download bill = ticket PNG (same as track page).">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain bg-white">
         <OrderDetailPlayground orderId={id} ticketBill />
       </div>
@@ -774,11 +774,12 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "order-placed": () => (
     <DemoFrame
       surface="bare"
-      note="Same confirmation as after Place Order: keep mascot PNG, bill summary, View Order + Back to home."
+      note="Track order → playground live track (separate). View order details → classic order detail."
     >
       <div className="max-h-[85vh] overflow-y-auto overscroll-contain rounded-[1.75rem] bg-paper ring-1 ring-forest/10">
         <OrderPlacedContent
           summary={SAMPLE_ORDER_PLACED}
+          trackOrderHref="/playground/live-order-track"
           viewOrderHref="/playground/order-detail"
           homeHref="/playground"
         />
@@ -859,7 +860,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "live-order-track": () => (
     <DemoFrame
       surface="bare"
-      note="Progress: Order placed → Accepted → Packed → Out for delivery → Delivered. Live Track map only on Out for delivery. Hard-refresh if mascot PNGs look cached."
+      note="Phase demo + Download Bill (same ticket as order details). Ecom track: /orders/[id]/track — not mixed with classic /orders/[id]. Live Track map on OFD only."
     >
       <LiveOrderTrackDemo />
     </DemoFrame>
@@ -1004,18 +1005,22 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "coupons-list": () => (
-    <DemoFrame note="Same as /coupons: ticket silhouette, status themes, tap → details + copy.">
+    <DemoFrame note="Playground preview: simplified ticket body (discount → title → code/until). No crowded 3-band stack. Ecom still compact until wired.">
       <div className="max-h-[75vh] overflow-y-auto overscroll-contain">
-        <CouponsPageContent backHref="/playground" />
+        <CouponsPageContent
+          backHref="/playground"
+          ticketDensity="comfortable"
+        />
       </div>
     </DemoFrame>
   ),
   "coupons-apply": () => (
-    <DemoFrame note="From cart Select: tap active ticket → Apply to cart → returns to cart-page with promo applied. Used/Expired cannot apply.">
+    <DemoFrame note="Same simplified tickets as coupons-list. Tap active → Apply → cart-page. Used/Expired cannot apply.">
       <div className="max-h-[75vh] overflow-y-auto overscroll-contain">
         <CouponsPageContent
           backHref="/playground/cart-page"
           applyReturnHref="/playground/cart-page"
+          ticketDensity="comfortable"
         />
       </div>
     </DemoFrame>

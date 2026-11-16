@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Check,
   Copy,
@@ -10,8 +10,10 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { BackButton } from "@/components/navigation/BackButton";
+import { OrderTicketBill } from "@/components/orders/lead-order-shared";
 import { BrandFooter } from "@/components/storefront/BrandFooter";
 import { useToastOptional } from "@/components/ui/ToastContext";
+import { getOrder, getOrderByNumber, listOrders } from "@/lib/api/orders";
 import { cn } from "@/lib/cn";
 import {
   liveHeaderActiveIndex,
@@ -22,16 +24,37 @@ import {
   type LiveTrackPhase,
 } from "@/lib/live-order-track";
 import { buildLiveTrackEmbedUrl } from "@/lib/live-track-map";
+import type { SampleOrder } from "@/lib/sample-orders";
 
 type LiveOrderTrackProps = {
   /** Preview phase when `sample` is not provided. Default accepted. */
   phase?: LiveTrackPhase;
   /** Real / mapped order sample (ecom `/orders/[id]/track`). */
   sample?: LiveOrderTrackSample;
+  /** Source order for the same ticket bill as order details. */
+  order?: SampleOrder;
   /** Optional back control (e.g. order details). */
   backHref?: string;
   className?: string;
 };
+
+/** Resolve a real sample order for the ticket bill (same as order details). */
+function resolveBillOrder(
+  order: SampleOrder | undefined,
+  sample: LiveOrderTrackSample,
+): SampleOrder | undefined {
+  if (order) return order;
+  const byTracking =
+    getOrderByNumber(sample.trackingId) ?? getOrderByNumber(sample.billNo);
+  if (byTracking) return byTracking;
+  if (sample.phase === "delivered") {
+    return getOrder("ord-1038") ?? listOrders().find((o) => o.status === "delivered");
+  }
+  return (
+    getOrder("ord-1042") ??
+    listOrders().find((o) => o.status !== "cancelled")
+  );
+}
 
 /**
  * Live order tracking UI (playground demo + ecom `/orders/[id]/track`).
@@ -41,14 +64,20 @@ type LiveOrderTrackProps = {
 export function LiveOrderTrack({
   phase = "accepted",
   sample: sampleProp,
+  order: orderProp,
   backHref,
   className,
 }: LiveOrderTrackProps) {
   const sample = sampleProp ?? liveTrackSample(phase);
+  const billOrder = useMemo(
+    () => resolveBillOrder(orderProp, sample),
+    [orderProp, sample.trackingId, sample.billNo, sample.phase],
+  );
   const toast = useToastOptional();
   const canLiveTrack = sample.phase === "out_for_delivery";
   /** Start with mascot; user opens Live Track for the map. */
   const [mapOpen, setMapOpen] = useState(false);
+  const [billOpen, setBillOpen] = useState(false);
 
   const copyText = (value: string) => {
     if (!navigator.clipboard?.writeText) {
@@ -59,6 +88,14 @@ export function LiveOrderTrack({
       () => toast?.success("Copied"),
       () => toast?.error("Couldn’t copy"),
     );
+  };
+
+  const openBill = () => {
+    if (!billOrder) {
+      toast?.error("Bill isn’t available");
+      return;
+    }
+    setBillOpen(true);
   };
 
   return (
@@ -76,7 +113,7 @@ export function LiveOrderTrack({
         <DeliveryDetails
           sample={sample}
           onCopy={copyText}
-          onDownloadBill={() => toast?.success("Download started")}
+          onDownloadBill={openBill}
         />
 
         {sample.rider ? <RiderCard rider={sample.rider} /> : null}
@@ -93,6 +130,10 @@ export function LiveOrderTrack({
           Powered by Codeteak
         </p>
       </div>
+
+      {billOpen && billOrder ? (
+        <OrderTicketBill order={billOrder} onClose={() => setBillOpen(false)} />
+      ) : null}
 
       {sample.rider ? (
         <div className="pointer-events-none sticky bottom-4 z-20 flex justify-end px-4 pb-2">
@@ -119,9 +160,14 @@ export function LiveOrderTrack({
   );
 }
 
-/** Playground frame — Accepted / Packed / Out for Delivery / Delivered. */
+/** Playground frame — phase chips + same bill as ecom track / order details. */
 export function LiveOrderTrackDemo() {
-  const [phase, setPhase] = useState<LiveTrackPhase>("accepted");
+  const [phase, setPhase] = useState<LiveTrackPhase>("out_for_delivery");
+  /** Prefer OFD sample; delivered phase uses YAD-1038 for the ticket. */
+  const demoOrder = useMemo(() => {
+    if (phase === "delivered") return getOrder("ord-1038") ?? getOrder("ord-1042");
+    return getOrder("ord-1042") ?? listOrders()[0];
+  }, [phase]);
 
   return (
     <div className="space-y-3">
@@ -147,8 +193,17 @@ export function LiveOrderTrackDemo() {
           onClick={() => setPhase("delivered")}
         />
       </div>
+      <p className="px-1 text-[12px] font-semibold text-muted">
+        Download Bill opens the same ticket as order details. Ecom:{" "}
+        <a
+          href="/orders/ord-1042/track"
+          className="font-bold text-forest underline underline-offset-2"
+        >
+          /orders/ord-1042/track
+        </a>
+      </p>
       <div className="max-h-[85vh] overflow-y-auto overscroll-contain rounded-[1.75rem] bg-paper shadow-[0_16px_40px_rgba(6,78,59,0.12)] ring-1 ring-forest/10">
-        <LiveOrderTrack key={phase} phase={phase} />
+        <LiveOrderTrack key={phase} phase={phase} order={demoOrder} />
       </div>
     </div>
   );

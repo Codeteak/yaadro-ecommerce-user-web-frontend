@@ -399,8 +399,12 @@ export default function NotFound() {
   "coupons-list": U(
     `import { CouponsPageContent } from "@/components/coupons/CouponsPageContent";
 
-<CouponsPageContent />`,
-    ["src/components/coupons/CouponsPageContent.tsx"],
+// Playground preview — confirm, then wire ticketDensity to /coupons
+<CouponsPageContent ticketDensity="comfortable" />`,
+    [
+      "src/components/coupons/CouponsPageContent.tsx",
+      "src/components/coupons/CouponTicketCard.tsx",
+    ],
   ),
   "coupons-empty": U(
     `import { CouponsPageContent } from "@/components/coupons/CouponsPageContent";
@@ -416,6 +420,7 @@ export default function NotFound() {
 <CouponsPageContent
   backHref="/cart"
   applyReturnHref="/cart"
+  ticketDensity="comfortable"
 />`,
     ["src/components/coupons/CouponsPageContent.tsx"],
   ),
@@ -478,30 +483,34 @@ import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
   ),
   "order-detail": U(
     `import { OrderDetailPlayground } from "@/components/orders/OrderDetailPlayground";
-import { orderLineLabel } from "@/lib/sample-orders";
 
-// Storefront /orders/[id] — bill pills use orderLineLabel (kg/g/each/ml/l)
+// Classic order details (not live track)
 <OrderDetailPlayground orderId="ord-1042" backHref="/orders" shopHref="/home" />
-// e.g. orderLineLabel(line) → "1.5 kg" | "500 g" | "2 each" | "2×750ml"`,
+// Track order → /orders/ord-1042/track
+// Receipt / Download bill → OrderTicketBill`,
     [
       "src/app/(storefront)/orders/[id]/page.tsx",
       "src/components/orders/OrderDetailPlayground.tsx",
       "src/components/orders/lead-order-shared.tsx",
-      "src/lib/qty-label.ts",
       "src/lib/sample-orders.ts",
     ],
   ),
   "live-order-track": U(
     `import { LiveOrderTrack } from "@/components/orders/LiveOrderTrack";
+import { OrderLiveTrackPage } from "@/components/orders/OrderLiveTrackPage";
 
-// Playground only — Accepted / Out for Delivery samples
-// Live map: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY + Maps Embed API enabled
-<LiveOrderTrack phase="accepted" />
-<LiveOrderTrack phase="out_for_delivery" />`,
+// Playground phase demo — Download Bill uses same OrderTicketBill
+<LiveOrderTrack phase="out_for_delivery" order={getOrder("ord-1042")} />
+
+// Ecom (separate from /orders/[id] details):
+// /orders/[id]/track → <OrderLiveTrackPage orderId={id} />`,
     [
       "src/components/orders/LiveOrderTrack.tsx",
+      "src/components/orders/OrderLiveTrackPage.tsx",
       "src/lib/live-order-track.ts",
-      "src/lib/live-track-map.ts",
+      "src/lib/order-live-track.ts",
+      "src/lib/api/orders.ts",
+      "src/app/(storefront)/orders/[id]/track/page.tsx",
       "public/orders/live-track/order-accepted.png",
       "public/orders/live-track/packed.png",
       "public/orders/live-track/out-for-delivery.png",

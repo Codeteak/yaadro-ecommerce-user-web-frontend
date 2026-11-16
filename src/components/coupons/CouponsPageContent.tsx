@@ -18,6 +18,7 @@ import { PullToRefresh } from "@/components/navigation/PullToRefresh";
 import {
   CouponTicketCard,
   ticketStatusChip,
+  type CouponTicketDensity,
 } from "@/components/coupons/CouponTicketCard";
 import { useCart } from "@/components/cart/CartContext";
 import { useToastOptional } from "@/components/ui/ToastContext";
@@ -41,6 +42,11 @@ type CouponsPageContentProps = {
    * `?from=cart` is present (ecom cart → coupons flow).
    */
   applyReturnHref?: string;
+  /**
+   * Ticket inner spacing. Default `compact` (ecom).
+   * Playground can preview `comfortable` before wiring ecom.
+   */
+  ticketDensity?: CouponTicketDensity;
 };
 
 /**
@@ -63,6 +69,7 @@ function CouponsPageBody({
   backHref = "/profile",
   coupons = listCoupons(),
   applyReturnHref: applyReturnHrefProp,
+  ticketDensity = "compact",
 }: CouponsPageContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -357,11 +364,17 @@ function CouponsPageBody({
                 <h2 className="mb-3 text-[13px] font-semibold text-muted">
                   {section}
                 </h2>
-                <ul className="flex flex-col gap-3">
+                <ul
+                  className={cn(
+                    "flex flex-col",
+                    ticketDensity === "comfortable" ? "gap-3.5" : "gap-3",
+                  )}
+                >
                   {items.map((coupon) => (
                     <li key={coupon.id}>
                       <CouponTicketCard
                         coupon={coupon}
+                        density={ticketDensity}
                         onClick={() => openCoupon(coupon)}
                       />
                     </li>
