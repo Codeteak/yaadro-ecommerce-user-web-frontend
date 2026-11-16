@@ -138,7 +138,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Flat category strip (All first). Side gutter via px-5 + scroll-px-5. Missing photos use the category placeholder.",
+      "Style 2 pills (tileVariant=pill) — same as /home under banners. All first; same select/scroll logic.",
     wiresTo: "/home under banners",
   },
   {
@@ -176,6 +176,15 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     wiresTo: "/home, /categories/fruits|/vegetables",
   },
   {
+    slug: "category-browse-sections",
+    title: "Category browse sections",
+    status: "built",
+    group: "Home",
+    description:
+      "Playground-only candidate home: FruitsVeggies then aisle grids (mint plates, rect-first). Live /home stays classic (rail + shelves).",
+    wiresTo: "Playground only — not on /home",
+  },
+  {
     slug: "type-scale",
     title: "Type scale (spec)",
     status: "built",
@@ -199,7 +208,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "ProductSection + FruitsVeggies + merch shelves + BrandFooter + PTR on /home.",
+      "ProductSection + FruitsVeggies + merch shelves + BrandFooter + PTR on /home (classic).",
     wiresTo: "/home",
   },
   {

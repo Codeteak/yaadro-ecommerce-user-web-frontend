@@ -22,6 +22,7 @@ import { OfferBanners } from "@/components/home/OfferBanners";
 import { OfferFlyer } from "@/components/home/OfferFlyer";
 import { ProductSection } from "@/components/home/ProductSection";
 import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
+import { CategoryBrowseSections } from "@/components/home/CategoryBrowseSections";
 import { HomeProductShelves } from "@/components/home/HomeProductShelves";
 import { HomePullContent } from "@/components/home/HomePullContent";
 import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
@@ -507,10 +508,14 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "category-rail": () => (
-    <DemoFrame note="Flat category strip (All first). px-5 + scroll-px-5 keep the first tile off the wall when snap fires.">
+    <DemoFrame
+      surface="bare"
+      note="Same as /home: Style 2 pills on paper (no DemoFrame card shell). All first; scroll + tap select unchanged."
+    >
       <HomeCategoryProvider>
         <div className="pt-6 pb-4">
           <CategoryRail
+            tileVariant="pill"
             imageFallback={CATEGORY_IMAGE_FALLBACK}
             categories={[
               ...HOME_CATEGORIES.map((category) => ({
@@ -594,6 +599,20 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </div>
     </DemoFrame>
   ),
+  "category-browse-sections": () => (
+    <DemoFrame
+      surface="bare"
+      note="Playground-only candidate home (not wired to /home): FruitsVeggies + aisle grids. Live /home stays classic with the category rail."
+    >
+      <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain bg-paper ring-1 ring-black/5">
+        <FruitsVeggiesSection />
+        <CategoryBrowseSections
+          layout="rect-first"
+          className="bg-paper [&_h2]:text-ink"
+        />
+      </div>
+    </DemoFrame>
+  ),
   "type-scale": () => <TypeScaleSpecimen />,
   "home-product-shelves": () => (
     <DemoFrame
@@ -607,7 +626,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "home-pull-content": () => (
-    <DemoFrame note="Same as /home: ProductSection + FruitsVeggies + shelves + BrandFooter + PTR (spec type scale).">
+    <DemoFrame note="Same as /home: ProductSection + FruitsVeggies + shelves + BrandFooter + PTR. Aisle-browse candidate is category-browse-sections only.">
       <HomeCategoryProvider>
         <HomePullContent />
       </HomeCategoryProvider>

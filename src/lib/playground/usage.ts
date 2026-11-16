@@ -148,11 +148,13 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
     `import { CategoryRail } from "@/components/home/CategoryRail";
 import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 
+// Same as /home under banners
 <HomeCategoryProvider>
-  <CategoryRail />
+  <CategoryRail tileVariant="pill" />
 </HomeCategoryProvider>`,
     [
       "src/components/home/CategoryRail.tsx",
+      "src/components/home/CategoryTile.tsx",
       "src/components/home/HomeCategoryContext.tsx",
       "src/lib/home-categories.ts",
     ],
@@ -189,6 +191,31 @@ import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
     [
       "src/components/home/FruitsVeggiesSection.tsx",
       "public/home/fruits-veggies-section.jpg",
+    ],
+  ),
+  "category-browse-sections": U(
+    `import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
+import { CategoryBrowseSections } from "@/components/home/CategoryBrowseSections";
+import {
+  SAMPLE_CATEGORY_BROWSE_SECTIONS,
+  browseSectionsFromBranches,
+} from "@/lib/home-category-browse";
+
+// Playground-only candidate (live /home stays classic)
+<>
+  <FruitsVeggiesSection />
+  <CategoryBrowseSections
+    layout="rect-first"
+    className="bg-paper [&_h2]:text-ink"
+    sections={SAMPLE_CATEGORY_BROWSE_SECTIONS}
+  />
+</>
+
+// If wiring later: browseSectionsFromBranches(branches)`,
+    [
+      "src/components/home/CategoryBrowseSections.tsx",
+      "src/lib/home-category-browse.ts",
+      "src/components/home/FruitsVeggiesSection.tsx",
     ],
   ),
   "type-scale": U(

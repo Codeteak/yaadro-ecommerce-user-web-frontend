@@ -14,7 +14,7 @@ import type { LiveShelf } from "@/components/home/HomeProductShelves";
  * Home body below the category rail: category products → produce band →
  * Featured / Most ordered / Favourites → brand footer. PTR remounts all;
  * real catalog refetch plugs into onRefresh later. Offer banners sit above
- * the rail.
+ * the rail. Aisle-browse layout lives in playground only.
  */
 export function HomePullContent({
   productsBySlug,

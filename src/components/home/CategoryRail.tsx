@@ -5,6 +5,7 @@ import { CategoryTile } from "@/components/home/CategoryTile";
 import { useHomeCategoryOptional } from "@/components/home/HomeCategoryContext";
 import { ALL_CATEGORY_SLUG, HOME_CATEGORIES } from "@/lib/home-categories";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
+import { cn } from "@/lib/cn";
 
 export { HOME_CATEGORIES, type HomeCategory } from "@/lib/home-categories";
 
@@ -28,6 +29,10 @@ type CategoryRailProps = {
   categories?: RailCategory[];
   /** Used when a category has no image. */
   imageFallback?: string;
+  /**
+   * Tile chrome. `/home` keeps `card`. Playground Style 2 uses `pill`.
+   */
+  tileVariant?: "card" | "pill";
 };
 
 /**
@@ -37,6 +42,7 @@ type CategoryRailProps = {
 export function CategoryRail({
   categories = SAMPLE_RAIL,
   imageFallback = FALLBACK_IMAGE,
+  tileVariant = "card",
 }: CategoryRailProps) {
   const homeCategory = useHomeCategoryOptional();
   const [localSelected, setLocalSelected] = useState(ALL_CATEGORY_SLUG);
@@ -123,12 +129,18 @@ export function CategoryRail({
       className="relative overflow-x-auto scroll-smooth overscroll-x-contain snap-x snap-proximity scroll-px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {/* px-5 + scroll-px-5 keep All off the wall when snap-start fires */}
-      <div className="flex w-max gap-4 px-5 py-3">
+      <div
+        className={cn(
+          "flex w-max px-5 py-3",
+          tileVariant === "pill" ? "gap-2.5 sm:gap-3.5" : "gap-4",
+        )}
+      >
         {items.map((category) => (
           <CategoryTile
             key={category.slug}
             name={category.name}
             slug={category.slug}
+            variant={tileVariant}
             image={
               category.slug === ALL_CATEGORY_SLUG
                 ? ""

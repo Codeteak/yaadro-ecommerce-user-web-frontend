@@ -76,6 +76,7 @@ export default async function StorefrontHomePage() {
 
           <div className="relative z-10 mx-auto w-full max-w-lg">
             <CategoryRail
+              tileVariant="pill"
               categories={catalog.categories.map((category) => ({
                 name: category.name,
                 slug: category.slug,
