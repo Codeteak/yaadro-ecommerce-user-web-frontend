@@ -6,13 +6,13 @@ import {
   Headset,
   Heart,
   History,
-  LogOut,
   MapPin,
   Settings,
   TicketPercent,
   UserRound,
 } from "lucide-react";
 import { PullToRefresh } from "@/components/navigation/PullToRefresh";
+import { LogoutButton } from "@/components/profile/LogoutButton";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
 import { BrandFooter } from "@/components/storefront/BrandFooter";
@@ -29,6 +29,8 @@ const quickActions = [
   { href: "/orders", label: "Order History", icon: History },
 ] as const;
 
+/** Local signed-in seed removed — ProfileHero reads the OTP session. */
+
 const menuItems = [
   { href: "/profile/edit", label: "My Profile", icon: UserRound },
   { href: "/profile/addresses", label: "Address Management", icon: MapPin },
@@ -36,18 +38,13 @@ const menuItems = [
   { href: "/profile/settings", label: "Setting", icon: Settings },
 ] as const;
 
-/** Local signed-in seed until a real session API exists. */
-const PREVIEW_USER_ID = "local-preview";
-
 async function ProfilePageBody() {
   const shop = await getShopSeo();
 
   return (
     <ShopNameProvider name={shop.name}>
       <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-paper">
-        {/* Preview signed-in like WishlistProvider until auth lands.
-            Title falls back to `{shopName} Member` until a real user name exists. */}
-        <ProfileHero signedIn userId={PREVIEW_USER_ID} />
+        <ProfileHero />
 
         <PullToRefresh>
           {/* Quick actions — Wishlist replaces Notification from the reference.
@@ -94,15 +91,7 @@ async function ProfilePageBody() {
               </Link>
             ))}
 
-            <Link
-              href="/login"
-              className="flex h-14 items-center gap-3 rounded-2xl bg-white px-4 shadow-[0_4px_14px_rgba(47,107,47,0.05)] ring-1 ring-black/5 transition hover:ring-red-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
-            >
-              <LogOut aria-hidden className="size-5 text-red-500" strokeWidth={1.9} />
-              <span className="flex-1 text-[15px] font-medium text-red-600">
-                Log out
-              </span>
-            </Link>
+            <LogoutButton />
           </nav>
 
           <BrandFooter />

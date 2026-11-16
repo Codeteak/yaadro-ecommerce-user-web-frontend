@@ -50,8 +50,8 @@ import {
   type SampleProduct,
 } from "@/lib/sample-products";
 import { STOREFRONT_NAV_HIDDEN_PATHS } from "@/lib/storefront-nav";
-import { OrdersListPlayground } from "@/components/orders/OrdersListPlayground";
-import { OrderDetailPlayground } from "@/components/orders/OrderDetailPlayground";
+import { OrdersPageContent } from "@/components/orders/OrdersPageContent";
+import { OrderDetailPageContent } from "@/components/orders/OrderDetailPageContent";
 import { LiveOrderTrackDemo } from "@/components/orders/LiveOrderTrack";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
@@ -401,7 +401,7 @@ function OrderDetailLeadDemo() {
   return (
     <DemoFrame note="Same as /orders/[id]. Track order → /orders/[id]/track. Receipt / Download bill = ticket PNG (same as track page).">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain bg-white">
-        <OrderDetailPlayground orderId={id} ticketBill />
+        <OrderDetailPageContent orderId={id} ticketBill />
       </div>
     </DemoFrame>
   );
@@ -842,7 +842,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "orders-list": () => (
     <DemoFrame note="Same as /orders. Download bill opens the ticket with Copy, Download, and Done.">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain bg-paper">
-        <OrdersListPlayground
+        <OrdersPageContent
           chromePosition="inline"
           backHref="/playground"
           shopHref="/playground"
@@ -868,7 +868,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "empty-orders": () => (
     <DemoFrame note="Same empty state as /orders when there are no orders.">
       <div className="relative max-h-[70vh] overflow-y-auto overscroll-contain bg-paper">
-        <OrdersListPlayground
+        <OrdersPageContent
           orders={[]}
           chromePosition="inline"
           backHref="/playground"
@@ -1043,7 +1043,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           <p className="px-5 pt-3 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
             Guest
           </p>
-          <ProfileHero backHref="/playground" />
+          <ProfileHero backHref="/playground" signedIn={false} />
         </div>
         <div>
           <p className="px-5 pt-1 text-[11px] font-bold tracking-wide text-forest/70 uppercase">

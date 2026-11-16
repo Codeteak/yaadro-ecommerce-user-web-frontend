@@ -87,6 +87,12 @@ export function saveCustomerSession(session: CustomerSession) {
   window.dispatchEvent(new Event("yaadro-customer-session"));
 }
 
+export function clearCustomerSession() {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  window.dispatchEvent(new Event("yaadro-customer-session"));
+}
+
 export function hasCustomerSession(): boolean {
   if (typeof window === "undefined") return false;
   return Boolean(localStorage.getItem(ACCESS_TOKEN_KEY));

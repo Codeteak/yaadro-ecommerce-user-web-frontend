@@ -47,6 +47,7 @@ function Field({
           name={name}
           type={type}
           autoComplete={autoComplete}
+          disabled
           placeholder={placeholder}
           className="h-14 w-full rounded-2xl bg-white pr-12 pl-4 text-[15px] text-ink shadow-[0_4px_14px_rgba(47,107,47,0.05)] ring-1 ring-black/5 transition outline-none placeholder:text-muted/60 focus:ring-2 focus:ring-leaf/40"
         />
@@ -87,8 +88,8 @@ export default function EditProfilePage() {
           </div>
         </div>
 
-        {/* UI only — Save returns to Profile; persistence arrives with the profile API */}
-        <form action="/profile" className="mt-8 flex flex-col gap-4">
+        {/* Details are not saved until a profile API exists. */}
+        <form className="mt-8 flex flex-col gap-4">
           <Field label="Full Name" name="fullName" placeholder="Enter your full name" icon={Pencil} autoComplete="name" />
           <Field label="Nickname" name="nickname" placeholder="Enter a nickname" icon={Pencil} autoComplete="nickname" />
           <Field label="Email" name="email" placeholder="Enter your email" icon={Mail} type="email" autoComplete="email" />
@@ -104,14 +105,15 @@ export default function EditProfilePage() {
               Discard
             </Link>
             <button
-              type="submit"
-              className="inline-flex h-12 items-center justify-center rounded-full bg-gradient-to-r from-forest to-leaf-bright text-sm font-semibold text-white shadow-[0_8px_20px_rgba(92,184,92,0.30)] transition hover:opacity-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+              type="button"
+              disabled
+              className="inline-flex h-12 cursor-not-allowed items-center justify-center rounded-full bg-gradient-to-r from-forest to-leaf-bright text-sm font-semibold text-white opacity-50 shadow-[0_8px_20px_rgba(92,184,92,0.30)]"
             >
               Save
             </button>
           </div>
           <p className="pb-2 text-center text-xs text-muted">
-            UI only — saving will connect when the profile API is available.
+            Saving stays off until the profile API is connected.
           </p>
         </form>
       </PullToRefresh>

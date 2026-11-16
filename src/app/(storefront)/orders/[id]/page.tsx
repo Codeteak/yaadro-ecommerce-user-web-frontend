@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { OrderDetailPlayground } from "@/components/orders/OrderDetailPlayground";
+import { OrderDetailPageContent } from "@/components/orders/OrderDetailPageContent";
 import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
 import { OrderDetailSkeleton } from "@/components/ui/skeletons";
 import { getOrder, listOrders } from "@/lib/api/orders";
@@ -33,7 +33,7 @@ async function OrderDetailContent({ params }: OrderPageProps) {
   const shop = await getShopSeo();
   return (
     <ShopNameProvider name={shop.name}>
-      <OrderDetailPlayground orderId={id} backHref="/orders" shopHref="/home" />
+      <OrderDetailPageContent orderId={id} backHref="/orders" shopHref="/home" />
     </ShopNameProvider>
   );
 }

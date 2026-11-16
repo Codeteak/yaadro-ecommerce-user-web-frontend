@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { OrdersListPlayground } from "@/components/orders/OrdersListPlayground";
+import { OrdersPageContent } from "@/components/orders/OrdersPageContent";
 import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
 import { getShopSeo } from "@/lib/shop-seo";
 
@@ -13,7 +13,7 @@ async function OrdersPageBody() {
   const shop = await getShopSeo();
   return (
     <ShopNameProvider name={shop.name}>
-      <OrdersListPlayground />
+      <OrdersPageContent />
     </ShopNameProvider>
   );
 }

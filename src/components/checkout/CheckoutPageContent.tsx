@@ -1,16 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { Banknote, Check, MapPin } from "lucide-react";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { useCart } from "@/components/cart/CartContext";
-import {
-  OrderPlacedContent,
-  type OrderPlacedSummary,
-} from "@/components/checkout/OrderPlacedContent";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
-import { useToastOptional } from "@/components/ui/ToastContext";
 import { cn } from "@/lib/cn";
 import {
   DELIVERY_ADDRESS_KEY,
@@ -19,9 +14,6 @@ import {
   subscribeDeliveryAddress,
   type DeliveryAddress,
 } from "@/lib/delivery-address";
-
-/** Sample COD delivery fee until checkout API returns one. */
-const SAMPLE_DELIVERY_FEE = 25;
 
 type CheckoutPageContentProps = {
   /**
@@ -32,8 +24,6 @@ type CheckoutPageContentProps = {
   /** Show “Prices may vary…” above the sticky price summary. */
   showPriceMayVary?: boolean;
 };
-
-type CheckoutPhase = "form" | "tick" | "confirmed";
 
 /** Stable string snapshot — never return a fresh object from getSnapshot. */
 function getAddressRaw(): string | null {
@@ -52,8 +42,7 @@ function formatFullAddress(a: DeliveryAddress): string {
 
 /**
  * Checkout UI: address, COD only, price details + amount due,
- * Place Order → tick animation → confirmed + mascot.
- * Does not place a real order (no payment / order API).
+ * Place Order stays disabled until the shop accepts orders.
  */
 export function CheckoutPageContent({
   chromePosition = "page",
@@ -62,20 +51,12 @@ export function CheckoutPageContent({
   const inline = chromePosition === "inline";
   const {
     mrpTotal,
-    items,
-    count,
-    subtotal,
     appliedPromo,
     promoDiscount,
     totalSaved,
     totalDue,
   } = useCart();
-  const toast = useToastOptional();
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [phase, setPhase] = useState<CheckoutPhase>("form");
-  const [placeError, setPlaceError] = useState<string | null>(null);
-  const [placedSummary, setPlacedSummary] =
-    useState<OrderPlacedSummary | null>(null);
 
   const addressRaw = useSyncExternalStore(
     subscribeDeliveryAddress,
@@ -96,122 +77,10 @@ export function CheckoutPageContent({
   }, [addressRaw]);
 
   const amountDue = totalDue;
-  const hasItems = items.length > 0;
   const hasAddress = Boolean(
     address && formatDeliveryAddressLabel(address).length > 0,
   );
   const backHref = inline ? "/playground" : "/cart";
-
-  useEffect(() => {
-    if (phase !== "tick") return;
-    const id = window.setTimeout(() => setPhase("confirmed"), 1200);
-    return () => window.clearTimeout(id);
-  }, [phase]);
-
-  const onPlaceOrder = () => {
-    setPlaceError(null);
-    if (!hasItems) {
-      const message =
-        "Your basket is empty — add items before placing an order.";
-      setPlaceError(message);
-      toast?.error("Couldn’t place order. Try again.");
-      return;
-    }
-    if (!hasAddress) {
-      setPlaceError("Add a delivery address to continue.");
-      toast?.error("Couldn’t place order. Try again.");
-      setSheetOpen(true);
-      return;
-    }
-    // UI-only confirmation — no order or payment is submitted.
-    const billNo = `#YAD-${10000 + Math.floor(Math.random() * 90000)}`;
-    setPlacedSummary({
-      billNo,
-      itemCount: count,
-      subtotal,
-      deliveryFee: SAMPLE_DELIVERY_FEE,
-      total: Math.max(0, totalDue + SAMPLE_DELIVERY_FEE),
-      fulfillment: "Delivery",
-      statusLabel: "Confirmed",
-    });
-    toast?.success("Order placed");
-    setPhase("tick");
-  };
-
-  if (phase === "tick") {
-    return (
-      <main
-        className={cn(
-          "mx-auto flex w-full max-w-lg flex-col items-center justify-center bg-paper px-5",
-          inline ? "min-h-full" : "min-h-dvh",
-        )}
-        role="status"
-        aria-live="polite"
-        aria-label="Order confirmed"
-      >
-        <div className="verified-pop flex h-28 w-28 items-center justify-center rounded-full bg-leaf shadow-[0_12px_40px_rgba(92,184,92,0.35)]">
-          <svg
-            width="52"
-            height="52"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden
-          >
-            <path
-              className="verified-check-draw"
-              d="M5 12.5 10 17.5 19 7.5"
-              stroke="white"
-              strokeWidth="2.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-        <h2 className="verified-fade-in mt-6 text-2xl font-extrabold tracking-tight text-forest">
-          Order confirmed
-        </h2>
-        <p className="verified-fade-in mt-2 text-[15px] text-muted">
-          Preparing your confirmation…
-        </p>
-      </main>
-    );
-  }
-
-  if (phase === "confirmed" && placedSummary) {
-    return (
-      <main
-        className={cn(
-          "mx-auto flex w-full max-w-lg flex-col overflow-y-auto bg-paper",
-          inline ? "min-h-full" : "min-h-dvh",
-        )}
-      >
-        <div className="px-5 pt-[max(0.75rem,env(safe-area-inset-top))]">
-          <PageHeader backHref={backHref} title="Order placed" />
-        </div>
-        <OrderPlacedContent
-          summary={placedSummary}
-          viewOrderHref={
-            inline ? "/playground/order-detail" : "/orders/ord-1042"
-          }
-          trackOrderHref={
-            inline ? "/playground/live-order-track" : "/orders/ord-1042/track"
-          }
-          homeHref={inline ? "/playground" : "/home"}
-          footer={
-            inline ? (
-              <button
-                type="button"
-                onClick={() => setPhase("form")}
-                className="mt-4 cursor-pointer text-sm font-semibold text-leaf underline underline-offset-4 transition hover:text-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-              >
-                Back to checkout form
-              </button>
-            ) : null
-          }
-        />
-      </main>
-    );
-  }
 
   return (
     <main
@@ -328,29 +197,17 @@ export function CheckoutPageContent({
 
         <button
           type="button"
-          onClick={onPlaceOrder}
-          aria-label="Place order with cash on delivery"
-          className="group flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-track px-5 py-4 text-base font-extrabold text-black shadow-[0_7px_0_0_#1f5c1f,0_14px_28px_rgba(47,107,47,0.28)] transition-[transform,box-shadow,background-color] duration-150 ease-out hover:bg-leaf-bright motion-safe:active:translate-y-[5px] motion-safe:active:shadow-[0_2px_0_0_#1f5c1f,0_6px_14px_rgba(47,107,47,0.22)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+          disabled
+          aria-label="Place order is unavailable until checkout is connected"
+          className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-full bg-track px-5 py-4 text-base font-extrabold text-black opacity-50 shadow-[0_7px_0_0_#1f5c1f]"
         >
           Place Order
           <Check className="h-5 w-5" aria-hidden />
         </button>
 
-        {placeError ? (
-          <p
-            className="text-center text-[13px] font-medium text-red-600"
-            role="alert"
-          >
-            {placeError}
-          </p>
-        ) : (
-          <p
-            className="text-center text-[13px] font-medium text-muted"
-            role="status"
-          >
-            Preview — Place Order does not submit a real order.
-          </p>
-        )}
+        <p className="text-center text-[13px] font-medium text-muted" role="status">
+          Place Order stays off until the shop can accept the order.
+        </p>
       </div>
 
       <AddressBookSheet open={sheetOpen} onOpenChange={setSheetOpen} />

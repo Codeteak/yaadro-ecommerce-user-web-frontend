@@ -1,4 +1,4 @@
-import { cacheLife } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import { mapCatalogProduct } from "@/lib/catalog-map";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
 import type { SampleProduct } from "@/lib/sample-products";
@@ -137,6 +137,7 @@ export function isProductUuid(value: string): boolean {
 
 export async function listStoreCategories(): Promise<StoreCategory[]> {
   "use cache";
+  cacheTag("storefront-catalog");
   cacheLife("minutes");
   const json = asRecord(await apiGet("/api/storefront/categories?all=true"));
   const rows = Array.isArray(json?.categories) ? json.categories : [];
@@ -185,6 +186,7 @@ export async function listStoreProducts(options?: {
   search?: string;
 }): Promise<ProductGroup[]> {
   "use cache";
+  cacheTag("storefront-catalog");
   cacheLife("minutes");
   const groups: ProductGroup[] = [];
   let cursor: string | null = null;
@@ -210,6 +212,7 @@ export async function getStoreProduct(idOrSlug: string): Promise<{
   seoDescription?: string;
 } | null> {
   "use cache";
+  cacheTag("storefront-catalog");
   cacheLife("minutes");
   const path = isProductUuid(idOrSlug)
     ? `/api/storefront/products/id/${idOrSlug}`
@@ -235,6 +238,7 @@ export async function getStoreProduct(idOrSlug: string): Promise<{
 
 export async function listHomeShelves(): Promise<StoreShelf[]> {
   "use cache";
+  cacheTag("storefront-catalog");
   cacheLife("minutes");
   const json = asRecord(await apiGet("/api/storefront/home-sections"));
   const data = asRecord(json?.data) ?? json;
@@ -458,6 +462,92 @@ export async function loadCategoryListing(
     })),
     products,
   };
+}
+
+export type CategoryBrowserData = {
+  ok: boolean;
+  error: string | null;
+  branches: CategoryBranch[];
+  products: SampleProduct[];
+  /** `all`, `cat:<slug>`, or `sub:<slug>`. */
+  selectedKey: string;
+};
+
+/**
+ * Categories screen payload: the aisle tree, plus products for one
+ * category. `all` sends no products so the first visit does not ship
+ * the whole catalog.
+ */
+export async function loadCategoryBrowser(
+  cat: string | undefined,
+): Promise<CategoryBrowserData> {
+  try {
+    const categories = await listStoreCategories();
+    const roots = categories.filter(
+      (category) => !category.parentId && category.slug !== "all",
+    );
+    const branches: CategoryBranch[] = roots.map((root) => ({
+      id: root.id,
+      name: root.name,
+      slug: root.slug,
+      image: root.image,
+      children: categories
+        .filter((row) => row.parentId === root.id)
+        .map((row) => ({
+          id: row.id,
+          name: row.name,
+          slug: row.slug,
+          image: row.image,
+        })),
+    }));
+
+    if (cat === "all") {
+      return {
+        ok: true,
+        error: null,
+        branches,
+        products: [],
+        selectedKey: "all",
+      };
+    }
+
+    const requested = cat
+      ? categories.find((row) => row.slug === cat && row.slug !== "all")
+      : undefined;
+    const category =
+      requested ?? categories.find((row) => row.slug === branches[0]?.slug);
+    if (!category) {
+      return {
+        ok: true,
+        error: null,
+        branches,
+        products: [],
+        selectedKey: "all",
+      };
+    }
+
+    const groups = await listStoreProducts({ categoryId: category.id });
+    const products = groups.flatMap((group) =>
+      group.products.map((product) => ({
+        ...product,
+        category: group.category?.name ?? category.name,
+        categoryId: group.category?.id ?? category.id,
+        categorySlug: group.category?.slug ?? category.slug,
+      })),
+    );
+    const selectedKey = category.parentId
+      ? `sub:${category.slug}`
+      : `cat:${category.slug}`;
+    return { ok: true, error: null, branches, products, selectedKey };
+  } catch {
+    return {
+      ok: false,
+      error: "We couldn't load categories. Pull to try again.",
+      branches: [],
+      products: [],
+      selectedKey: "all",
+    };
+  }
 }
 
 export function isLocalShopHost(hostname: string): boolean {
