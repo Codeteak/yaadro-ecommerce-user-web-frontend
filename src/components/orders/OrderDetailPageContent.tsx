@@ -338,9 +338,11 @@ function OrderDetailBody({
           <span className="grid h-10 w-10 place-items-center rounded-full bg-[#E4E4E8] text-muted">
             <MessageCircle className="h-4 w-4" aria-hidden />
           </span>
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-[#E4E4E8] text-forest">
-            <Phone className="h-4 w-4" aria-hidden />
-          </span>
+          {delivered ? null : (
+            <span className="grid h-10 w-10 place-items-center rounded-full bg-[#E4E4E8] text-forest">
+              <Phone className="h-4 w-4" aria-hidden />
+            </span>
+          )}
         </div>
 
         <div className="mt-3.5 rounded-3xl bg-[#F4F4F6] px-4 pt-4 pb-5">

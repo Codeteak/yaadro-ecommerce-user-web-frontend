@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-17 — Delivered orders hide the partner number
+
+A delivered order no longer shows the delivery partner call button on the order detail opened from order history. Orders that are still on the way keep it.
+
 ## 2026-11-17 — Profile menu without Settings
 
 The profile menu no longer lists Setting. The `/profile/settings` stub page is removed. My Profile, Address Management, and Help & Support stay.
