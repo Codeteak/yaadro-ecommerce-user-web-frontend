@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-17 — Minimum order returns to step 1
+
+If the shop rejects an order because the basket is under its minimum, checkout no longer prints that note and a reference id under Place Order. A warning card says this is step 1, the cart, and the shopper is taken back to the cart page. The cart header reads “Step 1 · Your cart”.
+
 ## 2026-11-17 — One status popup
 
 Success, error, info, and warning results now use one centered card. Pages call `showPopup(message, type)`. The card is the only thing that re-renders, and the screen blurs lightly while it is open. Field errors stay next to the input.

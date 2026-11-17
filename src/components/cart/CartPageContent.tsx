@@ -111,6 +111,9 @@ export function CartPageContent({
       )}
     >
       <PageHeader backHref={inline ? "/playground" : "/home"} title="Cart" />
+      <p className="pb-1 text-center text-[13px] font-semibold text-forest">
+        Step 1 · Your cart
+      </p>
 
       {/* Plain scroller — PullToRefresh touch handlers blocked cart scroll.
           -mx/px gives shadow bleed room (overflow-y also clips the sides). */}

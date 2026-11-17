@@ -195,11 +195,12 @@ export function CheckoutPageContent({
         error instanceof ApiError
           ? error.message
           : "We couldn't place the order. Check your connection and try again.";
-      setPlaceError(
-        error instanceof ApiError && error.requestId
-          ? `${message} Reference ${error.requestId}.`
-          : message,
-      );
+      if (/minimum order/i.test(message)) {
+        showPopup(`This is step 1, your cart. ${message}`, "warning");
+        router.push(inline ? "/playground/cart-page" : "/cart");
+        return;
+      }
+      setPlaceError(message);
       if (error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 429) {
         idempotencyKey.current = null;
       }
