@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-17 — Status card uses the storefront type
+
+The status card now uses Plus Jakarta Sans, the forest title, the 15px and 13px sizes, and the same white card, green shadow, and leaf, mint, and red used on the other screens.
+
+## 2026-11-17 — Cart checks the shop rules before checkout
+
+Checkout stays on the cart until the shop preview says the basket passes. A short warning covers the minimum order, a coupon the shop rejected, a missing product, or a line over 10. The next page opens only after that check succeeds. If placing the order later fails for one of those basket rules, the same warning sends the shopper back to the cart.
+
 ## 2026-11-17 — Status card sits at the top
 
 The status card now pins to the top of the window on every page. It still blurs the screen and dismisses itself.

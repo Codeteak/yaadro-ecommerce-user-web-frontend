@@ -27,9 +27,9 @@ const TITLE: Record<PopupType, string> = {
 
 const ICON_CLASS: Record<PopupType, string> = {
   success: "bg-leaf text-white",
-  error: "bg-red-500 text-white",
-  info: "bg-forest text-white",
-  warning: "bg-amber-500 text-white",
+  error: "bg-red-600 text-white",
+  info: "bg-mint text-forest",
+  warning: "bg-amber-50 text-amber-600 ring-1 ring-amber-400",
 };
 
 const DISMISS_MS = 2800;
@@ -82,14 +82,14 @@ export function ToastViewport() {
         type="button"
         onClick={dismiss}
         role={popup.type === "error" ? "alert" : "status"}
-        className="popup-card relative flex w-full max-w-sm items-center gap-3.5 rounded-[1.75rem] bg-white px-4 py-4 text-left shadow-[0_18px_40px_rgba(20,20,40,0.16)]"
+        className="popup-card font-sans relative flex w-full max-w-sm items-center gap-3 rounded-2xl bg-white px-3.5 py-3.5 text-left shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10"
       >
         <PopupIcon type={popup.type} />
         <span className="min-w-0 flex-1">
-          <span className="block text-[16px] leading-tight font-extrabold text-black">
+          <span className="block text-[15px] leading-tight font-bold tracking-tight text-forest">
             {TITLE[popup.type]}
           </span>
-          <span className="mt-1 block text-[13px] leading-5 font-medium text-muted">
+          <span className="mt-0.5 block text-[13px] leading-5 font-medium text-muted">
             {popup.message}
           </span>
         </span>
@@ -102,7 +102,7 @@ export function ToastViewport() {
 function PopupIcon({ type }: { type: PopupType }) {
   return (
     <span
-      className={`popup-icon grid h-12 w-12 shrink-0 place-items-center rounded-full ${ICON_CLASS[type]}`}
+      className={`popup-icon grid h-11 w-11 shrink-0 place-items-center rounded-full ${ICON_CLASS[type]}`}
     >
       <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden>
         {type === "success" ? (

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import {
   ArrowRight,
@@ -24,6 +25,13 @@ import {
 import { CartSuggestions } from "@/components/cart/CartSuggestions";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import { showPopup } from "@/components/ui/Toast";
+import { previewCart } from "@/lib/api/cart";
+import { ApiError } from "@/lib/api/errors";
+import {
+  localCheckoutWarning,
+  previewCheckoutWarning,
+  shopCheckoutLines,
+} from "@/lib/cart-checkout-rules";
 import { cn } from "@/lib/cn";
 import { isProductImageFallback, productPhoto } from "@/lib/product-image";
 
@@ -56,6 +64,8 @@ export function CartPageContent({
   showCartSuggestions = false,
 }: CartPageContentProps) {
   const inline = chromePosition === "inline";
+  const router = useRouter();
+  const [checkingOut, setCheckingOut] = useState(false);
   const {
     items,
     setQty,
@@ -100,6 +110,46 @@ export function CartPageContent({
     setPromoInput("");
     setPromoMessage(null);
     showPopup("Promo removed", "info");
+  };
+
+  const onCheckout = async () => {
+    if (checkingOut) return;
+    const next = inline ? "/playground/checkout" : "/checkout";
+    const lines = shopCheckoutLines(items);
+    if (lines.length === 0) {
+      router.push(next);
+      return;
+    }
+    const local = localCheckoutWarning(lines);
+    if (local) {
+      showPopup(local, "warning");
+      return;
+    }
+    setCheckingOut(true);
+    try {
+      const preview = await previewCart({
+        items: lines,
+        couponCode: applied?.code ?? null,
+        includeSuggestedCoupons: false,
+      });
+      const warning = previewCheckoutWarning(
+        preview,
+        lines.map((line) => line.productId),
+      );
+      if (warning) {
+        showPopup(warning, "warning");
+        return;
+      }
+      router.push(next);
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : "We couldn't check this basket. Try again.";
+      showPopup(message, "error");
+    } finally {
+      setCheckingOut(false);
+    }
   };
 
   return (
@@ -404,21 +454,23 @@ export function CartPageContent({
               : "fixed inset-x-0 bottom-0 mx-auto w-full max-w-lg pb-[max(1.25rem,env(safe-area-inset-bottom))]",
           )}
         >
-          <Link
-            href={inline ? "/playground/checkout" : "/checkout"}
+          <button
+            type="button"
+            onClick={() => void onCheckout()}
+            disabled={checkingOut}
             aria-label="Proceed to checkout"
-            className="group pointer-events-auto relative flex w-full cursor-pointer items-center rounded-full bg-track px-5 py-4 text-black shadow-[0_7px_0_0_#1f5c1f,0_14px_28px_rgba(47,107,47,0.28)] transition-[transform,box-shadow,background-color] duration-150 ease-out hover:bg-leaf-bright motion-safe:active:translate-y-[5px] motion-safe:active:shadow-[0_2px_0_0_#1f5c1f,0_6px_14px_rgba(47,107,47,0.22)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+            className="group pointer-events-auto relative flex w-full cursor-pointer items-center rounded-full bg-track px-5 py-4 text-black shadow-[0_7px_0_0_#1f5c1f,0_14px_28px_rgba(47,107,47,0.28)] transition-[transform,box-shadow,background-color] duration-150 ease-out hover:bg-leaf-bright motion-safe:active:translate-y-[5px] motion-safe:active:shadow-[0_2px_0_0_#1f5c1f,0_6px_14px_rgba(47,107,47,0.22)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf disabled:cursor-wait disabled:opacity-70"
           >
             <span className="text-xl leading-tight font-extrabold tabular-nums">
               ₹{totalDue}
             </span>
             <span className="absolute left-1/2 -translate-x-1/2 text-base font-extrabold tracking-tight text-black">
-              Checkout
+              {checkingOut ? "Checking…" : "Checkout"}
             </span>
             <span className="ml-auto grid h-11 w-11 place-items-center rounded-full bg-white text-black shadow-[0_3px_0_0_rgba(0,0,0,0.12)] motion-safe:group-active:shadow-none">
               <ArrowRight className="h-5 w-5 text-black" aria-hidden />
             </span>
-          </Link>
+          </button>
         </div>
       ) : null}
     </main>

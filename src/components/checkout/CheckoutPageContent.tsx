@@ -13,6 +13,7 @@ import { placeCheckoutOrder } from "@/lib/api/checkout";
 import { ApiError } from "@/lib/api/errors";
 import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
 import { showPopup } from "@/components/ui/Toast";
+import { isBasketCheckoutFailure } from "@/lib/cart-checkout-rules";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import { cn } from "@/lib/cn";
 import {
@@ -195,11 +196,12 @@ export function CheckoutPageContent({
         error instanceof ApiError
           ? error.message
           : "We couldn't place the order. Check your connection and try again.";
-      if (/minimum order/i.test(message)) {
-        showPopup(`This is step 1, your cart. ${message}`, "warning");
+      if (error instanceof ApiError && isBasketCheckoutFailure(error.code, message)) {
+        showPopup(message, "warning");
         router.push(inline ? "/playground/cart-page" : "/cart");
         return;
       }
+      showPopup(message, "error");
       setPlaceError(message);
       if (error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 429) {
         idempotencyKey.current = null;
