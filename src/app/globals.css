@@ -52,15 +52,49 @@ body {
   }
 }
 
-@keyframes toast-island-in {
+@keyframes popup-card-in {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(0.94);
+    transform: translateY(-12px) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: none;
   }
+}
+
+@keyframes popup-icon-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes popup-stroke {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.popup-card {
+  animation: popup-card-in 280ms ease-out;
+}
+
+.popup-icon {
+  animation: popup-icon-pop 280ms ease-out;
+}
+
+.popup-stroke {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: popup-stroke 450ms ease-out 120ms forwards;
 }
 
 @keyframes onboarding-hero-float {

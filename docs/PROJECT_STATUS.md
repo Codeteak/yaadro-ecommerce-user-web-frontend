@@ -11,18 +11,18 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 | Area | Status | Notes |
 |------|--------|--------|
 | Onboarding `/` | Done | Hero, swipe CTA, guest link |
-| Login `/login` | UI done | Phone +91 / OTP; API pending |
-| Home / catalog | Live database | Categories, products, product detail, and home shelves are read on the server from `DATABASE_URL` with the shop API's filters. Shop name and SEO still use the customer API, with a Yaadro fallback. Offer prices come from the product row. Campaign overlays are not copied. `/categories` and `/categories/[slug]` use horizontal HomeSearchBar + pill CategoryRail; `/categories` defaults to All. Legacy sidebars kept on playground `category-browser` / `category-plp`. |
-| Cart `/cart` | UI done | List, promo field, 3D Checkout pill (checkout not faked). “You may also like” uses the live catalog. |
+| Login `/login` | UI done | Phone +91 / OTP. Success toast sits at the top, then the page returns home (or the safe `next` path). |
+| Home / catalog | Live database | Categories, products, product detail, and home shelves are read on the server from `DATABASE_URL` with the shop API's filters. Shop name and SEO still use the customer API, with a Yaadro fallback. Offer prices come from the product row. Campaign overlays are not copied. |
+| Cart `/cart` | UI done | List, promo field, 3D Checkout pill. Checkout asks the shop to price the basket first and stays on the cart when the minimum, coupon, or product rules fail. “You may also like” uses the live catalog. |
 | Coupons `/coupons` | UI done | Comfortable ticket body (discount → title → code); sample via `lib/api/coupons` |
 | Wishlist `/wishlist` | UI done | Local signed-in scaffold; façade `lib/api/wishlist` |
 | Checkout `/checkout` | UI done | COD only; Place Order → Order placed (mascot + bill card + View Order / Back home); stub only |
 | Order placed | Done | Shared `OrderPlacedContent`; playground `/playground/order-placed` |
 | Orders `/orders` | UI done | Grocery cards + ORDER STATUS detail via `lib/api/orders` |
-| Toasts | Done | Island snackbars + SVG Repo icons; storefront + playground |
+| Toasts | Done | One card at the top of the screen via `showPopup(message, type)`; light blur while open |
 | Live order track | Playground | `/playground/live-order-track` — green theme; not on `/orders` yet |
 | Bottom nav | Done | Home, Categories, Wishlist, Profile |
-| Auth / session | Missing | Wishlist uses `previewSignedIn` until session API |
+| Auth / session | Live | Home header profile icon follows the OTP session. Wishlist still uses the session flag from `CustomerSession`. |
 | Payment / real place-order | Missing | — |
 
 ## Routes

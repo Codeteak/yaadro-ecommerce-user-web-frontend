@@ -5,7 +5,7 @@ import { Check, Copy, Download, X } from "lucide-react";
 import { orderLineLabel, type SampleOrder } from "@/lib/sample-orders";
 import { BrandFooter } from "@/components/storefront/BrandFooter";
 import { useShopName } from "@/components/shop/ShopNameProvider";
-import { useToastOptional } from "@/components/ui/ToastContext";
+import { showPopup } from "@/components/ui/Toast";
 import {
   billedTotal,
   deliveryCharge,
@@ -28,7 +28,6 @@ export function OrderTicketBill({
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
   const shopName = useShopName();
-  const toast = useToastOptional();
   const charge = deliveryCharge(order);
   const total = billedTotal(order);
 
@@ -38,7 +37,7 @@ export function OrderTicketBill({
     const ticket = ticketRef.current;
     const canvas = ticket ? paintTicketPng(ticket, order, shopName) : null;
     if (!canvas || !navigator.clipboard?.write) {
-      toast?.error("Couldn’t copy");
+      showPopup("Couldn’t copy", "error");
       return;
     }
     const png = new Promise<Blob>((resolve, reject) => {
@@ -47,21 +46,21 @@ export function OrderTicketBill({
     void navigator.clipboard.write([new ClipboardItem({ "image/png": png })]).then(
       () => {
         setCopied(true);
-        toast?.success("Copied");
+        showPopup("Copied", "success");
         window.setTimeout(() => setCopied(false), 1600);
       },
-      () => toast?.error("Couldn’t copy"),
+      () => showPopup("Couldn’t copy", "error"),
     );
   };
 
   const download = () => {
     const ticket = ticketRef.current;
     if (!ticket || !saveTicketPng(ticket, order, shopName)) {
-      toast?.error("Something went wrong. Try again.");
+      showPopup("Something went wrong. Try again.", "error");
       return;
     }
     setSaved(true);
-    toast?.success("Download started");
+    showPopup("Download started", "success");
     window.setTimeout(() => setSaved(false), 1600);
   };
 

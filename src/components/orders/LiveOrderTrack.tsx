@@ -12,7 +12,7 @@ import {
 import { BackButton } from "@/components/navigation/BackButton";
 import { OrderTicketBill } from "@/components/orders/lead-order-shared";
 import { BrandFooter } from "@/components/storefront/BrandFooter";
-import { useToastOptional } from "@/components/ui/ToastContext";
+import { showPopup } from "@/components/ui/Toast";
 import { getOrder, getOrderByNumber, listOrders } from "@/lib/api/orders";
 import { cn } from "@/lib/cn";
 import {
@@ -73,7 +73,6 @@ export function LiveOrderTrack({
     () => resolveBillOrder(orderProp, sample),
     [orderProp, sample.trackingId, sample.billNo, sample.phase],
   );
-  const toast = useToastOptional();
   const canLiveTrack = sample.phase === "out_for_delivery";
   /** Start with mascot; user opens Live Track for the map. */
   const [mapOpen, setMapOpen] = useState(false);
@@ -81,18 +80,18 @@ export function LiveOrderTrack({
 
   const copyText = (value: string) => {
     if (!navigator.clipboard?.writeText) {
-      toast?.error("Couldn’t copy");
+      showPopup("Couldn’t copy", "error");
       return;
     }
     void navigator.clipboard.writeText(value).then(
-      () => toast?.success("Copied"),
-      () => toast?.error("Couldn’t copy"),
+      () => showPopup("Copied", "success"),
+      () => showPopup("Couldn’t copy", "error"),
     );
   };
 
   const openBill = () => {
     if (!billOrder) {
-      toast?.error("Bill isn’t available");
+      showPopup("Bill isn’t available", "error");
       return;
     }
     setBillOpen(true);

@@ -1,76 +1,44 @@
 # Implementation Log
 
-## 2026-11-17 — Categories loading accuracy
+## 2026-11-17 — Status card uses the storefront type
 
-### What changed
+The status card now uses Plus Jakarta Sans, the forest title, the 15px and 13px sizes, and the same white card, green shadow, and leaf, mint, and red used on the other screens.
 
-- `/categories` with no `cat` defaults to All (full capped catalog), same as `cat=all`.
-- `CategoryBrowser` always client-scopes with `productsFor` + optimistic rail selection while the server catches up.
-- `CategoriesHubSkeleton` / `CategoryPlpSkeleton` match horizontal search + pill rail chrome (no hub grid / sidebar flash).
+## 2026-11-17 — Cart checks the shop rules before checkout
 
-### Verify
+Checkout stays on the cart until the shop preview says the basket passes. A short warning covers the minimum order, a coupon the shop rejected, a missing product, or a line over 10. The next page opens only after that check succeeds. If placing the order later fails for one of those basket rules, the same warning sends the shopper back to the cart.
 
-Open `/categories` — All selected with products. Switch aisles — rail + grid update immediately. Hard refresh — skeleton looks like the horizontal layout.
+## 2026-11-17 — Status card sits at the top
 
-## 2026-11-17 — Categories “All” loads products
+The status card now pins to the top of the window on every page. It still blurs the screen and dismisses itself.
 
-### What changed
+## 2026-11-17 — Minimum order returns to step 1
 
-`loadCategoryBrowser("all")` used to return `products: []` on purpose. It now calls `listStoreProducts()` (same cap as home) so the All pill shows the catalog.
+If the shop rejects an order because the basket is under its minimum, checkout no longer prints that note and a reference id under Place Order. A warning card says this is step 1, the cart, and the shopper is taken back to the cart page. The cart header reads “Step 1 · Your cart”.
 
-### Verify
+## 2026-11-17 — One status popup
 
-`/categories?cat=all` — product grid populated; empty only when catalog is empty.
+Success, error, info, and warning results now use one centered card. Pages call `showPopup(message, type)`. The card is the only thing that re-renders, and the screen blurs lightly while it is open. Field errors stay next to the input.
 
-## 2026-11-17 — Wire horizontal Categories browser to ecom
+## 2026-11-17 — One delivery address
 
-### What changed
+Profile address no longer offers a second address, a default star, or the sample Home and Office rows. Saving replaces the single address used by home and checkout.
 
-Bottom-nav `/categories` (`CategoryBrowser` via `CategoriesPageContent`) now uses `railLayout="horizontal"` (HomeSearchBar + home pill rail). `/categories/[slug]` already horizontal. Playground keeps legacy sidebars: `category-browser`, `category-plp`.
+## 2026-11-17 — Delivered orders hide the partner number
 
-### Verify
+A delivered order no longer shows the delivery partner call button on the order detail opened from order history. Orders that are still on the way keep it.
 
-Open `/categories` — horizontal pill rail, no left sidebar. `/playground/category-browser` still shows the old sidebar.
+## 2026-11-17 — Profile menu without Settings
 
-## 2026-11-17 — Wire horizontal Category PLP to ecom
+The profile menu no longer lists Setting. The `/profile/settings` stub page is removed. My Profile, Address Management, and Help & Support stay.
 
-### What changed
+## 2026-11-17 — Signed-in home header
 
-`/categories/[slug]` and `CachedCategoryPage` pass `railLayout="horizontal"`. Playground keeps both demos: `category-plp` (legacy sidebar) and `category-plp-horizontal` (matches live ecom).
+A successful OTP login shows "You're signed in." in the top toast, then follows the existing return path (`/home` when none was asked). The home header profile icon reads the current session in its own link, so the rest of the bar does not re-render.
 
-### Verify
+## 2026-11-17 — Product card size
 
-Open a live category slug — HomeSearchBar + pill rail. Open `/playground/category-plp` — old sidebar still there.
-
-## 2026-11-17 — Category PLP horizontal rail (playground only)
-
-### What changed
-
-New playground demo `/playground/category-plp-horizontal` (group **Experiments**). `CategoryListing` gained optional `railLayout="horizontal"` (default remains `sidebar`): uses ecom `/categories` `HomeSearchBar` (filter toggles chips) + home pill `CategoryRail` + full-width cards. Ecom `/categories/[slug]` still sidebar + icon search.
-
-### Verify
-
-Open `/playground/category-plp-horizontal` — HomeSearchBar + home pill rail in one chrome block (single bottom border) + full-width 2-col grid.
-
-## 2026-11-17 — Empty-orders mascot refresh
-
-### What changed
-
-Replaced `public/orders/empty-orders.png` with the new Order History empty mascot (transparent 1024²). Ecom + playground empty/guest orders already use that path (`w-52`, same as coupons/wishlist). Removed `empty-orders-mascot.jpg` source leftover.
-
-## 2026-11-17 — Guest empty states for orders + coupons
-
-### What changed
-
-Guest `/orders` and `/coupons`: mascot + **Sign in** hyperlink and CTA → `/login?next=…`. Signed-in empty orders use bag mascot + Shop now. New playground demos: `orders-guest`, `coupons-guest`.
-
-### Files
-
-| Path | Change |
-|------|--------|
-| `src/components/orders/OrdersPageContent.tsx` | Guest + signed-in empty with mascot |
-| `src/components/coupons/CouponsPageContent.tsx` | Guest empty with mascot + Sign in |
-| Playground catalog / demos / usage | `orders-guest`, `coupons-guest` |
+The default product card now uses a square photo, 20px corners, a 32px two-line name, a 14px unit line, and a 44px add control. Compact rail cards are unchanged. The page grid is unchanged.
 
 ## 2026-11-16 — Catalog reads from Postgres
 

@@ -31,7 +31,6 @@ export function AddressDetailsStep({
   );
   const [building, setBuilding] = useState(editing?.building ?? "");
   const [street, setStreet] = useState(editing?.street ?? place.street);
-  const [isDefault, setIsDefault] = useState(editing?.isDefault ?? true);
   const [instructions, setInstructions] = useState(
     editing?.instructions ?? "",
   );
@@ -62,7 +61,7 @@ export function AddressDetailsStep({
       pin: place.pin || editing?.pin || "",
       landmark: place.landmark || editing?.landmark || "",
       instructions: instructions.trim(),
-      isDefault,
+      isDefault: true,
       lat: place.lat ?? editing?.lat,
       lng: place.lng ?? editing?.lng,
     });
@@ -171,22 +170,6 @@ export function AddressDetailsStep({
           </div>
         </div>
 
-        <label className="mt-4 flex cursor-pointer items-start gap-3">
-          <input
-            type="checkbox"
-            checked={isDefault}
-            onChange={(e) => setIsDefault(e.target.checked)}
-            className="mt-1 h-4 w-4 rounded border-forest/30 text-leaf accent-leaf"
-          />
-          <span>
-            <span className="block text-sm font-bold text-ink">
-              Set as default address
-            </span>
-            <span className="text-[12px] text-muted">
-              Used automatically for Deliver to and checkout.
-            </span>
-          </span>
-        </label>
       </section>
 
       <section>

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useSyncExternalStore } from "react";
 import { rememberProduct } from "@/lib/product-snapshots";
-import { useToastOptional } from "@/components/ui/ToastContext";
+import { showPopup } from "@/components/ui/Toast";
 import type { SampleProduct } from "@/lib/sample-products";
 import {
   hasStoredWishlistId,
@@ -19,7 +19,6 @@ import {
  */
 export function useWishlistToggle(product: SampleProduct) {
   const router = useRouter();
-  const toast = useToastOptional();
   const meta = useWishlistMeta();
   const ephemeralIds = useWishlistIds();
   const stored = useSyncExternalStore(
@@ -36,7 +35,7 @@ export function useWishlistToggle(product: SampleProduct) {
 
   const onToggle = useCallback(() => {
     if (!meta?.signedIn) {
-      toast?.info("Sign in to save favourites");
+      showPopup("Sign in to save favourites", "info");
       router.push("/login");
       return;
     }
@@ -44,9 +43,9 @@ export function useWishlistToggle(product: SampleProduct) {
     rememberProduct(product);
     if (meta.ephemeral) meta.toggle(product.id);
     else toggleStoredWishlistId(product.id);
-    if (wasSaved) toast?.info("Removed from wishlist");
-    else toast?.success("Saved to wishlist");
-  }, [ephemeralIds, meta, product, router, stored, toast]);
+    if (wasSaved) showPopup("Removed from wishlist", "info");
+    else showPopup("Saved to wishlist", "success");
+  }, [ephemeralIds, meta, product, router, stored]);
 
   const ariaLabel = !meta?.signedIn
     ? `Sign in to save ${product.name}`

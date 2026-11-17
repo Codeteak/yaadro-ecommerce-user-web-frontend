@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test src/lib/api/errors.test.ts src/lib/delivery-location.test.ts src/lib/db/catalog-query.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/api/errors.test.ts src/lib/delivery-location.test.ts src/lib/db/catalog-query.test.ts src/lib/cart-checkout-rules.test.ts",
     "prepare": "husky"
   },
   "dependencies": {

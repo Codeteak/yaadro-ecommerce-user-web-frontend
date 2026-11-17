@@ -647,25 +647,16 @@ import {
     ["src/components/ui/Skeleton.tsx", "src/components/ui/skeletons.tsx"],
   ),
   toasts: U(
-    `import { ToastProvider, useToast } from "@/components/ui/ToastContext";
+    `import { showPopup } from "@/components/ui/Toast";
 
-// Root layout wraps ToastProvider (survives route changes).
-function Example() {
-  const toast = useToast();
-  return (
-    <button type="button" onClick={() => toast.success("Saved to wishlist")}>
-      Save
-    </button>
-  );
-}`,
+showPopup("Saved to wishlist", "success");
+showPopup("Code not found", "error");
+showPopup("Promo removed", "info");
+showPopup("Prices may vary on some products.", "warning");`,
     [
-      "src/components/ui/ToastContext.tsx",
+      "src/components/ui/Toast.tsx",
       "src/components/playground/ToastDemo.tsx",
-      "src/app/layout.tsx",
-      "public/toasts/success.svg",
-      "public/toasts/error.svg",
-      "public/toasts/info.svg",
-      "public/toasts/warning.svg",
+      "src/components/providers/AppProviders.tsx",
     ],
   ),
 };

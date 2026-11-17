@@ -1,64 +1,172 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { create } from "zustand";
 
-type ToastTone = "success" | "error" | "info";
+export type PopupType = "success" | "error" | "info" | "warning";
 
-type Toast = {
+type Popup = {
   id: number;
-  tone: ToastTone;
+  type: PopupType;
   message: string;
 };
 
-type ToastState = {
-  toasts: Toast[];
-  push: (tone: ToastTone, message: string) => void;
-  dismiss: (id: number) => void;
+type PopupState = {
+  popup: Popup | null;
+  show: (message: string, type: PopupType) => void;
+  dismiss: () => void;
 };
 
-let nextId = 1;
+const TITLE: Record<PopupType, string> = {
+  success: "Done",
+  error: "Something went wrong",
+  info: "Note",
+  warning: "Check this",
+};
 
-export const useToasts = create<ToastState>((set) => ({
-  toasts: [],
-  push: (tone, message) => {
+const ICON_CLASS: Record<PopupType, string> = {
+  success: "bg-leaf text-white",
+  error: "bg-red-600 text-white",
+  info: "bg-mint text-forest",
+  warning: "bg-amber-50 text-amber-600 ring-1 ring-amber-400",
+};
+
+const DISMISS_MS = 2800;
+
+let nextId = 1;
+let timer = 0;
+
+export const usePopup = create<PopupState>((set, get) => ({
+  popup: null,
+  show: (message, type) => {
     const id = nextId++;
-    set((state) => ({ toasts: [...state.toasts, { id, tone, message }].slice(-3) }));
-    window.setTimeout(() => {
-      set((state) => ({ toasts: state.toasts.filter((toast) => toast.id !== id) }));
-    }, 4200);
+    window.clearTimeout(timer);
+    set({ popup: { id, type, message } });
+    timer = window.setTimeout(() => {
+      if (get().popup?.id === id) set({ popup: null });
+    }, DISMISS_MS);
   },
-  dismiss: (id) => set((state) => ({ toasts: state.toasts.filter((toast) => toast.id !== id) })),
+  dismiss: () => {
+    window.clearTimeout(timer);
+    set({ popup: null });
+  },
 }));
 
-export function showToast(tone: ToastTone, message: string) {
-  useToasts.getState().push(tone, message);
+/** Show one status card. A new call replaces the card that is already open. */
+export function showPopup(message: string, type: PopupType) {
+  usePopup.getState().show(message, type);
 }
 
+/** Only this viewport re-renders when a popup opens or closes. */
 export function ToastViewport() {
-  const toasts = useToasts((state) => state.toasts);
-  const dismiss = useToasts((state) => state.dismiss);
-  if (toasts.length === 0) return null;
+  const popup = usePopup((state) => state.popup);
+  const dismiss = usePopup((state) => state.dismiss);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !popup) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[110] flex items-start justify-center px-5 pt-[max(1.25rem,env(safe-area-inset-top))]">
+      <button
+        type="button"
+        aria-label="Dismiss"
+        className="absolute inset-0 cursor-default bg-black/20 backdrop-blur-[2px]"
+        onClick={dismiss}
+      />
+      <button
+        type="button"
+        onClick={dismiss}
+        role={popup.type === "error" ? "alert" : "status"}
+        className="popup-card font-sans relative flex w-full max-w-sm items-center gap-3 rounded-2xl bg-white px-3.5 py-3.5 text-left shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10"
+      >
+        <PopupIcon type={popup.type} />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] leading-tight font-bold tracking-tight text-forest">
+            {TITLE[popup.type]}
+          </span>
+          <span className="mt-0.5 block text-[13px] leading-5 font-medium text-muted">
+            {popup.message}
+          </span>
+        </span>
+      </button>
+    </div>,
+    document.body,
+  );
+}
+
+function PopupIcon({ type }: { type: PopupType }) {
   return (
-    <div
-      className="pointer-events-none fixed inset-x-0 bottom-6 z-[80] mx-auto flex w-full max-w-lg flex-col gap-2 px-5"
-      aria-live="polite"
+    <span
+      className={`popup-icon grid h-11 w-11 shrink-0 place-items-center rounded-full ${ICON_CLASS[type]}`}
     >
-      {toasts.map((toast) => (
-        <button
-          key={toast.id}
-          type="button"
-          onClick={() => dismiss(toast.id)}
-          className={`pointer-events-auto rounded-2xl px-4 py-3 text-left text-sm font-semibold shadow-lg ${
-            toast.tone === "error"
-              ? "bg-red-700 text-white"
-              : toast.tone === "success"
-                ? "bg-forest text-white"
-                : "bg-black text-white"
-          }`}
-        >
-          {toast.message}
-        </button>
-      ))}
-    </div>
+      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden>
+        {type === "success" ? (
+          <path
+            d="M5 12.5 10 17.5 19 7"
+            pathLength="1"
+            className="popup-stroke"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ) : null}
+        {type === "error" ? (
+          <path
+            d="M7 7 17 17 M17 7 7 17"
+            pathLength="1"
+            className="popup-stroke"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+          />
+        ) : null}
+        {type === "info" ? (
+          <>
+            <path
+              d="M12 11v6"
+              pathLength="1"
+              className="popup-stroke"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+            />
+            <path
+              d="M12 7.5h.01"
+              pathLength="1"
+              className="popup-stroke"
+              stroke="currentColor"
+              strokeWidth="3.2"
+              strokeLinecap="round"
+            />
+          </>
+        ) : null}
+        {type === "warning" ? (
+          <>
+            <path
+              d="M12 8v5"
+              pathLength="1"
+              className="popup-stroke"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+            />
+            <path
+              d="M12 16.5h.01"
+              pathLength="1"
+              className="popup-stroke"
+              stroke="currentColor"
+              strokeWidth="3.2"
+              strokeLinecap="round"
+            />
+          </>
+        ) : null}
+      </svg>
+    </span>
   );
 }

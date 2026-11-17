@@ -490,7 +490,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "home-top-bar": () => (
-    <DemoFrame note="Guest shows Sign in (same as /home). Signed in replaces it with the profile-tick icon — no round background. Storefront stays guest until auth.">
+    <DemoFrame note="Guest shows Sign in. Signed in replaces it with the profile-tick icon — no round background. On /home the icon follows the real session.">
       <div className="space-y-6 bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8] px-5 pt-4 pb-6">
         <div>
           <p className="mb-2 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
@@ -499,6 +499,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           <HomeTopBar
             shopName="Yaadro"
             shopImage="/onboarding/brand-mark-white-y.svg"
+            signedIn={false}
           />
         </div>
         <div>
@@ -789,11 +790,11 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   ),
   "address-book": () => <AddressBookDemo initialStep="list" />,
   "address-manage": () => (
-    <DemoFrame note="Same as /profile/addresses: no bottom nav. Black pin, star / edit / delete, Add New Address.">
+    <DemoFrame note="Same as /profile/addresses: one delivery address. Edit or delete it. Add only when none is saved.">
       <div className="bg-paper px-5 py-6">
-        <h2 className="text-xl font-extrabold text-black">Address management</h2>
+        <h2 className="text-xl font-extrabold text-black">Address</h2>
         <p className="mt-1 text-[13px] text-muted">
-          Star a default, edit details, or remove an address.
+          One delivery address for home and checkout.
         </p>
         <SavedAddressesManageList className="mt-5" />
       </div>
@@ -1065,7 +1066,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   toasts: () => (
     <DemoFrame
       surface="bare"
-      note="Floating island snackbars + SVG Repo icons. Root ToastProvider (body portal). Auto-dismiss ~3.2s."
+      note="One status card at the top of the screen. showPopup(message, type). Light blur behind it. Auto-dismiss ~2.8s."
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
         <ToastDemo />

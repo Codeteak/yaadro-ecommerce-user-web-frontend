@@ -1,11 +1,11 @@
 "use client";
 
-import { useToast } from "@/components/ui/ToastContext";
+import { showPopup, type PopupType } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 
 type Sample = {
   label: string;
-  tone: "success" | "error" | "info" | "warning";
+  tone: PopupType;
   message: string;
 };
 
@@ -118,31 +118,29 @@ const SAMPLES: { group: string; items: Sample[] }[] = [
  * Playground lab for toast tones + planned copy strings.
  */
 export function ToastDemo() {
-  const toast = useToast();
-
   return (
     <div className="space-y-6 bg-paper px-4 py-5 sm:px-5">
       <div className="flex flex-wrap gap-2">
         <ToneButton
           label="Success"
           className="bg-mint text-forest"
-          onClick={() => toast.success("Saved to wishlist")}
+          onClick={() => showPopup("Saved to wishlist", "success")}
         />
         <ToneButton
           label="Error"
           className="bg-red-50 text-red-700"
-          onClick={() => toast.error("Code not found")}
+          onClick={() => showPopup("Code not found", "error")}
         />
         <ToneButton
           label="Info"
           className="bg-white text-forest ring-1 ring-forest/15"
-          onClick={() => toast.info("Promo removed")}
+          onClick={() => showPopup("Promo removed", "info")}
         />
         <ToneButton
           label="Warning"
           className="bg-amber-50 text-amber-800"
           onClick={() =>
-            toast.warning("Prices may vary on some products.")
+            showPopup("Prices may vary on some products.", "warning")
           }
         />
       </div>
@@ -158,7 +156,7 @@ export function ToastDemo() {
                 <button
                   type="button"
                   onClick={() =>
-                    toast.push({ message: item.message, tone: item.tone })
+                    showPopup(item.message, item.tone)
                   }
                   className="rounded-full bg-white px-3 py-1.5 text-[12px] font-semibold text-ink ring-1 ring-black/8 transition hover:bg-mint/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
                 >
@@ -171,9 +169,9 @@ export function ToastDemo() {
       ))}
 
       <p className="text-[12px] leading-5 text-muted">
-        Floating island snackbars. Icons from SVG Repo (public/toasts).
-        Auto-dismiss ~3.2s. Wired on storefront (cart, wishlist, coupons,
-        addresses, orders, checkout).
+        One card at the top of the screen. Pass the message and the type. Auto-dismiss
+        ~2.8s. Wired on storefront (cart, wishlist, coupons, addresses,
+        orders, checkout, login).
       </p>
     </div>
   );
