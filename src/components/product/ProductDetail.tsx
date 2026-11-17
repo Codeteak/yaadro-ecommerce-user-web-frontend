@@ -12,6 +12,7 @@ import {
   SAMPLE_PRODUCTS,
   type SampleProduct,
 } from "@/lib/sample-products";
+import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import { ProductCard } from "./ProductCard";
 import { ProductGallery } from "./ProductGallery";
 
@@ -21,6 +22,8 @@ type ProductDetailProps = {
   related?: SampleProduct[];
   backHref?: string;
   onBackClick?: () => void;
+  /** Centered “Prices may vary” message under the gallery (storefront PDP). */
+  showPriceMayVary?: boolean;
 };
 
 function defaultRelated(product: SampleProduct): SampleProduct[] {
@@ -44,6 +47,7 @@ export function ProductDetail({
   related,
   backHref,
   onBackClick,
+  showPriceMayVary = false,
 }: ProductDetailProps) {
   const { wishlisted, onToggle: onWishlistClick, ariaLabel } = useWishlistToggle(product);
   const setCustomizing = useSetCustomizing();
@@ -91,6 +95,9 @@ export function ProductDetail({
       </div>
 
       <div className="mt-5 px-5">
+        {showPriceMayVary ? (
+          <PriceMayVaryNotice variant="soft" className="mb-4" />
+        ) : null}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-xl font-extrabold tracking-tight text-ink">

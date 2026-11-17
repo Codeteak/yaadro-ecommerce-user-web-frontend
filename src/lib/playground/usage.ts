@@ -342,7 +342,7 @@ import { WishlistProvider } from "@/components/wishlist/WishlistContext";
   "cart-page": U(
     `import { CartPageContent } from "@/components/cart/CartPageContent";
 
-// Storefront /cart (and playground) — suggestions + Add more under cart lines
+{/* Same as live /cart */}
 <CartPageContent
   showPriceMayVary
   showCartSuggestions
@@ -362,8 +362,23 @@ import { WishlistProvider } from "@/components/wishlist/WishlistContext";
     `import { ProductDetail } from "@/components/product/ProductDetail";
 import { getSampleProduct } from "@/lib/sample-products";
 
-<ProductDetail product={getSampleProduct("vg-3")!} backHref="/home" />`,
-    ["src/components/product/ProductDetail.tsx"],
+{/* Same as live /product/[id] */}
+<ProductDetail
+  product={getSampleProduct("vg-3")!}
+  backHref="/home"
+  showPriceMayVary
+/>`,
+    [
+      "src/components/product/ProductDetail.tsx",
+      "src/components/storefront/PriceMayVaryNotice.tsx",
+    ],
+  ),
+  "price-may-vary": U(
+    `import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
+
+<PriceMayVaryNotice variant="banner" />
+<PriceMayVaryNotice variant="soft" />`,
+    ["src/components/storefront/PriceMayVaryNotice.tsx"],
   ),
   "onboarding-screen": U(
     `import { OnboardingScreen } from "@/components/onboarding/OnboardingScreen";

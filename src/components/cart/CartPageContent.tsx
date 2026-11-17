@@ -48,6 +48,14 @@ type CartPageContentProps = {
   couponPickerHref?: string;
   /** Show “Prices may vary…” above the bill summary. */
   showPriceMayVary?: boolean;
+  /** Soft = storefront default; banner kept for comparison. */
+  priceMayVaryVariant?: "banner" | "soft";
+  /**
+   * Where the notice sits when shown.
+   * `above-add-more` — storefront default (above Add more products).
+   * `above-totals` — under coupon / above bill summary.
+   */
+  priceMayVaryPlacement?: "above-totals" | "above-add-more";
   /** “Add more products” + You may also like rail under the cart list. */
   showCartSuggestions?: boolean;
 };
@@ -61,6 +69,8 @@ export function CartPageContent({
   chromePosition = "page",
   couponPickerHref,
   showPriceMayVary = false,
+  priceMayVaryVariant = "soft",
+  priceMayVaryPlacement = "above-add-more",
   showCartSuggestions = false,
 }: CartPageContentProps) {
   const inline = chromePosition === "inline";
@@ -309,8 +319,20 @@ export function CartPageContent({
               })}
             </ul>
 
+            {showPriceMayVary && priceMayVaryPlacement === "above-add-more" ? (
+              <PriceMayVaryNotice
+                className="mt-6"
+                variant={priceMayVaryVariant}
+              />
+            ) : null}
+
             {showCartSuggestions ? (
               <CartSuggestions
+                className={
+                  showPriceMayVary && priceMayVaryPlacement === "above-add-more"
+                    ? "mt-4"
+                    : undefined
+                }
                 cartProductIds={items.map((item) => item.productId)}
                 categoryIds={items.flatMap((item) => {
                   const categoryId = resolveCartProduct(item).categoryId;
@@ -412,14 +434,19 @@ export function CartPageContent({
               ) : null}
             </div>
 
-            {showPriceMayVary ? (
-              <PriceMayVaryNotice className="mt-6" />
+            {showPriceMayVary && priceMayVaryPlacement === "above-totals" ? (
+              <PriceMayVaryNotice
+                className="mt-6"
+                variant={priceMayVaryVariant}
+              />
             ) : null}
 
             <div
               className={cn(
                 "rounded-2xl bg-white px-4 py-1 shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10",
-                showPriceMayVary ? "mt-3" : "mt-6",
+                showPriceMayVary && priceMayVaryPlacement === "above-totals"
+                  ? "mt-3"
+                  : "mt-6",
               )}
             >
               <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">

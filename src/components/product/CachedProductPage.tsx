@@ -49,6 +49,11 @@ function ProductCacheView({ data }: { data: ProductCache }) {
   }
 
   return (
-    <ProductDetail product={data.page.product} related={data.page.related} backHref="/home" />
+    <ProductDetail
+      product={data.page.product}
+      related={data.page.related}
+      backHref="/home"
+      showPriceMayVary
+    />
   );
 }

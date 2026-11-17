@@ -1,5 +1,33 @@
 # Implementation Log
 
+## 2026-11-17 — Price may vary dark orange + cart placement (playground)
+
+### What changed
+
+Soft notice uses dark orange (`bg-orange-700` / white text). Cart places it **above Add more products** (`priceMayVaryPlacement="above-add-more"`) on playground and live `/cart`.
+
+### Verify
+
+`/cart` and `/playground/cart-page` — dark orange pill above Add more.
+
+## 2026-11-17 — Prices may vary wired to ecom
+
+### What changed
+
+Soft centered `PriceMayVaryNotice` is the storefront default on `/cart`, `/checkout`, and `/product/[id]` (PDP message under gallery). Legacy `banner` variant kept for playground comparison.
+
+### Verify
+
+Open cart, checkout, and any PDP — centered soft “Prices may vary on some products”.
+
+## 2026-11-17 — Prices may vary (playground)
+
+### What changed
+
+- Soft `PriceMayVaryNotice` variant + centered layout.
+- PDP soft message (no corner ribbon).
+- Demo `/playground/price-may-vary` compares banner vs soft.
+
 ## 2026-11-17 — Theme island toasts at top
 
 Replaced the modal blur status card with Yaadro island snackbars (SVG Repo icons) at the top safe area. Kept `showPopup(message, type)` for all storefront call sites. Playground `/playground/toasts` updated.

@@ -62,6 +62,7 @@ import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
 import { BrandFooter } from "@/components/storefront/BrandFooter";
 import { ComingSoonPage } from "@/components/storefront/ComingSoonPage";
 import { NotFoundContent } from "@/components/storefront/NotFoundContent";
+import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import {
   CategoriesHubSkeleton,
   CategoryPlpSkeleton,
@@ -112,7 +113,7 @@ function ProductDetailDemo() {
   );
 
   return (
-    <DemoFrame note="Swipe the gallery; related cards match home ProductCard. After weight/add, CTA shows kg and the cart shortcut appears.">
+    <DemoFrame note="Same as /product/[id]: centered Prices-may-vary message under gallery.">
       <div className="relative">
         <div className="flex flex-wrap gap-2 border-b border-forest/8 px-4 py-3">
           {PDP_SAMPLES.map((p) => (
@@ -136,6 +137,7 @@ function ProductDetailDemo() {
             key={product.id}
             product={product}
             backHref="/playground"
+            showPriceMayVary
           />
         </div>
         <ViewCartBar position="inline" />
@@ -757,6 +759,8 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           chromePosition="inline"
           couponPickerHref="/playground/coupons-apply"
           showPriceMayVary
+          priceMayVaryVariant="soft"
+          priceMayVaryPlacement="above-add-more"
           showCartSuggestions
         />
       </div>
@@ -769,7 +773,11 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       note="Same as /checkout: Place Order → tick → Order placed (mascot + bill card + View Order / Back home)."
     >
       <div className="relative h-[75vh] overflow-y-auto bg-paper">
-        <CheckoutPageContent chromePosition="inline" showPriceMayVary />
+        <CheckoutPageContent
+          chromePosition="inline"
+          showPriceMayVary
+          priceMayVaryVariant="soft"
+        />
       </div>
     </DemoFrame>
   ),
@@ -906,6 +914,26 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "product-detail": () => <ProductDetailDemo />,
+  "price-may-vary": () => (
+    <DemoFrame
+      note="Soft = live cart/checkout/PDP. Banner kept for comparison."
+    >
+      <div className="space-y-8 bg-paper px-5 py-6">
+        <section>
+          <h3 className="text-center text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Notice · banner (ecom today)
+          </h3>
+          <PriceMayVaryNotice className="mt-2" variant="banner" />
+        </section>
+        <section>
+          <h3 className="text-center text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Notice · soft (playground cart / checkout / PDP)
+          </h3>
+          <PriceMayVaryNotice className="mt-2" variant="soft" />
+        </section>
+      </div>
+    </DemoFrame>
+  ),
   "onboarding-screen": () => (
     <DemoFrame note="Full welcome screen (tall). Swipe / continue navigate as in production.">
       <div className="max-h-[70vh] overflow-y-auto">

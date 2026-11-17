@@ -39,6 +39,8 @@ type CheckoutPageContentProps = {
   chromePosition?: "page" | "inline";
   /** Show “Prices may vary…” above the sticky price summary. */
   showPriceMayVary?: boolean;
+  /** Soft = storefront default; banner kept for comparison. */
+  priceMayVaryVariant?: "banner" | "soft";
 };
 
 /** Stable string snapshot — never return a fresh object from getSnapshot. */
@@ -66,6 +68,7 @@ const PRODUCT_UUID =
 export function CheckoutPageContent({
   chromePosition = "page",
   showPriceMayVary = false,
+  priceMayVaryVariant = "soft",
 }: CheckoutPageContentProps) {
   const inline = chromePosition === "inline";
   const router = useRouter();
@@ -293,7 +296,9 @@ export function CheckoutPageContent({
             : "fixed inset-x-0 bottom-0 mx-auto w-full max-w-lg px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]",
         )}
       >
-        {showPriceMayVary ? <PriceMayVaryNotice /> : null}
+        {showPriceMayVary ? (
+          <PriceMayVaryNotice variant={priceMayVaryVariant} />
+        ) : null}
         <div className="rounded-2xl bg-white px-4 py-1 shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10">
           <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
             <span className="text-muted">Subtotal</span>

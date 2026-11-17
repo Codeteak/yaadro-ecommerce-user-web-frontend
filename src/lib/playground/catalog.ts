@@ -287,8 +287,17 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Peeking gallery, price, optional description/ingredients, qty, related. Includes a no-photo product that shows the grocery-bag placeholder.",
+      "Peeking gallery, centered Prices-may-vary message, price, optional description/ingredients, qty, related.",
     wiresTo: "/product/[id]",
+  },
+  {
+    slug: "price-may-vary",
+    title: "Prices may vary",
+    status: "built",
+    group: "Experiments",
+    description:
+      "Centered soft message (storefront) vs legacy banner. Same notice on cart, checkout, and PDP.",
+    wiresTo: "/cart, /checkout, /product/[id]",
   },
 
   // ── Auth & onboarding ───────────────────────────────────────────────
