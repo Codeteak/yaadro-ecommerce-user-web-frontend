@@ -2,19 +2,10 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type PointerEvent,
-} from "react";
 import { cn } from "@/lib/cn";
+import { useSwipeToComplete } from "@/components/ui/useSwipeToComplete";
 
 const HANDLE = 52;
-const COMPLETE_RATIO = 0.78;
-const COMPLETE_PULSE_MS = 420;
 
 type SwipeToLoginProps = {
   href?: string;
@@ -29,101 +20,29 @@ export function SwipeToLogin({
   onComplete,
 }: SwipeToLoginProps) {
   const router = useRouter();
-  const trackRef = useRef<HTMLDivElement>(null);
-  const draggingRef = useRef(false);
-  const startXRef = useRef(0);
-  const startOffsetRef = useRef(0);
-  const offsetRef = useRef(0);
-  const [offset, setOffset] = useState(0);
-  const [maxOffset, setMaxOffset] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const [completed, setCompleted] = useState(false);
-
-  const reset = useCallback(() => {
-    draggingRef.current = false;
-    startXRef.current = 0;
-    startOffsetRef.current = 0;
-    offsetRef.current = 0;
-    setOffset(0);
-    setDragging(false);
-    setCompleted(false);
-  }, []);
-
-  const measure = useCallback(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    setMaxOffset(Math.max(0, track.clientWidth - HANDLE - 8));
-  }, []);
-
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    measure();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => {
-      measure();
-    });
-    observer.observe(track);
-    return () => observer.disconnect();
-  }, [measure]);
-
-  useEffect(() => {
-    const onPageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) reset();
-    };
-    window.addEventListener("pageshow", onPageShow);
-    return () => window.removeEventListener("pageshow", onPageShow);
-  }, [reset]);
-
-  const finish = useCallback(() => {
-    if (completed) return;
-    setCompleted(true);
-    setOffset(maxOffset);
-    offsetRef.current = maxOffset;
-    window.setTimeout(() => {
+  const {
+    trackRef,
+    offset,
+    maxOffset,
+    dragging,
+    completed,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onKeyDown,
+  } = useSwipeToComplete({
+    handle: HANDLE,
+    completeRatio: 0.78,
+    holdMs: 420,
+    resetOnPageShow: true,
+    onComplete: () => {
       if (onComplete) {
         onComplete();
         return;
       }
       router.push(href);
-    }, COMPLETE_PULSE_MS);
-  }, [completed, href, maxOffset, onComplete, router]);
-
-  const onPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
-    if (completed) return;
-    draggingRef.current = true;
-    setDragging(true);
-    startXRef.current = event.clientX;
-    startOffsetRef.current = offsetRef.current;
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const onPointerMove = (event: PointerEvent<HTMLButtonElement>) => {
-    if (!draggingRef.current || completed) return;
-    const delta = event.clientX - startXRef.current;
-    const next = Math.min(maxOffset, Math.max(0, startOffsetRef.current + delta));
-    offsetRef.current = next;
-    setOffset(next);
-  };
-
-  const onPointerUp = () => {
-    if (!draggingRef.current) return;
-    draggingRef.current = false;
-    setDragging(false);
-    if (offsetRef.current >= maxOffset * COMPLETE_RATIO) {
-      finish();
-      return;
-    }
-    offsetRef.current = 0;
-    setOffset(0);
-  };
-
-  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (event.key === "Enter" || event.key === " " || event.key === "ArrowRight") {
-      event.preventDefault();
-      finish();
-    }
-  };
+    },
+  });
 
   const fillWidth = Math.max(HANDLE + 8, offset + HANDLE + 8);
   const showHint = !dragging && !completed && offset === 0;

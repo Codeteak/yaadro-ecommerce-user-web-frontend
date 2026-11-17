@@ -4,23 +4,14 @@ import { useMemo, useState } from "react";
 import { PlpFilterChips } from "@/components/categories/PlpFilterChips";
 import {
   PlpFilterSheets,
-  type PlpSheetKind,
 } from "@/components/categories/PlpFilterSheets";
+import { usePlpFilters } from "@/components/categories/usePlpFilters";
 import { CategoryTile } from "@/components/home/CategoryTile";
 import { HomeSearchBar } from "@/components/home/HomeSearchBar";
 import { ProductCard } from "@/components/product/ProductCard";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
 import type { CategoryBranch } from "@/lib/api/storefront";
 import { cn } from "@/lib/cn";
-import {
-  applyPlpFilters,
-  DEFAULT_PLP_FILTERS,
-  plpBrand,
-  plpFiltersActive,
-  plpType,
-  uniqueSorted,
-  type PlpFilterState,
-} from "@/lib/plp-filters";
 import type { SampleProduct } from "@/lib/sample-products";
 
 type CategoryBrowserProps = {
@@ -30,6 +21,9 @@ type CategoryBrowserProps = {
   focusSearch?: boolean;
   /** Start with Filter/Brands/Type/Sort chips expanded (e.g. home filter → categories). */
   initialChipsOpen?: boolean;
+  /** Controlled aisle key from the server (`all`, `cat:slug`, `sub:slug`). */
+  selection?: string;
+  onSelect?: (key: string) => void;
   className?: string;
 };
 
@@ -76,38 +70,43 @@ export function CategoryBrowser({
   error,
   focusSearch = false,
   initialChipsOpen = false,
+  selection,
+  onSelect,
   className,
 }: CategoryBrowserProps) {
-  const [selected, setSelected] = useState("all");
+  const [localSelected, setLocalSelected] = useState("all");
+  const selected = selection ?? localSelected;
   const [query, setQuery] = useState("");
-  const [filters, setFilters] = useState<PlpFilterState>(DEFAULT_PLP_FILTERS);
-  const [sheet, setSheet] = useState<PlpSheetKind>(null);
   /** Search filter button expands/collapses the Filter·Brands·Type·Sort row. */
   const [chipsOpen, setChipsOpen] = useState(initialChipsOpen);
   const title = selectedName(selected, branches);
 
+  const choose = (key: string) => {
+    if (onSelect) onSelect(key);
+    else setLocalSelected(key);
+  };
+
   const scoped = useMemo(() => {
+    const base = selection
+      ? products
+      : productsFor(selected, branches, products);
     const q = query.trim().toLowerCase();
-    return productsFor(selected, branches, products).filter((product) =>
+    return base.filter((product) =>
       q ? product.name.toLowerCase().includes(q) : true,
     );
-  }, [branches, products, query, selected]);
+  }, [branches, products, query, selected, selection]);
 
-  const brandOptions = useMemo(
-    () => uniqueSorted(scoped.map(plpBrand)),
-    [scoped],
-  );
-  const typeOptions = useMemo(
-    () => uniqueSorted(scoped.map(plpType)),
-    [scoped],
-  );
-
-  const visible = useMemo(
-    () => applyPlpFilters(scoped, filters),
-    [scoped, filters],
-  );
-
-  const filtersOn = plpFiltersActive(filters);
+  const {
+    filters,
+    setFilters,
+    sheet,
+    setSheet,
+    brandOptions,
+    typeOptions,
+    visible,
+    active: filtersOn,
+    clearFilters,
+  } = usePlpFilters(scoped);
 
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
@@ -116,7 +115,7 @@ export function CategoryBrowser({
           value={query}
           onChange={setQuery}
           autoFocus={focusSearch}
-          placeholder="Search products"
+          placeholder="Search this category"
           onFilterClick={() => {
             setChipsOpen((open) => {
               if (open) setSheet(null);
@@ -163,7 +162,7 @@ export function CategoryBrowser({
                 size="sidebar"
                 name="All"
                 active={selected === "all"}
-                onClick={() => setSelected("all")}
+                onClick={() => choose("all")}
               />
               {branches.map((branch) => (
                 <div key={branch.id} className="flex flex-col gap-1">
@@ -172,7 +171,7 @@ export function CategoryBrowser({
                     name={branch.name}
                     image={branch.image || CATEGORY_IMAGE_FALLBACK}
                     active={selected === `cat:${branch.slug}`}
-                    onClick={() => setSelected(`cat:${branch.slug}`)}
+                    onClick={() => choose(`cat:${branch.slug}`)}
                   />
                   {branch.children.map((child) => (
                     <CategoryTile
@@ -181,7 +180,7 @@ export function CategoryBrowser({
                       name={child.name}
                       image={child.image || CATEGORY_IMAGE_FALLBACK}
                       active={selected === `sub:${child.slug}`}
-                      onClick={() => setSelected(`sub:${child.slug}`)}
+                      onClick={() => choose(`sub:${child.slug}`)}
                     />
                   ))}
                 </div>
@@ -208,12 +207,14 @@ export function CategoryBrowser({
                 <p className="text-sm font-medium text-muted">
                   {filtersOn
                     ? "No products match these filters."
-                    : "Nothing in this category yet."}
+                    : selected === "all"
+                      ? "Choose a category to see its products."
+                      : "Nothing in this category yet."}
                 </p>
                 {filtersOn ? (
                   <button
                     type="button"
-                    onClick={() => setFilters(DEFAULT_PLP_FILTERS)}
+                    onClick={clearFilters}
                     className="mt-4 inline-flex h-10 cursor-pointer items-center rounded-full bg-track px-4 text-[13px] font-semibold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
                   >
                     Clear filters

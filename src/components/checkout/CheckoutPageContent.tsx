@@ -1,27 +1,34 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Banknote, Check, MapPin } from "lucide-react";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { useCart } from "@/components/cart/CartContext";
-import {
-  OrderPlacedContent,
-  type OrderPlacedSummary,
-} from "@/components/checkout/OrderPlacedContent";
+import { checkDeliveryLocation, saveMyAddress } from "@/lib/api/address";
+import { previewDeliveryArea } from "@/lib/api/preview-delivery-area";
+import { placeCheckoutOrder } from "@/lib/api/checkout";
+import { ApiError } from "@/lib/api/errors";
+import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
+import { showToast } from "@/components/ui/Toast";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
-import { useToastOptional } from "@/components/ui/ToastContext";
 import { cn } from "@/lib/cn";
 import {
   DELIVERY_ADDRESS_KEY,
   EMPTY_DELIVERY_ADDRESS,
   formatDeliveryAddressLabel,
   subscribeDeliveryAddress,
+  writeDeliveryAddress,
   type DeliveryAddress,
 } from "@/lib/delivery-address";
-
-/** Sample COD delivery fee until checkout API returns one. */
-const SAMPLE_DELIVERY_FEE = 25;
+import {
+  askUntilLocation,
+  deliveryAreaBlock,
+  isLatLng,
+  readBrowserPosition,
+} from "@/lib/delivery-location";
 
 type CheckoutPageContentProps = {
   /**
@@ -32,8 +39,6 @@ type CheckoutPageContentProps = {
   /** Show “Prices may vary…” above the sticky price summary. */
   showPriceMayVary?: boolean;
 };
-
-type CheckoutPhase = "form" | "tick" | "confirmed";
 
 /** Stable string snapshot — never return a fresh object from getSnapshot. */
 function getAddressRaw(): string | null {
@@ -50,32 +55,36 @@ function formatFullAddress(a: DeliveryAddress): string {
     .join(", ");
 }
 
+const PRODUCT_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 /**
- * Checkout UI: address, COD only, price details + amount due,
- * Place Order → tick animation → confirmed + mascot.
- * Does not place a real order (no payment / order API).
+ * Checkout UI: address, COD only, price details + amount due.
+ * Place Order sends the on-device basket to the shop. The shop sets the total.
  */
 export function CheckoutPageContent({
   chromePosition = "page",
   showPriceMayVary = false,
 }: CheckoutPageContentProps) {
   const inline = chromePosition === "inline";
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const signedIn = useSyncExternalStore(subscribeCustomerSession, hasCustomerSession, () => false);
   const {
-    mrpTotal,
     items,
-    count,
-    subtotal,
+    clear,
+    mrpTotal,
     appliedPromo,
     promoDiscount,
     totalSaved,
     totalDue,
   } = useCart();
-  const toast = useToastOptional();
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [phase, setPhase] = useState<CheckoutPhase>("form");
+  const [pending, setPending] = useState(false);
+  const [pendingLabel, setPendingLabel] = useState("Placing order…");
   const [placeError, setPlaceError] = useState<string | null>(null);
-  const [placedSummary, setPlacedSummary] =
-    useState<OrderPlacedSummary | null>(null);
+  const [areaNote, setAreaNote] = useState<string | null>(null);
+  const idempotencyKey = useRef<string | null>(null);
 
   const addressRaw = useSyncExternalStore(
     subscribeDeliveryAddress,
@@ -95,123 +104,109 @@ export function CheckoutPageContent({
     }
   }, [addressRaw]);
 
+  const pinLat = address && isLatLng(address) ? address.lat : null;
+  const pinLng = address && isLatLng(address) ? address.lng : null;
+
+  useEffect(() => {
+    if (pinLat == null || pinLng == null) {
+      setAreaNote(null);
+      return;
+    }
+    let cancelled = false;
+    void previewDeliveryArea(pinLat, pinLng)
+      .then((result) => {
+        if (!cancelled) setAreaNote(deliveryAreaBlock(result));
+      })
+      .catch(() => {
+        if (!cancelled) setAreaNote("We couldn't check delivery for that location. Try again.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pinLat, pinLng]);
+
   const amountDue = totalDue;
-  const hasItems = items.length > 0;
   const hasAddress = Boolean(
     address && formatDeliveryAddressLabel(address).length > 0,
   );
+  const orderLines = items
+    .map((item) => ({
+      productId: item.productId,
+      quantity: item.weightKg && item.weightKg > 0 ? item.weightKg : item.qty,
+    }))
+    .filter((item) => PRODUCT_UUID.test(item.productId) && item.quantity > 0);
   const backHref = inline ? "/playground" : "/cart";
 
-  useEffect(() => {
-    if (phase !== "tick") return;
-    const id = window.setTimeout(() => setPhase("confirmed"), 1200);
-    return () => window.clearTimeout(id);
-  }, [phase]);
-
-  const onPlaceOrder = () => {
+  const placeOrder = async () => {
+    if (!signedIn) {
+      router.push("/login?next=/checkout");
+      return;
+    }
+    if (!hasAddress || !address) {
+      setPlaceError("Add a delivery address first.");
+      return;
+    }
+    if (orderLines.length === 0) {
+      setPlaceError("Add a shop product before placing the order.");
+      return;
+    }
+    if (!idempotencyKey.current) idempotencyKey.current = crypto.randomUUID();
+    setPending(true);
     setPlaceError(null);
-    if (!hasItems) {
+    try {
+      setPendingLabel(isLatLng(address) ? "Checking delivery…" : "Asking for your location…");
+      const pin = isLatLng(address)
+        ? { lat: address.lat, lng: address.lng }
+        : await askUntilLocation(readBrowserPosition, 3);
+      if (!pin) {
+        setPlaceError("Allow location so we can check if this shop delivers to you, then try again.");
+        return;
+      }
+      if (!isLatLng(address)) writeDeliveryAddress({ ...address, ...pin });
+      setPendingLabel("Checking delivery…");
+      const area = await checkDeliveryLocation(pin.lat, pin.lng);
+      const blocked = deliveryAreaBlock(area);
+      if (blocked) {
+        setPlaceError(blocked);
+        return;
+      }
+      await saveMyAddress({
+        line1: address.house || address.street,
+        line2: address.street || null,
+        landmark: address.landmark || null,
+        city: address.city || null,
+        lat: pin.lat,
+        lng: pin.lng,
+        raw: formatFullAddress(address),
+      });
+      setPendingLabel("Placing order…");
+      const order = await placeCheckoutOrder({
+        items: orderLines,
+        couponCode: appliedPromo?.code ?? null,
+        idempotencyKey: idempotencyKey.current,
+      });
+      clear();
+      idempotencyKey.current = null;
+      await queryClient.invalidateQueries({ queryKey: ["orders"] });
+      showToast("success", `Order ${order.orderNumber} placed. Pay when it arrives.`);
+      router.push("/orders");
+    } catch (error) {
       const message =
-        "Your basket is empty — add items before placing an order.";
-      setPlaceError(message);
-      toast?.error("Couldn’t place order. Try again.");
-      return;
+        error instanceof ApiError
+          ? error.message
+          : "We couldn't place the order. Check your connection and try again.";
+      setPlaceError(
+        error instanceof ApiError && error.requestId
+          ? `${message} Reference ${error.requestId}.`
+          : message,
+      );
+      if (error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 429) {
+        idempotencyKey.current = null;
+      }
+    } finally {
+      setPending(false);
     }
-    if (!hasAddress) {
-      setPlaceError("Add a delivery address to continue.");
-      toast?.error("Couldn’t place order. Try again.");
-      setSheetOpen(true);
-      return;
-    }
-    // UI-only confirmation — no order or payment is submitted.
-    const billNo = `#YAD-${10000 + Math.floor(Math.random() * 90000)}`;
-    setPlacedSummary({
-      billNo,
-      itemCount: count,
-      subtotal,
-      deliveryFee: SAMPLE_DELIVERY_FEE,
-      total: Math.max(0, totalDue + SAMPLE_DELIVERY_FEE),
-      fulfillment: "Delivery",
-      statusLabel: "Confirmed",
-    });
-    toast?.success("Order placed");
-    setPhase("tick");
   };
-
-  if (phase === "tick") {
-    return (
-      <main
-        className={cn(
-          "mx-auto flex w-full max-w-lg flex-col items-center justify-center bg-paper px-5",
-          inline ? "min-h-full" : "min-h-dvh",
-        )}
-        role="status"
-        aria-live="polite"
-        aria-label="Order confirmed"
-      >
-        <div className="verified-pop flex h-28 w-28 items-center justify-center rounded-full bg-leaf shadow-[0_12px_40px_rgba(92,184,92,0.35)]">
-          <svg
-            width="52"
-            height="52"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden
-          >
-            <path
-              className="verified-check-draw"
-              d="M5 12.5 10 17.5 19 7.5"
-              stroke="white"
-              strokeWidth="2.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-        <h2 className="verified-fade-in mt-6 text-2xl font-extrabold tracking-tight text-forest">
-          Order confirmed
-        </h2>
-        <p className="verified-fade-in mt-2 text-[15px] text-muted">
-          Preparing your confirmation…
-        </p>
-      </main>
-    );
-  }
-
-  if (phase === "confirmed" && placedSummary) {
-    return (
-      <main
-        className={cn(
-          "mx-auto flex w-full max-w-lg flex-col overflow-y-auto bg-paper",
-          inline ? "min-h-full" : "min-h-dvh",
-        )}
-      >
-        <div className="px-5 pt-[max(0.75rem,env(safe-area-inset-top))]">
-          <PageHeader backHref={backHref} title="Order placed" />
-        </div>
-        <OrderPlacedContent
-          summary={placedSummary}
-          viewOrderHref={
-            inline ? "/playground/order-detail" : "/orders/ord-1042"
-          }
-          trackOrderHref={
-            inline ? "/playground/live-order-track" : "/orders/ord-1042/track"
-          }
-          homeHref={inline ? "/playground" : "/home"}
-          footer={
-            inline ? (
-              <button
-                type="button"
-                onClick={() => setPhase("form")}
-                className="mt-4 cursor-pointer text-sm font-semibold text-leaf underline underline-offset-4 transition hover:text-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-              >
-                Back to checkout form
-              </button>
-            ) : null
-          }
-        />
-      </main>
-    );
-  }
 
   return (
     <main
@@ -328,29 +323,25 @@ export function CheckoutPageContent({
 
         <button
           type="button"
-          onClick={onPlaceOrder}
-          aria-label="Place order with cash on delivery"
-          className="group flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-track px-5 py-4 text-base font-extrabold text-black shadow-[0_7px_0_0_#1f5c1f,0_14px_28px_rgba(47,107,47,0.28)] transition-[transform,box-shadow,background-color] duration-150 ease-out hover:bg-leaf-bright motion-safe:active:translate-y-[5px] motion-safe:active:shadow-[0_2px_0_0_#1f5c1f,0_6px_14px_rgba(47,107,47,0.22)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+          disabled={pending || (signedIn && (!hasAddress || orderLines.length === 0))}
+          onClick={() => void placeOrder()}
+          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-track px-5 py-4 text-base font-extrabold text-black shadow-[0_7px_0_0_#1f5c1f] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Place Order
+          {pending ? pendingLabel : signedIn ? "Place Order" : "Sign in to place order"}
           <Check className="h-5 w-5" aria-hidden />
         </button>
 
-        {placeError ? (
-          <p
-            className="text-center text-[13px] font-medium text-red-600"
-            role="alert"
-          >
-            {placeError}
-          </p>
-        ) : (
-          <p
-            className="text-center text-[13px] font-medium text-muted"
-            role="status"
-          >
-            Preview — Place Order does not submit a real order.
-          </p>
-        )}
+        <p className="text-center text-[13px] font-medium text-muted" role="status">
+          {placeError ??
+            areaNote ??
+            (signedIn
+              ? !hasAddress
+                ? "Add a delivery address, then we'll check that we deliver there."
+                : isLatLng(address)
+                  ? "Cash on delivery. We'll confirm this location before the order is sent."
+                  : "We'll ask for your location before placing the order."
+              : "Sign in so we can send this order to the shop.")}
+        </p>
       </div>
 
       <AddressBookSheet open={sheetOpen} onOpenChange={setSheetOpen} />

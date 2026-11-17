@@ -23,6 +23,10 @@ import {
 import { useCart } from "@/components/cart/CartContext";
 import { useToastOptional } from "@/components/ui/ToastContext";
 import { cn } from "@/lib/cn";
+import { useQuery } from "@tanstack/react-query";
+import { listShopCoupons } from "@/lib/api/shop-coupons";
+import { ApiError } from "@/lib/api/errors";
+import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
 import { listCoupons } from "@/lib/api/coupons";
 import {
   couponsBySection,
@@ -36,6 +40,8 @@ function subscribeNever() {
 type CouponsPageContentProps = {
   backHref?: string;
   coupons?: SampleCoupon[];
+  /** Load the signed-in customer's coupons. Playground stays on samples. */
+  live?: boolean;
   /**
    * Select mode: Apply active coupon via CartContext, then navigate here
    * (e.g. `/cart` or `/playground/cart-page`). Also enabled when
@@ -67,7 +73,8 @@ export function CouponsPageContent(props: CouponsPageContentProps) {
 
 function CouponsPageBody({
   backHref = "/profile",
-  coupons = listCoupons(),
+  coupons,
+  live = false,
   applyReturnHref: applyReturnHrefProp,
   ticketDensity = "comfortable",
 }: CouponsPageContentProps) {
@@ -75,6 +82,14 @@ function CouponsPageBody({
   const searchParams = useSearchParams();
   const { applyPromo } = useCart();
   const toast = useToastOptional();
+
+  const signedIn = useSyncExternalStore(subscribeCustomerSession, hasCustomerSession, () => false);
+  const account = useQuery({
+    queryKey: ["coupons"],
+    queryFn: ({ signal }) => listShopCoupons(undefined, signal),
+    enabled: live && signedIn && coupons == null,
+  });
+  const resolvedCoupons = coupons ?? (live ? (account.data ?? []) : listCoupons());
 
   const applyReturnHref = useMemo(() => {
     if (applyReturnHrefProp) return applyReturnHrefProp;
@@ -89,7 +104,7 @@ function CouponsPageBody({
   const [copied, setCopied] = useState(false);
   const [applyMessage, setApplyMessage] = useState<string | null>(null);
   const titleId = useId();
-  const sections = couponsBySection(coupons);
+  const sections = couponsBySection(resolvedCoupons);
   const mounted = useSyncExternalStore(
     subscribeNever,
     () => true,
@@ -342,7 +357,24 @@ function CouponsPageBody({
       <PageHeader backHref={resolvedBackHref} title="Coupons" />
 
       <PullToRefresh className="flex flex-1 flex-col pb-8">
-        {coupons.length === 0 ? (
+        {live && !signedIn ? (
+          <p className="py-16 text-center text-sm text-muted">
+            Sign in to see coupons from your shop.
+          </p>
+        ) : live && account.isPending && coupons == null ? (
+          <div className="mt-4 h-28 animate-pulse rounded-2xl bg-mint/50" />
+        ) : live && account.isError && coupons == null ? (
+          <div className="py-16 text-center">
+            <p className="text-sm text-muted">
+              {account.error instanceof ApiError
+                ? account.error.message
+                : "We couldn't load coupons. Check your connection and try again."}
+            </p>
+            <button type="button" onClick={() => void account.refetch()} className="mt-4 text-sm font-bold text-leaf">
+              Try again
+            </button>
+          </div>
+        ) : resolvedCoupons.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
             <Image
               src="/coupons/empty-coupons.png"

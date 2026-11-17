@@ -4,10 +4,8 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import { PlpFilterChips } from "@/components/categories/PlpFilterChips";
-import {
-  PlpFilterSheets,
-  type PlpSheetKind,
-} from "@/components/categories/PlpFilterSheets";
+import { PlpFilterSheets } from "@/components/categories/PlpFilterSheets";
+import { usePlpFilters } from "@/components/categories/usePlpFilters";
 import { BackButton } from "@/components/navigation/BackButton";
 import { CategoryTile } from "@/components/home/CategoryTile";
 import { ProductCard } from "@/components/product/ProductCard";
@@ -15,15 +13,6 @@ import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
 import { cn } from "@/lib/cn";
 import { getCatalogCategory } from "@/lib/catalog-taxonomy";
-import {
-  applyPlpFilters,
-  DEFAULT_PLP_FILTERS,
-  plpBrand,
-  plpFiltersActive,
-  plpType,
-  uniqueSorted,
-  type PlpFilterState,
-} from "@/lib/plp-filters";
 import { getProductsByCategory, type SampleProduct } from "@/lib/sample-products";
 
 export type LiveCategoryListing = {
@@ -77,8 +66,6 @@ export function CategoryListing({
       }
     : sampleCategory;
   const [sub, setSub] = useState("All");
-  const [filters, setFilters] = useState<PlpFilterState>(DEFAULT_PLP_FILTERS);
-  const [sheet, setSheet] = useState<PlpSheetKind>(null);
 
   const handleSearch = () => {
     if (onSearchClick) {
@@ -99,21 +86,17 @@ export function CategoryListing({
     return getProductsByCategory(sampleCategory.homeCategory);
   }, [live, sampleCategory, sub]);
 
-  const brandOptions = useMemo(
-    () => uniqueSorted(catalogProducts.map(plpBrand)),
-    [catalogProducts],
-  );
-  const typeOptions = useMemo(
-    () => uniqueSorted(catalogProducts.map(plpType)),
-    [catalogProducts],
-  );
-
-  const products = useMemo(
-    () => applyPlpFilters(catalogProducts, filters),
-    [catalogProducts, filters],
-  );
-
-  const facetsActive = plpFiltersActive(filters);
+  const {
+    filters,
+    setFilters,
+    sheet,
+    setSheet,
+    brandOptions,
+    typeOptions,
+    visible: products,
+    active: facetsActive,
+    clearFilters,
+  } = usePlpFilters(catalogProducts);
 
   if (error) {
     return (
@@ -213,7 +196,7 @@ export function CategoryListing({
               </p>
               <button
                 type="button"
-                onClick={() => setFilters(DEFAULT_PLP_FILTERS)}
+                onClick={clearFilters}
                 className="mt-4 inline-flex h-10 cursor-pointer items-center rounded-full bg-track px-4 text-[13px] font-semibold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
               >
                 Clear all filters

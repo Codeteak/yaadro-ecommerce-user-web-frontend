@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Heart, Minus, Plus, Star } from "lucide-react";
 import { BackButton } from "@/components/navigation/BackButton";
-import { useCart } from "@/components/cart/CartContext";
-import { useToastOptional } from "@/components/ui/ToastContext";
+import { useCartLine, useSetCustomizing } from "@/components/cart/CartContext";
+import { setCartQty } from "@/lib/cart-store";
 import { rememberProduct } from "@/lib/product-snapshots";
-import { useWishlistOptional } from "@/components/wishlist/WishlistContext";
+import { useWishlistToggle } from "@/components/wishlist/useWishlistToggle";
 import {
   productImages,
   resolveProductDescription,
@@ -47,13 +45,9 @@ export function ProductDetail({
   backHref,
   onBackClick,
 }: ProductDetailProps) {
-  const router = useRouter();
-  const wishlist = useWishlistOptional();
-  const toast = useToastOptional();
-  const { getItem, setQty, setCustomizing } = useCart();
-  const [localWishlisted, setLocalWishlisted] = useState(false);
-
-  const cartItem = getItem(product.id);
+  const { wishlisted, onToggle: onWishlistClick, ariaLabel } = useWishlistToggle(product);
+  const setCustomizing = useSetCustomizing();
+  const cartItem = useCartLine(product.id);
   const qty = cartItem?.qty ?? 0;
   const weightKg = cartItem?.weightKg;
   const images = productImages(product);
@@ -63,32 +57,6 @@ export function ProductDetail({
     product.mrp > product.price
       ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
       : 0;
-  const wishlisted = wishlist
-    ? wishlist.signedIn && wishlist.has(product.id)
-    : localWishlisted;
-
-  const onWishlistClick = () => {
-    if (!wishlist) {
-      setLocalWishlisted((w) => {
-        const next = !w;
-        if (next) toast?.success("Saved to wishlist");
-        else toast?.info("Removed from wishlist");
-        return next;
-      });
-      return;
-    }
-    if (!wishlist.signedIn) {
-      toast?.info("Sign in to save favourites");
-      router.push("/login");
-      return;
-    }
-    const wasSaved = wishlist.has(product.id);
-    rememberProduct(product);
-    wishlist.toggle(product.id);
-    if (wasSaved) toast?.info("Removed from wishlist");
-    else toast?.success("Saved to wishlist");
-  };
-
   return (
     <div className="flex flex-col bg-paper pb-8">
       <div className="px-5 pt-[max(1rem,env(safe-area-inset-top))]">
@@ -105,13 +73,7 @@ export function ProductDetail({
             type="button"
             onClick={onWishlistClick}
             aria-pressed={wishlisted}
-            aria-label={
-              wishlist && !wishlist.signedIn
-                ? `Sign in to save ${product.name}`
-                : wishlisted
-                  ? `Remove ${product.name} from wishlist`
-                  : `Add ${product.name} to wishlist`
-            }
+            aria-label={ariaLabel}
             className="ml-auto flex size-11 cursor-pointer items-center justify-center rounded-full text-forest transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
           >
             <Heart
@@ -204,7 +166,7 @@ export function ProductDetail({
               type="button"
               onClick={() => {
                 rememberProduct(product);
-                setQty(product.id, 1);
+                setCartQty(product.id, 1);
               }}
               aria-label={`Add ${product.name} to cart`}
               className="flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-2xl bg-track px-4 text-sm font-semibold text-black shadow-[0_12px_28px_rgba(47,107,47,0.28)] transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
@@ -215,7 +177,7 @@ export function ProductDetail({
             <div className="flex h-12 min-w-0 flex-1 items-center justify-between gap-1 rounded-2xl bg-track px-2 text-black shadow-[0_12px_28px_rgba(47,107,47,0.28)]">
               <button
                 type="button"
-                onClick={() => setQty(product.id, qty - 1)}
+                onClick={() => setCartQty(product.id, qty - 1)}
                 aria-label={`Decrease quantity of ${product.name}`}
                 className="grid size-10 cursor-pointer place-items-center rounded-xl text-black transition hover:bg-black/10 active:scale-90 focus-visible:outline-2 focus-visible:outline-leaf"
               >
@@ -231,7 +193,7 @@ export function ProductDetail({
               </span>
               <button
                 type="button"
-                onClick={() => setQty(product.id, qty + 1)}
+                onClick={() => setCartQty(product.id, qty + 1)}
                 aria-label={`Increase quantity of ${product.name}`}
                 className="grid size-10 cursor-pointer place-items-center rounded-xl text-black transition hover:bg-black/10 active:scale-90 focus-visible:outline-2 focus-visible:outline-leaf"
               >

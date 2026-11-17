@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --experimental-strip-types --test src/lib/api/errors.test.ts src/lib/delivery-location.test.ts src/lib/db/catalog-query.test.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.2",
@@ -16,9 +18,11 @@
     "embla-carousel-react": "^8.6.0",
     "lucide-react": "^1.59.0",
     "next": "16.4.2",
+    "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-hook-form": "^7.90.0",
+    "server-only": "^0.0.1",
     "serwist": "^9.5.13",
     "tailwind-merge": "^3.7.0",
     "zod": "^4.6.7",
@@ -28,6 +32,7 @@
     "@serwist/cli": "^9.5.13",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "1.0.0",
@@ -35,6 +40,7 @@
     "esbuild": "^0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
+    "husky": "^9.1.7",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

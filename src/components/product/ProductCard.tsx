@@ -1,16 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import { rememberProduct } from "@/lib/product-snapshots";
-import { useRouter } from "next/navigation";
 import { Heart, Minus, Plus } from "lucide-react";
 import type { SampleProduct } from "@/lib/sample-products";
-import { useCart } from "@/components/cart/CartContext";
-import { useToastOptional } from "@/components/ui/ToastContext";
+import { useCartLine, useSetCustomizing } from "@/components/cart/CartContext";
+import { setCartQty } from "@/lib/cart-store";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
-import { useWishlistOptional } from "@/components/wishlist/WishlistContext";
+import { useWishlistToggle } from "@/components/wishlist/useWishlistToggle";
 import { cn } from "@/lib/cn";
 import { isProductImageFallback, productPhoto } from "@/lib/product-image";
 
@@ -83,40 +81,12 @@ export function ProductCard({
   size?: ProductCardSize;
 }) {
   const compact = size === "compact";
-  const router = useRouter();
   const t = useTypeScale();
-  const wishlist = useWishlistOptional();
-  const toast = useToastOptional();
-  const [localWishlisted, setLocalWishlisted] = useState(false);
-  const { getItem, setQty, setCustomizing } = useCart();
-  const cartItem = getItem(product.id);
+  const { wishlisted, onToggle: onWishlistClick, ariaLabel } = useWishlistToggle(product);
+  const setCustomizing = useSetCustomizing();
+  const cartItem = useCartLine(product.id);
   const qty = cartItem?.qty ?? 0;
   const weightKg = cartItem?.weightKg;
-  const wishlisted = wishlist
-    ? wishlist.signedIn && wishlist.has(product.id)
-    : localWishlisted;
-
-  const onWishlistClick = () => {
-    if (!wishlist) {
-      setLocalWishlisted((w) => {
-        const next = !w;
-        if (next) toast?.success("Saved to wishlist");
-        else toast?.info("Removed from wishlist");
-        return next;
-      });
-      return;
-    }
-    if (!wishlist.signedIn) {
-      toast?.info("Sign in to save favourites");
-      router.push("/login");
-      return;
-    }
-    const wasSaved = wishlist.has(product.id);
-    rememberProduct(product);
-    wishlist.toggle(product.id);
-    if (wasSaved) toast?.info("Removed from wishlist");
-    else toast?.success("Saved to wishlist");
-  };
 
   const discount =
     product.mrp > product.price
@@ -157,13 +127,7 @@ export function ProductCard({
         type="button"
         onClick={onWishlistClick}
         aria-pressed={wishlisted}
-        aria-label={
-          wishlist && !wishlist.signedIn
-            ? `Sign in to save ${product.name}`
-            : wishlisted
-              ? `Remove ${product.name} from wishlist`
-              : `Add ${product.name} to wishlist`
-        }
+        aria-label={ariaLabel}
         className={cn(
           "absolute z-10 flex cursor-pointer items-center justify-center rounded-full bg-white transition hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
           compact
@@ -288,7 +252,7 @@ export function ProductCard({
             type="button"
             onClick={() => {
               rememberProduct(product);
-              setQty(product.id, 1);
+              setCartQty(product.id, 1);
             }}
             aria-label={`Add ${product.name} to cart`}
             className={addBtn}
@@ -306,7 +270,7 @@ export function ProductCard({
           >
             <button
               type="button"
-              onClick={() => setQty(product.id, qty - 1)}
+              onClick={() => setCartQty(product.id, qty - 1)}
               aria-label={`Decrease quantity of ${product.name}`}
               className={cn(
                 "grid cursor-pointer place-items-center rounded-md text-black transition hover:bg-black/10 active:scale-90 focus-visible:outline-2 focus-visible:outline-leaf",
@@ -328,7 +292,7 @@ export function ProductCard({
             </span>
             <button
               type="button"
-              onClick={() => setQty(product.id, qty + 1)}
+              onClick={() => setCartQty(product.id, qty + 1)}
               aria-label={`Increase quantity of ${product.name}`}
               className={cn(
                 "grid cursor-pointer place-items-center rounded-md text-black transition hover:bg-black/10 active:scale-90 focus-visible:outline-2 focus-visible:outline-leaf",

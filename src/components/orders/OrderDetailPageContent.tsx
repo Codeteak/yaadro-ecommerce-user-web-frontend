@@ -1,355 +1,499 @@
 "use client";
 
+import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  BadgeCheck,
+  ArrowLeft,
   Check,
-  ClipboardList,
-  House,
-  MapPin,
-  Motorbike,
-  Package,
-  X,
-  type LucideIcon,
+  Copy,
+  Download,
+  MessageCircle,
+  Phone,
+  ShoppingBag,
+  Star,
 } from "lucide-react";
-import { PageHeader } from "@/components/navigation/PageHeader";
-import { PullToRefresh } from "@/components/navigation/PullToRefresh";
+import { BackButton } from "@/components/navigation/BackButton";
+import { useToastOptional } from "@/components/ui/ToastContext";
 import { getOrder, listOrders } from "@/lib/api/orders";
+import { getCustomerOrder } from "@/lib/api/customer-orders";
+import { ApiError } from "@/lib/api/errors";
+import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
 import { getSampleProduct } from "@/lib/sample-products";
 import {
-  buildOrderProgress,
+  LeadAction,
+  OrderReceiptDialog,
+  OrderReviewSheet,
+  OrderTicketBill,
+  billedTotal,
+  clockish,
+  deliveryCharge,
+  inr,
+  leadProgress,
+  leadStatusInk,
+  leadStatusLabel,
+  leadStepIndex,
+  lineName,
+} from "@/components/orders/lead-order-shared";
+import {
   orderLineLabel,
-  type OrderProgressId,
   type SampleOrder,
+  type SampleOrderLine,
 } from "@/lib/sample-orders";
 import { cn } from "@/lib/cn";
 
-/** Lucide icons (common SVG set) — black stroke via currentColor. */
-const PROGRESS_ICONS: Record<OrderProgressId, LucideIcon> = {
-  received: ClipboardList,
-  confirmed: BadgeCheck,
-  processed: Package,
-  shipped: Motorbike,
-  delivered: House,
-  cancelled: X,
-};
-
-type OrderDetailPageContentProps = {
-  chromePosition?: "page" | "inline";
+export type OrderDetailPageContentProps = {
   orderId?: string;
+  backHref?: string;
+  shopHref?: string;
+  /** Centered ticket bill with download. On for storefront and playground. */
+  ticketBill?: boolean;
+  className?: string;
 };
 
 /**
- * Order detail: vertical ORDER STATUS, items, totals.
- * Data from `getOrder()` until a real orders API exists.
+ * Order detail layout. Used on `/orders/[id]` and in the playground.
+ * Data from `getOrder()` sample façade.
  */
 export function OrderDetailPageContent({
-  chromePosition = "page",
   orderId,
+  backHref = "/playground/orders-list",
+  shopHref = "/playground",
+  ticketBill = true,
+  className,
 }: OrderDetailPageContentProps) {
-  const inline = chromePosition === "inline";
-  const id = orderId ?? "";
-  const order = id ? getOrder(id) : listOrders()[0];
-  const backHref = inline ? "/playground/orders-list" : "/orders";
+  const sample = orderId ? getOrder(orderId) : listOrders()[0];
+  const signedIn = useSyncExternalStore(subscribeCustomerSession, hasCustomerSession, () => false);
+  const remote = useQuery({
+    queryKey: ["order", orderId],
+    queryFn: ({ signal }) => getCustomerOrder(orderId ?? "", signal),
+    enabled: Boolean(orderId) && !sample && signedIn,
+  });
+  const order = sample ?? remote.data ?? null;
 
-  if (!order) {
+  if (!sample && orderId && !signedIn) {
     return (
-      <main
-        className={cn(
-          "mx-auto flex w-full max-w-lg flex-col bg-paper px-5",
-          inline ? "min-h-full" : "min-h-dvh",
-        )}
-      >
-        <PageHeader backHref={backHref} title="Order" />
-        <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
-          <p className="text-sm font-semibold text-muted">Order not found</p>
-          <Link
-            href={backHref}
-            className="mt-4 text-sm font-bold text-leaf underline underline-offset-4"
-          >
-            Back to orders
-          </Link>
-        </div>
-      </main>
+      <div className={cn("flex min-h-full flex-col bg-white px-5", className)}>
+        <p className="py-16 text-center text-sm font-semibold text-muted">
+          <Link href={`/login?next=/orders/${orderId}`} className="font-bold text-leaf">
+            Sign in
+          </Link>{" "}
+          to see this order.
+        </p>
+      </div>
     );
   }
 
-  return <OrderDetailBody order={order} backHref={backHref} inline={inline} />;
+  if (!sample && remote.isPending) {
+    return <div className="m-5 h-40 animate-pulse rounded-2xl bg-mint/50" />;
+  }
+
+  if (!sample && remote.isError) {
+    const message =
+      remote.error instanceof ApiError
+        ? remote.error.message
+        : "We couldn't load this order. Check your connection and try again.";
+    return (
+      <div className={cn("flex min-h-full flex-col bg-white px-5", className)}>
+        <p className="py-16 text-center text-sm font-semibold text-muted">{message}</p>
+        <button type="button" onClick={() => void remote.refetch()} className="text-sm font-bold text-leaf">
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className={cn("flex min-h-full flex-col bg-white px-5", className)}>
+        <div className="pt-3">
+          <Link href={backHref} className="inline-flex items-center gap-1 text-sm font-bold text-forest">
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Orders
+          </Link>
+        </div>
+        <p className="py-16 text-center text-sm font-semibold text-muted">Order not found</p>
+      </div>
+    );
+  }
+
+  return (
+    <OrderDetailBody
+      order={order}
+      backHref={backHref}
+      shopHref={shopHref}
+      ticketBill={ticketBill}
+      className={className}
+    />
+  );
 }
 
 function OrderDetailBody({
   order,
   backHref,
-  inline,
+  shopHref,
+  ticketBill,
+  className,
 }: {
   order: SampleOrder;
   backHref: string;
-  inline: boolean;
+  shopHref: string;
+  ticketBill: boolean;
+  className?: string;
 }) {
+  const toast = useToastOptional();
+  const [review, setReview] = useState(false);
+  const [bill, setBill] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const progress = leadProgress(order.status);
   const cancelled = order.status === "cancelled";
-  const itemSavings = Math.max(0, order.mrpTotal - order.subtotal);
-  const totalSaved = itemSavings + order.promoDiscount;
-  const steps = buildOrderProgress(order);
+  const delivered = progress === "delivered";
+  const label = leadStatusLabel(progress, order.status);
+  const placed = order.timeline.find((step) => step.key === "placed")?.at;
+  const moving =
+    order.timeline.find((step) => step.key === "out_for_delivery")?.at ??
+    order.timeline.find((step) => step.key === "packed")?.at;
+  const done = order.timeline.find((step) => step.key === "delivered")?.at;
+
+  const copyId = () => {
+    if (!navigator.clipboard?.writeText) {
+      toast?.error("Couldn’t copy");
+      return;
+    }
+    void navigator.clipboard.writeText(order.number).then(
+      () => {
+        setCopied(true);
+        toast?.success("Copied");
+        window.setTimeout(() => setCopied(false), 1400);
+      },
+      () => toast?.error("Couldn’t copy"),
+    );
+  };
 
   return (
-    <main
-      className={cn(
-        "mx-auto flex w-full max-w-lg flex-col bg-paper",
-        inline ? "min-h-full" : "min-h-dvh",
-      )}
-    >
-      <div className="px-5">
-        <PageHeader backHref={backHref} title={order.number} />
-      </div>
+    <div className={cn("mx-auto min-h-full w-full max-w-lg bg-white", className)}>
+      <header className="bg-forest px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-4 text-black">
+        <div className="grid grid-cols-[2.75rem_1fr_2.75rem] items-center">
+          <BackButton href={backHref} label="Back to orders" />
+          <p className="text-center text-lg font-bold tracking-tight text-black">Order</p>
+          <span />
+        </div>
+        <div className="flex items-center justify-center gap-1 pb-1">
+          <p className="truncate text-base font-extrabold tracking-tight text-black">{order.number}</p>
+          <button
+            type="button"
+            onClick={copyId}
+            aria-label="Copy order id"
+            className="grid h-8 w-8 cursor-pointer place-items-center text-black"
+          >
+            <Copy className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+      </header>
 
-      <PullToRefresh className="flex flex-1 flex-col px-5 pb-8">
-        <section className="mt-2 rounded-[1.75rem] bg-white px-4 py-5 shadow-[0_12px_32px_rgba(47,107,47,0.12)] ring-1 ring-forest/10">
-          <h2 className="px-1 text-[13px] font-extrabold tracking-[0.14em] text-black uppercase">
-            Order status
-          </h2>
+      <div className="px-4 pt-5 pb-8">
+        <div className="flex items-center gap-3">
+          <span className="grid h-11 w-11 place-items-center rounded-xl bg-mint">
+            <DeliveryScooter className="h-8 w-8" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-muted">Order ID</p>
+            <div className="flex items-center gap-1">
+              <p className="truncate text-lg font-extrabold tracking-tight text-black">
+                {order.number}
+              </p>
+              <button
+                type="button"
+                onClick={copyId}
+                aria-label="Copy order id"
+                className="grid h-8 w-8 cursor-pointer place-items-center text-muted"
+              >
+                <Copy className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+          </div>
+          <span
+            className="rounded-full px-3 py-1.5 text-[13px] font-bold"
+            style={{
+              color: leadStatusInk(progress),
+              backgroundColor:
+                progress === "on_the_way"
+                  ? "#E8F1FF"
+                  : progress === "rejected"
+                    ? "#FEE2E2"
+                    : "#E3F5E3",
+            }}
+          >
+            {label}
+          </span>
+        </div>
+        {copied ? <p className="mt-1 text-xs font-semibold text-forest">Copied</p> : null}
 
-          <ol className="mt-4 flex flex-col gap-3">
-            {steps.map((step, i) => {
-              const isCancelStep = step.id === "cancelled";
-              const active = step.done;
-              const isCurrent = step.current;
-              const showConnector = i < steps.length - 1;
-              const next = steps[i + 1];
-              const nextDone = next?.done ?? false;
-              const nextIsCancel = next?.id === "cancelled";
-              const StepIcon = PROGRESS_ICONS[step.id];
+        {cancelled ? (
+          <div className="mt-7 text-center">
+            <p className="text-[26px] leading-tight font-extrabold tracking-tight text-black">
+              Order cancelled
+            </p>
+            <p className="mt-2 px-6 text-[15px] font-semibold text-muted">
+              This order was cancelled and won’t be delivered.
+            </p>
+            {clockish(order.timeline.find((step) => step.key === "cancelled")?.at) ? (
+              <p className="mt-2 text-[13px] font-semibold text-muted">
+                {order.timeline.find((step) => step.key === "cancelled")?.at}
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <DetailSteps
+            active={leadStepIndex(progress)}
+            times={[clockish(placed), clockish(moving), clockish(done)]}
+          />
+        )}
 
+        <div className="mt-6 flex gap-2.5">
+          {cancelled ? (
+            <>
+              <LeadAction
+                label="Call shop"
+                icon={<Phone className="h-4 w-4" aria-hidden />}
+                onClick={() => setNote("Shop phone isn’t on this sample order.")}
+              />
+              <LeadAction
+                label="Order again"
+                filled
+                href={shopHref}
+                icon={<ShoppingBag className="h-4 w-4" aria-hidden />}
+              />
+            </>
+          ) : delivered ? (
+            <>
+              <LeadAction
+                label="Review"
+                icon={<Star className="h-4 w-4" aria-hidden />}
+                onClick={() => setReview(true)}
+              />
+              <LeadAction
+                label="Receipt"
+                filled
+                icon={<Download className="h-4 w-4" aria-hidden />}
+                onClick={() => setBill(true)}
+              />
+            </>
+          ) : (
+            <LeadAction
+              label="Track order"
+              filled
+              href={`/orders/${order.id}/track`}
+              icon={<DeliveryScooter className="h-8 w-8" />}
+            />
+          )}
+        </div>
+        {note ? <p className="mt-3 text-center text-[13px] font-semibold text-muted">{note}</p> : null}
+
+        <SectionTitle icon={<DeliveryScooter className="h-6 w-6" />} label="Delivery details" />
+        <div className="mt-3 overflow-hidden rounded-3xl bg-[#F4F4F6]">
+          <DetailRow label="Deliver to" value={order.addressLabel} />
+          <DetailRow label="Address" value={order.addressDetail} />
+          <DetailRow label="Payment" value={order.paymentLabel} />
+        </div>
+
+        <div className="mt-3.5 rounded-3xl bg-[#F4F4F6] px-4 py-4">
+          <ul className="space-y-4">
+            {order.lines.map((line) => (
+              <BillLine key={line.productId} line={line} />
+            ))}
+          </ul>
+          <div className="my-4 h-px bg-[#EAEAED]" />
+          <Amount label="Subtotal" value={inr(order.subtotal)} />
+          {order.promoDiscount > 0 ? (
+            <Amount label="Promo" value={`−${inr(order.promoDiscount)}`} />
+          ) : null}
+          <Amount label="Shipping" value={inr(deliveryCharge(order))} />
+          <div className="my-4 h-px bg-[#EAEAED]" />
+          <Amount label="Total" value={inr(billedTotal(order))} strong />
+        </div>
+
+        <div className="mt-3.5 flex items-center gap-3 rounded-3xl bg-[#F4F4F6] p-3.5">
+          <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full bg-mint">
+            <Image
+              src="/orders/delivery-partner.png"
+              alt=""
+              width={64}
+              height={64}
+              className="h-10 w-10 object-contain"
+            />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-extrabold text-black">
+              {delivered || progress === "on_the_way" ? "Ravi Kumar" : "Delivery partner"}
+            </p>
+            <p className="text-[13px] font-medium text-muted">
+              {delivered || progress === "on_the_way"
+                ? "Bike · assigned for this drop"
+                : "We’ll assign a partner when the order is on the way."}
+            </p>
+          </div>
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-[#E4E4E8] text-muted">
+            <MessageCircle className="h-4 w-4" aria-hidden />
+          </span>
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-[#E4E4E8] text-forest">
+            <Phone className="h-4 w-4" aria-hidden />
+          </span>
+        </div>
+
+        <div className="mt-3.5 rounded-3xl bg-[#F4F4F6] px-4 pt-4 pb-5">
+          <div className="mx-auto mb-5 h-1 w-9 rounded-full bg-black" />
+          <ol className="relative space-y-5">
+            {order.timeline.map((step, index) => {
+              const failed = step.key === "cancelled";
+              const last = index === order.timeline.length - 1;
               return (
-                <li key={step.id} className="relative flex gap-3">
-                  <div
-                    className={cn(
-                      "flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-3 py-2.5",
-                      isCancelStep
-                        ? "bg-red-50 ring-1 ring-dashed ring-red-300"
-                        : active
-                          ? "bg-mint"
-                          : "bg-black/[0.04]",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "grid h-11 w-11 shrink-0 place-items-center",
-                        isCancelStep
-                          ? "rounded-full bg-red-500 text-white"
-                          : "text-black",
-                      )}
-                    >
-                      <StepIcon
-                        className={cn(
-                          isCancelStep ? "h-5 w-5 stroke-[2.5]" : "h-7 w-7",
-                          !active && !isCancelStep && "opacity-40",
-                        )}
-                        strokeWidth={isCancelStep ? undefined : 2}
-                        aria-hidden
-                      />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={cn(
-                          "text-[13px] leading-tight",
-                          isCancelStep
-                            ? "font-bold text-red-700"
-                            : active
-                              ? "text-forest"
-                              : "text-muted",
-                        )}
-                      >
-                        {isCancelStep ? (
-                          "Order cancelled"
-                        ) : (
-                          <>
-                            {step.eyebrow}{" "}
-                            <span className="font-extrabold text-black">
-                              {step.title}
-                            </span>
-                          </>
-                        )}
-                      </p>
-                      {step.at && active ? (
-                        <p
-                          className={cn(
-                            "mt-0.5 text-[11px] font-medium",
-                            isCancelStep ? "text-red-600/80" : "text-muted",
-                          )}
-                        >
-                          {step.at}
-                        </p>
-                      ) : null}
-                    </div>
+                <li key={step.key} className="flex gap-3">
+                  <div className="w-[4.5rem] shrink-0">
+                    <p className="text-[15px] font-extrabold text-black">
+                      {clockish(step.at) || "—"}
+                    </p>
                   </div>
-
-                  <div className="relative flex w-7 shrink-0 flex-col items-center pt-3">
+                  <div className="relative flex w-6 justify-center">
+                    {!last ? (
+                      <span className="absolute top-5 bottom-[-1.25rem] w-0.5 bg-black" />
+                    ) : null}
                     <span
                       className={cn(
-                        "relative z-10 grid h-6 w-6 place-items-center rounded-full",
-                        isCancelStep
-                          ? "bg-red-500 text-white shadow-[0_0_0_3px_rgba(239,68,68,0.25)]"
-                          : active
-                            ? isCurrent
-                              ? "bg-leaf text-white shadow-[0_0_0_3px_rgba(92,184,92,0.25)]"
-                              : "bg-white text-leaf ring-2 ring-leaf"
-                            : "bg-black/[0.08] text-transparent",
+                        "relative z-10 grid size-5 place-items-center rounded-full text-white",
+                        failed ? "bg-red-600" : "bg-black",
                       )}
-                      aria-hidden
                     >
-                      {isCancelStep ? (
-                        <X className="h-3.5 w-3.5 stroke-[3]" />
-                      ) : active ? (
-                        <Check className="h-3.5 w-3.5 stroke-[3]" />
+                      {failed ? (
+                        <span className="text-[10px] font-bold">×</span>
                       ) : (
-                        <span className="h-2 w-2 rounded-full bg-black/20" />
+                        <Check className="h-3 w-3" aria-hidden />
                       )}
                     </span>
-                    {showConnector ? (
-                      <span
-                        className={cn(
-                          "absolute top-9 bottom-[-0.75rem] w-0.5 rounded-full",
-                          active && nextDone
-                            ? nextIsCancel
-                              ? "bg-red-300"
-                              : "bg-leaf"
-                            : "bg-black/10",
-                        )}
-                        aria-hidden
-                      />
-                    ) : null}
+                  </div>
+                  <div className="min-w-0 pt-0.5">
+                    <p className="text-sm font-bold text-black">{step.label}</p>
                   </div>
                 </li>
               );
             })}
           </ol>
-        </section>
+        </div>
+      </div>
 
-        <section className="mt-5">
-          <div className="flex items-start gap-3 rounded-2xl bg-white p-3.5 shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-mint text-forest">
-              <MapPin className="h-5 w-5" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <p className="text-sm font-bold text-black">
-                  {order.addressLabel}
-                </p>
-                <span className="text-[12px] font-semibold text-forest">
-                  · {order.paymentLabel}
-                </span>
-              </div>
-              <p className="mt-0.5 text-[13px] leading-5 text-muted">
-                {order.addressDetail}
-              </p>
-            </div>
-          </div>
-        </section>
+      {review ? <OrderReviewSheet onClose={() => setReview(false)} /> : null}
+      {bill ? (
+        ticketBill ? (
+          <OrderTicketBill order={order} onClose={() => setBill(false)} />
+        ) : (
+          <OrderReceiptDialog order={order} onClose={() => setBill(false)} />
+        )
+      ) : null}
+    </div>
+  );
+}
 
-        <section className="mt-6">
-          <h2 className="text-base font-extrabold text-black">
-            Items ({order.lines.length})
-          </h2>
-          <ul className="mt-3 space-y-2">
-            {order.lines.map((line) => {
-              const product = getSampleProduct(line.productId);
-              if (!product) return null;
-              return (
-                <li
-                  key={`${order.id}-${line.productId}`}
-                  className="flex items-center gap-3 rounded-2xl bg-white px-3 py-2.5 shadow-[0_6px_18px_rgba(47,107,47,0.08)] ring-1 ring-forest/8"
-                >
-                  <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-mint">
-                    <Image
-                      src={product.image}
-                      alt=""
-                      fill
-                      className="object-contain p-1.5"
-                      sizes="56px"
-                    />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-black">
-                      {product.name}
-                    </p>
-                    <p className="mt-0.5 text-[13px] text-muted">
-                      {product.unit}
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-mint px-2.5 py-1 text-[12px] font-extrabold whitespace-nowrap text-forest">
-                    {orderLineLabel(line, product.unit)}
-                  </span>
-                  <div className="w-14 shrink-0 text-right">
-                    <p className="text-sm font-extrabold text-black">
-                      ₹{line.lineTotal}
-                    </p>
-                    {line.lineMrp > line.lineTotal ? (
-                      <p className="text-[11px] text-muted line-through">
-                        ₹{line.lineMrp}
-                      </p>
-                    ) : null}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-
-        <section className="mt-6">
-          <h2 className="text-base font-extrabold text-black">Price details</h2>
-          <div className="mt-3 rounded-2xl bg-white px-4 py-1 shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10">
-            <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
-              <span className="text-muted">Subtotal</span>
-              <span className="font-bold text-black">₹{order.mrpTotal}</span>
-            </div>
-            {order.promoCode && order.promoDiscount > 0 ? (
-              <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
-                <span className="text-muted">Coupon ({order.promoCode})</span>
-                <span className="font-bold text-leaf">
-                  −₹{order.promoDiscount}
-                </span>
-              </div>
-            ) : null}
-            <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
-              <span className="text-muted">You save</span>
-              <span className="font-bold text-leaf">
-                {totalSaved > 0 ? `₹${totalSaved}` : "₹0"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between py-3 text-sm">
-              <span className="font-bold text-black">Total</span>
-              <span className="font-extrabold text-leaf">₹{order.totalDue}</span>
-            </div>
-          </div>
-          <div className="mt-3 flex items-center justify-between rounded-2xl bg-track px-5 py-3.5 text-black shadow-[0_10px_28px_rgba(47,107,47,0.28)]">
-            <span className="text-sm font-semibold">
-              {order.status === "delivered" ? "Amount paid" : "Amount due"}
-            </span>
-            <span className="text-xl font-extrabold tabular-nums">
-              ₹{order.totalDue}
-            </span>
-          </div>
-        </section>
-
-        {!cancelled ? (
-          <div className="mt-6 flex flex-col gap-2">
-            {order.status !== "delivered" ? (
-              <p className="flex items-center justify-center gap-2 text-center text-[13px] font-medium text-muted">
-                <Package className="h-4 w-4 text-forest" aria-hidden />
-                Sample tracking — no live courier link yet.
-              </p>
-            ) : (
-              <Link
-                href={inline ? "/playground" : "/home"}
-                className="flex h-12 w-full items-center justify-center rounded-full bg-track text-sm font-semibold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+function DetailSteps({ active, times }: { active: number; times: string[] }) {
+  const labels = ["Placed", "On the way", "Delivered"];
+  return (
+    <div className="mt-7">
+      <div className="relative flex">
+        <div className="absolute top-3.5 right-[16.6%] left-[16.6%] flex">
+          <span className={cn("h-[3px] flex-1 rounded-full", active > 0 ? "bg-[#22C55E]" : "bg-[#E6E6EA]")} />
+          <span className={cn("h-[3px] flex-1 rounded-full", active > 1 ? "bg-[#22C55E]" : "bg-[#E6E6EA]")} />
+        </div>
+        {labels.map((label, index) => {
+          const done = index < active || active >= 2;
+          const current = index === active && active < 2;
+          return (
+            <div key={label} className="relative z-10 flex flex-1 flex-col items-center">
+              <span
+                className={cn(
+                  "grid h-7 w-7 place-items-center rounded-full",
+                  done && "bg-[#22C55E] text-white",
+                  current && "bg-black text-white",
+                  !done && !current && "bg-[#E4E4E8]",
+                )}
               >
-                Order again from shop
-              </Link>
-            )}
-          </div>
-        ) : null}
-      </PullToRefresh>
-    </main>
+                {done || current ? <Check className="h-3.5 w-3.5" aria-hidden /> : null}
+              </span>
+              <p className="mt-2 text-center text-[13px] font-bold text-black">{label}</p>
+              {times[index] ? (
+                <p className="text-center text-xs font-medium text-muted">{times[index]}</p>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function DeliveryScooter({ className }: { className?: string }) {
+  return (
+    <Image
+      src="/orders/delivery-scooter.png"
+      alt=""
+      width={64}
+      height={64}
+      className={cn("object-contain", className)}
+    />
+  );
+}
+
+function SectionTitle({ icon, label }: { icon: ReactNode; label: string }) {
+  return (
+    <div className="mt-7 flex items-center gap-2 text-muted">
+      {icon}
+      <p className="text-sm font-bold">{label}</p>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-4 border-b border-[#EAEAED] px-4 py-3.5 last:border-b-0">
+      <p className="text-sm font-medium text-muted">{label}</p>
+      <p className="min-w-0 flex-1 text-right text-sm font-bold text-black">{value}</p>
+    </div>
+  );
+}
+
+function BillLine({ line }: { line: SampleOrderLine }) {
+  const product = getSampleProduct(line.productId);
+  return (
+    <li className="flex items-start gap-3">
+      {product ? (
+        <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-white">
+          <Image src={product.image} alt="" fill className="object-cover" sizes="40px" />
+        </span>
+      ) : null}
+      <div className="flex min-w-0 flex-1 items-start gap-2">
+        <p className="line-clamp-2 text-sm font-semibold text-black">{lineName(line)}</p>
+        <span className="mt-0.5 rounded-full bg-track px-1.5 py-0.5 text-[10px] leading-none font-extrabold whitespace-nowrap text-black">
+          {orderLineLabel(line, product?.unit)}
+        </span>
+      </div>
+      <p className="text-sm font-bold text-black">{inr(line.lineTotal)}</p>
+    </li>
+  );
+}
+
+function Amount({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className={cn("flex justify-between", strong ? "text-base font-extrabold" : "mt-3 text-[15px] font-semibold")}>
+      <span className="text-black">{label}</span>
+      <span className="text-black">{value}</span>
+    </div>
   );
 }

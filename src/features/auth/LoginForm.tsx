@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { SwipeAction } from "@/components/ui/SwipeAction";
 import {
@@ -17,6 +17,8 @@ type Step = "phone" | "otp";
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = safeNext(searchParams.get("next"));
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -60,7 +62,7 @@ export function LoginForm() {
     try {
       const session = await verifyCustomerOtp(phone, otp);
       saveCustomerSession(session);
-      router.push("/home", { transitionTypes: ["login-forward"] });
+      router.push(nextPath, { transitionTypes: ["login-forward"] });
       return true;
     } catch (err) {
       setOtpError(
@@ -175,4 +177,9 @@ export function LoginForm() {
       )}
     </form>
   );
+}
+
+function safeNext(value: string | null): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/home";
+  return value;
 }

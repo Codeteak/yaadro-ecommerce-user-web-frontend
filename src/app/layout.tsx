@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { Suspense } from "react";
+import { AppProviders } from "@/components/providers/AppProviders";
 import { ShopMetadataMarker } from "@/components/seo/ShopMetadataMarker";
 import { ToastProvider } from "@/components/ui/ToastContext";
 import { getShopSeo } from "@/lib/shop-seo";
@@ -67,10 +68,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${jakarta.variable} h-full antialiased`}>
       <body className="min-h-full">
         <ToastProvider>
+          <AppProviders>
           {children}
           <Suspense>
             <ShopMetadataMarker />
           </Suspense>
+          </AppProviders>
         </ToastProvider>
       </body>
     </html>

@@ -471,26 +471,26 @@ import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
     ],
   ),
   "orders-list": U(
-    `import { OrdersListPlayground } from "@/components/orders/OrdersListPlayground";
+    `import { OrdersPageContent } from "@/components/orders/OrdersPageContent";
 
 // Storefront /orders
-<OrdersListPlayground />`,
+<OrdersPageContent />`,
     [
       "src/app/(storefront)/orders/page.tsx",
-      "src/components/orders/OrdersListPlayground.tsx",
+      "src/components/orders/OrdersPageContent.tsx",
       "src/components/orders/lead-order-shared.tsx",
     ],
   ),
   "order-detail": U(
-    `import { OrderDetailPlayground } from "@/components/orders/OrderDetailPlayground";
+    `import { OrderDetailPageContent } from "@/components/orders/OrderDetailPageContent";
 
 // Classic order details (not live track)
-<OrderDetailPlayground orderId="ord-1042" backHref="/orders" shopHref="/home" />
+<OrderDetailPageContent orderId="ord-1042" backHref="/orders" shopHref="/home" />
 // Track order → /orders/ord-1042/track
 // Receipt / Download bill → OrderTicketBill`,
     [
       "src/app/(storefront)/orders/[id]/page.tsx",
-      "src/components/orders/OrderDetailPlayground.tsx",
+      "src/components/orders/OrderDetailPageContent.tsx",
       "src/components/orders/lead-order-shared.tsx",
       "src/lib/sample-orders.ts",
     ],
@@ -518,12 +518,12 @@ import { OrderLiveTrackPage } from "@/components/orders/OrderLiveTrackPage";
     ],
   ),
   "empty-orders": U(
-    `import { OrdersListPlayground } from "@/components/orders/OrdersListPlayground";
+    `import { OrdersPageContent } from "@/components/orders/OrdersPageContent";
 
-<OrdersListPlayground orders={[]} />`,
+<OrdersPageContent orders={[]} />`,
     [
       "src/app/(storefront)/orders/page.tsx",
-      "src/components/orders/OrdersListPlayground.tsx",
+      "src/components/orders/OrdersPageContent.tsx",
     ],
   ),
   "address-book": U(

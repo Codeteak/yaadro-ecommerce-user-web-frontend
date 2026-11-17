@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -32,9 +33,13 @@ export function HomeCategoryProvider({
   const setSelected = useCallback((category: string) => {
     setSelectedState(category);
   }, []);
+  const value = useMemo(
+    () => ({ selected, setSelected }),
+    [selected, setSelected],
+  );
 
   return (
-    <HomeCategoryContext.Provider value={{ selected, setSelected }}>
+    <HomeCategoryContext.Provider value={value}>
       {children}
     </HomeCategoryContext.Provider>
   );

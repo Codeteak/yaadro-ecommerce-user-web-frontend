@@ -5,7 +5,8 @@ import { createPortal } from "react-dom";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import { productPhoto } from "@/lib/product-image";
 import { CloseButton } from "@/components/navigation/CloseButton";
-import { useCart } from "@/components/cart/CartContext";
+import { useCartLine, useCustomizingProduct, useSetCustomizing } from "@/components/cart/CartContext";
+import { setCartWeight } from "@/lib/cart-store";
 
 function subscribeNever() {
   return () => undefined;
@@ -24,7 +25,9 @@ function fmtKg(kg: number): string {
 }
 
 export function WeightCustomizer() {
-  const { customizing, setCustomizing, getItem, setWeight } = useCart();
+  const product = useCustomizingProduct();
+  const setCustomizing = useSetCustomizing();
+  const existing = useCartLine(product?.id ?? null);
   const [selectedKg, setSelectedKg] = useState(1);
   const mounted = useSyncExternalStore(
     subscribeNever,
@@ -33,8 +36,6 @@ export function WeightCustomizer() {
   );
   const rulerRef = useRef<HTMLDivElement>(null);
 
-  const product = customizing;
-  const existing = product ? getItem(product.id) : undefined;
 
   // Initialise selection + ruler position whenever a product opens.
   useEffect(() => {
@@ -176,7 +177,7 @@ export function WeightCustomizer() {
         <button
           type="button"
           onClick={() => {
-            setWeight(product.id, selectedKg);
+            setCartWeight(product.id, selectedKg);
             setCustomizing(null);
           }}
           className="mt-4 h-12 w-full cursor-pointer rounded-full bg-track text-sm font-semibold text-black shadow-[0_10px_24px_rgba(47,107,47,0.3)] transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
@@ -187,7 +188,7 @@ export function WeightCustomizer() {
           <button
             type="button"
             onClick={() => {
-              setWeight(product.id, null);
+              setCartWeight(product.id, null);
               setCustomizing(null);
             }}
             className="mt-2 h-10 w-full cursor-pointer text-sm font-semibold text-red-600 transition hover:text-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"

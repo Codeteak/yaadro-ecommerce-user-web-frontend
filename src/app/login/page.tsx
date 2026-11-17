@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import { ViewTransition } from "react";
 import { BackButton } from "@/components/navigation/BackButton";
 import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
@@ -64,7 +65,9 @@ export default function LoginPage() {
         <section className="login-panel-enter relative -mx-3 shrink-0 rounded-t-[1.75rem] bg-paper px-1 pt-3 pb-1 shadow-[0_-12px_40px_rgba(47,107,47,0.1)] ring-1 ring-black/5">
           <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-ink/15" aria-hidden />
           <div className="px-4 pb-2">
-            <LoginForm />
+            <Suspense fallback={<div className="h-40" />}>
+              <LoginForm />
+            </Suspense>
             <Link
               href="/home"
               className="mt-5 mb-1 block text-center text-sm font-medium text-muted transition hover:text-leaf focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"

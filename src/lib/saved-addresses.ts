@@ -134,6 +134,9 @@ export function savedToDelivery(a: SavedAddress): DeliveryAddress {
     landmark: a.landmark,
     city: a.city,
     pin: a.pin,
+    ...(typeof a.lat === "number" && typeof a.lng === "number"
+      ? { lat: a.lat, lng: a.lng }
+      : {}),
   };
 }
 

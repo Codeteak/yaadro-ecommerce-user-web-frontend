@@ -1,16 +1,21 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { useShopName } from "@/components/shop/ShopNameProvider";
+import {
+  hasCustomerSession,
+  subscribeCustomerSession,
+} from "@/lib/api/auth";
 import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
 
 type ProfileHeroProps = {
   backHref?: string;
   /**
-   * Signed-in scaffold until a real session API exists.
-   * Storefront `/profile` passes true (same idea as WishlistProvider).
+   * Override the live OTP session. Playground demos pass this.
+   * Omit it on `/profile` so the hero follows the real session.
    */
   signedIn?: boolean;
   /** Seed for the default avatar (user id). */
@@ -29,12 +34,18 @@ type ProfileHeroProps = {
  */
 export function ProfileHero({
   backHref = "/home",
-  signedIn = false,
-  userId = "demo-user",
+  signedIn: signedInProp,
+  userId = "customer",
   displayName,
-  signedInSubtitle = "Orders, coupons and wishlist stay on this device until login is connected.",
+  signedInSubtitle = "Orders, coupons and wishlist stay on this device.",
 }: ProfileHeroProps) {
   const shopName = useShopName();
+  const session = useSyncExternalStore(
+    subscribeCustomerSession,
+    hasCustomerSession,
+    () => false,
+  );
+  const signedIn = signedInProp ?? session;
   const resolvedName = displayName?.trim() || `${shopName} Member`;
   const avatarSrc = pickDefaultProfileAvatar(userId);
 

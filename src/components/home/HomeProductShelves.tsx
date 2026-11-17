@@ -29,38 +29,16 @@ export function HomeProductShelves({
   shelves?: LiveShelf[];
 }) {
   const t = useTypeScale();
-  const wishlist = useWishlistOptional();
 
   const shelves = useMemo((): LiveShelf[] => {
-    if (liveShelves) {
-      const next = liveShelves.map((shelf) => ({ ...shelf }));
-      if (wishlist?.signedIn && wishlist.products.length > 0) {
-        next.push({
-          id: "device-favourites",
-          title: "Your favourites",
-          subtitle: "Saved on this device",
-          products: wishlist.products,
-        });
-      }
-      return next;
-    }
-    return HOME_SHELVES.map((shelf) => {
-      if (shelf.id === "favourites" && wishlist?.signedIn && wishlist.products.length > 0) {
-        return {
-          id: shelf.id,
-          title: shelf.title,
-          subtitle: "Saved on this device",
-          products: wishlist.products,
-        };
-      }
-      return {
-        id: shelf.id,
-        title: shelf.title,
-        subtitle: shelf.subtitle,
-        products: productsForShelf(shelf),
-      };
-    });
-  }, [liveShelves, wishlist?.signedIn, wishlist?.products]);
+    if (liveShelves) return liveShelves.map((shelf) => ({ ...shelf }));
+    return HOME_SHELVES.filter((shelf) => shelf.id !== "favourites").map((shelf) => ({
+      id: shelf.id,
+      title: shelf.title,
+      subtitle: shelf.subtitle,
+      products: productsForShelf(shelf),
+    }));
+  }, [liveShelves]);
 
   return (
     <div className={cn(t.homeShelvesStack, className)}>
@@ -74,6 +52,28 @@ export function HomeProductShelves({
           />
         );
       })}
+      <FavouritesShelf live={Boolean(liveShelves)} />
     </div>
   );
+}
+
+/** Subscribes to the wishlist on its own so the other shelves stay still. */
+function FavouritesShelf({ live }: { live: boolean }) {
+  const wishlist = useWishlistOptional();
+  if (wishlist?.signedIn && wishlist.products.length > 0) {
+    return (
+      <HomeProductShelf
+        shelf={{
+          id: "device-favourites",
+          title: "Your favourites",
+          subtitle: "Saved on this device",
+        }}
+        products={wishlist.products}
+      />
+    );
+  }
+  if (live) return null;
+  const sample = HOME_SHELVES.find((shelf) => shelf.id === "favourites");
+  if (!sample) return null;
+  return <HomeProductShelf shelf={sample} />;
 }

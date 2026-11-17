@@ -1,19 +1,10 @@
 "use client";
 
 import { Check, ChevronRight } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type PointerEvent,
-} from "react";
 import { cn } from "@/lib/cn";
+import { useSwipeToComplete } from "@/components/ui/useSwipeToComplete";
 
 const HANDLE = 48;
-const COMPLETE_RATIO = 0.82;
-const SUCCESS_HOLD_MS = 380;
 
 type SwipeActionProps = {
   label?: string;
@@ -27,106 +18,23 @@ export function SwipeAction({
   disabled = false,
   onComplete,
 }: SwipeActionProps) {
-  const trackRef = useRef<HTMLDivElement>(null);
-  const draggingRef = useRef(false);
-  const startXRef = useRef(0);
-  const startOffsetRef = useRef(0);
-  const offsetRef = useRef(0);
-  const onCompleteRef = useRef(onComplete);
-  const aliveRef = useRef(true);
-  const [offset, setOffset] = useState(0);
-  const [maxOffset, setMaxOffset] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const [completed, setCompleted] = useState(false);
-
-  onCompleteRef.current = onComplete;
-
-  useEffect(() => {
-    aliveRef.current = true;
-    return () => {
-      aliveRef.current = false;
-    };
-  }, []);
-
-  const reset = useCallback(() => {
-    draggingRef.current = false;
-    offsetRef.current = 0;
-    setOffset(0);
-    setDragging(false);
-    setCompleted(false);
-  }, []);
-
-  const measure = useCallback(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    setMaxOffset(Math.max(0, track.clientWidth - HANDLE - 8));
-  }, []);
-
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    measure();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(track);
-    return () => observer.disconnect();
-  }, [measure]);
-
-  const finish = useCallback(() => {
-    if (completed || disabled) return;
-    setCompleted(true);
-    setOffset(maxOffset);
-    offsetRef.current = maxOffset;
-    window.setTimeout(async () => {
-      if (!aliveRef.current) return;
-      const ok = await onCompleteRef.current();
-      if (!aliveRef.current || ok !== false) return;
-      reset();
-    }, SUCCESS_HOLD_MS);
-  }, [completed, disabled, maxOffset, reset]);
-
-  const onPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
-    if (completed || disabled) return;
-    draggingRef.current = true;
-    setDragging(true);
-    startXRef.current = event.clientX;
-    startOffsetRef.current = offsetRef.current;
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      // Ignore if this pointer is already gone.
-    }
-  };
-
-  const onPointerMove = (event: PointerEvent<HTMLButtonElement>) => {
-    if (!draggingRef.current || completed || disabled) return;
-    const next = Math.min(
-      maxOffset,
-      Math.max(0, startOffsetRef.current + event.clientX - startXRef.current),
-    );
-    offsetRef.current = next;
-    setOffset(next);
-  };
-
-  const onPointerUp = () => {
-    if (!draggingRef.current) return;
-    draggingRef.current = false;
-    setDragging(false);
-    if (offsetRef.current >= maxOffset * COMPLETE_RATIO && maxOffset > 0) {
-      finish();
-      return;
-    }
-    offsetRef.current = 0;
-    setOffset(0);
-  };
-
-  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (disabled || completed) return;
-    if (event.key === "Enter" || event.key === " " || event.key === "ArrowRight") {
-      event.preventDefault();
-      finish();
-    }
-  };
+  const {
+    trackRef,
+    offset,
+    maxOffset,
+    dragging,
+    completed,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onKeyDown,
+  } = useSwipeToComplete({
+    handle: HANDLE,
+    completeRatio: 0.82,
+    disabled,
+    onComplete,
+    holdMs: 380,
+  });
 
   const progress = maxOffset > 0 ? offset / maxOffset : 0;
   const moving = offset > 0 && !completed;
