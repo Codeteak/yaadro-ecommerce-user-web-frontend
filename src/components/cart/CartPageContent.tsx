@@ -71,7 +71,7 @@ export function CartPageContent({
     setQty,
     setWeight,
     setCustomizing,
-    clear,
+    // clear — only used by Clear basket (hidden below)
     mrpTotal,
     appliedPromo,
     promoDiscount,
@@ -321,6 +321,7 @@ export function CartPageContent({
               />
             ) : null}
 
+            {/* Clear basket — hidden for now
             <button
               type="button"
               onClick={() => {
@@ -334,6 +335,7 @@ export function CartPageContent({
               <Trash2 className="h-4 w-4 text-black" aria-hidden />
               Clear basket
             </button>
+            */}
 
             <div className="mt-4 rounded-2xl bg-white p-2.5 shadow-[0_10px_28px_rgba(47,107,47,0.14)] ring-2 ring-leaf">
               <div className="flex items-center gap-2 rounded-xl bg-paper/80 px-2.5 py-2 ring-1 ring-forest/10">
