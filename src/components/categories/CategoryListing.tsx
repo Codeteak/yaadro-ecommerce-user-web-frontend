@@ -64,8 +64,9 @@ export function CategoryListing({
   const t = useTypeScale();
   const router = useRouter();
   const sampleCategory = live ? undefined : getCatalogCategory(slug);
-  const category = live
-    ? {
+  const category = useMemo(() => {
+    if (live) {
+      return {
         name: live.name,
         slug: live.slug,
         image: live.image || CATEGORY_IMAGE_FALLBACK,
@@ -77,8 +78,10 @@ export function CategoryListing({
             image: row.image || live.image || CATEGORY_IMAGE_FALLBACK,
           })),
         ],
-      }
-    : sampleCategory;
+      };
+    }
+    return sampleCategory;
+  }, [live, sampleCategory]);
   const [sub, setSub] = useState("All");
   const [query, setQuery] = useState("");
   const [chipsOpen, setChipsOpen] = useState(false);

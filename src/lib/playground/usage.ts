@@ -641,9 +641,9 @@ import {
 // Storefront:
 // app/(storefront)/loading.tsx → <StorefrontPageSkeleton />
 // product/[id] → <ProductDetailSkeleton />
-// categories/[slug] → <CategoryPlpSkeleton />
+// categories/[slug] → <CategoryPlpSkeleton /> (horizontal chrome)
 // orders/[id] → <OrderDetailSkeleton />
-// /categories hub Suspense → <CategoriesHubSkeleton />`,
+// /categories Suspense → <CategoriesHubSkeleton /> (search + pill rail)`,
     ["src/components/ui/Skeleton.tsx", "src/components/ui/skeletons.tsx"],
   ),
   toasts: U(

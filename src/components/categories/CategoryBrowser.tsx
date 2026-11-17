@@ -86,27 +86,36 @@ export function CategoryBrowser({
   railLayout = "sidebar",
 }: CategoryBrowserProps) {
   const [localSelected, setLocalSelected] = useState("all");
-  const selected = selection ?? localSelected;
+  /** Instant rail highlight while `selection` catches up from the server. */
+  const [optimistic, setOptimistic] = useState<string | null>(null);
+  const [seenSelection, setSeenSelection] = useState(selection);
   const [query, setQuery] = useState("");
   /** Search filter button expands/collapses the Filter·Brands·Type·Sort row. */
   const [chipsOpen, setChipsOpen] = useState(initialChipsOpen);
+  // Sync when the server selection arrives (adjust state while rendering).
+  if (selection !== seenSelection) {
+    setSeenSelection(selection);
+    setOptimistic(null);
+  }
+  const selected = optimistic ?? selection ?? localSelected;
   const title = selectedName(selected, branches);
   const horizontal = railLayout === "horizontal";
 
   const choose = (key: string) => {
+    setOptimistic(key);
     if (onSelect) onSelect(key);
     else setLocalSelected(key);
   };
 
   const scoped = useMemo(() => {
-    const base = selection
-      ? products
-      : productsFor(selected, branches, products);
+    // Always scope client-side so rail taps feel instant while the
+    // server payload catches up (All catalog → aisle filter).
+    const base = productsFor(selected, branches, products);
     const q = query.trim().toLowerCase();
     return base.filter((product) =>
       q ? product.name.toLowerCase().includes(q) : true,
     );
-  }, [branches, products, query, selected, selection]);
+  }, [branches, products, query, selected]);
 
   const railCategories = useMemo<RailCategory[]>(
     () =>

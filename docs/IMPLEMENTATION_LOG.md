@@ -1,5 +1,17 @@
 # Implementation Log
 
+## 2026-11-17 — Categories loading accuracy
+
+### What changed
+
+- `/categories` with no `cat` defaults to All (full capped catalog), same as `cat=all`.
+- `CategoryBrowser` always client-scopes with `productsFor` + optimistic rail selection while the server catches up.
+- `CategoriesHubSkeleton` / `CategoryPlpSkeleton` match horizontal search + pill rail chrome (no hub grid / sidebar flash).
+
+### Verify
+
+Open `/categories` — All selected with products. Switch aisles — rail + grid update immediately. Hard refresh — skeleton looks like the horizontal layout.
+
 ## 2026-11-17 — Categories “All” loads products
 
 ### What changed

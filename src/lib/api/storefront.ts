@@ -535,7 +535,8 @@ export async function loadCategoryBrowser(
         })),
     }));
 
-    if (cat === "all") {
+    // No `cat` (first visit) and `cat=all` both load the capped full catalog.
+    if (!cat || cat === "all") {
       const groups = await listStoreProducts();
       const products = groups.flatMap((group) =>
         group.products.map((product) => ({
@@ -554,11 +555,9 @@ export async function loadCategoryBrowser(
       };
     }
 
-    const requested = cat
-      ? categories.find((row) => row.slug === cat && row.slug !== "all")
-      : undefined;
-    const category =
-      requested ?? categories.find((row) => row.slug === branches[0]?.slug);
+    const category = categories.find(
+      (row) => row.slug === cat && row.slug !== "all",
+    );
     if (!category) {
       return {
         ok: true,

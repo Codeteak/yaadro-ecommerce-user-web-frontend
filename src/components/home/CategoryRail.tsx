@@ -73,8 +73,10 @@ export function CategoryRail({
     [categories],
   );
 
-  selectedRef.current = selected;
-  setSelectedRef.current = setSelected;
+  useEffect(() => {
+    selectedRef.current = selected;
+    setSelectedRef.current = setSelected;
+  }, [selected, setSelected]);
 
   const choose = (slug: string) => {
     lockRef.current = slug;
