@@ -10,6 +10,6 @@
 10. in sumamry hightlight savings amount
 11. remove the footer id in the checkout page
 12. list first top 2 coupons 
-13. after the order delivered remove dp number from order history
+13. ****after the order delivered remove dp number from order history****
 14. ****remove settings**** 
 15. in help support shw the shop address and number and address

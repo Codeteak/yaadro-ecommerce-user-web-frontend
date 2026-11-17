@@ -1,7 +1,6 @@
 /**
- * Multi-address book (localStorage) until an addresses API exists.
- * Selecting / saving syncs the active row into `yaadro-delivery-address`
- * so checkout / home keep working.
+ * One delivery address on this device (localStorage) until an addresses API exists.
+ * Saving syncs that row into `yaadro-delivery-address` so checkout and home keep working.
  */
 import {
   writeDeliveryAddress,
@@ -32,35 +31,6 @@ export type SavedAddress = {
 
 export const SAVED_ADDRESSES_KEY = "yaadro-saved-addresses-v1";
 export const SAVED_ADDRESSES_EVENT = "yaadro-saved-addresses";
-
-const SEED: SavedAddress[] = [
-  {
-    id: "addr-home",
-    label: "Home",
-    type: "house",
-    building: "arine amaryllis 101",
-    street: "Begur Road",
-    area: "Begur",
-    city: "Bengaluru",
-    pin: "560114",
-    landmark: "",
-    instructions: "",
-    isDefault: true,
-  },
-  {
-    id: "addr-office",
-    label: "Office",
-    type: "office",
-    building: "12 Avinashi Road",
-    street: "Peelamedu",
-    area: "Coimbatore",
-    city: "Coimbatore",
-    pin: "641014",
-    landmark: "Near bus stand",
-    instructions: "",
-    isDefault: false,
-  },
-];
 
 function notify() {
   window.dispatchEvent(new Event(SAVED_ADDRESSES_EVENT));
@@ -97,34 +67,52 @@ function writeRaw(list: SavedAddress[], selectedId: string | null) {
   notify();
 }
 
-/** Ensure seed data once so playground list isn't empty. */
-export function ensureSavedAddressesSeeded(): {
-  list: SavedAddress[];
-  selectedId: string | null;
-} {
+function oneAddress(
+  list: SavedAddress[],
+  selectedId: string | null,
+): { list: SavedAddress[]; selectedId: string | null } {
+  if (list.length === 0) return { list: [], selectedId: null };
+  const chosen =
+    list.find((address) => address.id === selectedId) ??
+    list.find((address) => address.isDefault) ??
+    list[0];
+  if (!chosen) return { list: [], selectedId: null };
+  return {
+    list: [{ ...chosen, isDefault: true }],
+    selectedId: chosen.id,
+  };
+}
+
+/** Read the saved address. Older books that stored several rows keep only the active one. */
+function readBook(): { list: SavedAddress[]; selectedId: string | null } {
   const existing = readRaw();
-  if (existing && existing.list.length > 0) return existing;
-  const selectedId = SEED.find((a) => a.isDefault)?.id ?? SEED[0]?.id ?? null;
-  writeRaw(SEED, selectedId);
-  if (selectedId) {
-    const row = SEED.find((a) => a.id === selectedId);
-    if (row) syncActiveDelivery(row);
+  if (!existing || existing.list.length === 0) return { list: [], selectedId: null };
+  const single = oneAddress(existing.list, existing.selectedId);
+  if (existing.list.length > 1) {
+    try {
+      window.localStorage.setItem(
+        SAVED_ADDRESSES_KEY,
+        JSON.stringify({ list: single.list, selectedId: single.selectedId }),
+      );
+    } catch {
+      // best-effort
+    }
   }
-  return { list: SEED, selectedId };
+  return single;
 }
 
 export function listSavedAddresses(): SavedAddress[] {
-  return ensureSavedAddressesSeeded().list;
+  return readBook().list;
 }
 
 export function getSelectedAddressId(): string | null {
-  return ensureSavedAddressesSeeded().selectedId;
+  return readBook().selectedId;
 }
 
 export function getSelectedAddress(): SavedAddress | null {
-  const { list, selectedId } = ensureSavedAddressesSeeded();
-  if (!selectedId) return list.find((a) => a.isDefault) ?? list[0] ?? null;
-  return list.find((a) => a.id === selectedId) ?? null;
+  const { list, selectedId } = readBook();
+  if (!selectedId) return list[0] ?? null;
+  return list.find((address) => address.id === selectedId) ?? list[0] ?? null;
 }
 
 export function savedToDelivery(a: SavedAddress): DeliveryAddress {
@@ -151,19 +139,11 @@ function syncActiveDelivery(a: SavedAddress) {
 }
 
 export function selectSavedAddress(id: string): void {
-  const { list } = ensureSavedAddressesSeeded();
+  const { list } = readBook();
   const row = list.find((a) => a.id === id);
   if (!row) return;
   writeRaw(list, id);
   syncActiveDelivery(row);
-}
-
-export function setDefaultSavedAddress(id: string): void {
-  const { list, selectedId } = ensureSavedAddressesSeeded();
-  const next = list.map((a) => ({ ...a, isDefault: a.id === id }));
-  writeRaw(next, selectedId ?? id);
-  const row = next.find((a) => a.id === id);
-  if (row) syncActiveDelivery(row);
 }
 
 export function getSavedAddress(id: string): SavedAddress | undefined {
@@ -171,32 +151,16 @@ export function getSavedAddress(id: string): SavedAddress | undefined {
 }
 
 export function deleteSavedAddress(id: string): void {
-  const { list, selectedId } = ensureSavedAddressesSeeded();
-  const next = list.filter((a) => a.id !== id);
-  if (next.length === 0) {
-    writeRaw([], null);
-    return;
-  }
-  let nextSelected = selectedId;
-  if (selectedId === id) {
-    nextSelected = next.find((a) => a.isDefault)?.id ?? next[0]?.id ?? null;
-  }
-  const hadDefault = list.find((a) => a.id === id)?.isDefault;
-  if (hadDefault && next[0] && !next.some((a) => a.isDefault)) {
-    next[0] = { ...next[0], isDefault: true };
-    nextSelected = next[0].id;
-  }
-  writeRaw(next, nextSelected);
-  const active = next.find((a) => a.id === nextSelected);
-  if (active) syncActiveDelivery(active);
+  const { list } = readBook();
+  if (!list.some((address) => address.id === id)) return;
+  writeRaw([], null);
 }
 
 export function upsertSavedAddress(
   address: Omit<SavedAddress, "id"> & { id?: string },
 ): SavedAddress {
-  const { list, selectedId } = ensureSavedAddressesSeeded();
-  const id = address.id ?? `addr-${Date.now()}`;
-  let next = [...list];
+  const current = readBook().list[0];
+  const id = address.id ?? current?.id ?? `addr-${Date.now()}`;
   const row: SavedAddress = {
     id,
     label: address.label.trim() || "Address",
@@ -208,26 +172,12 @@ export function upsertSavedAddress(
     pin: address.pin.trim(),
     landmark: address.landmark.trim(),
     instructions: address.instructions.trim(),
-    isDefault: address.isDefault,
+    isDefault: true,
     lat: address.lat,
     lng: address.lng,
   };
-
-  if (row.isDefault) {
-    next = next.map((a) => ({ ...a, isDefault: false }));
-  }
-
-  const idx = next.findIndex((a) => a.id === id);
-  if (idx >= 0) next[idx] = row;
-  else next.push(row);
-
-  const hasDefault = next.some((a) => a.isDefault);
-  if (!hasDefault && next[0]) next[0] = { ...next[0], isDefault: true };
-
-  const newSelected = row.isDefault ? id : (selectedId ?? id);
-  writeRaw(next, newSelected);
-  const active = next.find((a) => a.id === newSelected) ?? row;
-  syncActiveDelivery(active);
+  writeRaw([row], id);
+  syncActiveDelivery(row);
   return row;
 }
 

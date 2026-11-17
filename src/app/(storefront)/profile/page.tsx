@@ -32,7 +32,7 @@ const quickActions = [
 
 const menuItems = [
   { href: "/profile/edit", label: "My Profile", icon: UserRound },
-  { href: "/profile/addresses", label: "Address Management", icon: MapPin },
+  { href: "/profile/addresses", label: "Address", icon: MapPin },
   { href: "/profile/support", label: "Help & Support", icon: Headset },
 ] as const;
 

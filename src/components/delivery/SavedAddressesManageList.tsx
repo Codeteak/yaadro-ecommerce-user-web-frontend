@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import { MapPin, Pencil, Plus, Star, Trash2 } from "lucide-react";
+import { MapPin, Pencil, Plus, Trash2 } from "lucide-react";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { useToastOptional } from "@/components/ui/ToastContext";
 import { cn } from "@/lib/cn";
@@ -9,7 +9,6 @@ import {
   deleteSavedAddress,
   formatSavedAddressLine,
   listSavedAddresses,
-  setDefaultSavedAddress,
   subscribeSavedAddresses,
   type SavedAddress,
 } from "@/lib/saved-addresses";
@@ -23,8 +22,7 @@ function getSnapshot() {
 }
 
 /**
- * Profile-style address management list: pin, label, Default, star / edit /
- * delete, Add New Address. Yaadro theme. Playground first.
+ * Profile address: one saved address, with edit, delete, or add when empty.
  */
 export function SavedAddressesManageList({
   className,
@@ -33,7 +31,7 @@ export function SavedAddressesManageList({
 }) {
   const toast = useToastOptional();
   const raw = useSyncExternalStore(subscribe, getSnapshot, () => "[]");
-  const list = JSON.parse(raw) as SavedAddress[];
+  const address = (JSON.parse(raw) as SavedAddress[])[0] ?? null;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetStep, setSheetStep] = useState<"list" | "map" | "details">("map");
   const [editId, setEditId] = useState<string | null>(null);
@@ -53,93 +51,57 @@ export function SavedAddressesManageList({
 
   return (
     <div className={cn("w-full", className)}>
-      <ul className="flex flex-col gap-3">
-        {list.map((addr) => (
-          <li
-            key={addr.id}
-            className="rounded-[1.35rem] bg-white p-3.5 shadow-[0_6px_18px_rgba(47,107,47,0.08)] ring-1 ring-black/[0.06]"
-          >
-            <div className="flex items-start gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-mint text-black">
-                <MapPin className="h-5 w-5" aria-hidden />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="min-w-0 text-[15px] font-extrabold text-black">
-                    {addr.label}
-                    {addr.isDefault ? (
-                      <span className="ml-2 text-[13px] font-semibold text-muted">
-                        Default
-                      </span>
-                    ) : null}
-                  </p>
-                  <div className="flex shrink-0 items-center gap-0.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDefaultSavedAddress(addr.id);
-                        if (!addr.isDefault) {
-                          toast?.success("Default address updated");
-                        }
-                      }}
-                      aria-label={
-                        addr.isDefault
-                          ? `${addr.label} is default`
-                          : `Set ${addr.label} as default`
-                      }
-                      className="grid h-9 w-9 place-items-center rounded-full text-forest transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-                    >
-                      <Star
-                        className={cn(
-                          "h-[18px] w-[18px]",
-                          addr.isDefault
-                            ? "fill-amber-400 text-amber-400"
-                            : "text-forest/50",
-                        )}
-                        aria-hidden
-                      />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openEdit(addr.id)}
-                      aria-label={`Edit ${addr.label}`}
-                      className="grid h-9 w-9 place-items-center rounded-full text-forest transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-                    >
-                      <Pencil className="h-[17px] w-[17px]" aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPendingDelete(addr)}
-                      aria-label={`Delete ${addr.label}`}
-                      className="grid h-9 w-9 place-items-center rounded-full text-forest transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-                    >
-                      <Trash2 className="h-[17px] w-[17px]" aria-hidden />
-                    </button>
-                  </div>
-                </div>
-                <p className="mt-1 text-[13px] leading-5 text-muted">
-                  {formatSavedAddressLine(addr)}
+      {address ? (
+        <div className="rounded-[1.35rem] bg-white p-3.5 shadow-[0_6px_18px_rgba(47,107,47,0.08)] ring-1 ring-black/[0.06]">
+          <div className="flex items-start gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-mint text-black">
+              <MapPin className="h-5 w-5" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-2">
+                <p className="min-w-0 text-[15px] font-extrabold text-black">
+                  {address.label}
                 </p>
+                <div className="flex shrink-0 items-center gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(address.id)}
+                    aria-label={`Edit ${address.label}`}
+                    className="grid h-9 w-9 place-items-center rounded-full text-forest transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+                  >
+                    <Pencil className="h-[17px] w-[17px]" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPendingDelete(address)}
+                    aria-label={`Delete ${address.label}`}
+                    className="grid h-9 w-9 place-items-center rounded-full text-forest transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+                  >
+                    <Trash2 className="h-[17px] w-[17px]" aria-hidden />
+                  </button>
+                </div>
               </div>
+              <p className="mt-1 text-[13px] leading-5 text-muted">
+                {formatSavedAddressLine(address)}
+              </p>
             </div>
-          </li>
-        ))}
-      </ul>
-
-      {list.length === 0 ? (
-        <p className="mb-3 text-center text-sm text-muted">
-          No saved addresses yet.
-        </p>
-      ) : null}
-
-      <button
-        type="button"
-        onClick={openAdd}
-        className="mt-3 flex h-14 w-full items-center justify-center gap-2 rounded-[1.35rem] border border-dashed border-leaf/50 bg-white text-sm font-extrabold text-forest transition hover:border-leaf hover:bg-mint/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-      >
-        <Plus className="h-5 w-5" strokeWidth={2.5} aria-hidden />
-        Add New Address
-      </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <p className="mb-3 text-center text-sm text-muted">
+            No delivery address yet.
+          </p>
+          <button
+            type="button"
+            onClick={openAdd}
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-[1.35rem] border border-dashed border-leaf/50 bg-white text-sm font-extrabold text-forest transition hover:border-leaf hover:bg-mint/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+          >
+            <Plus className="h-5 w-5" strokeWidth={2.5} aria-hidden />
+            Add address
+          </button>
+        </>
+      )}
 
       <AddressBookSheet
         open={sheetOpen}

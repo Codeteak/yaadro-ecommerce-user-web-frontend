@@ -10,10 +10,7 @@ import {
   detectMyPlace,
   formatSavedAddressLine,
   getSavedAddress,
-  getSelectedAddressId,
   listSavedAddresses,
-  selectSavedAddress,
-  setDefaultSavedAddress,
   subscribeSavedAddresses,
   type DetectedPlace,
   type SavedAddress,
@@ -35,19 +32,16 @@ function subscribe(onChange: () => void) {
 }
 
 function getSnapshot() {
-  return JSON.stringify({
-    list: listSavedAddresses(),
-    selectedId: getSelectedAddressId(),
-  });
+  return JSON.stringify(listSavedAddresses());
 }
 
 function getServerSnapshot() {
-  return JSON.stringify({ list: [], selectedId: null });
+  return "[]";
 }
 
 /**
- * Playground address book: saved list → stub map + Detect → details form.
- * Selecting an address syncs checkout delivery localStorage.
+ * One saved address → map + Detect → details form.
+ * Saving syncs checkout delivery localStorage.
  * The body mounts only while open, so each open starts from a clean step.
  */
 export function AddressBookSheet({
@@ -68,7 +62,7 @@ export function AddressBookSheet({
 }
 
 function initialDraft(editId: string | null, initialStep: Step) {
-  listSavedAddresses();
+  const saved = listSavedAddresses();
   if (editId) {
     const row = getSavedAddress(editId);
     if (row) {
@@ -89,7 +83,7 @@ function initialDraft(editId: string | null, initialStep: Step) {
     }
   }
   return {
-    step: initialStep,
+    step: initialStep === "list" && saved.length === 0 ? "map" : initialStep,
     editing: null as SavedAddress | null,
     place: null as DetectedPlace | null,
   };
@@ -117,10 +111,7 @@ function AddressBookSheetBody({
     getSnapshot,
     getServerSnapshot,
   );
-  const { list, selectedId } = JSON.parse(raw) as {
-    list: SavedAddress[];
-    selectedId: string | null;
-  };
+  const address = (JSON.parse(raw) as SavedAddress[])[0] ?? null;
 
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -188,7 +179,11 @@ function AddressBookSheetBody({
         <div className="flex shrink-0 items-center gap-2 px-4 pt-2 pb-3">
           {step !== "list" ? (
             <BackButton
-              onClick={() => setStep(step === "details" ? "map" : "list")}
+              onClick={() => {
+                if (step === "details") setStep("map");
+                else if (address) setStep("list");
+                else onOpenChange(false);
+              }}
             />
           ) : (
             <span className="size-11 shrink-0" aria-hidden />
@@ -200,17 +195,8 @@ function AddressBookSheetBody({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-          {step === "list" ? (
-            <AddressListStep
-              list={list}
-              selectedId={selectedId}
-              onSelect={(id) => {
-                selectSavedAddress(id);
-                onOpenChange(false);
-              }}
-              onStar={setDefaultSavedAddress}
-              onAdd={goMap}
-            />
+          {step === "list" && address ? (
+            <AddressListStep address={address} onChange={goMap} />
           ) : null}
           {step === "map" ? (
             <AddressMapStep

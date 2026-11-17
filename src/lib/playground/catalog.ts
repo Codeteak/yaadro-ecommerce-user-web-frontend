@@ -439,7 +439,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "List + select + star + Add; same AddressBookSheet as /checkout, home Deliver to, /profile/addresses.",
+      "One saved address. Same AddressBookSheet as /checkout, home Deliver to, and /profile/addresses.",
     wiresTo: "/checkout, /home, /profile/addresses",
   },
   {
@@ -448,7 +448,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Manage list: black pin, Default, star / edit / delete, Add New Address. Same as /profile/addresses.",
+      "One address: edit or delete. Add only when none is saved. Same as /profile/addresses.",
     wiresTo: "/profile/addresses",
   },
   {
@@ -466,7 +466,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "House/Office/Other, save name, building, default, instructions → save to book.",
+      "House/Office/Other, save name, building, and instructions. Replaces the one saved address.",
     wiresTo: "AddressBookSheet",
   },
   {

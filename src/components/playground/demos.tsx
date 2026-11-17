@@ -789,11 +789,11 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   ),
   "address-book": () => <AddressBookDemo initialStep="list" />,
   "address-manage": () => (
-    <DemoFrame note="Same as /profile/addresses: no bottom nav. Black pin, star / edit / delete, Add New Address.">
+    <DemoFrame note="Same as /profile/addresses: one delivery address. Edit or delete it. Add only when none is saved.">
       <div className="bg-paper px-5 py-6">
-        <h2 className="text-xl font-extrabold text-black">Address management</h2>
+        <h2 className="text-xl font-extrabold text-black">Address</h2>
         <p className="mt-1 text-[13px] text-muted">
-          Star a default, edit details, or remove an address.
+          One delivery address for home and checkout.
         </p>
         <SavedAddressesManageList className="mt-5" />
       </div>

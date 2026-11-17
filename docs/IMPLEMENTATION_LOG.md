@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-17 — One delivery address
+
+Profile address no longer offers a second address, a default star, or the sample Home and Office rows. Saving replaces the single address used by home and checkout.
+
 ## 2026-11-17 — Delivered orders hide the partner number
 
 A delivered order no longer shows the delivery partner call button on the order detail opened from order history. Orders that are still on the way keep it.
