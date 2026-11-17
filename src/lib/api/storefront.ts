@@ -508,9 +508,9 @@ export type CategoryBrowserData = {
 };
 
 /**
- * Categories screen payload: the aisle tree, plus products for one
- * category. `all` sends no products so the first visit does not ship
- * the whole catalog.
+ * Categories screen payload: the aisle tree, plus products for the
+ * selected aisle. `all` loads the same capped catalog as home shelves
+ * (`listStoreProducts()` — up to three pages).
  */
 export async function loadCategoryBrowser(
   cat: string | undefined,
@@ -536,11 +536,20 @@ export async function loadCategoryBrowser(
     }));
 
     if (cat === "all") {
+      const groups = await listStoreProducts();
+      const products = groups.flatMap((group) =>
+        group.products.map((product) => ({
+          ...product,
+          category: group.category?.name ?? product.category,
+          categoryId: group.category?.id ?? product.categoryId,
+          categorySlug: group.category?.slug ?? product.categorySlug,
+        })),
+      );
       return {
         ok: true,
         error: null,
         branches,
-        products: [],
+        products,
         selectedKey: "all",
       };
     }

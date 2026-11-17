@@ -36,6 +36,7 @@ async function CategoryListingContent({ params }: CategoryPageProps) {
         <CategoryListing
           slug={slug}
           error="We couldn't load this category."
+          railLayout="horizontal"
           className="min-h-0 flex-1"
         />
       </main>
@@ -49,6 +50,7 @@ async function CategoryListingContent({ params }: CategoryPageProps) {
         slug={slug}
         live={listing}
         backHref="/categories"
+        railLayout="horizontal"
         className="min-h-0 flex-1"
       />
     </main>

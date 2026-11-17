@@ -1,6 +1,6 @@
 # Yaadro Storefront — Project Status
 
-**Updated:** 2026-11-16
+**Updated:** 2026-11-17
 
 ## Current stage
 
@@ -12,7 +12,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 |------|--------|--------|
 | Onboarding `/` | Done | Hero, swipe CTA, guest link |
 | Login `/login` | UI done | Phone +91 / OTP; API pending |
-| Home / catalog | Live database | Categories, products, product detail, and home shelves are read on the server from `DATABASE_URL` with the shop API's filters. Shop name and SEO still use the customer API, with a Yaadro fallback. Offer prices come from the product row. Campaign overlays are not copied. |
+| Home / catalog | Live database | Categories, products, product detail, and home shelves are read on the server from `DATABASE_URL` with the shop API's filters. Shop name and SEO still use the customer API, with a Yaadro fallback. Offer prices come from the product row. Campaign overlays are not copied. `/categories` and `/categories/[slug]` use horizontal HomeSearchBar + pill CategoryRail (legacy sidebars kept on playground `category-browser` / `category-plp`). |
 | Cart `/cart` | UI done | List, promo field, 3D Checkout pill (checkout not faked). “You may also like” uses the live catalog. |
 | Coupons `/coupons` | UI done | Comfortable ticket body (discount → title → code); sample via `lib/api/coupons` |
 | Wishlist `/wishlist` | UI done | Local signed-in scaffold; façade `lib/api/wishlist` |

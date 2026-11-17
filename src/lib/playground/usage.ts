@@ -110,7 +110,12 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
   "category-browser": U(
     `import { CategoryBrowser } from "@/components/categories/CategoryBrowser";
 
-<CategoryBrowser branches={branches} products={products} />
+{/* Legacy sidebar — live /categories uses railLayout="horizontal" */}
+<CategoryBrowser
+  branches={branches}
+  products={products}
+  railLayout="sidebar"
+/>
 // Search filter toggles PlpFilterChips (expand/collapse)
 // Chips open Filter / Brands / Type / Sort sheets`,
     [
@@ -132,9 +137,12 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
   "category-plp": U(
     `import { CategoryListing } from "@/components/categories/CategoryListing";
 
-{/* Shared PlpFilterChips + CategoryTile size="sidebar" */}
-<CategoryListing slug="vegetables" backHref="/categories" />
-// Filter / Brands / Type / Sort → PlpFilterSheets`,
+{/* Legacy sidebar PLP — playground only */}
+<CategoryListing
+  slug="vegetables"
+  backHref="/categories"
+  railLayout="sidebar"
+/>`,
     [
       "src/components/categories/CategoryListing.tsx",
       "src/components/categories/PlpFilterChips.tsx",
@@ -142,6 +150,26 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
       "src/components/categories/PlpFilterSheets.tsx",
       "src/lib/plp-filters.ts",
       "src/lib/catalog-taxonomy.ts",
+    ],
+  ),
+  "category-plp-horizontal": U(
+    `import { CategoryListing } from "@/components/categories/CategoryListing";
+
+{/* Same as live /categories/[slug] */}
+<CategoryListing
+  slug="vegetables"
+  backHref="/categories"
+  railLayout="horizontal"
+/>`,
+    [
+      "src/components/categories/CategoryListing.tsx",
+      "src/app/(storefront)/categories/[slug]/page.tsx",
+      "src/components/categories/CachedCategoryPage.tsx",
+      "src/components/home/HomeSearchBar.tsx",
+      "src/components/home/CategoryRail.tsx",
+      "src/components/home/CategoryTile.tsx",
+      "src/components/categories/PlpFilterChips.tsx",
+      "src/components/categories/PlpFilterSheets.tsx",
     ],
   ),
   "category-rail": U(
@@ -410,8 +438,15 @@ export default function NotFound() {
   "coupons-empty": U(
     `import { CouponsPageContent } from "@/components/coupons/CouponsPageContent";
 
-// Empty list:
-<CouponsPageContent coupons={[]} />`,
+// Signed-in empty list:
+<CouponsPageContent coupons={[]} previewSignedIn />`,
+    ["src/components/coupons/CouponsPageContent.tsx"],
+  ),
+  "coupons-guest": U(
+    `import { CouponsPageContent } from "@/components/coupons/CouponsPageContent";
+
+// Guest gate (playground force):
+<CouponsPageContent previewSignedIn={false} />`,
     ["src/components/coupons/CouponsPageContent.tsx"],
   ),
   "coupons-apply": U(
@@ -520,10 +555,23 @@ import { OrderLiveTrackPage } from "@/components/orders/OrderLiveTrackPage";
   "empty-orders": U(
     `import { OrdersPageContent } from "@/components/orders/OrdersPageContent";
 
-<OrdersPageContent orders={[]} />`,
+// Signed-in empty (mascot: public/orders/empty-orders-v2.png):
+<OrdersPageContent orders={[]} previewSignedIn />`,
     [
       "src/app/(storefront)/orders/page.tsx",
       "src/components/orders/OrdersPageContent.tsx",
+      "public/orders/empty-orders-v2.png",
+    ],
+  ),
+  "orders-guest": U(
+    `import { OrdersPageContent } from "@/components/orders/OrdersPageContent";
+
+// Guest gate (playground force):
+<OrdersPageContent previewSignedIn={false} />`,
+    [
+      "src/app/(storefront)/orders/page.tsx",
+      "src/components/orders/OrdersPageContent.tsx",
+      "public/orders/empty-orders-v2.png",
     ],
   ),
   "address-book": U(

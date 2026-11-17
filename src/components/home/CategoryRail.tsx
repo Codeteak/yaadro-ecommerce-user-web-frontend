@@ -30,9 +30,15 @@ type CategoryRailProps = {
   /** Used when a category has no image. */
   imageFallback?: string;
   /**
-   * Tile chrome. `/home` keeps `card`. Playground Style 2 uses `pill`.
+   * Tile chrome. `/home` uses `pill`. Playground Style 2 matches.
    */
   tileVariant?: "card" | "pill";
+  /**
+   * Controlled selection (e.g. PLP playground). When both are set,
+   * skips HomeCategoryContext and local state.
+   */
+  selected?: string;
+  onSelect?: (slug: string) => void;
 };
 
 /**
@@ -43,11 +49,18 @@ export function CategoryRail({
   categories = SAMPLE_RAIL,
   imageFallback = FALLBACK_IMAGE,
   tileVariant = "card",
+  selected: controlledSelected,
+  onSelect,
 }: CategoryRailProps) {
   const homeCategory = useHomeCategoryOptional();
   const [localSelected, setLocalSelected] = useState(ALL_CATEGORY_SLUG);
-  const selected = homeCategory?.selected ?? localSelected;
-  const setSelected = homeCategory?.setSelected ?? setLocalSelected;
+  const controlled = controlledSelected != null && onSelect != null;
+  const selected = controlled
+    ? controlledSelected
+    : (homeCategory?.selected ?? localSelected);
+  const setSelected = controlled
+    ? onSelect
+    : (homeCategory?.setSelected ?? setLocalSelected);
   const railRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef(selected);
   const setSelectedRef = useRef(setSelected);

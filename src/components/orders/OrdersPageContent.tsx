@@ -2,8 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useState, useSyncExternalStore } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { Package } from "lucide-react";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { listOrders } from "@/lib/api/orders";
 import { listCustomerOrders } from "@/lib/api/customer-orders";
@@ -30,6 +30,11 @@ export type OrdersPageContentProps = {
   ticketBill?: boolean;
   /** Load the signed-in customer's orders from the shop. Playground stays on samples. */
   live?: boolean;
+  /**
+   * Playground: force guest vs signed-in empty without a real session.
+   * Omit on storefront to use `hasCustomerSession`.
+   */
+  previewSignedIn?: boolean;
   className?: string;
 };
 
@@ -45,18 +50,30 @@ export function OrdersPageContent({
   chromePosition = "page",
   ticketBill = true,
   live = false,
+  previewSignedIn,
   className,
 }: OrdersPageContentProps) {
   const inline = chromePosition === "inline";
-  const signedIn = useSyncExternalStore(subscribeCustomerSession, hasCustomerSession, () => false);
+  const sessionSignedIn = useSyncExternalStore(
+    subscribeCustomerSession,
+    hasCustomerSession,
+    () => false,
+  );
+  const signedIn = previewSignedIn ?? sessionSignedIn;
   const account = useQuery({
     queryKey: ["orders"],
     queryFn: ({ signal }) => listCustomerOrders(signal),
-    enabled: live && signedIn,
+    enabled: live && signedIn && previewSignedIn === undefined,
   });
-  const list = live ? (account.data ?? []) : (orders ?? listOrders());
+  const list = live
+    ? previewSignedIn === false
+      ? []
+      : (account.data ?? [])
+    : (orders ?? listOrders());
   const [reviewFor, setReviewFor] = useState<string | null>(null);
   const [billFor, setBillFor] = useState<SampleOrder | null>(null);
+  const loginHref = "/login?next=/orders";
+  const showGuest = (live || previewSignedIn === false) && !signedIn;
 
   return (
     <div
@@ -68,13 +85,29 @@ export function OrdersPageContent({
     >
       <PageHeader backHref={backHref} title="Orders" />
 
-      {live && !signedIn ? (
-        <p className="px-6 py-16 text-center text-sm font-medium text-muted">
-          <Link href="/login?next=/orders" className="font-bold text-leaf">
+      {showGuest ? (
+        <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
+          <Image
+            src="/orders/empty-orders-v2.png"
+            alt=""
+            width={1024}
+            height={1024}
+            className="h-auto w-52 max-w-full"
+            priority={!inline}
+          />
+          <h2 className="mt-5 text-xl font-extrabold tracking-tight text-ink">
+            Sign in to see your orders
+          </h2>
+          <p className="mt-2 max-w-60 text-sm leading-6 text-muted">
+            Track deliveries and download bills after you sign in.
+          </p>
+          <Link
+            href={loginHref}
+            className="mt-6 inline-flex h-12 min-w-40 items-center justify-center rounded-full bg-track px-7 text-base font-bold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+          >
             Sign in
-          </Link>{" "}
-          to see your orders.
-        </p>
+          </Link>
+        </div>
       ) : live && account.isPending ? (
         <div className="mt-4 h-28 animate-pulse rounded-2xl bg-mint/50" />
       ) : live && account.isError ? (
@@ -94,9 +127,14 @@ export function OrdersPageContent({
         </div>
       ) : list.length === 0 ? (
         <div className="flex flex-col items-center px-6 py-16 text-center">
-          <span className="grid h-16 w-16 place-items-center rounded-full bg-mint text-forest">
-            <Package className="h-8 w-8" aria-hidden />
-          </span>
+          <Image
+            src="/orders/empty-orders-v2.png"
+            alt=""
+            width={1024}
+            height={1024}
+            className="h-auto w-52 max-w-full"
+            priority={!inline}
+          />
           <p className="mt-5 text-[22px] font-extrabold tracking-tight text-black">
             No orders yet
           </p>
@@ -105,7 +143,7 @@ export function OrdersPageContent({
           </p>
           <Link
             href={shopHref}
-            className="mt-6 inline-flex h-12 min-w-40 items-center justify-center rounded-full bg-track px-7 text-base font-bold text-black"
+            className="mt-6 inline-flex h-12 min-w-40 items-center justify-center rounded-full bg-track px-7 text-base font-bold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
           >
             Shop now
           </Link>

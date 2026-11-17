@@ -1,5 +1,65 @@
 # Implementation Log
 
+## 2026-11-17 — Categories “All” loads products
+
+### What changed
+
+`loadCategoryBrowser("all")` used to return `products: []` on purpose. It now calls `listStoreProducts()` (same cap as home) so the All pill shows the catalog.
+
+### Verify
+
+`/categories?cat=all` — product grid populated; empty only when catalog is empty.
+
+## 2026-11-17 — Wire horizontal Categories browser to ecom
+
+### What changed
+
+Bottom-nav `/categories` (`CategoryBrowser` via `CategoriesPageContent`) now uses `railLayout="horizontal"` (HomeSearchBar + home pill rail). `/categories/[slug]` already horizontal. Playground keeps legacy sidebars: `category-browser`, `category-plp`.
+
+### Verify
+
+Open `/categories` — horizontal pill rail, no left sidebar. `/playground/category-browser` still shows the old sidebar.
+
+## 2026-11-17 — Wire horizontal Category PLP to ecom
+
+### What changed
+
+`/categories/[slug]` and `CachedCategoryPage` pass `railLayout="horizontal"`. Playground keeps both demos: `category-plp` (legacy sidebar) and `category-plp-horizontal` (matches live ecom).
+
+### Verify
+
+Open a live category slug — HomeSearchBar + pill rail. Open `/playground/category-plp` — old sidebar still there.
+
+## 2026-11-17 — Category PLP horizontal rail (playground only)
+
+### What changed
+
+New playground demo `/playground/category-plp-horizontal` (group **Experiments**). `CategoryListing` gained optional `railLayout="horizontal"` (default remains `sidebar`): uses ecom `/categories` `HomeSearchBar` (filter toggles chips) + home pill `CategoryRail` + full-width cards. Ecom `/categories/[slug]` still sidebar + icon search.
+
+### Verify
+
+Open `/playground/category-plp-horizontal` — HomeSearchBar + home pill rail in one chrome block (single bottom border) + full-width 2-col grid.
+
+## 2026-11-17 — Empty-orders mascot refresh
+
+### What changed
+
+Replaced `public/orders/empty-orders.png` with the new Order History empty mascot (transparent 1024²). Ecom + playground empty/guest orders already use that path (`w-52`, same as coupons/wishlist). Removed `empty-orders-mascot.jpg` source leftover.
+
+## 2026-11-17 — Guest empty states for orders + coupons
+
+### What changed
+
+Guest `/orders` and `/coupons`: mascot + **Sign in** hyperlink and CTA → `/login?next=…`. Signed-in empty orders use bag mascot + Shop now. New playground demos: `orders-guest`, `coupons-guest`.
+
+### Files
+
+| Path | Change |
+|------|--------|
+| `src/components/orders/OrdersPageContent.tsx` | Guest + signed-in empty with mascot |
+| `src/components/coupons/CouponsPageContent.tsx` | Guest empty with mascot + Sign in |
+| Playground catalog / demos / usage | `orders-guest`, `coupons-guest` |
+
 ## 2026-11-16 — Catalog reads from Postgres
 
 Home, category, and product pages read categories, products, and home shelves from `DATABASE_URL` on the Next.js server. The statements are parameterized copies of the shop API filters: this shop, active, in stock, and sellable categories only. Checkout shows a radius preview from the same database when an address already has a pin. Place Order still calls `POST /api/storefront/location/check` so the shop signs the delivery cookie. Campaign price overlays stay on the shop API.

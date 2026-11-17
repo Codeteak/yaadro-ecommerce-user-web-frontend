@@ -324,11 +324,12 @@ function CategoriesFlowDemo({
     return (
       <DemoFrame
         surface="bare"
-        note="PLP: shared Filter/Brands/Type/Sort chips + sidebar tiles (same as /categories). Fruits/Veggies Browse all."
+        note="Legacy PLP: Filter/Brands/Type/Sort chips + left sidebar tiles (kept for comparison). Live ecom uses horizontal rail."
       >
         <div className="relative h-[78vh] overflow-hidden rounded-2xl bg-[#f7f8f7] ring-1 ring-black/5">
           <CategoryListing
             slug={slug}
+            railLayout="sidebar"
             onBack={() => setView("hub")}
             onSearchClick={() => {
               setFocusSearch(true);
@@ -803,6 +804,15 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "categories-hub": () => <CategoriesFlowDemo start="hub" />,
   "category-grid": () => <CategoriesFlowDemo start="hub" />,
   "category-plp": () => <CategoriesFlowDemo start="plp" />,
+  "category-plp-horizontal": () => (
+    <div className="flex h-full min-h-0 flex-col bg-paper">
+      <CategoryListing
+        slug="vegetables"
+        backHref="/playground"
+        railLayout="horizontal"
+      />
+    </div>
+  ),
   "home-search-categories": () => <CategoriesFlowDemo start="home-search" />,
   "category-browser": () => {
     const branches: CategoryBranch[] = HOME_CATEGORIES.map((category) => ({
@@ -825,7 +835,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     );
     return (
       <DemoFrame
-        note="Same as /categories: tap search filter to expand/collapse Filter·Brands·Type·Sort chips; each chip opens its sheet."
+        note="Legacy sidebar Categories browser (kept for comparison). Live /categories uses horizontal pill rail."
       >
         <div className="relative flex h-[36rem] flex-col overflow-hidden rounded-2xl bg-paper ring-1 ring-black/5">
           <div className="px-5 pt-3">
@@ -833,7 +843,11 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
               Categories
             </p>
           </div>
-          <CategoryBrowser branches={branches} products={products} />
+          <CategoryBrowser
+            branches={branches}
+            products={products}
+            railLayout="sidebar"
+          />
           <BottomNav position="inline" />
         </div>
       </DemoFrame>
@@ -866,10 +880,23 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "empty-orders": () => (
-    <DemoFrame note="Same empty state as /orders when there are no orders.">
+    <DemoFrame note="Signed-in empty: empty-orders-v2 mascot (Order History window) + Shop now. Same as /orders when logged in with no history.">
       <div className="relative max-h-[70vh] overflow-y-auto overscroll-contain bg-paper">
         <OrdersPageContent
           orders={[]}
+          previewSignedIn
+          chromePosition="inline"
+          backHref="/playground"
+          shopHref="/playground"
+        />
+      </div>
+    </DemoFrame>
+  ),
+  "orders-guest": () => (
+    <DemoFrame note="Guest gate: empty-orders-v2 mascot + Sign in button → /login?next=/orders. Same as /orders when logged out.">
+      <div className="relative max-h-[70vh] overflow-y-auto overscroll-contain bg-paper">
+        <OrdersPageContent
+          previewSignedIn={false}
           chromePosition="inline"
           backHref="/playground"
           shopHref="/playground"
@@ -1022,8 +1049,17 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "coupons-empty": () => (
-    <DemoFrame note="Same empty UI as /coupons when there are no coupons. Force-empty here for review.">
-      <CouponsPageContent backHref="/playground" coupons={[]} />
+    <DemoFrame note="Signed-in empty: empty-coupons mascot + No coupons yet. Same as /coupons when logged in with no offers.">
+      <CouponsPageContent
+        backHref="/playground"
+        coupons={[]}
+        previewSignedIn
+      />
+    </DemoFrame>
+  ),
+  "coupons-guest": () => (
+    <DemoFrame note="Guest gate: empty-coupons mascot + Sign in button → /login?next=/coupons. Same as /coupons when logged out.">
+      <CouponsPageContent backHref="/playground" previewSignedIn={false} />
     </DemoFrame>
   ),
   toasts: () => (

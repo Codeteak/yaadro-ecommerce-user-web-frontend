@@ -44,6 +44,7 @@ function CategoriesBody({
       initialChipsOpen={initialChipsOpen}
       selection={selection}
       onSelect={onSelect}
+      railLayout="horizontal"
     />
   );
 }

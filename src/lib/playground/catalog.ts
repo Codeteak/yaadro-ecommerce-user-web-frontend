@@ -107,12 +107,12 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
   },
   {
     slug: "category-browser",
-    title: "Category browser",
+    title: "Category browser (sidebar)",
     status: "built",
     group: "Home",
     description:
-      "Live /categories: search filter toggles Filter/Brands/Type/Sort chips; each opens its sheet. Sidebar tiles + products.",
-    wiresTo: "/categories",
+      "Legacy sidebar Categories layout. Live /categories now uses horizontal HomeSearchBar + pill CategoryRail.",
+    wiresTo: "playground only (legacy)",
   },
   {
     slug: "category-grid",
@@ -125,11 +125,20 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
   },
   {
     slug: "category-plp",
-    title: "Category PLP",
+    title: "Category PLP (sidebar)",
     status: "built",
     group: "Home",
     description:
-      "Shared Filter/Brands/Type/Sort chips + sidebar tiles. Same as /categories/[slug] (Fruits/Veggies Browse all).",
+      "Legacy layout: Filter/Brands/Type/Sort chips + left sidebar tiles. Kept for comparison — live ecom uses horizontal.",
+    wiresTo: "playground only (legacy)",
+  },
+  {
+    slug: "category-plp-horizontal",
+    title: "Category PLP · horizontal rail",
+    status: "built",
+    group: "Experiments",
+    description:
+      "HomeSearchBar + home pill CategoryRail + full-width cards. Same as live /categories/[slug].",
     wiresTo: "/categories/[slug]",
   },
   {
@@ -366,8 +375,17 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Empty coupons illustration + copy (same empty UI as /coupons when list is empty).",
+      "Signed-in empty: empty-coupons mascot + No coupons yet. Same as /coupons when logged in with no offers.",
     wiresTo: "/coupons",
+  },
+  {
+    slug: "coupons-guest",
+    title: "Coupons guest",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Logged-out coupons gate: empty-coupons mascot + Sign in button → /login?next=/coupons.",
+    wiresTo: "/coupons (guest)",
   },
   {
     slug: "profile-header",
@@ -430,8 +448,18 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "Empty orders state",
     status: "built",
     group: "Product & cart",
-    description: "Same empty state as /orders when there are no orders.",
+    description:
+      "Signed-in empty: empty-orders-v2.png mascot + No orders yet + Shop now. Same as /orders when logged in with no history.",
     wiresTo: "/orders",
+  },
+  {
+    slug: "orders-guest",
+    title: "Orders guest",
+    status: "built",
+    group: "Product & cart",
+    description:
+      "Logged-out orders gate: empty-orders-v2.png mascot + Sign in button → /login?next=/orders.",
+    wiresTo: "/orders (guest)",
   },
   {
     slug: "address-book",

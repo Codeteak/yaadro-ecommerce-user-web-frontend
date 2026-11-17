@@ -96,6 +96,7 @@ export function FruitsVeggiesSection({
           src={BG}
           alt=""
           fill
+          priority
           sizes="(max-width: 512px) 100vw, 512px"
           className="object-cover object-center"
         />

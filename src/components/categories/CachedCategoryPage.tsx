@@ -51,6 +51,7 @@ function CategoryCacheView({ slug, data }: { slug: string; data: CategoryCache }
         <CategoryListing
           slug={slug}
           error="We couldn't load this category."
+          railLayout="horizontal"
           className="min-h-0 flex-1"
         />
       </main>
@@ -59,7 +60,13 @@ function CategoryCacheView({ slug, data }: { slug: string; data: CategoryCache }
 
   return (
     <main className="mx-auto flex h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom))] min-h-0 w-full max-w-lg flex-col overflow-hidden bg-paper">
-      <CategoryListing slug={slug} live={data.listing} backHref="/categories" className="min-h-0 flex-1" />
+      <CategoryListing
+        slug={slug}
+        live={data.listing}
+        backHref="/categories"
+        railLayout="horizontal"
+        className="min-h-0 flex-1"
+      />
     </main>
   );
 }
