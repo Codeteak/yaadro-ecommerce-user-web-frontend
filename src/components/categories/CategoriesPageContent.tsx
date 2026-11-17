@@ -28,7 +28,8 @@ function CategoriesBody({
     const params = new URLSearchParams();
     if (focusSearch) params.set("focus", "search");
     if (initialChipsOpen) params.set("chips", "1");
-    params.set("cat", key === "all" ? "all" : key.slice(4));
+    // All → bare /categories (same payload as cat=all).
+    if (key !== "all") params.set("cat", key.slice(4));
     const query = params.toString();
     router.replace(query ? `/categories?${query}` : "/categories", {
       scroll: false,
@@ -44,6 +45,7 @@ function CategoriesBody({
       initialChipsOpen={initialChipsOpen}
       selection={selection}
       onSelect={onSelect}
+      railLayout="horizontal"
     />
   );
 }

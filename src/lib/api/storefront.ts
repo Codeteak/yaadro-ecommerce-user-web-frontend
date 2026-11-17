@@ -508,9 +508,9 @@ export type CategoryBrowserData = {
 };
 
 /**
- * Categories screen payload: the aisle tree, plus products for one
- * category. `all` sends no products so the first visit does not ship
- * the whole catalog.
+ * Categories screen payload: the aisle tree, plus products for the
+ * selected aisle. `all` loads the same capped catalog as home shelves
+ * (`listStoreProducts()` — up to three pages).
  */
 export async function loadCategoryBrowser(
   cat: string | undefined,
@@ -535,21 +535,29 @@ export async function loadCategoryBrowser(
         })),
     }));
 
-    if (cat === "all") {
+    // No `cat` (first visit) and `cat=all` both load the capped full catalog.
+    if (!cat || cat === "all") {
+      const groups = await listStoreProducts();
+      const products = groups.flatMap((group) =>
+        group.products.map((product) => ({
+          ...product,
+          category: group.category?.name ?? product.category,
+          categoryId: group.category?.id ?? product.categoryId,
+          categorySlug: group.category?.slug ?? product.categorySlug,
+        })),
+      );
       return {
         ok: true,
         error: null,
         branches,
-        products: [],
+        products,
         selectedKey: "all",
       };
     }
 
-    const requested = cat
-      ? categories.find((row) => row.slug === cat && row.slug !== "all")
-      : undefined;
-    const category =
-      requested ?? categories.find((row) => row.slug === branches[0]?.slug);
+    const category = categories.find(
+      (row) => row.slug === cat && row.slug !== "all",
+    );
     if (!category) {
       return {
         ok: true,

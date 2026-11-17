@@ -10,6 +10,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Copy, TicketPercent } from "lucide-react";
 import { CloseButton } from "@/components/navigation/CloseButton";
@@ -43,6 +44,11 @@ type CouponsPageContentProps = {
   /** Load the signed-in customer's coupons. Playground stays on samples. */
   live?: boolean;
   /**
+   * Playground: force guest vs signed-in empty without a real session.
+   * Omit on storefront to use `hasCustomerSession`.
+   */
+  previewSignedIn?: boolean;
+  /**
    * Select mode: Apply active coupon via CartContext, then navigate here
    * (e.g. `/cart` or `/playground/cart-page`). Also enabled when
    * `?from=cart` is present (ecom cart → coupons flow).
@@ -75,6 +81,7 @@ function CouponsPageBody({
   backHref = "/profile",
   coupons,
   live = false,
+  previewSignedIn,
   applyReturnHref: applyReturnHrefProp,
   ticketDensity = "comfortable",
 }: CouponsPageContentProps) {
@@ -82,13 +89,30 @@ function CouponsPageBody({
   const searchParams = useSearchParams();
   const { applyPromo } = useCart();
 
-  const signedIn = useSyncExternalStore(subscribeCustomerSession, hasCustomerSession, () => false);
+  const sessionSignedIn = useSyncExternalStore(
+    subscribeCustomerSession,
+    hasCustomerSession,
+    () => false,
+  );
+  const signedIn = previewSignedIn ?? sessionSignedIn;
   const account = useQuery({
     queryKey: ["coupons"],
     queryFn: ({ signal }) => listShopCoupons(undefined, signal),
-    enabled: live && signedIn && coupons == null,
+    enabled:
+      live &&
+      signedIn &&
+      coupons == null &&
+      previewSignedIn === undefined,
   });
-  const resolvedCoupons = coupons ?? (live ? (account.data ?? []) : listCoupons());
+  const resolvedCoupons =
+    coupons ??
+    (live
+      ? previewSignedIn === false
+        ? []
+        : (account.data ?? [])
+      : listCoupons());
+  const loginHref = "/login?next=/coupons";
+  const showGuest = (live || previewSignedIn === false) && !signedIn;
 
   const applyReturnHref = useMemo(() => {
     if (applyReturnHrefProp) return applyReturnHrefProp;
@@ -356,10 +380,29 @@ function CouponsPageBody({
       <PageHeader backHref={resolvedBackHref} title="Coupons" />
 
       <PullToRefresh className="flex flex-1 flex-col pb-8">
-        {live && !signedIn ? (
-          <p className="py-16 text-center text-sm text-muted">
-            Sign in to see coupons from your shop.
-          </p>
+        {showGuest ? (
+          <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
+            <Image
+              src="/coupons/empty-coupons.png"
+              alt=""
+              width={1024}
+              height={1024}
+              className="h-auto w-52 max-w-full"
+              priority
+            />
+            <h2 className="mt-5 text-xl font-extrabold text-ink">
+              Sign in to see coupons
+            </h2>
+            <p className="mt-2 max-w-60 text-sm leading-6 text-muted">
+              View vouchers from your shop after you sign in.
+            </p>
+            <Link
+              href={loginHref}
+              className="mt-6 inline-flex h-12 min-w-40 items-center justify-center rounded-full bg-track px-7 text-sm font-bold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+            >
+              Sign in
+            </Link>
+          </div>
         ) : live && account.isPending && coupons == null ? (
           <div className="mt-4 h-28 animate-pulse rounded-2xl bg-mint/50" />
         ) : live && account.isError && coupons == null ? (

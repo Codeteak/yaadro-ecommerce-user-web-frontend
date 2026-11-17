@@ -83,63 +83,73 @@ export function HomeShelfSkeleton({ className }: { className?: string }) {
   );
 }
 
-/** Categories hub: search pill + section title + tile grid. */
+/**
+ * Categories browser Suspense fallback: search pill + horizontal pill rail
+ * + product grid (matches live `/categories` horizontal chrome).
+ */
 export function CategoriesHubSkeleton({ className }: { className?: string }) {
   return (
-    <div className={cn("w-full bg-paper px-3 sm:px-4", className)} aria-hidden>
-      <Skeleton className="h-14 w-full rounded-full bg-mint/50" />
-      <Skeleton className="mt-6 h-5 w-28 bg-mint/45" />
-      <ul className="mt-3 grid grid-cols-4 gap-x-2 gap-y-3">
-        {Array.from({ length: 8 }, (_, i) => (
-          <li key={i} className={i === 0 ? "col-span-2" : "col-span-1"}>
-            <Skeleton
-              className={cn(
-                "w-full rounded-[1.15rem] bg-mint/35",
-                i === 0 ? "h-[6.25rem]" : "aspect-square",
-              )}
-            />
-            <Skeleton className="mx-auto mt-1.5 h-3 w-[80%] bg-mint/30" />
-          </li>
-        ))}
-      </ul>
+    <div className={cn("flex w-full flex-col bg-paper", className)} aria-hidden>
+      <div className="border-b border-black/[0.05] px-5 pt-3 pb-0">
+        <Skeleton className="h-11 w-28 bg-mint/45" />
+        <Skeleton className="mt-3 h-14 w-full rounded-full bg-mint/50" />
+        <div className="mt-3 flex gap-3 overflow-hidden py-3">
+          {Array.from({ length: 5 }, (_, i) => (
+            <div
+              key={i}
+              className="flex w-[4.75rem] shrink-0 flex-col items-center gap-1.5"
+            >
+              <Skeleton className="h-[5.5rem] w-full rounded-[1.85rem] bg-mint/40" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="px-4 pt-4">
+        <div className="mb-3 flex justify-between">
+          <Skeleton className="h-5 w-16 bg-mint/45" />
+          <Skeleton className="h-3 w-16 bg-mint/30" />
+        </div>
+        <ProductGridSkeleton count={4} className="gap-3.5" />
+      </div>
     </div>
   );
 }
 
-/** Category PLP: header + filter chips + rail + grid. */
+/**
+ * Category PLP Suspense fallback: title + search + horizontal pill rail
+ * + product grid (matches live `/categories/[slug]` horizontal chrome).
+ */
 export function CategoryPlpSkeleton({ className }: { className?: string }) {
   return (
     <div
       className={cn("flex min-h-[28rem] flex-col bg-paper", className)}
       aria-hidden
     >
-      <div className="border-b border-black/[0.05] px-4 pt-3 pb-2.5">
-        <div className="relative flex h-11 items-center">
-          <Skeleton className="h-11 w-11 rounded-[13px] bg-mint/70" />
-          <Skeleton className="absolute left-1/2 h-5 w-36 -translate-x-1/2 bg-mint/50" />
+      <div className="border-b border-black/[0.05] pt-3">
+        <div className="px-5">
+          <div className="relative flex h-11 items-center">
+            <Skeleton className="h-11 w-11 rounded-[13px] bg-mint/70" />
+            <Skeleton className="absolute left-1/2 h-5 w-36 -translate-x-1/2 bg-mint/50" />
+          </div>
+          <Skeleton className="mt-1 h-14 w-full rounded-full bg-mint/50" />
         </div>
-        <div className="mt-2.5 flex gap-2">
-          <Skeleton className="h-9 w-20 rounded-full bg-mint/45" />
-          <Skeleton className="h-9 w-20 rounded-full bg-mint/35" />
-          <Skeleton className="h-9 w-16 rounded-full bg-mint/30" />
-        </div>
-      </div>
-      <div className="flex min-h-0 flex-1 border-t border-black/[0.06]">
-        <div className="flex w-[5.75rem] shrink-0 flex-col gap-1 border-r border-black/[0.06] bg-paper px-1.5 py-2">
+        <div className="mt-1 flex gap-3 overflow-hidden px-5 py-3">
           {Array.from({ length: 5 }, (_, i) => (
-            <div key={i} className="flex flex-col items-center gap-1 rounded-2xl px-1 py-2.5">
-              <Skeleton className="size-12 rounded-xl bg-mint/40" />
-              <Skeleton className="h-2.5 w-10 bg-mint/30" />
+            <div
+              key={i}
+              className="flex w-[4.75rem] shrink-0 flex-col items-center gap-1.5"
+            >
+              <Skeleton className="h-[5.5rem] w-full rounded-[1.85rem] bg-mint/40" />
             </div>
           ))}
         </div>
-        <div className="min-w-0 flex-1 px-3 pt-3">
-          <div className="mb-3 flex justify-between">
-            <Skeleton className="h-4 w-20 bg-mint/45" />
-            <Skeleton className="h-3 w-14 bg-mint/30" />
-          </div>
-          <ProductGridSkeleton count={4} className="gap-2.5" />
+      </div>
+      <div className="px-4 pt-4">
+        <div className="mb-3 flex justify-between">
+          <Skeleton className="h-4 w-20 bg-mint/45" />
+          <Skeleton className="h-3 w-14 bg-mint/30" />
         </div>
+        <ProductGridSkeleton count={4} className="gap-3.5" />
       </div>
     </div>
   );
