@@ -23,7 +23,7 @@ import {
 } from "@/components/cart/CartContext";
 import { CartSuggestions } from "@/components/cart/CartSuggestions";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
-import { useToastOptional } from "@/components/ui/ToastContext";
+import { showPopup } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 import { isProductImageFallback, productPhoto } from "@/lib/product-image";
 
@@ -70,7 +70,6 @@ export function CartPageContent({
     applyPromo,
     clearPromo,
   } = useCart();
-  const toast = useToastOptional();
   const [promoInput, setPromoInput] = useState("");
   const [promoMessage, setPromoMessage] = useState<string | null>(null);
   const hasItems = items.length > 0;
@@ -90,9 +89,9 @@ export function CartPageContent({
     setPromoMessage(result.message);
     if (result.ok) {
       setPromoInput(result.code);
-      toast?.success(result.message);
+      showPopup(result.message, "success");
     } else {
-      toast?.error(result.message);
+      showPopup(result.message, "error");
     }
   };
 
@@ -100,7 +99,7 @@ export function CartPageContent({
     clearPromo();
     setPromoInput("");
     setPromoMessage(null);
-    toast?.info("Promo removed");
+    showPopup("Promo removed", "info");
   };
 
   return (
@@ -275,7 +274,7 @@ export function CartPageContent({
                 clear();
                 setPromoInput("");
                 setPromoMessage(null);
-                toast?.info("Basket cleared");
+                showPopup("Basket cleared", "info");
               }}
               className="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-black shadow-[0_8px_20px_rgba(47,107,47,0.18)] ring-2 ring-black/15 transition hover:ring-black/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
             >

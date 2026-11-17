@@ -10,7 +10,7 @@ import {
   lineName,
 } from "@/components/orders/lead-order-format";
 import { Dash, Pair } from "@/components/orders/OrderBillRows";
-import { useToastOptional } from "@/components/ui/ToastContext";
+import { showPopup } from "@/components/ui/Toast";
 
 export function OrderReceiptDialog({
   order,
@@ -20,7 +20,6 @@ export function OrderReceiptDialog({
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
-  const toast = useToastOptional();
   const charge = deliveryCharge(order);
   const total = billedTotal(order);
   const text = [
@@ -101,16 +100,16 @@ export function OrderReceiptDialog({
             type="button"
             onClick={() => {
               if (!navigator.clipboard?.writeText) {
-                toast?.error("Couldn’t copy");
+                showPopup("Couldn’t copy", "error");
                 return;
               }
               void navigator.clipboard.writeText(text).then(
                 () => {
                   setCopied(true);
-                  toast?.success("Copied");
+                  showPopup("Copied", "success");
                   window.setTimeout(() => setCopied(false), 1600);
                 },
-                () => toast?.error("Couldn’t copy"),
+                () => showPopup("Couldn’t copy", "error"),
               );
             }}
             className="inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-[18px] bg-white text-[13px] font-bold text-black ring-1 ring-[#E6E6EA]"

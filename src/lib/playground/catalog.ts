@@ -511,8 +511,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Island snackbars (success/error/info/warning). SVG Repo icons in /public/toasts. Root ToastProvider (body portal, above sheets).",
-    wiresTo: "app/layout.tsx ToastProvider",
+      "One centered card for success, error, info, and warning. showPopup(message, type). Light blur while it is open.",
+    wiresTo: "src/components/ui/Toast.tsx",
   },
 ];
 

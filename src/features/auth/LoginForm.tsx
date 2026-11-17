@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { SwipeAction } from "@/components/ui/SwipeAction";
-import { showToast } from "@/components/ui/Toast";
+import { showPopup } from "@/components/ui/Toast";
 import {
   AuthApiError,
   requestCustomerOtp,
@@ -63,7 +63,7 @@ export function LoginForm() {
     try {
       const session = await verifyCustomerOtp(phone, otp);
       saveCustomerSession(session);
-      showToast("success", "You're signed in.", "top");
+      showPopup("You're signed in.", "success");
       router.push(nextPath, { transitionTypes: ["login-forward"] });
       return true;
     } catch (err) {

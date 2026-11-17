@@ -3,7 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { MapPin, Pencil, Plus, Trash2 } from "lucide-react";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
-import { useToastOptional } from "@/components/ui/ToastContext";
+import { showPopup } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 import {
   deleteSavedAddress,
@@ -29,7 +29,6 @@ export function SavedAddressesManageList({
 }: {
   className?: string;
 }) {
-  const toast = useToastOptional();
   const raw = useSyncExternalStore(subscribe, getSnapshot, () => "[]");
   const address = (JSON.parse(raw) as SavedAddress[])[0] ?? null;
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -150,7 +149,7 @@ export function SavedAddressesManageList({
                 onClick={() => {
                   deleteSavedAddress(pendingDelete.id);
                   setPendingDelete(null);
-                  toast?.info("Address deleted");
+                  showPopup("Address deleted", "info");
                 }}
                 className="h-11 flex-1 rounded-full bg-track text-sm font-semibold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
               >

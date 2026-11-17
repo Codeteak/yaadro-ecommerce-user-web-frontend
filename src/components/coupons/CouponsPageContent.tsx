@@ -21,7 +21,7 @@ import {
   type CouponTicketDensity,
 } from "@/components/coupons/CouponTicketCard";
 import { useCart } from "@/components/cart/CartContext";
-import { useToastOptional } from "@/components/ui/ToastContext";
+import { showPopup } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 import { useQuery } from "@tanstack/react-query";
 import { listShopCoupons } from "@/lib/api/shop-coupons";
@@ -81,7 +81,6 @@ function CouponsPageBody({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { applyPromo } = useCart();
-  const toast = useToastOptional();
 
   const signedIn = useSyncExternalStore(subscribeCustomerSession, hasCustomerSession, () => false);
   const account = useQuery({
@@ -147,10 +146,10 @@ function CouponsPageBody({
     try {
       await navigator.clipboard.writeText(selected.code);
       setCopied(true);
-      toast?.success("Copied");
+      showPopup("Copied", "success");
     } catch {
       setCopied(false);
-      toast?.error("Couldn’t copy");
+      showPopup("Couldn’t copy", "error");
     }
   };
 
@@ -159,10 +158,10 @@ function CouponsPageBody({
     const result = applyPromo(selected.code);
     if (!result.ok) {
       setApplyMessage(result.message);
-      toast?.error(result.message);
+      showPopup(result.message, "error");
       return;
     }
-    toast?.success(result.message);
+    showPopup(result.message, "success");
     closeSheet();
     router.push(applyReturnHref);
   };

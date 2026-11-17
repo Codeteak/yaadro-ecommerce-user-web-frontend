@@ -12,7 +12,7 @@ import { previewDeliveryArea } from "@/lib/api/preview-delivery-area";
 import { placeCheckoutOrder } from "@/lib/api/checkout";
 import { ApiError } from "@/lib/api/errors";
 import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
-import { showToast } from "@/components/ui/Toast";
+import { showPopup } from "@/components/ui/Toast";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import { cn } from "@/lib/cn";
 import {
@@ -188,7 +188,7 @@ export function CheckoutPageContent({
       clear();
       idempotencyKey.current = null;
       await queryClient.invalidateQueries({ queryKey: ["orders"] });
-      showToast("success", `Order ${order.orderNumber} placed. Pay when it arrives.`);
+      showPopup(`Order ${order.orderNumber} placed. Pay when it arrives.`, "success");
       router.push("/orders");
     } catch (error) {
       const message =

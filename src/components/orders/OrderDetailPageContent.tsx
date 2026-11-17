@@ -15,7 +15,7 @@ import {
   Star,
 } from "lucide-react";
 import { BackButton } from "@/components/navigation/BackButton";
-import { useToastOptional } from "@/components/ui/ToastContext";
+import { showPopup } from "@/components/ui/Toast";
 import { getOrder, listOrders } from "@/lib/api/orders";
 import { getCustomerOrder } from "@/lib/api/customer-orders";
 import { ApiError } from "@/lib/api/errors";
@@ -142,7 +142,6 @@ function OrderDetailBody({
   ticketBill: boolean;
   className?: string;
 }) {
-  const toast = useToastOptional();
   const [review, setReview] = useState(false);
   const [bill, setBill] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -159,16 +158,16 @@ function OrderDetailBody({
 
   const copyId = () => {
     if (!navigator.clipboard?.writeText) {
-      toast?.error("Couldn’t copy");
+      showPopup("Couldn’t copy", "error");
       return;
     }
     void navigator.clipboard.writeText(order.number).then(
       () => {
         setCopied(true);
-        toast?.success("Copied");
+        showPopup("Copied", "success");
         window.setTimeout(() => setCopied(false), 1400);
       },
-      () => toast?.error("Couldn’t copy"),
+      () => showPopup("Couldn’t copy", "error"),
     );
   };
 

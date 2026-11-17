@@ -19,7 +19,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 | Checkout `/checkout` | UI done | COD only; Place Order → Order placed (mascot + bill card + View Order / Back home); stub only |
 | Order placed | Done | Shared `OrderPlacedContent`; playground `/playground/order-placed` |
 | Orders `/orders` | UI done | Grocery cards + ORDER STATUS detail via `lib/api/orders` |
-| Toasts | Done | Island snackbars + SVG Repo icons; storefront + playground |
+| Toasts | Done | One centered card via `showPopup(message, type)`; light blur while open |
 | Live order track | Playground | `/playground/live-order-track` — green theme; not on `/orders` yet |
 | Bottom nav | Done | Home, Categories, Wishlist, Profile |
 | Auth / session | Live | Home header profile icon follows the OTP session. Wishlist still uses the session flag from `CustomerSession`. |

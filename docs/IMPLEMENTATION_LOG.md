@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-17 — One status popup
+
+Success, error, info, and warning results now use one centered card. Pages call `showPopup(message, type)`. The card is the only thing that re-renders, and the screen blurs lightly while it is open. Field errors stay next to the input.
+
 ## 2026-11-17 — One delivery address
 
 Profile address no longer offers a second address, a default star, or the sample Home and Office rows. Saving replaces the single address used by home and checkout.

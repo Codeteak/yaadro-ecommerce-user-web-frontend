@@ -13,7 +13,7 @@ import {
 } from "@/lib/api/profile";
 import { saveMyAddress } from "@/lib/api/address";
 import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
-import { showToast } from "@/components/ui/Toast";
+import { showPopup } from "@/components/ui/Toast";
 import { useSyncExternalStore } from "react";
 
 export function EditProfileForm() {
@@ -69,7 +69,7 @@ export function EditProfileForm() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["profile"] });
       setFormError(null);
-      showToast("success", "Profile saved.");
+      showPopup("Profile saved.", "success");
     },
     onError: (error) => {
       const message =
@@ -77,7 +77,7 @@ export function EditProfileForm() {
           ? (firstFieldError(error) ?? error.message)
           : "We couldn't save your profile. Try again.";
       setFormError(message);
-      showToast("error", message);
+      showPopup(message, "error");
     },
   });
 
@@ -86,7 +86,7 @@ export function EditProfileForm() {
     onSuccess: () => {
       setOtpSent(true);
       setFormError(null);
-      showToast("success", "We sent a code to your new number.");
+      showPopup("We sent a code to your new number.", "success");
     },
     onError: (error) => {
       const message = error instanceof ApiError ? error.message : "Could not send the code.";
@@ -101,7 +101,7 @@ export function EditProfileForm() {
       setOtpSent(false);
       setPhone("");
       await queryClient.invalidateQueries({ queryKey: ["profile"] });
-      showToast("success", "Phone number updated.");
+      showPopup("Phone number updated.", "success");
     },
     onError: (error) => {
       const message = error instanceof ApiError ? error.message : "That code didn't match.";
