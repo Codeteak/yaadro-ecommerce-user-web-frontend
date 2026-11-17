@@ -169,9 +169,9 @@ export function ToastDemo() {
       ))}
 
       <p className="text-[12px] leading-5 text-muted">
-        One card at the top of the screen. Pass the message and the type. Auto-dismiss
-        ~2.8s. Wired on storefront (cart, wishlist, coupons, addresses,
-        orders, checkout, login).
+        Theme island snackbars at the top (SVG Repo icons). Same{" "}
+        <code className="text-[11px]">showPopup(message, type)</code> API across
+        storefront. Auto-dismiss ~3.2s; up to 3 stacked.
       </p>
     </div>
   );

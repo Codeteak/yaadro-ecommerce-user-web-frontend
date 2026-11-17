@@ -3,170 +3,143 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { create } from "zustand";
+import { cn } from "@/lib/cn";
 
 export type PopupType = "success" | "error" | "info" | "warning";
 
-type Popup = {
+/** Alias for playground / docs that still say “tone”. */
+export type ToastTone = PopupType;
+
+type ToastItem = {
   id: number;
   type: PopupType;
   message: string;
 };
 
 type PopupState = {
-  popup: Popup | null;
+  items: ToastItem[];
   show: (message: string, type: PopupType) => void;
-  dismiss: () => void;
+  dismiss: (id: number) => void;
 };
 
-const TITLE: Record<PopupType, string> = {
-  success: "Done",
-  error: "Something went wrong",
-  info: "Note",
-  warning: "Check this",
-};
+const DISMISS_MS = 3200;
+const MAX_VISIBLE = 3;
 
-const ICON_CLASS: Record<PopupType, string> = {
-  success: "bg-leaf text-white",
-  error: "bg-red-600 text-white",
-  info: "bg-mint text-forest",
-  warning: "bg-amber-50 text-amber-600 ring-1 ring-amber-400",
+const TOAST_ICON: Record<PopupType, string> = {
+  success: "/toasts/success.svg",
+  error: "/toasts/error.svg",
+  info: "/toasts/info.svg",
+  warning: "/toasts/warning.svg",
 };
-
-const DISMISS_MS = 2800;
 
 let nextId = 1;
-let timer = 0;
 
-export const usePopup = create<PopupState>((set, get) => ({
-  popup: null,
+export const usePopup = create<PopupState>((set) => ({
+  items: [],
   show: (message, type) => {
     const id = nextId++;
-    window.clearTimeout(timer);
-    set({ popup: { id, type, message } });
-    timer = window.setTimeout(() => {
-      if (get().popup?.id === id) set({ popup: null });
+    set((state) => {
+      const next = [...state.items, { id, type, message }];
+      return {
+        items:
+          next.length > MAX_VISIBLE
+            ? next.slice(next.length - MAX_VISIBLE)
+            : next,
+      };
+    });
+    window.setTimeout(() => {
+      set((state) => ({
+        items: state.items.filter((item) => item.id !== id),
+      }));
     }, DISMISS_MS);
   },
-  dismiss: () => {
-    window.clearTimeout(timer);
-    set({ popup: null });
-  },
+  dismiss: (id) =>
+    set((state) => ({
+      items: state.items.filter((item) => item.id !== id),
+    })),
 }));
 
-/** Show one status card. A new call replaces the card that is already open. */
+/**
+ * Theme island snackbar API used across the storefront.
+ * Keeps the other developer’s `showPopup(message, type)` call sites.
+ */
 export function showPopup(message: string, type: PopupType) {
   usePopup.getState().show(message, type);
 }
 
-/** Only this viewport re-renders when a popup opens or closes. */
+/** Mount once (AppProviders). Portals islands to document.body at the top. */
 export function ToastViewport() {
-  const popup = usePopup((state) => state.popup);
+  const items = usePopup((state) => state.items);
   const dismiss = usePopup((state) => state.dismiss);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    const id = window.requestAnimationFrame(() => setMounted(true));
+    return () => window.cancelAnimationFrame(id);
   }, []);
 
-  if (!mounted || !popup) return null;
+  if (!mounted || items.length === 0) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[110] flex items-start justify-center px-5 pt-[max(1.25rem,env(safe-area-inset-top))]">
-      <button
-        type="button"
-        aria-label="Dismiss"
-        className="absolute inset-0 cursor-default bg-black/20 backdrop-blur-[2px]"
-        onClick={dismiss}
-      />
-      <button
-        type="button"
-        onClick={dismiss}
-        role={popup.type === "error" ? "alert" : "status"}
-        className="popup-card font-sans relative flex w-full max-w-sm items-center gap-3 rounded-2xl bg-white px-3.5 py-3.5 text-left shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10"
-      >
-        <PopupIcon type={popup.type} />
-        <span className="min-w-0 flex-1">
-          <span className="block text-[15px] leading-tight font-bold tracking-tight text-forest">
-            {TITLE[popup.type]}
-          </span>
-          <span className="mt-0.5 block text-[13px] leading-5 font-medium text-muted">
-            {popup.message}
-          </span>
-        </span>
-      </button>
+    <div
+      className="pointer-events-none fixed inset-x-0 top-[max(3.5rem,calc(env(safe-area-inset-top)+2.75rem))] z-[110] flex flex-col items-center gap-2.5 px-4"
+      aria-live="polite"
+      aria-relevant="additions text"
+    >
+      {items.map((item) => (
+        <ToastIsland key={item.id} item={item} onDismiss={dismiss} />
+      ))}
     </div>,
     document.body,
   );
 }
 
-function PopupIcon({ type }: { type: PopupType }) {
+function ToastIsland({
+  item,
+  onDismiss,
+}: {
+  item: ToastItem;
+  onDismiss: (id: number) => void;
+}) {
   return (
-    <span
-      className={`popup-icon grid h-11 w-11 shrink-0 place-items-center rounded-full ${ICON_CLASS[type]}`}
+    <div
+      role={item.type === "error" ? "alert" : "status"}
+      className={cn(
+        "pointer-events-auto flex max-w-[min(92vw,22rem)] items-center gap-2.5 rounded-full py-2 pr-2 pl-2.5",
+        "bg-[#1a2e1a]/92 text-white shadow-[0_12px_40px_rgba(20,40,20,0.45)] ring-1 ring-white/12 backdrop-blur-md",
+        "animate-[toast-island-in_280ms_ease-out]",
+      )}
     >
-      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden>
-        {type === "success" ? (
-          <path
-            d="M5 12.5 10 17.5 19 7"
-            pathLength="1"
-            className="popup-stroke"
-            stroke="currentColor"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        ) : null}
-        {type === "error" ? (
-          <path
-            d="M7 7 17 17 M17 7 7 17"
-            pathLength="1"
-            className="popup-stroke"
-            stroke="currentColor"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-          />
-        ) : null}
-        {type === "info" ? (
-          <>
-            <path
-              d="M12 11v6"
-              pathLength="1"
-              className="popup-stroke"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-            />
-            <path
-              d="M12 7.5h.01"
-              pathLength="1"
-              className="popup-stroke"
-              stroke="currentColor"
-              strokeWidth="3.2"
-              strokeLinecap="round"
-            />
-          </>
-        ) : null}
-        {type === "warning" ? (
-          <>
-            <path
-              d="M12 8v5"
-              pathLength="1"
-              className="popup-stroke"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-            />
-            <path
-              d="M12 16.5h.01"
-              pathLength="1"
-              className="popup-stroke"
-              stroke="currentColor"
-              strokeWidth="3.2"
-              strokeLinecap="round"
-            />
-          </>
-        ) : null}
-      </svg>
-    </span>
+      <span
+        className={cn(
+          "grid h-9 w-9 shrink-0 place-items-center rounded-full",
+          item.type === "success" && "bg-leaf",
+          item.type === "error" && "bg-red-500",
+          item.type === "warning" && "bg-amber-500",
+          item.type === "info" && "bg-forest",
+        )}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={TOAST_ICON[item.type]}
+          alt=""
+          width={18}
+          height={18}
+          className="h-[18px] w-[18px]"
+          draggable={false}
+        />
+      </span>
+      <p className="min-w-0 flex-1 py-1 text-[13px] leading-snug font-semibold text-white">
+        {item.message}
+      </p>
+      <button
+        type="button"
+        onClick={() => onDismiss(item.id)}
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[15px] font-bold text-white/70 transition hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        aria-label="Dismiss"
+      >
+        ×
+      </button>
+    </div>
   );
 }

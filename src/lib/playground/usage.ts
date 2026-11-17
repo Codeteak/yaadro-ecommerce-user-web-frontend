@@ -649,6 +649,7 @@ import {
   toasts: U(
     `import { showPopup } from "@/components/ui/Toast";
 
+// Island snackbars at the top — AppProviders mounts <ToastViewport />
 showPopup("Saved to wishlist", "success");
 showPopup("Code not found", "error");
 showPopup("Promo removed", "info");

@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-17 — Theme island toasts at top
+
+Replaced the modal blur status card with Yaadro island snackbars (SVG Repo icons) at the top safe area. Kept `showPopup(message, type)` for all storefront call sites. Playground `/playground/toasts` updated.
+
 ## 2026-11-17 — Status card uses the storefront type
 
 The status card now uses Plus Jakarta Sans, the forest title, the 15px and 13px sizes, and the same white card, green shadow, and leaf, mint, and red used on the other screens.
