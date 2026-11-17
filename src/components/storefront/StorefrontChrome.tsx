@@ -31,7 +31,7 @@ function StorefrontPathChrome() {
  * Storefront shell chrome. Bottom nav stays on Home, Categories,
  * Wishlist, Profile, Orders, Coupons, and product/PLP pages.
  * It hides on cart, checkout, order detail, and profile task screens
- * (edit, addresses, settings, support) so the back header owns the page.
+ * (edit, addresses, support) so the back header owns the page.
  * Page content stays outside the pathname Suspense boundary.
  */
 export function StorefrontChrome({ children }: { children: ReactNode }) {

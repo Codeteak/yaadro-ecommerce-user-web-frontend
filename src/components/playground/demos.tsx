@@ -489,7 +489,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "home-top-bar": () => (
-    <DemoFrame note="Guest shows Sign in (same as /home). Signed in replaces it with the profile-tick icon — no round background. Storefront stays guest until auth.">
+    <DemoFrame note="Guest shows Sign in. Signed in replaces it with the profile-tick icon — no round background. On /home the icon follows the real session.">
       <div className="space-y-6 bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8] px-5 pt-4 pb-6">
         <div>
           <p className="mb-2 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
@@ -498,6 +498,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           <HomeTopBar
             shopName="Yaadro"
             shopImage="/onboarding/brand-mark-white-y.svg"
+            signedIn={false}
           />
         </div>
         <div>

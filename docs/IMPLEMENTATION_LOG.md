@@ -1,5 +1,17 @@
 # Implementation Log
 
+## 2026-11-17 — Profile menu without Settings
+
+The profile menu no longer lists Setting. The `/profile/settings` stub page is removed. My Profile, Address Management, and Help & Support stay.
+
+## 2026-11-17 — Signed-in home header
+
+A successful OTP login shows "You're signed in." in the top toast, then follows the existing return path (`/home` when none was asked). The home header profile icon reads the current session in its own link, so the rest of the bar does not re-render.
+
+## 2026-11-17 — Product card size
+
+The default product card now uses a square photo, 20px corners, a 32px two-line name, a 14px unit line, and a 44px add control. Compact rail cards are unchanged. The page grid is unchanged.
+
 ## 2026-11-16 — Catalog reads from Postgres
 
 Home, category, and product pages read categories, products, and home shelves from `DATABASE_URL` on the Next.js server. The statements are parameterized copies of the shop API filters: this shop, active, in stock, and sellable categories only. Checkout shows a radius preview from the same database when an address already has a pin. Place Order still calls `POST /api/storefront/location/check` so the shop signs the delivery cookie. Campaign price overlays stay on the shop API.

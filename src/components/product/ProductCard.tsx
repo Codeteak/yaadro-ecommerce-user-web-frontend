@@ -14,7 +14,7 @@ import { isProductImageFallback, productPhoto } from "@/lib/product-image";
 
 /**
  * Hanging ribbon with an exact vector finish: arc radius matches the card
- * corner (24px default / 12px compact), V notch at the bottom.
+ * corner (20px default / 12px compact), V notch at the bottom.
  */
 function Ribbon({
   fill,
@@ -56,7 +56,7 @@ function Ribbon({
         viewBox="0 0 44 56"
         className="absolute inset-0 h-full w-full drop-shadow-[0_3px_5px_rgba(0,0,0,0.22)]"
       >
-        <path d="M0 24 A24 24 0 0 1 24 0 H44 V56 L22 44 L0 56 Z" fill={fill} />
+        <path d="M0 20 A20 20 0 0 1 20 0 H44 V56 L22 44 L0 56 Z" fill={fill} />
       </svg>
       <span className="absolute inset-x-0 top-0 flex h-11 flex-col items-center justify-center text-center text-[10px] leading-[1.2] font-bold text-white">
         <span>{line1}</span>
@@ -69,9 +69,9 @@ function Ribbon({
 export type ProductCardSize = "default" | "compact";
 
 /**
- * Product card: photo panel, name, unit, then a bottom row with the
- * price and a dark squircle add button that expands into a quantity
- * stepper. `compact` matches cart suggestion guidance (~150×210).
+ * Product card: square photo, two-line name, unit, then price and add.
+ * The photo fills the card width. Height follows the content, so a row
+ * matches the tallest card. `compact` stays the short rail size.
  */
 export function ProductCard({
   product,
@@ -97,14 +97,16 @@ export function ProductCard({
 
   const addBtn = compact
     ? "grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-lg bg-track text-black shadow-[0_4px_12px_rgba(47,107,47,0.3)] transition hover:bg-leaf-bright active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-    : "grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-[0.9rem] bg-track text-black shadow-[0_8px_18px_rgba(47,107,47,0.35)] transition hover:bg-leaf-bright active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf";
+    : "grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-[0.9rem] bg-track text-black shadow-[0_8px_18px_rgba(47,107,47,0.35)] transition hover:bg-leaf-bright active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf";
 
   return (
     <article
       className={cn(
         /* Flat on paper — ring only, no drop shadow (same idea as pill rail) */
         "relative isolate flex flex-col bg-white ring-1 ring-black/[0.06]",
-        compact ? "h-[13.5rem] rounded-xl p-2" : "h-full rounded-[1.5rem] p-2",
+        compact
+          ? "h-[13.5rem] rounded-xl p-2"
+          : "h-full overflow-hidden rounded-[20px]",
       )}
     >
       {product.badge ? (
@@ -159,36 +161,40 @@ export function ProductCard({
             photoIsPlaceholder ? "bg-white" : "bg-[#f4f6f8]",
             compact
               ? "h-[105px] w-full rounded-lg"
-              : "aspect-[3/2] w-full rounded-2xl",
+              : "aspect-square w-full rounded-t-[20px] bg-gray-50",
           )}
         >
           <CatalogImage
             src={photo}
             alt={product.name}
             width={compact ? 220 : 300}
-            height={compact ? 105 : 200}
+            height={compact ? 105 : 300}
             style={{ objectFit: "contain" }}
             className="h-full w-full bg-white object-contain"
           />
         </div>
-        <h3
-          className={
-            compact
-              ? "mt-1.5 line-clamp-2 min-h-[2rem] text-[13px] leading-4 font-semibold text-ink"
-              : t.productCardName
-          }
-        >
-          {product.name}
-        </h3>
-        {!compact ? (
-          <p className="mt-0.5 text-xs font-medium text-muted">{product.unit}</p>
-        ) : null}
+        <div className={compact ? undefined : "px-3 pt-1.5"}>
+          <h3
+            className={
+              compact
+                ? "mt-1.5 line-clamp-2 min-h-[2rem] text-[13px] leading-4 font-semibold text-ink"
+                : t.productCardName
+            }
+          >
+            {product.name}
+          </h3>
+          {!compact ? (
+            <p className="mt-0.5 h-[14px] truncate text-[11px] leading-[14px] font-medium text-muted">
+              {product.unit}
+            </p>
+          ) : null}
+        </div>
       </Link>
 
       <div
         className={cn(
           "mt-auto flex flex-nowrap items-center justify-between",
-          compact ? "gap-1 pt-1.5" : "gap-2 pt-2",
+          compact ? "gap-1 pt-1.5" : "min-h-5 items-end gap-2 px-3 pt-0.5 pb-2",
         )}
       >
         <p className="flex min-w-0 flex-col">
@@ -232,10 +238,10 @@ export function ProductCard({
                       ? "rounded-lg px-2 text-[11px] font-extrabold whitespace-nowrap"
                       : "w-8 rounded-lg",
                   )
-                : `grid h-10 shrink-0 cursor-pointer place-items-center bg-track text-black shadow-[0_8px_18px_rgba(47,107,47,0.35)] transition hover:bg-leaf-bright active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf ${
+                : `grid h-11 shrink-0 cursor-pointer place-items-center bg-track text-black shadow-[0_8px_18px_rgba(47,107,47,0.35)] transition hover:bg-leaf-bright active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf ${
                     weightKg
-                      ? "rounded-[0.9rem] px-3 text-[13px] font-extrabold whitespace-nowrap"
-                      : "w-10 rounded-[0.9rem]"
+                      ? "min-w-11 rounded-[0.9rem] px-3 text-[13px] font-extrabold whitespace-nowrap"
+                      : "w-11 rounded-[0.9rem]"
                   }`
             }
           >
@@ -265,7 +271,7 @@ export function ProductCard({
               "flex shrink-0 items-center bg-track text-black",
               compact
                 ? "h-8 gap-0 rounded-lg px-0.5 shadow-[0_4px_12px_rgba(47,107,47,0.3)]"
-                : "h-10 gap-0.5 rounded-[0.9rem] px-1 shadow-[0_8px_18px_rgba(47,107,47,0.35)]",
+                : "h-11 gap-0.5 rounded-[0.9rem] px-1 shadow-[0_8px_18px_rgba(47,107,47,0.35)]",
             )}
           >
             <button

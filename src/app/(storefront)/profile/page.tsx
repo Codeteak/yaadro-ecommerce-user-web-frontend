@@ -7,7 +7,6 @@ import {
   Heart,
   History,
   MapPin,
-  Settings,
   TicketPercent,
   UserRound,
 } from "lucide-react";
@@ -35,7 +34,6 @@ const menuItems = [
   { href: "/profile/edit", label: "My Profile", icon: UserRound },
   { href: "/profile/addresses", label: "Address Management", icon: MapPin },
   { href: "/profile/support", label: "Help & Support", icon: Headset },
-  { href: "/profile/settings", label: "Setting", icon: Settings },
 ] as const;
 
 async function ProfilePageBody() {
