@@ -1,6 +1,14 @@
 import { cacheLife, cacheTag } from "next/cache";
 import { publicGet } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
+import {
+  readAllCategories,
+  readHomeSections,
+  readProduct,
+  readProductPage,
+  type DbProduct,
+} from "@/lib/db/catalog";
+import { requireShopId } from "@/lib/db/shop-id";
 import { mapCatalogProduct } from "@/lib/catalog-map";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
 import type { SampleProduct } from "@/lib/sample-products";
@@ -141,12 +149,33 @@ export function isProductUuid(value: string): boolean {
   return UUID_RE.test(value);
 }
 
+function fromDbProduct(row: DbProduct): SampleProduct | null {
+  return mapCatalogProduct({
+    raw: {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      unit: row.unit,
+      unit_size: row.unit_size,
+      sold_by_weight: row.sold_by_weight,
+      category_id: row.category_id,
+      category_name: row.category_name,
+      actual_price_minor: row.actual_price_minor,
+      final_price_minor: row.final_price_minor,
+      image: row.image,
+      images: row.images,
+    },
+    categoryName: row.category_name ?? undefined,
+    categoryId: row.category_id ?? undefined,
+    categorySlug: row.category_slug ?? undefined,
+  });
+}
+
 export async function listStoreCategories(): Promise<StoreCategory[]> {
   "use cache";
   cacheTag("storefront-catalog");
   cacheLife("minutes");
-  const json = asRecord(await apiGet("/api/storefront/categories?all=true"));
-  const rows = Array.isArray(json?.categories) ? json.categories : [];
+  const rows = await readAllCategories();
   return rows
     .map(mapCategory)
     .filter((row): row is StoreCategory => Boolean(row))
@@ -158,32 +187,52 @@ type ProductGroup = {
   products: SampleProduct[];
 };
 
-async function fetchProductGroups(query: URLSearchParams): Promise<{
+function groupDbProducts(rows: DbProduct[]): ProductGroup[] {
+  const groups: ProductGroup[] = [];
+  const index = new Map<string, ProductGroup>();
+  for (const row of rows) {
+    const product = fromDbProduct(row);
+    if (!product) continue;
+    const key = row.category_id ?? "uncategorized";
+    let group = index.get(key);
+    if (!group) {
+      group = {
+        category:
+          row.category_id && row.category_name && row.category_slug
+            ? {
+                id: row.category_id,
+                name: row.category_name,
+                slug: row.category_slug,
+                parentId: row.category_parent_id,
+                image: "",
+                sortOrder: 0,
+              }
+            : null,
+        products: [],
+      };
+      index.set(key, group);
+      groups.push(group);
+    }
+    group.products.push(product);
+  }
+  return groups;
+}
+
+async function fetchProductGroups(options: {
+  categoryId?: string;
+  search?: string;
+  cursor?: string | null;
+}): Promise<{
   groups: ProductGroup[];
   nextCursor: string | null;
 }> {
-  const json = asRecord(await apiGet(`/api/storefront/products?${query.toString()}`));
-  const rows = Array.isArray(json?.categories) ? json.categories : [];
-  const groups = rows.map((row) => {
-    const record = asRecord(row);
-    const category = mapCategory(record);
-    const products = Array.isArray(record?.products) ? record.products : [];
-    return {
-      category,
-      products: products
-        .map((product) =>
-          mapCatalogProduct({
-            raw: product,
-            categoryName: category?.name,
-            categoryId: category?.id,
-            categorySlug: category?.slug,
-          }),
-        )
-        .filter((product): product is SampleProduct => Boolean(product)),
-    };
+  const page = await readProductPage(requireShopId(), {
+    categoryId: options.categoryId,
+    search: options.search,
+    cursor: options.cursor,
+    limit: 50,
   });
-  const nextCursor = pickString(json?.nextCursor);
-  return { groups, nextCursor };
+  return { groups: groupDbProducts(page.products), nextCursor: page.nextCursor };
 }
 
 /** Up to three pages (50 each) of products, optionally scoped to a category. */
@@ -197,14 +246,11 @@ export async function listStoreProducts(options?: {
   const groups: ProductGroup[] = [];
   let cursor: string | null = null;
   for (let page = 0; page < 3; page += 1) {
-    const query = new URLSearchParams({ limit: "50" });
-    if (options?.categoryId) {
-      query.set("category_id", options.categoryId);
-      query.set("include_descendants", "1");
-    }
-    if (options?.search) query.set("search", options.search);
-    if (cursor) query.set("cursor", cursor);
-    const batch = await fetchProductGroups(query);
+    const batch = await fetchProductGroups({
+      categoryId: options?.categoryId,
+      search: options?.search,
+      cursor,
+    });
     groups.push(...batch.groups);
     cursor = batch.nextCursor;
     if (!cursor) break;
@@ -220,25 +266,14 @@ export async function getStoreProduct(idOrSlug: string): Promise<{
   "use cache";
   cacheTag("storefront-catalog");
   cacheLife("minutes");
-  const path = isProductUuid(idOrSlug)
-    ? `/api/storefront/products/id/${idOrSlug}`
-    : `/api/storefront/products/${encodeURIComponent(idOrSlug)}`;
-  let json: unknown;
-  try {
-    json = await apiGet(path);
-  } catch (error) {
-    if ((error as { status?: number }).status === 404) return null;
-    throw error;
-  }
-  const record = asRecord(json);
-  const source = asRecord(record?.product) ?? record;
-  const product = mapCatalogProduct({ raw: source });
-  if (!product || !source) return null;
-  const seo = asRecord(source.seo);
+  const row = await readProduct(requireShopId(), idOrSlug);
+  if (!row) return null;
+  const product = fromDbProduct(row);
+  if (!product) return null;
   return {
     product,
-    seoTitle: pickString(seo?.title) ?? undefined,
-    seoDescription: pickString(seo?.description) ?? undefined,
+    seoTitle: row.seo_title ?? undefined,
+    seoDescription: row.seo_description ?? undefined,
   };
 }
 
@@ -246,21 +281,14 @@ export async function listHomeShelves(): Promise<StoreShelf[]> {
   "use cache";
   cacheTag("storefront-catalog");
   cacheLife("minutes");
-  const json = asRecord(await apiGet("/api/storefront/home-sections"));
-  const data = asRecord(json?.data) ?? json;
-  const rows = Array.isArray(data?.sections) ? data.sections : [];
+  const rows = await readHomeSections();
   const shelves: StoreShelf[] = [];
   for (const row of rows) {
-    const section = asRecord(row);
-    if (!section) continue;
-    const id = pickString(section.id);
-    const title = pickString(section.title);
-    if (!id || !title) continue;
-    const products = (Array.isArray(section.products) ? section.products : [])
-      .map((product) => mapCatalogProduct({ raw: product }))
+    const products = row.products
+      .map((product) => fromDbProduct(product))
       .filter((product): product is SampleProduct => Boolean(product));
     if (products.length === 0) continue;
-    shelves.push({ id, title, products });
+    shelves.push({ id: row.id, title: row.title, products });
   }
   return shelves;
 }

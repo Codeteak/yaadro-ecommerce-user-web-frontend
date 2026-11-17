@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-16 — Catalog reads from Postgres
+
+Home, category, and product pages read categories, products, and home shelves from `DATABASE_URL` on the Next.js server. The statements are parameterized copies of the shop API filters: this shop, active, in stock, and sellable categories only. Checkout shows a radius preview from the same database when an address already has a pin. Place Order still calls `POST /api/storefront/location/check` so the shop signs the delivery cookie. Campaign price overlays stay on the shop API.
+
 ## 2026-11-16 — Delivery-area check before checkout
 
 Place Order calls `POST /api/storefront/location/check` with the address pin. If the address has no pin, the browser is asked up to three times for the device location. A random pin is never invented. The order is sent only when the shop says the location is serviceable. `npm test` runs from the Husky pre-commit hook.

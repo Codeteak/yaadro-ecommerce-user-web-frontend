@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Banknote, Check, MapPin } from "lucide-react";
@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/navigation/PageHeader";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { useCart } from "@/components/cart/CartContext";
 import { checkDeliveryLocation, saveMyAddress } from "@/lib/api/address";
+import { previewDeliveryArea } from "@/lib/api/preview-delivery-area";
 import { placeCheckoutOrder } from "@/lib/api/checkout";
 import { ApiError } from "@/lib/api/errors";
 import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
@@ -82,6 +83,7 @@ export function CheckoutPageContent({
   const [pending, setPending] = useState(false);
   const [pendingLabel, setPendingLabel] = useState("Placing order…");
   const [placeError, setPlaceError] = useState<string | null>(null);
+  const [areaNote, setAreaNote] = useState<string | null>(null);
   const idempotencyKey = useRef<string | null>(null);
 
   const addressRaw = useSyncExternalStore(
@@ -101,6 +103,27 @@ export function CheckoutPageContent({
       return null;
     }
   }, [addressRaw]);
+
+  const pinLat = address && isLatLng(address) ? address.lat : null;
+  const pinLng = address && isLatLng(address) ? address.lng : null;
+
+  useEffect(() => {
+    if (pinLat == null || pinLng == null) {
+      setAreaNote(null);
+      return;
+    }
+    let cancelled = false;
+    void previewDeliveryArea(pinLat, pinLng)
+      .then((result) => {
+        if (!cancelled) setAreaNote(deliveryAreaBlock(result));
+      })
+      .catch(() => {
+        if (!cancelled) setAreaNote("We couldn't check delivery for that location. Try again.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pinLat, pinLng]);
 
   const amountDue = totalDue;
   const hasAddress = Boolean(
@@ -310,6 +333,7 @@ export function CheckoutPageContent({
 
         <p className="text-center text-[13px] font-medium text-muted" role="status">
           {placeError ??
+            areaNote ??
             (signedIn
               ? !hasAddress
                 ? "Add a delivery address, then we'll check that we deliver there."

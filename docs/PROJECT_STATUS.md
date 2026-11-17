@@ -12,7 +12,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 |------|--------|--------|
 | Onboarding `/` | Done | Hero, swipe CTA, guest link |
 | Login `/login` | UI done | Phone +91 / OTP; API pending |
-| Home / catalog | Live public API | Shop SEO, categories, products, home shelves. A category with no photo uses the grocery-bag placeholder. Sample banners stay when the shop has none. Playground still uses samples. |
+| Home / catalog | Live database | Categories, products, product detail, and home shelves are read on the server from `DATABASE_URL` with the shop API's filters. Shop name and SEO still use the customer API, with a Yaadro fallback. Offer prices come from the product row. Campaign overlays are not copied. |
 | Cart `/cart` | UI done | List, promo field, 3D Checkout pill (checkout not faked). “You may also like” uses the live catalog. |
 | Coupons `/coupons` | UI done | Comfortable ticket body (discount → title → code); sample via `lib/api/coupons` |
 | Wishlist `/wishlist` | UI done | Local signed-in scaffold; façade `lib/api/wishlist` |
@@ -46,7 +46,9 @@ Thin modules so pages read like future clients (replace with `fetch` when APIs e
 
 ## Known limitations
 
-- No auth backend; wishlist persistence is device-local (`yaadro-wishlist-v1`).
+- Catalog prices are the shelf price and the row offer price. Buy-one-get-one and category-offer overlays are still calculated by the customer API at checkout.
+- `DATABASE_URL` must stay server-only. The catalog does not load if that variable is missing.
+- Wishlist persistence is device-local (`yaadro-wishlist-v1`).
 - Cart promo uses sample codes only — not checkout-authoritative.
 - Orders / coupons data is sample-only (no network).
 - Serwist packages installed but not configured.
