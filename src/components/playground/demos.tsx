@@ -1030,7 +1030,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   toasts: () => (
     <DemoFrame
       surface="bare"
-      note="One centered status card. showPopup(message, type). Light blur behind it. Auto-dismiss ~2.8s."
+      note="One status card at the top of the screen. showPopup(message, type). Light blur behind it. Auto-dismiss ~2.8s."
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
         <ToastDemo />

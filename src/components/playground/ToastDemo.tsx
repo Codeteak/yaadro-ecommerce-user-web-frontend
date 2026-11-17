@@ -169,7 +169,7 @@ export function ToastDemo() {
       ))}
 
       <p className="text-[12px] leading-5 text-muted">
-        One centered card. Pass the message and the type. Auto-dismiss
+        One card at the top of the screen. Pass the message and the type. Auto-dismiss
         ~2.8s. Wired on storefront (cart, wishlist, coupons, addresses,
         orders, checkout, login).
       </p>

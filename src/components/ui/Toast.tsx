@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { create } from "zustand";
 
 export type PopupType = "success" | "error" | "info" | "warning";
@@ -60,10 +62,16 @@ export function showPopup(message: string, type: PopupType) {
 export function ToastViewport() {
   const popup = usePopup((state) => state.popup);
   const dismiss = usePopup((state) => state.dismiss);
-  if (!popup) return null;
+  const [mounted, setMounted] = useState(false);
 
-  return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center px-5">
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !popup) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[110] flex items-start justify-center px-5 pt-[max(1.25rem,env(safe-area-inset-top))]">
       <button
         type="button"
         aria-label="Dismiss"
@@ -86,7 +94,8 @@ export function ToastViewport() {
           </span>
         </span>
       </button>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -511,7 +511,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "One centered card for success, error, info, and warning. showPopup(message, type). Light blur while it is open.",
+      "One card at the top of the screen for success, error, info, and warning. showPopup(message, type). Light blur while it is open.",
     wiresTo: "src/components/ui/Toast.tsx",
   },
 ];

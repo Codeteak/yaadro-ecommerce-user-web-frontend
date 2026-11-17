@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-17 — Status card sits at the top
+
+The status card now pins to the top of the window on every page. It still blurs the screen and dismisses itself.
+
 ## 2026-11-17 — Minimum order returns to step 1
 
 If the shop rejects an order because the basket is under its minimum, checkout no longer prints that note and a reference id under Place Order. A warning card says this is step 1, the cart, and the shopper is taken back to the cart page. The cart header reads “Step 1 · Your cart”.
