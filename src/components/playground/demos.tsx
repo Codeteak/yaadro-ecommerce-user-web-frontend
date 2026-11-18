@@ -541,7 +541,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "offer-banners": () => (
-    <DemoFrame note="Same OfferBanners as /home (under search).">
+    <DemoFrame note="Same OfferBanners as /home — autoplay + swipe both ways (finger-follow) + dots.">
       <div className="py-4">
         <OfferBanners />
       </div>
@@ -808,8 +808,18 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </div>
     </DemoFrame>
   ),
-  "address-map": () => <AddressBookDemo initialStep="map" />,
-  "address-details": () => <AddressBookDemo initialStep="map" note="Detect or search, Confirm → details form." />,
+  "address-map": () => (
+    <AddressBookDemo
+      initialStep="map"
+      note="Select location: close (X) only — no back. Stub map + Detect (no live Maps API)."
+    />
+  ),
+  "address-details": () => (
+    <AddressBookDemo
+      initialStep="map"
+      note="Detect or search, Confirm → details. Back on details returns to map."
+    />
+  ),
   "categories-hub": () => <CategoriesFlowDemo start="hub" />,
   "category-grid": () => <CategoriesFlowDemo start="hub" />,
   "category-plp": () => <CategoriesFlowDemo start="plp" />,

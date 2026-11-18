@@ -1,5 +1,25 @@
 # Implementation Log
 
+## 2026-11-18 — Address Select location: no back button
+
+### What changed
+
+`AddressBookSheet` map step (“Select location”) shows Close only; back spacer keeps the title centered. Back remains on Location details → map. Playground `/playground/address-map` and `/playground/address-details` notes updated (shared sheet).
+
+### Verify
+
+Open address flow from home/checkout or playground address-map — no back on Select location; details still has back.
+
+## 2026-11-18 — Offer banner finger-follow swipe
+
+### What changed
+
+`OfferBanners` track follows the finger while dragging (both directions), with pointer capture and axis lock so vertical page scroll still works. Autoplay and dots unchanged. Playground `/playground/offer-banners` note updated (same shared component as `/home`).
+
+### Verify
+
+`/home` and `/playground/offer-banners` — drag/swipe left and right; slideshow resumes after release.
+
 ## 2026-11-17 — Price may vary dark orange + cart placement (playground)
 
 ### What changed

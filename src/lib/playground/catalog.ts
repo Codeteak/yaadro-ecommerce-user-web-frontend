@@ -155,7 +155,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "OfferBanners",
     status: "built",
     group: "Home",
-    description: "Sample offer carousel under search on /home.",
+    description:
+      "Sample offer carousel under search on /home. Autoplay, dots, and swipe both ways.",
     wiresTo: "/home",
   },
   {
@@ -494,7 +495,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Stub map + search + Detect my location (no live Maps API). Confirm → details.",
+      "Stub map + search + Detect (no live Maps API). Close only on this step — no back. Confirm → details.",
     wiresTo: "AddressBookSheet",
   },
   {
@@ -503,7 +504,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "House/Office/Other, save name, building, and instructions. Replaces the one saved address.",
+      "House/Office/Other, save name, building, and instructions. Back returns to map. Replaces the one saved address.",
     wiresTo: "AddressBookSheet",
   },
   {

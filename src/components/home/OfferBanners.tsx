@@ -9,12 +9,11 @@ import { CatalogImage } from "@/components/ui/CatalogImage";
  * banners replace these when a banners source exists; the "Sample"
  * chip marks them as placeholders, not live offers).
  *
- * Transform-based slider for smoothness: the track glides with a
- * 700ms CSS transition (GPU-composited, no scroll/snap fighting).
- * A clone of the first slide sits at the end, so the loop wraps
- * forward seamlessly instead of rewinding. 4s per slide; pauses
- * while touched/hovered and when the tab is hidden; manual for
- * reduced-motion users. Swipe and dots work anytime.
+ * Transform-based slider: autoplay every 4s, dots anytime, and
+ * finger-follow drag both ways (pointer capture + axis lock so page
+ * scroll still works). A clone of the first slide sits at the end
+ * for a seamless forward loop. Pauses while dragging/hovered and
+ * when the tab is hidden; no autoplay for reduced-motion users.
  */
 export type OfferBanner = {
   id: string;
@@ -51,6 +50,7 @@ const SAMPLE_BANNERS: OfferBanner[] = [
 
 const SLIDE_MS = 4000;
 const TRANSITION = "transform 700ms cubic-bezier(0.22, 1, 0.36, 1)";
+const SWIPE_PX = 40;
 
 export function OfferBanners({ banners }: { banners?: OfferBanner[] }) {
   const slides = banners && banners.length > 0 ? banners : SAMPLE_BANNERS;
@@ -59,9 +59,14 @@ export function OfferBanners({ banners }: { banners?: OfferBanner[] }) {
   /** Track position 0..count, where count is the cloned first slide. */
   const [position, setPosition] = useState(0);
   const [transitionOn, setTransitionOn] = useState(true);
+  const [dragPx, setDragPx] = useState(0);
   const pausedRef = useRef(false);
-  const dragStartXRef = useRef<number | null>(null);
+  const draggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const startYRef = useRef(0);
+  const axisLockRef = useRef<"x" | "y" | null>(null);
   const suppressClickRef = useRef(false);
+  const viewportRef = useRef<HTMLDivElement>(null);
 
   const active = position % count;
 
@@ -113,41 +118,92 @@ export function OfferBanners({ banners }: { banners?: OfferBanner[] }) {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const timer = window.setInterval(() => {
-      if (pausedRef.current || document.hidden) return;
+      if (pausedRef.current || document.hidden || draggingRef.current) return;
       next();
     }, SLIDE_MS);
     return () => window.clearInterval(timer);
   }, [position]);
 
-  const handlePointerUp = (e: React.PointerEvent) => {
+  const endDrag = (clientX: number) => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    axisLockRef.current = null;
     pausedRef.current = false;
-    const startX = dragStartXRef.current;
-    dragStartXRef.current = null;
-    if (startX === null) return;
-    const dx = e.clientX - startX;
+
+    const dx = clientX - startXRef.current;
+    const width = viewportRef.current?.offsetWidth ?? 300;
+    const threshold = Math.max(SWIPE_PX, width * 0.18);
+
+    setDragPx(0);
+    setTransitionOn(true);
+
     if (Math.abs(dx) > 10) suppressClickRef.current = true;
-    if (dx <= -40) next();
-    else if (dx >= 40) prev();
+    if (dx <= -threshold) next();
+    else if (dx >= threshold) prev();
   };
 
   return (
     <section aria-label="Shop offers" className="mx-auto w-full max-w-lg px-5 pt-4">
       <div
-        className="overflow-hidden rounded-[1.5rem]"
+        ref={viewportRef}
+        className="touch-pan-y overflow-hidden rounded-[1.5rem]"
         onPointerDown={(e) => {
+          if (e.button !== 0) return;
           pausedRef.current = true;
-          dragStartXRef.current = e.clientX;
+          draggingRef.current = true;
+          startXRef.current = e.clientX;
+          startYRef.current = e.clientY;
+          axisLockRef.current = null;
+          setTransitionOn(false);
+          setDragPx(0);
+          e.currentTarget.setPointerCapture(e.pointerId);
         }}
-        onPointerUp={handlePointerUp}
+        onPointerMove={(e) => {
+          if (!draggingRef.current) return;
+          const dx = e.clientX - startXRef.current;
+          const dy = e.clientY - startYRef.current;
+
+          if (!axisLockRef.current) {
+            if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+            axisLockRef.current = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
+            if (axisLockRef.current === "y") {
+              // Vertical intent — release so the page can scroll.
+              draggingRef.current = false;
+              setDragPx(0);
+              setTransitionOn(true);
+              pausedRef.current = false;
+              if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                e.currentTarget.releasePointerCapture(e.pointerId);
+              }
+              return;
+            }
+          }
+
+          if (axisLockRef.current !== "x") return;
+          setDragPx(dx);
+        }}
+        onPointerUp={(e) => {
+          if (axisLockRef.current === "x" || draggingRef.current) {
+            endDrag(e.clientX);
+          } else {
+            draggingRef.current = false;
+            pausedRef.current = false;
+            setDragPx(0);
+            setTransitionOn(true);
+          }
+        }}
         onPointerCancel={() => {
+          draggingRef.current = false;
+          axisLockRef.current = null;
           pausedRef.current = false;
-          dragStartXRef.current = null;
+          setDragPx(0);
+          setTransitionOn(true);
         }}
         onMouseEnter={() => {
           pausedRef.current = true;
         }}
         onMouseLeave={() => {
-          pausedRef.current = false;
+          if (!draggingRef.current) pausedRef.current = false;
         }}
         onClickCapture={(e) => {
           // A swipe that ends on the Shop now link shouldn't trigger it.
@@ -161,8 +217,8 @@ export function OfferBanners({ banners }: { banners?: OfferBanner[] }) {
         <div
           className="flex"
           style={{
-            transform: `translateX(-${position * 100}%)`,
-            transition: transitionOn ? TRANSITION : "none",
+            transform: `translateX(calc(-${position * 100}% + ${dragPx}px))`,
+            transition: transitionOn && dragPx === 0 ? TRANSITION : "none",
           }}
           onTransitionEnd={handleTransitionEnd}
         >
@@ -170,7 +226,7 @@ export function OfferBanners({ banners }: { banners?: OfferBanner[] }) {
             <article
               key={`${banner.id}-${index}`}
               aria-hidden={index === count || undefined}
-              className={`relative aspect-[2.2/1] w-full shrink-0 overflow-hidden bg-gradient-to-r ${banner.gradient ?? "from-[#2f6b2f] via-[#3d8f3d] to-[#5cb85c]"}`}
+              className={`relative aspect-[2.2/1] w-full shrink-0 overflow-hidden bg-gradient-to-r select-none ${banner.gradient ?? "from-[#2f6b2f] via-[#3d8f3d] to-[#5cb85c]"}`}
             >
               {live ? (
                 <CatalogImage
@@ -178,7 +234,8 @@ export function OfferBanners({ banners }: { banners?: OfferBanner[] }) {
                   alt=""
                   fill
                   sizes="(max-width: 512px) 100vw, 512px"
-                  className="object-cover"
+                  className="pointer-events-none object-cover"
+                  draggable={false}
                 />
               ) : (
                 <CatalogImage
@@ -186,7 +243,8 @@ export function OfferBanners({ banners }: { banners?: OfferBanner[] }) {
                   alt=""
                   width={240}
                   height={240}
-                  className="absolute top-1/2 right-4 h-[78%] w-auto -translate-y-1/2 rounded-full object-cover ring-4 ring-white/25"
+                  className="pointer-events-none absolute top-1/2 right-4 h-[78%] w-auto -translate-y-1/2 rounded-full object-cover ring-4 ring-white/25"
+                  draggable={false}
                 />
               )}
               <div className="relative flex h-full max-w-[62%] flex-col justify-center pr-2 pl-5">
@@ -221,6 +279,7 @@ export function OfferBanners({ banners }: { banners?: OfferBanner[] }) {
             aria-selected={active === index}
             aria-label={`Show banner ${index + 1}: ${banner.title}`}
             onClick={() => {
+              setDragPx(0);
               setTransitionOn(true);
               setPosition(index);
             }}
