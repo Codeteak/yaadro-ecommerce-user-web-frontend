@@ -167,10 +167,10 @@ export function ProductDetail({
               }
               className="flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-2xl bg-track px-4 text-sm font-semibold text-black shadow-[0_12px_28px_rgba(47,107,47,0.28)] transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
             >
-              {/* Empty = catalog min (unit_size); in-cart = chosen weight */}
+              {/* Empty = Add (opens weight sheet); in-cart = chosen weight */}
               {weightKg
                 ? `${formatWeightKg(weightKg)} kg`
-                : `${formatWeightKg(product.customization.minKg)} kg`}
+                : "Add to Cart"}
             </button>
           ) : qty === 0 ? (
             <button

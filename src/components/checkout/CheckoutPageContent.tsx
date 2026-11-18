@@ -56,6 +56,11 @@ type CheckoutPageContentProps = {
    * Playground Phase A (#11) turns this off to remove the extra footer bar.
    */
   showAmountDueBar?: boolean;
+  /**
+   * Playground: force guest vs signed-in without a real session.
+   * Omit on storefront to use `hasCustomerSession`.
+   */
+  previewSignedIn?: boolean;
 };
 
 /** Stable string snapshot — never return a fresh object from getSnapshot. */
@@ -83,11 +88,20 @@ export function CheckoutPageContent({
   priceMayVaryVariant = "soft",
   highlightSavings = false,
   showAmountDueBar = true,
+  previewSignedIn,
 }: CheckoutPageContentProps) {
   const inline = chromePosition === "inline";
   const router = useRouter();
   const queryClient = useQueryClient();
-  const signedIn = useSyncExternalStore(subscribeCustomerSession, hasCustomerSession, () => false);
+  const sessionSignedIn = useSyncExternalStore(
+    subscribeCustomerSession,
+    hasCustomerSession,
+    () => false,
+  );
+  const signedIn = previewSignedIn ?? sessionSignedIn;
+  const loginHref = inline
+    ? "/login?next=/playground/cart-page"
+    : "/login?next=/cart";
   const {
     items,
     clear,
@@ -154,7 +168,8 @@ export function CheckoutPageContent({
 
   const placeOrder = async () => {
     if (!signedIn) {
-      router.push("/login?next=/checkout");
+      showPopup("Sign in to place your order.", "warning");
+      router.push(loginHref);
       return;
     }
     if (!hasAddress || !address) {

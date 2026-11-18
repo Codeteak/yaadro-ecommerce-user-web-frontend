@@ -15,6 +15,7 @@ export default function CartPage() {
       showCartSuggestions
       highlightSavings
       showTopCoupons
+      topCouponsRefined
       showMinCartValue
       minCartValueRupees={499}
     />

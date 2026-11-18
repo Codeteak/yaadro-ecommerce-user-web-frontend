@@ -118,7 +118,7 @@ function ProductDetailDemo() {
   );
 
   return (
-    <DemoFrame note="Same as /product/[id]. Weight button shows unit_size min; slide ruler; total = (kg / step) × card price.">
+    <DemoFrame note="Same as /product/[id]. Weight: Add → slide ruler; then CTA shows chosen kg. Total = (kg / step) × card price.">
       <div className="relative">
         <div className="flex flex-wrap gap-2 border-b border-forest/8 px-4 py-3">
           {PDP_SAMPLES.map((p) => (
@@ -242,15 +242,15 @@ function WeightCustomizerDemo() {
   return (
     <div className="px-5 py-8 text-center">
       <p className="text-sm text-muted">
-        Same as ecom: button shows catalog min ({minKg} kg). Tap → slide;
-        ₹{product.price} is for {minKg} kg (card price), then scales with weight.
+        Same as ecom: Add opens the slide (min {minKg} kg). After confirm, cards
+        show chosen kg. ₹{product.price} is per {minKg} kg, then scales.
       </p>
       <button
         type="button"
         onClick={() => setCustomizing(product)}
         className="mt-4 inline-flex h-11 items-center rounded-2xl bg-track px-5 text-sm font-semibold text-black transition hover:bg-leaf-bright"
       >
-        {minKg} kg
+        Add
       </button>
       <WeightCustomizer />
     </div>
@@ -412,7 +412,7 @@ function AddressBookDemo({
 function OrderDetailLeadDemo() {
   const id = useSearchParams().get("id") ?? "ord-1038";
   return (
-    <DemoFrame note="Same as /orders/[id]. Delivered (ord-1038): DP name kept; call/chat/phone hidden. Track → /orders/[id]/track.">
+    <DemoFrame note="Same as /orders/[id]. Track → track page. Pre-partner: waiting copy (see /playground/live-order-track Accepted).">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain bg-white">
         <OrderDetailPageContent orderId={id} ticketBill />
       </div>
@@ -693,15 +693,27 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "view-cart-bar": () => (
-    <DemoFrame note="Green bar stays; cart icon + View cart copy are black. Add items via ProductCard first.">
-      <div className="relative min-h-[240px] px-5 py-8 text-sm text-muted">
-        Scroll the page to expand the bar when the cart has items.
+    <DemoFrame note="Same as ecom: FAB stays above BottomNav while it hides; drops only after nav slide (~320ms). Scroll this panel.">
+      <div className="relative h-[28rem] overflow-hidden rounded-2xl bg-paper ring-1 ring-black/5">
+        <div className="h-full overflow-y-auto overscroll-contain px-5 pt-4 pb-28 text-sm text-muted">
+          <p className="font-semibold text-forest">View cart + nav</p>
+          <p className="mt-1">
+            Add items on a product card first. Scroll down — nav hides, cart
+            drops after the slide. Scroll up — cart lifts immediately.
+          </p>
+          {Array.from({ length: 18 }, (_, i) => (
+            <p key={i} className="mt-3 text-ink">
+              Scroll block {i + 1}
+            </p>
+          ))}
+        </div>
         <ViewCartBar position="inline" />
+        <BottomNav position="inline" />
       </div>
     </DemoFrame>
   ),
   "weight-customizer": () => (
-    <DemoFrame note="unit_size-driven steps (Orange 0.1 kg min/step). Same WeightCustomizer as ecom.">
+    <DemoFrame note="Add opens weight sheet (Orange 0.1 kg step). Same WeightCustomizer as ecom.">
       <WeightCustomizerDemo />
     </DemoFrame>
   ),
@@ -762,7 +774,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "cart-page": () => (
     <DemoFrame
       surface="bare"
-      note="Same as /cart: top 2 coupons, min-cart ribbon when under ₹499, dotted You save."
+      note="Guest Checkout → toast + /login?next=/playground/cart-page (live: /cart). After login returns here so coupons aren’t skipped."
     >
       <div className="relative h-[75vh] bg-paper">
         <CartPageContent
@@ -774,8 +786,10 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           showCartSuggestions
           highlightSavings
           showTopCoupons
+          topCouponsRefined
           showMinCartValue
           minCartValueRupees={499}
+          previewSignedIn={false}
         />
       </div>
       <WeightCustomizer />
@@ -784,7 +798,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   checkout: () => (
     <DemoFrame
       surface="bare"
-      note="Same as /checkout: Place Order press · dotted You save · no Amount due bar."
+      note="Playground forces guest Place Order → login?next=/playground/cart-page. Live /checkout uses session; same login?next=/cart."
     >
       <div className="relative h-[75vh] overflow-y-auto bg-paper">
         <CheckoutPageContent
@@ -793,6 +807,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           priceMayVaryVariant="soft"
           highlightSavings
           showAmountDueBar={false}
+          previewSignedIn={false}
         />
       </div>
     </DemoFrame>
@@ -908,7 +923,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "live-order-track": () => (
     <DemoFrame
       surface="bare"
-      note="Phase demo + bill. Delivered: keep DP name, hide call FAB/phone. Ecom: /orders/[id]/track."
+      note="Accepted/Packed: waiting for partner. OFD + rider: Live Track. Live /orders/[id]/track loads API orders the same way."
     >
       <LiveOrderTrackDemo />
     </DemoFrame>

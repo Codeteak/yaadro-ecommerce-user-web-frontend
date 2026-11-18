@@ -1,5 +1,21 @@
 # Implementation Log
 
+## 2026-11-18 — Track order awaiting partner (wired to ecom)
+
+`/orders/[id]/track` loads live orders via `getCustomerOrder` (UUID + session), same as details. Pre-partner: waiting copy + AwaitingPartnerCard. Live Track only when OFD **and** rider assigned (no fake partner). Playground `/playground/live-order-track` matches.
+
+## 2026-11-18 — Quiet CatalogLivePrices socket 404s
+
+Local `.env.local`: `NEXT_PUBLIC_CATALOG_REALTIME_ENABLED=false` until API serves Socket.IO. Client abandons the socket after 3 connect failures and keeps revision polling only.
+
+## 2026-11-18 — Guest checkout → login → cart (wired to ecom)
+
+Live `/cart` + `/checkout` use the same components with real session (no `previewSignedIn`). Guest cart Checkout / Place Order → toast + `/login?next=/cart`; after OTP → cart. Playground demos force guest + `/login?next=/playground/cart-page`.
+
+## 2026-11-18 — ViewCartBar vs BottomNav overlap
+
+FAB no longer drops with `navHidden` immediately. It waits ~320ms (nav hide duration), then sits low; lifts immediately when nav returns. BottomNav `z-50` above ViewCartBar `z-40`. Playground `/playground/view-cart-bar` pairs both with a scroll panel.
+
 ## 2026-11-18 — Order confirmation after checkout + asset cleanup
 
 ### Checkout confirmation
@@ -13,6 +29,10 @@ After Place Order succeeds, `/checkout` shows `OrderPlacedContent` (not `/orders
 ### Verify
 
 Place order on `/checkout` → confirmation mascot + two buttons. `/playground/order-placed` matches.
+
+## 2026-11-18 — Cart Top offers collapse + refined Apply (wired)
+
+`/cart` passes `topCouponsRefined`: Top offers nest under the coupon apply card (collapsed by default), locked Apply when under min, muted Apply label (no side ₹).
 
 ## 2026-11-18 — Phase B coupons + min cart (wired to ecom)
 

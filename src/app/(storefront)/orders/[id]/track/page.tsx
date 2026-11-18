@@ -29,7 +29,8 @@ export async function generateMetadata({
 
 async function OrderTrackContent({ params }: OrderTrackPageProps) {
   const { id } = await params;
-  if (!getOrder(id)) notFound();
+  // Samples or live UUID orders (same gate as `/orders/[id]`).
+  if (!getOrder(id) && !/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const shop = await getShopSeo();
   return (
     <ShopNameProvider name={shop.name}>

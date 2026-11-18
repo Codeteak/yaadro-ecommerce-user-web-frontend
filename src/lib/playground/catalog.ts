@@ -245,8 +245,9 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "ViewCartBar",
     status: "built",
     group: "Product & cart",
-    description: "Idle circular cart / expanded View cart bar while scrolling.",
-    wiresTo: "Storefront layout",
+    description:
+      "Idle circular cart / expanded View cart while scrolling. Stays above BottomNav until hide finishes (~320ms), then drops; lifts immediately on scroll up.",
+    wiresTo: "Storefront layout + BottomNav",
   },
   {
     slug: "weight-customizer",
@@ -254,7 +255,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Weight button shows unit_size min. Card price is per unit_size; slide scales (kg/step)×price.",
+      "Weight CTA is Add until chosen; then shows kg. Card price per unit_size; slide scales (kg/step)×price.",
     wiresTo: "Storefront layout + ProductCard + ProductDetail",
   },
   {
@@ -280,8 +281,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Same as /cart: top 2 coupons, min-cart ribbon when under ₹499, dotted You save.",
-    wiresTo: "/cart",
+      "Guest Checkout → login?next=/cart (playground returns to cart-page). Top offers collapse; refined Apply; min-cart ribbon.",
+    wiresTo: "/cart, /login",
   },
   {
     slug: "product-detail",
@@ -289,7 +290,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Peeking gallery, Prices-may-vary, weight button shows unit_size min (Oranges 0.1 kg) → slide ruler.",
+      "Peeking gallery, Prices-may-vary, weight Add → slide ruler (Oranges 0.1 kg step); then CTA shows kg.",
     wiresTo: "/product/[id]",
   },
   {
@@ -415,8 +416,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Same as /checkout: Place Order press + unlock copy, dotted You save, no Amount due bar.",
-    wiresTo: "/checkout",
+      "Guest Place Order → login?next=/cart. Signed-in: Place Order press, dotted You save, no Amount due bar.",
+    wiresTo: "/checkout, /login, /cart",
   },
   {
     slug: "order-placed",
@@ -451,7 +452,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Tracking UI. Delivered: DP name stays, call FAB/phone hidden. Ecom: /orders/[id]/track.",
+      "Accepted/Packed: track page + waiting for partner. OFD + rider: Live Track. Wired: /orders/[id]/track loads live orders.",
     wiresTo: "/orders/[id]/track",
   },
   {

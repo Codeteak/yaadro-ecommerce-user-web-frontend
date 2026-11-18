@@ -29,11 +29,13 @@ const PHASE_COPY: Record<
 > = {
   accepted: {
     badge: "Accepted",
-    message: "Your order has been accepted by the shop.",
+    message:
+      "Order accepted. You can live-track once the shop assigns a delivery partner.",
   },
   packed: {
     badge: "Packed",
-    message: "Your order is packed and ready.",
+    message:
+      "Order packed. Live tracking unlocks when the shop assigns a delivery partner.",
   },
   out_for_delivery: {
     badge: "Out for delivery",
@@ -89,14 +91,16 @@ function buildProgress(
       id: "accepted",
       label: "Accepted",
       at: acceptedAt,
-      success: "Your order has been accepted by the shop.",
+      success:
+        "Accepted by the shop. Live tracking unlocks when a partner is assigned.",
       reached: true,
     },
     {
       id: "packed",
       label: "Packed",
       at: packedAt,
-      success: "Your order is packed and ready.",
+      success:
+        "Packed and ready. Live tracking unlocks when a partner is assigned.",
       reached:
         phase === "packed" ||
         phase === "out_for_delivery" ||
@@ -186,16 +190,19 @@ export function toLiveOrderTrackSample(
   );
   const amount = order.totalDue + deliveryFee(order);
 
-  const riderFallback = {
-    name: "Abhinav Aneesh",
-    initial: "A",
-    phone: "+91 98765 01234",
-  };
-  // OFD + delivered: keep partner name. Call UI is hidden when delivered.
+  // Only show a real assigned partner — never invent one for live orders.
   const rider =
-    phase === "out_for_delivery" || phase === "delivered"
-      ? (order.rider ?? riderFallback)
+    order.rider &&
+    (phase === "out_for_delivery" || phase === "delivered")
+      ? order.rider
       : null;
+
+  const statusMessage =
+    !rider && (phase === "accepted" || phase === "packed")
+      ? copy.message
+      : !rider && phase === "out_for_delivery"
+        ? "Out for delivery soon. You can live-track once the shop assigns a delivery partner."
+        : copy.message;
 
   return {
     phase,
@@ -203,7 +210,7 @@ export function toLiveOrderTrackSample(
     billNo: `#${order.number}`,
     trackingId: order.number,
     statusBadge: copy.badge,
-    statusMessage: copy.message,
+    statusMessage,
     receiver: order.receiverName ?? "Customer",
     contact: order.contactPhone ?? SAMPLE_CONTACT,
     shopContact: order.shopContact ?? SHOP_CONTACT,
@@ -212,7 +219,7 @@ export function toLiveOrderTrackSample(
     lines: order.lines.map((line) => {
       const product = getSampleProduct(line.productId);
       return {
-        name: product?.name ?? "Item",
+        name: product?.name ?? (line.name?.trim() || "Item"),
         qty: line.qty,
         price: line.lineTotal,
         qtyLabel: orderLineLabel(line, product?.unit),

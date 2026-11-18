@@ -38,8 +38,8 @@ export function BottomNav({ position = "fixed" }: BottomNavProps) {
       className={cn(
         "flex justify-center px-4 transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
         inline
-          ? "absolute inset-x-0 bottom-0 z-10 pb-3 pointer-events-none"
-          : "fixed inset-x-0 bottom-0 z-40 pb-[max(0.75rem,env(safe-area-inset-bottom))] pointer-events-none",
+          ? "absolute inset-x-0 bottom-0 z-50 pb-3 pointer-events-none"
+          : "fixed inset-x-0 bottom-0 z-50 pb-[max(0.75rem,env(safe-area-inset-bottom))] pointer-events-none",
         hide
           ? "translate-y-[130%] opacity-0"
           : "translate-y-0 opacity-100",

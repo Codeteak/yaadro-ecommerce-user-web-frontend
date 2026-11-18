@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import {
   ArrowRight,
+  ChevronDown,
   Minus,
   Plus,
   Trash2,
@@ -22,12 +23,16 @@ import {
   useCart,
 } from "@/components/cart/CartContext";
 import { CartSuggestions } from "@/components/cart/CartSuggestions";
-import { CartTopCoupons } from "@/components/cart/CartTopCoupons";
+import {
+  CartTopCoupons,
+  topActiveCoupons,
+} from "@/components/cart/CartTopCoupons";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import { findCouponByCode } from "@/lib/sample-coupons";
 import { showPopup } from "@/components/ui/Toast";
 import { previewCart } from "@/lib/api/cart";
 import { ApiError } from "@/lib/api/errors";
+import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
 import {
   localCheckoutWarning,
   previewCheckoutWarning,
@@ -63,6 +68,8 @@ type CartPageContentProps = {
   highlightSavings?: boolean;
   /** Top 2 active coupons + min-order lines above the coupon field. */
   showTopCoupons?: boolean;
+  /** Refined Top offers: collapse inside coupon card + honest Apply lock. */
+  topCouponsRefined?: boolean;
   /**
    * Shop minimum cart ribbon above Checkout (only while under min).
    * Uses `minCartValueRupees` until preview `min_purchase_*` is wired for display.
@@ -70,6 +77,11 @@ type CartPageContentProps = {
   showMinCartValue?: boolean;
   /** Shop minimum in whole rupees (default 499 until shop preview drives it). */
   minCartValueRupees?: number;
+  /**
+   * Playground: force guest vs signed-in without a real session.
+   * Omit on storefront to use `hasCustomerSession`.
+   */
+  previewSignedIn?: boolean;
 };
 
 /**
@@ -86,12 +98,25 @@ export function CartPageContent({
   showCartSuggestions = false,
   highlightSavings = false,
   showTopCoupons = false,
+  topCouponsRefined = false,
   showMinCartValue = false,
   minCartValueRupees = 499,
+  previewSignedIn,
 }: CartPageContentProps) {
   const inline = chromePosition === "inline";
   const router = useRouter();
+  const sessionSignedIn = useSyncExternalStore(
+    subscribeCustomerSession,
+    hasCustomerSession,
+    () => false,
+  );
+  const signedIn = previewSignedIn ?? sessionSignedIn;
+  const loginHref = inline
+    ? "/login?next=/playground/cart-page"
+    : "/login?next=/cart";
   const [checkingOut, setCheckingOut] = useState(false);
+  /** Top offers nested under coupon shell when refined; collapsed by default. */
+  const [topOffersOpen, setTopOffersOpen] = useState(false);
   const {
     items,
     setQty,
@@ -110,6 +135,7 @@ export function CartPageContent({
   const [promoMessage, setPromoMessage] = useState<string | null>(null);
   const hasItems = items.length > 0;
   const applied = appliedPromo;
+  const topOfferCount = showTopCoupons ? topActiveCoupons().length : 0;
 
   useEffect(() => {
     if (appliedPromo) setPromoInput(appliedPromo.code);
@@ -148,6 +174,11 @@ export function CartPageContent({
 
   const onCheckout = async () => {
     if (checkingOut) return;
+    if (!signedIn) {
+      showPopup("Sign in to continue to checkout.", "warning");
+      router.push(loginHref);
+      return;
+    }
     const next = inline ? "/playground/checkout" : "/checkout";
     const lines = shopCheckoutLines(items);
     if (lines.length === 0) {
@@ -384,7 +415,7 @@ export function CartPageContent({
             </button>
             */}
 
-            {showTopCoupons ? (
+            {showTopCoupons && !topCouponsRefined ? (
               <CartTopCoupons
                 className="mt-4"
                 subtotal={mrpTotal}
@@ -394,30 +425,93 @@ export function CartPageContent({
             ) : null}
 
             <div className="mt-4 rounded-2xl bg-white p-2.5 shadow-[0_10px_28px_rgba(47,107,47,0.14)] ring-2 ring-leaf">
+              {showTopCoupons && topCouponsRefined ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setTopOffersOpen((open) => !open)}
+                    aria-expanded={topOffersOpen}
+                    className="flex w-full cursor-pointer items-center gap-2 rounded-xl bg-paper/80 px-2.5 py-2 ring-1 ring-forest/10 transition hover:bg-mint/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+                  >
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mint">
+                      <Image
+                        src="/icons/coupon.svg"
+                        alt=""
+                        width={20}
+                        height={20}
+                        className="h-5 w-5"
+                        unoptimized
+                      />
+                    </span>
+                    <span className="min-w-0 flex-1 text-left">
+                      <span className="block text-sm font-bold text-black">
+                        Top offers
+                      </span>
+                      <span className="block text-[12px] font-medium text-muted">
+                        {topOfferCount} available
+                        {applied ? ` · ${applied.code}` : ""}
+                      </span>
+                    </span>
+                    <span className="rounded-full bg-mint px-2 py-0.5 text-[11px] font-extrabold text-forest">
+                      {topOfferCount}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        "h-5 w-5 shrink-0 text-forest transition-transform duration-200",
+                        topOffersOpen && "rotate-180",
+                      )}
+                      aria-hidden
+                    />
+                  </button>
+                  <div
+                    className={cn(
+                      "grid transition-[grid-template-rows] duration-300 ease-out",
+                      topOffersOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                    )}
+                  >
+                    <div className="min-h-0 overflow-hidden">
+                      <CartTopCoupons
+                        className="mt-2.5 px-0.5 pb-1"
+                        subtotal={mrpTotal}
+                        appliedCode={applied?.code}
+                        onApply={onApplyPromoCode}
+                        refined
+                        embedded
+                      />
+                    </div>
+                  </div>
+                  <div className="my-2.5 border-t border-forest/10" />
+                </>
+              ) : null}
+
               <div className="flex items-center gap-2 rounded-xl bg-paper/80 px-2.5 py-2 ring-1 ring-forest/10">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mint">
-                  <Image
-                    src="/icons/coupon.svg"
-                    alt=""
-                    width={20}
-                    height={20}
-                    className="h-5 w-5"
-                    unoptimized
-                  />
-                </span>
+                {!(showTopCoupons && topCouponsRefined) ? (
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mint">
+                    <Image
+                      src="/icons/coupon.svg"
+                      alt=""
+                      width={20}
+                      height={20}
+                      className="h-5 w-5"
+                      unoptimized
+                    />
+                  </span>
+                ) : null}
                 {couponPickerHref && !applied ? (
                   <>
                     <Link
                       href={couponPickerHref}
                       className="min-w-0 flex-1 truncate text-left text-sm font-medium text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
                     >
-                      Select a coupon
+                      {showTopCoupons && topCouponsRefined
+                        ? "View all coupons"
+                        : "Select a coupon"}
                     </Link>
                     <Link
                       href={couponPickerHref}
                       className="h-9 shrink-0 cursor-pointer rounded-xl bg-track px-4 text-sm font-semibold leading-9 text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
                     >
-                      Select
+                      {showTopCoupons && topCouponsRefined ? "All" : "Select"}
                     </Link>
                   </>
                 ) : (
@@ -588,7 +682,11 @@ export function CartPageContent({
               ₹{totalDue}
             </span>
             <span className="absolute left-1/2 -translate-x-1/2 text-base font-extrabold tracking-tight text-black">
-              {checkingOut ? "Checking…" : "Checkout"}
+              {checkingOut
+                ? "Checking…"
+                : !signedIn
+                  ? "Sign in to checkout"
+                  : "Checkout"}
             </span>
             <span className="ml-auto grid h-11 w-11 place-items-center rounded-full bg-white text-black shadow-[0_3px_0_0_rgba(0,0,0,0.12)] motion-safe:group-active:shadow-none">
               <ArrowRight className="h-5 w-5 text-black" aria-hidden />

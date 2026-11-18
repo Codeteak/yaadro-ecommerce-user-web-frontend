@@ -73,7 +73,9 @@ export function LiveOrderTrack({
     () => resolveBillOrder(orderProp, sample),
     [orderProp, sample.trackingId, sample.billNo, sample.phase],
   );
-  const canLiveTrack = sample.phase === "out_for_delivery";
+  /** Map / Live Track only after a partner is assigned on OFD. */
+  const canLiveTrack =
+    sample.phase === "out_for_delivery" && Boolean(sample.rider);
   /** Start with mascot; user opens Live Track for the map. */
   const [mapOpen, setMapOpen] = useState(false);
   const [billOpen, setBillOpen] = useState(false);
@@ -120,6 +122,8 @@ export function LiveOrderTrack({
             rider={sample.rider}
             showCall={sample.phase !== "delivered"}
           />
+        ) : sample.phase !== "delivered" ? (
+          <AwaitingPartnerCard />
         ) : null}
 
         <OrderItems sample={sample} />
@@ -166,7 +170,8 @@ export function LiveOrderTrack({
 
 /** Playground frame — phase chips + same bill as ecom track / order details. */
 export function LiveOrderTrackDemo() {
-  const [phase, setPhase] = useState<LiveTrackPhase>("out_for_delivery");
+  /** Default Accepted: track page open, waiting for partner (no Live Track yet). */
+  const [phase, setPhase] = useState<LiveTrackPhase>("accepted");
   /** Prefer OFD sample; delivered phase uses YAD-1038 for the ticket. */
   const demoOrder = useMemo(() => {
     if (phase === "delivered") return getOrder("ord-1038") ?? getOrder("ord-1042");
@@ -197,14 +202,9 @@ export function LiveOrderTrackDemo() {
           onClick={() => setPhase("delivered")}
         />
       </div>
-      <p className="px-1 text-[12px] font-semibold text-muted">
-        Download Bill opens the same ticket as order details. Ecom:{" "}
-        <a
-          href="/orders/ord-1042/track"
-          className="font-bold text-forest underline underline-offset-2"
-        >
-          /orders/ord-1042/track
-        </a>
+      <p className="px-1 text-[12px] font-semibold leading-snug text-muted">
+        Accepted / Packed: waiting for partner. Out for delivery: Live Track.
+        Download Bill matches order details.
       </p>
       <div className="max-h-[85vh] overflow-y-auto overscroll-contain rounded-[1.75rem] bg-paper shadow-[0_16px_40px_rgba(6,78,59,0.12)] ring-1 ring-forest/10">
         <LiveOrderTrack key={phase} phase={phase} order={demoOrder} />
@@ -329,7 +329,7 @@ function TrackingCard({
           message={sample.statusMessage}
           imgClassName="h-[15.5rem]"
         />
-      ) : canLiveTrack ? (
+      ) : sample.phase === "out_for_delivery" ? (
         <StatusMascotArt
           src="/orders/live-track/out-for-delivery.png"
           message={sample.statusMessage}
@@ -549,6 +549,25 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function AwaitingPartnerCard() {
+  return (
+    <div
+      className="flex items-center gap-3 rounded-[1.35rem] bg-white p-3.5 shadow-[0_6px_18px_rgba(47,107,47,0.06)] ring-1 ring-forest/8"
+      role="status"
+    >
+      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-mint text-[16px] font-extrabold text-forest">
+        ?
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-extrabold text-black">Delivery partner</p>
+        <p className="text-[12px] font-semibold leading-snug text-muted">
+          You can live-track this order when the shop assigns a partner.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function RiderCard({
   rider,
   showCall = true,
@@ -590,9 +609,9 @@ function OrderItems({ sample }: { sample: LiveOrderTrackSample }) {
         Order Items
       </h2>
       <ul className="mt-3 divide-y divide-forest/8 overflow-hidden rounded-[1.35rem] bg-white ring-1 ring-forest/8">
-        {sample.lines.map((line) => (
+        {sample.lines.map((line, index) => (
           <li
-            key={line.name}
+            key={`${line.name}-${line.qtyLabel ?? line.qty}-${line.price}-${index}`}
             className="flex items-start justify-between gap-3 px-4 py-3.5"
           >
             <div className="min-w-0">

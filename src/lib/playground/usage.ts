@@ -342,11 +342,12 @@ import { WishlistProvider } from "@/components/wishlist/WishlistContext";
   "cart-page": U(
     `import { CartPageContent } from "@/components/cart/CartPageContent";
 
-{/* Same as live /cart */}
+{/* Guest Checkout → /login?next=/cart (previewSignedIn forces guest in playground) */}
 <CartPageContent
   showPriceMayVary
   showCartSuggestions
   couponPickerHref="/coupons?from=cart"
+  previewSignedIn={false}
 />`,
     [
       "src/app/(storefront)/cart/page.tsx",
@@ -494,9 +495,9 @@ import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
   ),
   checkout: U(
     `import { CheckoutPageContent } from "@/components/checkout/CheckoutPageContent";
-// Confirmed phase uses OrderPlacedContent (mascot + bill card + CTAs)
+// Guest Place Order → /login?next=/cart so coupons aren’t skipped after login
 
-<CheckoutPageContent showPriceMayVary />`,
+<CheckoutPageContent showPriceMayVary previewSignedIn={false} />`,
     [
       "src/components/checkout/CheckoutPageContent.tsx",
       "src/components/checkout/OrderPlacedContent.tsx",
