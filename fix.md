@@ -6,7 +6,7 @@
 6. ****place order button needs enable effect and show proper message**** (done)
 7. show loc acess after the page has been loaded
 8. ****for addres lisitng add make default button not star**** (done)
-9. price varying banner needs to redesign
+9. ****price varying banner needs to redesign**** (done — soft orange notice on cart/checkout/PDP)
 10. ****in sumamry hightlight savings amount**** (done — dotted line under You save)
 11. ****remove the footer id in the checkout page**** (done — Amount due bar off)
 12. ****list first top 2 coupons**** (done)
@@ -14,7 +14,7 @@
 14. ****remove settings**** (done)
 15. in help support shw the shop address and number and address
 16. in the cart keep the the weight at the bottom
-17. if use not logged in the check the coupon the page show to sign in not redirecting make coupon as a toaster warning if user is not logged in
+17. ****if use not logged in the check the coupon the page show to sign in not redirecting make coupon as a toaster warning if user is not logged in**** (done)
 18. ****at cart page if user not loged in ask then only redirect to checkout else coupon would be missed**** (done — guest → login?next=/cart) 
 19. in the cart if coupon applied the checkout amount is not updating
 20. checkout need ui updations
