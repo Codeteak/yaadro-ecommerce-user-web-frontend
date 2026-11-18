@@ -23,10 +23,8 @@ import {
   useCart,
 } from "@/components/cart/CartContext";
 import { CartSuggestions } from "@/components/cart/CartSuggestions";
-import {
-  CartTopCoupons,
-  topActiveCoupons,
-} from "@/components/cart/CartTopCoupons";
+import { ShopQuoteNotes, shopDue } from "@/components/cart/ShopQuoteNotes";
+import { useShopQuote } from "@/components/cart/useShopQuote";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import { findCouponByCode } from "@/lib/sample-coupons";
 import { showPopup } from "@/components/ui/Toast";
@@ -135,7 +133,9 @@ export function CartPageContent({
   const [promoMessage, setPromoMessage] = useState<string | null>(null);
   const hasItems = items.length > 0;
   const applied = appliedPromo;
-  const topOfferCount = showTopCoupons ? topActiveCoupons().length : 0;
+  const { quote } = useShopQuote(items, applied?.code ?? null);
+  const dueLabel = shopDue(quote, totalDue);
+  const minimumBlocks = Boolean(quote?.minimumMessage);
 
   useEffect(() => {
     if (appliedPromo) setPromoInput(appliedPromo.code);
@@ -185,7 +185,11 @@ export function CartPageContent({
       router.push(next);
       return;
     }
-    const local = localCheckoutWarning(items);
+    if (quote?.minimumMessage) {
+      showPopup(quote.minimumMessage, "warning");
+      return;
+    }
+    const local = localCheckoutWarning(lines);
     if (local) {
       showPopup(local, "warning");
       return;
@@ -632,9 +636,10 @@ export function CartPageContent({
               </div>
               <div className="flex items-center justify-between py-3 text-sm">
                 <span className="font-bold text-black">Total</span>
-                <span className="font-extrabold text-leaf">₹{totalDue}</span>
+                <span className="font-extrabold text-leaf">{dueLabel}</span>
               </div>
             </div>
+            <ShopQuoteNotes quote={quote} />
           </>
         )}
       </div>
@@ -674,12 +679,12 @@ export function CartPageContent({
           <button
             type="button"
             onClick={() => void onCheckout()}
-            disabled={checkingOut}
+            disabled={checkingOut || minimumBlocks}
             aria-label="Proceed to checkout"
-            className="group pointer-events-auto relative flex w-full cursor-pointer items-center rounded-full bg-track px-5 py-4 text-black shadow-[0_7px_0_0_#1f5c1f,0_14px_28px_rgba(47,107,47,0.28)] transition-[transform,box-shadow,background-color] duration-150 ease-out hover:bg-leaf-bright motion-safe:active:translate-y-[5px] motion-safe:active:shadow-[0_2px_0_0_#1f5c1f,0_6px_14px_rgba(47,107,47,0.22)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf disabled:cursor-wait disabled:opacity-70"
+            className="group pointer-events-auto relative flex w-full cursor-pointer items-center rounded-full bg-track px-5 py-4 text-black shadow-[0_7px_0_0_#1f5c1f,0_14px_28px_rgba(47,107,47,0.28)] transition-[transform,box-shadow,background-color] duration-150 ease-out hover:bg-leaf-bright motion-safe:active:translate-y-[5px] motion-safe:active:shadow-[0_2px_0_0_#1f5c1f,0_6px_14px_rgba(47,107,47,0.22)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span className="text-xl leading-tight font-extrabold tabular-nums">
-              ₹{totalDue}
+              {dueLabel}
             </span>
             <span className="absolute left-1/2 -translate-x-1/2 text-base font-extrabold tracking-tight text-black">
               {checkingOut

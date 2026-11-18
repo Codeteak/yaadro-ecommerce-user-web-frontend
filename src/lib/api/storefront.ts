@@ -3,6 +3,7 @@ import { publicGet } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import {
   readAllCategories,
+  readHomeSection,
   readHomeSections,
   readProduct,
   readProductPage,
@@ -293,6 +294,29 @@ export async function listHomeShelves(): Promise<StoreShelf[]> {
   return shelves;
 }
 
+export async function getHomeSection(id: string): Promise<{
+  id: string;
+  title: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  products: SampleProduct[];
+} | null> {
+  "use cache";
+  cacheTag("storefront-catalog");
+  cacheLife("minutes");
+  const row = await readHomeSection(id);
+  if (!row) return null;
+  return {
+    id: row.id,
+    title: row.title,
+    startsAt: row.startsAt,
+    endsAt: row.endsAt,
+    products: row.products
+      .map((product) => fromDbProduct(product))
+      .filter((product): product is SampleProduct => Boolean(product)),
+  };
+}
+
 export async function fetchShopSeo(shopId = shopHeader()): Promise<ResolvedShop | null> {
   "use cache";
   cacheLife("minutes");
@@ -556,7 +580,7 @@ export async function loadCategoryBrowser(
     }
 
     const category = categories.find(
-      (row) => row.slug === cat && row.slug !== "all",
+      (row) => row.slug !== "all" && (row.slug === cat || row.id === cat),
     );
     if (!category) {
       return {

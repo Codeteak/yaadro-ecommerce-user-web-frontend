@@ -8,6 +8,8 @@ import { Check } from "lucide-react";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { useCart } from "@/components/cart/CartContext";
+import { ShopQuoteNotes, shopDue } from "@/components/cart/ShopQuoteNotes";
+import { useShopQuote } from "@/components/cart/useShopQuote";
 import { checkDeliveryLocation, saveMyAddress } from "@/lib/api/address";
 import { previewDeliveryArea } from "@/lib/api/preview-delivery-area";
 import { placeCheckoutOrder } from "@/lib/api/checkout";
@@ -111,6 +113,9 @@ export function CheckoutPageContent({
     totalSaved,
     totalDue,
   } = useCart();
+  const { quote } = useShopQuote(items, appliedPromo?.code ?? null);
+  const dueLabel = shopDue(quote, totalDue);
+  const minimumBlocks = Boolean(quote?.minimumMessage);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [pendingLabel, setPendingLabel] = useState("Placing order…");
@@ -158,7 +163,7 @@ export function CheckoutPageContent({
     };
   }, [pinLat, pinLng]);
 
-  const amountDue = totalDue;
+  const amountDue = dueLabel;
   const hasAddress = Boolean(
     address && formatDeliveryAddressLabel(address).length > 0,
   );
@@ -410,23 +415,23 @@ export function CheckoutPageContent({
           </div>
           <div className="flex items-center justify-between py-3 text-sm">
             <span className="font-bold text-black">Total</span>
-            <span className="font-extrabold text-leaf">₹{amountDue}</span>
+            <span className="font-extrabold text-leaf">{amountDue}</span>
           </div>
         </div>
+        <ShopQuoteNotes quote={quote} />
 
-        {showAmountDueBar ? (
-          <div className="flex items-center justify-between rounded-2xl bg-track px-5 py-3.5 text-black shadow-[0_10px_28px_rgba(47,107,47,0.28)]">
-            <span className="text-sm font-semibold">Amount due</span>
-            <span className="text-xl font-extrabold tabular-nums">
-              ₹{amountDue}
-            </span>
-          </div>
-        ) : null}
+        <div className="flex items-center justify-between rounded-2xl bg-track px-5 py-3.5 text-black shadow-[0_10px_28px_rgba(47,107,47,0.28)]">
+          <span className="text-sm font-semibold">Amount due</span>
+          <span className="text-xl font-extrabold tabular-nums">
+            {amountDue}
+          </span>
+        </div>
 
         <button
           type="button"
           disabled={
             pending ||
+            minimumBlocks ||
             (signedIn && (!hasAddress || orderLines.length === 0))
           }
           onClick={() => void placeOrder()}

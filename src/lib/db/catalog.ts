@@ -2,6 +2,7 @@ import "server-only";
 
 import type { PoolClient } from "pg";
 import {
+  HOME_SECTION_BY_ID_SQL,
   HOME_SECTIONS_SQL,
   PRODUCT_DETAIL_COLUMNS,
   PRODUCTS_BY_IDS_SQL,
@@ -245,9 +246,65 @@ async function productsByIds(client: PoolClient, shopId: string, ids: string[]):
   return unique.map((id) => byId.get(id)).filter((row): row is DbProduct => Boolean(row?.name));
 }
 
-export async function readHomeSections(
-  shopId = requireShopId(),
-): Promise<{ id: string; title: string; products: DbProduct[] }[]> {
+export type HomeSection = {
+  id: string;
+  title: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  products: DbProduct[];
+};
+
+function when(value: unknown): string | null {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString();
+  return text(typeof value === "string" ? value : null);
+}
+
+async function productsForSection(
+  client: PoolClient,
+  shopId: string,
+  section: ProductRow,
+): Promise<DbProduct[]> {
+  const pinned = [
+    ...idList(section.product_ids),
+    ...idList(section.buy_product_ids),
+    ...idList(section.get_product_ids),
+  ];
+  const products = await productsByIds(client, shopId, pinned);
+  const seen = new Set(products.map((product) => product.id));
+  for (const categoryId of idList(section.category_ids)) {
+    if (products.length >= 50) break;
+    const built = buildProductListQuery({
+      categoryId,
+      includeDescendants: true,
+      limit: 50,
+    });
+    built.values[0] = shopId;
+    const { rows } = await client.query<ProductRow>(built.text, built.values);
+    for (const row of rows) {
+      const product = mapProduct(row);
+      if (!product.name || seen.has(product.id)) continue;
+      seen.add(product.id);
+      products.push(product);
+      if (products.length >= 50) break;
+    }
+  }
+  return products.slice(0, 50);
+}
+
+function toSection(section: ProductRow, products: DbProduct[]): HomeSection | null {
+  const id = text(section.id);
+  const title = text(section.title);
+  if (!id || !title) return null;
+  return {
+    id,
+    title,
+    startsAt: when(section.starts_at),
+    endsAt: when(section.ends_at),
+    products,
+  };
+}
+
+export async function readHomeSections(shopId = requireShopId()): Promise<HomeSection[]> {
   return withShop(shopId, async (client) => {
     let sections: ProductRow[] = [];
     try {
@@ -257,38 +314,32 @@ export async function readHomeSections(
       if ((error as { code?: string }).code === "42P01") return [];
       throw error;
     }
-    const shelves: { id: string; title: string; products: DbProduct[] }[] = [];
+    const shelves: HomeSection[] = [];
     for (const section of sections) {
-      const id = text(section.id);
-      const title = text(section.title);
-      if (!id || !title) continue;
-      const pinned = [
-        ...idList(section.product_ids),
-        ...idList(section.buy_product_ids),
-        ...idList(section.get_product_ids),
-      ];
-      const products = await productsByIds(client, shopId, pinned);
-      const seen = new Set(products.map((product) => product.id));
-      for (const categoryId of idList(section.category_ids)) {
-        if (products.length >= 50) break;
-        const built = buildProductListQuery({
-          categoryId,
-          includeDescendants: true,
-          limit: 50,
-        });
-        built.values[0] = shopId;
-        const { rows } = await client.query<ProductRow>(built.text, built.values);
-        for (const row of rows) {
-          const product = mapProduct(row);
-          if (!product.name || seen.has(product.id)) continue;
-          seen.add(product.id);
-          products.push(product);
-          if (products.length >= 50) break;
-        }
-      }
+      const products = await productsForSection(client, shopId, section);
       if (products.length === 0) continue;
-      shelves.push({ id, title, products: products.slice(0, 50) });
+      const shelf = toSection(section, products);
+      if (shelf) shelves.push(shelf);
     }
     return shelves;
+  });
+}
+
+/** One enabled home section, including a direct link whose dates are outside the home list. */
+export async function readHomeSection(
+  id: string,
+  shopId = requireShopId(),
+): Promise<HomeSection | null> {
+  if (!isShopUuid(id)) return null;
+  return withShop(shopId, async (client) => {
+    try {
+      const result = await client.query<ProductRow>(HOME_SECTION_BY_ID_SQL, [shopId, id]);
+      const section = result.rows[0];
+      if (!section) return null;
+      return toSection(section, await productsForSection(client, shopId, section));
+    } catch (error) {
+      if ((error as { code?: string }).code === "42P01") return null;
+      throw error;
+    }
   });
 }

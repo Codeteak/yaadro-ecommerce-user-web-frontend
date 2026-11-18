@@ -244,6 +244,14 @@ export const PRODUCT_DETAIL_COLUMNS = `sp.id, sp.shop_id, ${CATEGORY_ID_SQL} AS 
                 sp.offer_price_minor_per_unit::text AS offer_price_minor_per_unit,
                 sp.created_at, sp.global_product_id, ${IMAGE_URL_SQL} AS global_image_url`;
 
+export const HOME_SECTION_BY_ID_SQL = `SELECT id, title, type, sort_order, starts_at, ends_at,
+                product_ids, category_ids, buy_product_ids, get_product_ids
+           FROM shop_home_sections
+          WHERE shop_id = $1::uuid
+            AND id = $2::uuid
+            AND deleted_at IS NULL
+            AND is_enabled = true`;
+
 export const HOME_SECTIONS_SQL = `SELECT id, title, type, sort_order, starts_at, ends_at,
                 product_ids, category_ids, buy_product_ids, get_product_ids
            FROM shop_home_sections

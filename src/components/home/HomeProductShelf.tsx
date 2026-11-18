@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ProductCard } from "@/components/product/ProductCard";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { cn } from "@/lib/cn";
@@ -28,6 +29,13 @@ export function HomeProductShelf({
 
   if (products.length === 0) return null;
 
+  const eventHref =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      shelf.id,
+    )
+      ? `/events?id=${shelf.id}`
+      : null;
+
   return (
     <section
       aria-labelledby={`home-shelf-${shelf.id}`}
@@ -38,7 +46,16 @@ export function HomeProductShelf({
           id={`home-shelf-${shelf.id}`}
           className={t.homeSectionHeading}
         >
-          {shelf.title}
+          {eventHref ? (
+            <Link
+              href={eventHref}
+              className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+            >
+              {shelf.title}
+            </Link>
+          ) : (
+            shelf.title
+          )}
         </h2>
         <p className={t.homeSectionSubtitle}>{shelf.subtitle}</p>
       </div>

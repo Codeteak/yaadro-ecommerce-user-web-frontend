@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { refreshStorefrontCatalog } from "@/lib/catalog/refresh-catalog";
+import { SHOP_QUOTE_EVENT } from "@/lib/cart-checkout-rules";
 
 const REFRESH_GAP_MS = 4000;
 const POLL_MS = 8000;
@@ -144,6 +145,9 @@ export function CatalogLivePrices() {
         abandonSocket(next);
       });
       next.on("catalog.invalidated", () => refresh());
+      next.on("shop.min_purchase.updated", () => {
+        window.dispatchEvent(new Event(SHOP_QUOTE_EVENT));
+      });
     });
 
     startPoll();

@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   isBasketCheckoutFailure,
   localCheckoutWarning,
+  parseShopQuote,
   previewCheckoutWarning,
   shopCheckoutLines,
   shopLineQuantity,
@@ -101,6 +102,43 @@ test("lets a basket through when every rule passes", () => {
     ),
     null,
   );
+});
+
+test("reads the minimum, a trusted zero total, and automatic offers", () => {
+  const quote = parseShopQuote({
+    summary: {
+      min_purchase_minor: 100100,
+      min_purchase_remaining_minor: 88100,
+      subtotal_minor: 0,
+    },
+    promotions: {
+      auto: {
+        applied_offers: [
+          { title: "10% off dairy", category_id: MILK, percent_bps: 1000 },
+        ],
+        suggested_offers: [{ category_name: "Bakery", percent_bps: 500 }],
+      },
+    },
+  });
+  assert.equal(
+    quote.minimumMessage,
+    "Add ₹881 more to meet this shop's ₹1,001 minimum order.",
+  );
+  assert.equal(quote.totalRupees, 0);
+  assert.deepEqual(quote.applied, [
+    { label: "10% off dairy", categoryId: MILK, reached: true },
+  ]);
+  assert.deepEqual(quote.suggested, [
+    { label: "5% off Bakery", categoryId: null, reached: false },
+  ]);
+});
+
+test("keeps the phone total when the shop omits a subtotal", () => {
+  const quote = parseShopQuote({
+    summary: { min_purchase_remaining_minor: 0, min_purchase_minor: 0 },
+  });
+  assert.equal(quote.minimumMessage, null);
+  assert.equal(quote.totalRupees, null);
 });
 
 test("sends basket failures back to the cart and keeps address failures on checkout", () => {
