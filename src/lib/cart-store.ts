@@ -5,7 +5,9 @@
  * when that line did not change, so a card can subscribe to one id.
  */
 import {
+  applyKnownCoupon,
   applySamplePromo,
+  findCouponByCode,
   type SampleCoupon,
 } from "@/lib/sample-coupons";
 import {
@@ -52,7 +54,7 @@ const EMPTY_TOTALS: CartTotals = {
 
 let items: CartItem[] = EMPTY_ITEMS;
 let itemsRaw: string | null = null;
-let promoCode: string | null = null;
+let promoCoupon: SampleCoupon | null = null;
 let promoRaw: string | null = null;
 let totals: CartTotals = EMPTY_TOTALS;
 let totalsKey = "";
@@ -76,11 +78,25 @@ function parseItems(raw: string | null): CartItem[] {
   }
 }
 
-function parsePromo(raw: string | null): string | null {
+function isStoredCoupon(value: unknown): value is SampleCoupon {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Partial<SampleCoupon>;
+  if (typeof row.code !== "string" || row.code.length === 0) return false;
+  if (typeof row.minOrder !== "number" || typeof row.status !== "string") return false;
+  if (!row.discount || typeof row.discount !== "object") return false;
+  if (row.discount.type === "percent") {
+    return typeof row.discount.percent === "number" && typeof row.discount.maxOff === "number";
+  }
+  if (row.discount.type === "flat") return typeof row.discount.amount === "number";
+  return false;
+}
+
+function parsePromo(raw: string | null): SampleCoupon | null {
   if (raw == null) return null;
   try {
-    const code = JSON.parse(raw) as unknown;
-    return typeof code === "string" && code.length > 0 ? code : null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (typeof parsed === "string") return findCouponByCode(parsed) ?? null;
+    return isStoredCoupon(parsed) ? parsed : null;
   } catch {
     return null;
   }
@@ -124,7 +140,7 @@ function readStorage() {
   const nextPromoRaw = window.localStorage.getItem(PROMO_KEY);
   if (nextPromoRaw !== promoRaw) {
     promoRaw = nextPromoRaw;
-    promoCode = parsePromo(nextPromoRaw);
+    promoCoupon = parsePromo(nextPromoRaw);
   }
 }
 
@@ -144,14 +160,14 @@ function writeItems(next: CartItem[]) {
   emit();
 }
 
-function writePromo(code: string | null) {
-  promoCode = code;
+function writePromo(coupon: SampleCoupon | null) {
+  promoCoupon = coupon;
   try {
-    if (!code) {
+    if (!coupon) {
       window.localStorage.removeItem(PROMO_KEY);
       promoRaw = null;
     } else {
-      promoRaw = JSON.stringify(code);
+      promoRaw = JSON.stringify(coupon);
       window.localStorage.setItem(PROMO_KEY, promoRaw);
     }
   } catch {
@@ -280,8 +296,8 @@ export function getTotalsSnapshot(): CartTotals {
   const savings = Math.max(0, mrpTotal - subtotal);
   let appliedPromo: SampleCoupon | null = null;
   let promoDiscount = 0;
-  if (promoCode) {
-    const result = applySamplePromo(promoCode, subtotal);
+  if (promoCoupon) {
+    const result = applyKnownCoupon(promoCoupon, subtotal);
     if (result.ok) {
       appliedPromo = result.coupon;
       promoDiscount = result.discount;
@@ -305,11 +321,18 @@ export function getTotalsServerSnapshot(): CartTotals {
   return EMPTY_TOTALS;
 }
 
-export function applyCartPromo(code: string) {
+export function applyCartPromo(code: string, known?: SampleCoupon) {
   const { subtotal } = getTotalsSnapshot();
-  const result = applySamplePromo(code, subtotal);
+  const typed = code.trim();
+  const coupon =
+    known && known.code.toUpperCase() === typed.toUpperCase()
+      ? known
+      : findCouponByCode(typed);
+  const result = coupon
+    ? applyKnownCoupon(coupon, subtotal)
+    : applySamplePromo(typed, subtotal);
   if (!result.ok) return { ok: false as const, message: result.message };
-  writePromo(result.coupon.code);
+  writePromo(result.coupon);
   return {
     ok: true as const,
     code: result.coupon.code,
@@ -319,7 +342,7 @@ export function applyCartPromo(code: string) {
 
 export function peekCartPromoCode(): string | null {
   readStorage();
-  return promoCode;
+  return promoCoupon?.code ?? null;
 }
 
 export type { CartItem, SampleProduct };
