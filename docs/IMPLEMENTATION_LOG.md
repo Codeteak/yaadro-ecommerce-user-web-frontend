@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-18 — Shop minimum, automatic offers, and events
+
+The cart and checkout keep a shop quote open. A minimum that is not met stays on the page and turns Checkout off. Automatic offers, reached and not yet reached, sit under the bill, and a category offer opens that aisle. A shop total of ₹0 is shown as ₹0. A home shelf title opens `/events?id=` for that section, with its dates and products. A minimum change from the shop refreshes the open quote.
+
 ## 2026-11-17 — Status card uses the storefront type
 
 The status card now uses Plus Jakarta Sans, the forest title, the 15px and 13px sizes, and the same white card, green shadow, and leaf, mint, and red used on the other screens.

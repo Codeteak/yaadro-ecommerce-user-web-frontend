@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CategoriesPageContent } from "@/components/categories/CategoriesPageContent";
-<<<<<<< HEAD
 import { CategoriesHubSkeleton } from "@/components/ui/skeletons";
-=======
-import { CategoryPlpSkeleton } from "@/components/ui/skeletons";
->>>>>>> 0d2d7d2 (chore:added cacha invalidate api removed boiler plate coupon added fixes in the fix.md file)
 import { loadCategoryBrowser } from "@/lib/api/storefront";
 
 export const metadata: Metadata = {
@@ -17,19 +13,7 @@ type CategoriesPageProps = {
   searchParams: Promise<{ cat?: string; focus?: string; chips?: string }>;
 };
 
-<<<<<<< HEAD
 async function CategoriesPageBody({ searchParams }: CategoriesPageProps) {
-=======
-export default function CategoriesPage({ searchParams }: CategoriesPageProps) {
-  return (
-    <Suspense fallback={<CategoryPlpSkeleton />}>
-      <CategoriesCatalog searchParams={searchParams} />
-    </Suspense>
-  );
-}
-
-async function CategoriesCatalog({ searchParams }: CategoriesPageProps) {
->>>>>>> 0d2d7d2 (chore:added cacha invalidate api removed boiler plate coupon added fixes in the fix.md file)
   const query = await searchParams;
   const catalog = await loadCategoryBrowser(query.cat);
 

@@ -1,6 +1,6 @@
 # Yaadro Storefront — Project Status
 
-**Updated:** 2026-11-17
+**Updated:** 2026-11-18
 
 ## Current stage
 
@@ -13,7 +13,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 | Onboarding `/` | Done | Hero, swipe CTA, guest link |
 | Login `/login` | UI done | Phone +91 / OTP. Success toast sits at the top, then the page returns home (or the safe `next` path). |
 | Home / catalog | Live database | Categories, products, product detail, and home shelves are read on the server from `DATABASE_URL` with the shop API's filters. Shop name and SEO still use the customer API, with a Yaadro fallback. Offer prices come from the product row. Campaign overlays are not copied. |
-| Cart `/cart` | UI done | List, promo field, 3D Checkout pill. Checkout asks the shop to price the basket first and stays on the cart when the minimum, coupon, or product rules fail. “You may also like” uses the live catalog. |
+| Cart `/cart` | UI done | List, promo field, 3D Checkout pill. The shop quote shows the minimum, automatic offers, and a trusted total (including ₹0). Checkout stays off until the minimum is met. “You may also like” uses the live catalog. |
 | Coupons `/coupons` | UI done | Comfortable ticket body (discount → title → code); sample via `lib/api/coupons` |
 | Wishlist `/wishlist` | UI done | Local signed-in scaffold; façade `lib/api/wishlist` |
 | Checkout `/checkout` | UI done | COD only; Place Order → Order placed (mascot + bill card + View Order / Back home); stub only |
@@ -29,7 +29,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 
 - `/` — onboarding
 - `/login` — login stub
-- `/home`, `/categories`, `/categories/[slug]`, `/wishlist`, `/profile`, `/cart`, `/coupons`, `/checkout`, `/orders`
+- `/home`, `/categories`, `/categories/[slug]`, `/events`, `/wishlist`, `/profile`, `/cart`, `/coupons`, `/checkout`, `/orders`
 - `/orders/[id]` — classic order detail (sample)
 - `/orders/[id]/track` — live tracking (separate from order details)
 - `/product/[id]` — PDP

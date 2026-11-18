@@ -114,6 +114,95 @@ export function previewCheckoutWarning(
   return messages.length > 0 ? messages.join(" ") : null;
 }
 
+export type ShopOffer = {
+  label: string;
+  categoryId: string | null;
+  reached: boolean;
+};
+
+export type ShopQuote = {
+  /** Null once the basket meets the shop minimum. */
+  minimumMessage: string | null;
+  /**
+   * Shop payable total in rupees. Present even when the shop says 0.
+   * Null when the preview did not include a subtotal.
+   */
+  totalRupees: number | null;
+  applied: ShopOffer[];
+  suggested: ShopOffer[];
+};
+
+const EMPTY_QUOTE: ShopQuote = {
+  minimumMessage: null,
+  totalRupees: null,
+  applied: [],
+  suggested: [],
+};
+
+/** Ask open cart and checkout pages to price the basket again. */
+export const SHOP_QUOTE_EVENT = "yaadro-shop-quote";
+
+function presentMinor(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.floor(n));
+}
+
+function offerLabel(row: Record<string, unknown>): string {
+  const title = typeof row.title === "string" ? row.title.trim() : "";
+  if (title) return title;
+  const message = typeof row.message === "string" ? row.message.trim() : "";
+  if (message) return message;
+  const name = typeof row.category_name === "string" ? row.category_name.trim() : "";
+  const bps = Number(row.percent_bps);
+  const percent = Number.isFinite(bps) && bps > 0 ? bps / 100 : null;
+  const percentLabel =
+    percent == null ? null : Number.isInteger(percent) ? `${percent}%` : `${percent}%`;
+  if (name && percentLabel) return `${percentLabel} off ${name}`;
+  if (percentLabel) return `${percentLabel} off this basket`;
+  if (name) return name;
+  return "Shop offer";
+}
+
+function offerList(value: unknown, reached: boolean): ShopOffer[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    const row = asRecord(item);
+    if (!row) return [];
+    const categoryId = typeof row.category_id === "string" ? row.category_id : null;
+    return [{ label: offerLabel(row), categoryId, reached }];
+  });
+}
+
+/** Minimum, trusted total, and automatic offers from a cart preview. */
+export function parseShopQuote(preview: unknown): ShopQuote {
+  const body = asRecord(preview);
+  if (!body) return EMPTY_QUOTE;
+  const summary = asRecord(body.summary);
+  const remaining = presentMinor(summary?.min_purchase_remaining_minor);
+  const minimum = presentMinor(summary?.min_purchase_minor);
+  const subtotal = presentMinor(summary?.subtotal_minor);
+  const auto = asRecord(asRecord(body.promotions)?.auto);
+  return {
+    minimumMessage:
+      remaining != null && minimum != null && remaining > 0 && minimum > 0
+        ? `Add ${rupees(remaining)} more to meet this shop's ${rupees(minimum)} minimum order.`
+        : null,
+    totalRupees: subtotal == null ? null : subtotal / 100,
+    applied: offerList(auto?.applied_offers, true),
+    suggested: offerList(auto?.suggested_offers, false),
+  };
+}
+
+export function formatRupees(amount: number): string {
+  if (Number.isInteger(amount)) return `₹${amount.toLocaleString("en-IN")}`;
+  return `₹${amount.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
 /** Place-order failures that belong on the cart, not on the checkout page. */
 export function isBasketCheckoutFailure(code: string, message: string): boolean {
   if (BASKET_CODES.has(code)) return true;

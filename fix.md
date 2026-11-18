@@ -19,4 +19,7 @@
 19. in the cart if coupon applied the checkout amount is not updating
 20. checkout need ui updations
 21. in order history hightlight the order status in a badge or live green dot icon
+22. dms bsed api format and testing add varibale in .env
+23. location based messages need to add in toaster 
+
 
