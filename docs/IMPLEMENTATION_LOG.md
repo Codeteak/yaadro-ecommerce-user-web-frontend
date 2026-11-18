@@ -1,5 +1,15 @@
 # Implementation Log
 
+## 2026-11-18 — Weight price is per unit_size (card price)
+
+### What changed
+
+Catalog `price_minor_per_unit` matches the card (e.g. carrot ₹500 for 0.25 kg). Sheet and cart use `(kg / stepKg) × price` instead of treating price as per kg. Subtitle shows `₹500 / 0.25 kg`. Playground notes updated.
+
+### Verify
+
+Carrot at 0.25 kg → ₹500; at 0.5 kg → ₹1000. `/playground/weight-customizer`.
+
 ## 2026-11-18 — Weight button shows catalog min kg
 
 ### What changed

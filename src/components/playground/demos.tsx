@@ -118,7 +118,7 @@ function ProductDetailDemo() {
   );
 
   return (
-    <DemoFrame note="Same as /product/[id]. Weight products (e.g. Oranges) show min kg on the button; tap → slide ruler; price = kg × ₹/kg.">
+    <DemoFrame note="Same as /product/[id]. Weight button shows unit_size min; slide ruler; total = (kg / step) × card price.">
       <div className="relative">
         <div className="flex flex-wrap gap-2 border-b border-forest/8 px-4 py-3">
           {PDP_SAMPLES.map((p) => (
@@ -242,8 +242,8 @@ function WeightCustomizerDemo() {
   return (
     <div className="px-5 py-8 text-center">
       <p className="text-sm text-muted">
-        Same as ecom: button shows catalog min ({minKg} kg). Tap → slide ruler;
-        total = kg × ₹{product.price}/kg.
+        Same as ecom: button shows catalog min ({minKg} kg). Tap → slide;
+        ₹{product.price} is for {minKg} kg (card price), then scales with weight.
       </p>
       <button
         type="button"

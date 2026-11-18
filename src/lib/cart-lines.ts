@@ -41,15 +41,35 @@ export function resolveCartProduct(item: CartItem): SampleProduct {
   return getProduct(item.productId);
 }
 
+/**
+ * Catalog `price` / `mrp` are per sellable unit (`unit_size` = stepKg),
+ * not per kg. Card shows ₹500 for 0.25 kg → 0.25 kg costs ₹500;
+ * 0.5 kg costs ₹1000.
+ */
+export function weightAmount(
+  weightKg: number,
+  pricePerUnit: number,
+  stepKg: number,
+): number {
+  const step = stepKg > 0 ? stepKg : 1;
+  return Math.round((weightKg / step) * pricePerUnit);
+}
+
 export function lineTotal(item: CartItem): number {
   const product = resolveCartProduct(item);
-  if (item.weightKg) return Math.round(item.weightKg * product.price);
+  if (item.weightKg) {
+    const step = product.customization?.stepKg ?? 1;
+    return weightAmount(item.weightKg, product.price, step);
+  }
   return item.qty * product.price;
 }
 
 export function lineMrp(item: CartItem): number {
   const product = resolveCartProduct(item);
-  if (item.weightKg) return Math.round(item.weightKg * product.mrp);
+  if (item.weightKg) {
+    const step = product.customization?.stepKg ?? 1;
+    return weightAmount(item.weightKg, product.mrp, step);
+  }
   return item.qty * product.mrp;
 }
 

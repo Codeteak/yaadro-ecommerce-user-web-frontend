@@ -14,7 +14,8 @@ import { productPhoto } from "@/lib/product-image";
  * Mirrors the backend's per-product custom option: products that have
  * it open the customizer (weight ruler) instead of the plain stepper.
  * When the catalog API lands, this flag comes from the product payload.
- * For weight products, `price`/`mrp` are PER KG.
+ * For weight products, `price`/`mrp` are per sellable unit (`unit_size` /
+ * stepKg) — same as the product card — not per kg.
  */
 export type WeightCustomization = {
   type: "weight";
@@ -88,7 +89,7 @@ const BY_WEIGHT_01: WeightCustomization = { type: "weight", stepKg: 0.1, minKg: 
 const BY_WEIGHT_025: WeightCustomization = { type: "weight", stepKg: 0.25, minKg: 0.25, maxKg: 10 };
 
 export const SAMPLE_PRODUCTS: SampleProduct[] = [
-  // Fruits (loose fruit is sold by weight — custom option, price per kg)
+  // Fruits (loose fruit by weight — price per unit_size / step)
   {
     id: "fr-1",
     category: "Fruits",
@@ -137,7 +138,7 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
   { id: "fr-9", category: "Fruits", name: "Papaya", unit: "per kg", price: 48, mrp: 60, image: "/categories/fruits.jpg", customization: BY_WEIGHT },
   { id: "fr-10", category: "Fruits", name: "Guava", unit: "per kg", price: 70, mrp: 90, image: "/products/green-apples.jpg", customization: BY_WEIGHT },
 
-  // Vegetables (loose vegetables by weight — custom option, price per kg)
+  // Vegetables (loose by weight — price per unit_size / step)
   { id: "vg-1", category: "Vegetables", name: "Fresh Broccoli", unit: "per kg", price: 110, mrp: 140, image: "/products/broccoli.jpg", customization: BY_WEIGHT },
   { id: "vg-2", category: "Vegetables", name: "Bell Peppers Trio", unit: "per kg", price: 178, mrp: 220, badge: "Best Seller", image: "/products/peppers.jpg", customization: BY_WEIGHT },
   {

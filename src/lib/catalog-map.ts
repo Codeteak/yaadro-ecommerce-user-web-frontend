@@ -8,7 +8,8 @@ const FALLBACK_IMAGE = PRODUCT_IMAGE_FALLBACK;
 
 /**
  * Backend `unit_size` (with `base_unit` kg) is the sell step / minimum.
- * Orange is 0.1 kg; carrot is 0.25 kg. Price stays per kg.
+ * Orange is 0.1 kg; carrot is 0.25 kg. Catalog price is per that unit
+ * (`price_minor_per_unit`), same figure shown on the product card.
  */
 export function weightCustomizationFromUnitSize(
   unitSize: unknown,

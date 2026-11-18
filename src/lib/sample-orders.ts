@@ -350,13 +350,20 @@ function hydrateLine(line: SampleOrderLine): SampleOrderLine {
   const product = getSampleProduct(line.productId);
   if (!product) return line;
   const qty = line.qty;
-  const lineTotal = line.isWeight
-    ? Math.round(qty * product.price)
-    : qty * product.price;
-  const lineMrp = line.isWeight
-    ? Math.round(qty * product.mrp)
-    : qty * product.mrp;
-  return { ...line, lineTotal, lineMrp };
+  if (line.isWeight) {
+    const step = product.customization?.stepKg ?? 1;
+    const units = step > 0 ? qty / step : qty;
+    return {
+      ...line,
+      lineTotal: Math.round(units * product.price),
+      lineMrp: Math.round(units * product.mrp),
+    };
+  }
+  return {
+    ...line,
+    lineTotal: qty * product.price,
+    lineMrp: qty * product.mrp,
+  };
 }
 
 function hydrateOrder(order: SampleOrder): SampleOrder {

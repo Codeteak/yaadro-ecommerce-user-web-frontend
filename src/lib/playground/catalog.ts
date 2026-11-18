@@ -254,7 +254,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Weight button shows unit_size min (e.g. 0.1 kg). Tap → slide ruler; price = kg × ₹/kg.",
+      "Weight button shows unit_size min. Card price is per unit_size; slide scales (kg/step)×price.",
     wiresTo: "Storefront layout + ProductCard + ProductDetail",
   },
   {
