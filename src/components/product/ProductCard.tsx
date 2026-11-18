@@ -11,6 +11,7 @@ import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { useWishlistToggle } from "@/components/wishlist/useWishlistToggle";
 import { cn } from "@/lib/cn";
 import { isProductImageFallback, productPhoto } from "@/lib/product-image";
+import { formatKgAmount } from "@/lib/qty-label";
 
 /**
  * Hanging ribbon with an exact vector finish: arc radius matches the card
@@ -228,30 +229,20 @@ export function ProductCard({
             aria-label={
               weightKg
                 ? `Change weight of ${product.name}, currently ${weightKg} kilograms`
-                : `Choose weight for ${product.name}`
+                : `Choose weight for ${product.name}, from ${product.customization.minKg} kilograms`
             }
             className={
               compact
-                ? cn(
-                    "grid h-8 shrink-0 cursor-pointer place-items-center bg-track text-black shadow-[0_4px_12px_rgba(47,107,47,0.3)] transition hover:bg-leaf-bright active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
-                    weightKg
-                      ? "rounded-lg px-2 text-[11px] font-extrabold whitespace-nowrap"
-                      : "w-8 rounded-lg",
-                  )
-                : `grid h-11 shrink-0 cursor-pointer place-items-center bg-track text-black shadow-[0_8px_18px_rgba(47,107,47,0.35)] transition hover:bg-leaf-bright active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf ${
-                    weightKg
-                      ? "min-w-11 rounded-[0.9rem] px-3 text-[13px] font-extrabold whitespace-nowrap"
-                      : "w-11 rounded-[0.9rem]"
-                  }`
+                ? "grid h-8 shrink-0 cursor-pointer place-items-center rounded-lg bg-track px-2 text-[11px] font-extrabold whitespace-nowrap text-black shadow-[0_4px_12px_rgba(47,107,47,0.3)] transition hover:bg-leaf-bright active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+                : "grid h-11 min-w-11 shrink-0 cursor-pointer place-items-center rounded-[0.9rem] bg-track px-3 text-[13px] font-extrabold whitespace-nowrap text-black shadow-[0_8px_18px_rgba(47,107,47,0.35)] transition hover:bg-leaf-bright active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
             }
           >
-            {weightKg ? (
-              <span key={weightKg} className="qty-pop text-black">
-                {Number.isInteger(weightKg) ? weightKg : weightKg.toFixed(1)} kg
-              </span>
-            ) : (
-              <Plus className={compact ? "h-4 w-4 text-black" : "h-5 w-5 text-black"} aria-hidden />
-            )}
+            <span
+              key={weightKg ?? product.customization.minKg}
+              className="qty-pop text-black"
+            >
+              {formatKgAmount(weightKg ?? product.customization.minKg)} kg
+            </span>
           </button>
         ) : qty === 0 ? (
           <button

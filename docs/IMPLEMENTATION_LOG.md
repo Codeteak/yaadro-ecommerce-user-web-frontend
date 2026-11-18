@@ -1,5 +1,25 @@
 # Implementation Log
 
+## 2026-11-18 — Weight button shows catalog min kg
+
+### What changed
+
+PDP and ProductCard weight CTAs show `customization.minKg` (from `unit_size`) when not in cart — e.g. Orange **0.1 kg**, not “Choose weight” / 1 kg. Tap still opens the slide ruler; price = kg × ₹/kg. Playground product-detail includes Oranges; weight-customizer demo button matches.
+
+### Verify
+
+Clear Orange from cart → PDP/card button reads 0.1 kg → slide → total scales. `/playground/weight-customizer` and `/playground/product-detail`.
+
+## 2026-11-18 — Weight customizer uses catalog unit_size
+
+### What changed
+
+Live `sold_by_weight` products map `minKg`/`stepKg` from DB `unit_size` (Orange 0.1, carrot 0.25). Customizer defaults to min, not 1 kg. Playground Orange/Carrot samples + `/playground/weight-customizer` updated.
+
+### Verify
+
+Add Orange on /home or PLP — sheet opens at 0.1 kg in 0.1 steps. Playground weight-customizer same.
+
 ## 2026-11-18 — Address Select location: no back button
 
 ### What changed

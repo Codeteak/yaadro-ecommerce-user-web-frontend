@@ -3,10 +3,15 @@
  * Derives kg | g | each | ml | l from the product unit string when present.
  */
 
+/** Trim float noise; keep up to 3 decimals (0.1, 0.25, 1.5). */
+export function formatKgAmount(n: number): string {
+  const rounded = Math.round(n * 1000) / 1000;
+  if (Number.isInteger(rounded)) return String(rounded);
+  return String(rounded);
+}
+
 function formatAmount(n: number): string {
-  if (Number.isInteger(n)) return String(n);
-  const fixed = n.toFixed(1);
-  return fixed.endsWith(".0") ? fixed.slice(0, -2) : fixed;
+  return formatKgAmount(n);
 }
 
 export type QtyBadgeInput = {

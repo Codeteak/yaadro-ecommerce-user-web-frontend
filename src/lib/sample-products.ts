@@ -80,7 +80,12 @@ export function resolveProductDescription(
   return undefined;
 }
 
+/** Default sample step (legacy). Prefer unit_size-matched constants below for demos. */
 const BY_WEIGHT: WeightCustomization = { type: "weight", stepKg: 0.5, minKg: 0.5, maxKg: 10 };
+/** Matches live Orange (`unit_size` 0.1 kg). */
+const BY_WEIGHT_01: WeightCustomization = { type: "weight", stepKg: 0.1, minKg: 0.1, maxKg: 10 };
+/** Matches live carrot (`unit_size` 0.25 kg). */
+const BY_WEIGHT_025: WeightCustomization = { type: "weight", stepKg: 0.25, minKg: 0.25, maxKg: 10 };
 
 export const SAMPLE_PRODUCTS: SampleProduct[] = [
   // Fruits (loose fruit is sold by weight — custom option, price per kg)
@@ -104,7 +109,7 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
     rating: { value: 4.7, count: 186 },
     customization: BY_WEIGHT,
   },
-  { id: "fr-2", category: "Fruits", name: "Nagpur Oranges", unit: "per kg", price: 120, mrp: 150, image: "/products/oranges.jpg", customization: BY_WEIGHT },
+  { id: "fr-2", category: "Fruits", name: "Nagpur Oranges", unit: "0.1 kg", price: 120, mrp: 150, image: "/products/oranges.jpg", customization: BY_WEIGHT_01 },
   { id: "fr-3", category: "Fruits", name: "Green Apples", unit: "per kg", price: 220, mrp: 270, image: "/products/green-apples.jpg", customization: BY_WEIGHT },
   {
     id: "fr-4",
@@ -167,7 +172,7 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
   },
   { id: "vg-5", category: "Vegetables", name: "Onion", unit: "per kg", price: 38, mrp: 48, image: "/categories/vegetables.jpg", customization: BY_WEIGHT },
   { id: "vg-6", category: "Vegetables", name: "Potato", unit: "per kg", price: 32, mrp: 40, image: "/products/tomatoes.jpg", customization: BY_WEIGHT },
-  { id: "vg-7", category: "Vegetables", name: "Carrot", unit: "per kg", price: 55, mrp: 70, image: "/products/broccoli.jpg", customization: BY_WEIGHT },
+  { id: "vg-7", category: "Vegetables", name: "Carrot", unit: "0.25 kg", price: 55, mrp: 70, image: "/products/broccoli.jpg", customization: BY_WEIGHT_025 },
   { id: "vg-8", category: "Vegetables", name: "Cucumber", unit: "per kg", price: 40, mrp: 55, image: "/categories/vegetables.jpg", customization: BY_WEIGHT },
   { id: "vg-9", category: "Vegetables", name: "Spinach Bunch", unit: "250 g", price: 25, mrp: 35, image: "/products/herbs.jpg" },
   { id: "vg-10", category: "Vegetables", name: "Cauliflower", unit: "per kg", price: 45, mrp: 60, image: "/products/broccoli.jpg", customization: BY_WEIGHT },

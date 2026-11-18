@@ -102,7 +102,12 @@ const NO_PHOTO_PRODUCT: SampleProduct = {
 
 const PDP_SAMPLES = [
   ...SAMPLE_PRODUCTS.filter(
-    (p) => p.id === "vg-3" || p.id === "fr-4" || p.id === "sn-3" || p.id === "fr-1",
+    (p) =>
+      p.id === "fr-2" || // Nagpur Oranges — 0.1 kg unit_size weight demo
+      p.id === "vg-3" ||
+      p.id === "fr-4" ||
+      p.id === "sn-3" ||
+      p.id === "fr-1",
   ),
   NO_PHOTO_PRODUCT,
 ];
@@ -113,7 +118,7 @@ function ProductDetailDemo() {
   );
 
   return (
-    <DemoFrame note="Same as /product/[id]: centered Prices-may-vary message under gallery.">
+    <DemoFrame note="Same as /product/[id]. Weight products (e.g. Oranges) show min kg on the button; tap → slide ruler; price = kg × ₹/kg.">
       <div className="relative">
         <div className="flex flex-wrap gap-2 border-b border-forest/8 px-4 py-3">
           {PDP_SAMPLES.map((p) => (
@@ -227,20 +232,25 @@ function TypeScaleSpecimen() {
 
 function WeightCustomizerDemo() {
   const { setCustomizing } = useCart();
-  const sample = SAMPLE_PRODUCTS.find((p) => p.customization)?.id;
-  const product = SAMPLE_PRODUCTS.find((p) => p.id === sample) ?? SAMPLE_PRODUCTS[0];
+  // Prefer Orange (0.1 kg step) — matches live catalog unit_size.
+  const product =
+    SAMPLE_PRODUCTS.find((p) => p.id === "fr-2") ??
+    SAMPLE_PRODUCTS.find((p) => p.customization) ??
+    SAMPLE_PRODUCTS[0];
+  const minKg = product.customization?.minKg ?? 0.1;
 
   return (
     <div className="px-5 py-8 text-center">
       <p className="text-sm text-muted">
-        Opens the same ruler sheet used on the storefront.
+        Same as ecom: button shows catalog min ({minKg} kg). Tap → slide ruler;
+        total = kg × ₹{product.price}/kg.
       </p>
       <button
         type="button"
         onClick={() => setCustomizing(product)}
-        className="mt-4 inline-flex h-11 items-center rounded-full bg-track px-5 text-sm font-semibold text-black transition hover:bg-leaf-bright"
+        className="mt-4 inline-flex h-11 items-center rounded-2xl bg-track px-5 text-sm font-semibold text-black transition hover:bg-leaf-bright"
       >
-        Open weight customizer
+        {minKg} kg
       </button>
       <WeightCustomizer />
     </div>
@@ -691,7 +701,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "weight-customizer": () => (
-    <DemoFrame>
+    <DemoFrame note="unit_size-driven steps (Orange 0.1 kg min/step). Same WeightCustomizer as ecom.">
       <WeightCustomizerDemo />
     </DemoFrame>
   ),

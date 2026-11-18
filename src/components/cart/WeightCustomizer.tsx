@@ -7,28 +7,35 @@ import { productPhoto } from "@/lib/product-image";
 import { CloseButton } from "@/components/navigation/CloseButton";
 import { useCartLine, useCustomizingProduct, useSetCustomizing } from "@/components/cart/CartContext";
 import { setCartWeight } from "@/lib/cart-store";
+import { formatKgAmount } from "@/lib/qty-label";
 
 function subscribeNever() {
   return () => undefined;
 }
 
 /**
- * Weight customizer sheet (reference-style): opens for products that
- * carry the custom weight option. A scrollable tick ruler snaps in
- * 0.5 kg steps under a fixed centre pointer; price updates live.
+ * Weight customizer sheet: opens for sold-by-weight products.
+ * Ruler steps come from catalog `unit_size` (min = step). Default
+ * selection is minKg (not a hardcoded 1 kg). Price is per kg.
  * Mounted once inside CartProvider (storefront layout).
  */
 const STEP_W = 56;
 
-function fmtKg(kg: number): string {
-  return Number.isInteger(kg) ? String(kg) : kg.toFixed(1);
+function buildSteps(minKg: number, maxKg: number, stepKg: number): number[] {
+  if (stepKg <= 0) return [minKg];
+  const count = Math.max(0, Math.round((maxKg - minKg) / stepKg));
+  const steps: number[] = [];
+  for (let i = 0; i <= count; i++) {
+    steps.push(Math.round((minKg + i * stepKg) * 1000) / 1000);
+  }
+  return steps;
 }
 
 export function WeightCustomizer() {
   const product = useCustomizingProduct();
   const setCustomizing = useSetCustomizing();
   const existing = useCartLine(product?.id ?? null);
-  const [selectedKg, setSelectedKg] = useState(1);
+  const [selectedKg, setSelectedKg] = useState(0.5);
   const mounted = useSyncExternalStore(
     subscribeNever,
     () => true,
@@ -36,14 +43,13 @@ export function WeightCustomizer() {
   );
   const rulerRef = useRef<HTMLDivElement>(null);
 
-
   // Initialise selection + ruler position whenever a product opens.
   useEffect(() => {
     if (!product?.customization) return;
     const { minKg, maxKg, stepKg } = product.customization;
     const initial = Math.min(
       maxKg,
-      Math.max(minKg, existing?.weightKg ?? 1),
+      Math.max(minKg, existing?.weightKg ?? minKg),
     );
     const index = Math.round((initial - minKg) / stepKg);
     const raf = requestAnimationFrame(() => {
@@ -71,10 +77,7 @@ export function WeightCustomizer() {
 
   if (!mounted || !product?.customization) return null;
   const { minKg, maxKg, stepKg } = product.customization;
-  const steps: number[] = [];
-  for (let kg = minKg; kg <= maxKg + 0.001; kg += stepKg) {
-    steps.push(Math.round(kg * 10) / 10);
-  }
+  const steps = buildSteps(minKg, maxKg, stepKg);
   const total = Math.round(selectedKg * product.price);
 
   const handleScroll = () => {
@@ -111,7 +114,7 @@ export function WeightCustomizer() {
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-[15px] font-bold text-ink">{product.name}</h2>
             <p className="text-xs font-medium text-muted">
-              By weight, ₹{product.price} / kg
+              By weight, ₹{product.price} / kg · step {formatKgAmount(stepKg)} kg
             </p>
           </div>
           <p className="text-lg font-extrabold text-black">₹{total}</p>
@@ -161,7 +164,7 @@ export function WeightCustomizer() {
                         isSelected ? "text-leaf" : "text-muted"
                       }`}
                     >
-                      {isWhole ? kg : "·"}
+                      {isWhole || isSelected ? formatKgAmount(kg) : "·"}
                     </span>
                   </div>
                 );
@@ -171,7 +174,7 @@ export function WeightCustomizer() {
         </div>
 
         <p className="mt-3 text-center text-[26px] font-extrabold text-ink" aria-live="polite">
-          {fmtKg(selectedKg)} kg
+          {formatKgAmount(selectedKg)} kg
         </p>
 
         <button

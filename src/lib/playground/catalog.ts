@@ -253,8 +253,9 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "WeightCustomizer",
     status: "built",
     group: "Product & cart",
-    description: "Ruler sheet for by-weight products.",
-    wiresTo: "Storefront layout + ProductCard",
+    description:
+      "Weight button shows unit_size min (e.g. 0.1 kg). Tap → slide ruler; price = kg × ₹/kg.",
+    wiresTo: "Storefront layout + ProductCard + ProductDetail",
   },
   {
     slug: "empty-cart",
@@ -288,7 +289,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Peeking gallery, centered Prices-may-vary message, price, optional description/ingredients, qty, related.",
+      "Peeking gallery, Prices-may-vary, weight button shows unit_size min (Oranges 0.1 kg) → slide ruler.",
     wiresTo: "/product/[id]",
   },
   {
