@@ -355,7 +355,7 @@ function CategoriesFlowDemo({
   }
 
   return (
-    <DemoFrame note="Same as /categories. Fresh: first tile is the wide rectangle, then squares. Drinks: first square, then the wide rectangle. Tap → PLP.">
+    <DemoFrame note="Phase A #2: press scale on hub tiles + category chips. Fresh/Drinks layout same; tap → PLP. Wire already in shared tiles — confirm keep.">
       <div className="relative max-h-[78vh] overflow-y-auto overscroll-contain rounded-2xl bg-paper ring-1 ring-black/5">
         <CategoriesHub
           focusSearch={focusSearch}
@@ -410,9 +410,9 @@ function AddressBookDemo({
 }
 
 function OrderDetailLeadDemo() {
-  const id = useSearchParams().get("id") ?? "ord-1042";
+  const id = useSearchParams().get("id") ?? "ord-1038";
   return (
-    <DemoFrame note="Same as /orders/[id]. Track order → /orders/[id]/track. Receipt / Download bill = ticket PNG (same as track page).">
+    <DemoFrame note="Same as /orders/[id]. Delivered (ord-1038): DP name kept; call/chat/phone hidden. Track → /orders/[id]/track.">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain bg-white">
         <OrderDetailPageContent orderId={id} ticketBill />
       </div>
@@ -453,7 +453,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "bottom-nav": () => (
-    <DemoFrame note="Path-hidden on cart/checkout/order detail/profile tasks. Also slides away on scroll-down (window or nested overflow) — scroll this panel to try.">
+    <DemoFrame note="Phase A #1: smoother pill expand/label. Path-hidden on cart/checkout/…. Scroll panel to hide. Wire to ecom after confirm (same BottomNav).">
       <div className="relative max-h-[28rem] overflow-hidden rounded-2xl bg-paper ring-1 ring-black/5">
         <div
           data-storefront-scroll
@@ -762,7 +762,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "cart-page": () => (
     <DemoFrame
       surface="bare"
-      note="Same as /cart: no bottom nav. Add more + compact suggestion cards (~150×216)."
+      note="Same as /cart: top 2 coupons, min-cart ribbon when under ₹499, dotted You save."
     >
       <div className="relative h-[75vh] bg-paper">
         <CartPageContent
@@ -772,6 +772,10 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           priceMayVaryVariant="soft"
           priceMayVaryPlacement="above-add-more"
           showCartSuggestions
+          highlightSavings
+          showTopCoupons
+          showMinCartValue
+          minCartValueRupees={499}
         />
       </div>
       <WeightCustomizer />
@@ -780,13 +784,15 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   checkout: () => (
     <DemoFrame
       surface="bare"
-      note="Same as /checkout: Place Order → tick → Order placed (mascot + bill card + View Order / Back home)."
+      note="Same as /checkout: Place Order press · dotted You save · no Amount due bar."
     >
       <div className="relative h-[75vh] overflow-y-auto bg-paper">
         <CheckoutPageContent
           chromePosition="inline"
           showPriceMayVary
           priceMayVaryVariant="soft"
+          highlightSavings
+          showAmountDueBar={false}
         />
       </div>
     </DemoFrame>
@@ -794,13 +800,12 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "order-placed": () => (
     <DemoFrame
       surface="bare"
-      note="Track order → playground live track (separate). View order details → classic order detail."
+      note="Same as post-checkout: Order history + Home. Live checkout shows this after Place Order."
     >
       <div className="max-h-[85vh] overflow-y-auto overscroll-contain rounded-[1.75rem] bg-paper ring-1 ring-forest/10">
         <OrderPlacedContent
           summary={SAMPLE_ORDER_PLACED}
-          trackOrderHref="/playground/live-order-track"
-          viewOrderHref="/playground/order-detail"
+          ordersHref="/playground/orders-list"
           homeHref="/playground"
         />
       </div>
@@ -903,7 +908,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "live-order-track": () => (
     <DemoFrame
       surface="bare"
-      note="Phase demo + Download Bill (same ticket as order details). Ecom track: /orders/[id]/track — not mixed with classic /orders/[id]. Live Track map on OFD only."
+      note="Phase demo + bill. Delivered: keep DP name, hide call FAB/phone. Ecom: /orders/[id]/track."
     >
       <LiveOrderTrackDemo />
     </DemoFrame>

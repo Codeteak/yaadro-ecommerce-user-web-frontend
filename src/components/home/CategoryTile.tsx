@@ -50,7 +50,7 @@ export function CategoryTile({
         aria-pressed={active}
         aria-label={`Show ${name}`}
         onClick={onClick}
-        className="flex w-[4.75rem] shrink-0 snap-start cursor-pointer flex-col items-center focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-leaf sm:w-[5.25rem]"
+        className="flex w-[4.75rem] shrink-0 snap-start cursor-pointer flex-col items-center transition-transform duration-150 ease-out motion-safe:active:scale-[0.94] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-leaf sm:w-[5.25rem]"
       >
         <span
           className={cn(
@@ -116,7 +116,7 @@ export function CategoryTile({
       aria-label={`Show ${name}`}
       onClick={onClick}
       className={cn(
-        "flex shrink-0 cursor-pointer flex-col items-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
+        "flex shrink-0 cursor-pointer flex-col items-center transition-transform duration-150 ease-out motion-safe:active:scale-[0.94] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
         sidebar
           ? cn(
               "w-full gap-1 rounded-2xl px-1 py-2.5 transition",

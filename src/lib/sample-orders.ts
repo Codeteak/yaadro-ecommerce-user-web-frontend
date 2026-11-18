@@ -318,6 +318,12 @@ export const SAMPLE_ORDERS: SampleOrder[] = [
       shipped: "22 Oct · 7:30 PM",
       delivered: "22 Oct · 8:10 PM",
     },
+    // Name kept after delivery; phone is not shown in the UI.
+    rider: {
+      name: "Abhinav Aneesh",
+      initial: "A",
+      phone: "+91 98765 01234",
+    },
   },
   {
     id: "ord-1021",

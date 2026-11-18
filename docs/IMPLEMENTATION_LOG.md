@@ -1,5 +1,85 @@
 # Implementation Log
 
+## 2026-11-18 — Order confirmation after checkout + asset cleanup
+
+### Checkout confirmation
+
+After Place Order succeeds, `/checkout` shows `OrderPlacedContent` (not `/orders`). CTAs: **Order history** → `/orders`, **Home** → `/home`. Playground checkout/demo same CTAs.
+
+### Removed unused assets
+
+`coupon-ticket.svg`, `order-history.svg`, `order-list.svg`, `orders/order-list-icon.svg`, `onboarding/brand-logo.png`, `profile/signed-in.svg`, unused `orders/status/*.svg`, dead `OrderStatusIcon.tsx`.
+
+### Verify
+
+Place order on `/checkout` → confirmation mascot + two buttons. `/playground/order-placed` matches.
+
+## 2026-11-18 — Phase B coupons + min cart (wired to ecom)
+
+### Scope (`fix.md` #4, #12) — done
+
+- `CartTopCoupons`: first 2 active coupons + min-order / Add ₹X more; Apply via local promo.
+- Min-cart **ribbon** above Checkout when `totalDue < min` (sample ₹499); hides when met.
+- Live `/cart` passes `showTopCoupons`, `showMinCartValue`, `minCartValueRupees={499}`.
+
+### Verify
+
+`/cart` and `/playground/cart-page` — Top offers + amber ribbon when under min.
+
+## 2026-11-18 — Phase A polish (wired to ecom)
+
+### Scope (`fix.md` 1, 2, 6, 10, 11) — done
+
+| Item | Change | Live |
+|------|--------|------|
+| #1 Footer transition | `BottomNav` smoother ease + label slide + press | storefront chrome |
+| #2 Category click | `CategoriesHub` + `CategoryTile` `active:scale` | hub / rails / sidebar |
+| #6 Place Order | Press shadow + unlock button labels/messages | `/checkout` |
+| #10 Savings | One dotted leaf line under You save (no amount underline) | `/cart`, `/checkout` via `highlightSavings` |
+| #11 Footer bar | `showAmountDueBar={false}` | `/checkout` |
+
+`fix.md` starred: 1, 2, 6, 8, 10, 11, 13, 14.
+
+### Verify
+
+- `/cart` / `/checkout` — dotted You save when savings > 0; checkout has no Amount due bar
+- Bottom nav + category press on storefront
+- Place Order press + unlock copy on `/checkout`
+
+## 2026-11-18 — Checkout COD + location icons
+
+### What changed
+
+Checkout uses `/icons/cash-on-delivery.svg` and `/icons/location.svg` (SVG Repo assets) instead of Lucide Banknote/MapPin. Playground `/playground/checkout` shares `CheckoutPageContent`.
+
+### Verify
+
+`/checkout` and `/playground/checkout` — address row + Cash on Delivery show the new icons.
+
+## 2026-11-18 — Cart preview weight qty = unit count
+
+### What changed
+
+Cart preview and place-order send `quantity = weightKg / stepKg` (catalog `unit_size`), so shop min-order matches the card total (e.g. 3.1 kg ÷ 0.1 → 31 × ₹230). Local pack qty-10 cap no longer blocks large weight unit counts. Playground cart/checkout notes updated.
+
+### Verify
+
+`npm test` cart-checkout-rules. Heavy Orange cart should not show “Add ₹288 more…” when total is thousands.
+
+## 2026-11-18 — Delivered orders: DP name only (no phone)
+
+### What changed
+
+After delivery, order detail keeps the partner **name** and drops call/chat/phone. Live track hides the call FAB and rider call button when phase is delivered. Playground order-detail defaults to delivered sample; notes updated.
+
+### Verify
+
+`/orders` → delivered order, or `/playground/order-detail` and live-order-track → Delivered phase.
+
+### Checkout footer note
+
+Bottom nav stays hidden on `/checkout`. The sticky Place Order + COD status bar is the checkout CTA (not BrandFooter) — kept.
+
 ## 2026-11-18 — Weight price is per unit_size (card price)
 
 ### What changed

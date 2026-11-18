@@ -186,13 +186,15 @@ export function toLiveOrderTrackSample(
   );
   const amount = order.totalDue + deliveryFee(order);
 
+  const riderFallback = {
+    name: "Abhinav Aneesh",
+    initial: "A",
+    phone: "+91 98765 01234",
+  };
+  // OFD + delivered: keep partner name. Call UI is hidden when delivered.
   const rider =
-    phase === "out_for_delivery"
-      ? (order.rider ?? {
-          name: "Abhinav Aneesh",
-          initial: "A",
-          phone: "+91 98765 01234",
-        })
+    phase === "out_for_delivery" || phase === "delivered"
+      ? (order.rider ?? riderFallback)
       : null;
 
   return {

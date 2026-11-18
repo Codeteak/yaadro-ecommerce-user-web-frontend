@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { FileText, Home, MapPin } from "lucide-react";
+import { ClipboardList, Home } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 export type OrderPlacedSummary = {
@@ -18,27 +18,26 @@ export type OrderPlacedSummary = {
 
 type OrderPlacedContentProps = {
   summary: OrderPlacedSummary;
-  /** Classic order details (or orders list while checkout is stubbed). */
-  viewOrderHref: string;
-  /** Separate live tracking page — not order details. */
-  trackOrderHref?: string;
+  /** Order history list. */
+  ordersHref: string;
   homeHref: string;
   className?: string;
-  /** Extra control under CTAs (e.g. playground back to form). */
+  /** Extra control under CTAs (e.g. playground). */
   footer?: ReactNode;
+  /** Hide “preview only” copy on a real placed order. */
+  live?: boolean;
 };
 
 /**
- * Order placed confirmation: mascot + bill summary + View Order / Back home.
- * Used after checkout Place Order and in the playground demo.
+ * Order placed confirmation: mascot + bill summary + Order history / Home.
  */
 export function OrderPlacedContent({
   summary,
-  viewOrderHref,
-  trackOrderHref,
+  ordersHref,
   homeHref,
   className,
   footer,
+  live = false,
 }: OrderPlacedContentProps) {
   const status = summary.statusLabel ?? "Confirmed";
   const fulfillment = summary.fulfillment ?? "Delivery";
@@ -46,7 +45,7 @@ export function OrderPlacedContent({
   return (
     <div
       className={cn(
-        "mx-auto flex w-full max-w-lg flex-col items-center px-5 py-8",
+        "mx-auto flex w-full max-w-lg flex-col items-center px-5 pt-16 pb-10 sm:pt-20",
         className,
       )}
     >
@@ -77,8 +76,7 @@ export function OrderPlacedContent({
             </p>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded-full bg-mint px-2.5 py-1 text-[11px] font-extrabold text-forest">
-              <FileText className="h-3 w-3" aria-hidden />
+            <span className="inline-flex items-center rounded-full bg-mint px-2.5 py-1 text-[11px] font-extrabold text-forest">
               {status}
             </span>
             <span className="rounded-full bg-black/[0.05] px-2.5 py-1 text-[11px] font-bold text-muted">
@@ -108,43 +106,32 @@ export function OrderPlacedContent({
       </div>
 
       <div className="mt-5 flex w-full flex-col gap-2.5">
-        {trackOrderHref ? (
-          <Link
-            href={trackOrderHref}
-            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-track text-[15px] font-extrabold text-black shadow-[0_8px_20px_rgba(47,107,47,0.28)] transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-          >
-            <MapPin className="h-4 w-4" aria-hidden />
-            Track order
-          </Link>
-        ) : null}
         <Link
-          href={viewOrderHref}
-          className={cn(
-            "inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-[15px] font-extrabold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
-            trackOrderHref
-              ? "bg-white text-black ring-1 ring-forest/20 hover:bg-mint/40"
-              : "bg-track text-black shadow-[0_8px_20px_rgba(47,107,47,0.28)] hover:bg-leaf-bright",
-          )}
+          href={ordersHref}
+          className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-track text-[15px] font-extrabold text-black shadow-[0_8px_20px_rgba(47,107,47,0.28)] transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
         >
-          <FileText className="h-4 w-4" aria-hidden />
-          View order details
+          <ClipboardList className="h-4 w-4" aria-hidden />
+          Order history
         </Link>
         <Link
           href={homeHref}
           className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-white text-[15px] font-extrabold text-black ring-1 ring-forest/20 transition hover:bg-mint/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
         >
           <Home className="h-4 w-4" aria-hidden />
-          Back to home
+          Home
         </Link>
       </div>
 
-      <p className="mt-5 max-w-72 text-center text-[12px] leading-5 text-muted">
-        Tracking is a separate page from order details. Live updates appear as
-        the shop and rider progress.
-      </p>
-      <p className="mt-2 text-center text-[12px] font-medium text-muted" role="status">
-        Preview only — no order was sent to the store yet.
-      </p>
+      {!live ? (
+        <p className="mt-5 text-center text-[12px] font-medium text-muted" role="status">
+          Preview only — no order was sent to the store yet.
+        </p>
+      ) : (
+        <p className="mt-5 max-w-72 text-center text-[12px] leading-5 text-muted">
+          Pay cash when your order arrives. Track progress anytime from Order
+          history.
+        </p>
+      )}
 
       {footer}
     </div>
@@ -160,7 +147,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Sample summary for playground / empty-cart edge. */
+/** Sample summary for playground. */
 export const SAMPLE_ORDER_PLACED: OrderPlacedSummary = {
   billNo: "#YAD-32122",
   itemCount: 2,

@@ -17,7 +17,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 | Coupons `/coupons` | UI done | Comfortable ticket body (discount → title → code); sample via `lib/api/coupons` |
 | Wishlist `/wishlist` | UI done | Local signed-in scaffold; façade `lib/api/wishlist` |
 | Checkout `/checkout` | UI done | COD only; Place Order → Order placed (mascot + bill card + View Order / Back home); stub only |
-| Order placed | Done | Shared `OrderPlacedContent`; playground `/playground/order-placed` |
+| Order placed | Done | Shown after Place Order on `/checkout`; Order history + Home CTAs; playground `/playground/order-placed` |
 | Orders `/orders` | UI done | Grocery cards + ORDER STATUS detail via `lib/api/orders` |
 | Toasts | Done | Theme island snackbars at the top via `showPopup(message, type)` (`ToastViewport` in AppProviders) |
 | Live order track | Playground | `/playground/live-order-track` — green theme; not on `/orders` yet |

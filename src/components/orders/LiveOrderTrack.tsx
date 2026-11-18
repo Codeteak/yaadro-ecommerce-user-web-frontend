@@ -115,7 +115,12 @@ export function LiveOrderTrack({
           onDownloadBill={openBill}
         />
 
-        {sample.rider ? <RiderCard rider={sample.rider} /> : null}
+        {sample.rider ? (
+          <RiderCard
+            rider={sample.rider}
+            showCall={sample.phase !== "delivered"}
+          />
+        ) : null}
 
         <OrderItems sample={sample} />
 
@@ -134,7 +139,7 @@ export function LiveOrderTrack({
         <OrderTicketBill order={billOrder} onClose={() => setBillOpen(false)} />
       ) : null}
 
-      {sample.rider ? (
+      {sample.rider && sample.phase !== "delivered" ? (
         <div className="pointer-events-none sticky bottom-4 z-20 flex justify-end px-4 pb-2">
           <div className="pointer-events-auto flex flex-col items-center gap-2">
             <button
@@ -546,8 +551,11 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 function RiderCard({
   rider,
+  showCall = true,
 }: {
   rider: { name: string; initial: string; phone: string };
+  /** After delivery, keep the name but hide call / phone number. */
+  showCall?: boolean;
 }) {
   const tel = rider.phone.replace(/\s+/g, "");
   return (
@@ -561,13 +569,15 @@ function RiderCard({
         </p>
         <p className="text-[12px] font-semibold text-muted">Delivery partner</p>
       </div>
-      <a
-        href={`tel:${tel}`}
-        className="grid h-11 w-11 place-items-center rounded-full bg-track text-black"
-        aria-label={`Call delivery partner ${rider.name}`}
-      >
-        <Phone className="h-5 w-5" aria-hidden />
-      </a>
+      {showCall ? (
+        <a
+          href={`tel:${tel}`}
+          className="grid h-11 w-11 place-items-center rounded-full bg-track text-black"
+          aria-label={`Call delivery partner ${rider.name}`}
+        >
+          <Phone className="h-5 w-5" aria-hidden />
+        </a>
+      ) : null}
     </div>
   );
 }

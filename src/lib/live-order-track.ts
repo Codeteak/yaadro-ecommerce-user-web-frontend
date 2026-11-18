@@ -174,7 +174,12 @@ export const LIVE_TRACK_DELIVERED: LiveOrderTrackSample = {
   phase: "delivered",
   statusBadge: "Delivered",
   statusMessage: "Your order has been delivered.",
-  rider: null,
+  // Keep partner name after delivery; UI hides call / phone number.
+  rider: {
+    name: "Abhinav Aneesh",
+    initial: "A",
+    phone: "+91 98765 01234",
+  },
   headerSteps: [
     { id: "placed", label: "Placed", at: "2:37pm" },
     { id: "out_for_delivery", label: "Out for delivery", at: "2:41pm" },

@@ -512,7 +512,7 @@ import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
 
 <OrderPlacedContent
   summary={SAMPLE_ORDER_PLACED}
-  viewOrderHref="/playground/order-detail"
+  ordersHref="/playground/orders-list"
   homeHref="/playground"
 />`,
     [

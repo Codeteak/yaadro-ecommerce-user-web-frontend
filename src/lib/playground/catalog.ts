@@ -48,7 +48,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Navigation",
     description:
-      "Floating pill on main tabs. Path-hidden on cart/checkout/order detail/profile tasks. Also hides on scroll-down (window or nested panels like /categories).",
+      "Phase A #1: smoother pill/label expand. Path-hidden on cart/checkout/…. Scroll-down hide. Confirm to keep on storefront.",
     wiresTo: "Storefront layout (BottomNav)",
   },
   {
@@ -102,7 +102,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Featured rectangle tiles + squares (older hub composition). Live /categories now uses category-browser.",
+      "Phase A #2: press scale on hub tiles. Featured rectangles + squares. Confirm keep (shared CategoriesHub / CategoryTile).",
     wiresTo: "Playground reference; see category-browser",
   },
   {
@@ -280,7 +280,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Cart list, Add more + suggestions (same default ProductCard as home), prices-may-vary, coupon, Checkout.",
+      "Same as /cart: top 2 coupons, min-cart ribbon when under ₹499, dotted You save.",
     wiresTo: "/cart",
   },
   {
@@ -415,7 +415,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Address, COD, prices-may-vary, Place Order → Order placed (mascot + bill card + View Order / Back home).",
+      "Same as /checkout: Place Order press + unlock copy, dotted You save, no Amount due bar.",
     wiresTo: "/checkout",
   },
   {
@@ -424,7 +424,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Post-checkout confirmation: existing mascot PNG, bill summary, View Order + Back to home. Same as checkout confirmed phase.",
+      "Post-checkout confirmation: mascot, bill summary, Order history + Home. Same as /checkout after Place Order.",
     wiresTo: "/checkout (after Place Order)",
   },
   {
@@ -442,7 +442,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Same as /orders/[id]: forest header, 3 steps, Track order → /orders/[id]/track, ticket bill, review.",
+      "Same as /orders/[id]. Delivered: keep DP name, hide call/chat/phone. Track → /orders/[id]/track.",
     wiresTo: "/orders/[id]",
   },
   {
@@ -451,7 +451,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Tracking UI (mascots, progress, OFD map, partner call). Download Bill = same ticket as order details. Ecom: /orders/[id]/track (separate from details).",
+      "Tracking UI. Delivered: DP name stays, call FAB/phone hidden. Ecom: /orders/[id]/track.",
     wiresTo: "/orders/[id]/track",
   },
   {

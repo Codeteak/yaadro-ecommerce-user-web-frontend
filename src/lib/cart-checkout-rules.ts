@@ -4,12 +4,12 @@
  * until the minimum order, the coupon, and the products all pass.
  */
 
-import type { CartItem } from "@/lib/cart-lines";
+import type { CartItem } from "./cart-lines.ts";
 
 const PRODUCT_UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/** Same cap the shop uses on a checkout line. */
+/** Same cap the shop uses on a pack (non-weight) checkout line. */
 export const MAX_LINE_QUANTITY = 10;
 
 const BASKET_CODES = new Set([
@@ -60,20 +60,54 @@ function rupees(amountMinor: number): string {
   })}`;
 }
 
+/** Catalog unit_size / stepKg from the cart snapshot (set when the line was added). */
+function weightStepKg(item: CartItem): number {
+  const step = item.snapshot?.customization?.stepKg;
+  return typeof step === "number" && step > 0 ? step : 1;
+}
+
+function weightMaxKg(item: CartItem): number {
+  const max = item.snapshot?.customization?.maxKg;
+  return typeof max === "number" && max > 0 ? max : 10;
+}
+
+/**
+ * Quantity for cart preview / place order.
+ * Catalog price is per `unit_size` (stepKg), so weight lines send
+ * unit count: kg / stepKg (e.g. 3.1 kg ÷ 0.1 = 31), not raw kg.
+ */
+export function shopLineQuantity(item: CartItem): number {
+  if (item.weightKg && item.weightKg > 0) {
+    const step = weightStepKg(item);
+    return Math.round((item.weightKg / step) * 1000) / 1000;
+  }
+  return item.qty;
+}
+
 /** Shop lines only. Sample playground products are not sent to the shop. */
 export function shopCheckoutLines(items: CartItem[]): CheckoutLine[] {
   return items
     .map((item) => ({
       productId: item.productId,
-      quantity: item.weightKg && item.weightKg > 0 ? item.weightKg : item.qty,
+      quantity: shopLineQuantity(item),
     }))
     .filter((item) => PRODUCT_UUID.test(item.productId) && item.quantity > 0);
 }
 
 /** Rules we can see on the device, before asking the shop. */
-export function localCheckoutWarning(lines: CheckoutLine[]): string | null {
-  if (lines.some((line) => line.quantity > MAX_LINE_QUANTITY)) {
-    return `Maximum quantity per line is ${MAX_LINE_QUANTITY}.`;
+export function localCheckoutWarning(items: CartItem[]): string | null {
+  for (const item of items) {
+    if (!PRODUCT_UUID.test(item.productId)) continue;
+    if (item.weightKg && item.weightKg > 0) {
+      const maxKg = weightMaxKg(item);
+      if (item.weightKg > maxKg) {
+        return `Maximum weight per line is ${maxKg} kg.`;
+      }
+      continue;
+    }
+    if (item.qty > MAX_LINE_QUANTITY) {
+      return `Maximum quantity per line is ${MAX_LINE_QUANTITY}.`;
+    }
   }
   return null;
 }

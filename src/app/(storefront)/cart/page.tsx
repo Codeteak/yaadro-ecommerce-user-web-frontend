@@ -13,6 +13,10 @@ export default function CartPage() {
       showPriceMayVary
       priceMayVaryPlacement="above-add-more"
       showCartSuggestions
+      highlightSavings
+      showTopCoupons
+      showMinCartValue
+      minCartValueRupees={499}
     />
   );
 }

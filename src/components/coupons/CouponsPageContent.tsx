@@ -12,7 +12,7 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Copy, TicketPercent } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { CloseButton } from "@/components/navigation/CloseButton";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { PullToRefresh } from "@/components/navigation/PullToRefresh";
@@ -250,14 +250,25 @@ function CouponsPageBody({
                       >
                         {canUse ? (
                           <>
-                            <TicketPercent className="h-4 w-4" aria-hidden />
+                            <Image
+                              src="/icons/coupon.svg"
+                              alt=""
+                              width={16}
+                              height={16}
+                              className="h-4 w-4"
+                              unoptimized
+                            />
                             Apply to cart
                           </>
                         ) : (
                           <>
-                            <TicketPercent
+                            <Image
+                              src="/icons/coupon.svg"
+                              alt=""
+                              width={16}
+                              height={16}
                               className="h-4 w-4 opacity-50"
-                              aria-hidden
+                              unoptimized
                             />
                             {selected.status === "used"
                               ? "Already used"

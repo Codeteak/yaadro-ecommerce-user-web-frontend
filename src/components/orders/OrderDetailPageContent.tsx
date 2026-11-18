@@ -326,21 +326,28 @@ function OrderDetailBody({
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-base font-extrabold text-black">
-              {delivered || progress === "on_the_way" ? "Ravi Kumar" : "Delivery partner"}
+              {delivered || progress === "on_the_way"
+                ? (order.rider?.name ?? "Ravi Kumar")
+                : "Delivery partner"}
             </p>
             <p className="text-[13px] font-medium text-muted">
-              {delivered || progress === "on_the_way"
-                ? "Bike · assigned for this drop"
-                : "We’ll assign a partner when the order is on the way."}
+              {delivered
+                ? "Delivered your order"
+                : progress === "on_the_way"
+                  ? "Bike · assigned for this drop"
+                  : "We’ll assign a partner when the order is on the way."}
             </p>
           </div>
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-[#E4E4E8] text-muted">
-            <MessageCircle className="h-4 w-4" aria-hidden />
-          </span>
+          {/* After delivery: keep name only — no call / chat / phone number */}
           {delivered ? null : (
-            <span className="grid h-10 w-10 place-items-center rounded-full bg-[#E4E4E8] text-forest">
-              <Phone className="h-4 w-4" aria-hidden />
-            </span>
+            <>
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-[#E4E4E8] text-muted">
+                <MessageCircle className="h-4 w-4" aria-hidden />
+              </span>
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-[#E4E4E8] text-forest">
+                <Phone className="h-4 w-4" aria-hidden />
+              </span>
+            </>
           )}
         </div>
 
