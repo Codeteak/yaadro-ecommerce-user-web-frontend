@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import {
   ArrowRight,
+  ChevronDown,
   Minus,
   Plus,
-  TicketPercent,
   Trash2,
   X,
 } from "lucide-react";
@@ -26,9 +26,11 @@ import { CartSuggestions } from "@/components/cart/CartSuggestions";
 import { ShopQuoteNotes, shopDue } from "@/components/cart/ShopQuoteNotes";
 import { useShopQuote } from "@/components/cart/useShopQuote";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
+import { findCouponByCode } from "@/lib/sample-coupons";
 import { showPopup } from "@/components/ui/Toast";
 import { previewCart } from "@/lib/api/cart";
 import { ApiError } from "@/lib/api/errors";
+import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
 import {
   localCheckoutWarning,
   previewCheckoutWarning,
@@ -50,8 +52,34 @@ type CartPageContentProps = {
   couponPickerHref?: string;
   /** Show “Prices may vary…” above the bill summary. */
   showPriceMayVary?: boolean;
+  /** Soft = storefront default; banner kept for comparison. */
+  priceMayVaryVariant?: "banner" | "soft";
+  /**
+   * Where the notice sits when shown.
+   * `above-add-more` — storefront default (above Add more products).
+   * `above-totals` — under coupon / above bill summary.
+   */
+  priceMayVaryPlacement?: "above-totals" | "above-add-more";
   /** “Add more products” + You may also like rail under the cart list. */
   showCartSuggestions?: boolean;
+  /** Stronger “You save” highlight in the bill summary. */
+  highlightSavings?: boolean;
+  /** Top 2 active coupons + min-order lines above the coupon field. */
+  showTopCoupons?: boolean;
+  /** Refined Top offers: collapse inside coupon card + honest Apply lock. */
+  topCouponsRefined?: boolean;
+  /**
+   * Shop minimum cart ribbon above Checkout (only while under min).
+   * Uses `minCartValueRupees` until preview `min_purchase_*` is wired for display.
+   */
+  showMinCartValue?: boolean;
+  /** Shop minimum in whole rupees (default 499 until shop preview drives it). */
+  minCartValueRupees?: number;
+  /**
+   * Playground: force guest vs signed-in without a real session.
+   * Omit on storefront to use `hasCustomerSession`.
+   */
+  previewSignedIn?: boolean;
 };
 
 /**
@@ -63,17 +91,36 @@ export function CartPageContent({
   chromePosition = "page",
   couponPickerHref,
   showPriceMayVary = false,
+  priceMayVaryVariant = "soft",
+  priceMayVaryPlacement = "above-add-more",
   showCartSuggestions = false,
+  highlightSavings = false,
+  showTopCoupons = false,
+  topCouponsRefined = false,
+  showMinCartValue = false,
+  minCartValueRupees = 499,
+  previewSignedIn,
 }: CartPageContentProps) {
   const inline = chromePosition === "inline";
   const router = useRouter();
+  const sessionSignedIn = useSyncExternalStore(
+    subscribeCustomerSession,
+    hasCustomerSession,
+    () => false,
+  );
+  const signedIn = previewSignedIn ?? sessionSignedIn;
+  const loginHref = inline
+    ? "/login?next=/playground/cart-page"
+    : "/login?next=/cart";
   const [checkingOut, setCheckingOut] = useState(false);
+  /** Top offers nested under coupon shell when refined; collapsed by default. */
+  const [topOffersOpen, setTopOffersOpen] = useState(false);
   const {
     items,
     setQty,
     setWeight,
     setCustomizing,
-    clear,
+    // clear — only used by Clear basket (hidden below)
     mrpTotal,
     appliedPromo,
     promoDiscount,
@@ -99,8 +146,8 @@ export function CartPageContent({
     else setQty(productId, 0);
   };
 
-  const onApplyPromo = () => {
-    const result = applyPromo(promoInput);
+  const onApplyPromoCode = (code: string) => {
+    const result = applyPromo(code);
     setPromoMessage(result.message);
     if (result.ok) {
       setPromoInput(result.code);
@@ -109,6 +156,14 @@ export function CartPageContent({
       showPopup(result.message, "error");
     }
   };
+
+  const onApplyPromo = () => {
+    onApplyPromoCode(promoInput);
+  };
+
+  const appliedCouponMeta = applied
+    ? findCouponByCode(applied.code)
+    : undefined;
 
   const onClearPromo = () => {
     clearPromo();
@@ -119,6 +174,11 @@ export function CartPageContent({
 
   const onCheckout = async () => {
     if (checkingOut) return;
+    if (!signedIn) {
+      showPopup("Sign in to continue to checkout.", "warning");
+      router.push(loginHref);
+      return;
+    }
     const next = inline ? "/playground/checkout" : "/checkout";
     const lines = shopCheckoutLines(items);
     if (lines.length === 0) {
@@ -181,7 +241,7 @@ export function CartPageContent({
           "min-h-0 flex-1 overflow-y-auto overscroll-y-contain -mx-4 px-4",
           // Flex column when empty so justify-center matches wishlist empty.
           !hasItems && "flex flex-col",
-          hasItems && "pb-36",
+          hasItems && (showMinCartValue ? "pb-44" : "pb-36"),
         )}
       >
         {items.length === 0 ? (
@@ -215,8 +275,9 @@ export function CartPageContent({
                 const selling = lineTotal(item);
                 const mrp = lineMrp(item);
                 const save = lineSave(item);
+                const stepKg = product.customization?.stepKg;
                 const unitHint = isWeight
-                  ? `By weight, ₹${product.price} / kg`
+                  ? `By weight, ₹${product.price} / ${stepKg != null ? `${stepKg} kg` : product.unit}`
                   : `₹${product.price} / ${product.unit}`;
                 return (
                   <li key={item.productId} className="flex items-center gap-3 py-4">
@@ -318,8 +379,20 @@ export function CartPageContent({
               })}
             </ul>
 
+            {showPriceMayVary && priceMayVaryPlacement === "above-add-more" ? (
+              <PriceMayVaryNotice
+                className="mt-6"
+                variant={priceMayVaryVariant}
+              />
+            ) : null}
+
             {showCartSuggestions ? (
               <CartSuggestions
+                className={
+                  showPriceMayVary && priceMayVaryPlacement === "above-add-more"
+                    ? "mt-4"
+                    : undefined
+                }
                 cartProductIds={items.map((item) => item.productId)}
                 categoryIds={items.flatMap((item) => {
                   const categoryId = resolveCartProduct(item).categoryId;
@@ -330,6 +403,7 @@ export function CartPageContent({
               />
             ) : null}
 
+            {/* Clear basket — hidden for now
             <button
               type="button"
               onClick={() => {
@@ -343,25 +417,105 @@ export function CartPageContent({
               <Trash2 className="h-4 w-4 text-black" aria-hidden />
               Clear basket
             </button>
+            */}
+
+            {showTopCoupons && !topCouponsRefined ? (
+              <CartTopCoupons
+                className="mt-4"
+                subtotal={mrpTotal}
+                appliedCode={applied?.code}
+                onApply={onApplyPromoCode}
+              />
+            ) : null}
 
             <div className="mt-4 rounded-2xl bg-white p-2.5 shadow-[0_10px_28px_rgba(47,107,47,0.14)] ring-2 ring-leaf">
+              {showTopCoupons && topCouponsRefined ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setTopOffersOpen((open) => !open)}
+                    aria-expanded={topOffersOpen}
+                    className="flex w-full cursor-pointer items-center gap-2 rounded-xl bg-paper/80 px-2.5 py-2 ring-1 ring-forest/10 transition hover:bg-mint/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+                  >
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mint">
+                      <Image
+                        src="/icons/coupon.svg"
+                        alt=""
+                        width={20}
+                        height={20}
+                        className="h-5 w-5"
+                        unoptimized
+                      />
+                    </span>
+                    <span className="min-w-0 flex-1 text-left">
+                      <span className="block text-sm font-bold text-black">
+                        Top offers
+                      </span>
+                      <span className="block text-[12px] font-medium text-muted">
+                        {topOfferCount} available
+                        {applied ? ` · ${applied.code}` : ""}
+                      </span>
+                    </span>
+                    <span className="rounded-full bg-mint px-2 py-0.5 text-[11px] font-extrabold text-forest">
+                      {topOfferCount}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        "h-5 w-5 shrink-0 text-forest transition-transform duration-200",
+                        topOffersOpen && "rotate-180",
+                      )}
+                      aria-hidden
+                    />
+                  </button>
+                  <div
+                    className={cn(
+                      "grid transition-[grid-template-rows] duration-300 ease-out",
+                      topOffersOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                    )}
+                  >
+                    <div className="min-h-0 overflow-hidden">
+                      <CartTopCoupons
+                        className="mt-2.5 px-0.5 pb-1"
+                        subtotal={mrpTotal}
+                        appliedCode={applied?.code}
+                        onApply={onApplyPromoCode}
+                        refined
+                        embedded
+                      />
+                    </div>
+                  </div>
+                  <div className="my-2.5 border-t border-forest/10" />
+                </>
+              ) : null}
+
               <div className="flex items-center gap-2 rounded-xl bg-paper/80 px-2.5 py-2 ring-1 ring-forest/10">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mint text-forest">
-                  <TicketPercent className="h-4 w-4" aria-hidden />
-                </span>
+                {!(showTopCoupons && topCouponsRefined) ? (
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mint">
+                    <Image
+                      src="/icons/coupon.svg"
+                      alt=""
+                      width={20}
+                      height={20}
+                      className="h-5 w-5"
+                      unoptimized
+                    />
+                  </span>
+                ) : null}
                 {couponPickerHref && !applied ? (
                   <>
                     <Link
                       href={couponPickerHref}
                       className="min-w-0 flex-1 truncate text-left text-sm font-medium text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
                     >
-                      Select a coupon
+                      {showTopCoupons && topCouponsRefined
+                        ? "View all coupons"
+                        : "Select a coupon"}
                     </Link>
                     <Link
                       href={couponPickerHref}
                       className="h-9 shrink-0 cursor-pointer rounded-xl bg-track px-4 text-sm font-semibold leading-9 text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
                     >
-                      Select
+                      {showTopCoupons && topCouponsRefined ? "All" : "Select"}
                     </Link>
                   </>
                 ) : (
@@ -406,6 +560,14 @@ export function CartPageContent({
                   </>
                 )}
               </div>
+              {showTopCoupons && appliedCouponMeta ? (
+                <p className="mt-2 text-center text-[12px] font-medium text-forest" role="status">
+                  {appliedCouponMeta.minOrderLabel}
+                  {appliedCouponMeta.subtitle
+                    ? ` · ${appliedCouponMeta.subtitle}`
+                    : null}
+                </p>
+              ) : null}
               {promoMessage ? (
                 <p
                   className={cn(
@@ -419,14 +581,19 @@ export function CartPageContent({
               ) : null}
             </div>
 
-            {showPriceMayVary ? (
-              <PriceMayVaryNotice className="mt-6" />
+            {showPriceMayVary && priceMayVaryPlacement === "above-totals" ? (
+              <PriceMayVaryNotice
+                className="mt-6"
+                variant={priceMayVaryVariant}
+              />
             ) : null}
 
             <div
               className={cn(
                 "rounded-2xl bg-white px-4 py-1 shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10",
-                showPriceMayVary ? "mt-3" : "mt-6",
+                showPriceMayVary && priceMayVaryPlacement === "above-totals"
+                  ? "mt-3"
+                  : "mt-6",
               )}
             >
               <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
@@ -439,9 +606,31 @@ export function CartPageContent({
                   <span className="font-bold text-leaf">−₹{promoDiscount}</span>
                 </div>
               ) : null}
-              <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
-                <span className="text-muted">You save</span>
-                <span className="font-bold text-leaf">
+              <div
+                className={cn(
+                  "flex items-center justify-between py-3 text-sm",
+                  highlightSavings && totalSaved > 0
+                    ? "border-b border-dashed border-leaf"
+                    : "border-b border-forest/8",
+                )}
+              >
+                <span
+                  className={cn(
+                    highlightSavings && totalSaved > 0
+                      ? "font-bold text-forest"
+                      : "text-muted",
+                  )}
+                >
+                  You save
+                </span>
+                <span
+                  className={cn(
+                    "tabular-nums text-leaf",
+                    highlightSavings && totalSaved > 0
+                      ? "text-base font-extrabold"
+                      : "font-bold",
+                  )}
+                >
                   {totalSaved > 0 ? `₹${totalSaved}` : "₹0"}
                 </span>
               </div>
@@ -464,6 +653,29 @@ export function CartPageContent({
               : "fixed inset-x-0 bottom-0 mx-auto w-full max-w-lg pb-[max(1.25rem,env(safe-area-inset-bottom))]",
           )}
         >
+          {showMinCartValue &&
+          minCartValueRupees > 0 &&
+          totalDue < minCartValueRupees ? (
+            <div
+              className="pointer-events-none relative mb-2.5 overflow-hidden rounded-xl bg-amber-400 px-4 py-2.5 text-center text-amber-950 shadow-[0_6px_16px_rgba(0,0,0,0.08)]"
+              role="status"
+            >
+              <span
+                className="pointer-events-none absolute top-0 left-0 h-full w-3 -skew-x-12 bg-white/25"
+                aria-hidden
+              />
+              <span
+                className="pointer-events-none absolute top-0 right-0 h-full w-3 -skew-x-12 bg-black/10"
+                aria-hidden
+              />
+              <p className="relative text-[13px] leading-snug font-extrabold tracking-tight">
+                Min. cart ₹{minCartValueRupees.toLocaleString("en-IN")}
+                <span className="font-bold"> · </span>
+                Add ₹
+                {(minCartValueRupees - totalDue).toLocaleString("en-IN")} more
+              </p>
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={() => void onCheckout()}
@@ -475,7 +687,11 @@ export function CartPageContent({
               {dueLabel}
             </span>
             <span className="absolute left-1/2 -translate-x-1/2 text-base font-extrabold tracking-tight text-black">
-              {checkingOut ? "Checking…" : "Checkout"}
+              {checkingOut
+                ? "Checking…"
+                : !signedIn
+                  ? "Sign in to checkout"
+                  : "Checkout"}
             </span>
             <span className="ml-auto grid h-11 w-11 place-items-center rounded-full bg-white text-black shadow-[0_3px_0_0_rgba(0,0,0,0.12)] motion-safe:group-active:shadow-none">
               <ArrowRight className="h-5 w-5 text-black" aria-hidden />

@@ -316,7 +316,7 @@ function HubTile({
   );
 
   const className =
-    "group flex w-full min-w-0 cursor-pointer flex-col items-stretch focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf";
+    "group flex w-full min-w-0 cursor-pointer flex-col items-stretch transition-transform duration-150 ease-out motion-safe:active:scale-[0.94] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf";
 
   if (href) {
     return (

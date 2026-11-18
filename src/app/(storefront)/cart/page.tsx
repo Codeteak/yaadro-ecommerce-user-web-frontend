@@ -11,7 +11,13 @@ export default function CartPage() {
     <CartPageContent
       couponPickerHref="/coupons?from=cart"
       showPriceMayVary
+      priceMayVaryPlacement="above-add-more"
       showCartSuggestions
+      highlightSavings
+      showTopCoupons
+      topCouponsRefined
+      showMinCartValue
+      minCartValueRupees={499}
     />
   );
 }

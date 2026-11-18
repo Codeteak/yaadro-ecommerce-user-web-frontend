@@ -21,17 +21,17 @@ function StorefrontPathChrome() {
     <>
       {hideNav ? <span data-storefront-hide-nav hidden /> : null}
       {!hideNav && <BottomNav />}
-      <ViewCartBar />
+      {!hideNav && <ViewCartBar />}
       <WeightCustomizer />
     </>
   );
 }
 
 /**
- * Storefront shell chrome. Bottom nav stays on Home, Categories,
- * Wishlist, Profile, Orders, Coupons, and product/PLP pages.
- * It hides on cart, checkout, order detail, and profile task screens
- * (edit, addresses, support) so the back header owns the page.
+ * Storefront shell chrome. Bottom nav + ViewCartBar stay on Home,
+ * Categories, Wishlist, Profile, Orders list, Coupons, and product/PLP.
+ * Both hide on cart, checkout, order detail/track, and profile task
+ * screens so the back header owns the page.
  * Page content stays outside the pathname Suspense boundary.
  */
 export function StorefrontChrome({ children }: { children: ReactNode }) {

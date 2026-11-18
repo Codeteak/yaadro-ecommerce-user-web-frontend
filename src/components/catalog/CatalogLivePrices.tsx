@@ -8,6 +8,8 @@ import { SHOP_QUOTE_EVENT } from "@/lib/cart-checkout-rules";
 
 const REFRESH_GAP_MS = 4000;
 const POLL_MS = 8000;
+/** Give up on Socket.IO after this many connect failures; revision poll keeps working. */
+const SOCKET_FAIL_LIMIT = 3;
 
 function realtimeEnabled(): boolean {
   const flag = process.env.NEXT_PUBLIC_CATALOG_REALTIME_ENABLED;
@@ -50,6 +52,8 @@ export function CatalogLivePrices() {
     let cancelled = false;
     let socket: { disconnect: () => void } | null = null;
     let connected = false;
+    let socketAbandoned = false;
+    let failCount = 0;
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
     let lastGeneration: number | null = null;
 
@@ -86,7 +90,7 @@ export function CatalogLivePrices() {
           }
         }
       } catch {
-        // The socket is the main path. The next poll retries.
+        // Socket is preferred when available; poll retries quietly.
       }
       if (!cancelled && !connected) pollTimer = setTimeout(() => void poll(), POLL_MS);
     };
@@ -101,28 +105,44 @@ export function CatalogLivePrices() {
       pollTimer = null;
     };
 
+    const abandonSocket = (next: { disconnect: () => void }) => {
+      if (socketAbandoned) return;
+      socketAbandoned = true;
+      connected = false;
+      next.disconnect();
+      startPoll();
+    };
+
     void import("socket.io-client").then(({ io }) => {
       if (cancelled) return;
       const next = io(origin, {
         path: "/socket.io",
-        transports: ["polling", "websocket"],
+        transports: ["websocket", "polling"],
         auth: { shopId, token },
         reconnection: true,
-        reconnectionAttempts: 12,
-        timeout: 20_000,
+        reconnectionAttempts: SOCKET_FAIL_LIMIT,
+        reconnectionDelay: 2_000,
+        reconnectionDelayMax: 8_000,
+        timeout: 12_000,
       });
       socket = next;
       next.on("connect", () => {
+        failCount = 0;
         connected = true;
         stopPoll();
       });
       next.on("disconnect", () => {
         connected = false;
-        startPoll();
+        if (!socketAbandoned) startPoll();
       });
       next.on("connect_error", () => {
         connected = false;
+        failCount += 1;
         startPoll();
+        if (failCount >= SOCKET_FAIL_LIMIT) abandonSocket(next);
+      });
+      next.on("reconnect_failed", () => {
+        abandonSocket(next);
       });
       next.on("catalog.invalidated", () => refresh());
       next.on("shop.min_purchase.updated", () => {

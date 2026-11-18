@@ -1,16 +1,22 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowRight, ShoppingCart } from "lucide-react";
 import { useCart } from "@/components/cart/CartContext";
 import { useScrollDirection } from "@/components/navigation/useScrollDirection";
 import { cn } from "@/lib/cn";
+import { shouldHideStorefrontNav } from "@/lib/storefront-nav";
+
+/** Match BottomNav hide transition so the FAB never sits on the pill mid-slide. */
+const NAV_HIDE_MS = 320;
 
 type ViewCartBarProps = {
   /**
    * `fixed` — storefront chrome (viewport).
    * `inline` — playground preview inside a relative frame.
+   * Playground demos skip path-hide so the FAB stays visible in the frame.
    */
   position?: "fixed" | "inline";
 };
@@ -20,16 +26,29 @@ type ViewCartBarProps = {
  * - Idle: compact circular cart button with an item-count badge.
  * - While scrolling: expands into the full "View cart • ₹total" bar,
  *   shrinking back ~1s after scrolling stops.
- * It also drops lower when the bottom nav hides on scroll-down.
- * Only appears when the basket has items; hidden on /cart and /checkout.
+ * It drops lower only after the bottom nav has finished hiding.
+ * Storefront: same path-hide as BottomNav (cart, checkout, order detail/track,
+ * profile edit/addresses/support). Playground `inline` ignores path-hide.
  */
 export function ViewCartBar({ position = "fixed" }: ViewCartBarProps) {
   const pathname = usePathname();
   const { count, totalDue } = useCart();
   const { navHidden, scrolling } = useScrollDirection();
   const inline = position === "inline";
+  /** True only after nav hide animation — keeps FAB above the pill while it slides away. */
+  const [sitLow, setSitLow] = useState(false);
 
-  if (count === 0 || pathname === "/cart" || pathname === "/checkout") return null;
+  useEffect(() => {
+    if (!navHidden) {
+      setSitLow(false);
+      return;
+    }
+    const id = window.setTimeout(() => setSitLow(true), NAV_HIDE_MS);
+    return () => window.clearTimeout(id);
+  }, [navHidden]);
+
+  if (count === 0) return null;
+  if (!inline && shouldHideStorefrontNav(pathname)) return null;
   const expanded = scrolling;
 
   return (
@@ -38,12 +57,15 @@ export function ViewCartBar({ position = "fixed" }: ViewCartBarProps) {
         inline ? undefined : { viewTransitionName: "storefront-view-cart" }
       }
       className={cn(
-        "z-40 transition-all duration-300 ease-out",
+        "z-40 transition-[bottom,transform,opacity] duration-300 ease-out",
         inline
-          ? "absolute right-4 bottom-4"
+          ? cn(
+              "absolute right-4",
+              sitLow ? "bottom-4" : "bottom-[5.25rem]",
+            )
           : cn(
               "fixed right-5",
-              navHidden
+              sitLow
                 ? "bottom-[max(1rem,env(safe-area-inset-bottom))]"
                 : "bottom-[calc(5.75rem+env(safe-area-inset-bottom))]",
             ),

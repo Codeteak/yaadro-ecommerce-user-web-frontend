@@ -62,6 +62,7 @@ import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
 import { BrandFooter } from "@/components/storefront/BrandFooter";
 import { ComingSoonPage } from "@/components/storefront/ComingSoonPage";
 import { NotFoundContent } from "@/components/storefront/NotFoundContent";
+import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import {
   CategoriesHubSkeleton,
   CategoryPlpSkeleton,
@@ -101,7 +102,12 @@ const NO_PHOTO_PRODUCT: SampleProduct = {
 
 const PDP_SAMPLES = [
   ...SAMPLE_PRODUCTS.filter(
-    (p) => p.id === "vg-3" || p.id === "fr-4" || p.id === "sn-3" || p.id === "fr-1",
+    (p) =>
+      p.id === "fr-2" || // Nagpur Oranges — 0.1 kg unit_size weight demo
+      p.id === "vg-3" ||
+      p.id === "fr-4" ||
+      p.id === "sn-3" ||
+      p.id === "fr-1",
   ),
   NO_PHOTO_PRODUCT,
 ];
@@ -112,7 +118,7 @@ function ProductDetailDemo() {
   );
 
   return (
-    <DemoFrame note="Swipe the gallery; related cards match home ProductCard. After weight/add, CTA shows kg and the cart shortcut appears.">
+    <DemoFrame note="Same as /product/[id]. Weight: Add → slide ruler; then CTA shows chosen kg. Total = (kg / step) × card price.">
       <div className="relative">
         <div className="flex flex-wrap gap-2 border-b border-forest/8 px-4 py-3">
           {PDP_SAMPLES.map((p) => (
@@ -136,6 +142,7 @@ function ProductDetailDemo() {
             key={product.id}
             product={product}
             backHref="/playground"
+            showPriceMayVary
           />
         </div>
         <ViewCartBar position="inline" />
@@ -225,20 +232,25 @@ function TypeScaleSpecimen() {
 
 function WeightCustomizerDemo() {
   const { setCustomizing } = useCart();
-  const sample = SAMPLE_PRODUCTS.find((p) => p.customization)?.id;
-  const product = SAMPLE_PRODUCTS.find((p) => p.id === sample) ?? SAMPLE_PRODUCTS[0];
+  // Prefer Orange (0.1 kg step) — matches live catalog unit_size.
+  const product =
+    SAMPLE_PRODUCTS.find((p) => p.id === "fr-2") ??
+    SAMPLE_PRODUCTS.find((p) => p.customization) ??
+    SAMPLE_PRODUCTS[0];
+  const minKg = product.customization?.minKg ?? 0.1;
 
   return (
     <div className="px-5 py-8 text-center">
       <p className="text-sm text-muted">
-        Opens the same ruler sheet used on the storefront.
+        Same as ecom: Add opens the slide (min {minKg} kg). After confirm, cards
+        show chosen kg. ₹{product.price} is per {minKg} kg, then scales.
       </p>
       <button
         type="button"
         onClick={() => setCustomizing(product)}
-        className="mt-4 inline-flex h-11 items-center rounded-full bg-track px-5 text-sm font-semibold text-black transition hover:bg-leaf-bright"
+        className="mt-4 inline-flex h-11 items-center rounded-2xl bg-track px-5 text-sm font-semibold text-black transition hover:bg-leaf-bright"
       >
-        Open weight customizer
+        Add
       </button>
       <WeightCustomizer />
     </div>
@@ -343,7 +355,7 @@ function CategoriesFlowDemo({
   }
 
   return (
-    <DemoFrame note="Same as /categories. Fresh: first tile is the wide rectangle, then squares. Drinks: first square, then the wide rectangle. Tap → PLP.">
+    <DemoFrame note="Phase A #2: press scale on hub tiles + category chips. Fresh/Drinks layout same; tap → PLP. Wire already in shared tiles — confirm keep.">
       <div className="relative max-h-[78vh] overflow-y-auto overscroll-contain rounded-2xl bg-paper ring-1 ring-black/5">
         <CategoriesHub
           focusSearch={focusSearch}
@@ -398,9 +410,9 @@ function AddressBookDemo({
 }
 
 function OrderDetailLeadDemo() {
-  const id = useSearchParams().get("id") ?? "ord-1042";
+  const id = useSearchParams().get("id") ?? "ord-1038";
   return (
-    <DemoFrame note="Same as /orders/[id]. Track order → /orders/[id]/track. Receipt / Download bill = ticket PNG (same as track page).">
+    <DemoFrame note="Same as /orders/[id]. Track → track page. Pre-partner: waiting copy (see /playground/live-order-track Accepted).">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain bg-white">
         <OrderDetailPageContent orderId={id} ticketBill />
       </div>
@@ -441,7 +453,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "bottom-nav": () => (
-    <DemoFrame note="Path-hidden on cart/checkout/order detail/profile tasks. Also slides away on scroll-down (window or nested overflow) — scroll this panel to try.">
+    <DemoFrame note="Phase A #1: smoother pill expand/label. Path-hidden on cart/checkout/…. Scroll panel to hide. Wire to ecom after confirm (same BottomNav).">
       <div className="relative max-h-[28rem] overflow-hidden rounded-2xl bg-paper ring-1 ring-black/5">
         <div
           data-storefront-scroll
@@ -539,7 +551,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "offer-banners": () => (
-    <DemoFrame note="Same OfferBanners as /home (under search).">
+    <DemoFrame note="Same OfferBanners as /home — autoplay + swipe both ways (finger-follow) + dots.">
       <div className="py-4">
         <OfferBanners />
       </div>
@@ -681,15 +693,27 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "view-cart-bar": () => (
-    <DemoFrame note="Green bar stays; cart icon + View cart copy are black. Add items via ProductCard first.">
-      <div className="relative min-h-[240px] px-5 py-8 text-sm text-muted">
-        Scroll the page to expand the bar when the cart has items.
+    <DemoFrame note="Ecom: FAB path-hides with BottomNav (cart, checkout, order detail/track, profile tasks). This frame forces inline so you can still preview scroll + drop.">
+      <div className="relative h-[28rem] overflow-hidden rounded-2xl bg-paper ring-1 ring-black/5">
+        <div className="h-full overflow-y-auto overscroll-contain px-5 pt-4 pb-28 text-sm text-muted">
+          <p className="font-semibold text-forest">View cart + nav</p>
+          <p className="mt-1">
+            Add items first. Scroll — nav hides, cart drops after ~320ms.
+            Live storefront hides this FAB on order details / track.
+          </p>
+          {Array.from({ length: 18 }, (_, i) => (
+            <p key={i} className="mt-3 text-ink">
+              Scroll block {i + 1}
+            </p>
+          ))}
+        </div>
         <ViewCartBar position="inline" />
+        <BottomNav position="inline" />
       </div>
     </DemoFrame>
   ),
   "weight-customizer": () => (
-    <DemoFrame>
+    <DemoFrame note="Add opens weight sheet (Orange 0.1 kg step). Same WeightCustomizer as ecom.">
       <WeightCustomizerDemo />
     </DemoFrame>
   ),
@@ -750,14 +774,22 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "cart-page": () => (
     <DemoFrame
       surface="bare"
-      note="Same as /cart: no bottom nav. Add more + compact suggestion cards (~150×216)."
+      note="Guest Checkout → toast + /login?next=/playground/cart-page (live: /cart). After login returns here so coupons aren’t skipped."
     >
       <div className="relative h-[75vh] bg-paper">
         <CartPageContent
           chromePosition="inline"
           couponPickerHref="/playground/coupons-apply"
           showPriceMayVary
+          priceMayVaryVariant="soft"
+          priceMayVaryPlacement="above-add-more"
           showCartSuggestions
+          highlightSavings
+          showTopCoupons
+          topCouponsRefined
+          showMinCartValue
+          minCartValueRupees={499}
+          previewSignedIn={false}
         />
       </div>
       <WeightCustomizer />
@@ -766,23 +798,29 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   checkout: () => (
     <DemoFrame
       surface="bare"
-      note="Same as /checkout: Place Order → tick → Order placed (mascot + bill card + View Order / Back home)."
+      note="Playground forces guest Place Order → login?next=/playground/cart-page. Live /checkout uses session; same login?next=/cart."
     >
       <div className="relative h-[75vh] overflow-y-auto bg-paper">
-        <CheckoutPageContent chromePosition="inline" showPriceMayVary />
+        <CheckoutPageContent
+          chromePosition="inline"
+          showPriceMayVary
+          priceMayVaryVariant="soft"
+          highlightSavings
+          showAmountDueBar={false}
+          previewSignedIn={false}
+        />
       </div>
     </DemoFrame>
   ),
   "order-placed": () => (
     <DemoFrame
       surface="bare"
-      note="Track order → playground live track (separate). View order details → classic order detail."
+      note="Same as post-checkout: Order history + Home. Live checkout shows this after Place Order."
     >
       <div className="max-h-[85vh] overflow-y-auto overscroll-contain rounded-[1.75rem] bg-paper ring-1 ring-forest/10">
         <OrderPlacedContent
           summary={SAMPLE_ORDER_PLACED}
-          trackOrderHref="/playground/live-order-track"
-          viewOrderHref="/playground/order-detail"
+          ordersHref="/playground/orders-list"
           homeHref="/playground"
         />
       </div>
@@ -800,8 +838,18 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </div>
     </DemoFrame>
   ),
-  "address-map": () => <AddressBookDemo initialStep="map" />,
-  "address-details": () => <AddressBookDemo initialStep="map" note="Detect or search, Confirm → details form." />,
+  "address-map": () => (
+    <AddressBookDemo
+      initialStep="map"
+      note="Select location: close (X) only — no back. Stub map + Detect (no live Maps API)."
+    />
+  ),
+  "address-details": () => (
+    <AddressBookDemo
+      initialStep="map"
+      note="Detect or search, Confirm → details. Back on details returns to map."
+    />
+  ),
   "categories-hub": () => <CategoriesFlowDemo start="hub" />,
   "category-grid": () => <CategoriesFlowDemo start="hub" />,
   "category-plp": () => <CategoriesFlowDemo start="plp" />,
@@ -875,7 +923,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "live-order-track": () => (
     <DemoFrame
       surface="bare"
-      note="Phase demo + Download Bill (same ticket as order details). Ecom track: /orders/[id]/track — not mixed with classic /orders/[id]. Live Track map on OFD only."
+      note="Accepted/Packed: waiting for partner. OFD + rider: Live Track. Live /orders/[id]/track loads API orders the same way."
     >
       <LiveOrderTrackDemo />
     </DemoFrame>
@@ -906,6 +954,26 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "product-detail": () => <ProductDetailDemo />,
+  "price-may-vary": () => (
+    <DemoFrame
+      note="Soft = live cart/checkout/PDP. Banner kept for comparison."
+    >
+      <div className="space-y-8 bg-paper px-5 py-6">
+        <section>
+          <h3 className="text-center text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Notice · banner (ecom today)
+          </h3>
+          <PriceMayVaryNotice className="mt-2" variant="banner" />
+        </section>
+        <section>
+          <h3 className="text-center text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Notice · soft (playground cart / checkout / PDP)
+          </h3>
+          <PriceMayVaryNotice className="mt-2" variant="soft" />
+        </section>
+      </div>
+    </DemoFrame>
+  ),
   "onboarding-screen": () => (
     <DemoFrame note="Full welcome screen (tall). Swipe / continue navigate as in production.">
       <div className="max-h-[70vh] overflow-y-auto">
@@ -1066,7 +1134,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   toasts: () => (
     <DemoFrame
       surface="bare"
-      note="One status card at the top of the screen. showPopup(message, type). Light blur behind it. Auto-dismiss ~2.8s."
+      note="Theme island snackbars at the top. showPopup(message, type) — same API as storefront. Auto-dismiss ~3.2s."
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
         <ToastDemo />

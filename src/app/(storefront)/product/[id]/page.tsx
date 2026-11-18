@@ -64,6 +64,7 @@ async function ProductPageContent({ params }: ProductPageProps) {
       product={loaded.product}
       related={loaded.related}
       backHref="/home"
+      showPriceMayVary
     />
   );
 }

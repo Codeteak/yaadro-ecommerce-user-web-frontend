@@ -12,6 +12,8 @@ import {
   SAMPLE_PRODUCTS,
   type SampleProduct,
 } from "@/lib/sample-products";
+import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
+import { formatKgAmount } from "@/lib/qty-label";
 import { ProductCard } from "./ProductCard";
 import { ProductGallery } from "./ProductGallery";
 
@@ -21,6 +23,8 @@ type ProductDetailProps = {
   related?: SampleProduct[];
   backHref?: string;
   onBackClick?: () => void;
+  /** Centered “Prices may vary” message under the gallery (storefront PDP). */
+  showPriceMayVary?: boolean;
 };
 
 function defaultRelated(product: SampleProduct): SampleProduct[] {
@@ -30,7 +34,7 @@ function defaultRelated(product: SampleProduct): SampleProduct[] {
 }
 
 function formatWeightKg(weightKg: number): string {
-  return Number.isInteger(weightKg) ? String(weightKg) : weightKg.toFixed(1);
+  return formatKgAmount(weightKg);
 }
 
 /**
@@ -44,6 +48,7 @@ export function ProductDetail({
   related,
   backHref,
   onBackClick,
+  showPriceMayVary = false,
 }: ProductDetailProps) {
   const { wishlisted, onToggle: onWishlistClick, ariaLabel } = useWishlistToggle(product);
   const setCustomizing = useSetCustomizing();
@@ -91,6 +96,9 @@ export function ProductDetail({
       </div>
 
       <div className="mt-5 px-5">
+        {showPriceMayVary ? (
+          <PriceMayVaryNotice variant="soft" className="mb-4" />
+        ) : null}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-xl font-extrabold tracking-tight text-ink">
@@ -155,11 +163,14 @@ export function ProductDetail({
               aria-label={
                 weightKg
                   ? `Change weight of ${product.name}, currently ${weightKg} kilograms`
-                  : `Choose weight for ${product.name}`
+                  : `Choose weight for ${product.name}, from ${product.customization.minKg} kilograms`
               }
               className="flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-2xl bg-track px-4 text-sm font-semibold text-black shadow-[0_12px_28px_rgba(47,107,47,0.28)] transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
             >
-              {weightKg ? `${formatWeightKg(weightKg)} kg` : "Choose weight"}
+              {/* Empty = Add (opens weight sheet); in-cart = chosen weight */}
+              {weightKg
+                ? `${formatWeightKg(weightKg)} kg`
+                : "Add to Cart"}
             </button>
           ) : qty === 0 ? (
             <button

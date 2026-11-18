@@ -1,6 +1,6 @@
 /**
- * Bottom nav stays on the main tabs and list pages.
- * It hides on focused task screens that already have a back header.
+ * Bottom nav + ViewCartBar stay on the main tabs and list pages.
+ * They hide on focused task screens that already have a back header.
  */
 export const STOREFRONT_NAV_HIDDEN_PATHS = [
   "/cart",

@@ -48,7 +48,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Navigation",
     description:
-      "Floating pill on main tabs. Path-hidden on cart/checkout/order detail/profile tasks. Also hides on scroll-down (window or nested panels like /categories).",
+      "Phase A #1: smoother pill/label expand. Path-hidden on cart/checkout/…. Scroll-down hide. Confirm to keep on storefront.",
     wiresTo: "Storefront layout (BottomNav)",
   },
   {
@@ -102,7 +102,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Featured rectangle tiles + squares (older hub composition). Live /categories now uses category-browser.",
+      "Phase A #2: press scale on hub tiles. Featured rectangles + squares. Confirm keep (shared CategoriesHub / CategoryTile).",
     wiresTo: "Playground reference; see category-browser",
   },
   {
@@ -155,7 +155,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "OfferBanners",
     status: "built",
     group: "Home",
-    description: "Sample offer carousel under search on /home.",
+    description:
+      "Sample offer carousel under search on /home. Autoplay, dots, and swipe both ways.",
     wiresTo: "/home",
   },
   {
@@ -244,16 +245,18 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "ViewCartBar",
     status: "built",
     group: "Product & cart",
-    description: "Idle circular cart / expanded View cart bar while scrolling.",
-    wiresTo: "Storefront layout",
+    description:
+      "Browse FAB: scroll expand + delayed drop vs nav. Path-hidden with BottomNav on cart/checkout/order detail/track/profile tasks.",
+    wiresTo: "StorefrontChrome + shouldHideStorefrontNav",
   },
   {
     slug: "weight-customizer",
     title: "WeightCustomizer",
     status: "built",
     group: "Product & cart",
-    description: "Ruler sheet for by-weight products.",
-    wiresTo: "Storefront layout + ProductCard",
+    description:
+      "Weight CTA is Add until chosen; then shows kg. Card price per unit_size; slide scales (kg/step)×price.",
+    wiresTo: "Storefront layout + ProductCard + ProductDetail",
   },
   {
     slug: "empty-cart",
@@ -278,8 +281,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Cart list, Add more + suggestions (same default ProductCard as home), prices-may-vary, coupon, Checkout.",
-    wiresTo: "/cart",
+      "Guest Checkout → login?next=/cart (playground returns to cart-page). Top offers collapse; refined Apply; min-cart ribbon.",
+    wiresTo: "/cart, /login",
   },
   {
     slug: "product-detail",
@@ -287,8 +290,17 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Peeking gallery, price, optional description/ingredients, qty, related. Includes a no-photo product that shows the grocery-bag placeholder.",
+      "Peeking gallery, Prices-may-vary, weight Add → slide ruler (Oranges 0.1 kg step); then CTA shows kg.",
     wiresTo: "/product/[id]",
+  },
+  {
+    slug: "price-may-vary",
+    title: "Prices may vary",
+    status: "built",
+    group: "Experiments",
+    description:
+      "Centered soft message (storefront) vs legacy banner. Same notice on cart, checkout, and PDP.",
+    wiresTo: "/cart, /checkout, /product/[id]",
   },
 
   // ── Auth & onboarding ───────────────────────────────────────────────
@@ -404,8 +416,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Address, COD, prices-may-vary, Place Order → Order placed (mascot + bill card + View Order / Back home).",
-    wiresTo: "/checkout",
+      "Guest Place Order → login?next=/cart. Signed-in: Place Order press, dotted You save, no Amount due bar.",
+    wiresTo: "/checkout, /login, /cart",
   },
   {
     slug: "order-placed",
@@ -413,7 +425,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Post-checkout confirmation: existing mascot PNG, bill summary, View Order + Back to home. Same as checkout confirmed phase.",
+      "Post-checkout confirmation: mascot, bill summary, Order history + Home. Same as /checkout after Place Order.",
     wiresTo: "/checkout (after Place Order)",
   },
   {
@@ -431,7 +443,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Same as /orders/[id]: forest header, 3 steps, Track order → /orders/[id]/track, ticket bill, review.",
+      "Same as /orders/[id]. Delivered: keep DP name, hide call/chat/phone. Track → /orders/[id]/track.",
     wiresTo: "/orders/[id]",
   },
   {
@@ -440,7 +452,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Tracking UI (mascots, progress, OFD map, partner call). Download Bill = same ticket as order details. Ecom: /orders/[id]/track (separate from details).",
+      "Accepted/Packed: track page + waiting for partner. OFD + rider: Live Track. Wired: /orders/[id]/track loads live orders.",
     wiresTo: "/orders/[id]/track",
   },
   {
@@ -485,7 +497,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Stub map + search + Detect my location (no live Maps API). Confirm → details.",
+      "Stub map + search + Detect (no live Maps API). Close only on this step — no back. Confirm → details.",
     wiresTo: "AddressBookSheet",
   },
   {
@@ -494,7 +506,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "House/Office/Other, save name, building, and instructions. Replaces the one saved address.",
+      "House/Office/Other, save name, building, and instructions. Back returns to map. Replaces the one saved address.",
     wiresTo: "AddressBookSheet",
   },
   {
@@ -539,8 +551,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "One card at the top of the screen for success, error, info, and warning. showPopup(message, type). Light blur while it is open.",
-    wiresTo: "src/components/ui/Toast.tsx",
+      "Theme island snackbars at the top (success / error / info / warning). showPopup(message, type) — wired storefront-wide.",
+    wiresTo: "src/components/ui/Toast.tsx via AppProviders",
   },
 ];
 

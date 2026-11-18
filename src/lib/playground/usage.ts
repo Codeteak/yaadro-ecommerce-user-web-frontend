@@ -300,10 +300,16 @@ import { SAMPLE_PRODUCTS } from "@/lib/sample-products";
   ),
   "view-cart-bar": U(
     `import { ViewCartBar } from "@/components/cart/ViewCartBar";
+import { shouldHideStorefrontNav } from "@/lib/storefront-nav";
 
-<ViewCartBar />
-// Needs CartProvider with items`,
-    ["src/components/cart/ViewCartBar.tsx"],
+// Storefront chrome: same path-hide as BottomNav
+{!shouldHideStorefrontNav(pathname) && <ViewCartBar />}
+// Playground demos use position="inline" (skips path-hide)`,
+    [
+      "src/components/cart/ViewCartBar.tsx",
+      "src/components/storefront/StorefrontChrome.tsx",
+      "src/lib/storefront-nav.ts",
+    ],
   ),
   "weight-customizer": U(
     `import { WeightCustomizer } from "@/components/cart/WeightCustomizer";
@@ -342,11 +348,12 @@ import { WishlistProvider } from "@/components/wishlist/WishlistContext";
   "cart-page": U(
     `import { CartPageContent } from "@/components/cart/CartPageContent";
 
-// Storefront /cart (and playground) — suggestions + Add more under cart lines
+{/* Guest Checkout → /login?next=/cart (previewSignedIn forces guest in playground) */}
 <CartPageContent
   showPriceMayVary
   showCartSuggestions
   couponPickerHref="/coupons?from=cart"
+  previewSignedIn={false}
 />`,
     [
       "src/app/(storefront)/cart/page.tsx",
@@ -362,8 +369,23 @@ import { WishlistProvider } from "@/components/wishlist/WishlistContext";
     `import { ProductDetail } from "@/components/product/ProductDetail";
 import { getSampleProduct } from "@/lib/sample-products";
 
-<ProductDetail product={getSampleProduct("vg-3")!} backHref="/home" />`,
-    ["src/components/product/ProductDetail.tsx"],
+{/* Same as live /product/[id] */}
+<ProductDetail
+  product={getSampleProduct("vg-3")!}
+  backHref="/home"
+  showPriceMayVary
+/>`,
+    [
+      "src/components/product/ProductDetail.tsx",
+      "src/components/storefront/PriceMayVaryNotice.tsx",
+    ],
+  ),
+  "price-may-vary": U(
+    `import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
+
+<PriceMayVaryNotice variant="banner" />
+<PriceMayVaryNotice variant="soft" />`,
+    ["src/components/storefront/PriceMayVaryNotice.tsx"],
   ),
   "onboarding-screen": U(
     `import { OnboardingScreen } from "@/components/onboarding/OnboardingScreen";
@@ -479,9 +501,9 @@ import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
   ),
   checkout: U(
     `import { CheckoutPageContent } from "@/components/checkout/CheckoutPageContent";
-// Confirmed phase uses OrderPlacedContent (mascot + bill card + CTAs)
+// Guest Place Order → /login?next=/cart so coupons aren’t skipped after login
 
-<CheckoutPageContent showPriceMayVary />`,
+<CheckoutPageContent showPriceMayVary previewSignedIn={false} />`,
     [
       "src/components/checkout/CheckoutPageContent.tsx",
       "src/components/checkout/OrderPlacedContent.tsx",
@@ -497,7 +519,7 @@ import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
 
 <OrderPlacedContent
   summary={SAMPLE_ORDER_PLACED}
-  viewOrderHref="/playground/order-detail"
+  ordersHref="/playground/orders-list"
   homeHref="/playground"
 />`,
     [
@@ -649,6 +671,7 @@ import {
   toasts: U(
     `import { showPopup } from "@/components/ui/Toast";
 
+// Island snackbars at the top — AppProviders mounts <ToastViewport />
 showPopup("Saved to wishlist", "success");
 showPopup("Code not found", "error");
 showPopup("Promo removed", "info");

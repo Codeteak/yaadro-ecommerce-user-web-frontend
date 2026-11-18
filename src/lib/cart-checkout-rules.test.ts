@@ -6,26 +6,58 @@ import {
   parseShopQuote,
   previewCheckoutWarning,
   shopCheckoutLines,
+  shopLineQuantity,
 } from "./cart-checkout-rules.ts";
+import type { CartItem } from "./cart-lines.ts";
 
 const MILK = "11111111-1111-4111-8111-111111111111";
 const BREAD = "22222222-2222-4222-8222-222222222222";
+
+const weightBread = (weightKg: number): CartItem => ({
+  productId: BREAD,
+  qty: 0,
+  weightKg,
+  snapshot: {
+    name: "Bread",
+    unit: "0.1 kg",
+    price: 230,
+    mrp: 250,
+    image: "/products/no-image.jpg",
+    category: "Bakery",
+    customization: { type: "weight", stepKg: 0.1, minKg: 0.1, maxKg: 10 },
+  },
+});
 
 test("ignores sample products and keeps shop lines", () => {
   const lines = shopCheckoutLines([
     { productId: "sample-milk", qty: 2 },
     { productId: MILK, qty: 1 },
-    { productId: BREAD, qty: 0, weightKg: 0.5 },
+    weightBread(0.5),
   ]);
   assert.deepEqual(lines, [
     { productId: MILK, quantity: 1 },
-    { productId: BREAD, quantity: 0.5 },
+    // 0.5 kg ÷ 0.1 step = 5 units (price_minor_per_unit basis)
+    { productId: BREAD, quantity: 5 },
   ]);
 });
 
-test("blocks a line over the shop quantity cap", () => {
-  assert.match(localCheckoutWarning([{ productId: MILK, quantity: 11 }]) ?? "", /10/);
-  assert.equal(localCheckoutWarning([{ productId: MILK, quantity: 10 }]), null);
+test("weight lines send unit count not raw kilograms", () => {
+  assert.equal(shopLineQuantity(weightBread(3.1)), 31);
+  assert.equal(shopLineQuantity(weightBread(0.1)), 1);
+  assert.equal(shopLineQuantity({ productId: MILK, qty: 2 }), 2);
+});
+
+test("blocks a pack line over the shop quantity cap", () => {
+  assert.match(
+    localCheckoutWarning([{ productId: MILK, qty: 11 }]) ?? "",
+    /10/,
+  );
+  assert.equal(localCheckoutWarning([{ productId: MILK, qty: 10 }]), null);
+});
+
+test("allows weight unit counts above the pack line cap", () => {
+  // 3.1 kg → 31 units; must not trip the pack qty-10 rule.
+  assert.equal(localCheckoutWarning([weightBread(3.1)]), null);
 });
 
 test("blocks a basket under the shop minimum and a rejected coupon", () => {

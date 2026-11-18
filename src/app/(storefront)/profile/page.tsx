@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import {
   ChevronRight,
   Headset,
-  Heart,
   History,
   MapPin,
-  TicketPercent,
   UserRound,
 } from "lucide-react";
 import { PullToRefresh } from "@/components/navigation/PullToRefresh";
@@ -22,11 +21,47 @@ export const metadata: Metadata = {
   description: "Your account.",
 };
 
-const quickActions = [
-  { href: "/wishlist", label: "Wishlist", icon: Heart },
-  { href: "/coupons", label: "Voucher / Coupons", icon: TicketPercent },
-  { href: "/orders", label: "Order History", icon: History },
-] as const;
+type QuickAction = {
+  href: string;
+  label: string;
+  icon: ReactNode;
+};
+
+const quickActions: QuickAction[] = [
+  {
+    href: "/wishlist",
+    label: "Wishlist",
+    icon: (
+      <Image
+        src="/icons/wishlist.svg"
+        alt=""
+        width={22}
+        height={22}
+        className="size-[22px] object-contain"
+        unoptimized
+      />
+    ),
+  },
+  {
+    href: "/coupons",
+    label: "Voucher / Coupons",
+    icon: (
+      <Image
+        src="/icons/coupon.svg"
+        alt=""
+        width={22}
+        height={22}
+        className="size-[22px] object-contain"
+        unoptimized
+      />
+    ),
+  },
+  {
+    href: "/orders",
+    label: "Order History",
+    icon: <History aria-hidden className="size-5 text-black" strokeWidth={1.9} />,
+  },
+];
 
 /** Local signed-in seed removed — ProfileHero reads the OTP session. */
 
@@ -51,7 +86,7 @@ async function ProfilePageBody() {
             aria-label="Quick actions"
             className="relative z-10 mx-4 -mt-12 grid grid-cols-3 gap-2 px-1 pt-3 pb-2 [perspective:600px]"
           >
-            {quickActions.map(({ href, label, icon: Icon }, index) => (
+            {quickActions.map(({ href, label, icon }, index) => (
               <Link
                 key={href}
                 href={href}
@@ -63,8 +98,8 @@ async function ProfilePageBody() {
                       : "z-10 -translate-y-1 border-b-4 border-b-forest/60 shadow-[0_20px_36px_rgba(47,107,47,0.20)]"
                 }`}
               >
-                <span className="flex size-11 items-center justify-center rounded-full bg-mint/70 text-forest">
-                  <Icon aria-hidden className="size-5" strokeWidth={1.9} />
+                <span className="flex size-11 items-center justify-center rounded-full bg-mint/70 text-black">
+                  {icon}
                 </span>
                 <span className="text-[11px] leading-4 font-semibold text-ink">
                   {label}

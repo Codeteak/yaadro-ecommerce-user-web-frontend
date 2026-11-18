@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Banknote, Check, MapPin } from "lucide-react";
+import Image from "next/image";
+import { Check } from "lucide-react";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { useCart } from "@/components/cart/CartContext";
@@ -15,7 +16,14 @@ import { placeCheckoutOrder } from "@/lib/api/checkout";
 import { ApiError } from "@/lib/api/errors";
 import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
 import { showPopup } from "@/components/ui/Toast";
-import { isBasketCheckoutFailure } from "@/lib/cart-checkout-rules";
+import {
+  OrderPlacedContent,
+  type OrderPlacedSummary,
+} from "@/components/checkout/OrderPlacedContent";
+import {
+  isBasketCheckoutFailure,
+  shopCheckoutLines,
+} from "@/lib/cart-checkout-rules";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import { cn } from "@/lib/cn";
 import {
@@ -41,6 +49,20 @@ type CheckoutPageContentProps = {
   chromePosition?: "page" | "inline";
   /** Show “Prices may vary…” above the sticky price summary. */
   showPriceMayVary?: boolean;
+  /** Soft = storefront default; banner kept for comparison. */
+  priceMayVaryVariant?: "banner" | "soft";
+  /** Playground Phase A — stronger “You save” highlight in the bill summary. */
+  highlightSavings?: boolean;
+  /**
+   * Green “Amount due” strip above Place Order.
+   * Playground Phase A (#11) turns this off to remove the extra footer bar.
+   */
+  showAmountDueBar?: boolean;
+  /**
+   * Playground: force guest vs signed-in without a real session.
+   * Omit on storefront to use `hasCustomerSession`.
+   */
+  previewSignedIn?: boolean;
 };
 
 /** Stable string snapshot — never return a fresh object from getSnapshot. */
@@ -58,9 +80,6 @@ function formatFullAddress(a: DeliveryAddress): string {
     .join(", ");
 }
 
-const PRODUCT_UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 /**
  * Checkout UI: address, COD only, price details + amount due.
  * Place Order sends the on-device basket to the shop. The shop sets the total.
@@ -68,11 +87,23 @@ const PRODUCT_UUID =
 export function CheckoutPageContent({
   chromePosition = "page",
   showPriceMayVary = false,
+  priceMayVaryVariant = "soft",
+  highlightSavings = false,
+  showAmountDueBar = true,
+  previewSignedIn,
 }: CheckoutPageContentProps) {
   const inline = chromePosition === "inline";
   const router = useRouter();
   const queryClient = useQueryClient();
-  const signedIn = useSyncExternalStore(subscribeCustomerSession, hasCustomerSession, () => false);
+  const sessionSignedIn = useSyncExternalStore(
+    subscribeCustomerSession,
+    hasCustomerSession,
+    () => false,
+  );
+  const signedIn = previewSignedIn ?? sessionSignedIn;
+  const loginHref = inline
+    ? "/login?next=/playground/cart-page"
+    : "/login?next=/cart";
   const {
     items,
     clear,
@@ -90,6 +121,7 @@ export function CheckoutPageContent({
   const [pendingLabel, setPendingLabel] = useState("Placing order…");
   const [placeError, setPlaceError] = useState<string | null>(null);
   const [areaNote, setAreaNote] = useState<string | null>(null);
+  const [placed, setPlaced] = useState<OrderPlacedSummary | null>(null);
   const idempotencyKey = useRef<string | null>(null);
 
   const addressRaw = useSyncExternalStore(
@@ -135,17 +167,14 @@ export function CheckoutPageContent({
   const hasAddress = Boolean(
     address && formatDeliveryAddressLabel(address).length > 0,
   );
-  const orderLines = items
-    .map((item) => ({
-      productId: item.productId,
-      quantity: item.weightKg && item.weightKg > 0 ? item.weightKg : item.qty,
-    }))
-    .filter((item) => PRODUCT_UUID.test(item.productId) && item.quantity > 0);
+  // Weight → unit count (kg / stepKg), same as cart preview.
+  const orderLines = shopCheckoutLines(items);
   const backHref = inline ? "/playground" : "/cart";
 
   const placeOrder = async () => {
     if (!signedIn) {
-      router.push("/login?next=/checkout");
+      showPopup("Sign in to place your order.", "warning");
+      router.push(loginHref);
       return;
     }
     if (!hasAddress || !address) {
@@ -186,6 +215,7 @@ export function CheckoutPageContent({
         raw: formatFullAddress(address),
       });
       setPendingLabel("Placing order…");
+      const itemCount = orderLines.reduce((sum, line) => sum + line.quantity, 0);
       const order = await placeCheckoutOrder({
         items: orderLines,
         couponCode: appliedPromo?.code ?? null,
@@ -194,8 +224,19 @@ export function CheckoutPageContent({
       clear();
       idempotencyKey.current = null;
       await queryClient.invalidateQueries({ queryKey: ["orders"] });
+      const rupees = (minor: number) => Math.round(minor / 100);
+      setPlaced({
+        billNo: order.orderNumber.startsWith("#")
+          ? order.orderNumber
+          : `#${order.orderNumber}`,
+        itemCount,
+        subtotal: rupees(order.subtotal_minor),
+        deliveryFee: rupees(order.delivery_fee_minor),
+        total: rupees(order.total_minor),
+        fulfillment: "Delivery",
+        statusLabel: "Confirmed",
+      });
       showPopup(`Order ${order.orderNumber} placed. Pay when it arrives.`, "success");
-      router.push("/orders");
     } catch (error) {
       const message =
         error instanceof ApiError
@@ -216,6 +257,24 @@ export function CheckoutPageContent({
     }
   };
 
+  if (placed) {
+    return (
+      <main
+        className={cn(
+          "mx-auto flex w-full max-w-lg flex-col justify-center overflow-y-auto bg-paper",
+          inline ? "h-full min-h-0" : "min-h-dvh",
+        )}
+      >
+        <OrderPlacedContent
+          summary={placed}
+          live
+          ordersHref={inline ? "/playground/orders-list" : "/orders"}
+          homeHref={inline ? "/playground" : "/home"}
+        />
+      </main>
+    );
+  }
+
   return (
     <main
       className={cn(
@@ -232,8 +291,15 @@ export function CheckoutPageContent({
           </h2>
           <div className="mt-3 rounded-2xl bg-white p-3.5 shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10">
             <div className="flex items-start gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-mint text-black">
-                <MapPin className="h-5 w-5" aria-hidden />
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-mint">
+                <Image
+                  src="/icons/location.svg"
+                  alt=""
+                  width={32}
+                  height={32}
+                  className="h-8 w-8"
+                  unoptimized
+                />
               </span>
               <div className="min-w-0 flex-1">
                 {hasAddress && address ? (
@@ -270,8 +336,15 @@ export function CheckoutPageContent({
               role="radio"
               aria-checked="true"
             >
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-mint text-forest">
-                <Banknote className="h-5 w-5" aria-hidden />
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-mint">
+                <Image
+                  src="/icons/cash-on-delivery.svg"
+                  alt=""
+                  width={32}
+                  height={32}
+                  className="h-8 w-8"
+                  unoptimized
+                />
               </span>
               <span className="min-w-0 flex-1 text-sm font-bold text-black">
                 Cash on Delivery
@@ -298,7 +371,9 @@ export function CheckoutPageContent({
             : "fixed inset-x-0 bottom-0 mx-auto w-full max-w-lg px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]",
         )}
       >
-        {showPriceMayVary ? <PriceMayVaryNotice /> : null}
+        {showPriceMayVary ? (
+          <PriceMayVaryNotice variant={priceMayVaryVariant} />
+        ) : null}
         <div className="rounded-2xl bg-white px-4 py-1 shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10">
           <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
             <span className="text-muted">Subtotal</span>
@@ -310,9 +385,31 @@ export function CheckoutPageContent({
               <span className="font-bold text-leaf">−₹{promoDiscount}</span>
             </div>
           ) : null}
-          <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
-            <span className="text-muted">You save</span>
-            <span className="font-bold text-leaf">
+          <div
+            className={cn(
+              "flex items-center justify-between py-3 text-sm",
+              highlightSavings && totalSaved > 0
+                ? "border-b border-dashed border-leaf"
+                : "border-b border-forest/8",
+            )}
+          >
+            <span
+              className={cn(
+                highlightSavings && totalSaved > 0
+                  ? "font-bold text-forest"
+                  : "text-muted",
+              )}
+            >
+              You save
+            </span>
+            <span
+              className={cn(
+                "tabular-nums text-leaf",
+                highlightSavings && totalSaved > 0
+                  ? "text-base font-extrabold"
+                  : "font-bold",
+              )}
+            >
               {totalSaved > 0 ? `₹${totalSaved}` : "₹0"}
             </span>
           </div>
@@ -338,22 +435,37 @@ export function CheckoutPageContent({
             (signedIn && (!hasAddress || orderLines.length === 0))
           }
           onClick={() => void placeOrder()}
-          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-track px-5 py-4 text-base font-extrabold text-black shadow-[0_7px_0_0_#1f5c1f] disabled:cursor-not-allowed disabled:opacity-50"
+          className={cn(
+            "group flex w-full items-center justify-center gap-2 rounded-full bg-track px-5 py-4 text-base font-extrabold text-black shadow-[0_7px_0_0_#1f5c1f,0_14px_28px_rgba(47,107,47,0.28)] transition-[transform,box-shadow,background-color,opacity] duration-150 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
+            pending || (signedIn && (!hasAddress || orderLines.length === 0))
+              ? "cursor-not-allowed opacity-50"
+              : "cursor-pointer hover:bg-leaf-bright motion-safe:active:translate-y-[5px] motion-safe:active:shadow-[0_2px_0_0_#1f5c1f,0_6px_14px_rgba(47,107,47,0.22)]",
+          )}
         >
-          {pending ? pendingLabel : signedIn ? "Place Order" : "Sign in to place order"}
+          {pending
+            ? pendingLabel
+            : !signedIn
+              ? "Sign in to place order"
+              : !hasAddress
+                ? "Add address to place order"
+                : orderLines.length === 0
+                  ? "Add items to place order"
+                  : "Place Order"}
           <Check className="h-5 w-5" aria-hidden />
         </button>
 
         <p className="text-center text-[13px] font-medium text-muted" role="status">
           {placeError ??
             areaNote ??
-            (signedIn
-              ? !hasAddress
-                ? "Add a delivery address, then we'll check that we deliver there."
-                : isLatLng(address)
-                  ? "Cash on delivery. We'll confirm this location before the order is sent."
-                  : "We'll ask for your location before placing the order."
-              : "Sign in so we can send this order to the shop.")}
+            (!signedIn
+              ? "Sign in so we can send this order to the shop."
+              : !hasAddress
+                ? "Add a delivery address, then Place Order unlocks."
+                : orderLines.length === 0
+                  ? "Your basket is empty — add items from the cart."
+                  : isLatLng(address)
+                    ? "Ready — Cash on delivery. We'll confirm this location when you place the order."
+                    : "Ready — we'll ask for your location when you place the order.")}
         </p>
       </div>
 

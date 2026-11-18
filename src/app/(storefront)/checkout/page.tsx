@@ -7,5 +7,11 @@ export const metadata: Metadata = {
 };
 
 export default function CheckoutPage() {
-  return <CheckoutPageContent showPriceMayVary />;
+  return (
+    <CheckoutPageContent
+      showPriceMayVary
+      highlightSavings
+      showAmountDueBar={false}
+    />
+  );
 }

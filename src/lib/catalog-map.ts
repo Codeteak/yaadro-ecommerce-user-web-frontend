@@ -1,14 +1,29 @@
 import { PRODUCT_IMAGE_FALLBACK } from "@/lib/product-image";
 import type { SampleProduct, WeightCustomization } from "@/lib/sample-products";
 
-const BY_WEIGHT: WeightCustomization = {
-  type: "weight",
-  stepKg: 0.5,
-  minKg: 0.5,
-  maxKg: 10,
-};
+const FALLBACK_WEIGHT_STEP_KG = 0.5;
+const DEFAULT_WEIGHT_MAX_KG = 10;
 
 const FALLBACK_IMAGE = PRODUCT_IMAGE_FALLBACK;
+
+/**
+ * Backend `unit_size` (with `base_unit` kg) is the sell step / minimum.
+ * Orange is 0.1 kg; carrot is 0.25 kg. Catalog price is per that unit
+ * (`price_minor_per_unit`), same figure shown on the product card.
+ */
+export function weightCustomizationFromUnitSize(
+  unitSize: unknown,
+): WeightCustomization {
+  const size = minorUnits(unitSize);
+  const stepKg =
+    size != null && size > 0 ? size : FALLBACK_WEIGHT_STEP_KG;
+  return {
+    type: "weight",
+    stepKg,
+    minKg: stepKg,
+    maxKg: DEFAULT_WEIGHT_MAX_KG,
+  };
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -132,6 +147,7 @@ export function mapCatalogProduct({
 
   const soldByWeight = row.sold_by_weight === true || row.soldByWeight === true;
   const description = pickString(row.description) ?? undefined;
+  const unitSize = row.unit_size ?? row.unitSize;
 
   return {
     id,
@@ -139,12 +155,14 @@ export function mapCatalogProduct({
     category: categoryName || pickString(row.category_name, row.categoryName) || "Grocery",
     categoryId: categoryId || pickString(row.category_id, row.categoryId) || undefined,
     categorySlug: categorySlug || undefined,
-    unit: formatUnit(pickString(row.unit), row.unit_size ?? row.unitSize),
+    unit: formatUnit(pickString(row.unit), unitSize),
     price,
     mrp: Math.max(mrp, price),
     image: images[0] ?? FALLBACK_IMAGE,
     images: images.length > 0 ? images : undefined,
     description,
-    customization: soldByWeight ? BY_WEIGHT : undefined,
+    customization: soldByWeight
+      ? weightCustomizationFromUnitSize(unitSize)
+      : undefined,
   };
 }

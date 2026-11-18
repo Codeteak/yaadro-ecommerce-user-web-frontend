@@ -177,14 +177,8 @@ function AddressBookSheetBody({
       <div className="sheet-rise absolute inset-x-0 bottom-0 mx-auto flex max-h-[94dvh] w-full max-w-lg flex-col rounded-t-[2rem] bg-paper shadow-[0_-24px_48px_rgba(47,107,47,0.35)]">
         <div className="mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full bg-forest/15" aria-hidden />
         <div className="flex shrink-0 items-center gap-2 px-4 pt-2 pb-3">
-          {step !== "list" ? (
-            <BackButton
-              onClick={() => {
-                if (step === "details") setStep("map");
-                else if (address) setStep("list");
-                else onOpenChange(false);
-              }}
-            />
+          {step === "details" ? (
+            <BackButton onClick={() => setStep("map")} />
           ) : (
             <span className="size-11 shrink-0" aria-hidden />
           )}

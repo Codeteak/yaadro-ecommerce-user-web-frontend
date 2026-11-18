@@ -36,10 +36,10 @@ export function BottomNav({ position = "fixed" }: BottomNavProps) {
         inline ? undefined : { viewTransitionName: "storefront-bottom-nav" }
       }
       className={cn(
-        "flex justify-center px-4 transition-all duration-300 ease-out",
+        "flex justify-center px-4 transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
         inline
-          ? "absolute inset-x-0 bottom-0 z-10 pb-3 pointer-events-none"
-          : "fixed inset-x-0 bottom-0 z-40 pb-[max(0.75rem,env(safe-area-inset-bottom))] pointer-events-none",
+          ? "absolute inset-x-0 bottom-0 z-50 pb-3 pointer-events-none"
+          : "fixed inset-x-0 bottom-0 z-50 pb-[max(0.75rem,env(safe-area-inset-bottom))] pointer-events-none",
         hide
           ? "translate-y-[130%] opacity-0"
           : "translate-y-0 opacity-100",
@@ -61,7 +61,7 @@ export function BottomNav({ position = "fixed" }: BottomNavProps) {
                 transitionTypes={["nav-tab"]}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative inline-flex h-11 items-center justify-center gap-2 rounded-full transition-[padding,width,background-color,box-shadow,color] duration-300 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
+                  "relative inline-flex h-11 items-center justify-center gap-2 rounded-full will-change-[padding,width] transition-[padding,width,background-color,box-shadow,color,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf motion-safe:active:scale-[0.96]",
                   active
                     ? "bg-track px-4 text-black shadow-sm"
                     : "w-11 px-0 text-black hover:text-black/70",
@@ -69,15 +69,15 @@ export function BottomNav({ position = "fixed" }: BottomNavProps) {
               >
                 <Icon
                   aria-hidden
-                  className="size-[22px] shrink-0 text-black"
+                  className="size-[22px] shrink-0 text-black transition-[stroke-width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
                   strokeWidth={active ? 2.25 : 1.75}
                 />
                 <span
                   className={cn(
-                    "overflow-hidden text-[13px] font-semibold tracking-tight whitespace-nowrap transition-all duration-300 ease-out",
+                    "overflow-hidden text-[13px] font-semibold tracking-tight whitespace-nowrap transition-[max-width,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
                     active
-                      ? "max-w-[7.5rem] opacity-100"
-                      : "max-w-0 opacity-0",
+                      ? "max-w-[7.5rem] translate-x-0 opacity-100"
+                      : "max-w-0 -translate-x-1 opacity-0",
                   )}
                   aria-hidden={!active}
                 >

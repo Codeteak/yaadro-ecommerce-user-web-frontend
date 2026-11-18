@@ -65,12 +65,14 @@ const FLOW = [
   {
     id: "accepted",
     label: "Accepted",
-    success: "Your order has been accepted by the shop.",
+    success:
+      "Accepted by the shop. Live tracking unlocks when a partner is assigned.",
   },
   {
     id: "packed",
     label: "Packed",
-    success: "Your order is packed and ready.",
+    success:
+      "Packed and ready. Live tracking unlocks when a partner is assigned.",
   },
   {
     id: "out_for_delivery",
@@ -135,7 +137,8 @@ export const LIVE_TRACK_ACCEPTED: LiveOrderTrackSample = {
   ...SHARED,
   phase: "accepted",
   statusBadge: "Accepted",
-  statusMessage: "Your order has been accepted by the shop.",
+  statusMessage:
+    "Order accepted. You can live-track once the shop assigns a delivery partner.",
   rider: null,
   headerSteps: HEADER_BASE,
   progress: buildProgress("accepted"),
@@ -145,7 +148,8 @@ export const LIVE_TRACK_PACKED: LiveOrderTrackSample = {
   ...SHARED,
   phase: "packed",
   statusBadge: "Packed",
-  statusMessage: "Your order is packed and ready.",
+  statusMessage:
+    "Order packed. Live tracking unlocks when the shop assigns a delivery partner.",
   rider: null,
   headerSteps: HEADER_BASE,
   progress: buildProgress("packed"),
@@ -174,7 +178,12 @@ export const LIVE_TRACK_DELIVERED: LiveOrderTrackSample = {
   phase: "delivered",
   statusBadge: "Delivered",
   statusMessage: "Your order has been delivered.",
-  rider: null,
+  // Keep partner name after delivery; UI hides call / phone number.
+  rider: {
+    name: "Abhinav Aneesh",
+    initial: "A",
+    phone: "+91 98765 01234",
+  },
   headerSteps: [
     { id: "placed", label: "Placed", at: "2:37pm" },
     { id: "out_for_delivery", label: "Out for delivery", at: "2:41pm" },
