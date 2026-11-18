@@ -693,13 +693,13 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "view-cart-bar": () => (
-    <DemoFrame note="Same as ecom: FAB stays above BottomNav while it hides; drops only after nav slide (~320ms). Scroll this panel.">
+    <DemoFrame note="Ecom: FAB path-hides with BottomNav (cart, checkout, order detail/track, profile tasks). This frame forces inline so you can still preview scroll + drop.">
       <div className="relative h-[28rem] overflow-hidden rounded-2xl bg-paper ring-1 ring-black/5">
         <div className="h-full overflow-y-auto overscroll-contain px-5 pt-4 pb-28 text-sm text-muted">
           <p className="font-semibold text-forest">View cart + nav</p>
           <p className="mt-1">
-            Add items on a product card first. Scroll down — nav hides, cart
-            drops after the slide. Scroll up — cart lifts immediately.
+            Add items first. Scroll — nav hides, cart drops after ~320ms.
+            Live storefront hides this FAB on order details / track.
           </p>
           {Array.from({ length: 18 }, (_, i) => (
             <p key={i} className="mt-3 text-ink">

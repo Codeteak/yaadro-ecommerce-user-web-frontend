@@ -300,10 +300,16 @@ import { SAMPLE_PRODUCTS } from "@/lib/sample-products";
   ),
   "view-cart-bar": U(
     `import { ViewCartBar } from "@/components/cart/ViewCartBar";
+import { shouldHideStorefrontNav } from "@/lib/storefront-nav";
 
-<ViewCartBar />
-// Needs CartProvider with items`,
-    ["src/components/cart/ViewCartBar.tsx"],
+// Storefront chrome: same path-hide as BottomNav
+{!shouldHideStorefrontNav(pathname) && <ViewCartBar />}
+// Playground demos use position="inline" (skips path-hide)`,
+    [
+      "src/components/cart/ViewCartBar.tsx",
+      "src/components/storefront/StorefrontChrome.tsx",
+      "src/lib/storefront-nav.ts",
+    ],
   ),
   "weight-customizer": U(
     `import { WeightCustomizer } from "@/components/cart/WeightCustomizer";

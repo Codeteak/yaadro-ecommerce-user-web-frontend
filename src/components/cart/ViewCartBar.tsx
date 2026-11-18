@@ -7,6 +7,7 @@ import { ArrowRight, ShoppingCart } from "lucide-react";
 import { useCart } from "@/components/cart/CartContext";
 import { useScrollDirection } from "@/components/navigation/useScrollDirection";
 import { cn } from "@/lib/cn";
+import { shouldHideStorefrontNav } from "@/lib/storefront-nav";
 
 /** Match BottomNav hide transition so the FAB never sits on the pill mid-slide. */
 const NAV_HIDE_MS = 320;
@@ -15,6 +16,7 @@ type ViewCartBarProps = {
   /**
    * `fixed` — storefront chrome (viewport).
    * `inline` — playground preview inside a relative frame.
+   * Playground demos skip path-hide so the FAB stays visible in the frame.
    */
   position?: "fixed" | "inline";
 };
@@ -25,7 +27,8 @@ type ViewCartBarProps = {
  * - While scrolling: expands into the full "View cart • ₹total" bar,
  *   shrinking back ~1s after scrolling stops.
  * It drops lower only after the bottom nav has finished hiding.
- * Only appears when the basket has items; hidden on /cart and /checkout.
+ * Storefront: same path-hide as BottomNav (cart, checkout, order detail/track,
+ * profile edit/addresses/support). Playground `inline` ignores path-hide.
  */
 export function ViewCartBar({ position = "fixed" }: ViewCartBarProps) {
   const pathname = usePathname();
@@ -44,7 +47,8 @@ export function ViewCartBar({ position = "fixed" }: ViewCartBarProps) {
     return () => window.clearTimeout(id);
   }, [navHidden]);
 
-  if (count === 0 || pathname === "/cart" || pathname === "/checkout") return null;
+  if (count === 0) return null;
+  if (!inline && shouldHideStorefrontNav(pathname)) return null;
   const expanded = scrolling;
 
   return (

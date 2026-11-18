@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-18 — ViewCartBar path-hide with BottomNav
+
+FAB uses `shouldHideStorefrontNav` (cart, checkout, order detail/track, profile edit/addresses/support). `StorefrontChrome` skips mounting both. Playground `inline` demos keep the FAB for scroll preview.
+
 ## 2026-11-18 — Track order awaiting partner (wired to ecom)
 
 `/orders/[id]/track` loads live orders via `getCustomerOrder` (UUID + session), same as details. Pre-partner: waiting copy + AwaitingPartnerCard. Live Track only when OFD **and** rider assigned (no fake partner). Playground `/playground/live-order-track` matches.

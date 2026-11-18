@@ -246,8 +246,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Idle circular cart / expanded View cart while scrolling. Stays above BottomNav until hide finishes (~320ms), then drops; lifts immediately on scroll up.",
-    wiresTo: "Storefront layout + BottomNav",
+      "Browse FAB: scroll expand + delayed drop vs nav. Path-hidden with BottomNav on cart/checkout/order detail/track/profile tasks.",
+    wiresTo: "StorefrontChrome + shouldHideStorefrontNav",
   },
   {
     slug: "weight-customizer",
