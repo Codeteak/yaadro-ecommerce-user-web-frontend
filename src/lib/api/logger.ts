@@ -58,7 +58,7 @@ export const logger = {
       status: event.status,
       durationMs: event.durationMs,
       requestId: event.requestId,
-      code: event.error?.code,
+      ...(event.error ? { code: event.error.code } : {}),
     };
     // console.error opens the Next.js dev overlay for expected HTTP failures.
     write(event.error ? "warn" : "debug", "api", payload);

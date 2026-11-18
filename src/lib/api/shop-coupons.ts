@@ -35,7 +35,11 @@ function mapCoupon(row: RawCoupon): SampleCoupon | null {
   const flat = benefit?.amountMinor != null ? rupees(benefit.amountMinor) : 0;
   const discount =
     percent > 0
-      ? { type: "percent" as const, percent, maxOff: flat || percent }
+      ? {
+          type: "percent" as const,
+          percent,
+          maxOff: flat > 0 ? flat : Number.MAX_SAFE_INTEGER,
+        }
       : { type: "flat" as const, amount: flat };
   const until = row.endsAt ? new Date(row.endsAt) : null;
   const validUntilLabel =

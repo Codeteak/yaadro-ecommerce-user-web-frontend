@@ -64,6 +64,24 @@ export function shopId(): string {
   return process.env.NEXT_PUBLIC_SHOP_ID?.trim() ?? "";
 }
 
+/** ngrok free answers browser requests with a warning page that has no CORS headers. */
+function ngrokBrowserHeaders(origin: string): Record<string, string> {
+  try {
+    const host = new URL(origin).hostname.toLowerCase();
+    if (
+      host === "ngrok-free.dev" ||
+      host.endsWith(".ngrok-free.dev") ||
+      host.endsWith(".ngrok.io") ||
+      host.endsWith(".ngrok.app")
+    ) {
+      return { "ngrok-skip-browser-warning": "true" };
+    }
+  } catch {
+    return {};
+  }
+  return {};
+}
+
 function timeoutMs(): number {
   const raw = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS);
   return Number.isFinite(raw) && raw > 0 ? raw : 15_000;
@@ -75,7 +93,15 @@ function requestId(): string {
 }
 
 function buildUrl(path: string, query?: Record<string, QueryValue>): string {
-  const url = new URL(path.startsWith("/") ? path : `/${path}`, `${apiOrigin()}/`);
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  // The browser stays on this site. next.config.ts forwards /shop-api to the
+  // real API, including an ngrok URL used by another device. A direct browser
+  // call to ngrok is blocked because ngrok's warning page has no CORS header.
+  const base =
+    typeof window === "undefined"
+      ? apiOrigin()
+      : `${window.location.origin}/shop-api`;
+  const url = new URL(`${base}${normalized}`);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value == null || value === "") continue;
@@ -177,6 +203,7 @@ async function execute<T>(input: ApiRequest, refreshed: boolean): Promise<Succes
   const headers: Record<string, string> = {
     accept: "application/json",
     "x-request-id": id,
+    ...ngrokBrowserHeaders(apiOrigin()),
   };
   const resolvedShop = input.shopId === undefined ? shopId() : input.shopId;
   if (resolvedShop) headers["x-shop-id"] = resolvedShop;

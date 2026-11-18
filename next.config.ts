@@ -1,6 +1,22 @@
 import type { NextConfig } from "next";
 
+function shopApiOrigin(): string {
+  const raw = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, "") ?? "";
+  if (!raw) return "";
+  return raw.endsWith("/api") ? raw.slice(0, -4) : raw;
+}
+
 const nextConfig: NextConfig = {
+  async rewrites() {
+    const origin = shopApiOrigin();
+    if (!origin) return [];
+    return [
+      {
+        source: "/shop-api/:path*",
+        destination: `${origin}/:path*`,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "media.yaadro.online" },

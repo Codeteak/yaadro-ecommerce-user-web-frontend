@@ -139,19 +139,11 @@ export type PromoApplyResult =
   | { ok: true; coupon: SampleCoupon; discount: number }
   | { ok: false; message: string };
 
-/** Local promo apply for cart UI preview — not a real checkout discount. */
-export function applySamplePromo(
-  code: string,
+/** Apply a coupon the shopper already has, including one loaded from the shop API. */
+export function applyKnownCoupon(
+  coupon: SampleCoupon,
   subtotal: number,
 ): PromoApplyResult {
-  const trimmed = code.trim();
-  if (!trimmed) {
-    return { ok: false, message: "Enter a promo code" };
-  }
-  const coupon = findCouponByCode(trimmed);
-  if (!coupon) {
-    return { ok: false, message: "Code not found" };
-  }
   if (coupon.status === "used") {
     return { ok: false, message: "This code was already used" };
   }
@@ -169,4 +161,20 @@ export function applySamplePromo(
     return { ok: false, message: "Code can’t be applied to this basket" };
   }
   return { ok: true, coupon, discount };
+}
+
+/** Local promo apply for cart UI preview — not a real checkout discount. */
+export function applySamplePromo(
+  code: string,
+  subtotal: number,
+): PromoApplyResult {
+  const trimmed = code.trim();
+  if (!trimmed) {
+    return { ok: false, message: "Enter a promo code" };
+  }
+  const coupon = findCouponByCode(trimmed);
+  if (!coupon) {
+    return { ok: false, message: "Code not found" };
+  }
+  return applyKnownCoupon(coupon, subtotal);
 }

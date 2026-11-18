@@ -13,3 +13,10 @@
 13. ****after the order delivered remove dp number from order history****
 14. ****remove settings**** 
 15. in help support shw the shop address and number and address
+16. in the cart keep the the weight at the bottom
+17. if use not logged in the check the coupon the page show to sign in not redirecting make coupon as a toaster warning if user is not logged in
+18. at cart page if user not loged in ask then only redirect to checkout else coupon would be missed 
+19. in the cart if coupon applied the checkout amount is not updating
+20. checkout need ui updations
+21. in order history hightlight the order status in a badge or live green dot icon
+

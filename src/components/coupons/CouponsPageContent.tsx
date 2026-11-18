@@ -179,7 +179,7 @@ function CouponsPageBody({
 
   const applyToCart = () => {
     if (!selected || !applyReturnHref || selected.status !== "active") return;
-    const result = applyPromo(selected.code);
+    const result = applyPromo(selected.code, selected);
     if (!result.ok) {
       setApplyMessage(result.message);
       showPopup(result.message, "error");
