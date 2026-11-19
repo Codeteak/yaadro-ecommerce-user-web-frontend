@@ -204,6 +204,176 @@ export type DetectedPlace = {
   formatted: string;
 };
 
+type GeocodeResult = {
+  formatted_address?: string;
+  geometry?: { location?: { lat: number; lng: number } };
+  types?: string[];
+  address_components?: { long_name: string; types: string[] }[];
+};
+
+type GeocodeJson = {
+  status?: string;
+  error_message?: string;
+  results?: GeocodeResult[];
+};
+
+function mapsKey(): string | null {
+  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim();
+  return key ? key : null;
+}
+
+function placeFromGeocodeResults(
+  results: GeocodeResult[],
+  latitude: number,
+  longitude: number,
+): DetectedPlace {
+  const pickAcross = (...types: string[]) => {
+    for (const result of results) {
+      const hit = result.address_components?.find((c) =>
+        types.some((t) => c.types.includes(t)),
+      );
+      if (hit) return hit.long_name;
+    }
+    return "";
+  };
+
+  const street =
+    [pickAcross("street_number"), pickAcross("route")]
+      .filter(Boolean)
+      .join(" ") || pickAcross("sublocality", "sublocality_level_1");
+  const area =
+    pickAcross("sublocality", "sublocality_level_1", "neighborhood") ||
+    pickAcross("locality");
+  const formatted = results[0]?.formatted_address ?? "";
+
+  return {
+    area: area || "Your area",
+    street,
+    city: pickAcross("locality"),
+    pin: pickAcross("postal_code"),
+    landmark: pickAcross("neighborhood", "premise"),
+    lat: latitude,
+    lng: longitude,
+    formatted,
+  };
+}
+
+/** Reverse-geocode a pin when the Maps key is set. */
+export async function reverseGeocodeLatLng(
+  latitude: number,
+  longitude: number,
+): Promise<
+  | { ok: true; place: DetectedPlace }
+  | { ok: false; message: string }
+> {
+  const key = mapsKey();
+  if (!key) {
+    return {
+      ok: true,
+      place: {
+        area: "Detected location",
+        street: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+        city: "Bengaluru",
+        pin: "",
+        landmark: "",
+        lat: latitude,
+        lng: longitude,
+        formatted: `Near ${latitude.toFixed(5)}, ${longitude.toFixed(5)} (map API not configured)`,
+      },
+    };
+  }
+
+  try {
+    const res = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${key}`,
+    );
+    const json = (await res.json().catch(() => null)) as GeocodeJson | null;
+
+    if (!json || json.status !== "OK" || !json.results?.length) {
+      return {
+        ok: false,
+        message:
+          json?.error_message ??
+          "Couldn't read that location — try again or type details next.",
+      };
+    }
+
+    return {
+      ok: true,
+      place: placeFromGeocodeResults(json.results, latitude, longitude),
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "Couldn't read that location — try again or continue manually.",
+    };
+  }
+}
+
+/** Forward-geocode a search string (area / street / pin). */
+export async function geocodeSearchQuery(
+  query: string,
+): Promise<
+  | { ok: true; place: DetectedPlace }
+  | { ok: false; message: string }
+> {
+  const q = query.trim();
+  if (!q) {
+    return { ok: false, message: "Type an area to continue, or detect location." };
+  }
+
+  const key = mapsKey();
+  if (!key) {
+    return {
+      ok: true,
+      place: {
+        area: q,
+        street: "",
+        city: "",
+        pin: "",
+        landmark: "",
+        formatted: q,
+      },
+    };
+  }
+
+  try {
+    const res = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(q)}&key=${key}&region=in`,
+    );
+    const json = (await res.json().catch(() => null)) as GeocodeJson | null;
+
+    if (!json || json.status !== "OK" || !json.results?.length) {
+      return {
+        ok: false,
+        message:
+          json?.error_message ??
+          "No match for that search — try another area or detect location.",
+      };
+    }
+
+    const top = json.results[0];
+    const lat = top.geometry?.location?.lat;
+    const lng = top.geometry?.location?.lng;
+    if (typeof lat !== "number" || typeof lng !== "number") {
+      return {
+        ok: false,
+        message: "No match for that search — try another area or detect location.",
+      };
+    }
+
+    return {
+      ok: true,
+      place: placeFromGeocodeResults(json.results, lat, lng),
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "Search failed — try again or detect location.",
+    };
+  }
+}
+
 /**
  * Geolocation + reverse geocode when Maps key exists; otherwise a sample
  * stub place so playground works without a live map API.
@@ -212,8 +382,6 @@ export async function detectMyPlace(): Promise<
   | { ok: true; place: DetectedPlace }
   | { ok: false; message: string }
 > {
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-
   if (!("geolocation" in navigator)) {
     return {
       ok: false,
@@ -246,83 +414,5 @@ export async function detectMyPlace(): Promise<
   }
 
   const { latitude, longitude } = position.coords;
-
-  if (!key) {
-    return {
-      ok: true,
-      place: {
-        area: "Detected location",
-        street: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
-        city: "Bengaluru",
-        pin: "",
-        landmark: "",
-        lat: latitude,
-        lng: longitude,
-        formatted: `Near ${latitude.toFixed(5)}, ${longitude.toFixed(5)} (map API not configured)`,
-      },
-    };
-  }
-
-  try {
-    const res = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${key}`,
-    );
-    const json = (await res.json().catch(() => null)) as {
-      status?: string;
-      error_message?: string;
-      results?: {
-        formatted_address?: string;
-        types?: string[];
-        address_components?: { long_name: string; types: string[] }[];
-      }[];
-    } | null;
-
-    if (!json || json.status !== "OK" || !json.results?.length) {
-      return {
-        ok: false,
-        message:
-          json?.error_message ??
-          "Couldn't detect your location — try again or type details next.",
-      };
-    }
-
-    const results = json.results;
-    const pickAcross = (...types: string[]) => {
-      for (const result of results) {
-        const hit = result.address_components?.find((c) =>
-          types.some((t) => c.types.includes(t)),
-        );
-        if (hit) return hit.long_name;
-      }
-      return "";
-    };
-
-    let street =
-      [pickAcross("street_number"), pickAcross("route")]
-        .filter(Boolean)
-        .join(" ") || pickAcross("sublocality", "sublocality_level_1");
-    const area =
-      pickAcross("sublocality", "sublocality_level_1", "neighborhood") ||
-      pickAcross("locality");
-    const formatted = results[0]?.formatted_address ?? "";
-
-    return {
-      ok: true,
-      place: {
-        area: area || "Your area",
-        street,
-        city: pickAcross("locality"),
-        pin: pickAcross("postal_code"),
-        landmark: pickAcross("neighborhood", "premise"),
-        lat: latitude,
-        lng: longitude,
-        formatted,
-      },
-    };
-  } catch {
-    return {
-      ok: false,
-      message: "Couldn't read that location — try again or continue manually.",
-    };
-  }
+  return reverseGeocodeLatLng(latitude, longitude);
 }

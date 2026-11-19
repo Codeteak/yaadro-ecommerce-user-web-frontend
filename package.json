@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.2",
+    "@react-google-maps/api": "^2.20.8",
     "@serwist/next": "^9.5.13",
     "@tanstack/react-query": "^5.104.3",
     "clsx": "^2.1.1",
