@@ -23,6 +23,10 @@ import {
   useCart,
 } from "@/components/cart/CartContext";
 import { CartSuggestions } from "@/components/cart/CartSuggestions";
+import {
+  CartTopCoupons,
+  topActiveCoupons,
+} from "@/components/cart/CartTopCoupons";
 import { ShopQuoteNotes, shopDue } from "@/components/cart/ShopQuoteNotes";
 import { useShopQuote } from "@/components/cart/useShopQuote";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
@@ -146,6 +150,7 @@ export function CartPageContent({
   const [promoMessage, setPromoMessage] = useState<string | null>(null);
   const hasItems = items.length > 0;
   const applied = appliedPromo;
+  const topOfferCount = showTopCoupons ? topActiveCoupons().length : 0;
   const { quote } = useShopQuote(items, applied?.code ?? null);
   const dueLabel = shopDue(quote, totalDue);
   const minimumBlocks = Boolean(quote?.minimumMessage);
