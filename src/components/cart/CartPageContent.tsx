@@ -159,19 +159,8 @@ export function CartPageContent({
   const [promoMessage, setPromoMessage] = useState<string | null>(null);
   const hasItems = items.length > 0;
   const applied = appliedPromo;
-  const shopCouponsQuery = useQuery({
-    queryKey: ["coupons", "cart-top"],
-    queryFn: ({ signal }) => listShopCoupons(undefined, signal),
-    enabled: liveShopCoupons && signedIn && showTopCoupons,
-  });
-  const offerCoupons = liveShopCoupons
-    ? (shopCouponsQuery.data ?? [])
-    : undefined;
-  const topOfferCount = showTopCoupons
-    ? topActiveCoupons(offerCoupons).length
-    : 0;
-  const showOfferList = showTopCoupons && topOfferCount > 0;
-  const { quote, failed } = useShopQuote(items, applied?.code ?? null);
+  const topOfferCount = showTopCoupons ? topActiveCoupons().length : 0;
+  const { quote } = useShopQuote(items, applied?.code ?? null);
   const dueLabel = shopDue(quote, totalDue);
   const minimumBlocks = Boolean(quote?.minimumMessage);
   const couponLine = billCouponLine(
