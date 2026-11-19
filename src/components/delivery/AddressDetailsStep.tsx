@@ -1,7 +1,11 @@
 "use client";
 
-import { useId, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { Briefcase, Home, MapPin, Navigation } from "lucide-react";
+import {
+  AddressDetectButton,
+  AddressSearchField,
+} from "@/components/delivery/AddressLocationControls";
 import { cn } from "@/lib/cn";
 import { buildPlaceEmbedUrl } from "@/lib/live-track-map";
 import {
@@ -14,10 +18,16 @@ import {
 export function AddressDetailsStep({
   place,
   editing,
+  detecting = false,
+  onDetect,
+  onPlaceChange,
   onSaved,
 }: {
   place: DetectedPlace;
   editing: SavedAddress | null;
+  detecting?: boolean;
+  onDetect: () => void;
+  onPlaceChange: (place: DetectedPlace) => void;
   onSaved: () => void;
 }) {
   const formId = useId();
@@ -35,7 +45,12 @@ export function AddressDetailsStep({
   const [instructions, setInstructions] = useState(
     editing?.instructions ?? "",
   );
+  const [searchQ, setSearchQ] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setStreet((current) => current || place.street);
+  }, [place.street]);
 
   const miniMapUrl = useMemo(() => {
     if (typeof place.lat !== "number" || typeof place.lng !== "number") {
@@ -51,6 +66,11 @@ export function AddressDetailsStep({
     if (next === "office") {
       setLabel((current) => (current === "Home" || !current ? "Office" : current));
     }
+  };
+
+  const onSelectPlace = (next: DetectedPlace) => {
+    onPlaceChange(next);
+    if (next.street) setStreet(next.street);
   };
 
   const save = () => {
@@ -97,6 +117,26 @@ export function AddressDetailsStep({
           {place.formatted}
         </p>
       </div>
+
+      <section className="rounded-[1.35rem] bg-white p-4 shadow-[0_4px_14px_rgba(47,107,47,0.06)] ring-1 ring-forest/10">
+        <h3 className="text-sm font-extrabold text-black">Find location</h3>
+        <p className="mt-1 text-[12px] leading-5 text-muted">
+          Search an area or detect your current location to update the pin.
+        </p>
+        <div className="mt-3">
+          <AddressSearchField
+            value={searchQ}
+            onChange={setSearchQ}
+            onSelectPlace={onSelectPlace}
+            disabled={detecting}
+          />
+        </div>
+        <AddressDetectButton
+          detecting={detecting}
+          onDetect={onDetect}
+          className="mt-2.5"
+        />
+      </section>
 
       <section className="rounded-[1.35rem] bg-white p-4 ring-1 ring-forest/10">
         <h3 className="text-sm font-extrabold text-black">Location details</h3>
@@ -193,7 +233,6 @@ export function AddressDetailsStep({
             </>
           )}
         </div>
-
       </section>
 
       <section>

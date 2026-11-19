@@ -595,8 +595,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Stub map + search + Detect (no live Maps API). Close only on this step — no back. Confirm → details.",
-    wiresTo: "AddressBookSheet",
+      "Map step: Places suggestions as you type (no Search button) + Detect card. Close (X) only.",
+    wiresTo: "AddressLocationControls / AddressMapStep",
   },
   {
     slug: "address-details",
@@ -604,8 +604,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "House/Office/Other, save name, building, and instructions. Back returns to map. Replaces the one saved address.",
-    wiresTo: "AddressBookSheet",
+      "Edit address: Places suggestions + Detect card, then form fields. Close (X) only.",
+    wiresTo: "AddressLocationControls / AddressDetailsStep",
   },
   {
     slug: "coupons-apply",

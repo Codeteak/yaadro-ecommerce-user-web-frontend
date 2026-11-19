@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-19 — Address search polish (suggestions + post-select)
+
+No Search button. Pill search field (border, clear X). Places suggestions list refined (pin chip + dividers). After pick: dropdown closes and stays closed until the field is edited; short primary label in the input. Removed “Location updated from search” notice.
+
+## 2026-11-19 — Address search + Detect UI refine
+
+Shared `AddressSearchField` + `AddressDetectButton` (GPS card with helper text). Removed floating map locate FAB and locate-inside-search. Map step + Location details use the same controls. Live + playground via `AddressBookSheet`.
+
 ## 2026-11-19 — Order bill coupon discount (TEST −₹1000 not −₹3550)
 
 `mapCustomerOrder`: when `coupon_code` is set, use `coupon_discount_minor` (do not `Math.max` with inflated `promotion_discount_total_minor`). Cap discount at item total. `billedTotal` also caps promo. Playground `/playground/order-bill-coupon` shows wrong-vs-fixed. Regression test in `customer-orders-map.test.ts`.

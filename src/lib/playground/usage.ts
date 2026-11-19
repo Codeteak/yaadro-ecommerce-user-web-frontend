@@ -798,14 +798,22 @@ import { SavedAddressesManageList } from "@/components/delivery/SavedAddressesMa
     ],
   ),
   "address-map": U(
-    `// Map pin / location picker — see AddressBookSheet map step
-import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";`,
-    ["src/components/delivery/AddressBookSheet.tsx"],
+    `import { AddressSearchField, AddressDetectButton } from "@/components/delivery/AddressLocationControls";
+
+<AddressSearchField value={q} onChange={setQ} onSelectPlace={setPlace} />
+<AddressDetectButton detecting={busy} onDetect={detect} />`,
+    [
+      "src/components/delivery/AddressLocationControls.tsx",
+      "src/components/delivery/AddressMapStep.tsx",
+    ],
   ),
   "address-details": U(
-    `// Address form details step — see AddressBookSheet
-import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";`,
-    ["src/components/delivery/AddressBookSheet.tsx"],
+    `// Same Places suggestions + Detect on Location details
+import { AddressDetailsStep } from "@/components/delivery/AddressDetailsStep";`,
+    [
+      "src/components/delivery/AddressLocationControls.tsx",
+      "src/components/delivery/AddressDetailsStep.tsx",
+    ],
   ),
   "wishlist-list": U(
     `import { WishlistPageContent } from "@/components/wishlist/WishlistPageContent";

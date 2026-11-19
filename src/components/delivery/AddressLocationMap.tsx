@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
-import { LocateFixed, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   DEFAULT_MAP_CENTER,
   getGoogleMapsApiKey,
+  GOOGLE_MAPS_JS_LOADER,
 } from "@/lib/live-track-map";
 import {
   reverseGeocodeLatLng,
@@ -46,8 +47,9 @@ export function AddressLocationMap({
 }) {
   const apiKey = getGoogleMapsApiKey();
   const { isLoaded, loadError } = useJsApiLoader({
-    id: "yaadro-address-map",
+    id: GOOGLE_MAPS_JS_LOADER.id,
     googleMapsApiKey: apiKey ?? "",
+    libraries: GOOGLE_MAPS_JS_LOADER.libraries,
   });
 
   const initial = useMemo<LatLng>(() => {
@@ -191,34 +193,5 @@ export function AddressLocationMap({
         </div>
       ) : null}
     </div>
-  );
-}
-
-/** Locate control styled for the address sheet (parent owns detect logic). */
-export function AddressLocateButton({
-  detecting,
-  onDetect,
-  className,
-}: {
-  detecting: boolean;
-  onDetect: () => void;
-  className?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onDetect}
-      disabled={detecting}
-      aria-label="Detect my location"
-      className={cn(
-        "grid h-11 w-11 place-items-center rounded-full bg-white text-forest shadow-md ring-1 ring-forest/15 transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf disabled:opacity-70",
-        className,
-      )}
-    >
-      <LocateFixed
-        className={cn("h-5 w-5", detecting && "animate-pulse")}
-        aria-hidden
-      />
-    </button>
   );
 }

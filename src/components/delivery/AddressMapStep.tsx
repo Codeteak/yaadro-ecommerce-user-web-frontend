@@ -1,10 +1,10 @@
 "use client";
 
-import { LocateFixed, Search } from "lucide-react";
 import {
-  AddressLocateButton,
-  AddressLocationMap,
-} from "@/components/delivery/AddressLocationMap";
+  AddressDetectButton,
+  AddressSearchField,
+} from "@/components/delivery/AddressLocationControls";
+import { AddressLocationMap } from "@/components/delivery/AddressLocationMap";
 import { cn } from "@/lib/cn";
 import type { DetectedPlace } from "@/lib/saved-addresses";
 
@@ -16,7 +16,7 @@ export function AddressMapStep({
   resolving,
   notice,
   onDetect,
-  onUseSearch,
+  onSelectPlace,
   onConfirm,
   onPlaceFromMap,
   onResolving,
@@ -29,7 +29,7 @@ export function AddressMapStep({
   resolving: boolean;
   notice: string | null;
   onDetect: () => void;
-  onUseSearch: () => void;
+  onSelectPlace: (place: DetectedPlace) => void;
   onConfirm: () => void;
   onPlaceFromMap: (place: DetectedPlace) => void;
   onResolving: (busy: boolean) => void;
@@ -38,24 +38,15 @@ export function AddressMapStep({
   const busy = detecting || resolving;
 
   return (
-    <div className="flex flex-col gap-3 pb-4">
-      <form
-        className="flex h-12 items-center gap-2 rounded-2xl bg-white px-3 ring-1 ring-forest/12"
-        onSubmit={(e) => {
-          e.preventDefault();
-          onUseSearch();
-        }}
-      >
-        <Search className="h-5 w-5 shrink-0 text-muted" aria-hidden />
-        <input
-          value={searchQ}
-          onChange={(e) => onSearchQ(e.target.value)}
-          placeholder="Search city, area, street…"
-          className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted/70"
-        />
-      </form>
+    <div className="flex flex-col gap-3.5 pb-4">
+      <AddressSearchField
+        value={searchQ}
+        onChange={onSearchQ}
+        onSelectPlace={onSelectPlace}
+        disabled={busy}
+      />
 
-      <div className="relative">
+      <div className="overflow-hidden rounded-2xl ring-1 ring-forest/10 shadow-[0_8px_24px_rgba(47,107,47,0.08)]">
         <AddressLocationMap
           place={place}
           resolving={resolving}
@@ -63,24 +54,15 @@ export function AddressMapStep({
           onPlace={onPlaceFromMap}
           onNotice={onNotice}
         />
-        <AddressLocateButton
-          detecting={detecting}
-          onDetect={onDetect}
-          className="absolute right-3 bottom-3 z-[2]"
-        />
       </div>
 
-      <button
-        type="button"
-        onClick={onDetect}
-        disabled={busy}
-        className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-mint text-sm font-semibold text-forest ring-1 ring-leaf/25 transition hover:bg-leaf hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf disabled:cursor-wait disabled:opacity-70"
-      >
-        <LocateFixed className="h-4.5 w-4.5" aria-hidden />
-        {detecting ? "Detecting…" : "Detect my location"}
-      </button>
+      <AddressDetectButton
+        detecting={detecting}
+        disabled={resolving}
+        onDetect={onDetect}
+      />
 
-      <div className="rounded-[1.35rem] bg-white p-4 ring-1 ring-forest/10">
+      <div className="rounded-[1.35rem] bg-white p-4 shadow-[0_4px_14px_rgba(47,107,47,0.06)] ring-1 ring-forest/10">
         <p className="text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
           Delivering your order to
         </p>
@@ -89,7 +71,7 @@ export function AddressMapStep({
         </p>
         <p className="mt-1 text-[13px] leading-5 text-muted">
           {place?.formatted ||
-            "Tap the map, drag the pin, search an area, or detect your location."}
+            "Search an area, tap the map, or detect your location."}
         </p>
         {notice ? (
           <p className="mt-3 text-[13px] font-medium text-forest" role="status">

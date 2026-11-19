@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { BackButton } from "@/components/navigation/BackButton";
 import { CloseButton } from "@/components/navigation/CloseButton";
 import { AddressDetailsStep } from "@/components/delivery/AddressDetailsStep";
 import { AddressListStep } from "@/components/delivery/AddressListStep";
@@ -14,7 +13,6 @@ import {
 import {
   detectMyPlace,
   formatSavedAddressLine,
-  geocodeSearchQuery,
   getSavedAddress,
   listSavedAddresses,
   subscribeSavedAddresses,
@@ -189,11 +187,8 @@ function AddressBookSheetBody({
       <div className="sheet-rise absolute inset-x-0 bottom-0 mx-auto flex max-h-[94dvh] w-full max-w-lg flex-col rounded-t-[2rem] bg-paper shadow-[0_-24px_48px_rgba(47,107,47,0.35)]">
         <div className="mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full bg-forest/15" aria-hidden />
         <div className="flex shrink-0 items-center gap-2 px-4 pt-2 pb-3">
-          {step === "details" ? (
-            <BackButton onClick={() => setStep("map")} />
-          ) : (
-            <span className="size-11 shrink-0" aria-hidden />
-          )}
+          {/* Close only — no back on map or Location details. */}
+          <span className="size-11 shrink-0" aria-hidden />
           <h2 className="min-w-0 flex-1 text-center text-lg font-extrabold text-black">
             {title}
           </h2>
@@ -213,16 +208,8 @@ function AddressBookSheetBody({
               resolving={resolving}
               notice={mapNotice}
               onDetect={onDetect}
-              onUseSearch={async () => {
-                setResolving(true);
-                setMapNotice(null);
-                const result = await geocodeSearchQuery(searchQ);
-                setResolving(false);
-                if (!result.ok) {
-                  setMapNotice(result.message);
-                  return;
-                }
-                setDraftPlace(result.place);
+              onSelectPlace={(next) => {
+                setDraftPlace(next);
                 setMapNotice("Area set — confirm location to continue.");
               }}
               onConfirm={onConfirmMap}
@@ -235,6 +222,9 @@ function AddressBookSheetBody({
             <AddressDetailsStep
               place={draftPlace}
               editing={editing}
+              detecting={detecting}
+              onDetect={onDetect}
+              onPlaceChange={setDraftPlace}
               onSaved={() => {
                 const { message, tone } = LOCATION_TOASTS.addressSaved;
                 showPopup(message, tone);

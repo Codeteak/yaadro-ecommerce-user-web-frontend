@@ -24,6 +24,12 @@ export function getGoogleMapsApiKey(): string | null {
   return key ? key : null;
 }
 
+/** Shared JS API loader id + libraries (map + Places autocomplete). */
+export const GOOGLE_MAPS_JS_LOADER = {
+  id: "yaadro-address-map",
+  libraries: ["places"] as ("places")[],
+};
+
 /** Default map centre when the shopper has not picked a pin yet (Bengaluru). */
 export const DEFAULT_MAP_CENTER = {
   lat: 12.9716,

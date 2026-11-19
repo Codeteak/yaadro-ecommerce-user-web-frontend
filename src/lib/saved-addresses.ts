@@ -222,6 +222,45 @@ function mapsKey(): string | null {
   return key ? key : null;
 }
 
+type AddressComponentLike = { long_name: string; types: string[] };
+
+/** Build a DetectedPlace from geocode / Places address components. */
+export function detectedPlaceFromComponents(
+  components: AddressComponentLike[] | undefined,
+  opts: {
+    latitude: number;
+    longitude: number;
+    formatted?: string;
+    fallbackArea?: string;
+  },
+): DetectedPlace {
+  const list = components ?? [];
+  const pick = (...types: string[]) => {
+    const hit = list.find((c) => types.some((t) => c.types.includes(t)));
+    return hit?.long_name ?? "";
+  };
+
+  const street =
+    [pick("street_number"), pick("route")].filter(Boolean).join(" ") ||
+    pick("sublocality", "sublocality_level_1");
+  const area =
+    pick("sublocality", "sublocality_level_1", "neighborhood") ||
+    pick("locality") ||
+    opts.fallbackArea ||
+    "Your area";
+
+  return {
+    area,
+    street,
+    city: pick("locality"),
+    pin: pick("postal_code"),
+    landmark: pick("neighborhood", "premise"),
+    lat: opts.latitude,
+    lng: opts.longitude,
+    formatted: opts.formatted ?? "",
+  };
+}
+
 function placeFromGeocodeResults(
   results: GeocodeResult[],
   latitude: number,
@@ -237,25 +276,12 @@ function placeFromGeocodeResults(
     return "";
   };
 
-  const street =
-    [pickAcross("street_number"), pickAcross("route")]
-      .filter(Boolean)
-      .join(" ") || pickAcross("sublocality", "sublocality_level_1");
-  const area =
-    pickAcross("sublocality", "sublocality_level_1", "neighborhood") ||
-    pickAcross("locality");
-  const formatted = results[0]?.formatted_address ?? "";
-
-  return {
-    area: area || "Your area",
-    street,
-    city: pickAcross("locality"),
-    pin: pickAcross("postal_code"),
-    landmark: pickAcross("neighborhood", "premise"),
-    lat: latitude,
-    lng: longitude,
-    formatted,
-  };
+  return detectedPlaceFromComponents(results[0]?.address_components, {
+    latitude,
+    longitude,
+    formatted: results[0]?.formatted_address ?? "",
+    fallbackArea: pickAcross("locality") || undefined,
+  });
 }
 
 /** Reverse-geocode a pin when the Maps key is set. */

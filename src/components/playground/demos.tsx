@@ -403,7 +403,7 @@ function AddressBookDemo({
     <DemoFrame
       note={
         note ??
-        "Saved list (green selected + star default) → Add → stub map + Detect → details. No live Maps API."
+        "Saved list → Add → map (search + Detect in field) → details. Close (X) only — no back. No live Maps API."
       }
     >
       <div className="relative flex min-h-[20rem] flex-col items-center justify-center gap-3 bg-paper px-5 py-10">
@@ -1034,13 +1034,13 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "address-map": () => (
     <AddressBookDemo
       initialStep="map"
-      note="Select location: close (X) only — no back. Stub map + Detect (no live Maps API)."
+      note="Select location: type to see place suggestions (no Search button) + Detect card. Close (X) only."
     />
   ),
   "address-details": () => (
     <AddressBookDemo
       initialStep="map"
-      note="Detect or search, Confirm → details. Back on details returns to map."
+      note="Location details: place suggestions + Detect card (no locate in search). Close (X) only."
     />
   ),
   "categories-hub": () => <CategoriesFlowDemo start="hub" />,
