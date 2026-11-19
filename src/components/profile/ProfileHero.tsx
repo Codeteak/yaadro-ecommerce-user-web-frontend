@@ -1,14 +1,15 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { PageHeader } from "@/components/navigation/PageHeader";
-import { useShopName } from "@/components/shop/ShopNameProvider";
 import {
   hasCustomerSession,
   subscribeCustomerSession,
 } from "@/lib/api/auth";
+import { getMyProfile } from "@/lib/api/profile";
 import {
   GUEST_PROFILE_AVATAR,
   GUEST_PROFILE_AVATAR_LEGACY,
@@ -25,14 +26,26 @@ type ProfileHeroProps = {
   /** Seed for the default avatar (user id). */
   userId?: string;
   /**
-   * Real user name when auth exists. When omitted, falls back to
-   * `{shopName} Member` (supermarket brand — not Yaadro platform).
+   * Real user name when known. Playground demos pass this.
+   * On `/profile`, omitted so the hero loads displayName / name from
+   * GET /api/me/profile when signed in.
    */
   displayName?: string;
   signedInSubtitle?: string;
   /** Guest avatar. Defaults to `/icons/guest-profile.png`. */
   guestAvatarSrc?: string;
 };
+
+function profileDisplayName(profile: {
+  customer: { displayName: string | null };
+  user: { name: string | null };
+}): string | null {
+  const nickname = profile.customer.displayName?.trim();
+  if (nickname) return nickname;
+  const name = profile.user.name?.trim();
+  if (name) return name;
+  return null;
+}
 
 /**
  * Profile mint hero: guest Sign in, or signed-in default avatar + name.
@@ -46,15 +59,22 @@ export function ProfileHero({
   signedInSubtitle = "Orders, coupons and wishlist stay on this device.",
   guestAvatarSrc = GUEST_PROFILE_AVATAR,
 }: ProfileHeroProps) {
-  const shopName = useShopName();
   const session = useSyncExternalStore(
     subscribeCustomerSession,
     hasCustomerSession,
     () => false,
   );
   const signedIn = signedInProp ?? session;
-  const resolvedName = displayName?.trim() || `${shopName} Member`;
-  const avatarSrc = pickDefaultProfileAvatar(userId);
+  const propName = displayName?.trim() || null;
+  const profile = useQuery({
+    queryKey: ["profile"],
+    queryFn: ({ signal }) => getMyProfile(signal),
+    enabled: signedIn && !propName,
+  });
+  const apiName = profile.data ? profileDisplayName(profile.data) : null;
+  const resolvedName = propName || apiName || "Customer";
+  const avatarSeed = profile.data?.user.id?.trim() || userId;
+  const avatarSrc = pickDefaultProfileAvatar(avatarSeed);
   const guestSrc = guestAvatarSrc;
   const guestIsLegacyMark = guestSrc === GUEST_PROFILE_AVATAR_LEGACY;
 

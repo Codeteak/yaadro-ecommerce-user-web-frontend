@@ -900,7 +900,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "cart-page": () => (
     <DemoFrame
       surface="bare"
-      note="Same as /cart: coupon syncs Total/Checkout ₹; weight under line. Guest Checkout → login?next=/cart."
+      note="Playground SAMPLE top offers + local apply. Live /cart: shop coupons only + preview apply (no samples)."
     >
       <div className="relative h-[75vh] bg-paper">
         <CartPageContent
@@ -936,6 +936,30 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           highlightSavings
           showAmountDueBar={false}
           previewSignedIn={false}
+        />
+      </div>
+    </DemoFrame>
+  ),
+  "checkout-coupon": () => (
+    <DemoFrame
+      surface="bare"
+      note="Totals fixture with Coupon −₹ (sample). Live /checkout only shows this row after shop cart/preview applies the code — never from SAMPLE_COUPONS alone."
+    >
+      <div className="relative h-[75vh] overflow-y-auto bg-paper">
+        <CheckoutPageContent
+          chromePosition="inline"
+          showPriceMayVary
+          priceMayVaryVariant="soft"
+          highlightSavings
+          showAmountDueBar={false}
+          previewSignedIn
+          demoBill={{
+            subtotalRupees: 599,
+            couponCode: "FRESH10",
+            couponDiscountRupees: 50,
+            saveRupees: 120,
+            totalRupees: 479,
+          }}
         />
       </div>
     </DemoFrame>
@@ -1287,7 +1311,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "profile-header": () => (
-    <DemoFrame note="Wired ecom: guest uses /icons/guest-profile.png. Legacy D mark kept for compare.">
+    <DemoFrame note="Signed-in Log out opens confirm (playground dry-run). Wire confirmBeforeLogout on /profile after approve.">
       <div className="max-h-[36rem] space-y-8 overflow-y-auto overscroll-contain bg-paper pb-6">
         <div>
           <p className="px-5 pt-3 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
@@ -1312,28 +1336,30 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
         </div>
         <div>
           <p className="px-5 pt-1 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
-            Signed in · Green Basket
+            Signed in · logout confirm (playground)
           </p>
-          <ShopNameProvider name="Green Basket">
-            <ProfileHero
-              backHref="/playground"
-              signedIn
-              userId="playground-demo-user"
-            />
-            <ProfileAccountNav previewSignedIn />
-          </ShopNameProvider>
+          <ProfileHero
+            backHref="/playground"
+            signedIn
+            userId="playground-demo-user"
+            displayName="Priya Nair"
+          />
+          <ProfileAccountNav
+            previewSignedIn
+            confirmBeforeLogout
+            logoutDryRun
+          />
         </div>
         <div>
           <p className="px-5 pt-1 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
-            Signed in · City Mart
+            Signed in · nickname only
           </p>
-          <ShopNameProvider name="City Mart">
-            <ProfileHero
-              backHref="/playground"
-              signedIn
-              userId="playground-shop-b"
-            />
-          </ShopNameProvider>
+          <ProfileHero
+            backHref="/playground"
+            signedIn
+            userId="playground-shop-b"
+            displayName="Arun"
+          />
         </div>
         <div className="px-5">
           <p className="text-[11px] font-bold tracking-wide text-forest/70 uppercase">

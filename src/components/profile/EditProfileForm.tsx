@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { Mail, MapPin, Pencil, BriefcaseBusiness } from "lucide-react";
@@ -13,6 +14,7 @@ import {
 } from "@/lib/api/profile";
 import { saveMyAddress } from "@/lib/api/address";
 import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
+import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
 import { showPopup } from "@/components/ui/Toast";
 import { useSyncExternalStore } from "react";
 
@@ -143,14 +145,33 @@ export function EditProfileForm() {
     );
   }
 
+  const avatarSrc = pickDefaultProfileAvatar(
+    loaded?.user.id?.trim() || "customer",
+  );
+
   return (
     <form
-      className="mt-8 flex flex-col gap-4"
+      className="mt-6 flex flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault();
         save.mutate();
       }}
     >
+      {/* Same seeded default as ProfileHero. Photo upload not offered yet. */}
+      <div className="flex justify-center">
+        <Image
+          src={avatarSrc}
+          alt=""
+          width={112}
+          height={112}
+          unoptimized
+          className="size-28 object-cover"
+        />
+      </div>
+      {/*
+        Photo add control kept out until upload is supported:
+        <span className="absolute right-0 bottom-1 flex size-8 …"><Plus /></span>
+      */}
       <Field label="Full Name" value={nameValue} onChange={setName} autoComplete="name" icon="name" />
       <Field
         label="Nickname"

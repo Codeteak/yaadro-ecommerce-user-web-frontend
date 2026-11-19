@@ -12,6 +12,7 @@ export default function CheckoutPage() {
       showPriceMayVary
       highlightSavings
       showAmountDueBar={false}
+      liveShopPricing
     />
   );
 }

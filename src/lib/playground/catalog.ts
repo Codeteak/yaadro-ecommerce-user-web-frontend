@@ -299,7 +299,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Wired: coupon syncs Total/Checkout ₹; weight under line. Guest login gate on cart.",
+      "Playground: SAMPLE top offers + local apply. Live /cart: shop coupons only; apply via cart/preview; hide Top offers when API empty.",
     wiresTo: "/cart",
   },
   {
@@ -425,7 +425,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Wired: guest avatar /icons/guest-profile.png on /profile. Signed-in menu + Log out → /login.",
+      "Guest avatar + signed-in name. Playground Log out → confirm sheet (dry-run). Wire confirmBeforeLogout on /profile after approve.",
     wiresTo: "/profile",
   },
   {
@@ -447,6 +447,15 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     description:
       "Guest Place Order → login?next=/cart. Signed-in: Place Order press, dotted You save, no Amount due bar.",
     wiresTo: "/checkout, /login, /cart",
+  },
+  {
+    slug: "checkout-coupon",
+    title: "Checkout · coupon totals",
+    status: "built",
+    group: "Product & cart",
+    description:
+      "Playground fixture: Coupon −₹ in the bill. Live /checkout only shows that row after shop preview applies a real code.",
+    wiresTo: "/checkout",
   },
   {
     slug: "order-placed",

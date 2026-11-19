@@ -33,6 +33,7 @@ import {
   couponsBySection,
   type SampleCoupon,
 } from "@/lib/sample-coupons";
+import { confirmShopPromo } from "@/lib/shop-promo";
 
 function subscribeNever() {
   return () => undefined;
@@ -87,7 +88,8 @@ function CouponsPageBody({
 }: CouponsPageContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { applyPromo } = useCart();
+  const { applyPromo, storeShopPromo, items } = useCart();
+  const [applying, setApplying] = useState(false);
 
   const sessionSignedIn = useSyncExternalStore(
     subscribeCustomerSession,
@@ -179,6 +181,29 @@ function CouponsPageBody({
 
   const applyToCart = () => {
     if (!selected || !applyReturnHref || selected.status !== "active") return;
+    if (live) {
+      if (!signedIn) {
+        showPopup("Sign in to apply a coupon.", "warning");
+        router.push(loginHref);
+        return;
+      }
+      if (applying) return;
+      setApplying(true);
+      void confirmShopPromo(selected.code, items, selected)
+        .then((result) => {
+          if (!result.ok) {
+            setApplyMessage(result.message);
+            showPopup(result.message, "error");
+            return;
+          }
+          storeShopPromo(result.coupon);
+          showPopup(result.message, "success");
+          closeSheet();
+          router.push(applyReturnHref);
+        })
+        .finally(() => setApplying(false));
+      return;
+    }
     const result = applyPromo(selected.code, selected);
     if (!result.ok) {
       setApplyMessage(result.message);
@@ -239,12 +264,12 @@ function CouponsPageBody({
                       <button
                         type="button"
                         onClick={applyToCart}
-                        disabled={!canUse}
-                        aria-disabled={!canUse}
+                        disabled={!canUse || applying}
+                        aria-disabled={!canUse || applying}
                         className={cn(
                           "mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
                           canUse
-                            ? "cursor-pointer bg-track text-black hover:bg-leaf-bright"
+                            ? "cursor-pointer bg-track text-black hover:bg-leaf-bright disabled:cursor-wait disabled:opacity-70"
                             : "cursor-not-allowed bg-black/[0.06] text-muted",
                         )}
                       >
@@ -258,7 +283,7 @@ function CouponsPageBody({
                               className="h-4 w-4"
                               unoptimized
                             />
-                            Apply to cart
+                            {applying ? "Checking with shop…" : "Apply to cart"}
                           </>
                         ) : (
                           <>

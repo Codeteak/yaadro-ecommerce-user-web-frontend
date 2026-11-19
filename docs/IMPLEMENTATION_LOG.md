@@ -1,5 +1,21 @@
 # Implementation Log
 
+## 2026-11-19 — Logout confirm (playground first)
+
+`LogoutButton` supports `confirmBeforeLogout` + playground `dryRun`. `/playground/profile-header` signed-in nav shows Cancel / Log out sheet (toast only). Live `/profile` still logs out immediately until wired.
+
+## 2026-11-19 — Edit profile avatar matches hero
+
+`/profile/edit` uses the same `pickDefaultProfileAvatar(userId)` as `ProfileHero`. The decorative Plus “add photo” control is removed (upload not offered yet).
+
+## 2026-11-19 — Shop-authored coupons (live) + playground fixture
+
+Live `/cart` + `/checkout` + `/coupons?from=cart`: Top offers from `GET /api/storefront/coupons` only (hidden when empty); Apply confirms via `POST /api/storefront/cart/preview`; Coupon −₹ from preview `coupon_discount_minor`. Playground keeps SAMPLE top offers / local apply; `/playground/checkout-coupon` shows a totals fixture with Coupon −₹ for testers.
+
+## 2026-11-19 — Profile hero shows user name
+
+Signed-in `ProfileHero` loads `displayName` / `user.name` from `GET /api/me/profile` (shared `["profile"]` query). No more `{shopName} Member`. Playground demos pass sample names (`Priya Nair`, `Arun`).
+
 ## 2026-11-19 — Home load streaming (#3) + deferred location (#7)
 
 `/home` streams in three Suspense bands: hero (shop SEO), category rail (`listStoreCategories` only), then product shelves (`loadHomeCatalog`). `#7` mounts `DeferredLocationPrompt` on `/home` (opens address sheet after paint when Deliver to is empty). Playground deferred-location + home-pull notes updated.

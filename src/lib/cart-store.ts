@@ -299,11 +299,11 @@ export function getTotalsSnapshot(): CartTotals {
   let appliedPromo: SampleCoupon | null = null;
   let promoDiscount = 0;
   if (promoCoupon) {
+    // Keep the selected code so live cart preview can re-price it.
+    // Local discount is playground / optimistic only — production bill uses shop quote.
+    appliedPromo = promoCoupon;
     const result = applyKnownCoupon(promoCoupon, subtotal);
-    if (result.ok) {
-      appliedPromo = result.coupon;
-      promoDiscount = result.discount;
-    }
+    promoDiscount = result.ok ? result.discount : 0;
   }
   totals = {
     count,
@@ -340,6 +340,11 @@ export function applyCartPromo(code: string, known?: SampleCoupon) {
     code: result.coupon.code,
     message: `Applied ${result.coupon.code} — you save ₹${result.discount}`,
   };
+}
+
+/** Persist a shop-confirmed coupon (no local min-order / discount math). */
+export function storeShopPromo(coupon: SampleCoupon) {
+  writePromo(coupon);
 }
 
 export function peekCartPromoCode(): string | null {

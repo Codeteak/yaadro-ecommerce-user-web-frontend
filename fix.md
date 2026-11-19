@@ -33,3 +33,4 @@
 | **25** | Open | DMS-based API format + `.env` variable |
 | **26** | Open | Location-based toaster messages |
 | — | Note | Help contact still uses env until shop support API exists |
+| — | Done | Live coupons from shop API only; playground keeps samples + `/playground/checkout-coupon` |

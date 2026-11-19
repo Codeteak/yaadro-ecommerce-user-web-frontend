@@ -536,29 +536,51 @@ export default function NotFound() {
   "profile-header": U(
     `import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ProfileAccountNav } from "@/components/profile/ProfileAccountNav";
-import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
 
 import { GUEST_PROFILE_AVATAR } from "@/lib/default-profile-avatar";
 
-// Wired on /profile — default guest avatar
+// Wired on /profile — guest avatar; signed-in loads name from GET /api/me/profile
 <ProfileHero signedIn={false} />
 // or explicit: guestAvatarSrc={GUEST_PROFILE_AVATAR}
 <ProfileAccountNav previewSignedIn={false} />
 
-// Signed-in: full menu; Log out → replace("/login")
-<ShopNameProvider name="Green Basket">
-  <ProfileHero signedIn userId="user-123" />
-  <ProfileAccountNav previewSignedIn />
-</ShopNameProvider>`,
+// Playground: logout confirm first (dry-run). Wire confirmBeforeLogout on /profile after approve.
+<ProfileHero signedIn userId="user-123" displayName="Priya Nair" />
+<ProfileAccountNav previewSignedIn confirmBeforeLogout logoutDryRun />
+
+// After confirm — live /profile:
+// <ProfileAccountNav confirmBeforeLogout />`,
     [
       "src/components/profile/ProfileHero.tsx",
       "src/components/profile/ProfileAccountNav.tsx",
       "src/components/profile/LogoutButton.tsx",
-      "src/components/shop/ShopNameProvider.tsx",
+      "src/lib/api/profile.ts",
       "src/lib/default-profile-avatar.ts",
       "public/icons/guest-profile.png",
       "public/avatars/",
     ],
+  ),
+  "checkout-coupon": U(
+    `import { CheckoutPageContent } from "@/components/checkout/CheckoutPageContent";
+
+// Playground fixture — Coupon −₹ visible for testers
+<CheckoutPageContent
+  chromePosition="inline"
+  highlightSavings
+  showAmountDueBar={false}
+  previewSignedIn
+  demoBill={{
+    subtotalRupees: 599,
+    couponCode: "FRESH10",
+    couponDiscountRupees: 50,
+    saveRupees: 120,
+    totalRupees: 479,
+  }}
+/>
+
+// Live: Coupon row only when cart/preview status is applied
+<CheckoutPageContent liveShopPricing showAmountDueBar={false} />`,
+    ["src/components/checkout/CheckoutPageContent.tsx"],
   ),
   checkout: U(
     `import { CheckoutPageContent } from "@/components/checkout/CheckoutPageContent";

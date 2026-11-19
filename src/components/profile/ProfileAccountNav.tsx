@@ -22,14 +22,22 @@ const guestItems = [
 type ProfileAccountNavProps = {
   /** Playground override. Omit on storefront to follow the real session. */
   previewSignedIn?: boolean;
+  /** Playground: show Log out confirm sheet. Wire on `/profile` after confirm. */
+  confirmBeforeLogout?: boolean;
+  /** Playground: confirm toasts only (no session clear). */
+  logoutDryRun?: boolean;
 };
 
 /**
  * Account links under the profile hero.
  * Guests only see Help & Support (no Log out / My Profile / Address).
- * Log out → `/login` (phone step).
+ * Log out → `/login` (phone step) when confirm is off or after confirm on ecom.
  */
-export function ProfileAccountNav({ previewSignedIn }: ProfileAccountNavProps = {}) {
+export function ProfileAccountNav({
+  previewSignedIn,
+  confirmBeforeLogout = false,
+  logoutDryRun = false,
+}: ProfileAccountNavProps = {}) {
   const sessionSignedIn = useSyncExternalStore(
     subscribeCustomerSession,
     hasCustomerSession,
@@ -51,7 +59,12 @@ export function ProfileAccountNav({ previewSignedIn }: ProfileAccountNavProps = 
           <ChevronRight aria-hidden className="size-5 text-muted" />
         </Link>
       ))}
-      {signedIn ? <LogoutButton /> : null}
+      {signedIn ? (
+        <LogoutButton
+          confirmBeforeLogout={confirmBeforeLogout}
+          dryRun={logoutDryRun}
+        />
+      ) : null}
     </nav>
   );
 }

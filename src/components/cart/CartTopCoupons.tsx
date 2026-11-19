@@ -27,11 +27,13 @@ type CartTopCouponsProps = {
   refined?: boolean;
   /** Hide the “Top offers” heading when nested under the coupon apply shell. */
   embedded?: boolean;
+  /** Live: shop coupons. Omit → SAMPLE_COUPONS (playground). */
+  coupons?: SampleCoupon[];
 };
 
 /**
  * First 2 active coupons with min-order copy on cart.
- * Tap Apply runs the same local promo path as the code field.
+ * Live passes shop coupons; playground omits and uses samples.
  */
 export function CartTopCoupons({
   subtotal,
@@ -40,8 +42,9 @@ export function CartTopCoupons({
   className,
   refined = false,
   embedded = false,
+  coupons: couponsProp,
 }: CartTopCouponsProps) {
-  const coupons = topActiveCoupons();
+  const coupons = topActiveCoupons(couponsProp);
   if (coupons.length === 0) return null;
 
   return (
