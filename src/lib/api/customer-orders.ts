@@ -5,7 +5,11 @@
  */
 
 import { request } from "@/lib/api/client";
+import { addressLabel } from "@/lib/api/order-address";
+import { PRODUCT_IMAGE_FALLBACK } from "@/lib/product-image";
 import type { OrderStatus, SampleOrder, SampleOrderLine } from "@/lib/sample-orders";
+
+export { addressLabel } from "@/lib/api/order-address";
 
 type RawItem = {
   product_id?: string;
@@ -15,6 +19,12 @@ type RawItem = {
   line_total_minor?: number;
   list_price_minor?: number;
   unit_price_minor_snapshot?: number;
+  /** Image URL variants shops may return on a line. */
+  product_image_url?: string | null;
+  product_image_snapshot?: string | null;
+  image_url?: string | null;
+  image?: string | null;
+  thumbnail_url?: string | null;
 };
 
 type RawOrder = {
@@ -47,21 +57,42 @@ function mapStatus(status: string | undefined): OrderStatus {
   return "placed";
 }
 
-function addressLabel(value: unknown): { label: string; detail: string } {
-  if (!value || typeof value !== "object") return { label: "Delivery address", detail: "" };
-  const row = value as Record<string, unknown>;
-  const parts = [row.line1, row.line2, row.landmark, row.city]
-    .filter((part): part is string => typeof part === "string" && part.trim().length > 0);
-  return {
-    label: parts[0] ?? "Delivery address",
-    detail: parts.slice(1).join(", "),
-  };
+function pickText(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+function pickImage(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      const raw = value.trim();
+      if (/,https?:\/\//i.test(raw)) {
+        return raw.split(/,(?=https?:\/\/)/i)[0]?.trim() || "";
+      }
+      return raw;
+    }
+    if (value && typeof value === "object") {
+      const row = value as Record<string, unknown>;
+      const nested = pickText(row.url, row.imageUrl, row.image_url, row.src);
+      if (nested) return nested;
+    }
+  }
+  return "";
 }
 
 function mapLine(item: RawItem): SampleOrderLine {
   const qty = Number(item.quantity);
   const lineTotal = rupees(item.line_total_minor);
   const list = rupees(item.list_price_minor ?? item.unit_price_minor_snapshot);
+  const image = pickImage(
+    item.product_image_url,
+    item.product_image_snapshot,
+    item.image_url,
+    item.image,
+    item.thumbnail_url,
+  );
   return {
     productId: item.product_id ?? "",
     name: item.product_name_snapshot,
@@ -69,6 +100,7 @@ function mapLine(item: RawItem): SampleOrderLine {
     isWeight: item.sold_by_weight === true,
     lineTotal,
     lineMrp: Math.max(lineTotal, list * (Number.isFinite(qty) ? qty : 1)),
+    image: image || undefined,
   };
 }
 
@@ -88,6 +120,12 @@ export function mapCustomerOrder(raw: RawOrder): SampleOrder | null {
   const status = mapStatus(raw.status);
   const subtotal = rupees(raw.subtotal_minor);
   const discount = rupees(raw.promotion_discount_total_minor);
+  const deliveryFee = rupees(raw.delivery_fee_minor);
+  let totalDue = rupees(raw.total_minor);
+  // Some responses leave total equal to subtotal even when a promo was applied.
+  if (discount > 0 && totalDue >= subtotal) {
+    totalDue = Math.max(0, subtotal - discount) + deliveryFee;
+  }
   return {
     id: raw.id,
     number: raw.order_number ?? raw.id.slice(0, 8).toUpperCase(),
@@ -101,8 +139,8 @@ export function mapCustomerOrder(raw: RawOrder): SampleOrder | null {
     subtotal,
     promoCode: raw.coupon_code ?? undefined,
     promoDiscount: discount,
-    totalDue: rupees(raw.total_minor),
-    deliveryFee: rupees(raw.delivery_fee_minor),
+    totalDue,
+    deliveryFee,
     timeline: [{ key: status, label: placedAtLabel, at: placedAtLabel }],
   };
 }
@@ -130,4 +168,9 @@ export async function getCustomerOrder(id: string, signal?: AbortSignal): Promis
   const order = body.order ?? (body as RawOrder);
   if (!order?.id && body.order) return null;
   return mapCustomerOrder({ ...order, items: order.items ?? body.items });
+}
+
+/** Fallback thumb when API/sample/snapshot have no photo. */
+export function orderLineImageFallback(): string {
+  return PRODUCT_IMAGE_FALLBACK;
 }

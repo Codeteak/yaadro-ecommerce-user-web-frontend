@@ -1,3 +1,9 @@
+/** Guest profile avatar on /profile when signed out. */
+export const GUEST_PROFILE_AVATAR = "/icons/guest-profile.png" as const;
+
+/** Previous Yaadro D mark — playground comparison only. */
+export const GUEST_PROFILE_AVATAR_LEGACY = "/onboarding/brand-mark-white-y.svg" as const;
+
 /**
  * Default illustrated avatars for signed-in users without a photo.
  * One is picked in code from the seed (user id) so the same person

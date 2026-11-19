@@ -74,6 +74,48 @@ import { useScrollDirection } from "@/components/navigation/useScrollDirection";
       "public/icons/profile-signed-in.svg",
     ],
   ),
+  "deferred-location": U(
+    `import { DeferredLocationPrompt } from "@/components/delivery/DeferredLocationPrompt";
+
+// Wired on /home — open address book if no Deliver to
+<DeferredLocationPrompt />
+// Playground: <DeferredLocationPrompt forcePreview delayMs={900} />`,
+    [
+      "src/components/delivery/DeferredLocationPrompt.tsx",
+      "src/components/delivery/AddressBookSheet.tsx",
+      "src/app/(storefront)/home/page.tsx",
+    ],
+  ),
+  "help-support": U(
+    `import { HelpSupportContent } from "@/components/profile/HelpSupportContent";
+import { getShopSupportContact } from "@/lib/shop-support";
+
+// Ecom /profile/support
+const contact = await getShopSupportContact();
+<HelpSupportContent contact={contact} backHref="/profile" />
+
+// Playground: SAMPLE_SHOP_SUPPORT
+// Optional until API: NEXT_PUBLIC_SHOP_SUPPORT_PHONE / _ADDRESS / _MAPS_URL`,
+    [
+      "src/components/profile/HelpSupportContent.tsx",
+      "src/lib/shop-support.ts",
+      "src/lib/sample-shop-support.ts",
+      "src/app/(storefront)/profile/support/page.tsx",
+      "public/icons/support.png",
+    ],
+  ),
+  "shop-fallback-avatars": U(
+    `import { SHOP_IMAGE_FALLBACK } from "@/lib/shop-fallback-avatars";
+
+// Wired on getShopSeo + storefront resolve (no shop_image → this path)
+// SHOP_IMAGE_FALLBACK === "/icons/shop-fallback-awning-yellow.png"`,
+    [
+      "src/lib/shop-fallback-avatars.ts",
+      "src/lib/shop-seo.ts",
+      "src/lib/api/storefront.ts",
+      "public/icons/shop-fallback-awning-yellow.png",
+    ],
+  ),
   search: U(
     `import { HomeSearchBar } from "@/components/home/HomeSearchBar";
 
@@ -348,12 +390,14 @@ import { WishlistProvider } from "@/components/wishlist/WishlistContext";
   "cart-page": U(
     `import { CartPageContent } from "@/components/cart/CartPageContent";
 
-{/* Guest Checkout → /login?next=/cart (previewSignedIn forces guest in playground) */}
+{/* Phase A playground: syncCheckoutTotal + weightAtBottom — confirm before ecom */}
 <CartPageContent
   showPriceMayVary
   showCartSuggestions
   couponPickerHref="/coupons?from=cart"
-  previewSignedIn={false}
+  previewSignedIn
+  weightAtBottom
+  syncCheckoutTotal
 />`,
     [
       "src/app/(storefront)/cart/page.tsx",
@@ -413,15 +457,23 @@ import { OtpInput } from "@/features/auth/OtpInput";
     ["src/features/auth/PhoneInput.tsx", "src/features/auth/OtpInput.tsx"],
   ),
   "login-form": U(
-    `// Full login flow UI — see /login page composition
-// Phone → OTP → VerifiedSuccess`,
+    `import { LoginForm } from "@/features/auth/LoginForm";
+import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
+
+// /login wraps getShopSeo → ShopNameProvider; after OTP → Welcome to {shop} → /home
+<ShopNameProvider name="Green Basket">
+  <LoginForm />
+</ShopNameProvider>`,
     ["src/app/login/page.tsx", "src/features/auth/"],
   ),
   "verified-success": U(
     `import { VerifiedSuccess } from "@/features/auth/VerifiedSuccess";
 
-<VerifiedSuccess />`,
-    ["src/features/auth/VerifiedSuccess.tsx"],
+// OTP in flight — spinner, no check
+<VerifiedSuccess shopName="Green Basket" status="confirming" />
+// After verify — check + Welcome to Green Basket
+<VerifiedSuccess shopName="Green Basket" status="success" />`,
+    ["src/features/auth/VerifiedSuccess.tsx", "src/features/auth/LoginForm.tsx"],
   ),
   "coming-soon": U(
     `import { ComingSoonPage } from "@/components/storefront/ComingSoonPage";
@@ -483,19 +535,28 @@ export default function NotFound() {
   ),
   "profile-header": U(
     `import { ProfileHero } from "@/components/profile/ProfileHero";
+import { ProfileAccountNav } from "@/components/profile/ProfileAccountNav";
 import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
-import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
 
-<ProfileHero />
-{/* Falls back to "{shopName} Member" until auth provides a real name */}
+import { GUEST_PROFILE_AVATAR } from "@/lib/default-profile-avatar";
+
+// Wired on /profile — default guest avatar
+<ProfileHero signedIn={false} />
+// or explicit: guestAvatarSrc={GUEST_PROFILE_AVATAR}
+<ProfileAccountNav previewSignedIn={false} />
+
+// Signed-in: full menu; Log out → replace("/login")
 <ShopNameProvider name="Green Basket">
   <ProfileHero signedIn userId="user-123" />
-</ShopNameProvider>
-<ProfileHero signedIn userId="user-123" displayName="Priya Nair" />`,
+  <ProfileAccountNav previewSignedIn />
+</ShopNameProvider>`,
     [
       "src/components/profile/ProfileHero.tsx",
+      "src/components/profile/ProfileAccountNav.tsx",
+      "src/components/profile/LogoutButton.tsx",
       "src/components/shop/ShopNameProvider.tsx",
       "src/lib/default-profile-avatar.ts",
+      "public/icons/guest-profile.png",
       "public/avatars/",
     ],
   ),
@@ -542,7 +603,13 @@ import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
     `import { OrderDetailPageContent } from "@/components/orders/OrderDetailPageContent";
 
 // Classic order details (not live track)
-<OrderDetailPageContent orderId="ord-1042" backHref="/orders" shopHref="/home" />
+<OrderDetailPageContent
+  orderId="ord-1042"
+  backHref="/orders"
+  shopHref="/home"
+  nestedLinesScroll
+/>
+// Long bill preview: /playground/order-detail?id=ord-1050
 // Track order → /orders/ord-1042/track
 // Receipt / Download bill → OrderTicketBill`,
     [

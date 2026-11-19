@@ -18,6 +18,8 @@ export default function CartPage() {
       topCouponsRefined
       showMinCartValue
       minCartValueRupees={499}
+      weightAtBottom
+      syncCheckoutTotal
     />
   );
 }

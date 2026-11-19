@@ -5,14 +5,22 @@ import { Suspense } from "react";
 import { ViewTransition } from "react";
 import { BackButton } from "@/components/navigation/BackButton";
 import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
+import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
 import { LoginForm } from "@/features/auth/LoginForm";
+import { getShopSeo } from "@/lib/shop-seo";
 
 export const metadata: Metadata = {
   title: "Login",
   description: "Sign in to Yaadro with your mobile number.",
 };
 
-export default function LoginPage() {
+/**
+ * `getShopSeo()` reads `headers()` — keep it behind Suspense so /login
+ * can still prerender an Instant shell (same pattern as /profile).
+ */
+async function LoginPageBody() {
+  const shop = await getShopSeo();
+
   return (
     <ViewTransition
       exit={{
@@ -21,63 +29,73 @@ export default function LoginPage() {
       }}
       default="none"
     >
-    <main className="relative flex min-h-dvh flex-col overflow-hidden bg-paper">
-      <GreenCornerAccents intensity="soft" />
+      <ShopNameProvider name={shop.name}>
+        <main className="relative flex min-h-dvh flex-col overflow-hidden bg-paper">
+          <GreenCornerAccents intensity="soft" />
 
-      <div className="relative z-10 mx-auto flex h-dvh w-full max-w-md flex-col px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
-        {/* Fixed chrome — login does not scroll; avoid sticky PageHeader. */}
-        <header className="relative flex h-11 w-full shrink-0 items-center">
-          <BackButton
-            href="/home"
-            className="absolute top-1/2 left-0 z-10 -translate-y-1/2"
-          />
-          <Image
-            src="/onboarding/brand-logo.svg"
-            alt="Yaadro"
-            width={40}
-            height={48}
-            priority
-            unoptimized
-            className="mx-auto h-9 w-auto object-contain"
-          />
-        </header>
+          <div className="relative z-10 mx-auto flex h-dvh w-full max-w-md flex-col px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+            {/* Fixed chrome — login does not scroll; avoid sticky PageHeader. */}
+            <header className="relative flex h-11 w-full shrink-0 items-center">
+              <BackButton
+                href="/home"
+                className="absolute top-1/2 left-0 z-10 -translate-y-1/2"
+              />
+              <Image
+                src="/onboarding/brand-logo.svg"
+                alt={shop.name}
+                width={40}
+                height={48}
+                priority
+                unoptimized
+                className="mx-auto h-9 w-auto object-contain"
+              />
+            </header>
 
-        {/* Hero fills leftover space above the content-sized login panel */}
-        <div className="relative mt-1 mb-2 min-h-0 w-full flex-1">
-          <div className="relative mx-auto h-full w-full max-w-sm">
-            <div
-              className="pointer-events-none absolute inset-[10%] rounded-full bg-[radial-gradient(circle_at_50%_45%,rgba(220,252,231,0.85)_0%,rgba(187,247,208,0.35)_45%,transparent_72%)]"
-              aria-hidden
-            />
-            <Image
-              src="/onboarding/image-hero.png"
-              alt="Canvas tote bag filled with fresh groceries"
-              fill
-              priority
-              unoptimized
-              sizes="(max-width: 768px) 100vw, 420px"
-              className="object-contain drop-shadow-[0_10px_20px_rgba(47,107,47,0.1)]"
-            />
+            {/* Hero fills leftover space above the content-sized login panel */}
+            <div className="relative mt-1 mb-2 min-h-0 w-full flex-1">
+              <div className="relative mx-auto h-full w-full max-w-sm">
+                <div
+                  className="pointer-events-none absolute inset-[10%] rounded-full bg-[radial-gradient(circle_at_50%_45%,rgba(220,252,231,0.85)_0%,rgba(187,247,208,0.35)_45%,transparent_72%)]"
+                  aria-hidden
+                />
+                <Image
+                  src="/onboarding/image-hero.png"
+                  alt="Canvas tote bag filled with fresh groceries"
+                  fill
+                  priority
+                  unoptimized
+                  sizes="(max-width: 768px) 100vw, 420px"
+                  className="object-contain drop-shadow-[0_10px_20px_rgba(47,107,47,0.1)]"
+                />
+              </div>
+            </div>
+
+            {/* Content-height panel pinned to bottom — do not use flex-1 or it climbs the screen */}
+            <section className="login-panel-enter relative -mx-3 shrink-0 rounded-t-[1.75rem] bg-paper px-1 pt-3 pb-1 shadow-[0_-12px_40px_rgba(47,107,47,0.1)] ring-1 ring-black/5">
+              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-ink/15" aria-hidden />
+              <div className="px-4 pb-2">
+                <Suspense fallback={<div className="h-40" />}>
+                  <LoginForm />
+                </Suspense>
+                <Link
+                  href="/home"
+                  className="mt-5 mb-1 block text-center text-sm font-medium text-muted transition hover:text-leaf focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+                >
+                  Continue without login
+                </Link>
+              </div>
+            </section>
           </div>
-        </div>
-
-        {/* Content-height panel pinned to bottom — do not use flex-1 or it climbs the screen */}
-        <section className="login-panel-enter relative -mx-3 shrink-0 rounded-t-[1.75rem] bg-paper px-1 pt-3 pb-1 shadow-[0_-12px_40px_rgba(47,107,47,0.1)] ring-1 ring-black/5">
-          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-ink/15" aria-hidden />
-          <div className="px-4 pb-2">
-            <Suspense fallback={<div className="h-40" />}>
-              <LoginForm />
-            </Suspense>
-            <Link
-              href="/home"
-              className="mt-5 mb-1 block text-center text-sm font-medium text-muted transition hover:text-leaf focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-            >
-              Continue without login
-            </Link>
-          </div>
-        </section>
-      </div>
-    </main>
+        </main>
+      </ShopNameProvider>
     </ViewTransition>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageBody />
+    </Suspense>
   );
 }

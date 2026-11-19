@@ -52,7 +52,14 @@ export function deliveryCharge(order: SampleOrder): number {
 }
 
 export function billedTotal(order: SampleOrder): number {
-  return order.totalDue + deliveryCharge(order);
+  const ship = deliveryCharge(order);
+  // Prefer derived total when API total still equals subtotal despite a promo.
+  if (order.promoDiscount > 0 && order.totalDue >= order.subtotal) {
+    return Math.max(0, order.subtotal - order.promoDiscount) + ship;
+  }
+  // Live orders set deliveryFee; totalDue is usually the payable amount.
+  if (typeof order.deliveryFee === "number") return order.totalDue;
+  return order.totalDue + ship;
 }
 
 export function clockish(at?: string): string {

@@ -23,6 +23,8 @@ export type SampleOrderLine = {
   /** Snapshot selling price for the line (sample). */
   lineTotal: number;
   lineMrp: number;
+  /** Product photo from the shop API (or local snapshot). */
+  image?: string;
 };
 
 export type OrderTimelineStep = {
@@ -348,6 +350,52 @@ export const SAMPLE_ORDERS: SampleOrder[] = [
     progressTimes: {
       received: "18 Oct · 2:15 PM",
       confirmed: "18 Oct · 2:22 PM",
+    },
+  },
+  {
+    id: "ord-1050",
+    number: "YAD-1050",
+    placedAtLabel: "Today · 9:05 AM",
+    status: "delivered",
+    paymentLabel: "UPI",
+    addressLabel: "Home",
+    addressDetail: "arine amaryllis 101, Begur, Bengaluru 560114",
+    lines: [
+      { productId: "fr-1", qty: 2, lineTotal: 0, lineMrp: 0 },
+      { productId: "fr-2", qty: 1, isWeight: true, lineTotal: 0, lineMrp: 0 },
+      { productId: "fr-4", qty: 3, lineTotal: 0, lineMrp: 0 },
+      { productId: "vg-1", qty: 1, isWeight: true, lineTotal: 0, lineMrp: 0 },
+      { productId: "vg-3", qty: 1.5, isWeight: true, lineTotal: 0, lineMrp: 0 },
+      { productId: "vg-5", qty: 2, isWeight: true, lineTotal: 0, lineMrp: 0 },
+      { productId: "bk-1", qty: 1, lineTotal: 0, lineMrp: 0 },
+      { productId: "de-1", qty: 2, lineTotal: 0, lineMrp: 0 },
+      { productId: "bv-1", qty: 1, lineTotal: 0, lineMrp: 0 },
+      { productId: "bv-2", qty: 2, lineTotal: 0, lineMrp: 0 },
+      { productId: "sn-1", qty: 2, lineTotal: 0, lineMrp: 0 },
+      { productId: "sn-2", qty: 1, lineTotal: 0, lineMrp: 0 },
+    ],
+    mrpTotal: 0,
+    subtotal: 0,
+    promoCode: "FRESH10",
+    promoDiscount: 0,
+    totalDue: 0,
+    timeline: [
+      { key: "placed", label: "Order placed", at: "Today · 9:05 AM" },
+      { key: "packed", label: "Packed", at: "Today · 9:25 AM" },
+      { key: "out_for_delivery", label: "Out for delivery", at: "Today · 9:50 AM" },
+      { key: "delivered", label: "Delivered", at: "Today · 10:20 AM" },
+    ],
+    progressTimes: {
+      received: "Today · 9:05 AM",
+      confirmed: "Today · 9:12 AM",
+      processed: "Today · 9:25 AM",
+      shipped: "Today · 9:50 AM",
+      delivered: "Today · 10:20 AM",
+    },
+    rider: {
+      name: "Abhinav Aneesh",
+      initial: "A",
+      phone: "+91 98765 01234",
     },
   },
 ];

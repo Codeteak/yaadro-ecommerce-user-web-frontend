@@ -33,7 +33,12 @@ async function OrderDetailContent({ params }: OrderPageProps) {
   const shop = await getShopSeo();
   return (
     <ShopNameProvider name={shop.name}>
-      <OrderDetailPageContent orderId={id} backHref="/orders" shopHref="/home" />
+      <OrderDetailPageContent
+        orderId={id}
+        backHref="/orders"
+        shopHref="/home"
+        nestedLinesScroll
+      />
     </ShopNameProvider>
   );
 }

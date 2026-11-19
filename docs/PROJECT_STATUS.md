@@ -29,7 +29,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 
 - `/` — onboarding
 - `/login` — login stub
-- `/home`, `/categories`, `/categories/[slug]`, `/events`, `/wishlist`, `/profile`, `/cart`, `/coupons`, `/checkout`, `/orders`
+- `/home`, `/categories`, `/categories/[slug]`, `/events`, `/wishlist`, `/profile`, `/profile/support`, `/cart`, `/coupons`, `/checkout`, `/orders`
 - `/orders/[id]` — classic order detail (sample)
 - `/orders/[id]/track` — live tracking (separate from order details)
 - `/product/[id]` — PDP

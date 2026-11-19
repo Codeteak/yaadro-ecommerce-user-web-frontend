@@ -13,7 +13,13 @@ async function OrdersPageBody() {
   const shop = await getShopSeo();
   return (
     <ShopNameProvider name={shop.name}>
-      <OrdersPageContent live />
+      <OrdersPageContent
+        live
+        highlightStatus
+        showOrderId
+        backHref="/profile"
+        shopHref="/home"
+      />
     </ShopNameProvider>
   );
 }

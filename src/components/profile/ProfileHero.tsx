@@ -9,7 +9,11 @@ import {
   hasCustomerSession,
   subscribeCustomerSession,
 } from "@/lib/api/auth";
-import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
+import {
+  GUEST_PROFILE_AVATAR,
+  GUEST_PROFILE_AVATAR_LEGACY,
+  pickDefaultProfileAvatar,
+} from "@/lib/default-profile-avatar";
 
 type ProfileHeroProps = {
   backHref?: string;
@@ -26,6 +30,8 @@ type ProfileHeroProps = {
    */
   displayName?: string;
   signedInSubtitle?: string;
+  /** Guest avatar. Defaults to `/icons/guest-profile.png`. */
+  guestAvatarSrc?: string;
 };
 
 /**
@@ -38,6 +44,7 @@ export function ProfileHero({
   userId = "customer",
   displayName,
   signedInSubtitle = "Orders, coupons and wishlist stay on this device.",
+  guestAvatarSrc = GUEST_PROFILE_AVATAR,
 }: ProfileHeroProps) {
   const shopName = useShopName();
   const session = useSyncExternalStore(
@@ -48,6 +55,8 @@ export function ProfileHero({
   const signedIn = signedInProp ?? session;
   const resolvedName = displayName?.trim() || `${shopName} Member`;
   const avatarSrc = pickDefaultProfileAvatar(userId);
+  const guestSrc = guestAvatarSrc;
+  const guestIsLegacyMark = guestSrc === GUEST_PROFILE_AVATAR_LEGACY;
 
   return (
     <section className="relative rounded-b-[2.5rem] bg-gradient-to-b from-mint via-[#eef6ee] to-paper">
@@ -82,16 +91,27 @@ export function ProfileHero({
             </>
           ) : (
             <>
-              <div className="flex size-28 items-center justify-center rounded-full bg-white shadow-[0_10px_30px_rgba(47,107,47,0.12)] ring-1 ring-leaf/15">
+              {guestIsLegacyMark ? (
+                <div className="flex size-28 items-center justify-center rounded-full bg-white shadow-[0_10px_30px_rgba(47,107,47,0.12)] ring-1 ring-leaf/15">
+                  <Image
+                    src={guestSrc}
+                    alt=""
+                    width={58}
+                    height={69}
+                    unoptimized
+                    className="h-16 w-auto object-contain"
+                  />
+                </div>
+              ) : (
                 <Image
-                  src="/onboarding/brand-mark-white-y.svg"
+                  src={guestSrc}
                   alt=""
-                  width={58}
-                  height={69}
+                  width={112}
+                  height={112}
                   unoptimized
-                  className="h-16 w-auto object-contain"
+                  className="size-28 rounded-full object-cover shadow-[0_10px_30px_rgba(47,107,47,0.12)] ring-1 ring-leaf/15"
                 />
-              </div>
+              )}
               <h2 className="mt-4 text-[22px] leading-7 font-bold tracking-tight text-forest">
                 Guest User
               </h2>

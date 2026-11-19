@@ -53,9 +53,17 @@ import { STOREFRONT_NAV_HIDDEN_PATHS } from "@/lib/storefront-nav";
 import { OrdersPageContent } from "@/components/orders/OrdersPageContent";
 import { OrderDetailPageContent } from "@/components/orders/OrderDetailPageContent";
 import { LiveOrderTrackDemo } from "@/components/orders/LiveOrderTrack";
+import { DeferredLocationPrompt } from "@/components/delivery/DeferredLocationPrompt";
+import { HelpSupportContent } from "@/components/profile/HelpSupportContent";
+import { ProfileAccountNav } from "@/components/profile/ProfileAccountNav";
 import { ProfileHero } from "@/components/profile/ProfileHero";
+import { SAMPLE_SHOP_SUPPORT } from "@/lib/sample-shop-support";
 import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
-import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
+import {
+  GUEST_PROFILE_AVATAR,
+  GUEST_PROFILE_AVATAR_LEGACY,
+  pickDefaultProfileAvatar,
+} from "@/lib/default-profile-avatar";
 import { SwipeToLogin } from "@/components/onboarding/SwipeToLogin";
 import { OnboardingScreen } from "@/components/onboarding/OnboardingScreen";
 import { GreenCornerAccents } from "@/components/onboarding/GreenCornerAccents";
@@ -84,6 +92,10 @@ import { getPlaygroundEntry } from "@/lib/playground/catalog";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { TYPE_SCALE } from "@/lib/type-scale";
 import { ToastDemo } from "@/components/playground/ToastDemo";
+import {
+  SHOP_FALLBACK_AVATAR_OPTIONS,
+  SHOP_IMAGE_FALLBACK_CURRENT,
+} from "@/lib/shop-fallback-avatars";
 import { DemoFrame } from "./DemoFrame";
 import { PlannedStub } from "./PlannedStub";
 
@@ -410,11 +422,11 @@ function AddressBookDemo({
 }
 
 function OrderDetailLeadDemo() {
-  const id = useSearchParams().get("id") ?? "ord-1038";
+  const id = useSearchParams().get("id") ?? "ord-1050";
   return (
-    <DemoFrame note="Same as /orders/[id]. Track → track page. Pre-partner: waiting copy (see /playground/live-order-track Accepted).">
+    <DemoFrame note="Wired ecom: nested lines scroll (5+); hint when 7+. Default ord-1050.">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain bg-white">
-        <OrderDetailPageContent orderId={id} ticketBill />
+        <OrderDetailPageContent orderId={id} ticketBill nestedLinesScroll />
       </div>
     </DemoFrame>
   );
@@ -498,6 +510,120 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           On /home it sets <code className="text-forest">scrollRestoration = manual</code>{" "}
           and scrolls to (0, 0) so refresh always shows the hero.
         </p>
+      </div>
+    </DemoFrame>
+  ),
+  "shop-fallback-avatars": () => (
+    <DemoFrame note="Wired ecom: yellow awning (SHOP_IMAGE_FALLBACK). Other candidates kept for swap.">
+      <div className="space-y-8 bg-gradient-to-b from-mint via-[#d4efd4] to-paper px-4 py-6">
+        <div>
+          <p className="mb-3 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Wired ecom fallback
+          </p>
+          <HomeTopBar
+            shopName="Yaadro"
+            shopImage="/icons/shop-fallback-awning-yellow.png"
+            signedIn={false}
+          />
+          <div className="mt-4 flex justify-center">
+            <Image
+              src="/icons/shop-fallback-awning-yellow.png"
+              alt=""
+              width={96}
+              height={96}
+              unoptimized
+              className="size-24 rounded-full bg-white object-contain p-2 ring-2 ring-white shadow-[0_8px_24px_rgba(47,107,47,0.12)]"
+            />
+          </div>
+          <p className="mt-2 text-center text-[12px] font-medium text-muted">
+            /icons/shop-fallback-awning-yellow.png
+          </p>
+        </div>
+        <div>
+          <p className="mb-3 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Previous (og-image)
+          </p>
+          <HomeTopBar
+            shopName="Yaadro"
+            shopImage={SHOP_IMAGE_FALLBACK_CURRENT}
+            signedIn={false}
+          />
+        </div>
+
+        <div className="space-y-6">
+          <p className="text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Candidates
+          </p>
+          {SHOP_FALLBACK_AVATAR_OPTIONS.map((option) => (
+            <div
+              key={option.id}
+              className="rounded-2xl bg-white/70 p-4 ring-1 ring-forest/10"
+            >
+              <p className="mb-3 text-sm font-bold text-forest">
+                {option.label}{" "}
+                <span className="font-medium text-muted">({option.id})</span>
+              </p>
+              <HomeTopBar
+                shopName="Green Basket"
+                shopImage={option.src}
+                signedIn={false}
+              />
+              <div className="mt-4 flex items-end justify-center gap-4">
+                <Image
+                  src={option.src}
+                  alt=""
+                  width={44}
+                  height={44}
+                  unoptimized
+                  className="size-11 rounded-full bg-white object-contain p-1 ring-2 ring-white shadow"
+                />
+                <Image
+                  src={option.src}
+                  alt=""
+                  width={96}
+                  height={96}
+                  unoptimized
+                  className="size-24 rounded-full bg-white object-contain p-2 ring-2 ring-white shadow-[0_8px_24px_rgba(47,107,47,0.12)]"
+                />
+              </div>
+              <p className="mt-2 text-center text-[12px] font-medium text-muted">
+                {option.src}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </DemoFrame>
+  ),
+  "deferred-location": () => (
+    <DemoFrame note="Wired ecom `/home`: waits ~900ms then opens address sheet (forcePreview here). Live home skips if Deliver to is set.">
+      <div className="relative min-h-[28rem] bg-gradient-to-b from-mint to-paper px-4 pt-6 pb-10">
+        <HomeTopBar
+          shopName="Green Basket"
+          shopImage="/icons/shop-fallback-awning-yellow.png"
+          signedIn={false}
+        />
+        <p className="mt-8 text-center text-sm font-medium text-muted">
+          Address sheet opens after the page settles…
+        </p>
+        <DeferredLocationPrompt forcePreview delayMs={900} />
+      </div>
+    </DemoFrame>
+  ),
+  "help-support": () => (
+    <DemoFrame note="Wired ecom `/profile/support`. Contact us + Details expand (phone/address). Sample contact here; optional NEXT_PUBLIC_SHOP_SUPPORT_* on ecom.">
+      <div className="max-h-[85vh] overflow-y-auto overscroll-contain">
+        <HelpSupportContent
+          contact={SAMPLE_SHOP_SUPPORT}
+          backHref="/playground"
+          topicHrefFor={(href) =>
+            href === "/orders"
+              ? "/playground/orders-list"
+              : href === "/coupons"
+                ? "/playground/coupons-list"
+                : "/playground/address-book"
+          }
+        />
       </div>
     </DemoFrame>
   ),
@@ -646,7 +772,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "home-pull-content": () => (
-    <DemoFrame note="Same as /home: ProductSection + FruitsVeggies + shelves + BrandFooter + PTR. Aisle-browse candidate is category-browse-sections only.">
+    <DemoFrame note="Same as /home body (#3): ProductSection + FruitsVeggies + shelves + BrandFooter + PTR. Rail streams in a separate Suspense on ecom.">
       <HomeCategoryProvider>
         <HomePullContent />
       </HomeCategoryProvider>
@@ -774,7 +900,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "cart-page": () => (
     <DemoFrame
       surface="bare"
-      note="Guest Checkout → toast + /login?next=/playground/cart-page (live: /cart). After login returns here so coupons aren’t skipped."
+      note="Same as /cart: coupon syncs Total/Checkout ₹; weight under line. Guest Checkout → login?next=/cart."
     >
       <div className="relative h-[75vh] bg-paper">
         <CartPageContent
@@ -789,7 +915,9 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           topCouponsRefined
           showMinCartValue
           minCartValueRupees={499}
-          previewSignedIn={false}
+          previewSignedIn
+          weightAtBottom
+          syncCheckoutTotal
         />
       </div>
       <WeightCustomizer />
@@ -903,13 +1031,15 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     );
   },
   "orders-list": () => (
-    <DemoFrame note="Same as /orders. Download bill opens the ticket with Copy, Download, and Done.">
+    <DemoFrame note="Same as /orders: parcel + order id, status badge + pulse.">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain bg-paper">
         <OrdersPageContent
           chromePosition="inline"
           backHref="/playground"
           shopHref="/playground"
           ticketBill
+          highlightStatus
+          showOrderId
           detailHref={(id) => `/playground/order-detail?id=${id}`}
         />
       </div>
@@ -1004,15 +1134,30 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "login-form": () => (
-    <DemoFrame note="UI-only auth stub. Verified step navigates to /home.">
+    <DemoFrame note="Swipe → Welcome immediately (Confirming…); API then Taking you home… → /home.">
       <div className="px-4 py-6">
-        <LoginForm />
+        <ShopNameProvider name="Green Basket">
+          <LoginForm shopName="Green Basket" />
+        </ShopNameProvider>
       </div>
     </DemoFrame>
   ),
   "verified-success": () => (
-    <DemoFrame>
-      <VerifiedSuccess />
+    <DemoFrame note="Confirming = spinner (no tick). Success = check + Welcome to {shop}. LoginForm switches on sessionReady.">
+      <div className="space-y-10 px-4 py-4">
+        <div>
+          <p className="mb-2 text-center text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Confirming
+          </p>
+          <VerifiedSuccess shopName="Green Basket" status="confirming" />
+        </div>
+        <div>
+          <p className="mb-2 text-center text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Success
+          </p>
+          <VerifiedSuccess shopName="Green Basket" status="success" />
+        </div>
+      </div>
     </DemoFrame>
   ),
   "coming-soon": () => (
@@ -1142,13 +1287,28 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "profile-header": () => (
-    <DemoFrame note="Guest Sign in vs signed-in default avatar. Title falls back to `{shopName} Member` (supermarket brand). Pass displayName when auth has a real user name.">
+    <DemoFrame note="Wired ecom: guest uses /icons/guest-profile.png. Legacy D mark kept for compare.">
       <div className="max-h-[36rem] space-y-8 overflow-y-auto overscroll-contain bg-paper pb-6">
         <div>
           <p className="px-5 pt-3 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
-            Guest
+            Guest · wired ecom
           </p>
-          <ProfileHero backHref="/playground" signedIn={false} />
+          <ProfileHero
+            backHref="/playground"
+            signedIn={false}
+            guestAvatarSrc={GUEST_PROFILE_AVATAR}
+          />
+          <ProfileAccountNav previewSignedIn={false} />
+        </div>
+        <div>
+          <p className="px-5 pt-1 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Guest · legacy D mark
+          </p>
+          <ProfileHero
+            backHref="/playground"
+            signedIn={false}
+            guestAvatarSrc={GUEST_PROFILE_AVATAR_LEGACY}
+          />
         </div>
         <div>
           <p className="px-5 pt-1 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
@@ -1160,6 +1320,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
               signedIn
               userId="playground-demo-user"
             />
+            <ProfileAccountNav previewSignedIn />
           </ShopNameProvider>
         </div>
         <div>

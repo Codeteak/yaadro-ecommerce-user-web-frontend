@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Download, MapPin, Star } from "lucide-react";
 import { orderLineLabel, type SampleOrder } from "@/lib/sample-orders";
@@ -15,6 +16,7 @@ import {
   lineName,
   orderItemCount,
 } from "@/components/orders/lead-order-format";
+import { orderStatusChip } from "@/lib/sample-orders";
 
 const DETAILS_W = 118;
 const DETAILS_H = 44;
@@ -56,17 +58,28 @@ export function OrderHistoryCard({
   href,
   onReview,
   onDownloadBill,
+  /** Playground Phase A (#21): badge + live green pulse for in-progress. */
+  highlightStatus = false,
+  /**
+   * Playground: parcel icon + order number instead of MapPin + address.
+   * Live `/orders` keeps address until confirmed to wire.
+   */
+  showOrderId = false,
 }: {
   order: SampleOrder;
   href: string;
   onReview: () => void;
   onDownloadBill: () => void;
+  highlightStatus?: boolean;
+  showOrderId?: boolean;
 }) {
   const [ref, box] = useBoxSize<HTMLDivElement>();
   const progress = leadProgress(order.status);
   const delivered = progress === "delivered";
   const cancelled = order.status === "cancelled";
   const tracking = progress === "placed" || progress === "on_the_way" || cancelled;
+  const livePulse = highlightStatus && (progress === "placed" || progress === "on_the_way");
+  const chip = highlightStatus ? orderStatusChip(order.status) : null;
   const count = orderItemCount(order);
   const meta = [order.placedAtLabel, count === 1 ? "1 item" : `${count} items`].join(" · ");
   const clip = cardClip(box.w, box.h);
@@ -85,17 +98,55 @@ export function OrderHistoryCard({
         >
           <div className="flex items-start gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-1.5">
-              <MapPin className="h-4 w-4 shrink-0 text-black" aria-hidden />
-              <p className="truncate text-[15px] leading-tight font-bold tracking-tight text-black">
-                {order.addressLabel}
-                {order.addressDetail ? ` · ${order.addressDetail}` : ""}
-              </p>
+              {showOrderId ? (
+                <>
+                  <Image
+                    src="/orders/order-parcel.svg"
+                    alt=""
+                    width={24}
+                    height={24}
+                    className="h-6 w-6 shrink-0"
+                    unoptimized
+                  />
+                  <p className="truncate text-[15px] leading-tight font-bold tracking-tight text-black">
+                    {order.number}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <MapPin className="h-4 w-4 shrink-0 text-black" aria-hidden />
+                  <p className="truncate text-[15px] leading-tight font-bold tracking-tight text-black">
+                    {order.addressLabel}
+                    {order.addressDetail ? ` · ${order.addressDetail}` : ""}
+                  </p>
+                </>
+              )}
             </div>
-            <div className="max-w-[50%] shrink-0 text-right">
+            <div className="max-w-[55%] shrink-0 text-right">
               <p className="truncate text-xs font-medium text-muted">{meta}</p>
-              <p className="mt-1 text-[13px] font-bold" style={{ color: leadStatusInk(progress) }}>
-                {leadStatusLabel(progress, order.status)}
-              </p>
+              {chip ? (
+                <span
+                  className={cn(
+                    "mt-1.5 inline-flex max-w-full items-center gap-1.5 truncate rounded-full px-2.5 py-1 text-[11px] font-extrabold tracking-tight",
+                    chip.className,
+                  )}
+                >
+                  {livePulse ? (
+                    <span className="relative flex h-2 w-2 shrink-0" aria-hidden>
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-leaf opacity-60" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-leaf" />
+                    </span>
+                  ) : null}
+                  {chip.label}
+                </span>
+              ) : (
+                <p
+                  className="mt-1 text-[13px] font-bold"
+                  style={{ color: leadStatusInk(progress) }}
+                >
+                  {leadStatusLabel(progress, order.status)}
+                </p>
+              )}
             </div>
           </div>
 

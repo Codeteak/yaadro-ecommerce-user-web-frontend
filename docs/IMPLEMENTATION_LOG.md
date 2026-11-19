@@ -1,5 +1,25 @@
 # Implementation Log
 
+## 2026-11-19 — Home load streaming (#3) + deferred location (#7)
+
+`/home` streams in three Suspense bands: hero (shop SEO), category rail (`listStoreCategories` only), then product shelves (`loadHomeCatalog`). `#7` mounts `DeferredLocationPrompt` on `/home` (opens address sheet after paint when Deliver to is empty). Playground deferred-location + home-pull notes updated.
+
+## 2026-11-19 — Help & Support wired (#15)
+
+`/profile/support` mounts `HelpSupportContent` with live shop name via `getShopSupportContact()` → `getShopSeo()`. Call / WhatsApp / Location only render when `NEXT_PUBLIC_SHOP_SUPPORT_PHONE` / `_ADDRESS` / `_MAPS_URL` are set (API has no shop contact fields yet). FAQ covers orders, coupons, address, COD, price variance. Playground keeps `SAMPLE_SHOP_SUPPORT`.
+
+## 2026-11-19 — Order detail address + line images
+
+`customer-orders` maps `customer_address` via `line1`/`raw`/common aliases (and JSON strings). Blank Address row hidden. Bill lines always show a thumb from API image fields, product snapshot, sample catalog, or `PRODUCT_IMAGE_FALLBACK`. Promo-aware payable total when API `total_minor` ignores discount.
+
+## 2026-11-19 — Orders list order id + parcel (wired)
+
+Live `/orders` + playground: `showOrderId` — parcel SVG + `order.number`. Track order uses black `delivery-scooter.svg`.
+
+## 2026-11-19 — Phase A (#16, #19, #21) wired to ecom
+
+Live `/cart`: `weightAtBottom` + `syncCheckoutTotal`. Live `/orders`: `highlightStatus`. Playground demos match.
+
 ## 2026-11-18 — Shop minimum, automatic offers, and events
 
 The cart and checkout keep a shop quote open. A minimum that is not met stays on the page and turns Checkout off. Automatic offers, reached and not yet reached, sit under the bill, and a category offer opens that aisle. A shop total of ₹0 is shown as ₹0. A home shelf title opens `/events?id=` for that section, with its dates and products. A minimum change from the shop refreshes the open quote.

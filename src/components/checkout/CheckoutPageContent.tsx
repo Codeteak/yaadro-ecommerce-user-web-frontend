@@ -415,7 +415,9 @@ export function CheckoutPageContent({
           </div>
           <div className="flex items-center justify-between py-3 text-sm">
             <span className="font-bold text-black">Total</span>
-            <span className="font-extrabold text-leaf">{amountDue}</span>
+            <span className="font-extrabold text-leaf tabular-nums">
+              {amountDue}
+            </span>
           </div>
         </div>
         <ShopQuoteNotes quote={quote} />

@@ -80,6 +80,16 @@ type CartPageContentProps = {
    * Omit on storefront to use `hasCustomerSession`.
    */
   previewSignedIn?: boolean;
+  /**
+   * Playground Phase A (#16): weight Edit + kg sit under the line (bottom),
+   * not beside the title. Omit / false keeps the side control (live default).
+   */
+  weightAtBottom?: boolean;
+  /**
+   * Playground Phase A (#19): bill uses selling subtotal + clearer Total so
+   * Checkout ₹ tracks the coupon. Live cart keeps prior layout until wired.
+   */
+  syncCheckoutTotal?: boolean;
 };
 
 /**
@@ -100,6 +110,8 @@ export function CartPageContent({
   showMinCartValue = false,
   minCartValueRupees = 499,
   previewSignedIn,
+  weightAtBottom = false,
+  syncCheckoutTotal = false,
 }: CartPageContentProps) {
   const inline = chromePosition === "inline";
   const router = useRouter();
@@ -121,6 +133,7 @@ export function CartPageContent({
     setWeight,
     setCustomizing,
     // clear — only used by Clear basket (hidden below)
+    subtotal,
     mrpTotal,
     appliedPromo,
     promoDiscount,
@@ -280,8 +293,8 @@ export function CartPageContent({
                   ? `By weight, ₹${product.price} / ${stepKg != null ? `${stepKg} kg` : product.unit}`
                   : `₹${product.price} / ${product.unit}`;
                 return (
-                  <li key={item.productId} className="flex items-center gap-3 py-4">
-                    <div className="relative shrink-0">
+                  <li key={item.productId} className="flex items-start gap-3 py-4">
+                    <div className="relative shrink-0 self-center">
                       <CatalogImage
                         src={photo}
                         alt=""
@@ -294,85 +307,105 @@ export function CartPageContent({
                             : "object-cover",
                         )}
                       />
-                      <span className="absolute top-1/2 -right-2 -translate-y-1/2 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-extrabold whitespace-nowrap text-black shadow-[0_4px_10px_rgba(47,107,47,0.22)] ring-1 ring-leaf/20">
-                        {itemBadge(item)}
-                      </span>
-                    </div>
-
-                    <div className="min-w-0 flex-1 pl-2">
-                      <h3 className="truncate text-[15px] font-bold text-ink">
-                        {product.name}
-                      </h3>
-                      <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-                        <span className="text-[15px] font-extrabold text-black tabular-nums">
-                          ₹{selling}
+                      {!weightAtBottom || !isWeight ? (
+                        <span className="absolute top-1/2 -right-2 -translate-y-1/2 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-extrabold whitespace-nowrap text-black shadow-[0_4px_10px_rgba(47,107,47,0.22)] ring-1 ring-leaf/20">
+                          {itemBadge(item)}
                         </span>
-                        {save > 0 ? (
-                          <>
-                            <span className="text-xs font-medium text-muted tabular-nums line-through">
-                              ₹{mrp}
-                            </span>
-                            <span className="text-xs font-semibold text-leaf">
-                              Save ₹{save}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="text-xs font-medium text-muted">
-                            {unitHint}
-                          </span>
-                        )}
-                      </p>
-                      {save > 0 ? (
-                        <p className="mt-0.5 text-xs font-medium text-muted">
-                          {unitHint}
-                        </p>
                       ) : null}
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {isWeight ? (
-                        <button
-                          type="button"
-                          onClick={() => setCustomizing(product)}
-                          className="cursor-pointer text-sm font-semibold text-leaf underline underline-offset-4 transition hover:text-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-                        >
-                          Edit
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-1 rounded-full bg-mint/70 px-1 py-1">
+                    <div className="min-w-0 flex-1 pl-2">
+                      <div className="flex items-start gap-1.5">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="truncate text-[15px] font-bold text-ink">
+                            {product.name}
+                          </h3>
+                          <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                            <span className="text-[15px] font-extrabold text-black tabular-nums">
+                              ₹{selling}
+                            </span>
+                            {save > 0 ? (
+                              <>
+                                <span className="text-xs font-medium text-muted tabular-nums line-through">
+                                  ₹{mrp}
+                                </span>
+                                <span className="text-xs font-semibold text-leaf">
+                                  Save ₹{save}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-xs font-medium text-muted">
+                                {unitHint}
+                              </span>
+                            )}
+                          </p>
+                          {save > 0 ? (
+                            <p className="mt-0.5 text-xs font-medium text-muted">
+                              {unitHint}
+                            </p>
+                          ) : null}
+                          {weightAtBottom && isWeight ? (
+                            <div className="mt-2.5 flex items-center gap-2">
+                              <span className="rounded-full bg-mint/80 px-2.5 py-1 text-[12px] font-extrabold tabular-nums text-forest ring-1 ring-leaf/20">
+                                {itemBadge(item)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setCustomizing(product)}
+                                className="cursor-pointer text-sm font-semibold text-leaf underline underline-offset-4 transition hover:text-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+                              >
+                                Edit weight
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-1.5 self-center">
+                          {isWeight && !weightAtBottom ? (
+                            <button
+                              type="button"
+                              onClick={() => setCustomizing(product)}
+                              className="cursor-pointer text-sm font-semibold text-leaf underline underline-offset-4 transition hover:text-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+                            >
+                              Edit
+                            </button>
+                          ) : !isWeight ? (
+                            <div className="flex items-center gap-1 rounded-full bg-mint/70 px-1 py-1">
+                              <button
+                                type="button"
+                                onClick={() => setQty(item.productId, item.qty - 1)}
+                                aria-label={`Decrease quantity of ${product.name}`}
+                                className="grid h-7 w-7 cursor-pointer place-items-center rounded-full text-forest transition hover:bg-white focus-visible:outline-2 focus-visible:outline-leaf"
+                              >
+                                <Minus className="h-3.5 w-3.5" aria-hidden />
+                              </button>
+                              <span
+                                key={item.qty}
+                                className="qty-pop min-w-4 text-center text-[13px] font-extrabold text-forest"
+                                aria-live="polite"
+                              >
+                                {item.qty}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setQty(item.productId, item.qty + 1)}
+                                aria-label={`Increase quantity of ${product.name}`}
+                                className="grid h-7 w-7 cursor-pointer place-items-center rounded-full text-forest transition hover:bg-white focus-visible:outline-2 focus-visible:outline-leaf"
+                              >
+                                <Plus className="h-3.5 w-3.5" aria-hidden />
+                              </button>
+                            </div>
+                          ) : null}
                           <button
                             type="button"
-                            onClick={() => setQty(item.productId, item.qty - 1)}
-                            aria-label={`Decrease quantity of ${product.name}`}
-                            className="grid h-7 w-7 cursor-pointer place-items-center rounded-full text-forest transition hover:bg-white focus-visible:outline-2 focus-visible:outline-leaf"
+                            onClick={() => removeItem(item.productId, isWeight)}
+                            aria-label={`Remove ${product.name} from basket`}
+                            className="grid h-9 w-9 cursor-pointer place-items-center rounded-full text-black/70 transition hover:bg-black/5 hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
                           >
-                            <Minus className="h-3.5 w-3.5" aria-hidden />
-                          </button>
-                          <span
-                            key={item.qty}
-                            className="qty-pop min-w-4 text-center text-[13px] font-extrabold text-forest"
-                            aria-live="polite"
-                          >
-                            {item.qty}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setQty(item.productId, item.qty + 1)}
-                            aria-label={`Increase quantity of ${product.name}`}
-                            className="grid h-7 w-7 cursor-pointer place-items-center rounded-full text-forest transition hover:bg-white focus-visible:outline-2 focus-visible:outline-leaf"
-                          >
-                            <Plus className="h-3.5 w-3.5" aria-hidden />
+                            <Trash2 className="h-4 w-4" aria-hidden />
                           </button>
                         </div>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => removeItem(item.productId, isWeight)}
-                        aria-label={`Remove ${product.name} from basket`}
-                        className="grid h-9 w-9 cursor-pointer place-items-center rounded-full text-black/70 transition hover:bg-black/5 hover:text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-                      >
-                        <Trash2 className="h-4 w-4" aria-hidden />
-                      </button>
+                      </div>
                     </div>
                   </li>
                 );
@@ -596,48 +629,116 @@ export function CartPageContent({
                   : "mt-6",
               )}
             >
-              <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
-                <span className="text-muted">Subtotal</span>
-                <span className="font-bold text-black">₹{mrpTotal}</span>
-              </div>
-              {applied && promoDiscount > 0 ? (
-                <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
-                  <span className="text-muted">Coupon ({applied.code})</span>
-                  <span className="font-bold text-leaf">−₹{promoDiscount}</span>
-                </div>
-              ) : null}
-              <div
-                className={cn(
-                  "flex items-center justify-between py-3 text-sm",
-                  highlightSavings && totalSaved > 0
-                    ? "border-b border-dashed border-leaf"
-                    : "border-b border-forest/8",
-                )}
-              >
-                <span
-                  className={cn(
-                    highlightSavings && totalSaved > 0
-                      ? "font-bold text-forest"
-                      : "text-muted",
-                  )}
-                >
-                  You save
-                </span>
-                <span
-                  className={cn(
-                    "tabular-nums text-leaf",
-                    highlightSavings && totalSaved > 0
-                      ? "text-base font-extrabold"
-                      : "font-bold",
-                  )}
-                >
-                  {totalSaved > 0 ? `₹${totalSaved}` : "₹0"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-3 text-sm">
-                <span className="font-bold text-black">Total</span>
-                <span className="font-extrabold text-leaf">{dueLabel}</span>
-              </div>
+              {syncCheckoutTotal ? (
+                <>
+                  <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
+                    <span className="text-muted">Item total</span>
+                    <span className="font-bold text-black tabular-nums">
+                      ₹{subtotal}
+                    </span>
+                  </div>
+                  {mrpTotal > subtotal ? (
+                    <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
+                      <span className="text-muted">MRP</span>
+                      <span className="font-medium text-muted tabular-nums line-through">
+                        ₹{mrpTotal}
+                      </span>
+                    </div>
+                  ) : null}
+                  {applied && promoDiscount > 0 ? (
+                    <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
+                      <span className="text-muted">Coupon ({applied.code})</span>
+                      <span className="font-bold text-leaf tabular-nums">
+                        −₹{promoDiscount}
+                      </span>
+                    </div>
+                  ) : null}
+                  <div
+                    className={cn(
+                      "flex items-center justify-between py-3 text-sm",
+                      highlightSavings && totalSaved > 0
+                        ? "border-b border-dashed border-leaf"
+                        : "border-b border-forest/8",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        highlightSavings && totalSaved > 0
+                          ? "font-bold text-forest"
+                          : "text-muted",
+                      )}
+                    >
+                      You save
+                    </span>
+                    <span
+                      className={cn(
+                        "tabular-nums text-leaf",
+                        highlightSavings && totalSaved > 0
+                          ? "text-base font-extrabold"
+                          : "font-bold",
+                      )}
+                    >
+                      {totalSaved > 0 ? `₹${totalSaved}` : "₹0"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-3 text-sm">
+                    <span className="font-bold text-black">Total</span>
+                    <span
+                      key={`due-${dueLabel}-${applied?.code ?? "none"}`}
+                      className="font-extrabold text-leaf tabular-nums"
+                    >
+                      {dueLabel}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
+                    <span className="text-muted">Subtotal</span>
+                    <span className="font-bold text-black">₹{mrpTotal}</span>
+                  </div>
+                  {applied && promoDiscount > 0 ? (
+                    <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
+                      <span className="text-muted">Coupon ({applied.code})</span>
+                      <span className="font-bold text-leaf">−₹{promoDiscount}</span>
+                    </div>
+                  ) : null}
+                  <div
+                    className={cn(
+                      "flex items-center justify-between py-3 text-sm",
+                      highlightSavings && totalSaved > 0
+                        ? "border-b border-dashed border-leaf"
+                        : "border-b border-forest/8",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        highlightSavings && totalSaved > 0
+                          ? "font-bold text-forest"
+                          : "text-muted",
+                      )}
+                    >
+                      You save
+                    </span>
+                    <span
+                      className={cn(
+                        "tabular-nums text-leaf",
+                        highlightSavings && totalSaved > 0
+                          ? "text-base font-extrabold"
+                          : "font-bold",
+                      )}
+                    >
+                      {totalSaved > 0 ? `₹${totalSaved}` : "₹0"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-3 text-sm">
+                    <span className="font-bold text-black">Total</span>
+                    <span className="font-extrabold text-leaf tabular-nums">
+                      {dueLabel}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
             <ShopQuoteNotes quote={quote} />
           </>
@@ -683,7 +784,14 @@ export function CartPageContent({
             aria-label="Proceed to checkout"
             className="group pointer-events-auto relative flex w-full cursor-pointer items-center rounded-full bg-track px-5 py-4 text-black shadow-[0_7px_0_0_#1f5c1f,0_14px_28px_rgba(47,107,47,0.28)] transition-[transform,box-shadow,background-color] duration-150 ease-out hover:bg-leaf-bright motion-safe:active:translate-y-[5px] motion-safe:active:shadow-[0_2px_0_0_#1f5c1f,0_6px_14px_rgba(47,107,47,0.22)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <span className="text-xl leading-tight font-extrabold tabular-nums">
+            <span
+              key={
+                syncCheckoutTotal
+                  ? `checkout-${dueLabel}-${applied?.code ?? "none"}`
+                  : undefined
+              }
+              className="text-xl leading-tight font-extrabold tabular-nums"
+            >
               {dueLabel}
             </span>
             <span className="absolute left-1/2 -translate-x-1/2 text-base font-extrabold tracking-tight text-black">

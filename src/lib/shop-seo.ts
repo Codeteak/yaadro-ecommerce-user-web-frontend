@@ -12,6 +12,7 @@ import {
   resolveShopByDomain,
   type ResolvedShop,
 } from "@/lib/api/storefront";
+import { SHOP_IMAGE_FALLBACK } from "@/lib/shop-fallback-avatars";
 
 export type ShopSeo = {
   name: string;
@@ -23,7 +24,7 @@ export type ShopSeo = {
 
 const FALLBACK: ShopSeo = {
   name: "Yaadro",
-  image: "/icons/og-image.png",
+  image: SHOP_IMAGE_FALLBACK,
   description: "Fresh groceries, right at your door.",
   banners: [],
 };

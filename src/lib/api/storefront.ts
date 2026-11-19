@@ -12,6 +12,7 @@ import {
 import { requireShopId } from "@/lib/db/shop-id";
 import { mapCatalogProduct } from "@/lib/catalog-map";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
+import { SHOP_IMAGE_FALLBACK } from "@/lib/shop-fallback-avatars";
 import type { SampleProduct } from "@/lib/sample-products";
 
 const UUID_RE =
@@ -329,7 +330,7 @@ export async function fetchShopSeo(shopId = shopHeader()): Promise<ResolvedShop 
   return {
     id: pickString(json?.shopId) ?? shopId,
     name,
-    image: pickString(og?.image) ?? "/icons/og-image.png",
+    image: pickString(og?.image) ?? SHOP_IMAGE_FALLBACK,
     description: pickString(seo.description) ?? "Fresh groceries, right at your door.",
     banners: [],
   };
@@ -358,7 +359,7 @@ export async function resolveShopByDomain(domain: string): Promise<ResolvedShop 
     id,
     name,
     image:
-      pickString(row.shop_image, og?.image) ?? "/icons/og-image.png",
+      pickString(row.shop_image, og?.image) ?? SHOP_IMAGE_FALLBACK,
     description:
       pickString(seo?.description) ?? "Fresh groceries, right at your door.",
     banners: row.banner_enabled === false ? [] : mapBanners(row.banner_images),
@@ -536,32 +537,38 @@ export type CategoryBrowserData = {
  * selected aisle. `all` loads the same capped catalog as home shelves
  * (`listStoreProducts()` — up to three pages).
  */
+function buildCategoryBranches(
+  categories: Awaited<ReturnType<typeof listStoreCategories>>,
+): CategoryBranch[] {
+  const roots = categories.filter(
+    (category) => !category.parentId && category.slug !== "all",
+  );
+  return roots.map((root) => ({
+    id: root.id,
+    name: root.name,
+    slug: root.slug,
+    image: root.image,
+    children: categories
+      .filter((row) => row.parentId === root.id)
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        slug: row.slug,
+        image: row.image,
+      })),
+  }));
+}
+
 export async function loadCategoryBrowser(
   cat: string | undefined,
 ): Promise<CategoryBrowserData> {
   try {
-    const categories = await listStoreCategories();
-    const roots = categories.filter(
-      (category) => !category.parentId && category.slug !== "all",
-    );
-    const branches: CategoryBranch[] = roots.map((root) => ({
-      id: root.id,
-      name: root.name,
-      slug: root.slug,
-      image: root.image,
-      children: categories
-        .filter((row) => row.parentId === root.id)
-        .map((row) => ({
-          id: row.id,
-          name: row.name,
-          slug: row.slug,
-          image: row.image,
-        })),
-    }));
-
-    // No `cat` (first visit) and `cat=all` both load the capped full catalog.
+    // No `cat` / `cat=all`: tree + capped catalog in parallel (was sequential).
     if (!cat || cat === "all") {
-      const groups = await listStoreProducts();
+      const [categories, groups] = await Promise.all([
+        listStoreCategories(),
+        listStoreProducts(),
+      ]);
       const products = groups.flatMap((group) =>
         group.products.map((product) => ({
           ...product,
@@ -573,12 +580,16 @@ export async function loadCategoryBrowser(
       return {
         ok: true,
         error: null,
-        branches,
+        branches: buildCategoryBranches(categories),
         products,
         selectedKey: "all",
       };
     }
 
+    // Resolve the aisle from the tree first, then load only that aisle's
+    // products (scoped query). Categories stay cached for the hub tree.
+    const categories = await listStoreCategories();
+    const branches = buildCategoryBranches(categories);
     const category = categories.find(
       (row) => row.slug !== "all" && (row.slug === cat || row.id === cat),
     );

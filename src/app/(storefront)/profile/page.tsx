@@ -2,15 +2,9 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
-import {
-  ChevronRight,
-  Headset,
-  History,
-  MapPin,
-  UserRound,
-} from "lucide-react";
+import { History } from "lucide-react";
 import { PullToRefresh } from "@/components/navigation/PullToRefresh";
-import { LogoutButton } from "@/components/profile/LogoutButton";
+import { ProfileAccountNav } from "@/components/profile/ProfileAccountNav";
 import { ProfileHero } from "@/components/profile/ProfileHero";
 import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
 import { BrandFooter } from "@/components/storefront/BrandFooter";
@@ -63,14 +57,6 @@ const quickActions: QuickAction[] = [
   },
 ];
 
-/** Local signed-in seed removed — ProfileHero reads the OTP session. */
-
-const menuItems = [
-  { href: "/profile/edit", label: "My Profile", icon: UserRound },
-  { href: "/profile/addresses", label: "Address", icon: MapPin },
-  { href: "/profile/support", label: "Help & Support", icon: Headset },
-] as const;
-
 async function ProfilePageBody() {
   const shop = await getShopSeo();
 
@@ -108,24 +94,7 @@ async function ProfilePageBody() {
             ))}
           </section>
 
-          {/* Menu */}
-          <nav aria-label="Profile menu" className="mx-5 mt-6 flex flex-col gap-3">
-            {menuItems.map(({ href, label, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className="flex h-14 items-center gap-3 rounded-2xl bg-white px-4 shadow-[0_4px_14px_rgba(47,107,47,0.05)] ring-1 ring-black/5 transition hover:ring-leaf/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-              >
-                <Icon aria-hidden className="size-5 text-forest" strokeWidth={1.9} />
-                <span className="flex-1 text-[15px] font-medium text-ink">
-                  {label}
-                </span>
-                <ChevronRight aria-hidden className="size-5 text-muted" />
-              </Link>
-            ))}
-
-            <LogoutButton />
-          </nav>
+          <ProfileAccountNav />
 
           <BrandFooter />
         </PullToRefresh>

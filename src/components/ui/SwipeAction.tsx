@@ -9,6 +9,8 @@ const HANDLE = 48;
 type SwipeActionProps = {
   label?: string;
   disabled?: boolean;
+  /** Pause after the handle hits the end before `onComplete` (default 380). */
+  holdMs?: number;
   /** Return false to spring the handle back. */
   onComplete: () => void | boolean | Promise<void | boolean>;
 };
@@ -16,6 +18,7 @@ type SwipeActionProps = {
 export function SwipeAction({
   label = "Swipe to login",
   disabled = false,
+  holdMs = 380,
   onComplete,
 }: SwipeActionProps) {
   const {
@@ -33,7 +36,7 @@ export function SwipeAction({
     completeRatio: 0.82,
     disabled,
     onComplete,
-    holdMs: 380,
+    holdMs,
   });
 
   const progress = maxOffset > 0 ? offset / maxOffset : 0;

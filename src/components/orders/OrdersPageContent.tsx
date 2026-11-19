@@ -35,6 +35,10 @@ export type OrdersPageContentProps = {
    * Omit on storefront to use `hasCustomerSession`.
    */
   previewSignedIn?: boolean;
+  /** Playground Phase A (#21): status badge + pulse on cards. */
+  highlightStatus?: boolean;
+  /** Playground: show parcel + order id instead of address. */
+  showOrderId?: boolean;
   className?: string;
 };
 
@@ -51,6 +55,8 @@ export function OrdersPageContent({
   ticketBill = true,
   live = false,
   previewSignedIn,
+  highlightStatus = false,
+  showOrderId = false,
   className,
 }: OrdersPageContentProps) {
   const inline = chromePosition === "inline";
@@ -157,6 +163,8 @@ export function OrdersPageContent({
                 href={detailHref(order.id)}
                 onReview={() => setReviewFor(order.id)}
                 onDownloadBill={() => setBillFor(order)}
+                highlightStatus={highlightStatus}
+                showOrderId={showOrderId}
               />
             </li>
           ))}

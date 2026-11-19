@@ -157,6 +157,7 @@ function writeItems(next: CartItem[]) {
     // persistence is best-effort
   }
   rebuildLineCache();
+  totalsKey = "";
   emit();
 }
 
@@ -173,6 +174,7 @@ function writePromo(coupon: SampleCoupon | null) {
   } catch {
     // persistence is best-effort
   }
+  totalsKey = "";
   emit();
 }
 

@@ -79,6 +79,24 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     wiresTo: "/home",
   },
   {
+    slug: "deferred-location",
+    title: "Deferred location prompt",
+    status: "built",
+    group: "Home",
+    description:
+      "Wired ecom `/home`: after paint (~900ms + idle), open address sheet if no Deliver to.",
+    wiresTo: "/home",
+  },
+  {
+    slug: "shop-fallback-avatars",
+    title: "Shop fallback avatars",
+    status: "built",
+    group: "Home",
+    description:
+      "Wired: yellow awning is ecom fallback. Demo still shows all 3 + old og-image.",
+    wiresTo: "getShopSeo / HomeTopBar shop.image",
+  },
+  {
     slug: "search",
     title: "Search",
     status: "built",
@@ -218,7 +236,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "ProductSection + FruitsVeggies + merch shelves + BrandFooter + PTR on /home (classic).",
+      "ProductSection + FruitsVeggies + merch shelves + BrandFooter + PTR. On /home the category rail streams separately (#3).",
     wiresTo: "/home",
   },
   {
@@ -281,8 +299,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Guest Checkout → login?next=/cart (playground returns to cart-page). Top offers collapse; refined Apply; min-cart ribbon.",
-    wiresTo: "/cart, /login",
+      "Wired: coupon syncs Total/Checkout ₹; weight under line. Guest login gate on cart.",
+    wiresTo: "/cart",
   },
   {
     slug: "product-detail",
@@ -342,16 +360,18 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "LoginForm",
     status: "built",
     group: "Auth & onboarding",
-    description: "Full phone → OTP → verified flow (UI-only stub).",
-    wiresTo: "/login",
+    description:
+      "Phone → OTP → Welcome to {shop} → /home. Wired on /login with live shop SEO name.",
+    wiresTo: "/login, /home",
   },
   {
     slug: "verified-success",
     title: "VerifiedSuccess",
     status: "built",
     group: "Auth & onboarding",
-    description: "Post-OTP verified animation before storefront.",
-    wiresTo: "/login",
+    description:
+      "Confirming = spinner (no tick); success = check + Welcome to {shop}. Wired on /login.",
+    wiresTo: "/login, /home",
   },
 
   // ── Storefront chrome ───────────────────────────────────────────────
@@ -405,8 +425,17 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Guest Sign in vs signed-in default avatar. Title is `{shopName} Member` per supermarket (or real displayName). Same on /profile.",
+      "Wired: guest avatar /icons/guest-profile.png on /profile. Signed-in menu + Log out → /login.",
     wiresTo: "/profile",
+  },
+  {
+    slug: "help-support",
+    title: "Help & Support",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Wired ecom `/profile/support`. Contact us + Details expand; phone/address via NEXT_PUBLIC_SHOP_SUPPORT_* until API exposes them.",
+    wiresTo: "/profile/support",
   },
 
   // ── Planned (implement here first, then wire) ───────────────────────
@@ -434,7 +463,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Same as /orders: green Orders header, ticket cards, steps, Review and bill.",
+      "Wired: parcel + order id header; status badge + pulse on in-progress.",
     wiresTo: "/orders",
   },
   {
@@ -443,7 +472,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Same as /orders/[id]. Delivered: keep DP name, hide call/chat/phone. Track → /orders/[id]/track.",
+      "Wired: nested lines scroll (5+); scroll hint when 7+. Playground default ord-1050. Live: /orders/[id].",
     wiresTo: "/orders/[id]",
   },
   {

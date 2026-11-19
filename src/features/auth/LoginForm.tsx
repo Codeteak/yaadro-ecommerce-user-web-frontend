@@ -1,35 +1,92 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SwipeAction } from "@/components/ui/SwipeAction";
-import { showPopup } from "@/components/ui/Toast";
+import { useShopName } from "@/components/shop/ShopNameProvider";
 import {
   AuthApiError,
+  hasCustomerSession,
   requestCustomerOtp,
   saveCustomerSession,
+  subscribeCustomerSession,
   verifyCustomerOtp,
 } from "@/lib/api/auth";
 import { validateLoginPhone, validateOtp } from "@/lib/validations/auth";
 import { OtpInput } from "./OtpInput";
 import { PhoneInput } from "./PhoneInput";
+import { VerifiedSuccess } from "./VerifiedSuccess";
 
-type Step = "phone" | "otp";
+type Step = "phone" | "otp" | "welcome";
 
-export function LoginForm() {
+/** Short beat after session is saved before leaving for /home. */
+const WELCOME_HOLD_MS = 900;
+/** Keep swipe check animation brief so welcome can appear ASAP. */
+const SWIPE_HOLD_MS = 80;
+const LOGIN_RESET_KEY = "yaadro.login.reset";
+
+export function LoginForm({
+  shopName: shopNameProp,
+}: {
+  /** Override shop brand (playground). Else ShopNameProvider / “Yaadro”. */
+  shopName?: string;
+} = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = safeNext(searchParams.get("next"));
+  const contextShop = useShopName();
+  const shopName = shopNameProp?.trim() || contextShop;
+  const signedIn = useSyncExternalStore(
+    subscribeCustomerSession,
+    hasCustomerSession,
+    () => false,
+  );
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  /** Welcome is shown immediately; navigate only after verify succeeds. */
+  const [sessionReady, setSessionReady] = useState(false);
 
   const maskedPhone = phone
     ? `+91 ${phone.slice(0, 2)}****${phone.slice(-4)}`
     : "";
+
+  // Soft-nav back to /login can restore a prior "welcome" step from the router
+  // cache after logout. Reset only on logout mark / signed-in → signed-out —
+  // not while welcome is up and verify is still in flight (!signedIn yet).
+  const prevSignedIn = useRef<boolean | null>(null);
+  useEffect(() => {
+    let markedLogout = false;
+    try {
+      markedLogout = window.sessionStorage.getItem(LOGIN_RESET_KEY) === "1";
+      if (markedLogout) window.sessionStorage.removeItem(LOGIN_RESET_KEY);
+    } catch {
+      // ignore
+    }
+    const becameSignedOut =
+      prevSignedIn.current === true && signedIn === false;
+    prevSignedIn.current = signedIn;
+
+    if (!markedLogout && !becameSignedOut) return;
+
+    setStep("phone");
+    setSessionReady(false);
+    setPending(false);
+    setOtp("");
+    setOtpError(null);
+  }, [signedIn]);
+
+  useEffect(() => {
+    if (step !== "welcome" || !sessionReady || !hasCustomerSession()) return;
+    const timer = window.setTimeout(() => {
+      router.push(nextPath, { transitionTypes: ["login-forward"] });
+      router.refresh();
+    }, WELCOME_HOLD_MS);
+    return () => window.clearTimeout(timer);
+  }, [step, sessionReady, nextPath, router]);
 
   const onSendOtp = async () => {
     const error = validateLoginPhone(phone);
@@ -59,14 +116,18 @@ export function LoginForm() {
     setOtpError(error);
     if (error) return false;
 
+    // Show welcome immediately — don't wait on the OTP screen for the API.
+    setSessionReady(false);
+    setStep("welcome");
     setPending(true);
     try {
       const session = await verifyCustomerOtp(phone, otp);
       saveCustomerSession(session);
-      showPopup("You're signed in.", "success");
-      router.push(nextPath, { transitionTypes: ["login-forward"] });
+      setSessionReady(true);
       return true;
     } catch (err) {
+      setSessionReady(false);
+      setStep("otp");
       setOtpError(
         err instanceof AuthApiError
           ? err.message
@@ -77,6 +138,15 @@ export function LoginForm() {
       setPending(false);
     }
   };
+
+  if (step === "welcome") {
+    return (
+      <VerifiedSuccess
+        shopName={shopName}
+        status={sessionReady ? "success" : "confirming"}
+      />
+    );
+  }
 
   return (
     <form
@@ -149,6 +219,7 @@ export function LoginForm() {
 
           <SwipeAction
             label="Swipe to login"
+            holdMs={SWIPE_HOLD_MS}
             disabled={pending || otp.length !== 4}
             onComplete={onVerifyOtp}
           />

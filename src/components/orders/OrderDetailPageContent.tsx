@@ -20,7 +20,10 @@ import { getOrder, listOrders } from "@/lib/api/orders";
 import { getCustomerOrder } from "@/lib/api/customer-orders";
 import { ApiError } from "@/lib/api/errors";
 import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
+import { CatalogImage } from "@/components/ui/CatalogImage";
 import { getSampleProduct } from "@/lib/sample-products";
+import { recallProduct } from "@/lib/product-snapshots";
+import { isProductImageFallback, productPhoto } from "@/lib/product-image";
 import {
   LeadAction,
   OrderReceiptDialog,
@@ -49,6 +52,11 @@ export type OrderDetailPageContentProps = {
   shopHref?: string;
   /** Centered ticket bill with download. On for storefront and playground. */
   ticketBill?: boolean;
+  /**
+   * Long line lists scroll inside the bill card so totals stay visible.
+   * Scroll hint when more than 6 items.
+   */
+  nestedLinesScroll?: boolean;
   className?: string;
 };
 
@@ -61,6 +69,7 @@ export function OrderDetailPageContent({
   backHref = "/playground/orders-list",
   shopHref = "/playground",
   ticketBill = true,
+  nestedLinesScroll = false,
   className,
 }: OrderDetailPageContentProps) {
   const sample = orderId ? getOrder(orderId) : listOrders()[0];
@@ -124,6 +133,7 @@ export function OrderDetailPageContent({
       backHref={backHref}
       shopHref={shopHref}
       ticketBill={ticketBill}
+      nestedLinesScroll={nestedLinesScroll}
       className={className}
     />
   );
@@ -134,12 +144,14 @@ function OrderDetailBody({
   backHref,
   shopHref,
   ticketBill,
+  nestedLinesScroll,
   className,
 }: {
   order: SampleOrder;
   backHref: string;
   shopHref: string;
   ticketBill: boolean;
+  nestedLinesScroll: boolean;
   className?: string;
 }) {
   const [review, setReview] = useState(false);
@@ -293,24 +305,42 @@ function OrderDetailBody({
 
         <SectionTitle icon={<DeliveryScooter className="h-6 w-6" />} label="Delivery details" />
         <div className="mt-3 overflow-hidden rounded-3xl bg-[#F4F4F6]">
-          <DetailRow label="Deliver to" value={order.addressLabel} />
-          <DetailRow label="Address" value={order.addressDetail} />
+          <DetailRow
+            label="Deliver to"
+            value={order.addressLabel || "Delivery address"}
+          />
+          {order.addressDetail.trim() ? (
+            <DetailRow label="Address" value={order.addressDetail} />
+          ) : null}
           <DetailRow label="Payment" value={order.paymentLabel} />
         </div>
 
         <div className="mt-3.5 rounded-3xl bg-[#F4F4F6] px-4 py-4">
-          <ul className="space-y-4">
-            {order.lines.map((line) => (
-              <BillLine key={line.productId} line={line} />
-            ))}
-          </ul>
-          <div className="my-4 h-px bg-[#EAEAED]" />
+          <div
+            className={cn(
+              nestedLinesScroll &&
+                order.lines.length > 4 &&
+                "max-h-[13.5rem] overflow-y-auto overscroll-contain pr-1 [-webkit-overflow-scrolling:touch]",
+            )}
+          >
+            <ul className="space-y-4">
+              {order.lines.map((line) => (
+                <BillLine key={line.productId} line={line} />
+              ))}
+            </ul>
+          </div>
+          {nestedLinesScroll && order.lines.length > 6 ? (
+            <p className="mt-2 text-center text-[12px] font-semibold text-muted">
+              Scroll to see all {order.lines.length} items
+            </p>
+          ) : null}
+          <div className="my-4 border-t border-dashed border-black" />
           <Amount label="Subtotal" value={inr(order.subtotal)} />
           {order.promoDiscount > 0 ? (
             <Amount label="Promo" value={`−${inr(order.promoDiscount)}`} />
           ) : null}
           <Amount label="Shipping" value={inr(deliveryCharge(order))} />
-          <div className="my-4 h-px bg-[#EAEAED]" />
+          <div className="my-4 border-t border-dashed border-black" />
           <Amount label="Total" value={inr(billedTotal(order))} strong />
         </div>
 
@@ -442,11 +472,12 @@ function DetailSteps({ active, times }: { active: number; times: string[] }) {
 function DeliveryScooter({ className }: { className?: string }) {
   return (
     <Image
-      src="/orders/delivery-scooter.png"
+      src="/orders/delivery-scooter.svg"
       alt=""
       width={64}
       height={64}
       className={cn("object-contain", className)}
+      unoptimized
     />
   );
 }
@@ -470,18 +501,32 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 function BillLine({ line }: { line: SampleOrderLine }) {
-  const product = getSampleProduct(line.productId);
+  const sample = getSampleProduct(line.productId);
+  const recalled = recallProduct(line.productId);
+  const unit = sample?.unit ?? recalled?.unit;
+  const photo = productPhoto(
+    line.image || sample?.image || recalled?.image,
+  );
   return (
     <li className="flex items-start gap-3">
-      {product ? (
-        <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-white">
-          <Image src={product.image} alt="" fill className="object-cover" sizes="40px" />
-        </span>
-      ) : null}
+      <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-white ring-1 ring-black/5">
+        <CatalogImage
+          src={photo}
+          alt=""
+          width={80}
+          height={80}
+          className={cn(
+            "h-10 w-10",
+            isProductImageFallback(photo) ? "object-contain p-1" : "object-cover",
+          )}
+        />
+      </span>
       <div className="flex min-w-0 flex-1 items-start gap-2">
-        <p className="line-clamp-2 text-sm font-semibold text-black">{lineName(line)}</p>
+        <p className="line-clamp-2 text-sm font-semibold text-black">
+          {lineName(line)}
+        </p>
         <span className="mt-0.5 rounded-full bg-track px-1.5 py-0.5 text-[10px] leading-none font-extrabold whitespace-nowrap text-black">
-          {orderLineLabel(line, product?.unit)}
+          {orderLineLabel(line, unit)}
         </span>
       </div>
       <p className="text-sm font-bold text-black">{inr(line.lineTotal)}</p>
