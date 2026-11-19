@@ -9,7 +9,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { WISHLIST_STORAGE_KEY } from "@/lib/api/wishlist";
+import { wishlistStorageKey } from "@/lib/api/wishlist";
 import {
   recallProduct,
   readSnapshotsRaw,
@@ -22,9 +22,12 @@ import { SAMPLE_PRODUCTS, type SampleProduct } from "@/lib/sample-products";
  * Hearts subscribe per product id. The list page subscribes to the
  * stored string. Ephemeral playground lists stay in React state.
  */
-const STORAGE_KEY = WISHLIST_STORAGE_KEY;
 const WISHLIST_EVENT = "yaadro-wishlist";
 const EMPTY_IDS: string[] = [];
+
+function storageKey(): string {
+  return wishlistStorageKey();
+}
 
 type WishlistMeta = {
   signedIn: boolean;
@@ -52,7 +55,7 @@ function parseIds(raw: string | null): string[] {
 
 function currentIdSet(): Set<string> {
   if (typeof window === "undefined") return storedIdSet;
-  const raw = window.localStorage.getItem(STORAGE_KEY);
+  const raw = window.localStorage.getItem(storageKey());
   if (raw === storedRawCache) return storedIdSet;
   storedRawCache = raw;
   storedIdSet = new Set(parseIds(raw));
@@ -62,7 +65,7 @@ function currentIdSet(): Set<string> {
 export function subscribeWishlist(onChange: () => void) {
   if (typeof window === "undefined") return () => undefined;
   const onStorage = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY || event.key === null) onChange();
+    if (event.key === storageKey() || event.key === null) onChange();
   };
   window.addEventListener("storage", onStorage);
   window.addEventListener(WISHLIST_EVENT, onChange);
@@ -74,7 +77,7 @@ export function subscribeWishlist(onChange: () => void) {
 
 export function readWishlistRaw(): string | null {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(STORAGE_KEY);
+  return window.localStorage.getItem(storageKey());
 }
 
 export function hasStoredWishlistId(productId: string): boolean {
@@ -87,7 +90,7 @@ export function toggleStoredWishlistId(productId: string) {
     ? ids.filter((id) => id !== productId)
     : [...ids, productId];
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    window.localStorage.setItem(storageKey(), JSON.stringify(next));
   } catch {
     // best-effort
   }

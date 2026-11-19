@@ -21,6 +21,7 @@ import {
   notifySessionExpired,
   saveCustomerSession,
 } from "@/lib/api/session";
+import { resolveClientShopId } from "@/lib/resolved-shop";
 
 export type QueryValue = string | number | boolean | null | undefined;
 
@@ -61,7 +62,7 @@ export function apiOrigin(): string {
 }
 
 export function shopId(): string {
-  return process.env.NEXT_PUBLIC_SHOP_ID?.trim() ?? "";
+  return resolveClientShopId();
 }
 
 /** ngrok free answers browser requests with a warning page that has no CORS headers. */
@@ -90,6 +91,12 @@ function timeoutMs(): number {
 function requestId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `req_${Date.now()}`;
+}
+
+/** Storefront APIs set/read httpOnly `storefront_serviceability` (location → checkout). */
+function storefrontPathNeedsCookies(path: string): boolean {
+  const p = path.split("?")[0] ?? path;
+  return p.includes("/storefront/");
 }
 
 function buildUrl(path: string, query?: Record<string, QueryValue>): string {
@@ -242,7 +249,10 @@ async function execute<T>(input: ApiRequest, refreshed: boolean): Promise<Succes
       headers,
       body: input.body === undefined ? undefined : JSON.stringify(input.body),
       signal: controller.signal,
-      credentials: input.credentials ?? "omit",
+      // Match main: storefront routes set/read the serviceability cookie.
+      credentials:
+        input.credentials ??
+        (storefrontPathNeedsCookies(input.path) ? "include" : "omit"),
       cache: method === "GET" ? "default" : "no-store",
     });
   } catch (error) {

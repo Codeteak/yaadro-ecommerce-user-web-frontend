@@ -14,6 +14,7 @@ function CategoriesBody({
   selection,
   focusSearch,
   initialChipsOpen,
+  initialQuery,
 }: {
   branches: CategoryBranch[];
   products: SampleProduct[];
@@ -21,6 +22,7 @@ function CategoriesBody({
   selection: string;
   focusSearch: boolean;
   initialChipsOpen: boolean;
+  initialQuery: string;
 }) {
   const router = useRouter();
 
@@ -28,6 +30,7 @@ function CategoriesBody({
     const params = new URLSearchParams();
     if (focusSearch) params.set("focus", "search");
     if (initialChipsOpen) params.set("chips", "1");
+    if (initialQuery) params.set("q", initialQuery);
     // All → bare /categories (same payload as cat=all).
     if (key !== "all") params.set("cat", key.slice(4));
     const query = params.toString();
@@ -43,6 +46,7 @@ function CategoriesBody({
       error={error}
       focusSearch={focusSearch}
       initialChipsOpen={initialChipsOpen}
+      initialQuery={initialQuery}
       selection={selection}
       onSelect={onSelect}
       railLayout="horizontal"
@@ -57,6 +61,7 @@ export function CategoriesPageContent({
   selection,
   focusSearch,
   initialChipsOpen,
+  initialQuery = "",
 }: {
   branches: CategoryBranch[];
   products: SampleProduct[];
@@ -64,6 +69,7 @@ export function CategoriesPageContent({
   selection: string;
   focusSearch: boolean;
   initialChipsOpen: boolean;
+  initialQuery?: string;
 }) {
   return (
     <StorefrontPageFrame
@@ -79,6 +85,7 @@ export function CategoriesPageContent({
           selection={selection}
           focusSearch={focusSearch}
           initialChipsOpen={initialChipsOpen}
+          initialQuery={initialQuery}
         />
       </Suspense>
     </StorefrontPageFrame>

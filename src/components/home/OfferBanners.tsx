@@ -52,10 +52,23 @@ const SLIDE_MS = 4000;
 const TRANSITION = "transform 700ms cubic-bezier(0.22, 1, 0.36, 1)";
 const SWIPE_PX = 40;
 
-export function OfferBanners({ banners }: { banners?: OfferBanner[] }) {
-  const slides = banners && banners.length > 0 ? banners : SAMPLE_BANNERS;
+export function OfferBanners({
+  banners,
+  /** Playground only — show sample creatives when no banners. */
+  allowSample = false,
+}: {
+  banners?: OfferBanner[];
+  allowSample?: boolean;
+}) {
+  const slides =
+    banners && banners.length > 0
+      ? banners
+      : allowSample
+        ? SAMPLE_BANNERS
+        : [];
   const live = banners != null && banners.length > 0;
   const count = slides.length;
+  if (count === 0) return null;
   /** Track position 0..count, where count is the cloned first slide. */
   const [position, setPosition] = useState(0);
   const [transitionOn, setTransitionOn] = useState(true);

@@ -15,8 +15,7 @@ import { cn } from "@/lib/cn";
 type HomeSearchBarProps = {
   className?: string;
   /**
-   * When true, submit navigates to `/search?q=…`.
-   * Default false until a search page/API exists.
+   * When true, submit navigates to `/categories?q=…` (filters products there).
    */
   navigateOnSubmit?: boolean;
   placeholder?: string;
@@ -103,7 +102,9 @@ export function HomeSearchBar({
     }
     const q = query.trim();
     if (!q || !navigateOnSubmit) return;
-    router.push(`/search?q=${encodeURIComponent(q)}`);
+    router.push(
+      `/categories?q=${encodeURIComponent(q)}&focus=search&cat=all`,
+    );
   };
 
   return (

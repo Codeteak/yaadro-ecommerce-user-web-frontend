@@ -48,15 +48,13 @@ async function HomeHero() {
           <HomeTopBar shopName={shop.name} shopImage={shop.image} />
           <HomeSearchBar
             className="mt-4"
-            activateHref="/categories?focus=search"
+            navigateOnSubmit
             filterHref="/categories?focus=search&chips=1"
           />
         </div>
 
         <div className="relative mt-4 pb-3">
-          <OfferBanners
-            banners={shop.banners.length > 0 ? shop.banners : undefined}
-          />
+          <OfferBanners banners={shop.banners} />
         </div>
 
         <svg

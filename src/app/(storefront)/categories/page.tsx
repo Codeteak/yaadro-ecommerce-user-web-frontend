@@ -10,12 +10,19 @@ export const metadata: Metadata = {
 };
 
 type CategoriesPageProps = {
-  searchParams: Promise<{ cat?: string; focus?: string; chips?: string }>;
+  searchParams: Promise<{
+    cat?: string;
+    focus?: string;
+    chips?: string;
+    q?: string;
+  }>;
 };
 
 async function CategoriesPageBody({ searchParams }: CategoriesPageProps) {
   const query = await searchParams;
-  const catalog = await loadCategoryBrowser(query.cat);
+  const catalog = await loadCategoryBrowser(
+    query.q?.trim() ? "all" : query.cat,
+  );
 
   return (
     <CategoriesPageContent
@@ -23,8 +30,9 @@ async function CategoriesPageBody({ searchParams }: CategoriesPageProps) {
       products={catalog.products}
       error={catalog.error}
       selection={catalog.selectedKey}
-      focusSearch={query.focus === "search"}
+      focusSearch={query.focus === "search" || Boolean(query.q?.trim())}
       initialChipsOpen={query.chips === "1"}
+      initialQuery={query.q?.trim() ?? ""}
     />
   );
 }

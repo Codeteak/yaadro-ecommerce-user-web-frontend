@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-20 — Parity blockers: cookies, search, address, cart shop, session, PWA
+
+Storefront fetch sends `credentials: include` on `/api/storefront/*`. Home search → `/categories?q=` filters. One delivery address syncs from server on login and saves via address API. Cart/wishlist keys are per shop (no migrate). Refresh token in localStorage (~50 days). Domain resolve caches shop id/banners; empty banners hide. Nominatim reverse fallback. `/new` and `/trending` → `/home`. PWA: `public/sw.js` + install prompt; favicon/manifest prefer shop image.
+
 ## 2026-11-19 — Address search polish (suggestions + post-select)
 
 No Search button. Pill search field (border, clear X). Places suggestions list refined (pin chip + dividers). After pick: dropdown closes and stays closed until the field is edited; short primary label in the input. Removed “Location updated from search” notice.

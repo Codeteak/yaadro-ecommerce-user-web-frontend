@@ -23,10 +23,20 @@ import {
   lineTotal,
   type CartItem,
 } from "@/lib/cart-lines";
+import { resolveClientShopId } from "@/lib/resolved-shop";
 
-const CART_KEY = "yaadro-cart-v1";
-const PROMO_KEY = "yaadro-cart-promo-v1";
 const CART_EVENT = "yaadro-cart";
+
+/** Per-shop basket (no migrate from legacy `yaadro-cart-v1`). */
+function cartKey(): string {
+  const shop = resolveClientShopId();
+  return shop ? `yaadro_cart_${shop}` : "yaadro_cart_guest";
+}
+
+function promoKey(): string {
+  const shop = resolveClientShopId();
+  return shop ? `yaadro_cart_promo_${shop}` : "yaadro_cart_promo_guest";
+}
 
 const EMPTY_ITEMS: CartItem[] = [];
 
@@ -123,7 +133,7 @@ function rebuildLineCache() {
 
 function readStorage() {
   if (typeof window === "undefined") return;
-  const nextItemsRaw = window.localStorage.getItem(CART_KEY);
+  const nextItemsRaw = window.localStorage.getItem(cartKey());
   if (nextItemsRaw !== itemsRaw) {
     const parsed = parseItems(nextItemsRaw);
     const previous = new Map(items.map((item) => [item.productId, item]));
@@ -137,7 +147,7 @@ function readStorage() {
     itemsRaw = nextItemsRaw;
     rebuildLineCache();
   }
-  const nextPromoRaw = window.localStorage.getItem(PROMO_KEY);
+  const nextPromoRaw = window.localStorage.getItem(promoKey());
   if (nextPromoRaw !== promoRaw) {
     promoRaw = nextPromoRaw;
     promoCoupon = parsePromo(nextPromoRaw);
@@ -152,7 +162,7 @@ function writeItems(next: CartItem[]) {
   items = next.length === 0 ? EMPTY_ITEMS : next;
   itemsRaw = JSON.stringify(items);
   try {
-    window.localStorage.setItem(CART_KEY, itemsRaw);
+    window.localStorage.setItem(cartKey(), itemsRaw);
   } catch {
     // persistence is best-effort
   }
@@ -165,11 +175,11 @@ function writePromo(coupon: SampleCoupon | null) {
   promoCoupon = coupon;
   try {
     if (!coupon) {
-      window.localStorage.removeItem(PROMO_KEY);
+      window.localStorage.removeItem(promoKey());
       promoRaw = null;
     } else {
       promoRaw = JSON.stringify(coupon);
-      window.localStorage.setItem(PROMO_KEY, promoRaw);
+      window.localStorage.setItem(promoKey(), promoRaw);
     }
   } catch {
     // persistence is best-effort
@@ -181,7 +191,7 @@ function writePromo(coupon: SampleCoupon | null) {
 export function subscribeCart(onChange: () => void) {
   if (typeof window === "undefined") return () => undefined;
   const onStorage = (event: StorageEvent) => {
-    if (event.key === CART_KEY || event.key === PROMO_KEY || event.key === null) {
+    if (event.key === cartKey() || event.key === promoKey() || event.key === null) {
       onChange();
     }
   };
