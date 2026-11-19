@@ -239,39 +239,62 @@ function snapshotFor(
 
 export function setCartQty(productId: string, qty: number) {
   const current = getItemsSnapshot();
-  const previous = current.find((item) => item.productId === productId);
-  const rest = current.filter((item) => item.productId !== productId);
-  writeItems(
-    qty > 0
-      ? [
-          ...rest,
-          {
-            productId,
-            qty,
-            snapshot: snapshotFor(productId, previous?.snapshot),
-          },
-        ]
-      : rest,
-  );
+  const index = current.findIndex((item) => item.productId === productId);
+  if (qty <= 0) {
+    writeItems(current.filter((item) => item.productId !== productId));
+    return;
+  }
+  // Keep insertion order — do not move the line to the end (#36).
+  if (index >= 0) {
+    const previous = current[index];
+    const next = current.slice();
+    next[index] = {
+      productId,
+      qty,
+      snapshot: snapshotFor(productId, previous?.snapshot),
+    };
+    writeItems(next);
+    return;
+  }
+  writeItems([
+    ...current,
+    {
+      productId,
+      qty,
+      snapshot: snapshotFor(productId),
+    },
+  ]);
 }
 
 export function setCartWeight(productId: string, weightKg: number | null) {
   const current = getItemsSnapshot();
-  const previous = current.find((item) => item.productId === productId);
-  const rest = current.filter((item) => item.productId !== productId);
-  writeItems(
-    weightKg && weightKg > 0
-      ? [
-          ...rest,
-          {
-            productId,
-            qty: 0,
-            weightKg,
-            snapshot: snapshotFor(productId, previous?.snapshot),
-          },
-        ]
-      : rest,
-  );
+  const index = current.findIndex((item) => item.productId === productId);
+  if (!weightKg || weightKg <= 0) {
+    writeItems(current.filter((item) => item.productId !== productId));
+    return;
+  }
+  // Keep insertion order — do not move the line to the end (#36).
+  if (index >= 0) {
+    const previous = current[index];
+    const next = current.slice();
+    next[index] = {
+      productId,
+      qty: 0,
+      weightKg,
+      snapshot: snapshotFor(productId, previous?.snapshot),
+    };
+    writeItems(next);
+    return;
+  }
+  writeItems([
+    ...current,
+    {
+      productId,
+      qty: 0,
+      weightKg,
+      snapshot: snapshotFor(productId),
+    },
+  ]);
 }
 
 export function clearCartPromo() {

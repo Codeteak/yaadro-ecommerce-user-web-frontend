@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { PageHeader } from "@/components/navigation/PageHeader";
 import { PullToRefresh } from "@/components/navigation/PullToRefresh";
 import { ProductCard } from "@/components/product/ProductCard";
+import { StorefrontPageFrame } from "@/components/storefront/StorefrontPageFrame";
 import { useWishlist } from "@/components/wishlist/WishlistContext";
 
 type WishlistPageContentProps = {
@@ -39,10 +39,8 @@ export function WishlistPageContent({
   const emptyCtaLabel = signedIn ? "Shop now" : "Sign in";
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-paper px-5">
-      <PageHeader backHref={href} title="Wishlist" />
-
-      <PullToRefresh className="flex flex-1 flex-col">
+    <StorefrontPageFrame title="Wishlist" backHref={href}>
+      <PullToRefresh className="flex flex-1 flex-col px-5">
         {!signedIn || products.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
             <Image
@@ -72,6 +70,6 @@ export function WishlistPageContent({
           </div>
         )}
       </PullToRefresh>
-    </main>
+    </StorefrontPageFrame>
   );
 }

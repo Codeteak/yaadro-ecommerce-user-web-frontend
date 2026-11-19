@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { HelpSupportContent } from "@/components/profile/HelpSupportContent";
+import { HelpSupportRoute } from "@/components/profile/HelpSupportRoute";
 import { getShopSupportContact } from "@/lib/shop-support";
 
 export const metadata: Metadata = {
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 async function SupportPageBody() {
   const contact = await getShopSupportContact();
-  return <HelpSupportContent contact={contact} backHref="/profile" />;
+  return <HelpSupportRoute contact={contact} />;
 }
 
 /**

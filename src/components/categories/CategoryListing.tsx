@@ -11,7 +11,7 @@ import {
   CategoryRail,
   type RailCategory,
 } from "@/components/home/CategoryRail";
-import { CategoryTile } from "@/components/home/CategoryTile";
+import { CategoryCard } from "@/components/categories/CategoryCard";
 import { HomeSearchBar } from "@/components/home/HomeSearchBar";
 import { ProductCard } from "@/components/product/ProductCard";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
@@ -319,7 +319,7 @@ export function CategoryListing({
             >
               <div className="flex flex-col gap-1">
                 {category.subcategories.map((row) => (
-                  <CategoryTile
+                  <CategoryCard
                     key={row.name}
                     size="sidebar"
                     name={row.name}

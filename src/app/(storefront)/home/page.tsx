@@ -14,6 +14,7 @@ import {
   listStoreCategories,
   loadHomeCatalog,
 } from "@/lib/api/storefront";
+import { browseSectionsFromBranches } from "@/lib/home-category-browse";
 import { ALL_CATEGORY_SLUG } from "@/lib/home-categories";
 import { getShopSeo } from "@/lib/shop-seo";
 
@@ -123,6 +124,9 @@ async function HomeCatalogBody() {
               products: shelf.products,
             }))
           : []
+      }
+      browseSections={
+        catalog.ok ? browseSectionsFromBranches(catalog.branches) : []
       }
       catalogError={catalog.error}
     />

@@ -2,7 +2,7 @@ import type { CategoryBranch } from "@/lib/api/storefront";
 
 /**
  * Home “shop by aisle” browse blocks (Blinkit-style section + square tiles).
- * Sample data is for playground reconstruct; live home will pass `branches`.
+ * Sample data is for playground reconstruct; live `/home` passes `branches`.
  */
 
 export type CategoryBrowseTile = {

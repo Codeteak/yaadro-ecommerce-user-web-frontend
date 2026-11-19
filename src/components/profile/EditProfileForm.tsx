@@ -13,17 +13,33 @@ import {
   verifyPhoneChange,
 } from "@/lib/api/profile";
 import { saveMyAddress } from "@/lib/api/address";
-import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
+import { useCustomerAuthStatus } from "@/components/auth/useCustomerSignedIn";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
+import { writeCachedProfileUi } from "@/lib/profile-cache";
 import { showPopup } from "@/components/ui/Toast";
 
+function EditProfileSkeleton() {
+  return (
+    <div className="mt-6 flex flex-col items-center gap-4" aria-busy aria-label="Loading profile">
+      <Skeleton className="size-28 rounded-full bg-mint/55" />
+      <Skeleton className="h-12 w-full rounded-2xl bg-mint/45" />
+      <Skeleton className="h-12 w-full rounded-2xl bg-mint/40" />
+      <Skeleton className="h-12 w-full rounded-2xl bg-mint/35" />
+      <Skeleton className="mt-2 h-12 w-full rounded-full bg-mint/50" />
+    </div>
+  );
+}
+
 export function EditProfileForm() {
-  const signedIn = useCustomerSignedIn();
+  const authStatus = useCustomerAuthStatus();
+  const signedIn = authStatus === "signed-in";
   const queryClient = useQueryClient();
   const profile = useQuery({
     queryKey: ["profile"],
     queryFn: ({ signal }) => getMyProfile(signal),
     enabled: signedIn,
+    staleTime: 60_000,
   });
   const [name, setName] = useState<string | null>(null);
   const [nickname, setNickname] = useState<string | null>(null);
@@ -69,6 +85,12 @@ export function EditProfileForm() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["profile"] });
+      const id = loaded?.user.id?.trim();
+      const label =
+        nicknameValue.trim() || nameValue.trim() || null;
+      if (id && label) {
+        writeCachedProfileUi({ userId: id, displayName: label });
+      }
       setFormError(null);
       showPopup("Profile saved.", "success");
     },
@@ -110,6 +132,10 @@ export function EditProfileForm() {
     },
   });
 
+  if (authStatus === "loading") {
+    return <EditProfileSkeleton />;
+  }
+
   if (!signedIn) {
     return (
       <p className="mt-8 text-center text-sm text-muted">
@@ -122,7 +148,7 @@ export function EditProfileForm() {
   }
 
   if (profile.isPending) {
-    return <div className="mt-8 h-40 animate-pulse rounded-2xl bg-mint/50" />;
+    return <EditProfileSkeleton />;
   }
 
   if (profile.isError) {

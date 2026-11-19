@@ -1,22 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { CatalogImage } from "@/components/ui/CatalogImage";
+import { CategoryCard } from "@/components/categories/CategoryCard";
 import { HomeSearchBar } from "@/components/home/HomeSearchBar";
 import { ProductCard } from "@/components/product/ProductCard";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
-import {
-  CATEGORY_IMAGE_FALLBACK,
-  isCategoryImageFallback,
-} from "@/lib/category-image";
+import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
 import { cn } from "@/lib/cn";
 import {
   CATALOG_SECTIONS,
   resolveHubTileShape,
   resolveHubTileSpan,
   type CatalogCategory,
-  type CatalogTileShape,
 } from "@/lib/catalog-taxonomy";
 import {
   getSampleProduct,
@@ -198,12 +193,22 @@ export function CategoriesHub({
                           : "col-span-1",
                     )}
                   >
-                    <HubTile
-                      category={cat}
-                      shape={shape}
+                    <CategoryCard
+                      size="hub"
+                      name={
+                        shape === "rect"
+                          ? cat.name
+                          : (cat.shortName ?? cat.name)
+                      }
+                      image={cat.image || imageFallback}
+                      slug={cat.slug}
                       href={categoryHref?.(cat)}
-                      imageFallback={imageFallback}
-                      onSelect={() => onSelectCategory?.(cat)}
+                      onClick={
+                        categoryHref
+                          ? undefined
+                          : () => onSelectCategory?.(cat)
+                      }
+                      hubWide={shape === "rect"}
                     />
                   </li>
                 );
@@ -259,9 +264,6 @@ export function CategoriesHub({
   );
 }
 
-/** Shared tile height so rect and square align in a row. */
-const TILE_H = "h-[6.25rem]";
-
 const MISSING_PHOTO_CATEGORY: CatalogCategory = {
   slug: "no-photo",
   name: "No photo",
@@ -269,76 +271,3 @@ const MISSING_PHOTO_CATEGORY: CatalogCategory = {
   image: "",
   subcategories: [],
 };
-
-function HubTile({
-  category,
-  shape,
-  href,
-  onSelect,
-  imageFallback,
-}: {
-  category: CatalogCategory;
-  shape: CatalogTileShape;
-  href?: string;
-  onSelect: () => void;
-  imageFallback: string;
-}) {
-  const label =
-    shape === "rect" ? category.name : (category.shortName ?? category.name);
-  const src = category.image || imageFallback;
-  const placeholder = isCategoryImageFallback(src);
-
-  const body = (
-    <>
-      <span
-        className={cn(
-          "relative block w-full overflow-hidden rounded-[1.15rem] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.04)]",
-          placeholder ? "bg-white" : "bg-[#efe6da]",
-          TILE_H,
-        )}
-      >
-        <CatalogImage
-          src={src}
-          alt=""
-          fill
-          sizes={shape === "rect" ? "66vw" : "25vw"}
-          className={
-            placeholder
-              ? "bg-white object-contain"
-              : "object-cover transition duration-300 group-hover:scale-[1.04]"
-          }
-        />
-      </span>
-      <span className="mt-1.5 line-clamp-2 min-h-[2.1rem] w-full text-center text-[12px] leading-tight font-extrabold text-forest">
-        {label}
-      </span>
-    </>
-  );
-
-  const className =
-    "group flex w-full min-w-0 cursor-pointer flex-col items-stretch transition-transform duration-150 ease-out motion-safe:active:scale-[0.94] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf";
-
-  if (href) {
-    return (
-      <Link
-        href={href}
-        transitionTypes={["nav-forward"]}
-        className={className}
-        aria-label={category.name}
-      >
-        {body}
-      </Link>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={className}
-      aria-label={category.name}
-    >
-      {body}
-    </button>
-  );
-}

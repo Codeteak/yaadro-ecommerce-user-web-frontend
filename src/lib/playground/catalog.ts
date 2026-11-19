@@ -48,7 +48,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Navigation",
     description:
-      "Phase A #1: smoother pill/label expand. Path-hidden on cart/checkout/…. Scroll-down hide. Confirm to keep on storefront.",
+      "Phase A #1 wired: smoother pill/label + scroll hide on storefront BottomNav.",
     wiresTo: "Storefront layout (BottomNav)",
   },
   {
@@ -122,6 +122,36 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     description:
       "Phase A #2: press scale on hub tiles. Featured rectangles + squares. Confirm keep (shared CategoriesHub / CategoryTile).",
     wiresTo: "Playground reference; see category-browser",
+  },
+  {
+    slug: "category-card-shared",
+    title: "CategoryCard (shared)",
+    status: "built",
+    group: "Home",
+    description:
+      "Phase B #28: shared CategoryCard(image|icon, name). Wired to live rail, hub, browser, listing.",
+    wiresTo:
+      "src/components/categories/CategoryCard.tsx → CategoryRail / CategoriesHub / CategoryBrowser / CategoryListing",
+  },
+  {
+    slug: "storefront-shell",
+    title: "Storefront shell",
+    status: "built",
+    group: "Navigation",
+    description:
+      "Phase B #29: StorefrontPageFrame (PageHeader + body). Wired to /categories, /wishlist, /orders. BottomNav via StorefrontChrome.",
+    wiresTo:
+      "src/components/storefront/StorefrontPageFrame.tsx → CategoriesPageContent / WishlistPageContent / OrdersPageContent",
+  },
+  {
+    slug: "home-more-sections",
+    title: "Home · more sections",
+    status: "built",
+    group: "Home",
+    description:
+      "Phase B #30: aisle browse sections on home. Wired via browseSectionsFromBranches on live /home.",
+    wiresTo:
+      "src/lib/home-category-browse.ts → HomePullContent browseSections on /home",
   },
   {
     slug: "category-browser",
@@ -209,7 +239,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Playground-only candidate home: FruitsVeggies then aisle grids (mint plates, rect-first). Live /home stays classic (rail + shelves).",
+      "Phase B #30 aisle grids slice. Full stack: home-more-sections. Live /home stays classic.",
     wiresTo: "Playground only — not on /home",
   },
   {
@@ -299,7 +329,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Playground: SAMPLE top offers + local apply. Live /cart: shop coupons only; apply via cart/preview; hide Top offers when API empty.",
+      "Phase A wired: #32 solid Checkout CTA + #36 stable line order on live /cart. Playground keeps SAMPLE offers.",
     wiresTo: "/cart",
   },
   {
@@ -319,6 +349,16 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     description:
       "Centered soft message (storefront) vs legacy banner. Same notice on cart, checkout, and PDP.",
     wiresTo: "/cart, /checkout, /product/[id]",
+  },
+  {
+    slug: "price-vary-explain",
+    title: "Price vary · before checkout",
+    status: "built",
+    group: "Experiments",
+    description:
+      "Phase D #33 wired: notice display-only; cart Checkout → explain popup → Continue → checkout. Help topic=price + return stack.",
+    wiresTo:
+      "CartPageContent PriceMayVaryExplainSheet → /checkout; HelpSupportRoute ?topic=price",
   },
 
   // ── Auth & onboarding ───────────────────────────────────────────────
@@ -445,7 +485,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Guest Place Order → login?next=/cart. Signed-in: Place Order press, dotted You save, no Amount due bar.",
+      "Phase A #34 wired: Amount due bar off. Guest → login?next=/cart.",
     wiresTo: "/checkout, /login, /cart",
   },
   {
@@ -454,7 +494,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Playground fixture: Coupon −₹ in the bill. Live /checkout only shows that row after shop preview applies a real code.",
+      "Phase A #34 wired + coupon −₹ fixture. Live row only after shop preview applies a real code.",
     wiresTo: "/checkout",
   },
   {
@@ -512,6 +552,16 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     wiresTo: "/orders (guest)",
   },
   {
+    slug: "address-modal-shared",
+    title: "Address modal (shared)",
+    status: "built",
+    group: "Product & cart",
+    description:
+      "Phase C #31+#35 wired: profile Address sheet + checkout/home Edit with editId. /profile/addresses redirects to /profile?address=1.",
+    wiresTo:
+      "ProfileAccountNav sheet + CheckoutPageContent / HomeTopBar AddressBookSheet(editId)",
+  },
+  {
     slug: "address-book",
     title: "Saved addresses",
     status: "built",
@@ -526,7 +576,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "One address: edit or delete. Add only when none is saved. Same as /profile/addresses.",
+      "One address: edit or delete. Add only when none is saved. Same as /profile/addresses. Prefer address-modal-shared for #31/#35.",
     wiresTo: "/profile/addresses",
   },
   {

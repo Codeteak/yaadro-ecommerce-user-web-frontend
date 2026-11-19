@@ -42,6 +42,10 @@ import {
   readBrowserPosition,
 } from "@/lib/delivery-location";
 import { LOCATION_TOASTS } from "@/lib/location-messages";
+import {
+  getSelectedAddress,
+  listSavedAddresses,
+} from "@/lib/saved-addresses";
 
 type CheckoutPageContentProps = {
   /**
@@ -159,6 +163,10 @@ export function CheckoutPageContent({
     ? `₹${demoBill.totalRupees}`
     : dueLabel;
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetEditId, setSheetEditId] = useState<string | null>(null);
+  const [sheetStep, setSheetStep] = useState<"list" | "map" | "details">(
+    "list",
+  );
   const [pending, setPending] = useState(false);
   const [pendingLabel, setPendingLabel] = useState("Placing order…");
   const [placeError, setPlaceError] = useState<string | null>(null);
@@ -393,7 +401,18 @@ export function CheckoutPageContent({
               </div>
               <button
                 type="button"
-                onClick={() => setSheetOpen(true)}
+                onClick={() => {
+                  if (hasAddress) {
+                    const saved =
+                      getSelectedAddress() ?? listSavedAddresses()[0] ?? null;
+                    setSheetEditId(saved?.id ?? null);
+                    setSheetStep(saved ? "details" : "map");
+                  } else {
+                    setSheetEditId(null);
+                    setSheetStep("map");
+                  }
+                  setSheetOpen(true);
+                }}
                 className="shrink-0 cursor-pointer text-sm font-bold text-leaf transition hover:text-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
               >
                 {hasAddress ? "Edit" : "Add"}
@@ -557,7 +576,15 @@ export function CheckoutPageContent({
         </p>
       </div>
 
-      <AddressBookSheet open={sheetOpen} onOpenChange={setSheetOpen} />
+      <AddressBookSheet
+        open={sheetOpen}
+        onOpenChange={(next) => {
+          setSheetOpen(next);
+          if (!next) setSheetEditId(null);
+        }}
+        initialStep={sheetStep}
+        editId={sheetEditId}
+      />
     </main>
   );
 }

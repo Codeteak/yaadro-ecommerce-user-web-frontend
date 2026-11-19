@@ -1,6 +1,6 @@
 note: donnot let ai to work on this file manually enter and update it 
 
-1. smooth trsnsaction in footer navbar while switching
+1. ****smooth trsnsaction in footer navbar while switching**** (done — BottomNav pill expand / label + scroll hide)
 2. ****click effect the categories**** (done)
 3. ****home page take some time to load**** (done — hero / category rail / shelves stream in separate Suspense; categories all-aisle parallel)
 4. ****properly show cooupons and min cart value in cart page**** (done)
@@ -26,13 +26,13 @@ note: donnot let ai to work on this file manually enter and update it
 24. ****order details product images missing**** (done — API/snapshot/fallback thumb)
 25. dms bsed api format and testing add varibale in .env
 26. location based messages need to add in toaster (done — playground + live checkout / address book)
-27. list the coupon page with same design as showing in the cart
-28. category card need tochange in the category page use the same card in the home page make this a common compoentn and inherit as a function card(image(if image exist else icon),name) and import
-29. use a common header and footer for all the pages (fixed) 
-30. add more sections in the home menu (refer with main branch and check with)
-31. fir the address there is no need for a dedicated page use a popup modal for adress to edit and add
-32. remove transaprency of checkout button keep it fixed 
-33. add a pop up modal showing why price may change and clearly mention that may be shop price has been updated or custom weight might me vary thats why add a question mark and clicking that mwntion this details or reditect to help and support and open price varying question and add proper nav to checkout page remember the nav path if needed use a linked list to store this
-34. remove amount due hightlight in checkout
-35. in checkout address edit not working add pop up modal as a common component for address editinf
-36. while editing the quantuy of product in cart the prduct is rearnnging remove that auto sorting 
+27. ****list the coupon page with same design as showing in the cart**** (done — `/coupons` ticket cards match cart coupon design)
+28. ****category card need tochange in the category page use the same card in the home page make this a common compoentn and inherit as a function card(image(if image exist else icon),name) and import**** (done — `CategoryCard` on rail / hub / browser / listing)
+29. ****use a common header and footer for all the pages (fixed)**** (done — `StorefrontPageFrame` on /categories /wishlist /orders; BottomNav via chrome)
+30. ****add more sections in the home menu (refer with main branch and check with)**** (done — aisle `browseSectionsFromBranches` on live `/home`)
+31. ****fir the address there is no need for a dedicated page use a popup modal for adress to edit and add**** (done — profile Address sheet; `/profile/addresses` → `/profile?address=1`)
+32. ****remove transaprency of checkout button keep it fixed**** (done — `solidCheckoutCta` on live `/cart`)
+33. ****add a pop up modal showing why price may change…**** (done — notice display-only; cart Checkout → explain popup → Continue → `/checkout`; Help `?topic=price` + return stack)
+34. ****remove amount due hightlight in checkout**** (done — `showAmountDueBar={false}` on live `/checkout`)
+35. ****in checkout address edit not working add pop up modal as a common component for address editinf**** (done — checkout/home `AddressBookSheet` with `editId`)
+36. ****while editing the quantuy of product in cart the prduct is rearnnging remove that auto sorting**** (done — cart-store keeps insertion order)

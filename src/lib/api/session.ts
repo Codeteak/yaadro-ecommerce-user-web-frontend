@@ -7,6 +7,8 @@
  * localStorage is used only for a non-secret epoch so other tabs hear logout.
  */
 
+import { clearCachedProfileUi } from "@/lib/profile-cache";
+
 export type CustomerSession = {
   accessToken: string;
   refreshToken: string;
@@ -97,6 +99,7 @@ export function saveCustomerSession(session: CustomerSession) {
 
 export function clearCustomerSession() {
   accessToken = null;
+  clearCachedProfileUi();
   if (typeof window !== "undefined") {
     try {
       window.sessionStorage.removeItem(REFRESH_KEY);

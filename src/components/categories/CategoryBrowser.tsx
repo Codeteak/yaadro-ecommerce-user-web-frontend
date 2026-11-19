@@ -10,7 +10,7 @@ import {
   CategoryRail,
   type RailCategory,
 } from "@/components/home/CategoryRail";
-import { CategoryTile } from "@/components/home/CategoryTile";
+import { CategoryCard } from "@/components/categories/CategoryCard";
 import { HomeSearchBar } from "@/components/home/HomeSearchBar";
 import { ProductCard } from "@/components/product/ProductCard";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
@@ -303,7 +303,7 @@ export function CategoryBrowser({
               className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5 pt-2 pb-28"
             >
               <div className="flex flex-col gap-1">
-                <CategoryTile
+                <CategoryCard
                   size="sidebar"
                   name="All"
                   active={selected === "all"}
@@ -311,7 +311,7 @@ export function CategoryBrowser({
                 />
                 {branches.map((branch) => (
                   <div key={branch.id} className="flex flex-col gap-1">
-                    <CategoryTile
+                    <CategoryCard
                       size="sidebar"
                       name={branch.name}
                       image={branch.image || CATEGORY_IMAGE_FALLBACK}
@@ -319,7 +319,7 @@ export function CategoryBrowser({
                       onClick={() => choose(`cat:${branch.slug}`)}
                     />
                     {branch.children.map((child) => (
-                      <CategoryTile
+                      <CategoryCard
                         key={child.id}
                         size="sidebar"
                         name={child.name}

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Suspense } from "react";
 import { CategoryBrowser } from "@/components/categories/CategoryBrowser";
-import { PageHeader } from "@/components/navigation/PageHeader";
+import { StorefrontPageFrame } from "@/components/storefront/StorefrontPageFrame";
 import type { CategoryBranch } from "@/lib/api/storefront";
 import type { SampleProduct } from "@/lib/sample-products";
 
@@ -66,10 +66,11 @@ export function CategoriesPageContent({
   initialChipsOpen: boolean;
 }) {
   return (
-    <main className="mx-auto flex h-dvh w-full max-w-lg flex-col bg-paper">
-      <div className="px-5">
-        <PageHeader backHref="/home" title="Categories" />
-      </div>
+    <StorefrontPageFrame
+      title="Categories"
+      backHref="/home"
+      height="fill"
+    >
       <Suspense fallback={null}>
         <CategoriesBody
           branches={branches}
@@ -80,6 +81,6 @@ export function CategoriesPageContent({
           initialChipsOpen={initialChipsOpen}
         />
       </Suspense>
-    </main>
+    </StorefrontPageFrame>
   );
 }

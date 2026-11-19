@@ -149,6 +149,44 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
       "src/lib/catalog-taxonomy.ts",
     ],
   ),
+  "category-card-shared": U(
+    `import { CategoryCard } from "@/components/categories/CategoryCard";
+
+// Phase B #28 — image if present, else icon + name
+<CategoryCard name="Fruits" image="/categories/fruits.jpg" variant="pill" />
+<CategoryCard name="No photo" image="" variant="card" />`,
+    [
+      "src/components/categories/CategoryCard.tsx",
+      "src/components/home/CategoryTile.tsx",
+      "src/components/playground/PhaseBCategoryCardDemo.tsx",
+    ],
+  ),
+  "storefront-shell": U(
+    `import { StorefrontPageFrame } from "@/components/storefront/StorefrontPageFrame";
+
+// Phase B #29 — live /categories, /wishlist, /orders
+<StorefrontPageFrame title="Orders" backHref="/home">
+  {/* page body */}
+</StorefrontPageFrame>
+// BottomNav still from StorefrontChrome`,
+    [
+      "src/components/storefront/StorefrontPageFrame.tsx",
+      "src/components/playground/PhaseBShellDemo.tsx",
+      "src/components/navigation/PageHeader.tsx",
+      "src/components/navigation/BottomNav.tsx",
+    ],
+  ),
+  "home-more-sections": U(
+    `import { PhaseBHomeSectionsDemo } from "@/components/playground/PhaseBHomeSectionsDemo";
+
+// Phase B #30 — richer home stack (playground only)
+<PhaseBHomeSectionsDemo />`,
+    [
+      "src/components/playground/PhaseBHomeSectionsDemo.tsx",
+      "src/components/home/CategoryBrowseSections.tsx",
+      "src/components/home/HomeProductShelves.tsx",
+    ],
+  ),
   "category-browser": U(
     `import { CategoryBrowser } from "@/components/categories/CategoryBrowser";
 
@@ -271,7 +309,7 @@ import {
   browseSectionsFromBranches,
 } from "@/lib/home-category-browse";
 
-// Playground-only candidate (live /home stays classic)
+// Live /home: browseSectionsFromBranches(catalog.branches)
 <>
   <FruitsVeggiesSection />
   <CategoryBrowseSections
@@ -279,9 +317,7 @@ import {
     className="bg-paper [&_h2]:text-ink"
     sections={SAMPLE_CATEGORY_BROWSE_SECTIONS}
   />
-</>
-
-// If wiring later: browseSectionsFromBranches(branches)`,
+</>`,
     [
       "src/components/home/CategoryBrowseSections.tsx",
       "src/lib/home-category-browse.ts",
@@ -390,7 +426,7 @@ import { WishlistProvider } from "@/components/wishlist/WishlistContext";
   "cart-page": U(
     `import { CartPageContent } from "@/components/cart/CartPageContent";
 
-{/* Phase A playground: syncCheckoutTotal + weightAtBottom — confirm before ecom */}
+{/* Phase A playground: #32 solid CTA, #36 stable line order (cart-store) */}
 <CartPageContent
   showPriceMayVary
   showCartSuggestions
@@ -398,10 +434,12 @@ import { WishlistProvider } from "@/components/wishlist/WishlistContext";
   previewSignedIn
   weightAtBottom
   syncCheckoutTotal
+  solidCheckoutCta
 />`,
     [
       "src/app/(storefront)/cart/page.tsx",
       "src/components/cart/CartPageContent.tsx",
+      "src/lib/cart-store.ts",
       "src/components/cart/CartSuggestions.tsx",
       "src/components/product/ProductCard.tsx",
       "src/lib/cart-suggestions.ts",
@@ -430,6 +468,29 @@ import { getSampleProduct } from "@/lib/sample-products";
 <PriceMayVaryNotice variant="banner" />
 <PriceMayVaryNotice variant="soft" />`,
     ["src/components/storefront/PriceMayVaryNotice.tsx"],
+  ),
+  "price-vary-explain": U(
+    `import { PriceMayVaryExplainSheet } from "@/components/storefront/PriceMayVaryExplainSheet";
+import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
+
+// Notice is display-only (no ?)
+<PriceMayVaryNotice variant="soft" />
+
+// Phase D #33 — popup on Checkout, then continue to checkout
+<PriceMayVaryExplainSheet
+  open={open}
+  onOpenChange={setOpen}
+  continueLabel="Continue to checkout"
+  onContinue={() => goCheckout()}
+  onHelpClick={() => goHelp()}
+/>`,
+    [
+      "src/components/playground/PhaseDPriceVaryExplainDemo.tsx",
+      "src/components/storefront/PriceMayVaryExplainSheet.tsx",
+      "src/components/storefront/PriceMayVaryNotice.tsx",
+      "src/lib/nav-return-stack.ts",
+      "src/lib/price-may-vary.ts",
+    ],
   ),
   "onboarding-screen": U(
     `import { OnboardingScreen } from "@/components/onboarding/OnboardingScreen";
@@ -680,6 +741,26 @@ import { OrderLiveTrackPage } from "@/components/orders/OrderLiveTrackPage";
       "src/app/(storefront)/orders/page.tsx",
       "src/components/orders/OrdersPageContent.tsx",
       "public/orders/empty-orders-v2.png",
+    ],
+  ),
+  "address-modal-shared": U(
+    `import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
+import { SavedAddressesManageList } from "@/components/delivery/SavedAddressesManageList";
+
+// Phase C #31 — profile: manage list opens sheet (no /profile/addresses page)
+<SavedAddressesManageList />
+
+// Phase C #35 — checkout Edit must pass editId (not bare open)
+<AddressBookSheet
+  open={open}
+  onOpenChange={setOpen}
+  initialStep={hasAddress ? "details" : "map"}
+  editId={hasAddress ? saved.id : null}
+/>`,
+    [
+      "src/components/playground/PhaseCAddressModalDemo.tsx",
+      "src/components/delivery/AddressBookSheet.tsx",
+      "src/components/delivery/SavedAddressesManageList.tsx",
     ],
   ),
   "address-book": U(

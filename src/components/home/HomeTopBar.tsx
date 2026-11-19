@@ -11,6 +11,10 @@ import {
   readDeliveryAddress,
   subscribeDeliveryAddress,
 } from "@/lib/delivery-address";
+import {
+  getSelectedAddress,
+  listSavedAddresses,
+} from "@/lib/saved-addresses";
 
 /** Only this link subscribes to the session, so the address row does not re-render. */
 function AccountLink({ signedIn }: { signedIn?: boolean }) {
@@ -72,12 +76,28 @@ export function HomeTopBar({
   signedIn?: boolean;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetEditId, setSheetEditId] = useState<string | null>(null);
+  const [sheetStep, setSheetStep] = useState<"list" | "map" | "details">(
+    "list",
+  );
 
   const addressLabel = useSyncExternalStore(
     subscribeDeliveryAddress,
     getClientLabel,
     getServerLabel,
   );
+
+  const openAddressSheet = () => {
+    if (addressLabel) {
+      const saved = getSelectedAddress() ?? listSavedAddresses()[0] ?? null;
+      setSheetEditId(saved?.id ?? null);
+      setSheetStep(saved ? "details" : "list");
+    } else {
+      setSheetEditId(null);
+      setSheetStep("map");
+    }
+    setSheetOpen(true);
+  };
 
   return (
     <>
@@ -108,7 +128,7 @@ export function HomeTopBar({
 
             <button
               type="button"
-              onClick={() => setSheetOpen(true)}
+              onClick={openAddressSheet}
               className="mt-1 flex max-w-full cursor-pointer items-start gap-1.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
               aria-haspopup="dialog"
               aria-expanded={sheetOpen}
@@ -134,7 +154,15 @@ export function HomeTopBar({
         <AccountLink signedIn={signedIn} />
       </header>
 
-      <AddressBookSheet open={sheetOpen} onOpenChange={setSheetOpen} />
+      <AddressBookSheet
+        open={sheetOpen}
+        onOpenChange={(next) => {
+          setSheetOpen(next);
+          if (!next) setSheetEditId(null);
+        }}
+        initialStep={sheetStep}
+        editId={sheetEditId}
+      />
     </>
   );
 }

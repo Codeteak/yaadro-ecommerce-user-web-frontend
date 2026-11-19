@@ -3,11 +3,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import { History } from "lucide-react";
-import { PullToRefresh } from "@/components/navigation/PullToRefresh";
 import { ProfileAccountNav } from "@/components/profile/ProfileAccountNav";
 import { ProfileHero } from "@/components/profile/ProfileHero";
+import { ProfilePullContent } from "@/components/profile/ProfilePullContent";
 import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
 import { BrandFooter } from "@/components/storefront/BrandFooter";
+import { ProfilePageSkeleton } from "@/components/ui/skeletons";
 import { getShopSeo } from "@/lib/shop-seo";
 
 export const metadata: Metadata = {
@@ -65,7 +66,7 @@ async function ProfilePageBody() {
       <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-paper">
         <ProfileHero />
 
-        <PullToRefresh>
+        <ProfilePullContent>
           {/* Quick actions — Wishlist replaces Notification from the reference.
               Card shell + bent placement only; labels/icons/icon colours unchanged. */}
           <section
@@ -97,7 +98,7 @@ async function ProfilePageBody() {
           <ProfileAccountNav />
 
           <BrandFooter />
-        </PullToRefresh>
+        </ProfilePullContent>
       </main>
     </ShopNameProvider>
   );
@@ -105,7 +106,7 @@ async function ProfilePageBody() {
 
 export default function ProfilePage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<ProfilePageSkeleton />}>
       <ProfilePageBody />
     </Suspense>
   );

@@ -12,9 +12,15 @@ import { cn } from "@/lib/cn";
 type HelpSupportContentProps = {
   contact: ShopSupportContact;
   backHref?: string;
+  /** Prefer over `backHref` when returning via nav stack (#33). */
+  onBackClick?: () => void;
   className?: string;
   /** Remap FAQ deep-links in playground demos. */
   topicHrefFor?: (href: HelpTopicHref) => string;
+  /**
+   * Phase D #33 — open a FAQ by topic id (`price` → “Why might the price change?”).
+   */
+  initialTopic?: string | null;
 };
 
 export type HelpTopicHref = "/orders" | "/coupons" | "/profile/addresses";
@@ -22,6 +28,8 @@ export type HelpTopicHref = "/orders" | "/coupons" | "/profile/addresses";
 type FaqEntry = {
   question: string;
   answer: string;
+  /** Deep-link topic id (e.g. `price` for #33). */
+  topic?: string;
   link?: { href: HelpTopicHref; label: string };
 };
 
@@ -50,11 +58,18 @@ const FAQS: FaqEntry[] = [
       "Yes. Orders are paid when they arrive. Card and UPI aren’t available yet.",
   },
   {
+    topic: "price",
     question: "Why might the price change?",
     answer:
-      "Weighted items are billed by the final weight at packing, so the amount can vary slightly from the cart.",
+      "The shop may update the selling price after you add an item, and weighted items are billed by the final packed weight — so the amount can differ slightly from the cart.",
   },
 ];
+
+function faqIndexForTopic(topic: string | null | undefined): number | null {
+  if (!topic) return null;
+  const index = FAQS.findIndex((faq) => faq.topic === topic);
+  return index >= 0 ? index : null;
+}
 
 function ContactAction({
   href,
@@ -159,10 +174,14 @@ function FaqItem({
 export function HelpSupportContent({
   contact,
   backHref = "/profile",
+  onBackClick,
   className,
   topicHrefFor,
+  initialTopic = null,
 }: HelpSupportContentProps) {
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [openFaq, setOpenFaq] = useState<number | null>(
+    () => faqIndexForTopic(initialTopic) ?? 0,
+  );
   const [contactDetailsOpen, setContactDetailsOpen] = useState(false);
   const canCall = Boolean(contact.phoneTel);
   const canWhatsapp = Boolean(contact.whatsappNumber);
@@ -185,7 +204,11 @@ export function HelpSupportContent({
       )}
     >
       <div className="px-5">
-        <PageHeader backHref={backHref} title="Help & Support" />
+        <PageHeader
+          backHref={onBackClick ? undefined : backHref}
+          onBackClick={onBackClick}
+          title="Help & Support"
+        />
       </div>
 
       <div className="flex flex-1 flex-col gap-8 px-5 pt-2 pb-10">

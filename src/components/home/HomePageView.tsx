@@ -9,14 +9,13 @@ import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 import { HomePullContent } from "@/components/home/HomePullContent";
 import { ScrollToTopOnLoad } from "@/components/navigation/ScrollToTopOnLoad";
 import type { HomePageData } from "@/lib/api/page-data";
+import { browseSectionsFromBranches } from "@/lib/home-category-browse";
 import { ALL_CATEGORY_SLUG } from "@/lib/home-categories";
 
 export function HomePageView({
   data,
-  onRefresh,
 }: {
   data: HomePageData;
-  onRefresh: () => Promise<void>;
 }) {
   const { shop, catalog } = data;
   const categoryNames = {
@@ -92,8 +91,10 @@ export function HomePageView({
                 }))
               : []
           }
+          browseSections={
+            catalog.ok ? browseSectionsFromBranches(catalog.branches) : []
+          }
           catalogError={catalog.error}
-          onRefresh={onRefresh}
         />
 
         <OfferFlyer />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CategoryTile } from "@/components/home/CategoryTile";
+import { CategoryCard } from "@/components/categories/CategoryCard";
 import { useHomeCategoryOptional } from "@/components/home/HomeCategoryContext";
 import { ALL_CATEGORY_SLUG, HOME_CATEGORIES } from "@/lib/home-categories";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
@@ -151,7 +151,7 @@ export function CategoryRail({
         )}
       >
         {items.map((category) => (
-          <CategoryTile
+          <CategoryCard
             key={category.slug}
             name={category.name}
             slug={category.slug}

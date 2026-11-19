@@ -1,11 +1,9 @@
-import type { Metadata } from "next";
-import { AddressesPageContent } from "@/components/delivery/AddressesPageContent";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Address",
-  description: "Your Yaadro delivery address.",
-};
-
+/**
+ * #31 — address lives in a profile modal, not a dedicated page.
+ * Keep this route so old links (Help FAQ, bookmarks) still work.
+ */
 export default function AddressesPage() {
-  return <AddressesPageContent />;
+  redirect("/profile?address=1");
 }
