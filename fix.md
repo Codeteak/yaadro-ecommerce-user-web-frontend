@@ -1,3 +1,5 @@
+note: donnot let ai to work on this file manually enter and update it 
+
 1. smooth trsnsaction in footer navbar while switching
 2. ****click effect the categories**** (done)
 3. ****home page take some time to load**** (done — hero / category rail / shelves stream in separate Suspense; categories all-aisle parallel)
