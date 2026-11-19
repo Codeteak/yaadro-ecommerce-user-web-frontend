@@ -544,12 +544,9 @@ import { GUEST_PROFILE_AVATAR } from "@/lib/default-profile-avatar";
 // or explicit: guestAvatarSrc={GUEST_PROFILE_AVATAR}
 <ProfileAccountNav previewSignedIn={false} />
 
-// Playground: logout confirm first (dry-run). Wire confirmBeforeLogout on /profile after approve.
+// Playground dry-run; live /profile defaults confirmBeforeLogout
 <ProfileHero signedIn userId="user-123" displayName="Priya Nair" />
-<ProfileAccountNav previewSignedIn confirmBeforeLogout logoutDryRun />
-
-// After confirm — live /profile:
-// <ProfileAccountNav confirmBeforeLogout />`,
+<ProfileAccountNav previewSignedIn confirmBeforeLogout logoutDryRun />`,
     [
       "src/components/profile/ProfileHero.tsx",
       "src/components/profile/ProfileAccountNav.tsx",

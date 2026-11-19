@@ -1311,7 +1311,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "profile-header": () => (
-    <DemoFrame note="Signed-in Log out opens confirm (playground dry-run). Wire confirmBeforeLogout on /profile after approve.">
+    <DemoFrame note="Log out confirm sheet (playground dry-run). Live /profile confirms then signs out for real.">
       <div className="max-h-[36rem] space-y-8 overflow-y-auto overscroll-contain bg-paper pb-6">
         <div>
           <p className="px-5 pt-3 text-[11px] font-bold tracking-wide text-forest/70 uppercase">

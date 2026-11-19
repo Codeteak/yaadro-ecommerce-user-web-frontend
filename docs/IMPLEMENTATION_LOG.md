@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-19 — Logout confirm on ecom + latency cuts
+
+Live `/profile` Log out uses confirm sheet (red confirm). Home/categories `all` load one product page (not three). `getShopSeo` request-deduped via React `cache()`. Cart preview debounced; Checkout reuses quote when present (no second POST).
+
+## 2026-11-19 — Fix wishlist session hydration mismatch
+
+`useCustomerSignedIn` keeps signed-in false through SSR/hydration, then waits for `ensureCustomerSessionRestored()` (access token) before treating the shopper as signed in — avoids bare `GET /api/me/profile` 401 when only a refresh token exists. Fixes ProductCard heart hydration. Wired through `CustomerSession`, home account chip, cart/checkout/coupons/profile/orders.
+
 ## 2026-11-19 — Logout confirm (playground first)
 
 `LogoutButton` supports `confirmBeforeLogout` + playground `dryRun`. `/playground/profile-header` signed-in nav shows Cancel / Log out sheet (toast only). Live `/profile` still logs out immediately until wired.

@@ -9,10 +9,7 @@ import { showPopup } from "@/components/ui/Toast";
 const LOGOUT_TIMEOUT_MS = 8000;
 
 type LogoutButtonProps = {
-  /**
-   * Ask before signing out. Playground demos turn this on first;
-   * wire on `/profile` after confirm.
-   */
+  /** Ask before signing out (live `/profile` default via ProfileAccountNav). */
   confirmBeforeLogout?: boolean;
   /**
    * Playground: after confirm, toast only — no API / session clear / navigate.

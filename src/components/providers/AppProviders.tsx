@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { restoreCustomerSession } from "@/lib/api/client";
+import { ensureCustomerSessionRestored } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { setSessionExpiredHandler } from "@/lib/api/session";
 import { ToastViewport } from "@/components/ui/Toast";
@@ -33,7 +33,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       if (window.location.pathname.startsWith("/login")) return;
       router.push(`/login?next=${encodeURIComponent(returnTo)}`);
     });
-    void restoreCustomerSession().then((ok) => {
+    void ensureCustomerSessionRestored().then((ok) => {
       if (!ok) client.clear();
     });
     return () => setSessionExpiredHandler(null);

@@ -27,7 +27,7 @@ import { cn } from "@/lib/cn";
 import { useQuery } from "@tanstack/react-query";
 import { listShopCoupons } from "@/lib/api/shop-coupons";
 import { ApiError } from "@/lib/api/errors";
-import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
+import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { listCoupons } from "@/lib/api/coupons";
 import {
   couponsBySection,
@@ -91,11 +91,7 @@ function CouponsPageBody({
   const { applyPromo, storeShopPromo, items } = useCart();
   const [applying, setApplying] = useState(false);
 
-  const sessionSignedIn = useSyncExternalStore(
-    subscribeCustomerSession,
-    hasCustomerSession,
-    () => false,
-  );
+  const sessionSignedIn = useCustomerSignedIn();
   const signedIn = previewSignedIn ?? sessionSignedIn;
   const account = useQuery({
     queryKey: ["coupons"],

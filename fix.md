@@ -34,3 +34,4 @@
 | **26** | Open | Location-based toaster messages |
 | — | Note | Help contact still uses env until shop support API exists |
 | — | Done | Live coupons from shop API only; playground keeps samples + `/playground/checkout-coupon` |
+| — | Done | Logout confirm on `/profile`; home catalog + SEO + cart preview latency cuts |

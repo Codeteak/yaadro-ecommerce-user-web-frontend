@@ -13,13 +13,12 @@ import {
   verifyPhoneChange,
 } from "@/lib/api/profile";
 import { saveMyAddress } from "@/lib/api/address";
-import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
+import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
 import { showPopup } from "@/components/ui/Toast";
-import { useSyncExternalStore } from "react";
 
 export function EditProfileForm() {
-  const signedIn = useSyncExternalStore(subscribeCustomerSession, hasCustomerSession, () => false);
+  const signedIn = useCustomerSignedIn();
   const queryClient = useQueryClient();
   const profile = useQuery({
     queryKey: ["profile"],

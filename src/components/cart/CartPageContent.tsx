@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -36,7 +36,7 @@ import { showPopup } from "@/components/ui/Toast";
 import { previewCart } from "@/lib/api/cart";
 import { listShopCoupons } from "@/lib/api/shop-coupons";
 import { ApiError } from "@/lib/api/errors";
-import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
+import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import {
   billCouponLine,
   localCheckoutWarning,
@@ -129,11 +129,7 @@ export function CartPageContent({
 }: CartPageContentProps) {
   const inline = chromePosition === "inline";
   const router = useRouter();
-  const sessionSignedIn = useSyncExternalStore(
-    subscribeCustomerSession,
-    hasCustomerSession,
-    () => false,
-  );
+  const sessionSignedIn = useCustomerSignedIn();
   const signedIn = previewSignedIn ?? sessionSignedIn;
   const loginHref = inline
     ? "/login?next=/playground/cart-page"
@@ -175,7 +171,7 @@ export function CartPageContent({
     ? topActiveCoupons(offerCoupons).length
     : 0;
   const showOfferList = showTopCoupons && topOfferCount > 0;
-  const { quote } = useShopQuote(items, applied?.code ?? null);
+  const { quote, failed } = useShopQuote(items, applied?.code ?? null);
   const dueLabel = shopDue(quote, totalDue);
   const minimumBlocks = Boolean(quote?.minimumMessage);
   const couponLine = billCouponLine(
@@ -291,6 +287,15 @@ export function CartPageContent({
     const local = localCheckoutWarning(lines);
     if (local) {
       showPopup(local, "warning");
+      return;
+    }
+    // Reuse the debounced shop quote when it already priced this basket.
+    if (quote && !failed) {
+      if (quote.checkoutWarning) {
+        showPopup(quote.checkoutWarning, "warning");
+        return;
+      }
+      router.push(next);
       return;
     }
     setCheckingOut(true);

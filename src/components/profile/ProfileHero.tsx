@@ -1,14 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { PageHeader } from "@/components/navigation/PageHeader";
-import {
-  hasCustomerSession,
-  subscribeCustomerSession,
-} from "@/lib/api/auth";
+import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { getMyProfile } from "@/lib/api/profile";
 import {
   GUEST_PROFILE_AVATAR,
@@ -59,11 +55,7 @@ export function ProfileHero({
   signedInSubtitle = "Orders, coupons and wishlist stay on this device.",
   guestAvatarSrc = GUEST_PROFILE_AVATAR,
 }: ProfileHeroProps) {
-  const session = useSyncExternalStore(
-    subscribeCustomerSession,
-    hasCustomerSession,
-    () => false,
-  );
+  const session = useCustomerSignedIn();
   const signedIn = signedInProp ?? session;
   const propName = displayName?.trim() || null;
   const profile = useQuery({

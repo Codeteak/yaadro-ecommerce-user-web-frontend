@@ -14,7 +14,7 @@ import { checkDeliveryLocation, saveMyAddress } from "@/lib/api/address";
 import { previewDeliveryArea } from "@/lib/api/preview-delivery-area";
 import { placeCheckoutOrder } from "@/lib/api/checkout";
 import { ApiError } from "@/lib/api/errors";
-import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
+import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { showPopup } from "@/components/ui/Toast";
 import {
   OrderPlacedContent,
@@ -114,11 +114,7 @@ export function CheckoutPageContent({
   const inline = chromePosition === "inline";
   const router = useRouter();
   const queryClient = useQueryClient();
-  const sessionSignedIn = useSyncExternalStore(
-    subscribeCustomerSession,
-    hasCustomerSession,
-    () => false,
-  );
+  const sessionSignedIn = useCustomerSignedIn();
   const signedIn = previewSignedIn ?? sessionSignedIn;
   const loginHref = inline
     ? "/login?next=/playground/cart-page"

@@ -425,7 +425,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Guest avatar + signed-in name. Playground Log out → confirm sheet (dry-run). Wire confirmBeforeLogout on /profile after approve.",
+      "Guest avatar + signed-in name. Log out confirm on live `/profile`. Playground signed-in uses dry-run toast.",
     wiresTo: "/profile",
   },
   {

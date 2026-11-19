@@ -1,13 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
 import { ChevronRight, Headset, MapPin, UserRound } from "lucide-react";
+import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { LogoutButton } from "@/components/profile/LogoutButton";
-import {
-  hasCustomerSession,
-  subscribeCustomerSession,
-} from "@/lib/api/session";
 
 const signedInItems = [
   { href: "/profile/edit", label: "My Profile", icon: UserRound },
@@ -22,7 +18,7 @@ const guestItems = [
 type ProfileAccountNavProps = {
   /** Playground override. Omit on storefront to follow the real session. */
   previewSignedIn?: boolean;
-  /** Playground: show Log out confirm sheet. Wire on `/profile` after confirm. */
+  /** Log out confirm sheet. On for live `/profile`; playground may pass dryRun. */
   confirmBeforeLogout?: boolean;
   /** Playground: confirm toasts only (no session clear). */
   logoutDryRun?: boolean;
@@ -31,18 +27,14 @@ type ProfileAccountNavProps = {
 /**
  * Account links under the profile hero.
  * Guests only see Help & Support (no Log out / My Profile / Address).
- * Log out → `/login` (phone step) when confirm is off or after confirm on ecom.
+ * Log out asks first, then → `/login` (unless dryRun).
  */
 export function ProfileAccountNav({
   previewSignedIn,
-  confirmBeforeLogout = false,
+  confirmBeforeLogout = true,
   logoutDryRun = false,
 }: ProfileAccountNavProps = {}) {
-  const sessionSignedIn = useSyncExternalStore(
-    subscribeCustomerSession,
-    hasCustomerSession,
-    () => false,
-  );
+  const sessionSignedIn = useCustomerSignedIn();
   const signedIn = previewSignedIn ?? sessionSignedIn;
   const items = signedIn ? signedInItems : guestItems;
 

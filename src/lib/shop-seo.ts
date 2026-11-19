@@ -3,8 +3,10 @@
  *
  * Prefers domain resolve on a real host. Local dev has no shop domain, so
  * it uses `GET /api/seo/metadata` with `NEXT_PUBLIC_SHOP_ID`.
+ * `cache()` dedupes metadata + page calls in the same request.
  */
 
+import { cache } from "react";
 import { headers } from "next/headers";
 import {
   fetchShopSeo,
@@ -38,7 +40,7 @@ function toSeo(shop: ResolvedShop): ShopSeo {
   };
 }
 
-export async function getShopSeo(): Promise<ShopSeo> {
+export const getShopSeo = cache(async function getShopSeo(): Promise<ShopSeo> {
   try {
     const headerList = await headers();
     const host = headerList.get("x-forwarded-host") ?? headerList.get("host") ?? "";
@@ -59,4 +61,4 @@ export async function getShopSeo(): Promise<ShopSeo> {
   }
 
   return FALLBACK;
-}
+});
