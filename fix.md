@@ -25,7 +25,7 @@ note: donnot let ai to work on this file manually enter and update it
 23. ****order details delivery address empty / wrong**** (done — map line1/raw + hide blank Address)
 24. ****order details product images missing**** (done — API/snapshot/fallback thumb)
 25. dms bsed api format and testing add varibale in .env
-26. location based messages need to add in toaster
+26. location based messages need to add in toaster (done — playground + live checkout / address book)
 27. list the coupon page with same design as showing in the cart
 28. category card need tochange in the category page use the same card in the home page make this a common compoentn and inherit as a function card(image(if image exist else icon),name) and import
 29. use a common header and footer for all the pages (fixed) 

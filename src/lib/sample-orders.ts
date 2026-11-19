@@ -428,8 +428,23 @@ function hydrateOrder(order: SampleOrder): SampleOrder {
   if (order.promoCode === "FRESH10" && promoDiscount === 0) {
     promoDiscount = Math.min(150, Math.round(subtotal * 0.1));
   }
-  const totalDue = Math.max(0, subtotal - promoDiscount);
-  return { ...order, lines, subtotal, mrpTotal, promoDiscount, totalDue };
+  const deliveryFee =
+    typeof order.deliveryFee === "number"
+      ? order.deliveryFee
+      : order.status === "cancelled"
+        ? 0
+        : 25;
+  const itemsPayable = Math.max(0, subtotal - promoDiscount);
+  const totalDue = itemsPayable + deliveryFee;
+  return {
+    ...order,
+    lines,
+    subtotal,
+    mrpTotal,
+    promoDiscount,
+    deliveryFee,
+    totalDue,
+  };
 }
 
 const HYDRATED = SAMPLE_ORDERS.map(hydrateOrder);

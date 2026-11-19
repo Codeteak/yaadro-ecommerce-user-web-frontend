@@ -9,7 +9,10 @@ import { cn } from "@/lib/cn";
 export type OrderPlacedSummary = {
   billNo: string;
   itemCount: number;
+  /** Item total before promo (matches order detail / bill). */
   subtotal: number;
+  promoCode?: string | null;
+  promoDiscount?: number;
   deliveryFee: number;
   total: number;
   fulfillment?: "Delivery" | "Pickup";
@@ -90,7 +93,17 @@ export function OrderPlacedContent({
             label="Items"
             value={`${summary.itemCount} ${summary.itemCount === 1 ? "item" : "items"}`}
           />
-          <SummaryRow label="Subtotal" value={`₹${summary.subtotal}`} />
+          <SummaryRow label="Item total" value={`₹${summary.subtotal}`} />
+          {summary.promoDiscount && summary.promoDiscount > 0 ? (
+            <SummaryRow
+              label={
+                summary.promoCode
+                  ? `Coupon (${summary.promoCode})`
+                  : "Promo"
+              }
+              value={`−₹${summary.promoDiscount}`}
+            />
+          ) : null}
           <SummaryRow
             label="Delivery fee"
             value={`₹${summary.deliveryFee}`}

@@ -335,11 +335,16 @@ function OrderDetailBody({
             </p>
           ) : null}
           <div className="my-4 border-t border-dashed border-black" />
-          <Amount label="Subtotal" value={inr(order.subtotal)} />
+          <Amount label="Item total" value={inr(order.subtotal)} />
           {order.promoDiscount > 0 ? (
-            <Amount label="Promo" value={`−${inr(order.promoDiscount)}`} />
+            <Amount
+              label={
+                order.promoCode ? `Coupon (${order.promoCode})` : "Promo"
+              }
+              value={`−${inr(order.promoDiscount)}`}
+            />
           ) : null}
-          <Amount label="Shipping" value={inr(deliveryCharge(order))} />
+          <Amount label="Delivery fee" value={inr(deliveryCharge(order))} />
           <div className="my-4 border-t border-dashed border-black" />
           <Amount label="Total" value={inr(billedTotal(order))} strong />
         </div>
@@ -356,29 +361,34 @@ function OrderDetailBody({
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-base font-extrabold text-black">
-              {delivered || progress === "on_the_way"
-                ? (order.rider?.name ?? "Ravi Kumar")
-                : "Delivery partner"}
+              {order.rider?.name ?? "Delivery partner"}
             </p>
             <p className="text-[13px] font-medium text-muted">
               {delivered
-                ? "Delivered your order"
+                ? order.rider
+                  ? "Delivered your order"
+                  : "Order delivered"
                 : progress === "on_the_way"
-                  ? "Bike · assigned for this drop"
+                  ? order.rider
+                    ? "Assigned for this drop"
+                    : "We’ll show the partner name when the shop assigns one."
                   : "We’ll assign a partner when the order is on the way."}
             </p>
           </div>
-          {/* After delivery: keep name only — no call / chat / phone number */}
-          {delivered ? null : (
-            <>
-              <span className="grid h-10 w-10 place-items-center rounded-full bg-[#E4E4E8] text-muted">
-                <MessageCircle className="h-4 w-4" aria-hidden />
-              </span>
-              <span className="grid h-10 w-10 place-items-center rounded-full bg-[#E4E4E8] text-forest">
-                <Phone className="h-4 w-4" aria-hidden />
-              </span>
-            </>
-          )}
+          {/* After delivery: keep name only — no call / chat / phone number (#13). */}
+          {delivered ? null : order.rider?.phone ? (
+            <a
+              href={`tel:${order.rider.phone.replace(/\s+/g, "")}`}
+              className="grid h-10 w-10 place-items-center rounded-full bg-[#E4E4E8] text-forest focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+              aria-label={`Call delivery partner ${order.rider.name}`}
+            >
+              <Phone className="h-4 w-4" aria-hidden />
+            </a>
+          ) : progress === "on_the_way" || progress === "placed" ? (
+            <span className="grid h-10 w-10 place-items-center rounded-full bg-[#E4E4E8] text-muted">
+              <MessageCircle className="h-4 w-4" aria-hidden />
+            </span>
+          ) : null}
         </div>
 
         <div className="mt-3.5 rounded-3xl bg-[#F4F4F6] px-4 pt-4 pb-5">

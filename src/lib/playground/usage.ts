@@ -756,15 +756,22 @@ import {
   ),
   toasts: U(
     `import { showPopup } from "@/components/ui/Toast";
+import { LOCATION_TOASTS } from "@/lib/location-messages";
 
 // Island snackbars at the top — AppProviders mounts <ToastViewport />
 showPopup("Saved to wishlist", "success");
 showPopup("Code not found", "error");
 showPopup("Promo removed", "info");
-showPopup("Prices may vary on some products.", "warning");`,
+showPopup("Prices may vary on some products.", "warning");
+
+// #26 location / delivery (playground lab; wire on checkout next)
+showPopup(LOCATION_TOASTS.notServiceable.message, LOCATION_TOASTS.notServiceable.tone);
+showPopup(LOCATION_TOASTS.allowLocation.message, LOCATION_TOASTS.allowLocation.tone);
+showPopup(LOCATION_TOASTS.deliveringHere.message, LOCATION_TOASTS.deliveringHere.tone);`,
     [
       "src/components/ui/Toast.tsx",
       "src/components/playground/ToastDemo.tsx",
+      "src/lib/location-messages.ts",
       "src/components/providers/AppProviders.tsx",
     ],
   ),

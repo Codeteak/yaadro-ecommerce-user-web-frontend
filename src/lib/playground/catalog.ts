@@ -589,7 +589,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Theme island snackbars at the top (success / error / info / warning). showPopup(message, type) — wired storefront-wide.",
+      "Theme island snackbars + location/delivery copy (#26). Wired on checkout + address book; lab mirrors the same strings.",
     wiresTo: "src/components/ui/Toast.tsx via AppProviders",
   },
 ];

@@ -1,0 +1,115 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  mapCustomerOrder,
+  mapDeliveryPartner,
+} from "./map-customer-order.ts";
+import { billedTotal, deliveryCharge } from "../orders-bill.ts";
+
+test("maps order so bill rows add up: item total − promo + shipping = total", () => {
+  const order = mapCustomerOrder({
+    id: "ord-1",
+    order_number: "YAD-1",
+    status: "pending",
+    placed_at: "2026-11-19T10:00:00.000Z",
+    // Shop stores payable items (already net of ₹50 promo).
+    subtotal_minor: 45000,
+    promotion_discount_total_minor: 5000,
+    coupon_discount_minor: 5000,
+    coupon_code: "FRESH50",
+    delivery_fee_minor: 2500,
+    total_minor: 47500,
+    payment_method: "cod",
+    items: [
+      {
+        product_id: "p1",
+        product_name_snapshot: "Milk",
+        quantity: 2,
+        line_total_minor: 45000,
+        list_price_minor: 25000,
+      },
+    ],
+  });
+  assert.ok(order);
+  assert.equal(order.subtotal, 500); // before promo
+  assert.equal(order.promoDiscount, 50);
+  assert.equal(order.deliveryFee, 25);
+  assert.equal(order.totalDue, 475);
+  assert.equal(deliveryCharge(order), 25);
+  assert.equal(billedTotal(order), 475);
+  assert.equal(order.subtotal - order.promoDiscount + 25, billedTotal(order));
+});
+
+test("does not double-subtract promo when API total already includes delivery", () => {
+  const order = mapCustomerOrder({
+    id: "ord-2",
+    order_number: "YAD-2",
+    status: "pending",
+    subtotal_minor: 45000,
+    promotion_discount_total_minor: 5000,
+    delivery_fee_minor: 2500,
+    total_minor: 47500,
+    items: [],
+  });
+  assert.ok(order);
+  assert.equal(billedTotal(order), 475);
+  assert.notEqual(billedTotal(order), 425);
+});
+
+test("uses subtotal_before_coupon_minor when present", () => {
+  const order = mapCustomerOrder({
+    id: "ord-3",
+    order_number: "YAD-3",
+    status: "pending",
+    subtotal_minor: 40000,
+    subtotal_before_coupon_minor: 45000,
+    promotion_discount_total_minor: 5000,
+    delivery_fee_minor: 0,
+    total_minor: 40000,
+    items: [],
+  });
+  assert.ok(order);
+  assert.equal(order.subtotal, 450);
+  assert.equal(billedTotal(order), 400);
+});
+
+test("maps delivery partner when the API sends one", () => {
+  const rider = mapDeliveryPartner({
+    delivery_partner: { name: "Suresh K", phone: "+91 98765 00000" },
+  });
+  assert.deepEqual(rider, {
+    name: "Suresh K",
+    initial: "S",
+    phone: "+91 98765 00000",
+  });
+
+  const order = mapCustomerOrder({
+    id: "ord-4",
+    order_number: "YAD-4",
+    status: "out_for_delivery",
+    subtotal_minor: 10000,
+    delivery_fee_minor: 0,
+    total_minor: 10000,
+    rider_name: "Meena R",
+    rider_phone: "9999911111",
+    items: [],
+  });
+  assert.ok(order?.rider);
+  assert.equal(order.rider.name, "Meena R");
+  assert.equal(order.rider.phone, "9999911111");
+});
+
+test("does not invent a delivery partner when the API omits one", () => {
+  assert.equal(mapDeliveryPartner({}), undefined);
+  const order = mapCustomerOrder({
+    id: "ord-5",
+    order_number: "YAD-5",
+    status: "delivered",
+    subtotal_minor: 10000,
+    delivery_fee_minor: 0,
+    total_minor: 10000,
+    items: [],
+  });
+  assert.ok(order);
+  assert.equal(order.rider, undefined);
+});

@@ -45,22 +45,11 @@ export function lineName(line: SampleOrderLine): string {
   return line.name ?? getSampleProduct(line.productId)?.name ?? "Item";
 }
 
-/** Sample orders use a placeholder fee. Live orders use the shop's fee. */
-export function deliveryCharge(order: SampleOrder): number {
-  if (typeof order.deliveryFee === "number") return order.deliveryFee;
-  return order.status === "cancelled" ? 0 : 25;
-}
-
-export function billedTotal(order: SampleOrder): number {
-  const ship = deliveryCharge(order);
-  // Prefer derived total when API total still equals subtotal despite a promo.
-  if (order.promoDiscount > 0 && order.totalDue >= order.subtotal) {
-    return Math.max(0, order.subtotal - order.promoDiscount) + ship;
-  }
-  // Live orders set deliveryFee; totalDue is usually the payable amount.
-  if (typeof order.deliveryFee === "number") return order.totalDue;
-  return order.totalDue + ship;
-}
+export {
+  billedTotal,
+  deliveryCharge,
+  orderBillBreakdown,
+} from "@/lib/orders-bill";
 
 export function clockish(at?: string): string {
   if (!at) return "";

@@ -1,5 +1,17 @@
 # Implementation Log
 
+## 2026-11-19 — Delivery partner from API only
+
+Order detail no longer invents “Ravi Kumar”. `mapDeliveryPartner` reads shop/DMS fields (`delivery_partner`, `rider`, `*_name` / `*_phone`) when present; otherwise the UI shows “Delivery partner”. Call uses `tel:` only when a phone is returned. Live track already skipped invented riders. Ecommerce orders today still often omit partner (DMS #25).
+
+## 2026-11-19 — Order bill totals match cart math
+
+Shop `subtotal_minor` is net of promo; the old mapper treated it as pre-promo and also rewrote `totalDue` whenever `total >= subtotal` (true with any delivery fee), which double-subtracted the coupon on bills. Mapping now stores item total before promo; `billedTotal` = item − promo + delivery. Checkout bill uses Item total (not MRP); order placed / detail / ticket / receipt share the same rows.
+
+## 2026-11-19 — Location toasts (#26 wired)
+
+Canonical copy in `src/lib/location-messages.ts`. Live checkout toasts need-address / allow-location / outside-area / check-failed (still keeps helper text under Place Order). Address book toasts detect fail, pick/type area, confirm pin, location found, address saved. Playground `/playground/toasts` Location group mirrors the same strings. `deliveryAreaBlock` delegates to `deliveryAreaMessage`.
+
 ## 2026-11-19 — Logout confirm on ecom + latency cuts
 
 Live `/profile` Log out uses confirm sheet (red confirm). Home/categories `all` load one product page (not three). `getShopSeo` request-deduped via React `cache()`. Cart preview debounced; Checkout reuses quote when present (no second POST).

@@ -41,6 +41,7 @@ import {
   isLatLng,
   readBrowserPosition,
 } from "@/lib/delivery-location";
+import { LOCATION_TOASTS } from "@/lib/location-messages";
 
 type CheckoutPageContentProps = {
   /**
@@ -123,6 +124,7 @@ export function CheckoutPageContent({
     items,
     clear,
     mrpTotal,
+    subtotal,
     appliedPromo,
     promoDiscount,
     totalSaved,
@@ -151,7 +153,8 @@ export function CheckoutPageContent({
           Math.round((mrpTotal - (quote?.totalRupees ?? totalDue)) * 100) / 100,
         )
       : totalSaved;
-  const subtotalLabel = demoBill ? demoBill.subtotalRupees : mrpTotal;
+  // Match cart: Item total = selling sum (not MRP).
+  const itemTotalLabel = demoBill ? demoBill.subtotalRupees : subtotal;
   const amountDueLabel = demoBill
     ? `₹${demoBill.totalRupees}`
     : dueLabel;
@@ -192,10 +195,23 @@ export function CheckoutPageContent({
     let cancelled = false;
     void previewDeliveryArea(pinLat, pinLng)
       .then((result) => {
-        if (!cancelled) setAreaNote(deliveryAreaBlock(result));
+        if (cancelled) return;
+        const blocked = deliveryAreaBlock(result);
+        setAreaNote(blocked);
+        // Toast only when blocked — avoid “we deliver” every time checkout opens.
+        if (blocked) {
+          const tone =
+            blocked === LOCATION_TOASTS.notServiceable.message
+              ? LOCATION_TOASTS.notServiceable.tone
+              : LOCATION_TOASTS.checkFailed.tone;
+          showPopup(blocked, tone);
+        }
       })
       .catch(() => {
-        if (!cancelled) setAreaNote("We couldn't check delivery for that location. Try again.");
+        if (cancelled) return;
+        const { message, tone } = LOCATION_TOASTS.checkFailed;
+        setAreaNote(message);
+        showPopup(message, tone);
       });
     return () => {
       cancelled = true;
@@ -217,7 +233,9 @@ export function CheckoutPageContent({
       return;
     }
     if (!hasAddress || !address) {
-      setPlaceError("Add a delivery address first.");
+      const { message, tone } = LOCATION_TOASTS.needAddress;
+      setPlaceError(message);
+      showPopup(message, tone);
       return;
     }
     if (orderLines.length === 0) {
@@ -233,7 +251,9 @@ export function CheckoutPageContent({
         ? { lat: address.lat, lng: address.lng }
         : await askUntilLocation(readBrowserPosition, 3);
       if (!pin) {
-        setPlaceError("Allow location so we can check if this shop delivers to you, then try again.");
+        const { message, tone } = LOCATION_TOASTS.allowLocation;
+        setPlaceError(message);
+        showPopup(message, tone);
         return;
       }
       if (!isLatLng(address)) writeDeliveryAddress({ ...address, ...pin });
@@ -241,7 +261,12 @@ export function CheckoutPageContent({
       const area = await checkDeliveryLocation(pin.lat, pin.lng);
       const blocked = deliveryAreaBlock(area);
       if (blocked) {
+        const tone =
+          blocked === LOCATION_TOASTS.notServiceable.message
+            ? LOCATION_TOASTS.notServiceable.tone
+            : LOCATION_TOASTS.checkFailed.tone;
         setPlaceError(blocked);
+        showPopup(blocked, tone);
         return;
       }
       await saveMyAddress({
@@ -264,14 +289,24 @@ export function CheckoutPageContent({
       idempotencyKey.current = null;
       await queryClient.invalidateQueries({ queryKey: ["orders"] });
       const rupees = (minor: number) => Math.round(minor / 100);
+      const netItems = rupees(order.subtotal_minor);
+      const discount = Math.max(
+        rupees(order.promotion_discount_minor),
+        rupees(order.coupon_discount_minor),
+      );
+      const deliveryFee = rupees(order.delivery_fee_minor);
+      const total = rupees(order.total_minor);
       setPlaced({
         billNo: order.orderNumber.startsWith("#")
           ? order.orderNumber
           : `#${order.orderNumber}`,
         itemCount,
-        subtotal: rupees(order.subtotal_minor),
-        deliveryFee: rupees(order.delivery_fee_minor),
-        total: rupees(order.total_minor),
+        // Before promo — same as order detail / ticket bill.
+        subtotal: netItems + discount,
+        promoCode: order.coupon_code,
+        promoDiscount: discount,
+        deliveryFee,
+        total: total > 0 ? total : netItems + deliveryFee,
         fulfillment: "Delivery",
         statusLabel: "Confirmed",
       });
@@ -415,13 +450,23 @@ export function CheckoutPageContent({
         ) : null}
         <div className="rounded-2xl bg-white px-4 py-1 shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10">
           <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
-            <span className="text-muted">Subtotal</span>
-            <span className="font-bold text-black">₹{subtotalLabel}</span>
+            <span className="text-muted">Item total</span>
+            <span className="font-bold text-black tabular-nums">
+              ₹{itemTotalLabel}
+            </span>
           </div>
+          {!demoBill && mrpTotal > subtotal ? (
+            <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
+              <span className="text-muted">MRP</span>
+              <span className="font-medium text-muted tabular-nums line-through">
+                ₹{mrpTotal}
+              </span>
+            </div>
+          ) : null}
           {couponLine ? (
             <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
               <span className="text-muted">Coupon ({couponLine.code})</span>
-              <span className="font-bold text-leaf">
+              <span className="font-bold text-leaf tabular-nums">
                 −₹{Math.round(couponLine.discountRupees)}
               </span>
             </div>
