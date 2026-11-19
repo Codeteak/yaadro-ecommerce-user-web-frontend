@@ -3,6 +3,8 @@
  * A missing pin is asked for again. Coordinates are never invented.
  */
 
+import { deliveryAreaMessage } from "./location-messages.ts";
+
 export type LatLng = { lat: number; lng: number };
 
 export function isLatLng(
@@ -50,11 +52,9 @@ export function readBrowserPosition(): Promise<LatLng | null> {
   });
 }
 
-/** Null when the shop can deliver. Otherwise the sentence to show. */
-export function deliveryAreaBlock(result: { serviceable?: boolean } | null): string | null {
-  if (!result || result.serviceable !== true) {
-    if (result && result.serviceable === false) return "We don't deliver to that location yet.";
-    return "We couldn't check delivery for that location. Try again.";
-  }
-  return null;
+/** Null when the shop can deliver. Otherwise the sentence to show (toast + inline). */
+export function deliveryAreaBlock(
+  result: { serviceable?: boolean } | null,
+): string | null {
+  return deliveryAreaMessage(result);
 }

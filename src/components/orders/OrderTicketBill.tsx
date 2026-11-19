@@ -115,11 +115,14 @@ export function OrderTicketBill({
               ))}
             </ul>
             <Dash />
-            <Pair label="Subtotal" value={inr(order.subtotal)} />
+            <Pair label="Item total" value={inr(order.subtotal)} />
             {order.promoDiscount > 0 ? (
-              <Pair label={order.promoCode ? `Promo ${order.promoCode}` : "Promo"} value={`−${inr(order.promoDiscount)}`} />
+              <Pair
+                label={order.promoCode ? `Coupon (${order.promoCode})` : "Promo"}
+                value={`−${inr(order.promoDiscount)}`}
+              />
             ) : null}
-            <Pair label="Shipping" value={inr(charge)} />
+            <Pair label="Delivery fee" value={inr(charge)} />
             <div className="mt-2 flex justify-between gap-3 border-t border-[#1F1C18]/15 pt-2 text-forest">
               <span className="text-[13px] font-extrabold tracking-wide uppercase">Total</span>
               <span className="text-right text-[15px] font-extrabold tabular-nums">{inr(total)}</span>
@@ -298,11 +301,14 @@ function paintTicketPng(ticket: HTMLElement, order: SampleOrder, shopName: strin
   }
 
   dash();
-  pair("Subtotal", inr(order.subtotal));
+  pair("Item total", inr(order.subtotal));
   if (order.promoDiscount > 0) {
-    pair(order.promoCode ? `Promo ${order.promoCode}` : "Promo", `−${inr(order.promoDiscount)}`);
+    pair(
+      order.promoCode ? `Coupon (${order.promoCode})` : "Promo",
+      `−${inr(order.promoDiscount)}`,
+    );
   }
-  pair("Shipping", inr(charge));
+  pair("Delivery fee", inr(charge));
 
   y += 8;
   ctx.strokeStyle = "rgba(31,28,24,0.15)";

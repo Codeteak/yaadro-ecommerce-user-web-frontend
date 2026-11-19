@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { PageHeader } from "@/components/navigation/PageHeader";
+import { StorefrontPageFrame } from "@/components/storefront/StorefrontPageFrame";
 import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { listOrders } from "@/lib/api/orders";
 import { listCustomerOrders } from "@/lib/api/customer-orders";
@@ -78,94 +78,93 @@ export function OrdersPageContent({
   const showGuest = (live || previewSignedIn === false) && !signedIn;
 
   return (
-    <div
-      className={cn(
-        "mx-auto flex w-full max-w-lg flex-col bg-paper px-5 pb-8",
-        inline ? "min-h-full" : "min-h-dvh",
-        className,
-      )}
+    <StorefrontPageFrame
+      title="Orders"
+      backHref={backHref}
+      height={inline ? "embed" : "page"}
+      className={cn("pb-8", className)}
     >
-      <PageHeader backHref={backHref} title="Orders" />
-
-      {showGuest ? (
-        <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-          <Image
-            src="/orders/empty-orders-v2.png"
-            alt=""
-            width={1024}
-            height={1024}
-            className="h-auto w-52 max-w-full"
-            priority={!inline}
-          />
-          <h2 className="mt-5 text-xl font-extrabold tracking-tight text-ink">
-            Sign in to see your orders
-          </h2>
-          <p className="mt-2 max-w-60 text-sm leading-6 text-muted">
-            Track deliveries and download bills after you sign in.
-          </p>
-          <Link
-            href={loginHref}
-            className="mt-6 inline-flex h-12 min-w-40 items-center justify-center rounded-full bg-track px-7 text-base font-bold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-          >
-            Sign in
-          </Link>
-        </div>
-      ) : live && account.isPending ? (
-        <div className="mt-4 h-28 animate-pulse rounded-2xl bg-mint/50" />
-      ) : live && account.isError ? (
-        <div className="px-6 py-16 text-center">
-          <p className="text-sm font-medium text-muted">
-            {account.error instanceof ApiError
-              ? account.error.message
-              : "We couldn't load your orders. Check your connection and try again."}
-          </p>
-          <button
-            type="button"
-            onClick={() => void account.refetch()}
-            className="mt-4 text-sm font-bold text-leaf"
-          >
-            Try again
-          </button>
-        </div>
-      ) : list.length === 0 ? (
-        <div className="flex flex-col items-center px-6 py-16 text-center">
-          <Image
-            src="/orders/empty-orders-v2.png"
-            alt=""
-            width={1024}
-            height={1024}
-            className="h-auto w-52 max-w-full"
-            priority={!inline}
-          />
-          <p className="mt-5 text-[22px] font-extrabold tracking-tight text-black">
-            No orders yet
-          </p>
-          <p className="mt-2 max-w-xs text-sm font-medium text-muted">
-            When you place an order, it will show up here with live status.
-          </p>
-          <Link
-            href={shopHref}
-            className="mt-6 inline-flex h-12 min-w-40 items-center justify-center rounded-full bg-track px-7 text-base font-bold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-          >
-            Shop now
-          </Link>
-        </div>
-      ) : (
-        <ul className="mt-3 flex flex-col gap-2.5">
-          {list.map((order) => (
-            <li key={order.id}>
-              <OrderHistoryCard
-                order={order}
-                href={detailHref(order.id)}
-                onReview={() => setReviewFor(order.id)}
-                onDownloadBill={() => setBillFor(order)}
-                highlightStatus={highlightStatus}
-                showOrderId={showOrderId}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="px-5">
+        {showGuest ? (
+          <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
+            <Image
+              src="/orders/empty-orders-v2.png"
+              alt=""
+              width={1024}
+              height={1024}
+              className="h-auto w-52 max-w-full"
+              priority={!inline}
+            />
+            <h2 className="mt-5 text-xl font-extrabold tracking-tight text-ink">
+              Sign in to see your orders
+            </h2>
+            <p className="mt-2 max-w-60 text-sm leading-6 text-muted">
+              Track deliveries and download bills after you sign in.
+            </p>
+            <Link
+              href={loginHref}
+              className="mt-6 inline-flex h-12 min-w-40 items-center justify-center rounded-full bg-track px-7 text-base font-bold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+            >
+              Sign in
+            </Link>
+          </div>
+        ) : live && account.isPending ? (
+          <div className="mt-4 h-28 animate-pulse rounded-2xl bg-mint/50" />
+        ) : live && account.isError ? (
+          <div className="px-6 py-16 text-center">
+            <p className="text-sm font-medium text-muted">
+              {account.error instanceof ApiError
+                ? account.error.message
+                : "We couldn't load your orders. Check your connection and try again."}
+            </p>
+            <button
+              type="button"
+              onClick={() => void account.refetch()}
+              className="mt-4 text-sm font-bold text-leaf"
+            >
+              Try again
+            </button>
+          </div>
+        ) : list.length === 0 ? (
+          <div className="flex flex-col items-center px-6 py-16 text-center">
+            <Image
+              src="/orders/empty-orders-v2.png"
+              alt=""
+              width={1024}
+              height={1024}
+              className="h-auto w-52 max-w-full"
+              priority={!inline}
+            />
+            <p className="mt-5 text-[22px] font-extrabold tracking-tight text-black">
+              No orders yet
+            </p>
+            <p className="mt-2 max-w-xs text-sm font-medium text-muted">
+              When you place an order, it will show up here with live status.
+            </p>
+            <Link
+              href={shopHref}
+              className="mt-6 inline-flex h-12 min-w-40 items-center justify-center rounded-full bg-track px-7 text-base font-bold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+            >
+              Shop now
+            </Link>
+          </div>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-2.5">
+            {list.map((order) => (
+              <li key={order.id}>
+                <OrderHistoryCard
+                  order={order}
+                  href={detailHref(order.id)}
+                  onReview={() => setReviewFor(order.id)}
+                  onDownloadBill={() => setBillFor(order)}
+                  highlightStatus={highlightStatus}
+                  showOrderId={showOrderId}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {reviewFor ? <OrderReviewSheet onClose={() => setReviewFor(null)} /> : null}
       {billFor ? (
@@ -175,6 +174,6 @@ export function OrdersPageContent({
           <OrderReceiptDialog order={billFor} onClose={() => setBillFor(null)} />
         )
       ) : null}
-    </div>
+    </StorefrontPageFrame>
   );
 }

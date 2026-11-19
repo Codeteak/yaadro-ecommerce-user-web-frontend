@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { LogOut } from "lucide-react";
 import { clearCustomerSession, logoutCustomer } from "@/lib/api/auth";
+import { clearCachedProfileUi } from "@/lib/profile-cache";
 import { showPopup } from "@/components/ui/Toast";
 
 const LOGOUT_TIMEOUT_MS = 8000;
@@ -45,6 +46,7 @@ export function LogoutButton({
         ]);
       } finally {
         clearCustomerSession();
+        clearCachedProfileUi();
         try {
           window.sessionStorage.setItem("yaadro.login.reset", "1");
         } catch {

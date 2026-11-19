@@ -92,6 +92,11 @@ import { getPlaygroundEntry } from "@/lib/playground/catalog";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { TYPE_SCALE } from "@/lib/type-scale";
 import { ToastDemo } from "@/components/playground/ToastDemo";
+import { PhaseBCategoryCardDemo } from "@/components/playground/PhaseBCategoryCardDemo";
+import { PhaseBShellDemo } from "@/components/playground/PhaseBShellDemo";
+import { PhaseBHomeSectionsDemo } from "@/components/playground/PhaseBHomeSectionsDemo";
+import { PhaseCAddressModalDemo } from "@/components/playground/PhaseCAddressModalDemo";
+import { PhaseDPriceVaryExplainDemo } from "@/components/playground/PhaseDPriceVaryExplainDemo";
 import {
   SHOP_FALLBACK_AVATAR_OPTIONS,
   SHOP_IMAGE_FALLBACK_CURRENT,
@@ -465,7 +470,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "bottom-nav": () => (
-    <DemoFrame note="Phase A #1: smoother pill expand/label. Path-hidden on cart/checkout/…. Scroll panel to hide. Wire to ecom after confirm (same BottomNav).">
+    <DemoFrame note="Phase A #1 wired: BottomNav pill expand/label + scroll hide (same as storefront).">
       <div className="relative max-h-[28rem] overflow-hidden rounded-2xl bg-paper ring-1 ring-black/5">
         <div
           data-storefront-scroll
@@ -748,7 +753,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "category-browse-sections": () => (
     <DemoFrame
       surface="bare"
-      note="Playground-only candidate home (not wired to /home): FruitsVeggies + aisle grids. Live /home stays classic with the category rail."
+      note="Phase B #30 (aisle grids only). Prefer home-more-sections for the full richer home stack."
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain bg-paper ring-1 ring-black/5">
         <FruitsVeggiesSection />
@@ -757,6 +762,30 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           className="bg-paper [&_h2]:text-ink"
         />
       </div>
+    </DemoFrame>
+  ),
+  "category-card-shared": () => (
+    <DemoFrame
+      surface="bare"
+      note="Phase B #28 wired: CategoryCard on live rail, hub, browser, listing. Demo remains the shared API reference."
+    >
+      <PhaseBCategoryCardDemo />
+    </DemoFrame>
+  ),
+  "storefront-shell": () => (
+    <DemoFrame
+      surface="bare"
+      note="Phase B #29 wired: StorefrontPageFrame on /categories, /wishlist, /orders. Demo keeps full shell reference."
+    >
+      <PhaseBShellDemo />
+    </DemoFrame>
+  ),
+  "home-more-sections": () => (
+    <DemoFrame
+      surface="bare"
+      note="Phase B #30 wired: live /home gets aisle browseSectionsFromBranches. Demo shows the fuller stack."
+    >
+      <PhaseBHomeSectionsDemo />
     </DemoFrame>
   ),
   "type-scale": () => <TypeScaleSpecimen />,
@@ -900,7 +929,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "cart-page": () => (
     <DemoFrame
       surface="bare"
-      note="Playground SAMPLE top offers + local apply. Live /cart: shop coupons only + preview apply (no samples)."
+      note="Phase A wired: #32 solid Checkout CTA + #36 stable line order (also on live /cart). SAMPLE top offers + local apply."
     >
       <div className="relative h-[75vh] bg-paper">
         <CartPageContent
@@ -918,6 +947,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           previewSignedIn
           weightAtBottom
           syncCheckoutTotal
+          solidCheckoutCta
         />
       </div>
       <WeightCustomizer />
@@ -926,7 +956,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   checkout: () => (
     <DemoFrame
       surface="bare"
-      note="Playground forces guest Place Order → login?next=/playground/cart-page. Live /checkout uses session; same login?next=/cart."
+      note="Phase A #34 wired: Amount due bar off (same as live /checkout). Guest → login?next=/playground/cart-page."
     >
       <div className="relative h-[75vh] overflow-y-auto bg-paper">
         <CheckoutPageContent
@@ -943,7 +973,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "checkout-coupon": () => (
     <DemoFrame
       surface="bare"
-      note="Totals fixture with Coupon −₹ (sample). Live /checkout only shows this row after shop cart/preview applies the code — never from SAMPLE_COUPONS alone."
+      note="Phase A #34: no Amount due bar. Coupon −₹ fixture (sample). Live only after shop preview applies a real code."
     >
       <div className="relative h-[75vh] overflow-y-auto bg-paper">
         <CheckoutPageContent
@@ -975,6 +1005,16 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           ordersHref="/playground/orders-list"
           homeHref="/playground"
         />
+      </div>
+    </DemoFrame>
+  ),
+  "address-modal-shared": () => (
+    <DemoFrame
+      surface="bare"
+      note="Phase C #31+#35 wired: profile Address sheet + checkout/home Edit with editId. Demo stays the shared-modal reference."
+    >
+      <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain bg-paper ring-1 ring-black/5">
+        <PhaseCAddressModalDemo />
       </div>
     </DemoFrame>
   ),
@@ -1110,7 +1150,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "product-detail": () => <ProductDetailDemo />,
   "price-may-vary": () => (
     <DemoFrame
-      note="Soft = live cart/checkout/PDP. Banner kept for comparison."
+      note="Soft = live cart/checkout/PDP. Banner kept for comparison. See price-vary-explain for #33 ?"
     >
       <div className="space-y-8 bg-paper px-5 py-6">
         <section>
@@ -1125,6 +1165,16 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           </h3>
           <PriceMayVaryNotice className="mt-2" variant="soft" />
         </section>
+      </div>
+    </DemoFrame>
+  ),
+  "price-vary-explain": () => (
+    <DemoFrame
+      surface="bare"
+      note="Phase D #33 wired on live /cart: notice display-only; Checkout → popup → Continue → checkout. Demo mirrors the flow."
+    >
+      <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain bg-paper ring-1 ring-black/5">
+        <PhaseDPriceVaryExplainDemo />
       </div>
     </DemoFrame>
   ),

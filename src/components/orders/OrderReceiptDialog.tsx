@@ -32,8 +32,13 @@ export function OrderReceiptDialog({
         `${line.isWeight ? orderLineLabel(line) : `${line.qty} ×`} ${lineName(line)}  ${inr(line.lineTotal)}`,
     ),
     "",
-    `Subtotal  ${inr(order.subtotal)}`,
-    `Shipping  ${inr(charge)}`,
+    `Item total  ${inr(order.subtotal)}`,
+    ...(order.promoDiscount > 0
+      ? [
+          `${order.promoCode ? `Coupon (${order.promoCode})` : "Promo"}  −${inr(order.promoDiscount)}`,
+        ]
+      : []),
+    `Delivery fee  ${inr(charge)}`,
     `Total  ${inr(total)}`,
   ].join("\n");
 
@@ -84,8 +89,14 @@ export function OrderReceiptDialog({
               ))}
             </ul>
             <Dash />
-            <Pair label="Subtotal" value={inr(order.subtotal)} />
-            <Pair label="Shipping" value={inr(charge)} />
+            <Pair label="Item total" value={inr(order.subtotal)} />
+            {order.promoDiscount > 0 ? (
+              <Pair
+                label={order.promoCode ? `Coupon (${order.promoCode})` : "Promo"}
+                value={`−${inr(order.promoDiscount)}`}
+              />
+            ) : null}
+            <Pair label="Delivery fee" value={inr(charge)} />
             <div className="mt-1 flex justify-between text-[15px] font-extrabold">
               <span>Total</span>
               <span>{inr(total)}</span>

@@ -6,6 +6,11 @@ import { CloseButton } from "@/components/navigation/CloseButton";
 import { AddressDetailsStep } from "@/components/delivery/AddressDetailsStep";
 import { AddressListStep } from "@/components/delivery/AddressListStep";
 import { AddressMapStep } from "@/components/delivery/AddressMapStep";
+import { showPopup } from "@/components/ui/Toast";
+import {
+  LOCATION_TOASTS,
+  locationToastToneFor,
+} from "@/lib/location-messages";
 import {
   detectMyPlace,
   formatSavedAddressLine,
@@ -142,15 +147,20 @@ function AddressBookSheetBody({
     setDetecting(false);
     if (!result.ok) {
       setMapNotice(result.message);
+      showPopup(result.message, locationToastToneFor(result.message));
       return;
     }
     setDraftPlace(result.place);
-    setMapNotice("Location found — confirm to add details.");
+    const found = LOCATION_TOASTS.locationFound;
+    setMapNotice(found.message);
+    showPopup(found.message, found.tone);
   };
 
   const onConfirmMap = () => {
     if (!draftPlace) {
-      setMapNotice("Detect your location or enter an area name first.");
+      const { message, tone } = LOCATION_TOASTS.pickOnMap;
+      setMapNotice(message);
+      showPopup(message, tone);
       return;
     }
     setStep("details");
@@ -226,6 +236,8 @@ function AddressBookSheetBody({
               place={draftPlace}
               editing={editing}
               onSaved={() => {
+                const { message, tone } = LOCATION_TOASTS.addressSaved;
+                showPopup(message, tone);
                 onOpenChange(false);
               }}
             />

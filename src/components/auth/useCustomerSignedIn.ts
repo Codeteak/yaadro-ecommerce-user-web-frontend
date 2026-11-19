@@ -7,12 +7,14 @@ import {
   subscribeCustomerSession,
 } from "@/lib/api/session";
 
+export type CustomerAuthStatus = "loading" | "guest" | "signed-in";
+
 /**
- * OTP session for UI. Stays `false` through SSR + hydration, then waits
- * until access-token restore finishes so auth GETs are not sent bare
- * (refresh token in sessionStorage alone would look signed-in and 401).
+ * OTP session lifecycle for UI.
+ * `loading` — SSR / hydration / access-token restore still running.
+ * Avoid treating that as guest (profile was flashing Guest → Customer).
  */
-export function useCustomerSignedIn(): boolean {
+export function useCustomerAuthStatus(): CustomerAuthStatus {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     let cancelled = false;
@@ -29,9 +31,21 @@ export function useCustomerSignedIn(): boolean {
     [ready],
   );
 
-  return useSyncExternalStore(
+  const signedIn = useSyncExternalStore(
     subscribeCustomerSession,
     getSnapshot,
     () => false,
   );
+
+  if (!ready) return "loading";
+  return signedIn ? "signed-in" : "guest";
+}
+
+/**
+ * OTP session for UI. Stays `false` through SSR + hydration + restore,
+ * then follows the real session. Prefer `useCustomerAuthStatus` when the
+ * loading state must not look like a guest.
+ */
+export function useCustomerSignedIn(): boolean {
+  return useCustomerAuthStatus() === "signed-in";
 }

@@ -1,5 +1,49 @@
 # Implementation Log
 
+## 2026-11-19 — Profile refresh: no Guest/Customer flash
+
+`useCustomerAuthStatus` distinguishes loading vs guest vs signed-in. Profile hero/nav wait on restore (skeleton or cached name+avatar seed in sessionStorage) instead of showing Guest then “Customer”. Logout clears the cache. Edit profile waits on auth ready. Pull-to-refresh on `/profile` invalidates `["profile"]`. Skeletons: `ProfileHeroSkeleton` / `ProfileNavSkeleton` / `ProfilePageSkeleton` (white wash on mint hero; Suspense fallback no longer blank).
+
+## 2026-11-19 — Phase D wired (#33); #27 marked done
+
+Live `/cart` Checkout opens `PriceMayVaryExplainSheet` (notice stays display-only). Continue → `/checkout`. Help → `/profile/support?topic=price` with `nav-return-stack` Back. Playground `/playground/price-vary-explain` remains the flow reference. #15 / #25 skipped.
+
+## 2026-11-19 — Phase D playground (#33); #27 marked done
+
+`/playground/price-vary-explain` — cart **Checkout** opens explain popup; **Continue to checkout** then shows checkout. Notice display-only (no `?`). Help FAQ + return stack.
+
+## 2026-11-19 — Phase C wired (#31, #35)
+
+Profile Address opens manage sheet (no dedicated page); `/profile/addresses` redirects to `/profile?address=1`. Checkout + home Deliver to open `AddressBookSheet` with `editId` on Edit. Playground `/playground/address-modal-shared` remains the reference. #27 skipped.
+
+## 2026-11-19 — Phase C playground (#31, #35)
+
+`/playground/address-modal-shared` — shared `AddressBookSheet` for profile add/edit (no dedicated page) and checkout Edit with `editId`. Live `/checkout` still opens the sheet without `editId`; `/profile/addresses` page still exists until wire. #27 coupon design skipped.
+
+## 2026-11-19 — Phase B wired (#28, #29, #30)
+
+`CategoryCard` on live CategoryRail, CategoriesHub, CategoryBrowser, CategoryListing (#28). `StorefrontPageFrame` on live `/categories`, `/wishlist`, `/orders` (#29). Home aisle browse via `browseSectionsFromBranches` on live `/home` (#30). Playground demos remain as references.
+
+## 2026-11-19 — Phase B playground (#28, #29, #30)
+
+`CategoryCard` shared API + `/playground/category-card-shared` (#28). `/playground/storefront-shell` fixed PageHeader + BottomNav (#29). `/playground/home-more-sections` richer home stack (#30). Live `/home` and hub unchanged until wire.
+
+## 2026-11-19 — Phase A wired (#1, #32, #34, #36)
+
+Live `/cart` uses `solidCheckoutCta` (#32). Cart-store qty/weight keep insertion order (#36). Live `/checkout` already had Amount due off (#34). BottomNav pill/scroll motion counted as #1. `fix.md` updated accordingly.
+
+## 2026-11-19 — Delivery partner from API only
+
+Order detail no longer invents “Ravi Kumar”. `mapDeliveryPartner` reads shop/DMS fields (`delivery_partner`, `rider`, `*_name` / `*_phone`) when present; otherwise the UI shows “Delivery partner”. Call uses `tel:` only when a phone is returned. Live track already skipped invented riders. Ecommerce orders today still often omit partner (DMS #25).
+
+## 2026-11-19 — Order bill totals match cart math
+
+Shop `subtotal_minor` is net of promo; the old mapper treated it as pre-promo and also rewrote `totalDue` whenever `total >= subtotal` (true with any delivery fee), which double-subtracted the coupon on bills. Mapping now stores item total before promo; `billedTotal` = item − promo + delivery. Checkout bill uses Item total (not MRP); order placed / detail / ticket / receipt share the same rows.
+
+## 2026-11-19 — Location toasts (#26 wired)
+
+Canonical copy in `src/lib/location-messages.ts`. Live checkout toasts need-address / allow-location / outside-area / check-failed (still keeps helper text under Place Order). Address book toasts detect fail, pick/type area, confirm pin, location found, address saved. Playground `/playground/toasts` Location group mirrors the same strings. `deliveryAreaBlock` delegates to `deliveryAreaMessage`.
+
 ## 2026-11-19 — Logout confirm on ecom + latency cuts
 
 Live `/profile` Log out uses confirm sheet (red confirm). Home/categories `all` load one product page (not three). `getShopSeo` request-deduped via React `cache()`. Cart preview debounced; Checkout reuses quote when present (no second POST).

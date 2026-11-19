@@ -24,8 +24,8 @@ export async function loadShopPageData(): Promise<ShopSeo> {
 
 /**
  * Home payload for the browser cache.
- * `products` and `branches` are unused on this screen, so they are left empty
- * and the same products are not sent a second time.
+ * Flat `products` are unused on this screen (shelves / by-slug cover it), so
+ * they are cleared. `branches` stay for aisle browse sections (#30).
  */
 export async function loadHomePageData(): Promise<HomePageData> {
   const [shop, catalog] = await Promise.all([getShopSeo(), loadHomeCatalog()]);
@@ -34,7 +34,6 @@ export async function loadHomePageData(): Promise<HomePageData> {
     catalog: {
       ...catalog,
       products: [],
-      branches: [],
     },
   };
 }

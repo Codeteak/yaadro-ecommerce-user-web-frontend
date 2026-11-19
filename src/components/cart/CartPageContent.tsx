@@ -30,7 +30,10 @@ import {
 } from "@/components/cart/CartTopCoupons";
 import { ShopQuoteNotes, shopDue } from "@/components/cart/ShopQuoteNotes";
 import { useShopQuote } from "@/components/cart/useShopQuote";
+import { PriceMayVaryExplainSheet } from "@/components/storefront/PriceMayVaryExplainSheet";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
+import { pushNavReturn } from "@/lib/nav-return-stack";
+import { PRICE_MAY_VARY_TOPIC } from "@/lib/price-may-vary";
 import { findCouponByCode } from "@/lib/sample-coupons";
 import { showPopup } from "@/components/ui/Toast";
 import { previewCart } from "@/lib/api/cart";
@@ -103,6 +106,11 @@ type CartPageContentProps = {
    * Playground omits this and keeps SAMPLE_COUPONS / local apply.
    */
   liveShopCoupons?: boolean;
+  /**
+   * Phase A #32 (playground first): keep Checkout CTA fully opaque when
+   * disabled (min cart / checking). Live cart keeps fade until wired.
+   */
+  solidCheckoutCta?: boolean;
 };
 
 /**
@@ -126,6 +134,7 @@ export function CartPageContent({
   weightAtBottom = false,
   syncCheckoutTotal = false,
   liveShopCoupons = false,
+  solidCheckoutCta = false,
 }: CartPageContentProps) {
   const inline = chromePosition === "inline";
   const router = useRouter();
@@ -135,6 +144,11 @@ export function CartPageContent({
     ? "/login?next=/playground/cart-page"
     : "/login?next=/cart";
   const [checkingOut, setCheckingOut] = useState(false);
+  /** Phase D #33 — explain popup before leaving cart for checkout. */
+  const [priceVaryOpen, setPriceVaryOpen] = useState(false);
+  const [pendingCheckoutHref, setPendingCheckoutHref] = useState<string | null>(
+    null,
+  );
   const [applyingPromo, setApplyingPromo] = useState(false);
   /** Top offers nested under coupon shell when refined; collapsed by default. */
   const [topOffersOpen, setTopOffersOpen] = useState(false);
@@ -159,8 +173,19 @@ export function CartPageContent({
   const [promoMessage, setPromoMessage] = useState<string | null>(null);
   const hasItems = items.length > 0;
   const applied = appliedPromo;
-  const topOfferCount = showTopCoupons ? topActiveCoupons().length : 0;
-  const { quote } = useShopQuote(items, applied?.code ?? null);
+  const shopCouponsQuery = useQuery({
+    queryKey: ["coupons", "cart-top"],
+    queryFn: ({ signal }) => listShopCoupons(undefined, signal),
+    enabled: liveShopCoupons && signedIn && showTopCoupons,
+  });
+  const offerCoupons = liveShopCoupons
+    ? (shopCouponsQuery.data ?? [])
+    : undefined;
+  const topOfferCount = showTopCoupons
+    ? topActiveCoupons(offerCoupons).length
+    : 0;
+  const showOfferList = showTopCoupons && topOfferCount > 0;
+  const { quote, failed } = useShopQuote(items, applied?.code ?? null);
   const dueLabel = shopDue(quote, totalDue);
   const minimumBlocks = Boolean(quote?.minimumMessage);
   const couponLine = billCouponLine(
@@ -256,6 +281,16 @@ export function CartPageContent({
     showPopup("Promo removed", "info");
   };
 
+  const goCheckoutOrExplain = (next: string) => {
+    // Display-only notice; popup only when leaving cart for checkout (#33).
+    if (showPriceMayVary) {
+      setPendingCheckoutHref(next);
+      setPriceVaryOpen(true);
+      return;
+    }
+    router.push(next);
+  };
+
   const onCheckout = async () => {
     if (checkingOut) return;
     if (!signedIn) {
@@ -284,7 +319,7 @@ export function CartPageContent({
         showPopup(quote.checkoutWarning, "warning");
         return;
       }
-      router.push(next);
+      goCheckoutOrExplain(next);
       return;
     }
     setCheckingOut(true);
@@ -302,7 +337,7 @@ export function CartPageContent({
         showPopup(warning, "warning");
         return;
       }
-      router.push(next);
+      goCheckoutOrExplain(next);
     } catch (error) {
       const message =
         error instanceof ApiError
@@ -867,7 +902,12 @@ export function CartPageContent({
             onClick={() => void onCheckout()}
             disabled={checkingOut || minimumBlocks}
             aria-label="Proceed to checkout"
-            className="group pointer-events-auto relative flex w-full cursor-pointer items-center rounded-full bg-track px-5 py-4 text-black shadow-[0_7px_0_0_#1f5c1f,0_14px_28px_rgba(47,107,47,0.28)] transition-[transform,box-shadow,background-color] duration-150 ease-out hover:bg-leaf-bright motion-safe:active:translate-y-[5px] motion-safe:active:shadow-[0_2px_0_0_#1f5c1f,0_6px_14px_rgba(47,107,47,0.22)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf disabled:cursor-not-allowed disabled:opacity-50"
+            className={cn(
+              "group pointer-events-auto relative flex w-full cursor-pointer items-center rounded-full bg-track px-5 py-4 text-black shadow-[0_7px_0_0_#1f5c1f,0_14px_28px_rgba(47,107,47,0.28)] transition-[transform,box-shadow,background-color] duration-150 ease-out hover:bg-leaf-bright motion-safe:active:translate-y-[5px] motion-safe:active:shadow-[0_2px_0_0_#1f5c1f,0_6px_14px_rgba(47,107,47,0.22)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf disabled:cursor-not-allowed",
+              solidCheckoutCta
+                ? "disabled:opacity-100"
+                : "disabled:opacity-50",
+            )}
           >
             <span
               key={
@@ -892,6 +932,29 @@ export function CartPageContent({
           </button>
         </div>
       ) : null}
+
+      <PriceMayVaryExplainSheet
+        open={priceVaryOpen}
+        onOpenChange={(next) => {
+          setPriceVaryOpen(next);
+          if (!next) setPendingCheckoutHref(null);
+        }}
+        continueLabel="Continue to checkout"
+        onContinue={() => {
+          const href = pendingCheckoutHref;
+          setPendingCheckoutHref(null);
+          if (href) router.push(href);
+        }}
+        helpHref={
+          inline
+            ? `/playground/help-support?topic=${PRICE_MAY_VARY_TOPIC}`
+            : `/profile/support?topic=${PRICE_MAY_VARY_TOPIC}`
+        }
+        onHelpClick={() => {
+          const returnTo = pendingCheckoutHref ?? (inline ? "/playground/cart-page" : "/cart");
+          pushNavReturn(returnTo);
+        }}
+      />
     </main>
   );
 }

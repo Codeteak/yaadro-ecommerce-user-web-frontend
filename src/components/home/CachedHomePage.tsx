@@ -4,7 +4,7 @@ import { HomePageView } from "@/components/home/HomePageView";
 import { CachedSlot } from "@/components/navigation/CachedSlot";
 import { StorefrontPageSkeleton } from "@/components/ui/skeletons";
 import { loadHomePageData, type HomePageData } from "@/lib/api/page-data";
-import { refreshCached, rememberPage } from "@/lib/page-cache";
+import { rememberPage } from "@/lib/page-cache";
 
 const HOME_KEY = "home";
 
@@ -26,14 +26,7 @@ export function CachedHomePage() {
       persist={homeOk}
       fallback={<StorefrontPageSkeleton />}
     >
-      {(data) => (
-        <HomePageView
-          data={data}
-          onRefresh={async () => {
-            await refreshCached(HOME_KEY, loadHome, homeOk);
-          }}
-        />
-      )}
+      {(data) => <HomePageView data={data} />}
     </CachedSlot>
   );
 }

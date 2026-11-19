@@ -2,6 +2,7 @@
 
 import { showPopup, type PopupType } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
+import { LOCATION_TOAST_SAMPLES } from "@/lib/location-messages";
 
 type Sample = {
   label: string;
@@ -10,6 +11,14 @@ type Sample = {
 };
 
 const SAMPLES: { group: string; items: Sample[] }[] = [
+  {
+    group: "Location / delivery (#26)",
+    items: LOCATION_TOAST_SAMPLES.map(({ label, toast }) => ({
+      label,
+      tone: toast.tone,
+      message: toast.message,
+    })),
+  },
   {
     group: "Cart / promo",
     items: [
