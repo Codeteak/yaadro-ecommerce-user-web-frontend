@@ -525,6 +525,16 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     wiresTo: "/orders/[id]",
   },
   {
+    slug: "order-bill-coupon",
+    title: "Order bill · coupon",
+    status: "built",
+    group: "Product & cart",
+    description:
+      "Fix: Coupon (CODE) uses coupon_discount_minor — ignores inflated promotion_discount_total. Item − coupon + delivery = total (not ₹0).",
+    wiresTo:
+      "mapCustomerOrder + billedTotal → /orders/[id] bill, ticket, receipt",
+  },
+  {
     slug: "live-order-track",
     title: "Live order track",
     status: "built",

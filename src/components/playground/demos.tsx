@@ -97,6 +97,7 @@ import { PhaseBShellDemo } from "@/components/playground/PhaseBShellDemo";
 import { PhaseBHomeSectionsDemo } from "@/components/playground/PhaseBHomeSectionsDemo";
 import { PhaseCAddressModalDemo } from "@/components/playground/PhaseCAddressModalDemo";
 import { PhaseDPriceVaryExplainDemo } from "@/components/playground/PhaseDPriceVaryExplainDemo";
+import { OrderBillCouponFixDemo } from "@/components/playground/OrderBillCouponFixDemo";
 import {
   SHOP_FALLBACK_AVATAR_OPTIONS,
   SHOP_IMAGE_FALLBACK_CURRENT,
@@ -429,7 +430,7 @@ function AddressBookDemo({
 function OrderDetailLeadDemo() {
   const id = useSearchParams().get("id") ?? "ord-1050";
   return (
-    <DemoFrame note="Wired ecom: nested lines scroll (5+); hint when 7+. Default ord-1050.">
+    <DemoFrame note="Wired ecom: nested lines scroll (5+); hint when 7+. Default ord-1050. Bill coupon math: see order-bill-coupon.">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain bg-white">
         <OrderDetailPageContent orderId={id} ticketBill nestedLinesScroll />
       </div>
@@ -1113,6 +1114,16 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     <Suspense fallback={null}>
       <OrderDetailLeadDemo />
     </Suspense>
+  ),
+  "order-bill-coupon": () => (
+    <DemoFrame
+      surface="bare"
+      note="Fix: Coupon (CODE) uses coupon_discount_minor — not Math.max with inflated promotion_discount_total. Live /orders/[id] bill uses the same mapper."
+    >
+      <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain bg-paper ring-1 ring-black/5">
+        <OrderBillCouponFixDemo />
+      </div>
+    </DemoFrame>
   ),
   "live-order-track": () => (
     <DemoFrame

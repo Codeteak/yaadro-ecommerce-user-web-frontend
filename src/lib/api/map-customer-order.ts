@@ -188,10 +188,20 @@ export function mapCustomerOrder(raw: RawCustomerOrder): SampleOrder | null {
   const netItems = rupees(raw.subtotal_minor);
   const couponDisc = rupees(raw.coupon_discount_minor);
   const promoDisc = rupees(raw.promotion_discount_total_minor);
-  const discount = Math.max(promoDisc, couponDisc);
+  const couponCode = raw.coupon_code?.trim() || "";
+  // Coupon (CODE) row must use coupon_discount_minor — do not Math.max with
+  // promotion_discount_total_minor (often inflated / MRP-related and caused
+  // bills like Item ₹2450 − Coupon ₹3550 = Total ₹0).
+  let discount = couponCode
+    ? couponDisc > 0
+      ? couponDisc
+      : promoDisc
+    : Math.max(promoDisc, couponDisc);
   const beforeCoupon = rupees(raw.subtotal_before_coupon_minor);
   // Bill "Item total" must be before promo so Item − Promo + Shipping = Total.
   const itemTotal = beforeCoupon > 0 ? beforeCoupon : netItems + discount;
+  // Never show a coupon larger than the item total.
+  discount = Math.min(discount, Math.max(0, itemTotal));
   const deliveryFee = rupees(raw.delivery_fee_minor);
   const derivedTotal = Math.max(0, itemTotal - discount) + deliveryFee;
   let totalDue = rupees(raw.total_minor);
@@ -220,7 +230,7 @@ export function mapCustomerOrder(raw: RawCustomerOrder): SampleOrder | null {
     lines,
     mrpTotal: linesMrp > 0 ? linesMrp : itemTotal,
     subtotal: itemTotal,
-    promoCode: raw.coupon_code ?? undefined,
+    promoCode: couponCode || undefined,
     promoDiscount: discount,
     totalDue,
     deliveryFee,

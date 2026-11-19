@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-19 — Order bill coupon discount (TEST −₹1000 not −₹3550)
+
+`mapCustomerOrder`: when `coupon_code` is set, use `coupon_discount_minor` (do not `Math.max` with inflated `promotion_discount_total_minor`). Cap discount at item total. `billedTotal` also caps promo. Playground `/playground/order-bill-coupon` shows wrong-vs-fixed. Regression test in `customer-orders-map.test.ts`.
+
 ## 2026-11-19 — Profile refresh: no Guest/Customer flash
 
 `useCustomerAuthStatus` distinguishes loading vs guest vs signed-in. Profile hero/nav wait on restore (skeleton or cached name+avatar seed in sessionStorage) instead of showing Guest then “Customer”. Logout clears the cache. Edit profile waits on auth ready. Pull-to-refresh on `/profile` invalidates `["profile"]`. Skeletons: `ProfileHeroSkeleton` / `ProfileNavSkeleton` / `ProfilePageSkeleton` (white wash on mint hero; Suspense fallback no longer blank).

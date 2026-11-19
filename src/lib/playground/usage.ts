@@ -699,6 +699,25 @@ import { GUEST_PROFILE_AVATAR } from "@/lib/default-profile-avatar";
       "src/lib/sample-orders.ts",
     ],
   ),
+  "order-bill-coupon": U(
+    `import { mapCustomerOrder } from "@/lib/api/map-customer-order";
+import { billedTotal } from "@/lib/orders-bill";
+
+// Prefer coupon_discount_minor when coupon_code is set
+const order = mapCustomerOrder({
+  coupon_code: "TEST",
+  coupon_discount_minor: 100_000, // ₹1000
+  promotion_discount_total_minor: 355_000, // ignore when code present
+  subtotal_before_coupon_minor: 245_000,
+  // ...
+});
+// bill: Item − Coupon + Delivery = billedTotal(order)`,
+    [
+      "src/components/playground/OrderBillCouponFixDemo.tsx",
+      "src/lib/api/map-customer-order.ts",
+      "src/lib/orders-bill.ts",
+    ],
+  ),
   "live-order-track": U(
     `import { LiveOrderTrack } from "@/components/orders/LiveOrderTrack";
 import { OrderLiveTrackPage } from "@/components/orders/OrderLiveTrackPage";

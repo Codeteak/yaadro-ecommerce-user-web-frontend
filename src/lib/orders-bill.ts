@@ -18,9 +18,20 @@ export function orderBillBreakdown(order: SampleOrder): {
   total: number;
 } {
   const itemTotal = Math.max(0, Math.round(order.subtotal));
-  const promo = Math.max(0, Math.round(order.promoDiscount));
+  // Cap promo at items so a bad mapped discount cannot zero the bill wrongly.
+  const promo = Math.min(
+    Math.max(0, Math.round(order.promoDiscount)),
+    itemTotal,
+  );
   const shipping = deliveryCharge(order);
-  const total = Math.max(0, itemTotal - promo) + shipping;
+  const derived = Math.max(0, itemTotal - promo) + shipping;
+  // Prefer shop total when it matches Item − Promo + Shipping (±₹1).
+  const apiTotal =
+    typeof order.totalDue === "number" && Number.isFinite(order.totalDue)
+      ? Math.max(0, Math.round(order.totalDue))
+      : null;
+  const total =
+    apiTotal != null && Math.abs(apiTotal - derived) <= 1 ? apiTotal : derived;
   return { itemTotal, promo, shipping, total };
 }
 

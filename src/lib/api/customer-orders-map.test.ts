@@ -113,3 +113,36 @@ test("does not invent a delivery partner when the API omits one", () => {
   assert.ok(order);
   assert.equal(order.rider, undefined);
 });
+
+test("coupon code uses coupon_discount_minor — ignores inflated promotion total", () => {
+  // Regression: Item ₹2450, TEST −₹1000 → Total ₹1450 (not −₹3550 → ₹0).
+  const order = mapCustomerOrder({
+    id: "ord-bill-test",
+    order_number: "ORD-TEST-2450",
+    status: "pending",
+    subtotal_minor: 145000,
+    subtotal_before_coupon_minor: 245000,
+    promotion_discount_total_minor: 355000,
+    coupon_discount_minor: 100000,
+    coupon_code: "TEST",
+    delivery_fee_minor: 0,
+    total_minor: 145000,
+    items: [
+      {
+        product_id: "carrot",
+        product_name_snapshot: "carrot",
+        quantity: 5,
+        sold_by_weight: true,
+        line_total_minor: 245000,
+        list_price_minor: 50000,
+      },
+    ],
+  });
+  assert.ok(order);
+  assert.equal(order.subtotal, 2450);
+  assert.equal(order.promoCode, "TEST");
+  assert.equal(order.promoDiscount, 1000);
+  assert.equal(order.totalDue, 1450);
+  assert.equal(billedTotal(order), 1450);
+  assert.equal(order.subtotal - order.promoDiscount, billedTotal(order));
+});
