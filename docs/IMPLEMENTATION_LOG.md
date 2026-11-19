@@ -68,6 +68,11 @@ Live `/cart` + `/checkout` + `/coupons?from=cart`: Top offers from `GET /api/sto
 
 Signed-in `ProfileHero` loads `displayName` / `user.name` from `GET /api/me/profile` (shared `["profile"]` query). No more `{shopName} Member`. Playground demos pass sample names (`Priya Nair`, `Arun`).
 
+## 2026-11-19 — Address sheet Google Map
+
+Address select uses `@react-google-maps/api` with `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (Maps JavaScript API). Tap / drag pin reverse-geocodes; search forward-geocodes; details mini-map uses Maps Embed place when lat/lng exist. Shared helpers: `reverseGeocodeLatLng`, `geocodeSearchQuery`, `buildPlaceEmbedUrl`.
+
+
 ## 2026-11-19 — Home load streaming (#3) + deferred location (#7)
 
 `/home` streams in three Suspense bands: hero (shop SEO), category rail (`listStoreCategories` only), then product shelves (`loadHomeCatalog`). `#7` mounts `DeferredLocationPrompt` on `/home` (opens address sheet after paint when Deliver to is empty). Playground deferred-location + home-pull notes updated.

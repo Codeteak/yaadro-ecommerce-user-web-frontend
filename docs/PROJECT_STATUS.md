@@ -1,6 +1,6 @@
 # Yaadro Storefront — Project Status
 
-**Updated:** 2026-11-18
+**Updated:** 2026-11-19
 
 ## Current stage
 
@@ -20,6 +20,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 | Order placed | Done | Shown after Place Order on `/checkout`; Order history + Home CTAs; playground `/playground/order-placed` |
 | Orders `/orders` | UI done | Grocery cards + ORDER STATUS detail via `lib/api/orders` |
 | Toasts | Done | Theme island snackbars at the top via `showPopup(message, type)` (`ToastViewport` in AppProviders) |
+| Address map | Done | Select location loads Google Maps JS when `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is set (tap/drag pin + search + detect). Details shows Embed preview. Enable Maps JavaScript, Geocoding, and Embed APIs on the key. |
 | Live order track | Playground | `/playground/live-order-track` — green theme; not on `/orders` yet |
 | Bottom nav | Done | Home, Categories, Wishlist, Profile |
 | Auth / session | Live | Home header profile icon follows the OTP session. Wishlist still uses the session flag from `CustomerSession`. |

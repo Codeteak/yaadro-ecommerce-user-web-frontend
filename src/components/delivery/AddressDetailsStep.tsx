@@ -1,8 +1,9 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import { Briefcase, Home, MapPin, Navigation } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { buildPlaceEmbedUrl } from "@/lib/live-track-map";
 import {
   upsertSavedAddress,
   type AddressType,
@@ -35,6 +36,13 @@ export function AddressDetailsStep({
     editing?.instructions ?? "",
   );
   const [error, setError] = useState<string | null>(null);
+
+  const miniMapUrl = useMemo(() => {
+    if (typeof place.lat !== "number" || typeof place.lng !== "number") {
+      return null;
+    }
+    return buildPlaceEmbedUrl(place.lat, place.lng);
+  }, [place.lat, place.lng]);
 
   const chooseType = (next: AddressType) => {
     setType(next);
@@ -154,20 +162,36 @@ export function AddressDetailsStep({
           </p>
         </div>
 
-        {/* Stub mini-map */}
-        <div className="relative mt-3 h-28 overflow-hidden rounded-2xl bg-[#dce8dc]">
-          <div
-            className="absolute inset-0 opacity-35"
-            style={{
-              backgroundImage:
-                "linear-gradient(#9cb89c 1px, transparent 1px), linear-gradient(90deg, #9cb89c 1px, transparent 1px)",
-              backgroundSize: "20px 20px",
-            }}
-            aria-hidden
-          />
-          <div className="absolute inset-0 grid place-items-center">
-            <MapPin className="h-8 w-8 text-leaf" fill="currentColor" aria-hidden />
-          </div>
+        <div className="relative mt-3 h-28 overflow-hidden rounded-2xl bg-[#dce8dc] ring-1 ring-forest/10">
+          {miniMapUrl ? (
+            <iframe
+              title="Selected delivery location"
+              src={miniMapUrl}
+              className="h-full w-full border-0"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
+          ) : (
+            <>
+              <div
+                className="absolute inset-0 opacity-35"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(#9cb89c 1px, transparent 1px), linear-gradient(90deg, #9cb89c 1px, transparent 1px)",
+                  backgroundSize: "20px 20px",
+                }}
+                aria-hidden
+              />
+              <div className="absolute inset-0 grid place-items-center">
+                <MapPin
+                  className="h-8 w-8 text-leaf"
+                  fill="currentColor"
+                  aria-hidden
+                />
+              </div>
+            </>
+          )}
         </div>
 
       </section>

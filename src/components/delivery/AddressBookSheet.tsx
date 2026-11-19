@@ -14,6 +14,7 @@ import {
 import {
   detectMyPlace,
   formatSavedAddressLine,
+  geocodeSearchQuery,
   getSavedAddress,
   listSavedAddresses,
   subscribeSavedAddresses,
@@ -109,6 +110,7 @@ function AddressBookSheetBody({
   const [editing, setEditing] = useState<SavedAddress | null>(seed.editing);
   const [searchQ, setSearchQ] = useState("");
   const [detecting, setDetecting] = useState(false);
+  const [resolving, setResolving] = useState(false);
   const [mapNotice, setMapNotice] = useState<string | null>(null);
 
   const raw = useSyncExternalStore(
@@ -208,29 +210,25 @@ function AddressBookSheetBody({
               onSearchQ={setSearchQ}
               place={draftPlace}
               detecting={detecting}
+              resolving={resolving}
               notice={mapNotice}
               onDetect={onDetect}
-              onUseSearch={() => {
-                const q = searchQ.trim();
-                if (!q) {
-                  const { message, tone } = LOCATION_TOASTS.typeArea;
-                  setMapNotice(message);
-                  showPopup(message, tone);
+              onUseSearch={async () => {
+                setResolving(true);
+                setMapNotice(null);
+                const result = await geocodeSearchQuery(searchQ);
+                setResolving(false);
+                if (!result.ok) {
+                  setMapNotice(result.message);
                   return;
                 }
-                setDraftPlace({
-                  area: q,
-                  street: "",
-                  city: "",
-                  pin: "",
-                  landmark: "",
-                  formatted: q,
-                });
-                const { message, tone } = LOCATION_TOASTS.confirmPin;
-                setMapNotice(message);
-                showPopup(message, tone);
+                setDraftPlace(result.place);
+                setMapNotice("Area set — confirm location to continue.");
               }}
               onConfirm={onConfirmMap}
+              onPlaceFromMap={setDraftPlace}
+              onResolving={setResolving}
+              onNotice={setMapNotice}
             />
           ) : null}
           {step === "details" && draftPlace ? (
