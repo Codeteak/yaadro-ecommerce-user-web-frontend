@@ -1,14 +1,14 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { PageHeader } from "@/components/navigation/PageHeader";
+import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { listOrders } from "@/lib/api/orders";
 import { listCustomerOrders } from "@/lib/api/customer-orders";
 import { ApiError } from "@/lib/api/errors";
-import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
 import {
   OrderHistoryCard,
   OrderReceiptDialog,
@@ -60,11 +60,7 @@ export function OrdersPageContent({
   className,
 }: OrdersPageContentProps) {
   const inline = chromePosition === "inline";
-  const sessionSignedIn = useSyncExternalStore(
-    subscribeCustomerSession,
-    hasCustomerSession,
-    () => false,
-  );
+  const sessionSignedIn = useCustomerSignedIn();
   const signedIn = previewSignedIn ?? sessionSignedIn;
   const account = useQuery({
     queryKey: ["orders"],

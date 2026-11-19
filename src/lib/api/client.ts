@@ -164,6 +164,21 @@ export async function restoreCustomerSession(): Promise<boolean> {
   return ok;
 }
 
+let restoreLatch: Promise<boolean> | null = null;
+
+/**
+ * Single-flight session restore for boot. UI should wait on this before
+ * firing auth APIs — a refresh token alone is not an access token yet.
+ */
+export function ensureCustomerSessionRestored(): Promise<boolean> {
+  if (!restoreLatch) {
+    restoreLatch = restoreCustomerSession().finally(() => {
+      // Keep the settled promise so later callers reuse the result.
+    });
+  }
+  return restoreLatch;
+}
+
 async function refreshAccessToken(): Promise<boolean> {
   if (refreshInFlight) return refreshInFlight;
   refreshInFlight = (async () => {

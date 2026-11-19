@@ -14,13 +14,14 @@ import { checkDeliveryLocation, saveMyAddress } from "@/lib/api/address";
 import { previewDeliveryArea } from "@/lib/api/preview-delivery-area";
 import { placeCheckoutOrder } from "@/lib/api/checkout";
 import { ApiError } from "@/lib/api/errors";
-import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
+import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { showPopup } from "@/components/ui/Toast";
 import {
   OrderPlacedContent,
   type OrderPlacedSummary,
 } from "@/components/checkout/OrderPlacedContent";
 import {
+  billCouponLine,
   isBasketCheckoutFailure,
   shopCheckoutLines,
 } from "@/lib/cart-checkout-rules";
@@ -63,6 +64,22 @@ type CheckoutPageContentProps = {
    * Omit on storefront to use `hasCustomerSession`.
    */
   previewSignedIn?: boolean;
+  /**
+   * Production: Coupon −₹ from shop cart preview only.
+   * Playground omits this and uses local sample promo math.
+   */
+  liveShopPricing?: boolean;
+  /**
+   * Playground-only fixture for the totals card (coupon row visible for testers).
+   * Live checkout never passes this.
+   */
+  demoBill?: {
+    subtotalRupees: number;
+    couponCode: string;
+    couponDiscountRupees: number;
+    saveRupees: number;
+    totalRupees: number;
+  } | null;
 };
 
 /** Stable string snapshot — never return a fresh object from getSnapshot. */
@@ -91,15 +108,13 @@ export function CheckoutPageContent({
   highlightSavings = false,
   showAmountDueBar = true,
   previewSignedIn,
+  liveShopPricing = false,
+  demoBill = null,
 }: CheckoutPageContentProps) {
   const inline = chromePosition === "inline";
   const router = useRouter();
   const queryClient = useQueryClient();
-  const sessionSignedIn = useSyncExternalStore(
-    subscribeCustomerSession,
-    hasCustomerSession,
-    () => false,
-  );
+  const sessionSignedIn = useCustomerSignedIn();
   const signedIn = previewSignedIn ?? sessionSignedIn;
   const loginHref = inline
     ? "/login?next=/playground/cart-page"
@@ -116,6 +131,30 @@ export function CheckoutPageContent({
   const { quote } = useShopQuote(items, appliedPromo?.code ?? null);
   const dueLabel = shopDue(quote, totalDue);
   const minimumBlocks = Boolean(quote?.minimumMessage);
+  const couponLine = demoBill
+    ? {
+        code: demoBill.couponCode,
+        discountRupees: demoBill.couponDiscountRupees,
+      }
+    : billCouponLine(
+        liveShopPricing ? "shop" : "sample",
+        quote,
+        appliedPromo && promoDiscount > 0
+          ? { code: appliedPromo.code, discountRupees: promoDiscount }
+          : null,
+      );
+  const savingsLabel = demoBill
+    ? demoBill.saveRupees
+    : liveShopPricing
+      ? Math.max(
+          0,
+          Math.round((mrpTotal - (quote?.totalRupees ?? totalDue)) * 100) / 100,
+        )
+      : totalSaved;
+  const subtotalLabel = demoBill ? demoBill.subtotalRupees : mrpTotal;
+  const amountDueLabel = demoBill
+    ? `₹${demoBill.totalRupees}`
+    : dueLabel;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [pendingLabel, setPendingLabel] = useState("Placing order…");
@@ -163,7 +202,7 @@ export function CheckoutPageContent({
     };
   }, [pinLat, pinLng]);
 
-  const amountDue = dueLabel;
+  const amountDue = amountDueLabel;
   const hasAddress = Boolean(
     address && formatDeliveryAddressLabel(address).length > 0,
   );
@@ -377,25 +416,27 @@ export function CheckoutPageContent({
         <div className="rounded-2xl bg-white px-4 py-1 shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10">
           <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
             <span className="text-muted">Subtotal</span>
-            <span className="font-bold text-black">₹{mrpTotal}</span>
+            <span className="font-bold text-black">₹{subtotalLabel}</span>
           </div>
-          {appliedPromo && promoDiscount > 0 ? (
+          {couponLine ? (
             <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
-              <span className="text-muted">Coupon ({appliedPromo.code})</span>
-              <span className="font-bold text-leaf">−₹{promoDiscount}</span>
+              <span className="text-muted">Coupon ({couponLine.code})</span>
+              <span className="font-bold text-leaf">
+                −₹{Math.round(couponLine.discountRupees)}
+              </span>
             </div>
           ) : null}
           <div
             className={cn(
               "flex items-center justify-between py-3 text-sm",
-              highlightSavings && totalSaved > 0
+              highlightSavings && savingsLabel > 0
                 ? "border-b border-dashed border-leaf"
                 : "border-b border-forest/8",
             )}
           >
             <span
               className={cn(
-                highlightSavings && totalSaved > 0
+                highlightSavings && savingsLabel > 0
                   ? "font-bold text-forest"
                   : "text-muted",
               )}
@@ -405,12 +446,12 @@ export function CheckoutPageContent({
             <span
               className={cn(
                 "tabular-nums text-leaf",
-                highlightSavings && totalSaved > 0
+                highlightSavings && savingsLabel > 0
                   ? "text-base font-extrabold"
                   : "font-bold",
               )}
             >
-              {totalSaved > 0 ? `₹${totalSaved}` : "₹0"}
+              {savingsLabel > 0 ? `₹${Math.round(savingsLabel)}` : "₹0"}
             </span>
           </div>
           <div className="flex items-center justify-between py-3 text-sm">

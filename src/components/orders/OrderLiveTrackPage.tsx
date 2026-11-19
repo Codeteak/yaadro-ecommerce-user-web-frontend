@@ -1,15 +1,14 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { LiveOrderTrack } from "@/components/orders/LiveOrderTrack";
 import { useShopName } from "@/components/shop/ShopNameProvider";
+import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { getCustomerOrder } from "@/lib/api/customer-orders";
 import { ApiError } from "@/lib/api/errors";
 import { getOrder } from "@/lib/api/orders";
-import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
 import { toLiveOrderTrackSample } from "@/lib/order-live-track";
 import { cn } from "@/lib/cn";
 
@@ -33,11 +32,7 @@ export function OrderLiveTrackPage({
   const shopName = useShopName();
   const detailHref = backHref ?? `/orders/${orderId}`;
   const sampleOrder = getOrder(orderId);
-  const signedIn = useSyncExternalStore(
-    subscribeCustomerSession,
-    hasCustomerSession,
-    () => false,
-  );
+  const signedIn = useCustomerSignedIn();
   const remote = useQuery({
     queryKey: ["order", orderId],
     queryFn: ({ signal }) => getCustomerOrder(orderId, signal),

@@ -21,6 +21,7 @@ import {
   peekCartPromoCode,
   setCartQty,
   setCartWeight,
+  storeShopPromo,
   subscribeCart,
 } from "@/lib/cart-store";
 
@@ -96,6 +97,7 @@ export function useCart() {
     clear: clearCart,
     ...totals,
     applyPromo: applyCartPromo,
+    storeShopPromo,
     clearPromo: clearCartPromo,
     setCustomizing,
   };

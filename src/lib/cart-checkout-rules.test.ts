@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  billCouponLine,
   isBasketCheckoutFailure,
   localCheckoutWarning,
   parseShopQuote,
@@ -125,12 +126,50 @@ test("reads the minimum, a trusted zero total, and automatic offers", () => {
     "Add ₹881 more to meet this shop's ₹1,001 minimum order.",
   );
   assert.equal(quote.totalRupees, 0);
+  assert.equal(quote.coupon.status, "none");
   assert.deepEqual(quote.applied, [
     { label: "10% off dairy", categoryId: MILK, reached: true },
   ]);
   assert.deepEqual(quote.suggested, [
     { label: "5% off Bakery", categoryId: null, reached: false },
   ]);
+});
+
+test("reads an applied shop coupon for the bill row", () => {
+  const quote = parseShopQuote({
+    summary: {
+      min_purchase_minor: 0,
+      min_purchase_remaining_minor: 0,
+      subtotal_minor: 45000,
+      coupon_discount_minor: 5000,
+    },
+    promotions: {
+      coupon: {
+        code: "FRESH10",
+        status: "applied",
+        discount_minor: 5000,
+        reason_message: null,
+      },
+    },
+  });
+  assert.equal(quote.coupon.status, "applied");
+  assert.equal(quote.coupon.discountRupees, 50);
+  assert.deepEqual(billCouponLine("shop", quote, null), {
+    code: "FRESH10",
+    discountRupees: 50,
+  });
+  assert.equal(
+    billCouponLine(
+      "shop",
+      { ...quote, coupon: { ...quote.coupon, status: "not_applicable" } },
+      { code: "FRESH10", discountRupees: 50 },
+    ),
+    null,
+  );
+  assert.deepEqual(
+    billCouponLine("sample", null, { code: "FRESH10", discountRupees: 50 }),
+    { code: "FRESH10", discountRupees: 50 },
+  );
 });
 
 test("keeps the phone total when the shop omits a subtotal", () => {

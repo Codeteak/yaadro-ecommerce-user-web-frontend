@@ -154,6 +154,14 @@ export type ShopOffer = {
   reached: boolean;
 };
 
+export type ShopCouponQuote = {
+  code: string | null;
+  status: "none" | "applied" | "not_applicable" | "unknown";
+  /** Whole rupees from `coupon_discount_minor`. */
+  discountRupees: number;
+  reasonMessage: string | null;
+};
+
 export type ShopQuote = {
   /** Null once the basket meets the shop minimum. */
   minimumMessage: string | null;
@@ -162,13 +170,22 @@ export type ShopQuote = {
    * Null when the preview did not include a subtotal.
    */
   totalRupees: number | null;
+  coupon: ShopCouponQuote;
   applied: ShopOffer[];
   suggested: ShopOffer[];
+};
+
+const EMPTY_COUPON: ShopCouponQuote = {
+  code: null,
+  status: "none",
+  discountRupees: 0,
+  reasonMessage: null,
 };
 
 const EMPTY_QUOTE: ShopQuote = {
   minimumMessage: null,
   totalRupees: null,
+  coupon: EMPTY_COUPON,
   applied: [],
   suggested: [],
 };
@@ -209,7 +226,56 @@ function offerList(value: unknown, reached: boolean): ShopOffer[] {
   });
 }
 
-/** Minimum, trusted total, and automatic offers from a cart preview. */
+function parseShopCoupon(preview: Record<string, unknown> | null): ShopCouponQuote {
+  const summary = asRecord(preview?.summary);
+  const coupon = asRecord(asRecord(preview?.promotions)?.coupon);
+  const fromSummary = presentMinor(summary?.coupon_discount_minor);
+  const fromCoupon = presentMinor(coupon?.discount_minor);
+  const discountMinor = fromSummary ?? fromCoupon ?? 0;
+  const rawStatus = typeof coupon?.status === "string" ? coupon.status : "";
+  const status: ShopCouponQuote["status"] =
+    rawStatus === "applied" || rawStatus === "not_applicable" || rawStatus === "none"
+      ? rawStatus
+      : coupon
+        ? "unknown"
+        : "none";
+  const code =
+    typeof coupon?.code === "string" && coupon.code.trim()
+      ? coupon.code.trim()
+      : null;
+  const reasonMessage =
+    typeof coupon?.reason_message === "string" && coupon.reason_message.trim()
+      ? coupon.reason_message.trim()
+      : null;
+  return {
+    code,
+    status,
+    discountRupees: discountMinor / 100,
+    reasonMessage,
+  };
+}
+
+/**
+ * Bill row for a coupon.
+ * `shop` = only when preview applied a discount (production).
+ * `sample` = local promo math (playground).
+ */
+export function billCouponLine(
+  mode: "shop" | "sample",
+  quote: ShopQuote | null,
+  local: { code: string; discountRupees: number } | null,
+): { code: string; discountRupees: number } | null {
+  if (mode === "shop") {
+    if (!quote || quote.coupon.status !== "applied") return null;
+    if (quote.coupon.discountRupees <= 0) return null;
+    const code = quote.coupon.code?.trim() || local?.code?.trim() || "Coupon";
+    return { code, discountRupees: quote.coupon.discountRupees };
+  }
+  if (!local || local.discountRupees <= 0 || !local.code.trim()) return null;
+  return { code: local.code.trim(), discountRupees: local.discountRupees };
+}
+
+/** Minimum, trusted total, coupon, and automatic offers from a cart preview. */
 export function parseShopQuote(preview: unknown): ShopQuote {
   const body = asRecord(preview);
   if (!body) return EMPTY_QUOTE;
@@ -224,6 +290,7 @@ export function parseShopQuote(preview: unknown): ShopQuote {
         ? `Add ${rupees(remaining)} more to meet this shop's ${rupees(minimum)} minimum order.`
         : null,
     totalRupees: subtotal == null ? null : subtotal / 100,
+    coupon: parseShopCoupon(body),
     applied: offerList(auto?.applied_offers, true),
     suggested: offerList(auto?.suggested_offers, false),
   };

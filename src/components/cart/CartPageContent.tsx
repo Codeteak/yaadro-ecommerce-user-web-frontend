@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import {
   ArrowRight,
@@ -33,13 +34,16 @@ import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import { findCouponByCode } from "@/lib/sample-coupons";
 import { showPopup } from "@/components/ui/Toast";
 import { previewCart } from "@/lib/api/cart";
+import { listShopCoupons } from "@/lib/api/shop-coupons";
 import { ApiError } from "@/lib/api/errors";
-import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
+import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import {
+  billCouponLine,
   localCheckoutWarning,
   previewCheckoutWarning,
   shopCheckoutLines,
 } from "@/lib/cart-checkout-rules";
+import { confirmShopPromo } from "@/lib/shop-promo";
 import { cn } from "@/lib/cn";
 import { isProductImageFallback, productPhoto } from "@/lib/product-image";
 
@@ -94,6 +98,11 @@ type CartPageContentProps = {
    * Checkout ₹ tracks the coupon. Live cart keeps prior layout until wired.
    */
   syncCheckoutTotal?: boolean;
+  /**
+   * Production: top offers + apply + coupon −₹ from shop APIs only.
+   * Playground omits this and keeps SAMPLE_COUPONS / local apply.
+   */
+  liveShopCoupons?: boolean;
 };
 
 /**
@@ -116,21 +125,20 @@ export function CartPageContent({
   previewSignedIn,
   weightAtBottom = false,
   syncCheckoutTotal = false,
+  liveShopCoupons = false,
 }: CartPageContentProps) {
   const inline = chromePosition === "inline";
   const router = useRouter();
-  const sessionSignedIn = useSyncExternalStore(
-    subscribeCustomerSession,
-    hasCustomerSession,
-    () => false,
-  );
+  const sessionSignedIn = useCustomerSignedIn();
   const signedIn = previewSignedIn ?? sessionSignedIn;
   const loginHref = inline
     ? "/login?next=/playground/cart-page"
     : "/login?next=/cart";
   const [checkingOut, setCheckingOut] = useState(false);
+  const [applyingPromo, setApplyingPromo] = useState(false);
   /** Top offers nested under coupon shell when refined; collapsed by default. */
   const [topOffersOpen, setTopOffersOpen] = useState(false);
+  const rejectedCouponRef = useRef<string | null>(null);
   const {
     items,
     setQty,
@@ -144,6 +152,7 @@ export function CartPageContent({
     totalSaved,
     totalDue,
     applyPromo,
+    storeShopPromo,
     clearPromo,
   } = useCart();
   const [promoInput, setPromoInput] = useState("");
@@ -154,10 +163,43 @@ export function CartPageContent({
   const { quote } = useShopQuote(items, applied?.code ?? null);
   const dueLabel = shopDue(quote, totalDue);
   const minimumBlocks = Boolean(quote?.minimumMessage);
+  const couponLine = billCouponLine(
+    liveShopCoupons ? "shop" : "sample",
+    quote,
+    applied && promoDiscount > 0
+      ? { code: applied.code, discountRupees: promoDiscount }
+      : null,
+  );
+  const savingsLabel = liveShopCoupons
+    ? Math.max(
+        0,
+        Math.round(
+          (mrpTotal - (quote?.totalRupees ?? totalDue)) * 100,
+        ) / 100,
+      )
+    : totalSaved;
 
   useEffect(() => {
     if (appliedPromo) setPromoInput(appliedPromo.code);
   }, [appliedPromo]);
+
+  useEffect(() => {
+    if (!liveShopCoupons || !applied?.code || !quote) return;
+    if (quote.coupon.status !== "not_applicable") {
+      rejectedCouponRef.current = null;
+      return;
+    }
+    const key = `${applied.code}:${quote.coupon.reasonMessage ?? ""}`;
+    if (rejectedCouponRef.current === key) return;
+    rejectedCouponRef.current = key;
+    clearPromo();
+    setPromoInput("");
+    const message =
+      quote.coupon.reasonMessage?.trim() ||
+      "This coupon can't be applied to this basket.";
+    setPromoMessage(message);
+    showPopup(message, "error");
+  }, [liveShopCoupons, applied?.code, quote, clearPromo]);
 
   const removeItem = (productId: string, isWeight: boolean) => {
     if (isWeight) setWeight(productId, null);
@@ -165,6 +207,28 @@ export function CartPageContent({
   };
 
   const onApplyPromoCode = (code: string) => {
+    if (liveShopCoupons) {
+      if (!signedIn) {
+        showPopup("Sign in to apply a coupon.", "warning");
+        router.push(loginHref);
+        return;
+      }
+      if (applyingPromo) return;
+      setApplyingPromo(true);
+      void confirmShopPromo(code, items)
+        .then((result) => {
+          setPromoMessage(result.message);
+          if (result.ok) {
+            storeShopPromo(result.coupon);
+            setPromoInput(result.code);
+            showPopup(result.message, "success");
+          } else {
+            showPopup(result.message, "error");
+          }
+        })
+        .finally(() => setApplyingPromo(false));
+      return;
+    }
     const result = applyPromo(code);
     setPromoMessage(result.message);
     if (result.ok) {
@@ -180,7 +244,9 @@ export function CartPageContent({
   };
 
   const appliedCouponMeta = applied
-    ? findCouponByCode(applied.code)
+    ? (offerCoupons?.find(
+        (c) => c.code.toUpperCase() === applied.code.toUpperCase(),
+      ) ?? findCouponByCode(applied.code))
     : undefined;
 
   const onClearPromo = () => {
@@ -210,6 +276,15 @@ export function CartPageContent({
     const local = localCheckoutWarning(lines);
     if (local) {
       showPopup(local, "warning");
+      return;
+    }
+    // Reuse the debounced shop quote when it already priced this basket.
+    if (quote && !failed) {
+      if (quote.checkoutWarning) {
+        showPopup(quote.checkoutWarning, "warning");
+        return;
+      }
+      router.push(next);
       return;
     }
     setCheckingOut(true);
@@ -457,17 +532,18 @@ export function CartPageContent({
             </button>
             */}
 
-            {showTopCoupons && !topCouponsRefined ? (
+            {showOfferList && !topCouponsRefined ? (
               <CartTopCoupons
                 className="mt-4"
-                subtotal={mrpTotal}
+                subtotal={subtotal}
                 appliedCode={applied?.code}
                 onApply={onApplyPromoCode}
+                coupons={offerCoupons}
               />
             ) : null}
 
             <div className="mt-4 rounded-2xl bg-white p-2.5 shadow-[0_10px_28px_rgba(47,107,47,0.14)] ring-2 ring-leaf">
-              {showTopCoupons && topCouponsRefined ? (
+              {showOfferList && topCouponsRefined ? (
                 <>
                   <button
                     type="button"
@@ -514,9 +590,10 @@ export function CartPageContent({
                     <div className="min-h-0 overflow-hidden">
                       <CartTopCoupons
                         className="mt-2.5 px-0.5 pb-1"
-                        subtotal={mrpTotal}
+                        subtotal={subtotal}
                         appliedCode={applied?.code}
                         onApply={onApplyPromoCode}
+                        coupons={offerCoupons}
                         refined
                         embedded
                       />
@@ -527,7 +604,7 @@ export function CartPageContent({
               ) : null}
 
               <div className="flex items-center gap-2 rounded-xl bg-paper/80 px-2.5 py-2 ring-1 ring-forest/10">
-                {!(showTopCoupons && topCouponsRefined) ? (
+                {!(showOfferList && topCouponsRefined) ? (
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mint">
                     <Image
                       src="/icons/coupon.svg"
@@ -545,7 +622,7 @@ export function CartPageContent({
                       href={couponPickerHref}
                       className="min-w-0 flex-1 truncate text-left text-sm font-medium text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
                     >
-                      {showTopCoupons && topCouponsRefined
+                      {showOfferList && topCouponsRefined
                         ? "View all coupons"
                         : "Select a coupon"}
                     </Link>
@@ -553,7 +630,7 @@ export function CartPageContent({
                       href={couponPickerHref}
                       className="h-9 shrink-0 cursor-pointer rounded-xl bg-track px-4 text-sm font-semibold leading-9 text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
                     >
-                      {showTopCoupons && topCouponsRefined ? "All" : "Select"}
+                      {showOfferList && topCouponsRefined ? "All" : "Select"}
                     </Link>
                   </>
                 ) : (
@@ -590,9 +667,10 @@ export function CartPageContent({
                       <button
                         type="button"
                         onClick={onApplyPromo}
-                        className="h-9 shrink-0 cursor-pointer rounded-xl bg-track px-4 text-sm font-semibold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+                        disabled={applyingPromo}
+                        className="h-9 shrink-0 cursor-pointer rounded-xl bg-track px-4 text-sm font-semibold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf disabled:cursor-wait disabled:opacity-70"
                       >
-                        Apply
+                        {applyingPromo ? "…" : "Apply"}
                       </button>
                     )}
                   </>
@@ -650,25 +728,25 @@ export function CartPageContent({
                       </span>
                     </div>
                   ) : null}
-                  {applied && promoDiscount > 0 ? (
+                  {couponLine ? (
                     <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
-                      <span className="text-muted">Coupon ({applied.code})</span>
+                      <span className="text-muted">Coupon ({couponLine.code})</span>
                       <span className="font-bold text-leaf tabular-nums">
-                        −₹{promoDiscount}
+                        −₹{Math.round(couponLine.discountRupees)}
                       </span>
                     </div>
                   ) : null}
                   <div
                     className={cn(
                       "flex items-center justify-between py-3 text-sm",
-                      highlightSavings && totalSaved > 0
+                      highlightSavings && savingsLabel > 0
                         ? "border-b border-dashed border-leaf"
                         : "border-b border-forest/8",
                     )}
                   >
                     <span
                       className={cn(
-                        highlightSavings && totalSaved > 0
+                        highlightSavings && savingsLabel > 0
                           ? "font-bold text-forest"
                           : "text-muted",
                       )}
@@ -678,18 +756,18 @@ export function CartPageContent({
                     <span
                       className={cn(
                         "tabular-nums text-leaf",
-                        highlightSavings && totalSaved > 0
+                        highlightSavings && savingsLabel > 0
                           ? "text-base font-extrabold"
                           : "font-bold",
                       )}
                     >
-                      {totalSaved > 0 ? `₹${totalSaved}` : "₹0"}
+                      {savingsLabel > 0 ? `₹${Math.round(savingsLabel)}` : "₹0"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between py-3 text-sm">
                     <span className="font-bold text-black">Total</span>
                     <span
-                      key={`due-${dueLabel}-${applied?.code ?? "none"}`}
+                      key={`due-${dueLabel}-${couponLine?.code ?? "none"}`}
                       className="font-extrabold text-leaf tabular-nums"
                     >
                       {dueLabel}
@@ -702,23 +780,25 @@ export function CartPageContent({
                     <span className="text-muted">Subtotal</span>
                     <span className="font-bold text-black">₹{mrpTotal}</span>
                   </div>
-                  {applied && promoDiscount > 0 ? (
+                  {couponLine ? (
                     <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
-                      <span className="text-muted">Coupon ({applied.code})</span>
-                      <span className="font-bold text-leaf">−₹{promoDiscount}</span>
+                      <span className="text-muted">Coupon ({couponLine.code})</span>
+                      <span className="font-bold text-leaf">
+                        −₹{Math.round(couponLine.discountRupees)}
+                      </span>
                     </div>
                   ) : null}
                   <div
                     className={cn(
                       "flex items-center justify-between py-3 text-sm",
-                      highlightSavings && totalSaved > 0
+                      highlightSavings && savingsLabel > 0
                         ? "border-b border-dashed border-leaf"
                         : "border-b border-forest/8",
                     )}
                   >
                     <span
                       className={cn(
-                        highlightSavings && totalSaved > 0
+                        highlightSavings && savingsLabel > 0
                           ? "font-bold text-forest"
                           : "text-muted",
                       )}
@@ -728,12 +808,12 @@ export function CartPageContent({
                     <span
                       className={cn(
                         "tabular-nums text-leaf",
-                        highlightSavings && totalSaved > 0
+                        highlightSavings && savingsLabel > 0
                           ? "text-base font-extrabold"
                           : "font-bold",
                       )}
                     >
-                      {totalSaved > 0 ? `₹${totalSaved}` : "₹0"}
+                      {savingsLabel > 0 ? `₹${Math.round(savingsLabel)}` : "₹0"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between py-3 text-sm">

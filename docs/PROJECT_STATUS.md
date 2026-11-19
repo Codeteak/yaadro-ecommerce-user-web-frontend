@@ -14,7 +14,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 | Login `/login` | UI done | Phone +91 / OTP. Success island toast at the top, then returns home (or the safe `next` path). |
 | Home / catalog | Live database | Categories, products, product detail, and home shelves are read on the server from `DATABASE_URL` with the shop API's filters. Shop name and SEO still use the customer API, with a Yaadro fallback. Offer prices come from the product row. Campaign overlays are not copied. |
 | Cart `/cart` | UI done | List, promo field, 3D Checkout pill. The shop quote shows the minimum, automatic offers, and a trusted total (including ₹0). Checkout stays off until the minimum is met. “You may also like” uses the live catalog. |
-| Coupons `/coupons` | UI done | Comfortable ticket body (discount → title → code); sample via `lib/api/coupons` |
+| Coupons `/coupons` | Wired | Live list from `GET /api/storefront/coupons`; apply from cart confirms via cart/preview |
 | Wishlist `/wishlist` | UI done | Local signed-in scaffold; façade `lib/api/wishlist` |
 | Checkout `/checkout` | UI done | COD only; Place Order → Order placed (mascot + bill card + View Order / Back home); stub only |
 | Order placed | Done | Shown after Place Order on `/checkout`; Order history + Home CTAs; playground `/playground/order-placed` |
@@ -49,6 +49,6 @@ Thin modules so pages read like future clients (replace with `fetch` when APIs e
 - Catalog prices are the shelf price and the row offer price. Buy-one-get-one and category-offer overlays are still calculated by the customer API at checkout.
 - `DATABASE_URL` must stay server-only. The catalog does not load if that variable is missing.
 - Wishlist persistence is device-local (`yaadro-wishlist-v1`).
-- Cart promo uses sample codes only — not checkout-authoritative.
-- Orders / coupons data is sample-only (no network).
+- Live cart/checkout coupon −₹ is shop-preview authoritative (`liveShopCoupons` / `liveShopPricing`). Playground still uses SAMPLE_COUPONS + local apply; `/playground/checkout-coupon` fixtures the bill row.
+- Orders list can use live API when signed in; playground stays on samples.
 - Serwist packages installed but not configured.

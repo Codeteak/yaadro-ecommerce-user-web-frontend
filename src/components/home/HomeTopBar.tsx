@@ -4,11 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSyncExternalStore, useState } from "react";
 import { ChevronDown, MapPin } from "lucide-react";
+import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
-import {
-  hasCustomerSession,
-  subscribeCustomerSession,
-} from "@/lib/api/session";
 import {
   formatDeliveryAddressLabel,
   readDeliveryAddress,
@@ -17,11 +14,7 @@ import {
 
 /** Only this link subscribes to the session, so the address row does not re-render. */
 function AccountLink({ signedIn }: { signedIn?: boolean }) {
-  const live = useSyncExternalStore(
-    subscribeCustomerSession,
-    hasCustomerSession,
-    () => false,
-  );
+  const live = useCustomerSignedIn();
   const showProfile = signedIn ?? live;
 
   if (showProfile) {

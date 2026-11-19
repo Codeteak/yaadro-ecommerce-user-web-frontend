@@ -20,6 +20,7 @@ export default function CartPage() {
       minCartValueRupees={499}
       weightAtBottom
       syncCheckoutTotal
+      liveShopCoupons
     />
   );
 }

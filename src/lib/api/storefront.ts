@@ -237,17 +237,22 @@ async function fetchProductGroups(options: {
   return { groups: groupDbProducts(page.products), nextCursor: page.nextCursor };
 }
 
-/** Up to three pages (50 each) of products, optionally scoped to a category. */
+/**
+ * Product pages (50 each), optionally scoped to a category.
+ * Home uses `maxPages: 1` so shelves paint sooner; PLP/search keep 3.
+ */
 export async function listStoreProducts(options?: {
   categoryId?: string;
   search?: string;
+  maxPages?: number;
 }): Promise<ProductGroup[]> {
   "use cache";
   cacheTag("storefront-catalog");
   cacheLife("minutes");
+  const maxPages = Math.min(Math.max(options?.maxPages ?? 3, 1), 3);
   const groups: ProductGroup[] = [];
   let cursor: string | null = null;
-  for (let page = 0; page < 3; page += 1) {
+  for (let page = 0; page < maxPages; page += 1) {
     const batch = await fetchProductGroups({
       categoryId: options?.categoryId,
       search: options?.search,
@@ -415,9 +420,10 @@ function rootOf(
 
 export async function loadHomeCatalog(): Promise<HomeCatalog> {
   try {
+    // One product page on home — full aisle browse is /categories/[slug].
     const [categories, groups, shelves] = await Promise.all([
       listStoreCategories(),
-      listStoreProducts(),
+      listStoreProducts({ maxPages: 1 }),
       listHomeShelves(),
     ]);
     const byId = new Map(categories.map((category) => [category.id, category]));
@@ -534,8 +540,7 @@ export type CategoryBrowserData = {
 
 /**
  * Categories screen payload: the aisle tree, plus products for the
- * selected aisle. `all` loads the same capped catalog as home shelves
- * (`listStoreProducts()` — up to three pages).
+ * selected aisle. `all` uses one product page (same cap as home).
  */
 function buildCategoryBranches(
   categories: Awaited<ReturnType<typeof listStoreCategories>>,
@@ -567,7 +572,7 @@ export async function loadCategoryBrowser(
     if (!cat || cat === "all") {
       const [categories, groups] = await Promise.all([
         listStoreCategories(),
-        listStoreProducts(),
+        listStoreProducts({ maxPages: 1 }),
       ]);
       const products = groups.flatMap((group) =>
         group.products.map((product) => ({

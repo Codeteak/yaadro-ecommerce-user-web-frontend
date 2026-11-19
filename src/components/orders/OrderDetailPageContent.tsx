@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,7 +19,7 @@ import { showPopup } from "@/components/ui/Toast";
 import { getOrder, listOrders } from "@/lib/api/orders";
 import { getCustomerOrder } from "@/lib/api/customer-orders";
 import { ApiError } from "@/lib/api/errors";
-import { hasCustomerSession, subscribeCustomerSession } from "@/lib/api/session";
+import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 import { getSampleProduct } from "@/lib/sample-products";
 import { recallProduct } from "@/lib/product-snapshots";
@@ -73,7 +73,7 @@ export function OrderDetailPageContent({
   className,
 }: OrderDetailPageContentProps) {
   const sample = orderId ? getOrder(orderId) : listOrders()[0];
-  const signedIn = useSyncExternalStore(subscribeCustomerSession, hasCustomerSession, () => false);
+  const signedIn = useCustomerSignedIn();
   const remote = useQuery({
     queryKey: ["order", orderId],
     queryFn: ({ signal }) => getCustomerOrder(orderId ?? "", signal),
