@@ -29,6 +29,7 @@ export type ShopQuoteState = ShopQuote & {
  */
 export function useShopQuote(items: CartItem[], couponCode: string | null) {
   const key = lineKey(items, couponCode);
+  const lines = shopCheckoutLines(items);
   const [quote, setQuote] = useState<ShopQuoteState | null>(null);
   const [failed, setFailed] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -40,12 +41,7 @@ export function useShopQuote(items: CartItem[], couponCode: string | null) {
   }, []);
 
   useEffect(() => {
-    const lines = shopCheckoutLines(items);
-    if (lines.length === 0) {
-      setQuote(null);
-      setFailed(false);
-      return;
-    }
+    if (lines.length === 0) return;
     const controller = new AbortController();
     let cancelled = false;
     const timer = window.setTimeout(() => {
@@ -81,7 +77,11 @@ export function useShopQuote(items: CartItem[], couponCode: string | null) {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [couponCode, items, key, revision]);
+  }, [couponCode, key, lines, revision]);
 
-  return { quote, failed };
+  // Empty basket → no quote (avoid sync setState in the effect).
+  return {
+    quote: lines.length === 0 ? null : quote,
+    failed: lines.length === 0 ? false : failed,
+  };
 }

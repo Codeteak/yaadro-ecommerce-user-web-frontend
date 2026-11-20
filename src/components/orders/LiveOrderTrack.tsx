@@ -71,7 +71,7 @@ export function LiveOrderTrack({
   const sample = sampleProp ?? liveTrackSample(phase);
   const billOrder = useMemo(
     () => resolveBillOrder(orderProp, sample),
-    [orderProp, sample.trackingId, sample.billNo, sample.phase],
+    [orderProp, sample],
   );
   /** Map / Live Track only after a partner is assigned on OFD. */
   const canLiveTrack =

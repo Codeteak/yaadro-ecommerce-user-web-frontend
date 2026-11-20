@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { HelpSupportContent } from "@/components/profile/HelpSupportContent";
 import { peekNavReturn, popNavReturn } from "@/lib/nav-return-stack";
@@ -14,11 +14,9 @@ export function HelpSupportRoute({ contact }: { contact: ShopSupportContact }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const topic = searchParams.get("topic");
-  const [returnHref, setReturnHref] = useState<string | null>(null);
-
-  useEffect(() => {
-    setReturnHref(peekNavReturn());
-  }, []);
+  const [returnHref, setReturnHref] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : peekNavReturn(),
+  );
 
   return (
     <HelpSupportContent

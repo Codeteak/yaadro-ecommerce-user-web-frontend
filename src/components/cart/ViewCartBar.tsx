@@ -37,12 +37,17 @@ export function ViewCartBar({ position = "fixed" }: ViewCartBarProps) {
   const inline = position === "inline";
   /** True only after nav hide animation — keeps FAB above the pill while it slides away. */
   const [sitLow, setSitLow] = useState(false);
+  const [wasNavHidden, setWasNavHidden] = useState(navHidden);
+
+  if (!navHidden && wasNavHidden) {
+    setWasNavHidden(false);
+    if (sitLow) setSitLow(false);
+  } else if (navHidden && !wasNavHidden) {
+    setWasNavHidden(true);
+  }
 
   useEffect(() => {
-    if (!navHidden) {
-      setSitLow(false);
-      return;
-    }
+    if (!navHidden) return;
     const id = window.setTimeout(() => setSitLow(true), NAV_HIDE_MS);
     return () => window.clearTimeout(id);
   }, [navHidden]);

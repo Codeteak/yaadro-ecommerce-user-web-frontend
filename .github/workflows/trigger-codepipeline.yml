@@ -1,0 +1,43 @@
+name: Trigger AWS customer-web-pipeline
+
+# CodeConnections DetectChanges does not fire until the AWS Connector GitHub App
+# can access this repo. This workflow starts the same CodePipeline on every push to main.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: trigger-customer-web-pipeline
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  PIPELINE_NAME: customer-web-pipeline
+  AWS_ROLE_ARN: arn:aws:iam::954117186294:role/yaadro-ecom-prod-customer-web-gha-start-pipeline
+
+jobs:
+  start-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Start CodePipeline
+        run: |
+          set -euo pipefail
+          EXEC_ID="$(aws codepipeline start-pipeline-execution \
+            --name "$PIPELINE_NAME" \
+            --query pipelineExecutionId \
+            --output text)"
+          echo "Started $PIPELINE_NAME execution: $EXEC_ID"
+          echo "execution_id=$EXEC_ID" >> "$GITHUB_OUTPUT"

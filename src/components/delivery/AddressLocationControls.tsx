@@ -49,13 +49,13 @@ export function AddressSearchField({
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** After a pick, ignore suggestion fetches until the shopper edits the field. */
-  const lockRef = useRef(false);
   const requestId = useRef(0);
 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [picking, setPicking] = useState(false);
+  /** After a pick, ignore suggestion fetches until the shopper edits the field. */
+  const [locked, setLocked] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [emptyHint, setEmptyHint] = useState<string | null>(null);
@@ -78,21 +78,28 @@ export function AddressSearchField({
     return () => document.removeEventListener("mousedown", onPointer);
   }, []);
 
+  const canSuggest =
+    !disabled && !picking && !locked && value.trim().length >= 2;
+
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    const q = value.trim();
-    if (disabled || picking || lockRef.current || q.length < 2) {
-      setSuggestions([]);
-      setLoading(false);
-      setEmptyHint(null);
-      setOpen(false);
-      setActiveIndex(-1);
-      return;
+    if (!canSuggest) {
+      // Clear via timeout — avoid synchronous setState in the effect body.
+      const clearTimer = window.setTimeout(() => {
+        setSuggestions([]);
+        setLoading(false);
+        setEmptyHint(null);
+        setOpen(false);
+        setActiveIndex(-1);
+      }, 0);
+      return () => window.clearTimeout(clearTimer);
     }
 
+    const q = value.trim();
     const req = ++requestId.current;
-    setLoading(true);
+    // Loading flag also deferred so the effect body stays free of sync setState.
+    const loadTimer = window.setTimeout(() => setLoading(true), 0);
     debounceRef.current = setTimeout(() => {
       if (
         isLoaded &&
@@ -107,7 +114,7 @@ export function AddressSearchField({
             componentRestrictions: { country: "in" },
           },
           (predictions, status) => {
-            if (req !== requestId.current || lockRef.current) return;
+            if (req !== requestId.current) return;
 
             if (
               status !== window.google.maps.places.PlacesServiceStatus.OK ||
@@ -151,7 +158,7 @@ export function AddressSearchField({
         return;
       }
 
-      if (req !== requestId.current || lockRef.current) return;
+      if (req !== requestId.current) return;
       setSuggestions([
         {
           id: `query:${q}`,
@@ -167,12 +174,18 @@ export function AddressSearchField({
     }, 260);
 
     return () => {
+      window.clearTimeout(loadTimer);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [apiKey, disabled, isLoaded, picking, value]);
+  }, [apiKey, canSuggest, isLoaded, value]);
+
+  const showList =
+    open &&
+    canSuggest &&
+    (suggestions.length > 0 || loading || Boolean(emptyHint));
 
   const clearField = () => {
-    lockRef.current = false;
+    setLocked(false);
     onChange("");
     setSuggestions([]);
     setOpen(false);
@@ -181,7 +194,7 @@ export function AddressSearchField({
   };
 
   const resolveSuggestion = async (suggestion: Suggestion) => {
-    lockRef.current = true;
+    setLocked(true);
     requestId.current += 1;
     setPicking(true);
     setOpen(false);
@@ -225,14 +238,14 @@ export function AddressSearchField({
 
       const result = await geocodeSearchQuery(suggestion.description);
       if (!result.ok) {
-        lockRef.current = false;
+        setLocked(false);
         setEmptyHint(result.message);
         setOpen(true);
         return;
       }
       onSelectPlace(result.place);
     } catch {
-      lockRef.current = false;
+      setLocked(false);
       setEmptyHint("Couldn't open that place — try another.");
       setOpen(true);
     } finally {
@@ -240,9 +253,6 @@ export function AddressSearchField({
       setLoading(false);
     }
   };
-
-  const showList =
-    open && !lockRef.current && (suggestions.length > 0 || loading || Boolean(emptyHint));
 
   return (
     <div ref={rootRef} className="relative z-20 pt-0.5">
@@ -263,11 +273,11 @@ export function AddressSearchField({
           id={id}
           value={value}
           onChange={(e) => {
-            lockRef.current = false;
+            setLocked(false);
             onChange(e.target.value);
           }}
           onFocus={() => {
-            if (!lockRef.current && (suggestions.length > 0 || emptyHint)) {
+            if (!locked && (suggestions.length > 0 || emptyHint)) {
               setOpen(true);
             }
           }}

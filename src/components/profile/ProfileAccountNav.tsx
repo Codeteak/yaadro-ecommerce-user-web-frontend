@@ -29,7 +29,10 @@ function AddressDeepLink({ onOpen }: { onOpen: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const onOpenRef = useRef(onOpen);
-  onOpenRef.current = onOpen;
+
+  useEffect(() => {
+    onOpenRef.current = onOpen;
+  }, [onOpen]);
 
   useEffect(() => {
     if (searchParams.get("address") !== "1") return;

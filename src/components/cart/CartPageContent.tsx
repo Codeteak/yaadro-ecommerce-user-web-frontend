@@ -204,9 +204,10 @@ export function CartPageContent({
       )
     : totalSaved;
 
-  useEffect(() => {
-    if (appliedPromo) setPromoInput(appliedPromo.code);
-  }, [appliedPromo]);
+  const appliedCode = appliedPromo?.code ?? null;
+  if (appliedCode && promoInput !== appliedCode) {
+    setPromoInput(appliedCode);
+  }
 
   useEffect(() => {
     if (!liveShopCoupons || !applied?.code || !quote) return;
@@ -308,7 +309,7 @@ export function CartPageContent({
       showPopup(quote.minimumMessage, "warning");
       return;
     }
-    const local = localCheckoutWarning(lines);
+    const local = localCheckoutWarning(items);
     if (local) {
       showPopup(local, "warning");
       return;

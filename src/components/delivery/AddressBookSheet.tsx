@@ -125,7 +125,9 @@ function AddressBookSheetBody({
   useEffect(() => {
     if (!hasCustomerSession()) return;
     const controller = new AbortController();
-    setHydratingAddress(true);
+    const start = window.setTimeout(() => {
+      if (!controller.signal.aborted) setHydratingAddress(true);
+    }, 0);
     void syncServerDeliveryAddress(controller.signal)
       .then((delivery) => {
         if (!delivery || controller.signal.aborted) return;
@@ -135,7 +137,10 @@ function AddressBookSheetBody({
       .finally(() => {
         if (!controller.signal.aborted) setHydratingAddress(false);
       });
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      window.clearTimeout(start);
+    };
     // Mount-only: sheet body remounts each open via parent key.
   }, []);
 

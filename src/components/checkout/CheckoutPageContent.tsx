@@ -111,7 +111,6 @@ export function CheckoutPageContent({
   showPriceMayVary = false,
   priceMayVaryVariant = "soft",
   highlightSavings = false,
-  showAmountDueBar = true,
   previewSignedIn,
   liveShopPricing = false,
   demoBill = null,
@@ -170,7 +169,6 @@ export function CheckoutPageContent({
   const [pending, setPending] = useState(false);
   const [pendingLabel, setPendingLabel] = useState("Placing order…");
   const [placeError, setPlaceError] = useState<string | null>(null);
-  const [areaNote, setAreaNote] = useState<string | null>(null);
   const [placed, setPlaced] = useState<OrderPlacedSummary | null>(null);
   const idempotencyKey = useRef<string | null>(null);
 
@@ -194,18 +192,17 @@ export function CheckoutPageContent({
 
   const pinLat = address && isLatLng(address) ? address.lat : null;
   const pinLng = address && isLatLng(address) ? address.lng : null;
+  const [fetchedAreaNote, setFetchedAreaNote] = useState<string | null>(null);
+  const areaNote = pinLat == null || pinLng == null ? null : fetchedAreaNote;
 
   useEffect(() => {
-    if (pinLat == null || pinLng == null) {
-      setAreaNote(null);
-      return;
-    }
+    if (pinLat == null || pinLng == null) return;
     let cancelled = false;
     void previewDeliveryArea(pinLat, pinLng)
       .then((result) => {
         if (cancelled) return;
         const blocked = deliveryAreaBlock(result);
-        setAreaNote(blocked);
+        setFetchedAreaNote(blocked);
         // Toast only when blocked — avoid “we deliver” every time checkout opens.
         if (blocked) {
           const tone =
@@ -218,7 +215,7 @@ export function CheckoutPageContent({
       .catch(() => {
         if (cancelled) return;
         const { message, tone } = LOCATION_TOASTS.checkFailed;
-        setAreaNote(message);
+        setFetchedAreaNote(message);
         showPopup(message, tone);
       });
     return () => {

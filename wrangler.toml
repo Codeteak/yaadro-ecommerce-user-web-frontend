@@ -1,0 +1,14 @@
+# Cloudflare Pages — yaadro-ecommerce-user-web-frontend
+# https://developers.cloudflare.com/pages/
+#
+# Production custom domains (attach in dashboard or via API after first deploy):
+#   - testshop.yaadro.online
+#   - marketfresh.in
+#   - www.marketfresh.in (recommended alongside apex)
+
+name = "yaadro-ecommerce-user-web-frontend"
+pages_build_output_dir = "out"
+compatibility_date = "2024-09-23"
+
+[vars]
+# Non-secret defaults only. Secrets and NEXT_PUBLIC_* belong in GitHub / Cloudflare env.

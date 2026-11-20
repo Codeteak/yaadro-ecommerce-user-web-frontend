@@ -1,5 +1,29 @@
 # Implementation Log
 
+## 2026-11-20 — `npm run build` typecheck + prerender fixes
+
+Fixed CI build failures: login `ViewTransition` exit needs `default`; `localCheckoutWarning(items)` not checkout lines; drop `.ts` import suffixes in app libs; `InstallPrompt` `usePathname` behind Suspense; catalog `use cache` helpers catch DB/network errors so prerender works without `DATABASE_URL` (CI/Docker). Verified `npm run build` with `DATABASE_URL` unset.
+
+## 2026-11-20 — CI on `fayad` pushes
+
+`.github/workflows/ci.yml` runs on push and PR to `fayad` and `main` (was PR→`main` only).
+
+## 2026-11-20 — Pre-commit runs lint
+
+`.husky/pre-commit` now runs `npm run lint` then `npm test` (was tests only).
+
+## 2026-11-20 — CI lint: React Compiler / hooks rules
+
+Cleared ESLint errors that failed GitHub Actions (`react-hooks/refs`, `rules-of-hooks`, `set-state-in-effect`, `preserve-manual-memoization`). Notable: `OfferBanners` hooks before empty early-return; address search lock is state not ref; map/sheet/PWA/cart quote use derived or deferred state. `npm run lint` clean; unit tests 39/39. Server `npm run build` may still fail on pre-existing TS errors unrelated to this lint pass.
+
+## 2026-11-20 — Restored CI/CD from `v1` (old main)
+
+Restored every deploy/CI artifact from `origin/v1` onto the rewrite tree so `customer-web-pipeline` can run again after `fayad` → `main` replaced the old app.
+
+Restored: `.github/workflows/{ci,trigger-codepipeline}.yml`, `Dockerfile`, `appspec.yml`, `buildspec.yml`, `docker-compose.yml`, `scripts/cicd/*`, `scripts/static-export-build.mjs`, `wrangler.toml`, `workbox-config.cjs`, `functions/*`, `public/_headers`, `public/_redirects`, `.npmrc`, `.dockerignore`, `docs/deploy-cloudflare-pages.md`.
+
+Adapted for Next 16 / `src/`: Dockerfile copies `next.config.ts`; `NEXT_STATIC_EXPORT` in `next.config.ts`; `build:static` / `pages:*` scripts; `workbox-cli` + `wrangler` deps. CI gates on server `npm run build` (production path); static export step is non-blocking until dynamic routes export cleanly. Pre-existing TS errors still fail `npm run build` until fixed.
+
 ## 2026-11-20 — Typewriter search hints on home + categories
 
 Live `/home`, `/categories` (`CategoryBrowser`), PLP (`CategoryListing`), and `CategoriesHub` use `placeholderMotion="typewriter"`. Editable bars hide the hint once the user types. Playground comparison demo remains at `/playground/search-placeholder-motion`.
