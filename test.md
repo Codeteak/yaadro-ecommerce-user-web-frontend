@@ -11,4 +11,4 @@
 - [ ] Switch shop id / domain → cart does not mix
 - [ ] Close browser for a day → still signed in (~50 days client clock; backend must allow)
 - [ ] Install prompt / Add to Home Screen on supported mobile browser
-- [ ] Custom domain banners show; empty banner shop shows no banner strip
+- [ ] Custom domain banners show; empty banner shop shows no banner stripp
