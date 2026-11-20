@@ -2,7 +2,10 @@
 
 import { CategoryRail } from "@/components/home/CategoryRail";
 import { HomeTopBar } from "@/components/home/HomeTopBar";
-import { HomeSearchBar } from "@/components/home/HomeSearchBar";
+import {
+  HOME_SEARCH_SAMPLE_TERMS,
+  HomeSearchBar,
+} from "@/components/home/HomeSearchBar";
 import { OfferBanners } from "@/components/home/OfferBanners";
 import { OfferFlyer } from "@/components/home/OfferFlyer";
 import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
@@ -46,8 +49,10 @@ export function HomePageView({
               <HomeTopBar shopName={shop.name} shopImage={shop.image} />
               <HomeSearchBar
                 className="mt-4"
-                navigateOnSubmit
+                activateHref="/categories?focus=search"
                 filterHref="/categories?focus=search&chips=1"
+                placeholderTerms={HOME_SEARCH_SAMPLE_TERMS}
+                placeholderMotion="typewriter"
               />
             </div>
 

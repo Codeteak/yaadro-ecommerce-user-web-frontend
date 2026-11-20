@@ -14,7 +14,11 @@ import {
 } from "@/components/navigation/PullToRefresh";
 import { ScrollToTopOnLoad } from "@/components/navigation/ScrollToTopOnLoad";
 import { HomeTopBar } from "@/components/home/HomeTopBar";
-import { HomeSearchBar } from "@/components/home/HomeSearchBar";
+import {
+  HOME_SEARCH_SAMPLE_TERMS,
+  HomeSearchBar,
+  SEARCH_PLACEHOLDER_MOTION_OPTIONS,
+} from "@/components/home/HomeSearchBar";
 import { CategoryRail } from "@/components/home/CategoryRail";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
 import { HOME_CATEGORIES } from "@/lib/home-categories";
@@ -336,11 +340,13 @@ function CategoriesFlowDemo({
 
   if (view === "home-search") {
     return (
-      <DemoFrame note="Same as /home: tap search → /categories?focus=search (demo stays in playground).">
+      <DemoFrame note="Gateway home search: rotating samples; tap → categories hub with search focused (playground).">
         <div className="bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8] px-5 pt-6 pb-10">
           <p className="text-[13px] font-bold text-forest">Home (demo)</p>
           <HomeSearchBar
             className="mt-4"
+            placeholderTerms={HOME_SEARCH_SAMPLE_TERMS}
+            placeholderMotion="typewriter"
             onActivate={() => {
               setFocusSearch(true);
               setView("hub");
@@ -707,7 +713,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   search: () => (
-    <DemoFrame note="Same as /home: search → /categories?focus=search; filter chip → categories with chips expanded (&chips=1).">
+    <DemoFrame note="Same as live /home: gateway (no typing), rotating samples; tap → /categories?focus=search. Filter → chips open (&chips=1).">
       <div className="bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8] px-5 pt-4 pb-8">
         <HomeTopBar
           shopName="Yaadro"
@@ -718,10 +724,40 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           navigateOnSubmit={false}
           activateHref="/categories?focus=search"
           filterHref="/categories?focus=search&chips=1"
+          placeholderTerms={HOME_SEARCH_SAMPLE_TERMS}
+          placeholderMotion="typewriter"
         />
         <div className="mt-4 -mx-5">
           <OfferBanners allowSample />
         </div>
+      </div>
+    </DemoFrame>
+  ),
+  "search-placeholder-motion": () => (
+    <DemoFrame note="Compare gateway placeholder motions. Pick one, then wire placeholderMotion on live /home. Tap any bar → /categories?focus=search.">
+      <div className="space-y-5 bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8] px-5 py-6">
+        {SEARCH_PLACEHOLDER_MOTION_OPTIONS.map((option) => (
+          <div key={option.id}>
+            <div className="mb-1.5 flex items-baseline justify-between gap-2">
+              <p className="text-[13px] font-bold text-forest">{option.label}</p>
+              <code className="text-[10px] font-semibold text-forest/60">
+                {option.id}
+              </code>
+            </div>
+            <p className="mb-2 text-[11px] leading-4 text-forest/70">
+              {option.blurb}
+            </p>
+            <HomeSearchBar
+              activateHref="/categories?focus=search"
+              filterHref="/categories?focus=search&chips=1"
+              placeholderTerms={HOME_SEARCH_SAMPLE_TERMS}
+              placeholderMotion={option.id}
+              placeholderIntervalMs={
+                option.id === "typewriter" ? 1400 : 2600
+              }
+            />
+          </div>
+        ))}
       </div>
     </DemoFrame>
   ),

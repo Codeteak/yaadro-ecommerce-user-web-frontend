@@ -112,8 +112,17 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Pill search + green filter chip. Home: search → categories focus; filter → categories with chips open. Categories: filter toggles chip row.",
-    wiresTo: "/home, /categories",
+      "Gateway pill: typewriter sample hints, tap → /categories?focus=search; filter → chips open. Wired on live /home.",
+    wiresTo: "/home, /categories?focus=search",
+  },
+  {
+    slug: "search-placeholder-motion",
+    title: "Search placeholder motions",
+    status: "built",
+    group: "Experiments",
+    description:
+      "Side-by-side gateway hint animations: fade, tick, blur, scale, word swap, typewriter. Live uses typewriter.",
+    wiresTo: "HomeSearchBar placeholderMotion → /home + /categories",
   },
   {
     slug: "home-search-categories",
@@ -121,7 +130,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Tap home search → categories hub with search focused. Same as /home.",
+      "Gateway home search with rotating samples → categories search focused. Same as live /home.",
     wiresTo: "/home → /categories?focus=search",
   },
   {

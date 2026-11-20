@@ -11,7 +11,10 @@ import {
   type RailCategory,
 } from "@/components/home/CategoryRail";
 import { CategoryCard } from "@/components/categories/CategoryCard";
-import { HomeSearchBar } from "@/components/home/HomeSearchBar";
+import {
+  HOME_SEARCH_SAMPLE_TERMS,
+  HomeSearchBar,
+} from "@/components/home/HomeSearchBar";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { ProductCard } from "@/components/product/ProductCard";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
@@ -216,6 +219,8 @@ export function CategoryBrowser({
         onChange={setQuery}
         autoFocus={focusSearch}
         placeholder="Search this category"
+        placeholderTerms={HOME_SEARCH_SAMPLE_TERMS}
+        placeholderMotion="typewriter"
         onFilterClick={() => {
           setChipsOpen((open) => {
             if (open) setSheet(null);

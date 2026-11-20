@@ -11,6 +11,19 @@ import {
 } from "react";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/cn";
+import {
+  HOME_SEARCH_PLACEHOLDER_SAMPLES,
+  HOME_SEARCH_SAMPLE_TERMS,
+  HomeSearchPlaceholder,
+  type SearchPlaceholderMotion,
+} from "@/components/home/HomeSearchPlaceholder";
+
+export {
+  HOME_SEARCH_PLACEHOLDER_SAMPLES,
+  HOME_SEARCH_SAMPLE_TERMS,
+  SEARCH_PLACEHOLDER_MOTION_OPTIONS,
+  type SearchPlaceholderMotion,
+} from "@/components/home/HomeSearchPlaceholder";
 
 type HomeSearchBarProps = {
   className?: string;
@@ -19,6 +32,17 @@ type HomeSearchBarProps = {
    */
   navigateOnSubmit?: boolean;
   placeholder?: string;
+  /**
+   * Gateway slideshow terms (without the Search "…" wrapper for word/typewriter).
+   * Full phrases still work for fade/tick/blur/scale via derived display.
+   */
+  placeholderSamples?: readonly string[];
+  /** Sample terms for word / typewriter (preferred). Defaults from samples. */
+  placeholderTerms?: readonly string[];
+  /** Hint motion when samples/terms are set. Default `typewriter`. */
+  placeholderMotion?: SearchPlaceholderMotion;
+  /** ms between sample swaps / typewriter pause. Default 1400 for typewriter, 2600 otherwise. */
+  placeholderIntervalMs?: number;
   /** Opens filters (categories browser / hub). */
   onFilterClick?: () => void;
   /** Navigate when filter is tapped (e.g. home → categories with chips open). */
@@ -42,14 +66,26 @@ type HomeSearchBarProps = {
   inputId?: string;
 };
 
+function termsFromSamples(samples: readonly string[]): string[] {
+  return samples.map((sample) => {
+    const match = /"([^"]+)"/.exec(sample);
+    if (match?.[1]) return match[1];
+    return sample.replace(/^Search\s+/i, "").replace(/^["']|["']$/g, "");
+  });
+}
+
 /**
  * Shared search pill: magnifier + field + green filter chip.
- * Home gateway → categories; hub uses controlled typing.
+ * Home gateway → categories (optional rotating samples); hub uses typing.
  */
 export function HomeSearchBar({
   className,
   navigateOnSubmit = false,
   placeholder = "Type to search",
+  placeholderSamples,
+  placeholderTerms,
+  placeholderMotion = "typewriter",
+  placeholderIntervalMs,
   onFilterClick,
   filterHref,
   filterActive = false,
@@ -71,6 +107,13 @@ export function HomeSearchBar({
   const isControlled = valueProp !== undefined;
   const query = isControlled ? valueProp : internalQuery;
   const isGateway = Boolean(onActivate || activateHref);
+
+  const terms =
+    placeholderTerms && placeholderTerms.length > 0
+      ? placeholderTerms
+      : placeholderSamples && placeholderSamples.length > 0
+        ? termsFromSamples(placeholderSamples)
+        : null;
 
   useEffect(() => {
     if (!autoFocus || isGateway) return;
@@ -107,6 +150,14 @@ export function HomeSearchBar({
     );
   };
 
+  // Gateway always shows the hint; editable bars show it only while empty.
+  const showSlideshow = Boolean(
+    terms && terms.length > 0 && (isGateway || !query.trim()),
+  );
+  const intervalMs =
+    placeholderIntervalMs ??
+    (placeholderMotion === "typewriter" ? 1400 : 2600);
+
   return (
     <form
       role="search"
@@ -122,27 +173,39 @@ export function HomeSearchBar({
           strokeWidth={1.75}
           aria-hidden
         />
-        <input
-          ref={inputRef}
-          id={id}
-          type="search"
-          name="q"
-          value={isGateway ? "" : query}
-          readOnly={isGateway}
-          onChange={(e) => {
-            if (!isGateway) setQuery(e.target.value);
-          }}
-          onFocus={() => {
-            if (isGateway) goActivate();
-          }}
-          onClick={() => {
-            if (isGateway) goActivate();
-          }}
-          placeholder={placeholder}
-          autoComplete="off"
-          enterKeyHint="search"
-          className="min-w-0 flex-1 cursor-text bg-transparent text-[15px] font-medium text-black outline-none placeholder:font-normal placeholder:text-black/55"
-        />
+        <div className="relative min-w-0 flex-1">
+          <input
+            ref={inputRef}
+            id={id}
+            type="search"
+            name="q"
+            value={isGateway ? "" : query}
+            readOnly={isGateway}
+            onChange={(e) => {
+              if (!isGateway) setQuery(e.target.value);
+            }}
+            onFocus={() => {
+              if (isGateway) goActivate();
+            }}
+            onClick={() => {
+              if (isGateway) goActivate();
+            }}
+            placeholder={showSlideshow ? "" : placeholder}
+            autoComplete="off"
+            enterKeyHint="search"
+            className={cn(
+              "w-full bg-transparent text-[15px] font-medium text-black outline-none placeholder:font-normal placeholder:text-black/55",
+              isGateway ? "cursor-pointer" : "cursor-text",
+            )}
+          />
+          {showSlideshow ? (
+            <HomeSearchPlaceholder
+              terms={terms ?? HOME_SEARCH_SAMPLE_TERMS}
+              motion={placeholderMotion}
+              intervalMs={intervalMs}
+            />
+          ) : null}
+        </div>
         <button
           type="button"
           onClick={() => {

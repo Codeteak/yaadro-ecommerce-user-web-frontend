@@ -1,5 +1,17 @@
 # Implementation Log
 
+## 2026-11-20 — Typewriter search hints on home + categories
+
+Live `/home`, `/categories` (`CategoryBrowser`), PLP (`CategoryListing`), and `CategoriesHub` use `placeholderMotion="typewriter"`. Editable bars hide the hint once the user types. Playground comparison demo remains at `/playground/search-placeholder-motion`.
+
+## 2026-11-20 — Search placeholder motion playground
+
+`/playground/search-placeholder-motion` compares fade / tick / blur / scale / word / typewriter via `HomeSearchBar` `placeholderMotion`.
+
+## 2026-11-20 — Home search gateway + rotating samples (live)
+
+`HomeSearchBar` `placeholderSamples` slideshow. Live `/home` + `HomePageView`: gateway tap → `/categories?focus=search` (no typing on home); filter → `&chips=1`. Playground `/playground/search` matches.
+
 ## 2026-11-20 — Categories sticky rail (single scrollport)
 
 `/categories` uses one overflow scroller: header + search scroll away, `CategoryRail` is `sticky top-0`, scrolling back restores header/search. Page height `calc(100dvh - nav)` + `data-storefront-fill`. Same on horizontal `CategoryListing`. (Nested product-only pane was too short and felt broken.)

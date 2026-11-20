@@ -2,7 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { CategoryCard } from "@/components/categories/CategoryCard";
-import { HomeSearchBar } from "@/components/home/HomeSearchBar";
+import {
+  HOME_SEARCH_SAMPLE_TERMS,
+  HomeSearchBar,
+} from "@/components/home/HomeSearchBar";
 import { ProductCard } from "@/components/product/ProductCard";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
@@ -146,6 +149,8 @@ export function CategoriesHub({
           autoFocus={focusSearch}
           inputId="categories-hub-search"
           placeholder='Search for "pulses"'
+          placeholderTerms={HOME_SEARCH_SAMPLE_TERMS}
+          placeholderMotion="typewriter"
         />
       </div>
 

@@ -129,13 +129,34 @@ const contact = await getShopSupportContact();
     ],
   ),
   search: U(
-    `import { HomeSearchBar } from "@/components/home/HomeSearchBar";
+    `import {
+  HOME_SEARCH_PLACEHOLDER_SAMPLES,
+  HomeSearchBar,
+} from "@/components/home/HomeSearchBar";
 
 <HomeSearchBar
   activateHref="/categories?focus=search"
   filterHref="/categories?focus=search&chips=1"
+  placeholderSamples={HOME_SEARCH_PLACEHOLDER_SAMPLES}
 />`,
     ["src/components/home/HomeSearchBar.tsx"],
+  ),
+  "search-placeholder-motion": U(
+    `import {
+  HOME_SEARCH_SAMPLE_TERMS,
+  HomeSearchBar,
+  type SearchPlaceholderMotion,
+} from "@/components/home/HomeSearchBar";
+
+<HomeSearchBar
+  activateHref="/categories?focus=search"
+  placeholderTerms={HOME_SEARCH_SAMPLE_TERMS}
+  placeholderMotion={"tick" satisfies SearchPlaceholderMotion}
+/>`,
+    [
+      "src/components/home/HomeSearchBar.tsx",
+      "src/components/home/HomeSearchPlaceholder.tsx",
+    ],
   ),
   "home-search-categories": U(
     `// Home search → categories hub with focus=search

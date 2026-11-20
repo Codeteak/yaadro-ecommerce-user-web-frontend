@@ -12,7 +12,10 @@ import {
   type RailCategory,
 } from "@/components/home/CategoryRail";
 import { CategoryCard } from "@/components/categories/CategoryCard";
-import { HomeSearchBar } from "@/components/home/HomeSearchBar";
+import {
+  HOME_SEARCH_SAMPLE_TERMS,
+  HomeSearchBar,
+} from "@/components/home/HomeSearchBar";
 import { ProductCard } from "@/components/product/ProductCard";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
@@ -236,6 +239,8 @@ export function CategoryListing({
               value={query}
               onChange={setQuery}
               placeholder="Search this category"
+              placeholderTerms={HOME_SEARCH_SAMPLE_TERMS}
+              placeholderMotion="typewriter"
               onFilterClick={() => {
                 setChipsOpen((open) => {
                   if (open) setSheet(null);
