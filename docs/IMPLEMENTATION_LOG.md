@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-20 — Pre-commit runs lint
+
+`.husky/pre-commit` now runs `npm run lint` then `npm test` (was tests only).
+
+## 2026-11-20 — CI lint: React Compiler / hooks rules
+
+Cleared ESLint errors that failed GitHub Actions (`react-hooks/refs`, `rules-of-hooks`, `set-state-in-effect`, `preserve-manual-memoization`). Notable: `OfferBanners` hooks before empty early-return; address search lock is state not ref; map/sheet/PWA/cart quote use derived or deferred state. `npm run lint` clean; unit tests 39/39. Server `npm run build` may still fail on pre-existing TS errors unrelated to this lint pass.
+
 ## 2026-11-20 — Restored CI/CD from `v1` (old main)
 
 Restored every deploy/CI artifact from `origin/v1` onto the rewrite tree so `customer-web-pipeline` can run again after `fayad` → `main` replaced the old app.

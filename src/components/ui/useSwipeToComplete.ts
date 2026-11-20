@@ -42,7 +42,9 @@ export function useSwipeToComplete({
   const [dragging, setDragging] = useState(false);
   const [completed, setCompleted] = useState(false);
 
-  onCompleteRef.current = onComplete;
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     aliveRef.current = true;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import { MapPin } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -24,6 +24,18 @@ function clampLat(v: number) {
 
 function clampLng(v: number) {
   return ((v + 540) % 360) - 180;
+}
+
+function placePoint(place: DetectedPlace | null): LatLng | null {
+  if (
+    typeof place?.lat === "number" &&
+    typeof place?.lng === "number" &&
+    Number.isFinite(place.lat) &&
+    Number.isFinite(place.lng)
+  ) {
+    return { lat: place.lat, lng: place.lng };
+  }
+  return null;
 }
 
 /**
@@ -52,35 +64,31 @@ export function AddressLocationMap({
     libraries: GOOGLE_MAPS_JS_LOADER.libraries,
   });
 
-  const initial = useMemo<LatLng>(() => {
-    if (
-      typeof place?.lat === "number" &&
-      typeof place?.lng === "number" &&
-      Number.isFinite(place.lat) &&
-      Number.isFinite(place.lng)
-    ) {
-      return { lat: place.lat, lng: place.lng };
-    }
-    return { ...DEFAULT_MAP_CENTER };
-  }, [place?.lat, place?.lng]);
+  const fromPlace = placePoint(place);
+  const placeKey = fromPlace
+    ? `${fromPlace.lat.toFixed(5)},${fromPlace.lng.toFixed(5)}`
+    : "";
 
-  const [point, setPoint] = useState<LatLng>(initial);
+  const [point, setPoint] = useState<LatLng>(
+    () => fromPlace ?? { ...DEFAULT_MAP_CENTER },
+  );
+  const [syncedKey, setSyncedKey] = useState(placeKey);
   const mapRef = useRef<google.maps.Map | null>(null);
   const lastResolvedKey = useRef("");
 
+  // Adjust marker when the parent place changes (React-recommended render sync).
+  if (placeKey && placeKey !== syncedKey && fromPlace) {
+    setSyncedKey(placeKey);
+    setPoint(fromPlace);
+  }
+
   useEffect(() => {
-    if (
-      typeof place?.lat === "number" &&
-      typeof place?.lng === "number" &&
-      Number.isFinite(place.lat) &&
-      Number.isFinite(place.lng)
-    ) {
-      const next = { lat: place.lat, lng: place.lng };
-      setPoint(next);
-      mapRef.current?.panTo(next);
-      lastResolvedKey.current = `${next.lat.toFixed(5)},${next.lng.toFixed(5)}`;
-    }
-  }, [place?.lat, place?.lng]);
+    if (!fromPlace || !placeKey) return;
+    lastResolvedKey.current = placeKey;
+    mapRef.current?.panTo(fromPlace);
+    // fromPlace is derived from placeKey; depend on the key only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- placeKey encodes lat/lng
+  }, [placeKey]);
 
   const resolvePoint = useCallback(
     async (lat: number, lng: number, notice?: string) => {

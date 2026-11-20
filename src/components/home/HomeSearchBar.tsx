@@ -12,7 +12,6 @@ import {
 import { Search, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
-  HOME_SEARCH_PLACEHOLDER_SAMPLES,
   HOME_SEARCH_SAMPLE_TERMS,
   HomeSearchPlaceholder,
   type SearchPlaceholderMotion,

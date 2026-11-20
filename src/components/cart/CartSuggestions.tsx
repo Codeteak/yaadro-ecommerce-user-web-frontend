@@ -36,12 +36,19 @@ export function CartSuggestions({
   useEffect(() => {
     const productIds = idsKey ? idsKey.split("\0") : [];
     const categories = categoriesKey ? categoriesKey.split("\0") : [];
+    let cancelled = false;
+
     if (sampleFallback && categories.length === 0) {
-      setSuggestions(cartSuggestions(productIds));
-      return;
+      // Defer so we never setState synchronously in the effect body.
+      const timer = window.setTimeout(() => {
+        if (!cancelled) setSuggestions(cartSuggestions(productIds));
+      }, 0);
+      return () => {
+        cancelled = true;
+        window.clearTimeout(timer);
+      };
     }
 
-    let cancelled = false;
     startTransition(() => {
       void suggestCartProducts(categories, productIds).then(
         (products) => {

@@ -68,7 +68,6 @@ export function OfferBanners({
         : [];
   const live = banners != null && banners.length > 0;
   const count = slides.length;
-  if (count === 0) return null;
   /** Track position 0..count, where count is the cloned first slide. */
   const [position, setPosition] = useState(0);
   const [transitionOn, setTransitionOn] = useState(true);
@@ -81,14 +80,16 @@ export function OfferBanners({
   const suppressClickRef = useRef(false);
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  const active = position % count;
+  const active = count > 0 ? position % count : 0;
 
   const next = () => {
+    if (count === 0) return;
     setTransitionOn(true);
     setPosition((p) => Math.min(p + 1, count));
   };
 
   const prev = () => {
+    if (count === 0) return;
     if (position === 0) {
       // Jump (invisibly) to the clone of the first slide, then glide back.
       setTransitionOn(false);
@@ -129,13 +130,15 @@ export function OfferBanners({
   // Slideshow timer — resets on every position change so a manual
   // swipe or dot tap always gets a full 4s before the next advance.
   useEffect(() => {
+    if (count === 0) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const timer = window.setInterval(() => {
       if (pausedRef.current || document.hidden || draggingRef.current) return;
-      next();
+      setTransitionOn(true);
+      setPosition((p) => Math.min(p + 1, count));
     }, SLIDE_MS);
     return () => window.clearInterval(timer);
-  }, [position]);
+  }, [count, position]);
 
   const endDrag = (clientX: number) => {
     if (!draggingRef.current) return;
@@ -154,6 +157,8 @@ export function OfferBanners({
     if (dx <= -threshold) next();
     else if (dx >= threshold) prev();
   };
+
+  if (count === 0) return null;
 
   return (
     <section aria-label="Shop offers" className="mx-auto w-full max-w-lg px-5 pt-4">
