@@ -20,6 +20,21 @@ APP_PORT="${APP_PORT:-3000}"
 
 cd "${APP_DIR}"
 
+# Instance profile creds can lag a few seconds after boot / role attach.
+# Without this, `aws` prints "Unable to locate credentials" / "aws login" and exits 1.
+echo "[application_start] Waiting for IAM instance credentials..."
+for _ in $(seq 1 30); do
+  if aws sts get-caller-identity --region "${AWS_REGION}" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 2
+done
+if ! aws sts get-caller-identity --region "${AWS_REGION}" >/dev/null 2>&1; then
+  echo "[application_start] ERROR: no AWS credentials (check EC2 instance profile / IMDS)." >&2
+  aws configure list >&2 || true
+  exit 1
+fi
+
 echo "[application_start] Writing .env from Secrets Manager (${SECRET_ID}, prefix ${SECRET_PREFIX})..."
 rm -f .env
 aws secretsmanager get-secret-value \
