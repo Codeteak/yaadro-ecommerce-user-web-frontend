@@ -1,5 +1,25 @@
 # Implementation Log
 
+## 2026-11-21 — BottomNav scroll-hide a11y
+
+Scroll-hidden nav uses `inert` (not `aria-hidden`) and blurs a focused tab inside the pill. Playground `/playground/bottom-nav` note updated.
+
+## 2026-11-21 — SE scroll stuck (all routes)
+
+`PullToRefresh`: resolve real scrollport (overflow only), higher pull-commit before `preventDefault`, disarm on upward scroll / touchcancel. `StorefrontChrome`: drop global `overscroll-y-none` — only with `data-storefront-fill`.
+
+## 2026-11-21 — Profile scroll clip polish
+
+Keep profile scrollport; soften mid-card cut with bottom `from-paper` fade, `scroll-pb-8`, and extra BrandFooter padding. Tighter short-hero spacing. Playground multi-phone demo matches.
+
+## 2026-11-21 — Multi-phone: profile SE scroll + card density
+
+`/profile` uses `data-storefront-fill` + scrollable `ProfilePullContent` so short phones can reach Help/footer. Short-viewport spacing (`max-[700px]`). `ProductCard` narrower photo (`aspect-[5/4]`) + smaller add on `max-[390px]`. Playground `/playground/multi-phone-layout`. Plan progress marked with ★ in `MULTI_PHONE_LAYOUT_PLAN.md`.
+
+## 2026-11-21 — Multi-phone layout plan doc
+
+Added `MULTI_PHONE_LAYOUT_PLAN.md` at repo root (next to `test.md`): SE vs Pro Max issues (taller product cards, profile scroll), QA band, phased fix plan, and shared guardrails for other developers.
+
 ## 2026-11-20 — `npm run build` typecheck + prerender fixes
 
 Fixed CI build failures: login `ViewTransition` exit needs `default`; `localCheckoutWarning(items)` not checkout lines; drop `.ts` import suffixes in app libs; `InstallPrompt` `usePathname` behind Suspense; catalog `use cache` helpers catch DB/network errors so prerender works without `DATABASE_URL` (CI/Docker). Verified `npm run build` with `DATABASE_URL` unset.

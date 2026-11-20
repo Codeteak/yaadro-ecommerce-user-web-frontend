@@ -101,7 +101,7 @@ export function ProductCard({
 
   const addBtn = compact
     ? "grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-lg bg-track text-black shadow-[0_4px_12px_rgba(47,107,47,0.3)] transition hover:bg-leaf-bright active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-    : "grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-[0.9rem] bg-track text-black shadow-[0_8px_18px_rgba(47,107,47,0.35)] transition hover:bg-leaf-bright active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf";
+    : "grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-[0.9rem] bg-track text-black shadow-[0_8px_18px_rgba(47,107,47,0.35)] transition hover:bg-leaf-bright active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf max-[390px]:h-10 max-[390px]:w-10";
 
   return (
     <article
@@ -162,7 +162,8 @@ export function ProductCard({
             "overflow-hidden bg-[#f4f6f8]",
             compact
               ? "h-[105px] w-full rounded-lg"
-              : "aspect-square w-full rounded-t-[20px]",
+              : // Slightly shorter photo on narrow phones so text+add don't make the card feel oversized (MULTI_PHONE_LAYOUT_PLAN).
+                "aspect-square w-full rounded-t-[20px] max-[390px]:aspect-[5/4]",
           )}
         >
           <CatalogImage
@@ -272,7 +273,7 @@ export function ProductCard({
               "flex shrink-0 items-center bg-track text-black",
               compact
                 ? "h-8 gap-0 rounded-lg px-0.5 shadow-[0_4px_12px_rgba(47,107,47,0.3)]"
-                : "h-11 gap-0.5 rounded-[0.9rem] px-1 shadow-[0_8px_18px_rgba(47,107,47,0.35)]",
+                : "h-11 gap-0.5 rounded-[0.9rem] px-1 shadow-[0_8px_18px_rgba(47,107,47,0.35)] max-[390px]:h-10",
             )}
           >
             <button

@@ -13,6 +13,10 @@ import {
 
 const THRESHOLD = 64;
 const MAX_PULL = 96;
+/** Finger must move this far down before we claim the gesture (Mac DevTools touch is noisy). */
+const PULL_COMMIT_PX = 14;
+/** Once committed, only then block native scroll. */
+const PREVENT_DEFAULT_PX = 20;
 
 export type PullToRefreshHandle = {
   /** Runs the same path as releasing past the pull threshold (playground / tests). */
@@ -41,12 +45,44 @@ function getReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+function canScrollY(el: HTMLElement): boolean {
+  const { overflowY } = getComputedStyle(el);
+  if (overflowY !== "auto" && overflowY !== "scroll" && overflowY !== "overlay") {
+    return false;
+  }
+  return el.scrollHeight > el.clientHeight + 1;
+}
+
+/**
+ * Nearest vertical scrollport for this PTR tree, else the document.
+ * Do not treat a growing (non-overflow) wrapper as a scroller — that made
+ * scrollTop always 0 and PTR steal gestures from window scroll (home).
+ */
+function resolveScrollPort(root: HTMLElement | null): HTMLElement | null {
+  if (!root) return null;
+  if (canScrollY(root)) return root;
+  let el: HTMLElement | null = root.parentElement;
+  while (el && el !== document.documentElement) {
+    if (canScrollY(el)) return el;
+    el = el.parentElement;
+  }
+  const doc = document.scrollingElement;
+  if (doc instanceof HTMLElement && doc.scrollHeight > doc.clientHeight + 1) {
+    return doc;
+  }
+  return null;
+}
+
+function readScrollTop(port: HTMLElement | null): number {
+  if (port) return port.scrollTop;
+  return window.scrollY;
+}
+
 /**
  * Pull-to-refresh for storefront content regions. Chrome above this
  * wrapper (hero, category rail, PageHeader, etc.) stays fixed; the
  * spinner gap opens above children. Touch is listened on window so a
  * pull starting on the hero still works while the indicator stays here.
- * UI-only until APIs plug into onRefresh.
  */
 export const PullToRefresh = forwardRef<PullToRefreshHandle, PullToRefreshProps>(
   function PullToRefresh(
@@ -84,6 +120,12 @@ export const PullToRefresh = forwardRef<PullToRefreshHandle, PullToRefreshProps>
       setPull(value);
     }, []);
 
+    const resetGesture = useCallback(() => {
+      armed.current = false;
+      pulling.current = false;
+      setDragging(false);
+    }, []);
+
     const finishRefresh = useCallback(async () => {
       if (refreshingRef.current) return;
       refreshingRef.current = true;
@@ -108,29 +150,15 @@ export const PullToRefresh = forwardRef<PullToRefreshHandle, PullToRefreshProps>
     );
 
     useEffect(() => {
-      /**
-       * Only treat this wrapper as the scroller when it actually overflows.
-       * Cart used to set overflow-y-auto while the box grew with content —
-       * scrollTop stayed 0 and PTR blocked window/page scroll.
-       */
-      const scrollTop = () => {
-        const el = rootRef.current;
-        if (el && el.scrollHeight > el.clientHeight + 1) {
-          return el.scrollTop;
-        }
-        return window.scrollY;
-      };
-
       const onTouchStart = (e: TouchEvent) => {
         if (disabledRef.current || refreshingRef.current) return;
-        // Only handle pulls that start inside this PTR tree (not other routes).
         const root = rootRef.current;
         if (!root || !(e.target instanceof Node) || !root.contains(e.target)) {
-          armed.current = false;
+          resetGesture();
           return;
         }
-        if (scrollTop() > 0) {
-          armed.current = false;
+        if (readScrollTop(resolveScrollPort(root)) > 0) {
+          resetGesture();
           return;
         }
         const t = e.touches[0];
@@ -144,10 +172,10 @@ export const PullToRefresh = forwardRef<PullToRefreshHandle, PullToRefreshProps>
         if (disabledRef.current || !armed.current || refreshingRef.current) {
           return;
         }
-        if (scrollTop() > 0) {
-          armed.current = false;
-          pulling.current = false;
-          setDragging(false);
+
+        const root = rootRef.current;
+        if (readScrollTop(resolveScrollPort(root)) > 0) {
+          resetGesture();
           setPullBoth(0);
           return;
         }
@@ -156,12 +184,19 @@ export const PullToRefresh = forwardRef<PullToRefreshHandle, PullToRefreshProps>
         const dy = t.clientY - startY.current;
         const dx = t.clientX - startX.current;
 
+        // User is scrolling content (finger up) — never claim the gesture.
+        if (dy < -8) {
+          resetGesture();
+          setPullBoth(0);
+          return;
+        }
+
         if (!pulling.current) {
           if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) {
-            armed.current = false;
+            resetGesture();
             return;
           }
-          if (dy < 8) return;
+          if (dy < PULL_COMMIT_PX) return;
           pulling.current = true;
           setDragging(true);
         }
@@ -174,19 +209,28 @@ export const PullToRefresh = forwardRef<PullToRefreshHandle, PullToRefreshProps>
         const resisted = Math.min(MAX_PULL, dy * 0.45);
         setPullBoth(resisted);
 
-        if (!reduceMotionRef.current && e.cancelable) {
+        // Only block native scroll after a clear pull — avoids SE/DevTools
+        // trackpad-as-touch getting stuck with preventDefault too early.
+        if (
+          !reduceMotionRef.current &&
+          e.cancelable &&
+          resisted >= PREVENT_DEFAULT_PX * 0.45
+        ) {
           e.preventDefault();
         }
       };
 
       const onTouchEnd = () => {
-        if (disabledRef.current || !armed.current) return;
-        armed.current = false;
-        pulling.current = false;
-        setDragging(false);
+        const wasArmed = armed.current;
+        const pullAmount = pullRef.current;
+        resetGesture();
+        if (disabledRef.current || !wasArmed) {
+          if (!refreshingRef.current) setPullBoth(0);
+          return;
+        }
         if (refreshingRef.current) return;
 
-        if (pullRef.current >= THRESHOLD) {
+        if (pullAmount >= THRESHOLD) {
           void finishRefresh();
         } else {
           setPullBoth(0);
@@ -203,7 +247,7 @@ export const PullToRefresh = forwardRef<PullToRefreshHandle, PullToRefreshProps>
         window.removeEventListener("touchend", onTouchEnd);
         window.removeEventListener("touchcancel", onTouchEnd);
       };
-    }, [finishRefresh, setPullBoth]);
+    }, [finishRefresh, resetGesture, setPullBoth]);
 
     const showSpinner = refreshing || pull > 8;
     const spinnerHeight = refreshing

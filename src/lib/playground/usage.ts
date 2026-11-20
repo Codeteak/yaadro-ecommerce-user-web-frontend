@@ -42,6 +42,7 @@ import { useScrollDirection } from "@/components/navigation/useScrollDirection";
 
 // Path-hidden on /cart, /checkout, /orders/[id], profile tasks
 // Scroll-hidden via useScrollDirection (window + nested overflow)
+// When hidden: inert + blur focused tab (avoid aria-hidden-on-focus warning)
 <BottomNav />`,
     [
       "src/components/navigation/BottomNav.tsx",
@@ -156,6 +157,22 @@ const contact = await getShopSupportContact();
     [
       "src/components/home/HomeSearchBar.tsx",
       "src/components/home/HomeSearchPlaceholder.tsx",
+    ],
+  ),
+  "multi-phone-layout": U(
+    `// See MULTI_PHONE_LAYOUT_PLAN.md (repo root)
+// Live /profile: data-storefront-fill + ProfilePullContent overflow-y-auto
+// ProductCard: aspect-[5/4] + smaller add on max-[390px]
+
+<main data-storefront-fill className="h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom))] overflow-hidden flex flex-col">
+  <ProfilePullContent className="min-h-0 flex-1 overflow-y-auto">
+    {/* hero, quick actions, nav, BrandFooter */}
+  </ProfilePullContent>
+</main>`,
+    [
+      "src/app/(storefront)/profile/page.tsx",
+      "src/components/product/ProductCard.tsx",
+      "MULTI_PHONE_LAYOUT_PLAN.md",
     ],
   ),
   "home-search-categories": U(

@@ -48,7 +48,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Navigation",
     description:
-      "Phase A #1 wired: smoother pill/label + scroll hide on storefront BottomNav.",
+      "Pill expand/label + scroll hide. Hidden state uses inert + blur (no aria-hidden focus warning).",
     wiresTo: "Storefront layout (BottomNav)",
   },
   {
@@ -123,6 +123,15 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     description:
       "Side-by-side gateway hint animations: fade, tick, blur, scale, word swap, typewriter. Live uses typewriter.",
     wiresTo: "HomeSearchBar placeholderMotion → /home + /categories",
+  },
+  {
+    slug: "multi-phone-layout",
+    title: "Multi-phone layout (SE)",
+    status: "built",
+    group: "Experiments",
+    description:
+      "Short-viewport profile scroll shell + narrow product card density. Tracks MULTI_PHONE_LAYOUT_PLAN.md (repo root).",
+    wiresTo: "/profile scrollport, ProductCard max-[390px]",
   },
   {
     slug: "home-search-categories",

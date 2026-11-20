@@ -41,8 +41,8 @@ type InstallPromptProps = {
  * “Add to Home Screen” — only on ecom `/home`. Dismiss lasts for this
  * browser session; closing the tab/browser lets it show again next visit.
  *
- * `usePathname` is behind Suspense so Cache Components can prerender routes
- * that mount AppProviders without blocking on the URL.
+ * `usePathname` is behind Suspense (here and/or callers) so Cache Components
+ * can prerender routes that mount AppProviders without blocking on the URL.
  */
 export function InstallPrompt(props: InstallPromptProps) {
   return (
