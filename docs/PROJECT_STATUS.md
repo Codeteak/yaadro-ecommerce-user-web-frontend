@@ -1,41 +1,40 @@
 # Yaadro Storefront — Project Status
 
-**Updated:** 2026-11-19
+**Updated:** 2026-11-20
 
 ## Current stage
 
-Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, profile, coupons, orders, and checkout call the customer API on branch `alan-new`. The basket and wishlist stay on the device. Server cart writes are retired (410).
+Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, profile, coupons, orders, and checkout call the customer API. Basket and wishlist are device-local and shop-scoped. Server cart writes are retired (410).
 
 ## Implemented
 
 | Area | Status | Notes |
 |------|--------|--------|
-| Onboarding `/` | Done | Hero, swipe CTA, guest link |
-| Login `/login` | UI done | Phone +91 / OTP. Success island toast at the top, then returns home (or the safe `next` path). |
-| Home / catalog | Live database | Categories, products, product detail, and home shelves are read on the server from `DATABASE_URL` with the shop API's filters. Shop name and SEO still use the customer API, with a Yaadro fallback. Offer prices come from the product row. Campaign overlays are not copied. |
-| Cart `/cart` | UI done | List, promo field, 3D Checkout pill. The shop quote shows the minimum, automatic offers, and a trusted total (including ₹0). Checkout stays off until the minimum is met. “You may also like” uses the live catalog. |
-| Coupons `/coupons` | Wired | Live list from `GET /api/storefront/coupons`; apply from cart confirms via cart/preview |
-| Wishlist `/wishlist` | UI done | Local signed-in scaffold; façade `lib/api/wishlist` |
-| Checkout `/checkout` | UI done | COD only; Place Order → Order placed (mascot + bill card + View Order / Back home); stub only |
-| Order placed | Done | Shown after Place Order on `/checkout`; Order history + Home CTAs; playground `/playground/order-placed` |
-| Orders `/orders` | UI done | Grocery cards + ORDER STATUS detail via `lib/api/orders` |
-| Toasts | Done | Theme island snackbars at the top via `showPopup(message, type)` (`ToastViewport` in AppProviders) |
-| Address map | Done | Select location loads Google Maps JS when `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is set (tap/drag pin + search + detect). Details shows Embed preview. Enable Maps JavaScript, Geocoding, and Embed APIs on the key. |
-| Live order track | Playground | `/playground/live-order-track` — green theme; not on `/orders` yet |
-| Bottom nav | Done | Home, Categories, Wishlist, Profile |
-| Auth / session | Live | Home header profile icon follows the OTP session. Wishlist still uses the session flag from `CustomerSession`. |
-| Payment / real place-order | Missing | — |
+| Onboarding `/` | Done | Redirects to `/home` |
+| Login `/login` | Live | Phone +91 / OTP. Refresh token in localStorage (~50 days). |
+| Home / catalog | Live database | Categories, products, PDP, shelves from `DATABASE_URL`. Domain resolve + banners when host is not local. Empty banners stay hidden. |
+| Search | Wired | Home submit → `/categories?q=` and filters the product grid |
+| Cart `/cart` | Live | Shop-scoped `yaadro_cart_<shopId>`; preview + coupons |
+| Coupons `/coupons` | Wired | Live list from `GET /api/storefront/coupons` |
+| Wishlist `/wishlist` | Done | Shop-scoped local storage |
+| Checkout `/checkout` | Live | COD via `POST /api/storefront/checkout` with storefront cookies (`credentials: include`) |
+| Order placed | Done | Inline on `/checkout` after Place Order |
+| Orders `/orders` | Live when signed in | Customer API list/detail |
+| Address | Live | One address; server sync on login + save; Google map + Nominatim fallback |
+| PWA | Wired | `public/sw.js`, install prompt, manifest uses shop image when available |
+| Auth / session | Live | OTP + refresh; Deliver-to hydrates from server address |
+| Payment | COD only | Same as main (no card gateway) |
 
 ## Routes
 
-- `/` — onboarding
-- `/login` — login stub
+- `/` → `/home`
+- `/login`
 - `/home`, `/categories`, `/categories/[slug]`, `/events`, `/wishlist`, `/profile`, `/profile/support`, `/cart`, `/coupons`, `/checkout`, `/orders`
-- `/orders/[id]` — classic order detail (sample)
-- `/orders/[id]/track` — live tracking (separate from order details)
-- `/product/[id]` — PDP
-- `/playground` — UI demos
-- `/manifest.webmanifest` — from `src/app/manifest.ts`
+- `/orders/[id]`, `/orders/[id]/track`
+- `/product/[id]`
+- `/new`, `/trending` → `/home`
+- `/playground` — UI demos (blocked in production)
+- `/manifest.webmanifest`
 
 ## Sample API façades
 
@@ -49,7 +48,7 @@ Thin modules so pages read like future clients (replace with `fetch` when APIs e
 
 - Catalog prices are the shelf price and the row offer price. Buy-one-get-one and category-offer overlays are still calculated by the customer API at checkout.
 - `DATABASE_URL` must stay server-only. The catalog does not load if that variable is missing.
-- Wishlist persistence is device-local (`yaadro-wishlist-v1`).
-- Live cart/checkout coupon −₹ is shop-preview authoritative (`liveShopCoupons` / `liveShopPricing`). Playground still uses SAMPLE_COUPONS + local apply; `/playground/checkout-coupon` fixtures the bill row.
-- Orders list can use live API when signed in; playground stays on samples.
-- Serwist packages installed but not configured.
+- Wishlist / cart keys are shop-scoped (`yaadro_wishlist_<shopId>`, `yaadro_cart_<shopId>`). Legacy unscoped keys are not migrated.
+- Live cart/checkout coupon −₹ is shop-preview authoritative. Playground still uses SAMPLE_COUPONS.
+- Orders list uses live API when signed in; playground stays on samples.
+- PWA uses a hand-rolled `public/sw.js` + install prompt (Serwist package still unused).

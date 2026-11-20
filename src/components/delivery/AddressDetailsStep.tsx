@@ -8,7 +8,10 @@ import {
 } from "@/components/delivery/AddressLocationControls";
 import { cn } from "@/lib/cn";
 import { buildPlaceEmbedUrl } from "@/lib/live-track-map";
+import { saveMyAddress } from "@/lib/api/address";
+import { hasCustomerSession } from "@/lib/api/session";
 import {
+  formatSavedAddressLine,
   upsertSavedAddress,
   type AddressType,
   type DetectedPlace,
@@ -47,6 +50,7 @@ export function AddressDetailsStep({
   );
   const [searchQ, setSearchQ] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setStreet((current) => current || place.street);
@@ -73,12 +77,12 @@ export function AddressDetailsStep({
     if (next.street) setStreet(next.street);
   };
 
-  const save = () => {
+  const save = async () => {
     if (!label.trim() || !building.trim()) {
       setError("Save name and building / floor are required.");
       return;
     }
-    upsertSavedAddress({
+    const row = upsertSavedAddress({
       id: editing?.id,
       label: label.trim(),
       type,
@@ -93,6 +97,26 @@ export function AddressDetailsStep({
       lat: place.lat ?? editing?.lat,
       lng: place.lng ?? editing?.lng,
     });
+    if (hasCustomerSession()) {
+      setSaving(true);
+      setError(null);
+      try {
+        await saveMyAddress({
+          line1: row.building || row.street,
+          line2: [row.street, row.area].filter(Boolean).join(", ") || null,
+          landmark: row.landmark || null,
+          city: row.city || null,
+          lat: row.lat ?? null,
+          lng: row.lng ?? null,
+          raw: formatSavedAddressLine(row),
+        });
+      } catch {
+        setError("Saved on this phone, but the shop could not store it yet.");
+        setSaving(false);
+        return;
+      }
+      setSaving(false);
+    }
     onSaved();
   };
 
@@ -256,10 +280,11 @@ export function AddressDetailsStep({
 
       <button
         type="button"
-        onClick={save}
+        onClick={() => void save()}
+        disabled={saving}
         className="h-12 w-full rounded-full bg-track text-sm font-semibold text-black shadow-[0_10px_24px_rgba(47,107,47,0.3)] transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
       >
-        Save address
+        {saving ? "Saving…" : "Save address"}
       </button>
     </div>
   );

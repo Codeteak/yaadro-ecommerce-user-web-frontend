@@ -685,7 +685,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "offer-banners": () => (
     <DemoFrame note="Same OfferBanners as /home — autoplay + swipe both ways (finger-follow) + dots.">
       <div className="py-4">
-        <OfferBanners />
+        <OfferBanners allowSample />
       </div>
     </DemoFrame>
   ),
@@ -703,7 +703,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           filterHref="/categories?focus=search&chips=1"
         />
         <div className="mt-4 -mx-5">
-          <OfferBanners />
+          <OfferBanners allowSample />
         </div>
       </div>
     </DemoFrame>

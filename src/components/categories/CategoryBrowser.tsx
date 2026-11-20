@@ -26,6 +26,8 @@ type CategoryBrowserProps = {
   focusSearch?: boolean;
   /** Start with Filter/Brands/Type/Sort chips expanded (e.g. home filter → categories). */
   initialChipsOpen?: boolean;
+  /** Prefill search from `/categories?q=` (home submit). */
+  initialQuery?: string;
   /** Controlled aisle key from the server (`all`, `cat:slug`, `sub:slug`). */
   selection?: string;
   onSelect?: (key: string) => void;
@@ -80,6 +82,7 @@ export function CategoryBrowser({
   error,
   focusSearch = false,
   initialChipsOpen = false,
+  initialQuery = "",
   selection,
   onSelect,
   className,
@@ -89,7 +92,7 @@ export function CategoryBrowser({
   /** Instant rail highlight while `selection` catches up from the server. */
   const [optimistic, setOptimistic] = useState<string | null>(null);
   const [seenSelection, setSeenSelection] = useState(selection);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   /** Search filter button expands/collapses the Filter·Brands·Type·Sort row. */
   const [chipsOpen, setChipsOpen] = useState(initialChipsOpen);
   // Sync when the server selection arrives (adjust state while rendering).

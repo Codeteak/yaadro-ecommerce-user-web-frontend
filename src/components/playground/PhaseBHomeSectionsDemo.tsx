@@ -27,7 +27,7 @@ export function PhaseBHomeSectionsDemo() {
         />
         <HomeSearchBar className="mt-4" navigateOnSubmit={false} />
         <div className="mt-4 -mx-5">
-          <OfferBanners />
+          <OfferBanners allowSample />
         </div>
       </div>
 

@@ -10,8 +10,15 @@ import {
   SAMPLE_PRODUCTS,
   type SampleProduct,
 } from "@/lib/sample-products";
+import { resolveClientShopId } from "@/lib/resolved-shop";
 
-/** localStorage key used by WishlistContext until server sync. */
+/** Per-shop localStorage key used by WishlistContext until server sync. */
+export function wishlistStorageKey(): string {
+  const shop = resolveClientShopId();
+  return shop ? `yaadro_wishlist_${shop}` : "yaadro_wishlist_guest";
+}
+
+/** @deprecated Use wishlistStorageKey() — kept for imports that expect a string constant. */
 export const WISHLIST_STORAGE_KEY = "yaadro-wishlist-v1";
 
 /**

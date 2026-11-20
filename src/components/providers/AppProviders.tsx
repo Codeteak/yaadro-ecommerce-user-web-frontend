@@ -3,10 +3,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { PwaRegistrar } from "@/components/pwa/PwaRegistrar";
+import { ShopResolveBootstrap } from "@/components/shop/ShopResolveBootstrap";
+import { ToastViewport } from "@/components/ui/Toast";
 import { ensureCustomerSessionRestored } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { setSessionExpiredHandler } from "@/lib/api/session";
-import { ToastViewport } from "@/components/ui/Toast";
+import { syncServerDeliveryAddress } from "@/lib/sync-server-address";
 
 function makeClient() {
   return new QueryClient({
@@ -34,14 +38,21 @@ export function AppProviders({ children }: { children: ReactNode }) {
       router.push(`/login?next=${encodeURIComponent(returnTo)}`);
     });
     void ensureCustomerSessionRestored().then((ok) => {
-      if (!ok) client.clear();
+      if (!ok) {
+        client.clear();
+        return;
+      }
+      void syncServerDeliveryAddress();
     });
     return () => setSessionExpiredHandler(null);
   }, [client, router]);
 
   return (
     <QueryClientProvider client={client}>
+      <ShopResolveBootstrap />
+      <PwaRegistrar />
       {children}
+      <InstallPrompt />
       <ToastViewport />
     </QueryClientProvider>
   );

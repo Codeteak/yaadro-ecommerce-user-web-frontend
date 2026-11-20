@@ -36,3 +36,4 @@ note: donnot let ai to work on this file manually enter and update it
 34. ****remove amount due hightlight in checkout**** (done — `showAmountDueBar={false}` on live `/checkout`)
 35. ****in checkout address edit not working add pop up modal as a common component for address editinf**** (done — checkout/home `AddressBookSheet` with `editId`)
 36. ****while editing the quantuy of product in cart the prduct is rearnnging remove that auto sorting**** (done — cart-store keeps insertion order)
+37. add fresh zone,sections

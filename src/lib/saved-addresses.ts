@@ -284,7 +284,57 @@ function placeFromGeocodeResults(
   });
 }
 
-/** Reverse-geocode a pin when the Maps key is set. */
+async function reverseGeocodeNominatim(
+  latitude: number,
+  longitude: number,
+): Promise<DetectedPlace | null> {
+  const base = (
+    process.env.NEXT_PUBLIC_NOMINATIM_URL?.trim() ||
+    "https://nominatim.openstreetmap.org"
+  ).replace(/\/+$/, "");
+  try {
+    const res = await fetch(
+      `${base}/reverse?lat=${latitude}&lon=${longitude}&format=jsonv2`,
+      {
+        headers: {
+          Accept: "application/json",
+          "Accept-Language": "en",
+        },
+      },
+    );
+    if (!res.ok) return null;
+    const json = (await res.json().catch(() => null)) as {
+      display_name?: string;
+      address?: Record<string, string>;
+    } | null;
+    if (!json?.address) return null;
+    const a = json.address;
+    const area =
+      a.suburb ||
+      a.neighbourhood ||
+      a.suburb ||
+      a.city_district ||
+      a.city ||
+      a.town ||
+      a.village ||
+      "Your area";
+    const street = [a.house_number, a.road].filter(Boolean).join(" ");
+    return {
+      area,
+      street,
+      city: a.city || a.town || a.village || a.state || "",
+      pin: a.postcode || "",
+      landmark: a.amenity || a.building || "",
+      lat: latitude,
+      lng: longitude,
+      formatted: json.display_name || `${area}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Reverse-geocode a pin (Google when keyed; Nominatim fallback). */
 export async function reverseGeocodeLatLng(
   latitude: number,
   longitude: number,
@@ -293,6 +343,28 @@ export async function reverseGeocodeLatLng(
   | { ok: false; message: string }
 > {
   const key = mapsKey();
+
+  if (key) {
+    try {
+      const res = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${key}`,
+      );
+      const json = (await res.json().catch(() => null)) as GeocodeJson | null;
+
+      if (json?.status === "OK" && json.results?.length) {
+        return {
+          ok: true,
+          place: placeFromGeocodeResults(json.results, latitude, longitude),
+        };
+      }
+    } catch {
+      // fall through to Nominatim
+    }
+  }
+
+  const nominatim = await reverseGeocodeNominatim(latitude, longitude);
+  if (nominatim) return { ok: true, place: nominatim };
+
   if (!key) {
     return {
       ok: true,
@@ -309,31 +381,10 @@ export async function reverseGeocodeLatLng(
     };
   }
 
-  try {
-    const res = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${key}`,
-    );
-    const json = (await res.json().catch(() => null)) as GeocodeJson | null;
-
-    if (!json || json.status !== "OK" || !json.results?.length) {
-      return {
-        ok: false,
-        message:
-          json?.error_message ??
-          "Couldn't read that location — try again or type details next.",
-      };
-    }
-
-    return {
-      ok: true,
-      place: placeFromGeocodeResults(json.results, latitude, longitude),
-    };
-  } catch {
-    return {
-      ok: false,
-      message: "Couldn't read that location — try again or continue manually.",
-    };
-  }
+  return {
+    ok: false,
+    message: "Couldn't read that location — try again or type details next.",
+  };
 }
 
 /** Forward-geocode a search string (area / street / pin). */
