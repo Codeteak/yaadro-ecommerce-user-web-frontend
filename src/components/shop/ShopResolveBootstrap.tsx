@@ -105,7 +105,7 @@ export function ShopResolveBootstrap() {
           banners,
         });
       } catch {
-        // keep env NEXT_PUBLIC_SHOP_ID
+        // keep NEXT_PUBLIC_DEFAULT_SHOP_ID / legacy NEXT_PUBLIC_SHOP_ID
       }
     })();
 

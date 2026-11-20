@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { CategoryListing } from "@/components/categories/CategoryListing";
 import { CategoryPlpSkeleton } from "@/components/ui/skeletons";
 import { loadCategoryListing } from "@/lib/api/storefront";
+import { getRequestShopId } from "@/lib/request-shop";
 
 type CategoryPageProps = {
   params: Promise<{ slug: string }>;
@@ -14,7 +15,8 @@ export async function generateMetadata({
 }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const category = await loadCategoryListing(slug);
+    const shopId = await getRequestShopId();
+    const category = await loadCategoryListing(shopId, slug);
     if (!category) return { title: "Category" };
     return {
       title: category.name,
@@ -29,7 +31,8 @@ async function CategoryListingContent({ params }: CategoryPageProps) {
   const { slug } = await params;
   let listing: Awaited<ReturnType<typeof loadCategoryListing>> = null;
   try {
-    listing = await loadCategoryListing(slug);
+    const shopId = await getRequestShopId();
+    listing = await loadCategoryListing(shopId, slug);
   } catch {
     return (
       <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-paper">

@@ -1,6 +1,7 @@
 "use server";
 
 import { listStoreProducts } from "@/lib/api/storefront";
+import { getRequestShopId } from "@/lib/request-shop";
 import type { SampleProduct } from "@/lib/sample-products";
 
 const MAX_CATEGORIES = 6;
@@ -34,9 +35,10 @@ export async function suggestCartProducts(
   };
 
   try {
+    const shopId = await getRequestShopId();
     if (categories.length > 0) {
       const groups = await Promise.all(
-        categories.map((categoryId) => listStoreProducts({ categoryId })),
+        categories.map((categoryId) => listStoreProducts(shopId, { categoryId })),
       );
       const sameCategory = groups.flatMap((group) =>
         group.flatMap((row) => row.products),
@@ -45,7 +47,7 @@ export async function suggestCartProducts(
     }
 
     if (picked.length < limit) {
-      const groups = await listStoreProducts();
+      const groups = await listStoreProducts(shopId);
       take(groups.flatMap((row) => row.products));
     }
   } catch {

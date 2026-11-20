@@ -19,6 +19,7 @@ import {
 } from "@/lib/api/storefront";
 import { browseSectionsFromBranches } from "@/lib/home-category-browse";
 import { ALL_CATEGORY_SLUG } from "@/lib/home-categories";
+import { getRequestShopId } from "@/lib/request-shop";
 import { getShopSeo } from "@/lib/shop-seo";
 
 export const metadata: Metadata = {
@@ -82,7 +83,8 @@ async function HomeHero() {
  * Category rail only — categories query, not the full product catalog (#3).
  */
 async function HomeCategoryRail() {
-  const categories = await listStoreCategories();
+  const shopId = await getRequestShopId();
+  const categories = await listStoreCategories(shopId);
   const roots = categories.filter(
     (category) => !category.parentId && category.slug !== "all",
   );
@@ -105,7 +107,8 @@ async function HomeCategoryRail() {
  * Product sections + shelves — heavier catalog load, streams after the rail.
  */
 async function HomeCatalogBody() {
-  const catalog = await loadHomeCatalog();
+  const shopId = await getRequestShopId();
+  const catalog = await loadHomeCatalog(shopId);
   const categoryNames = {
     [ALL_CATEGORY_SLUG]: "All",
     ...Object.fromEntries(
