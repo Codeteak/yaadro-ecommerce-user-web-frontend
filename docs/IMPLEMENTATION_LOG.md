@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-20 — `npm run build` typecheck + prerender fixes
+
+Fixed CI build failures: login `ViewTransition` exit needs `default`; `localCheckoutWarning(items)` not checkout lines; drop `.ts` import suffixes in app libs; `InstallPrompt` `usePathname` behind Suspense; catalog `use cache` helpers catch DB/network errors so prerender works without `DATABASE_URL` (CI/Docker). Verified `npm run build` with `DATABASE_URL` unset.
+
+## 2026-11-20 — CI on `fayad` pushes
+
+`.github/workflows/ci.yml` runs on push and PR to `fayad` and `main` (was PR→`main` only).
+
 ## 2026-11-20 — Pre-commit runs lint
 
 `.husky/pre-commit` now runs `npm run lint` then `npm test` (was tests only).

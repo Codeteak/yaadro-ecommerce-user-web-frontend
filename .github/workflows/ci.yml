@@ -1,8 +1,13 @@
 name: CI
 
 on:
+  push:
+    branches:
+      - fayad
+      - main
   pull_request:
     branches:
+      - fayad
       - main
 
 jobs:

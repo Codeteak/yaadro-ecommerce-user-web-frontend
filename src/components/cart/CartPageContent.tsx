@@ -309,7 +309,7 @@ export function CartPageContent({
       showPopup(quote.minimumMessage, "warning");
       return;
     }
-    const local = localCheckoutWarning(lines);
+    const local = localCheckoutWarning(items);
     if (local) {
       showPopup(local, "warning");
       return;

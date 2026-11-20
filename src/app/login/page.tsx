@@ -26,6 +26,7 @@ async function LoginPageBody() {
       exit={{
         "login-forward": "login-forward",
         "nav-back": "page-crossfade",
+        default: "none",
       }}
       default="none"
     >
