@@ -5,9 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:static": "node scripts/static-export-build.mjs",
     "start": "next start",
     "lint": "eslint",
     "test": "node --experimental-strip-types --test src/lib/api/errors.test.ts src/lib/api/customer-orders-address.test.ts src/lib/api/customer-orders-map.test.ts src/lib/delivery-location.test.ts src/lib/db/catalog-query.test.ts src/lib/cart-checkout-rules.test.ts src/lib/cart-store-order.test.ts",
+    "pages:dev": "wrangler pages dev out",
+    "pages:deploy": "npm run build:static && wrangler pages deploy out --project-name=yaadro-ecommerce-user-web-frontend",
     "prepare": "husky"
   },
   "dependencies": {
@@ -44,6 +47,8 @@
     "eslint-config-next": "^16.4.5",
     "husky": "^9.1.7",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "workbox-cli": "^7.4.1",
+    "wrangler": "^4.165.0"
   }
 }

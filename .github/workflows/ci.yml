@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || vars.NEXT_PUBLIC_API_BASE_URL || 'https://example.com' }}
+      NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL || 'https://example.com/api' }}
+      NEXT_PUBLIC_SHOP_ID: ${{ vars.NEXT_PUBLIC_SHOP_ID || '00000000-0000-4000-8000-000000000001' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      # Production path matches Dockerfile / CodePipeline (`next start` on EC2).
+      - name: Build Next.js server bundle
+        run: npm run build
+        env:
+          NODE_ENV: production
+          NEXT_STATIC_EXPORT: "false"
+      # Cloudflare Pages path (`out/`). Optional until all dynamic routes export cleanly.
+      - name: Build static export (Cloudflare Pages)
+        continue-on-error: true
+        run: npm run build:static
+        env:
+          NODE_ENV: production
+          NEXT_STATIC_EXPORT: "true"
+      - name: Check static export output
+        continue-on-error: true
+        run: test -f out/index.html

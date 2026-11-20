@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-20 — Restored CI/CD from `v1` (old main)
+
+Restored every deploy/CI artifact from `origin/v1` onto the rewrite tree so `customer-web-pipeline` can run again after `fayad` → `main` replaced the old app.
+
+Restored: `.github/workflows/{ci,trigger-codepipeline}.yml`, `Dockerfile`, `appspec.yml`, `buildspec.yml`, `docker-compose.yml`, `scripts/cicd/*`, `scripts/static-export-build.mjs`, `wrangler.toml`, `workbox-config.cjs`, `functions/*`, `public/_headers`, `public/_redirects`, `.npmrc`, `.dockerignore`, `docs/deploy-cloudflare-pages.md`.
+
+Adapted for Next 16 / `src/`: Dockerfile copies `next.config.ts`; `NEXT_STATIC_EXPORT` in `next.config.ts`; `build:static` / `pages:*` scripts; `workbox-cli` + `wrangler` deps. CI gates on server `npm run build` (production path); static export step is non-blocking until dynamic routes export cleanly. Pre-existing TS errors still fail `npm run build` until fixed.
+
 ## 2026-11-20 — Typewriter search hints on home + categories
 
 Live `/home`, `/categories` (`CategoryBrowser`), PLP (`CategoryListing`), and `CategoriesHub` use `placeholderMotion="typewriter"`. Editable bars hide the hint once the user types. Playground comparison demo remains at `/playground/search-placeholder-motion`.

@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+.git
+.github
+*.md
+.env*
+!.env.example
+!.env.production
+.DS_Store
+cloudflared
+wrangler*

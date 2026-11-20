@@ -1,6 +1,6 @@
 # Yaadro Storefront — Project Status
 
-**Updated:** 2026-11-20 (Next 16.4.5 security patch; address sheet server sync; categories `?q=` DB search)
+**Updated:** 2026-11-20 (CI/CD restored from `v1`; Next 16.4.5; address sheet sync; categories `?q=` DB search)
 
 ## Current stage
 
@@ -24,6 +24,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 | PWA | Wired | `public/sw.js`, install prompt, manifest uses shop image when available |
 | Auth / session | Live | OTP + refresh; Deliver-to hydrates from server address |
 | Payment | COD only | Same as main (no card gateway) |
+| CI/CD | Restored | GitHub Actions → `customer-web-pipeline` (OIDC); Docker/CodeDeploy; optional CF Pages static export |
 
 ## Routes
 

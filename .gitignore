@@ -34,9 +34,17 @@ yarn-error.log*
 .env*
 !.env.example
 
-# Serwist
-public/sw*
+# Serwist generated workers (keep hand-written public/sw.js tracked)
 public/swe-worker*
+public/sw.js.map
+
+# Parked during `npm run build:static` if a crash interrupts restore
+app/_api_parked_for_static_export
+src/app/_api_parked_for_static_export
+
+# Wrangler local state
+.wrangler/
+.dev.vars
 
 # vercel
 .vercel
