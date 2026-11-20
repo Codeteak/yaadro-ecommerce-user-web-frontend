@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { Suspense } from "react";
 import { CategoryBrowser } from "@/components/categories/CategoryBrowser";
-import { StorefrontPageFrame } from "@/components/storefront/StorefrontPageFrame";
 import type { CategoryBranch } from "@/lib/api/storefront";
 import type { SampleProduct } from "@/lib/sample-products";
 
@@ -50,10 +49,16 @@ function CategoriesBody({
       selection={selection}
       onSelect={onSelect}
       railLayout="horizontal"
+      pageTitle="Categories"
+      backHref="/home"
     />
   );
 }
 
+/**
+ * Live `/categories`: one scrollport. Header + search scroll away; category
+ * rail sticks; scrolling back brings header/search back.
+ */
 export function CategoriesPageContent({
   branches,
   products,
@@ -72,10 +77,9 @@ export function CategoriesPageContent({
   initialQuery?: string;
 }) {
   return (
-    <StorefrontPageFrame
-      title="Categories"
-      backHref="/home"
-      height="fill"
+    <main
+      data-storefront-fill
+      className="mx-auto flex h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom))] min-h-0 w-full max-w-lg flex-col overflow-hidden bg-paper"
     >
       <Suspense fallback={null}>
         <CategoriesBody
@@ -88,6 +92,6 @@ export function CategoriesPageContent({
           initialQuery={initialQuery}
         />
       </Suspense>
-    </StorefrontPageFrame>
+    </main>
   );
 }

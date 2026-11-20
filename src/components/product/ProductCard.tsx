@@ -10,12 +10,13 @@ import { setCartQty } from "@/lib/cart-store";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { useWishlistToggle } from "@/components/wishlist/useWishlistToggle";
 import { cn } from "@/lib/cn";
-import { isProductImageFallback, productPhoto } from "@/lib/product-image";
+import { productPhoto } from "@/lib/product-image";
 import { formatKgAmount } from "@/lib/qty-label";
 
 /**
- * Hanging ribbon with an exact vector finish: arc radius matches the card
- * corner (20px default / 12px compact), V notch at the bottom.
+ * Hanging % OFF ribbon. Matching card corner radius + V notch.
+ * No SVG drop-shadow (that left white fringe on the sides). Same-color
+ * stroke seals anti-aliased edges; shape bleeds under card overflow clip.
  */
 function Ribbon({
   fill,
@@ -28,38 +29,41 @@ function Ribbon({
   line2: string;
   compact?: boolean;
 }) {
-  if (compact) {
-    return (
-      <span
-        className="absolute top-0 left-0 z-10 block h-11 w-9"
-        aria-hidden
-      >
-        <svg
-          viewBox="0 0 36 44"
-          className="absolute inset-0 h-full w-full drop-shadow-[0_2px_4px_rgba(0,0,0,0.2)]"
-        >
-          <path
-            d="M0 12 A12 12 0 0 1 12 0 H36 V44 L18 34 L0 44 Z"
-            fill={fill}
-          />
-        </svg>
-        <span className="absolute inset-x-0 top-0 flex h-9 flex-col items-center justify-center text-center text-[8px] leading-[1.15] font-bold text-white">
-          <span>{line1}</span>
-          <span>{line2}</span>
-        </span>
-      </span>
-    );
-  }
+  // viewBox padded so path bleed isn’t clipped by the SVG viewport
+  const vb = compact
+    ? { w: 40, h: 48, path: "M0 14 A14 14 0 0 1 14 0 H40 V48 L20 38 L0 48 Z" }
+    : { w: 48, h: 60, path: "M0 22 A22 22 0 0 1 22 0 H48 V60 L24 48 L0 60 Z" };
 
   return (
-    <span className="absolute top-0 left-0 z-10 block h-14 w-11" aria-hidden>
+    <span
+      className={cn(
+        "pointer-events-none absolute z-10 block",
+        compact ? "top-0 left-0 h-11 w-9" : "top-0 left-0 h-14 w-11",
+      )}
+      aria-hidden
+    >
       <svg
-        viewBox="0 0 44 56"
-        className="absolute inset-0 h-full w-full drop-shadow-[0_3px_5px_rgba(0,0,0,0.22)]"
+        viewBox={`0 0 ${vb.w} ${vb.h}`}
+        className="absolute -top-px -left-px h-[calc(100%+2px)] w-[calc(100%+2px)] overflow-visible"
+        aria-hidden
       >
-        <path d="M0 20 A20 20 0 0 1 20 0 H44 V56 L22 44 L0 56 Z" fill={fill} />
+        <path
+          d={vb.path}
+          fill={fill}
+          stroke={fill}
+          strokeWidth={2}
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
       </svg>
-      <span className="absolute inset-x-0 top-0 flex h-11 flex-col items-center justify-center text-center text-[10px] leading-[1.2] font-bold text-white">
+      <span
+        className={cn(
+          "absolute inset-x-0 top-0 flex flex-col items-center justify-center text-center font-bold text-white",
+          compact
+            ? "h-9 text-[8px] leading-[1.15]"
+            : "h-11 text-[10px] leading-[1.2]",
+        )}
+      >
         <span>{line1}</span>
         <span>{line2}</span>
       </span>
@@ -94,7 +98,6 @@ export function ProductCard({
       ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
       : 0;
   const photo = productPhoto(product.image);
-  const photoIsPlaceholder = isProductImageFallback(photo);
 
   const addBtn = compact
     ? "grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-lg bg-track text-black shadow-[0_4px_12px_rgba(47,107,47,0.3)] transition hover:bg-leaf-bright active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
@@ -104,10 +107,8 @@ export function ProductCard({
     <article
       className={cn(
         /* Flat on paper — ring only, no drop shadow (same idea as pill rail) */
-        "relative isolate flex flex-col bg-white ring-1 ring-black/[0.06]",
-        compact
-          ? "h-[13.5rem] rounded-xl p-2"
-          : "h-full overflow-hidden rounded-[20px]",
+        "relative isolate flex flex-col overflow-hidden bg-white ring-1 ring-black/[0.06]",
+        compact ? "h-[13.5rem] rounded-xl p-2" : "h-full rounded-[20px]",
       )}
     >
       {product.badge ? (
@@ -158,11 +159,10 @@ export function ProductCard({
       >
         <div
           className={cn(
-            "overflow-hidden",
-            photoIsPlaceholder ? "bg-white" : "bg-[#f4f6f8]",
+            "overflow-hidden bg-[#f4f6f8]",
             compact
               ? "h-[105px] w-full rounded-lg"
-              : "aspect-square w-full rounded-t-[20px] bg-gray-50",
+              : "aspect-square w-full rounded-t-[20px]",
           )}
         >
           <CatalogImage
@@ -171,7 +171,7 @@ export function ProductCard({
             width={compact ? 220 : 300}
             height={compact ? 105 : 300}
             style={{ objectFit: "contain" }}
-            className="h-full w-full bg-white object-contain"
+            className="h-full w-full bg-[#f4f6f8] object-contain"
           />
         </div>
         <div className={compact ? undefined : "px-3 pt-1.5"}>

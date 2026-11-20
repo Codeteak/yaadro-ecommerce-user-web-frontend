@@ -1,57 +1,104 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
 
-const SEEN_KEY = "yaadro-pwa-install-seen";
+/** Session-only dismiss — cleared when the browser/tab session ends. */
+const DISMISS_KEY = "yaadro-pwa-install-dismissed";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
+function wasDismissedThisSession(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.sessionStorage.getItem(DISMISS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markDismissedThisSession() {
+  try {
+    window.sessionStorage.setItem(DISMISS_KEY, "1");
+  } catch {
+    // ignore
+  }
+}
+
+type InstallPromptProps = {
+  /**
+   * Playground: show the sheet without waiting for `/home` or
+   * `beforeinstallprompt` (browser may not fire it in demos).
+   */
+  forcePreview?: boolean;
+};
+
 /**
- * “Add to Home Screen” sheet when the browser fires beforeinstallprompt.
+ * “Add to Home Screen” — only on ecom `/home`. Dismiss lasts for this
+ * browser session; closing the tab/browser lets it show again next visit.
  */
-export function InstallPrompt() {
+export function InstallPrompt({ forcePreview = false }: InstallPromptProps) {
+  const pathname = usePathname();
+  const onEcomHome = forcePreview || pathname === "/home";
   const [event, setEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    try {
-      if (window.localStorage.getItem(SEEN_KEY) === "1") return;
-    } catch {
-      // ignore
+    if (wasDismissedThisSession()) return;
+
+    if (forcePreview) {
+      setOpen(true);
+      return;
     }
 
     const onPrompt = (raw: Event) => {
       raw.preventDefault();
-      setEvent(raw as BeforeInstallPromptEvent);
-      setOpen(true);
+      const next = raw as BeforeInstallPromptEvent;
+      setEvent(next);
+      // Only open on the storefront home entry — not login/playground/etc.
+      if (window.location.pathname === "/home") {
+        setOpen(true);
+      }
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
     return () => window.removeEventListener("beforeinstallprompt", onPrompt);
-  }, []);
+  }, [forcePreview]);
 
-  if (!open || !event) return null;
+  // Navigate onto `/home` with a deferred install event → show once.
+  useEffect(() => {
+    if (forcePreview || !event || !onEcomHome) return;
+    if (wasDismissedThisSession()) return;
+    setOpen(true);
+  }, [event, forcePreview, onEcomHome]);
+
+  // Leave `/home` → hide (keep event so return can show again if not dismissed).
+  useEffect(() => {
+    if (forcePreview) return;
+    if (!onEcomHome) setOpen(false);
+  }, [forcePreview, onEcomHome]);
+
+  if (!open || (!forcePreview && !event) || (!forcePreview && !onEcomHome)) {
+    return null;
+  }
 
   const dismiss = () => {
-    try {
-      window.localStorage.setItem(SEEN_KEY, "1");
-    } catch {
-      // ignore
-    }
+    markDismissedThisSession();
     setOpen(false);
-    setEvent(null);
   };
 
   const install = async () => {
-    await event.prompt();
-    try {
-      await event.userChoice;
-    } catch {
-      // ignore
+    if (event) {
+      await event.prompt();
+      try {
+        await event.userChoice;
+      } catch {
+        // ignore
+      }
     }
     dismiss();
   };

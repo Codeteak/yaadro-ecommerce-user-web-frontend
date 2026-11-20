@@ -86,6 +86,18 @@ import { useScrollDirection } from "@/components/navigation/useScrollDirection";
       "src/app/(storefront)/home/page.tsx",
     ],
   ),
+  "pwa-install-prompt": U(
+    `import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+
+// Live: AppProviders mounts <InstallPrompt /> — opens only on /home
+// Dismiss → sessionStorage (clears when browser session ends)
+// Playground: <InstallPrompt forcePreview />`,
+    [
+      "src/components/pwa/InstallPrompt.tsx",
+      "src/components/providers/AppProviders.tsx",
+    ],
+  ),
+
   "help-support": U(
     `import { HelpSupportContent } from "@/components/profile/HelpSupportContent";
 import { getShopSupportContact } from "@/lib/shop-support";

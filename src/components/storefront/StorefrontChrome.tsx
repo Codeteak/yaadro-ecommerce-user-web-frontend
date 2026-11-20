@@ -40,6 +40,9 @@ export function StorefrontChrome({ children }: { children: ReactNode }) {
       className={cn(
         "min-h-dvh overscroll-y-none pb-[calc(5.5rem+env(safe-area-inset-bottom))]",
         "has-[[data-storefront-hide-nav]]:pb-0",
+        // Fill pages size themselves under the nav; lock the shell so the
+        // category rail cannot scroll away with document overflow.
+        "has-[[data-storefront-fill]]:overflow-hidden",
       )}
     >
       {children}

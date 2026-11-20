@@ -88,6 +88,16 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     wiresTo: "/home",
   },
   {
+    slug: "pwa-install-prompt",
+    title: "PWA install prompt",
+    status: "built",
+    group: "Home",
+    description:
+      "Install sheet only on ecom `/home`. Dismiss = sessionStorage (shows again after browser closed).",
+    wiresTo: "InstallPrompt on AppProviders → gated to /home",
+  },
+
+  {
     slug: "shop-fallback-avatars",
     title: "Shop fallback avatars",
     status: "built",
@@ -285,9 +295,10 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Default 3:2 denser card (~152px) on home + cart “You may also like”. Flat on paper (ring, no drop shadow). Compact size kept for reference.",
-    wiresTo: "ProductSection, /home, /cart, /product/[id]",
+      "Shared card: % OFF ribbon clipped clean (no white fringe). Flat on paper. Compact size for rails.",
+    wiresTo: "ProductSection, /home, /cart, playground product-card",
   },
+
   {
     slug: "view-cart-bar",
     title: "ViewCartBar",

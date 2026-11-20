@@ -54,6 +54,7 @@ import { OrdersPageContent } from "@/components/orders/OrdersPageContent";
 import { OrderDetailPageContent } from "@/components/orders/OrderDetailPageContent";
 import { LiveOrderTrackDemo } from "@/components/orders/LiveOrderTrack";
 import { DeferredLocationPrompt } from "@/components/delivery/DeferredLocationPrompt";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { HelpSupportContent } from "@/components/profile/HelpSupportContent";
 import { ProfileAccountNav } from "@/components/profile/ProfileAccountNav";
 import { ProfileHero } from "@/components/profile/ProfileHero";
@@ -616,6 +617,22 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </div>
     </DemoFrame>
   ),
+  "pwa-install-prompt": () => (
+    <DemoFrame note="Live: only on `/home`. Close (X) hides for this browser session; reopen browser to see again. forcePreview here skips beforeinstallprompt.">
+      <div className="relative min-h-[28rem] bg-gradient-to-b from-mint to-paper px-4 pt-6 pb-10">
+        <HomeTopBar
+          shopName="Green Basket"
+          shopImage="/icons/shop-fallback-awning-yellow.png"
+          signedIn={false}
+        />
+        <p className="mt-8 text-center text-sm font-medium text-muted">
+          Install sheet appears at the bottom (session dismiss).
+        </p>
+        <InstallPrompt forcePreview />
+      </div>
+    </DemoFrame>
+  ),
+
   "help-support": () => (
     <DemoFrame note="Wired ecom `/profile/support`. Contact us + Details expand (phone/address). Sample contact here; optional NEXT_PUBLIC_SHOP_SUPPORT_* on ecom.">
       <div className="max-h-[85vh] overflow-y-auto overscroll-contain">
@@ -816,7 +833,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "product-card": () => (
-    <DemoFrame note="Default = home + cart “You may also like” (~152px, flat ring). Compact = optional denser size (shown for reference).">
+    <DemoFrame note="Shared ProductCard (live + playground). % OFF ribbon clipped clean — no white fringe on the curve. Compact = denser rail size.">
       <div className="space-y-6 bg-paper p-4">
         <div>
           <p className="mb-2 text-[11px] font-bold tracking-wide text-forest/70 uppercase">

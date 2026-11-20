@@ -1,12 +1,38 @@
 # Implementation Log
 
+<<<<<<< HEAD
 ## 2026-11-20 — Gap bugs #3: address sheet sync, DB search, Next 16.4.5
 
 Address book refreshes `GET /api/storefront/address` every open and upserts the local row. `/categories?q=` passes search into `listStoreProducts` (DB name/slug match, up to 3 pages). Upgraded `next` + `eslint-config-next` to **16.4.5** (Nov 2026 security patch). COD place-order still needs a signed-in manual click-through.
+=======
+## 2026-11-20 — Categories sticky rail (single scrollport)
+
+`/categories` uses one overflow scroller: header + search scroll away, `CategoryRail` is `sticky top-0`, scrolling back restores header/search. Page height `calc(100dvh - nav)` + `data-storefront-fill`. Same on horizontal `CategoryListing`. (Nested product-only pane was too short and felt broken.)
+>>>>>>> 5d6c5a0 (fix: sticky category rail scroll, PWA install scope, wishlist hydration, ribbon fringe)
 
 ## 2026-11-20 — Parity blockers: cookies, search, address, cart shop, session, PWA
 
 Storefront fetch sends `credentials: include` on `/api/storefront/*`. Home search → `/categories?q=` filters. One delivery address syncs from server on login and saves via address API. Cart/wishlist keys are per shop (no migrate). Refresh token in localStorage (~50 days). Domain resolve caches shop id/banners; empty banners hide. Nominatim reverse fallback. `/new` and `/trending` → `/home`. PWA: `public/sw.js` + install prompt; favicon/manifest prefer shop image.
+
+## 2026-11-20 — Categories product grid scroll stuck
+
+`StorefrontPageFrame` `height="fill"` body is a flex column with `overflow-hidden` so the product pane gets a bounded height and scrolls. Product sections use `touch-pan-y`. PTR touchstart is scoped to its own root.
+
+## 2026-11-20 — Elastic multi-page PTR reverted
+
+Dropped playground `PhasePullRefreshPagesDemo` / `EditProfilePull`. Kept original `PullToRefresh` (home, profile, wishlist, coupons, edit). No multi-page elastic wire.
+
+## 2026-11-20 — Product card ribbon white fringe
+
+`ProductCard` Ribbon: removed SVG drop-shadow (side halo), same-color stroke to seal AA edges, shape bleeds under card `overflow-hidden`. Photo `#f4f6f8`. Shared → live + playground.
+
+## 2026-11-20 — PWA install prompt: `/home` only + session dismiss
+
+`InstallPrompt` opens only on ecom `/home` (not login/playground/other routes). Dismiss uses `sessionStorage` so it can show again after the browser session ends. Playground `/playground/pwa-install-prompt` uses `forcePreview`.
+
+## 2026-11-20 — Wishlist heart hydration mismatch
+
+`useWishlistToggle` aria-label no longer branches on signed-in (“Sign in to save…” vs “Add…”) so SSR guest HTML matches client hydrate after session restore under home Suspense. Guest tap still toasts and routes to `/login`.
 
 ## 2026-11-19 — Address search polish (suggestions + post-select)
 

@@ -18,6 +18,11 @@ type PageHeaderProps = {
    * `hero` — transparent sticky bar over mint/gradient heroes (profile).
    */
   surface?: "paper" | "hero";
+  /**
+   * When false, sits in normal flow (e.g. categories chrome that collapses
+   * on scroll). Default sticky + title fade on scroll.
+   */
+  sticky?: boolean;
 };
 
 const TITLE_HIDE_Y = 32;
@@ -53,11 +58,13 @@ export function PageHeader({
   title,
   center,
   surface = "paper",
+  sticky = true,
 }: PageHeaderProps) {
   const rootRef = useRef<HTMLElement>(null);
   const [titleHidden, setTitleHidden] = useState(false);
 
   useEffect(() => {
+    if (!sticky) return;
     const root = rootRef.current;
     if (!root) return;
     const scroller = getScrollParent(root);
@@ -68,13 +75,14 @@ export function PageHeader({
     onScroll();
     scroller.addEventListener("scroll", onScroll, { passive: true });
     return () => scroller.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [sticky]);
 
   return (
     <header
       ref={rootRef}
       className={cn(
-        "sticky top-0 z-20 -mx-5 px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-2",
+        "-mx-5 px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-2",
+        sticky && "sticky top-0 z-20",
         // Hero: stay transparent so only the back control floats — no bar
         // covering the avatar when the title collapses.
         surface === "hero" ? "bg-transparent" : "bg-paper/95 backdrop-blur-sm",

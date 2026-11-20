@@ -47,11 +47,11 @@ export function useWishlistToggle(product: SampleProduct) {
     else showPopup("Saved to wishlist", "success");
   }, [ephemeralIds, meta, product, router, stored]);
 
-  const ariaLabel = !meta?.signedIn
-    ? `Sign in to save ${product.name}`
-    : wishlisted
-      ? `Remove ${product.name} from wishlist`
-      : `Add ${product.name} to wishlist`;
+  // Keep labels auth-agnostic so SSR (always guest) matches client hydrate
+  // after session restore under streaming Suspense. Guest click still → login.
+  const ariaLabel = wishlisted
+    ? `Remove ${product.name} from wishlist`
+    : `Add ${product.name} to wishlist`;
 
   return { wishlisted, onToggle, ariaLabel };
 }

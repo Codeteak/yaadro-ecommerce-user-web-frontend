@@ -217,8 +217,11 @@ export function CategoryListing({
   return (
     <div className={cn("flex h-full min-h-0 flex-col bg-paper", className)}>
       {horizontal ? (
-        <header className="shrink-0 border-b border-black/[0.05] bg-paper/95 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-sm">
-          <div className="px-5">
+        <div
+          data-storefront-scroll
+          className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]"
+        >
+          <header className="px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
             <div className="relative flex h-11 shrink-0 items-center">
               {onBack ? (
                 <BackButton onClick={onBack} />
@@ -228,7 +231,6 @@ export function CategoryListing({
               <h1 className={t.plpPageTitle}>{category.name}</h1>
               <span className="ml-auto size-11 shrink-0" aria-hidden />
             </div>
-            {/* Same HomeSearchBar as ecom /categories (CategoryBrowser). */}
             <HomeSearchBar
               className="mt-1"
               value={query}
@@ -260,17 +262,26 @@ export function CategoryListing({
                 />
               </div>
             </div>
+          </header>
+
+          <div className="sticky top-0 z-20 border-b border-black/[0.05] bg-paper/95 backdrop-blur-sm">
+            <CategoryRail
+              categories={railCategories}
+              tileVariant="pill"
+              selected={railSelected}
+              onSelect={(slug) =>
+                setSub(slug === ALL_CATEGORY_SLUG ? "All" : slug)
+              }
+            />
           </div>
-          {/* Same pill CategoryRail as /home — one chrome block with search. */}
-          <CategoryRail
-            categories={railCategories}
-            tileVariant="pill"
-            selected={railSelected}
-            onSelect={(slug) =>
-              setSub(slug === ALL_CATEGORY_SLUG ? "All" : slug)
-            }
-          />
-        </header>
+
+          <section
+            aria-label={`${sub === "All" ? "All items" : sub} products`}
+            className="px-4 pt-4 pb-28"
+          >
+            {productGrid}
+          </section>
+        </div>
       ) : (
         <header className="shrink-0 border-b border-black/[0.05] bg-paper/95 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2.5 backdrop-blur-sm">
           <div className="relative flex h-11 shrink-0 items-center">
@@ -299,15 +310,7 @@ export function CategoryListing({
         </header>
       )}
 
-      {horizontal ? (
-        <section
-          aria-label={`${sub === "All" ? "All items" : sub} products`}
-          data-storefront-scroll
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-paper px-4 pt-4 pb-28"
-        >
-          {productGrid}
-        </section>
-      ) : (
+      {!horizontal ? (
         <div className="flex min-h-0 flex-1 items-stretch border-t border-black/[0.06]">
           <aside
             aria-label="Subcategories"
@@ -315,7 +318,7 @@ export function CategoryListing({
           >
             <div
               data-storefront-scroll
-              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5 pt-2 pb-28"
+              className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-1.5 pt-2 pb-28 [-webkit-overflow-scrolling:touch]"
             >
               <div className="flex flex-col gap-1">
                 {category.subcategories.map((row) => (
@@ -339,12 +342,12 @@ export function CategoryListing({
           <section
             aria-label={`${sub === "All" ? "All items" : sub} products`}
             data-storefront-scroll
-            className="min-w-0 flex-1 overflow-y-auto overscroll-contain bg-paper px-3 pt-3 pb-28"
+            className="min-w-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain bg-paper px-3 pt-3 pb-28 [-webkit-overflow-scrolling:touch]"
           >
             {productGrid}
           </section>
         </div>
-      )}
+      ) : null}
 
       <PlpFilterSheets
         open={sheet}

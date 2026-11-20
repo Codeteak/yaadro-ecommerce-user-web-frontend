@@ -45,7 +45,10 @@ async function CategoryListingContent({ params }: CategoryPageProps) {
   if (!listing) notFound();
 
   return (
-    <main className="mx-auto flex h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom))] min-h-0 w-full max-w-lg flex-col overflow-hidden bg-paper">
+    <main
+      data-storefront-fill
+      className="mx-auto flex h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom))] min-h-0 w-full max-w-lg flex-col overflow-hidden bg-paper"
+    >
       <CategoryListing
         slug={slug}
         live={listing}

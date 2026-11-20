@@ -123,6 +123,12 @@ export const PullToRefresh = forwardRef<PullToRefreshHandle, PullToRefreshProps>
 
       const onTouchStart = (e: TouchEvent) => {
         if (disabledRef.current || refreshingRef.current) return;
+        // Only handle pulls that start inside this PTR tree (not other routes).
+        const root = rootRef.current;
+        if (!root || !(e.target instanceof Node) || !root.contains(e.target)) {
+          armed.current = false;
+          return;
+        }
         if (scrollTop() > 0) {
           armed.current = false;
           return;

@@ -12,6 +12,7 @@ import {
 } from "@/components/home/CategoryRail";
 import { CategoryCard } from "@/components/categories/CategoryCard";
 import { HomeSearchBar } from "@/components/home/HomeSearchBar";
+import { PageHeader } from "@/components/navigation/PageHeader";
 import { ProductCard } from "@/components/product/ProductCard";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
 import type { CategoryBranch } from "@/lib/api/storefront";
@@ -37,6 +38,9 @@ type CategoryBrowserProps = {
    * `sidebar` — legacy left column (playground `category-browser`).
    */
   railLayout?: "sidebar" | "horizontal";
+  /** When set with horizontal layout, owns the page header above the sticky rail. */
+  pageTitle?: string;
+  backHref?: string;
 };
 
 function productsFor(
@@ -87,6 +91,8 @@ export function CategoryBrowser({
   onSelect,
   className,
   railLayout = "sidebar",
+  pageTitle,
+  backHref = "/home",
 }: CategoryBrowserProps) {
   const [localSelected, setLocalSelected] = useState("all");
   /** Instant rail highlight while `selection` catches up from the server. */
@@ -103,6 +109,7 @@ export function CategoryBrowser({
   const selected = optimistic ?? selection ?? localSelected;
   const title = selectedName(selected, branches);
   const horizontal = railLayout === "horizontal";
+  const ownsPageChrome = horizontal && Boolean(pageTitle);
 
   const choose = (key: string) => {
     setOptimistic(key);
@@ -202,149 +209,145 @@ export function CategoryBrowser({
     </>
   );
 
+  const searchBlock = (
+    <>
+      <HomeSearchBar
+        value={query}
+        onChange={setQuery}
+        autoFocus={focusSearch}
+        placeholder="Search this category"
+        onFilterClick={() => {
+          setChipsOpen((open) => {
+            if (open) setSheet(null);
+            return !open;
+          });
+        }}
+        filterActive={filtersOn}
+        filterExpanded={chipsOpen}
+      />
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
+          chipsOpen
+            ? "mt-2 grid-rows-[1fr] opacity-100"
+            : "grid-rows-[0fr] opacity-0",
+        )}
+        aria-hidden={!chipsOpen}
+      >
+        <div className="overflow-hidden">
+          <PlpFilterChips
+            open={sheet}
+            onOpen={setSheet}
+            filterActive={filtersOn}
+          />
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
       {horizontal ? (
-        <div className="shrink-0 border-b border-black/[0.05]">
-          <div className="px-5">
-            <HomeSearchBar
-              value={query}
-              onChange={setQuery}
-              autoFocus={focusSearch}
-              placeholder="Search this category"
-              onFilterClick={() => {
-                setChipsOpen((open) => {
-                  if (open) setSheet(null);
-                  return !open;
-                });
-              }}
-              filterActive={filtersOn}
-              filterExpanded={chipsOpen}
-            />
-            <div
-              className={cn(
-                "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
-                chipsOpen
-                  ? "mt-2 grid-rows-[1fr] opacity-100"
-                  : "grid-rows-[0fr] opacity-0",
-              )}
-              aria-hidden={!chipsOpen}
-            >
-              <div className="overflow-hidden">
-                <PlpFilterChips
-                  open={sheet}
-                  onOpen={setSheet}
-                  filterActive={filtersOn}
-                />
-              </div>
-            </div>
-          </div>
-          <CategoryRail
-            categories={railCategories}
-            tileVariant="pill"
-            selected={railSelected}
-            onSelect={(slug) =>
-              choose(slug === ALL_CATEGORY_SLUG ? "all" : slug)
-            }
-          />
-        </div>
-      ) : (
-        <div className="px-5 pb-3">
-          <HomeSearchBar
-            value={query}
-            onChange={setQuery}
-            autoFocus={focusSearch}
-            placeholder="Search this category"
-            onFilterClick={() => {
-              setChipsOpen((open) => {
-                if (open) setSheet(null);
-                return !open;
-              });
-            }}
-            filterActive={filtersOn}
-            filterExpanded={chipsOpen}
-          />
-          <div
-            className={cn(
-              "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
-              chipsOpen
-                ? "mt-2 grid-rows-[1fr] opacity-100"
-                : "grid-rows-[0fr] opacity-0",
-            )}
-            aria-hidden={!chipsOpen}
-          >
-            <div className="overflow-hidden">
-              <PlpFilterChips
-                open={sheet}
-                onOpen={setSheet}
-                filterActive={filtersOn}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-      {error ? (
-        <p className="px-5 pb-2 text-sm font-medium text-muted">{error}</p>
-      ) : null}
-
-      {horizontal ? (
-        <section
-          aria-label={`${title} products`}
+        /*
+          One scrollport: header + search scroll away; category rail sticks;
+          scrolling back brings header/search back. Avoids a tiny nested
+          product pane that felt like scrolling was broken.
+        */
+        <div
           data-storefront-scroll
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-28"
+          className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]"
         >
-          {productSection}
-        </section>
-      ) : (
-        <div className="flex min-h-0 flex-1 border-t border-black/[0.06]">
-          <aside
-            aria-label="Categories"
-            className="flex w-[5.75rem] shrink-0 flex-col self-stretch border-r border-black/[0.06] bg-paper"
-          >
-            <div
-              data-storefront-scroll
-              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5 pt-2 pb-28"
-            >
-              <div className="flex flex-col gap-1">
-                <CategoryCard
-                  size="sidebar"
-                  name="All"
-                  active={selected === "all"}
-                  onClick={() => choose("all")}
-                />
-                {branches.map((branch) => (
-                  <div key={branch.id} className="flex flex-col gap-1">
-                    <CategoryCard
-                      size="sidebar"
-                      name={branch.name}
-                      image={branch.image || CATEGORY_IMAGE_FALLBACK}
-                      active={selected === `cat:${branch.slug}`}
-                      onClick={() => choose(`cat:${branch.slug}`)}
-                    />
-                    {branch.children.map((child) => (
-                      <CategoryCard
-                        key={child.id}
-                        size="sidebar"
-                        name={child.name}
-                        image={child.image || CATEGORY_IMAGE_FALLBACK}
-                        active={selected === `sub:${child.slug}`}
-                        onClick={() => choose(`sub:${child.slug}`)}
-                      />
-                    ))}
-                  </div>
-                ))}
-              </div>
+          {ownsPageChrome ? (
+            <div className="px-5 pb-2">
+              <PageHeader
+                backHref={backHref}
+                title={pageTitle}
+                sticky={false}
+              />
+              {searchBlock}
             </div>
-          </aside>
+          ) : (
+            <div className="px-5 pb-2">{searchBlock}</div>
+          )}
+
+          <div className="sticky top-0 z-20 border-b border-black/[0.05] bg-paper/95 backdrop-blur-sm">
+            <CategoryRail
+              categories={railCategories}
+              tileVariant="pill"
+              selected={railSelected}
+              onSelect={(slug) =>
+                choose(slug === ALL_CATEGORY_SLUG ? "all" : slug)
+              }
+            />
+          </div>
+
+          {error ? (
+            <p className="px-5 pb-2 text-sm font-medium text-muted">{error}</p>
+          ) : null}
 
           <section
             aria-label={`${title} products`}
-            data-storefront-scroll
-            className="min-w-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3 pb-28"
+            className="px-4 pt-4 pb-28"
           >
             {productSection}
           </section>
         </div>
+      ) : (
+        <>
+          <div className="px-5 pb-3">{searchBlock}</div>
+          {error ? (
+            <p className="px-5 pb-2 text-sm font-medium text-muted">{error}</p>
+          ) : null}
+          <div className="flex min-h-0 flex-1 border-t border-black/[0.06]">
+            <aside
+              aria-label="Categories"
+              className="flex w-[5.75rem] shrink-0 flex-col self-stretch border-r border-black/[0.06] bg-paper"
+            >
+              <div
+                data-storefront-scroll
+                className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-1.5 pt-2 pb-28 [-webkit-overflow-scrolling:touch]"
+              >
+                <div className="flex flex-col gap-1">
+                  <CategoryCard
+                    size="sidebar"
+                    name="All"
+                    active={selected === "all"}
+                    onClick={() => choose("all")}
+                  />
+                  {branches.map((branch) => (
+                    <div key={branch.id} className="flex flex-col gap-1">
+                      <CategoryCard
+                        size="sidebar"
+                        name={branch.name}
+                        image={branch.image || CATEGORY_IMAGE_FALLBACK}
+                        active={selected === `cat:${branch.slug}`}
+                        onClick={() => choose(`cat:${branch.slug}`)}
+                      />
+                      {branch.children.map((child) => (
+                        <CategoryCard
+                          key={child.id}
+                          size="sidebar"
+                          name={child.name}
+                          image={child.image || CATEGORY_IMAGE_FALLBACK}
+                          active={selected === `sub:${child.slug}`}
+                          onClick={() => choose(`sub:${child.slug}`)}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </aside>
+
+            <section
+              aria-label={`${title} products`}
+              data-storefront-scroll
+              className="min-w-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-3 pt-3 pb-28 [-webkit-overflow-scrolling:touch]"
+            >
+              {productSection}
+            </section>
+          </div>
+        </>
       )}
 
       <PlpFilterSheets
