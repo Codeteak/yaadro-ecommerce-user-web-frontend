@@ -22,6 +22,7 @@ async function CategoriesPageBody({ searchParams }: CategoriesPageProps) {
   const query = await searchParams;
   const catalog = await loadCategoryBrowser(
     query.q?.trim() ? "all" : query.cat,
+    query.q,
   );
 
   return (

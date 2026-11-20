@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-20 — Gap bugs #3: address sheet sync, DB search, Next 16.4.5
+
+Address book refreshes `GET /api/storefront/address` every open and upserts the local row. `/categories?q=` passes search into `listStoreProducts` (DB name/slug match, up to 3 pages). Upgraded `next` + `eslint-config-next` to **16.4.5** (Nov 2026 security patch). COD place-order still needs a signed-in manual click-through.
+
 ## 2026-11-20 — Parity blockers: cookies, search, address, cart shop, session, PWA
 
 Storefront fetch sends `credentials: include` on `/api/storefront/*`. Home search → `/categories?q=` filters. One delivery address syncs from server on login and saves via address API. Cart/wishlist keys are per shop (no migrate). Refresh token in localStorage (~50 days). Domain resolve caches shop id/banners; empty banners hide. Nominatim reverse fallback. `/new` and `/trending` → `/home`. PWA: `public/sw.js` + install prompt; favicon/manifest prefer shop image.
