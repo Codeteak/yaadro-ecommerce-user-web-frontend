@@ -1,6 +1,6 @@
 # Yaadro Storefront — Project Status
 
-**Updated:** 2026-11-20
+**Updated:** 2026-11-20 (Next 16.4.5 security patch; address sheet server sync; categories `?q=` DB search)
 
 ## Current stage
 

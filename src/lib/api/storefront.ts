@@ -566,8 +566,34 @@ function buildCategoryBranches(
 
 export async function loadCategoryBrowser(
   cat: string | undefined,
+  search?: string,
 ): Promise<CategoryBrowserData> {
+  const q = search?.trim().slice(0, 200) || undefined;
   try {
+    // Search from home (`?q=`) hits the same DB search path as main's
+    // `GET /storefront/products?search=` (name/slug match), not only client filter.
+    if (q) {
+      const [categories, groups] = await Promise.all([
+        listStoreCategories(),
+        listStoreProducts({ search: q, maxPages: 3 }),
+      ]);
+      const products = groups.flatMap((group) =>
+        group.products.map((product) => ({
+          ...product,
+          category: group.category?.name ?? product.category,
+          categoryId: group.category?.id ?? product.categoryId,
+          categorySlug: group.category?.slug ?? product.categorySlug,
+        })),
+      );
+      return {
+        ok: true,
+        error: null,
+        branches: buildCategoryBranches(categories),
+        products,
+        selectedKey: "all",
+      };
+    }
+
     // No `cat` / `cat=all`: tree + capped catalog in parallel (was sequential).
     if (!cat || cat === "all") {
       const [categories, groups] = await Promise.all([

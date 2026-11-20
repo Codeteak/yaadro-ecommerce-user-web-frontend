@@ -10,6 +10,7 @@ import {
   LOCATION_TOASTS,
   locationToastToneFor,
 } from "@/lib/location-messages";
+import { hasCustomerSession } from "@/lib/api/session";
 import {
   detectMyPlace,
   formatSavedAddressLine,
@@ -19,6 +20,7 @@ import {
   type DetectedPlace,
   type SavedAddress,
 } from "@/lib/saved-addresses";
+import { syncServerDeliveryAddress } from "@/lib/sync-server-address";
 
 type Step = "list" | "map" | "details";
 
@@ -110,6 +112,7 @@ function AddressBookSheetBody({
   const [detecting, setDetecting] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [mapNotice, setMapNotice] = useState<string | null>(null);
+  const [hydratingAddress, setHydratingAddress] = useState(false);
 
   const raw = useSyncExternalStore(
     subscribe,
@@ -117,6 +120,24 @@ function AddressBookSheetBody({
     getServerSnapshot,
   );
   const address = (JSON.parse(raw) as SavedAddress[])[0] ?? null;
+
+  // Bug fix: refresh from server every time the sheet opens (not only on login).
+  useEffect(() => {
+    if (!hasCustomerSession()) return;
+    const controller = new AbortController();
+    setHydratingAddress(true);
+    void syncServerDeliveryAddress(controller.signal)
+      .then((delivery) => {
+        if (!delivery || controller.signal.aborted) return;
+        const saved = listSavedAddresses()[0] ?? null;
+        if (saved) setEditing(saved);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setHydratingAddress(false);
+      });
+    return () => controller.abort();
+    // Mount-only: sheet body remounts each open via parent key.
+  }, []);
 
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -196,8 +217,18 @@ function AddressBookSheetBody({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+          {step === "list" && hydratingAddress && !address ? (
+            <p className="py-8 text-center text-sm font-medium text-muted" role="status">
+              Loading your saved address…
+            </p>
+          ) : null}
           {step === "list" && address ? (
             <AddressListStep address={address} onChange={goMap} />
+          ) : null}
+          {step === "list" && !address && !hydratingAddress ? (
+            <p className="py-6 text-center text-sm text-muted">
+              No address yet — add one on the map.
+            </p>
           ) : null}
           {step === "map" ? (
             <AddressMapStep
