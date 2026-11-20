@@ -5,6 +5,12 @@ Production storefront is **EC2 + CodePipeline** (`customer-web-pipeline`). GitHu
 This doc is only for a leftover Pages project or a manual `npm run pages:deploy`. Do not point `testshop.yaadro.online` at Pages or CloudFront.
 
 > **Production path:** `yaadro-ecommerce-admin-web-backend/infra/stacks/prod-customer-web` (`next start` + `DATABASE_URL`). DNS → shared ALB.
+>
+> **Multi-shop secrets** (Secrets Manager `yaadro-ecom-prod-runtime-env`, written as container env by boot):
+> - `CUSTOMER_WEB_DATABASE_URL` — required for catalog DB reads
+> - `CUSTOMER_WEB_NEXT_PUBLIC_DEFAULT_SHOP_ID` — local/fallback UUID only (shops are chosen by hostname)
+> - `CUSTOMER_WEB_NEXT_PUBLIC_API_URL` / `CUSTOMER_WEB_API_PROXY_TARGET` — customer API
+> - Optional legacy: `CUSTOMER_WEB_NEXT_PUBLIC_SHOP_ID` still works if DEFAULT is unset
 
 | Item | Value |
 |------|--------|
@@ -68,7 +74,7 @@ Same as before — baked into the client bundle at build time:
 | `NEXT_PUBLIC_API_BASE_URL` | API base (includes `/api`) |
 | `NEXT_PUBLIC_API_URL` | Optional legacy API host |
 | `NEXT_PUBLIC_TENANT_RESOLVER_URL` | `GET ?domain=<hostname>` → shopId |
-| `NEXT_PUBLIC_SHOP_ID` | Dev fallback; optional prod fallback |
+| `NEXT_PUBLIC_DEFAULT_SHOP_ID` | Local / unresolved-host fallback only (legacy: `NEXT_PUBLIC_SHOP_ID`) |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Maps on address/checkout |
 | `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID` | Optional Maps map ID |
 | `NEXT_PUBLIC_MEDIA_BASE_URL` | Product/media CDN base |

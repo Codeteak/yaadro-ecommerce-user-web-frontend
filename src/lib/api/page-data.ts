@@ -12,6 +12,7 @@ import {
   type CategoryListingData,
   type HomeCatalog,
 } from "@/lib/api/storefront";
+import { getRequestShopId } from "@/lib/request-shop";
 
 export type HomePageData = {
   shop: ShopSeo;
@@ -28,7 +29,8 @@ export async function loadShopPageData(): Promise<ShopSeo> {
  * they are cleared. `branches` stay for aisle browse sections (#30).
  */
 export async function loadHomePageData(): Promise<HomePageData> {
-  const [shop, catalog] = await Promise.all([getShopSeo(), loadHomeCatalog()]);
+  const shopId = await getRequestShopId();
+  const [shop, catalog] = await Promise.all([getShopSeo(), loadHomeCatalog(shopId)]);
   return {
     shop,
     catalog: {
@@ -41,13 +43,15 @@ export async function loadHomePageData(): Promise<HomePageData> {
 export async function loadCategoriesPageData(
   cat: string | undefined,
 ): Promise<CategoryBrowserData> {
-  return loadCategoryBrowser(cat);
+  const shopId = await getRequestShopId();
+  return loadCategoryBrowser(shopId, cat);
 }
 
 export async function loadCategoryPageData(
   slug: string,
 ): Promise<CategoryListingData | null> {
-  return loadCategoryListing(slug);
+  const shopId = await getRequestShopId();
+  return loadCategoryListing(shopId, slug);
 }
 
 export type ProductPageData = {
@@ -58,11 +62,14 @@ export type ProductPageData = {
 };
 
 export async function loadProductPageData(id: string): Promise<ProductPageData | null> {
-  const result = await getStoreProduct(id);
+  const shopId = await getRequestShopId();
+  const result = await getStoreProduct(shopId, id);
   if (!result) return null;
   let related: SampleProduct[] = [];
   if (result.product.categoryId) {
-    const groups = await listStoreProducts({ categoryId: result.product.categoryId });
+    const groups = await listStoreProducts(shopId, {
+      categoryId: result.product.categoryId,
+    });
     related = groups
       .flatMap((group) => group.products)
       .filter((product) => product.id !== result.product.id)

@@ -4,6 +4,8 @@
  * Tokens are never stored here.
  */
 
+import { resolveClientShopId } from "@/lib/resolved-shop";
+
 const PREFIX = "yaadro.page.v1";
 
 type MemoryEntry = { raw: string; value: unknown };
@@ -14,7 +16,7 @@ const inflight = new Map<string, Promise<unknown>>();
 const listeners = new Set<() => void>();
 
 function storageKey(key: string) {
-  const shop = process.env.NEXT_PUBLIC_SHOP_ID || "default";
+  const shop = resolveClientShopId() || "default";
   return `${PREFIX}:${shop}:${key}`;
 }
 

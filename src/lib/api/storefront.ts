@@ -9,7 +9,7 @@ import {
   readProductPage,
   type DbProduct,
 } from "@/lib/db/catalog";
-import { requireShopId } from "@/lib/db/shop-id";
+import { catalogCacheTag, defaultShopId, requireShopId } from "@/lib/db/shop-id";
 import { mapCatalogProduct } from "@/lib/catalog-map";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
 import { SHOP_IMAGE_FALLBACK } from "@/lib/shop-fallback-avatars";
@@ -50,7 +50,7 @@ export type ResolvedShop = {
 };
 
 function shopHeader(): string {
-  return process.env.NEXT_PUBLIC_SHOP_ID?.trim() ?? "";
+  return defaultShopId();
 }
 
 async function apiGet(path: string, shopId = shopHeader()): Promise<unknown> {
@@ -173,12 +173,13 @@ function fromDbProduct(row: DbProduct): SampleProduct | null {
   });
 }
 
-export async function listStoreCategories(): Promise<StoreCategory[]> {
+export async function listStoreCategories(shopId: string): Promise<StoreCategory[]> {
   "use cache";
-  cacheTag("storefront-catalog");
+  const id = requireShopId(shopId);
+  cacheTag(catalogCacheTag(id));
   cacheLife("minutes");
   try {
-    const rows = await readAllCategories();
+    const rows = await readAllCategories(id);
     return rows
       .map(mapCategory)
       .filter((row): row is StoreCategory => Boolean(row))
@@ -225,15 +226,18 @@ function groupDbProducts(rows: DbProduct[]): ProductGroup[] {
   return groups;
 }
 
-async function fetchProductGroups(options: {
-  categoryId?: string;
-  search?: string;
-  cursor?: string | null;
-}): Promise<{
+async function fetchProductGroups(
+  shopId: string,
+  options: {
+    categoryId?: string;
+    search?: string;
+    cursor?: string | null;
+  },
+): Promise<{
   groups: ProductGroup[];
   nextCursor: string | null;
 }> {
-  const page = await readProductPage(requireShopId(), {
+  const page = await readProductPage(shopId, {
     categoryId: options.categoryId,
     search: options.search,
     cursor: options.cursor,
@@ -246,20 +250,24 @@ async function fetchProductGroups(options: {
  * Product pages (50 each), optionally scoped to a category.
  * Home uses `maxPages: 1` so shelves paint sooner; PLP/search keep 3.
  */
-export async function listStoreProducts(options?: {
-  categoryId?: string;
-  search?: string;
-  maxPages?: number;
-}): Promise<ProductGroup[]> {
+export async function listStoreProducts(
+  shopId: string,
+  options?: {
+    categoryId?: string;
+    search?: string;
+    maxPages?: number;
+  },
+): Promise<ProductGroup[]> {
   "use cache";
-  cacheTag("storefront-catalog");
+  const id = requireShopId(shopId);
+  cacheTag(catalogCacheTag(id));
   cacheLife("minutes");
   try {
     const maxPages = Math.min(Math.max(options?.maxPages ?? 3, 1), 3);
     const groups: ProductGroup[] = [];
     let cursor: string | null = null;
     for (let page = 0; page < maxPages; page += 1) {
-      const batch = await fetchProductGroups({
+      const batch = await fetchProductGroups(id, {
         categoryId: options?.categoryId,
         search: options?.search,
         cursor,
@@ -274,16 +282,20 @@ export async function listStoreProducts(options?: {
   }
 }
 
-export async function getStoreProduct(idOrSlug: string): Promise<{
+export async function getStoreProduct(
+  shopId: string,
+  idOrSlug: string,
+): Promise<{
   product: SampleProduct;
   seoTitle?: string;
   seoDescription?: string;
 } | null> {
   "use cache";
-  cacheTag("storefront-catalog");
+  const id = requireShopId(shopId);
+  cacheTag(catalogCacheTag(id));
   cacheLife("minutes");
   try {
-    const row = await readProduct(requireShopId(), idOrSlug);
+    const row = await readProduct(id, idOrSlug);
     if (!row) return null;
     const product = fromDbProduct(row);
     if (!product) return null;
@@ -297,12 +309,13 @@ export async function getStoreProduct(idOrSlug: string): Promise<{
   }
 }
 
-export async function listHomeShelves(): Promise<StoreShelf[]> {
+export async function listHomeShelves(shopId: string): Promise<StoreShelf[]> {
   "use cache";
-  cacheTag("storefront-catalog");
+  const id = requireShopId(shopId);
+  cacheTag(catalogCacheTag(id));
   cacheLife("minutes");
   try {
-    const rows = await readHomeSections();
+    const rows = await readHomeSections(id);
     const shelves: StoreShelf[] = [];
     for (const row of rows) {
       const products = row.products
@@ -317,7 +330,10 @@ export async function listHomeShelves(): Promise<StoreShelf[]> {
   }
 }
 
-export async function getHomeSection(id: string): Promise<{
+export async function getHomeSection(
+  shopId: string,
+  sectionId: string,
+): Promise<{
   id: string;
   title: string;
   startsAt: string | null;
@@ -325,10 +341,11 @@ export async function getHomeSection(id: string): Promise<{
   products: SampleProduct[];
 } | null> {
   "use cache";
-  cacheTag("storefront-catalog");
+  const id = requireShopId(shopId);
+  cacheTag(catalogCacheTag(id));
   cacheLife("minutes");
   try {
-    const row = await readHomeSection(id);
+    const row = await readHomeSection(sectionId, id);
     if (!row) return null;
     return {
       id: row.id,
@@ -439,13 +456,14 @@ function rootOf(
   return current;
 }
 
-export async function loadHomeCatalog(): Promise<HomeCatalog> {
+export async function loadHomeCatalog(shopId: string): Promise<HomeCatalog> {
   try {
+    const id = requireShopId(shopId);
     // One product page on home — full aisle browse is /categories/[slug].
     const [categories, groups, shelves] = await Promise.all([
-      listStoreCategories(),
-      listStoreProducts({ maxPages: 1 }),
-      listHomeShelves(),
+      listStoreCategories(id),
+      listStoreProducts(id, { maxPages: 1 }),
+      listHomeShelves(id),
     ]);
     const byId = new Map(categories.map((category) => [category.id, category]));
     const roots = categories.filter(
@@ -522,13 +540,15 @@ export type CategoryListingData = {
 };
 
 export async function loadCategoryListing(
+  shopId: string,
   slug: string,
 ): Promise<CategoryListingData | null> {
-  const categories = await listStoreCategories();
+  const id = requireShopId(shopId);
+  const categories = await listStoreCategories(id);
   const category = categories.find((row) => row.slug === slug);
   if (!category || category.slug === "all") return null;
   const children = categories.filter((row) => row.parentId === category.id);
-  const groups = await listStoreProducts({ categoryId: category.id });
+  const groups = await listStoreProducts(id, { categoryId: category.id });
   const products = groups.flatMap((group) =>
     group.products.map((product) => ({
       ...product,
@@ -586,17 +606,19 @@ function buildCategoryBranches(
 }
 
 export async function loadCategoryBrowser(
+  shopId: string,
   cat: string | undefined,
   search?: string,
 ): Promise<CategoryBrowserData> {
+  const id = requireShopId(shopId);
   const q = search?.trim().slice(0, 200) || undefined;
   try {
     // Search from home (`?q=`) hits the same DB search path as main's
     // `GET /storefront/products?search=` (name/slug match), not only client filter.
     if (q) {
       const [categories, groups] = await Promise.all([
-        listStoreCategories(),
-        listStoreProducts({ search: q, maxPages: 3 }),
+        listStoreCategories(id),
+        listStoreProducts(id, { search: q, maxPages: 3 }),
       ]);
       const products = groups.flatMap((group) =>
         group.products.map((product) => ({
@@ -618,8 +640,8 @@ export async function loadCategoryBrowser(
     // No `cat` / `cat=all`: tree + capped catalog in parallel (was sequential).
     if (!cat || cat === "all") {
       const [categories, groups] = await Promise.all([
-        listStoreCategories(),
-        listStoreProducts({ maxPages: 1 }),
+        listStoreCategories(id),
+        listStoreProducts(id, { maxPages: 1 }),
       ]);
       const products = groups.flatMap((group) =>
         group.products.map((product) => ({
@@ -640,7 +662,7 @@ export async function loadCategoryBrowser(
 
     // Resolve the aisle from the tree first, then load only that aisle's
     // products (scoped query). Categories stay cached for the hub tree.
-    const categories = await listStoreCategories();
+    const categories = await listStoreCategories(id);
     const branches = buildCategoryBranches(categories);
     const category = categories.find(
       (row) => row.slug !== "all" && (row.slug === cat || row.id === cat),
@@ -655,7 +677,7 @@ export async function loadCategoryBrowser(
       };
     }
 
-    const groups = await listStoreProducts({ categoryId: category.id });
+    const groups = await listStoreProducts(id, { categoryId: category.id });
     const products = groups.flatMap((group) =>
       group.products.map((product) => ({
         ...product,

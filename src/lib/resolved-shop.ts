@@ -3,6 +3,8 @@
  * Used for x-shop-id, cart/wishlist scoping, and banner hydration.
  */
 
+import { defaultShopId } from "@/lib/db/shop-id";
+
 export const RESOLVED_SHOP_ID_STORAGE_KEY = "yaadro_resolved_shop_id";
 export const RESOLVED_SHOP_HOST_STORAGE_KEY = "yaadro_resolved_shop_host";
 export const RESOLVED_SHOP_NAME_STORAGE_KEY = "yaadro_resolved_shop_name";
@@ -18,10 +20,13 @@ export type CachedShopBanners = {
   href: string;
 }[];
 
-/** Env shop id, then resolved domain shop (browser). */
+/**
+ * Resolved domain shop (browser cache), else `NEXT_PUBLIC_DEFAULT_SHOP_ID`
+ * (legacy: `NEXT_PUBLIC_SHOP_ID`).
+ */
 export function resolveClientShopId(): string {
-  const env = process.env.NEXT_PUBLIC_SHOP_ID?.trim() ?? "";
-  if (typeof window === "undefined") return env;
+  const fallback = defaultShopId();
+  if (typeof window === "undefined") return fallback;
   try {
     const host = window.location.hostname;
     const cachedHost = window.localStorage.getItem(RESOLVED_SHOP_HOST_STORAGE_KEY);
@@ -30,7 +35,7 @@ export function resolveClientShopId(): string {
   } catch {
     // ignore
   }
-  return env;
+  return fallback;
 }
 
 export function cacheResolvedShop(input: {

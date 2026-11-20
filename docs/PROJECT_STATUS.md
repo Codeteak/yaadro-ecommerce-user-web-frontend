@@ -49,6 +49,7 @@ Thin modules so pages read like future clients (replace with `fetch` when APIs e
 
 - Catalog prices are the shelf price and the row offer price. Buy-one-get-one and category-offer overlays are still calculated by the customer API at checkout.
 - `DATABASE_URL` must stay server-only. The catalog does not load if that variable is missing.
+- Multi-shop: catalog uses the shop resolved from the request hostname; `NEXT_PUBLIC_DEFAULT_SHOP_ID` is local/fallback only.
 - Wishlist / cart keys are shop-scoped (`yaadro_wishlist_<shopId>`, `yaadro_cart_<shopId>`). Legacy unscoped keys are not migrated.
 - Live cart/checkout coupon −₹ is shop-preview authoritative. Playground still uses SAMPLE_COUPONS.
 - Orders list uses live API when signed in; playground stays on samples.

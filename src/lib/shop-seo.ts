@@ -1,9 +1,10 @@
 /**
  * Shop SEO identity (name + share image).
  *
- * Prefers domain resolve on a real host. Local dev has no shop domain, so
- * it uses `GET /api/seo/metadata` with `NEXT_PUBLIC_SHOP_ID`.
- * `cache()` dedupes metadata + page calls in the same request.
+ * Prefers domain resolve on a real host. Local / unresolved hosts fall back
+ * to `GET /api/seo/metadata` with `NEXT_PUBLIC_DEFAULT_SHOP_ID` (legacy:
+ * `NEXT_PUBLIC_SHOP_ID`). `cache()` dedupes metadata + page calls in the
+ * same request.
  */
 
 import { cache } from "react";

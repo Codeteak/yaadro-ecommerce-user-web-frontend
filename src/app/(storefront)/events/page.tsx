@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { ProductCard } from "@/components/product/ProductCard";
 import { getHomeSection } from "@/lib/api/storefront";
+import { getRequestShopId } from "@/lib/request-shop";
 
 export const metadata: Metadata = {
   title: "Event",
@@ -30,7 +31,8 @@ function dateRange(startsAt: string | null, endsAt: string | null): string | nul
 
 export default async function EventsPage({ searchParams }: EventsPageProps) {
   const { id } = await searchParams;
-  const section = id ? await getHomeSection(id) : null;
+  const shopId = await getRequestShopId();
+  const section = id ? await getHomeSection(shopId, id) : null;
   const range = section ? dateRange(section.startsAt, section.endsAt) : null;
 
   return (

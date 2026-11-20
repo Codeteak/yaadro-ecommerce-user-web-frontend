@@ -5,11 +5,27 @@ export function isShopUuid(value: string): boolean {
   return SHOP_UUID.test(value);
 }
 
-/** Shop id from the server env. Rejects anything that is not a UUID. */
-export function requireShopId(raw = process.env.NEXT_PUBLIC_SHOP_ID): string {
+/**
+ * Local / fallback shop UUID only.
+ * Prefer `NEXT_PUBLIC_DEFAULT_SHOP_ID`; still accept legacy `NEXT_PUBLIC_SHOP_ID`.
+ * Production multi-shop resolves from the request hostname instead.
+ */
+export function defaultShopId(): string {
+  const primary = process.env.NEXT_PUBLIC_DEFAULT_SHOP_ID?.trim() ?? "";
+  if (primary) return primary;
+  return process.env.NEXT_PUBLIC_SHOP_ID?.trim() ?? "";
+}
+
+/** Shop id from env (or an explicit raw value). Rejects non-UUIDs. */
+export function requireShopId(raw = defaultShopId()): string {
   const shopId = raw?.trim() ?? "";
   if (!isShopUuid(shopId)) {
     throw new Error("Shop id is not configured.");
   }
   return shopId;
+}
+
+/** Cache / tag key segment for one shop's catalog. */
+export function catalogCacheTag(shopId: string): string {
+  return `storefront-catalog-${shopId}`;
 }

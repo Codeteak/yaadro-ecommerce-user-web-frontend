@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { refreshStorefrontCatalog } from "@/lib/catalog/refresh-catalog";
 import { SHOP_QUOTE_EVENT } from "@/lib/cart-checkout-rules";
+import { resolveClientShopId } from "@/lib/resolved-shop";
 
 const REFRESH_GAP_MS = 4000;
 const POLL_MS = 8000;
@@ -44,7 +45,7 @@ export function CatalogLivePrices() {
   useEffect(() => {
     if (!realtimeEnabled()) return;
 
-    const shopId = process.env.NEXT_PUBLIC_SHOP_ID?.trim() ?? "";
+    const shopId = resolveClientShopId();
     const token = process.env.NEXT_PUBLIC_STOREFRONT_CATALOG_REALTIME_TOKEN?.trim() ?? "";
     const origin = apiOrigin();
     if (!shopId || !token || !origin) return;
