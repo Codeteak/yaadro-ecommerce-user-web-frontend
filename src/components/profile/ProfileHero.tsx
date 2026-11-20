@@ -123,11 +123,9 @@ export function ProfileHero({
   const signedIn =
     signedInProp ?? (authStatus === "signed-in" ? true : authStatus === "guest" ? false : null);
   const propName = displayName?.trim() || null;
-  const [cached, setCached] = useState<CachedProfileUi | null>(null);
-
-  useEffect(() => {
-    setCached(readCachedProfileUi());
-  }, []);
+  const [cached] = useState<CachedProfileUi | null>(() =>
+    typeof window === "undefined" ? null : readCachedProfileUi(),
+  );
 
   const profile = useQuery({
     queryKey: ["profile"],
@@ -136,13 +134,13 @@ export function ProfileHero({
     staleTime: 60_000,
   });
 
+  // Persist API profile to local cache; display already prefers `apiName`.
   useEffect(() => {
     if (!profile.data) return;
     const name = profileDisplayName(profile.data);
     const id = profile.data.user.id?.trim();
     if (!name || !id) return;
     writeCachedProfileUi({ userId: id, displayName: name });
-    setCached({ userId: id, displayName: name });
   }, [profile.data]);
 
   const apiName = profile.data ? profileDisplayName(profile.data) : null;

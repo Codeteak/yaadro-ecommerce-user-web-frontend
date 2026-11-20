@@ -204,9 +204,10 @@ export function CartPageContent({
       )
     : totalSaved;
 
-  useEffect(() => {
-    if (appliedPromo) setPromoInput(appliedPromo.code);
-  }, [appliedPromo]);
+  const appliedCode = appliedPromo?.code ?? null;
+  if (appliedCode && promoInput !== appliedCode) {
+    setPromoInput(appliedCode);
+  }
 
   useEffect(() => {
     if (!liveShopCoupons || !applied?.code || !quote) return;

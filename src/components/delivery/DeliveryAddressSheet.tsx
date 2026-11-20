@@ -35,15 +35,19 @@ export function DeliveryAddressSheet({
   const [houseError, setHouseError] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [detecting, setDetecting] = useState(false);
+  const [wasOpen, setWasOpen] = useState(false);
   const houseRef = useRef<HTMLInputElement>(null);
   const streetRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
+  // Reset the form when the sheet opens (adjust state during render).
+  if (open && !wasOpen) {
+    setWasOpen(true);
     setForm(readDeliveryAddress() ?? EMPTY_DELIVERY_ADDRESS);
     setHouseError(false);
     setNotice(null);
-  }, [open]);
+  } else if (!open && wasOpen) {
+    setWasOpen(false);
+  }
 
   useEffect(() => {
     if (!open) return;

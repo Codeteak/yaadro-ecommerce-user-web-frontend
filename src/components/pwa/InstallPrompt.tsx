@@ -45,50 +45,33 @@ export function InstallPrompt({ forcePreview = false }: InstallPromptProps) {
   const pathname = usePathname();
   const onEcomHome = forcePreview || pathname === "/home";
   const [event, setEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  const [open, setOpen] = useState(false);
+  const [userDismissed, setUserDismissed] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (forcePreview) return;
     if (wasDismissedThisSession()) return;
-
-    if (forcePreview) {
-      setOpen(true);
-      return;
-    }
 
     const onPrompt = (raw: Event) => {
       raw.preventDefault();
-      const next = raw as BeforeInstallPromptEvent;
-      setEvent(next);
-      // Only open on the storefront home entry — not login/playground/etc.
-      if (window.location.pathname === "/home") {
-        setOpen(true);
-      }
+      setEvent(raw as BeforeInstallPromptEvent);
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
     return () => window.removeEventListener("beforeinstallprompt", onPrompt);
   }, [forcePreview]);
 
-  // Navigate onto `/home` with a deferred install event → show once.
-  useEffect(() => {
-    if (forcePreview || !event || !onEcomHome) return;
-    if (wasDismissedThisSession()) return;
-    setOpen(true);
-  }, [event, forcePreview, onEcomHome]);
+  const open =
+    !userDismissed &&
+    !wasDismissedThisSession() &&
+    (forcePreview || (Boolean(event) && onEcomHome));
 
-  // Leave `/home` → hide (keep event so return can show again if not dismissed).
-  useEffect(() => {
-    if (forcePreview) return;
-    if (!onEcomHome) setOpen(false);
-  }, [forcePreview, onEcomHome]);
-
-  if (!open || (!forcePreview && !event) || (!forcePreview && !onEcomHome)) {
+  if (!open) {
     return null;
   }
 
   const dismiss = () => {
     markDismissedThisSession();
-    setOpen(false);
+    setUserDismissed(true);
   };
 
   const install = async () => {

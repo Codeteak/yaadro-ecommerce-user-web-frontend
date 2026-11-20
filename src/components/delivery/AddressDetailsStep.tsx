@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import { Briefcase, Home, MapPin, Navigation } from "lucide-react";
 import {
   AddressDetectButton,
@@ -45,6 +45,7 @@ export function AddressDetailsStep({
   );
   const [building, setBuilding] = useState(editing?.building ?? "");
   const [street, setStreet] = useState(editing?.street ?? place.street);
+  const [placeStreet, setPlaceStreet] = useState(place.street);
   const [instructions, setInstructions] = useState(
     editing?.instructions ?? "",
   );
@@ -52,9 +53,12 @@ export function AddressDetailsStep({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    setStreet((current) => current || place.street);
-  }, [place.street]);
+  if (place.street !== placeStreet) {
+    setPlaceStreet(place.street);
+    if (place.street) {
+      setStreet((current) => current || place.street);
+    }
+  }
 
   const miniMapUrl = useMemo(() => {
     if (typeof place.lat !== "number" || typeof place.lng !== "number") {

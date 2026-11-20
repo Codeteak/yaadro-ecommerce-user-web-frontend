@@ -105,12 +105,11 @@ export function HomeSearchPlaceholder({
     };
   }, [list, intervalMs, motion]);
 
-  // Typewriter
+  // Typewriter — reset via timeout so we never setState synchronously in the effect.
   useEffect(() => {
     if (motion !== "typewriter") return;
     let cancelled = false;
     let timer = 0;
-    setTyped("");
 
     const typeNext = (i: number) => {
       if (cancelled) return;
@@ -147,7 +146,12 @@ export function HomeSearchPlaceholder({
       typeChar();
     };
 
-    typeNext(0);
+    timer = window.setTimeout(() => {
+      if (cancelled) return;
+      setTyped("");
+      typeNext(0);
+    }, 0);
+
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
