@@ -1,14 +1,12 @@
 # Implementation Log
 
-<<<<<<< HEAD
-## 2026-11-20 — Gap bugs #3: address sheet sync, DB search, Next 16.4.5
-
-Address book refreshes `GET /api/storefront/address` every open and upserts the local row. `/categories?q=` passes search into `listStoreProducts` (DB name/slug match, up to 3 pages). Upgraded `next` + `eslint-config-next` to **16.4.5** (Nov 2026 security patch). COD place-order still needs a signed-in manual click-through.
-=======
 ## 2026-11-20 — Categories sticky rail (single scrollport)
 
 `/categories` uses one overflow scroller: header + search scroll away, `CategoryRail` is `sticky top-0`, scrolling back restores header/search. Page height `calc(100dvh - nav)` + `data-storefront-fill`. Same on horizontal `CategoryListing`. (Nested product-only pane was too short and felt broken.)
->>>>>>> 5d6c5a0 (fix: sticky category rail scroll, PWA install scope, wishlist hydration, ribbon fringe)
+
+## 2026-11-20 — Gap bugs #3: address sheet sync, DB search, Next 16.4.5
+
+Address book refreshes `GET /api/storefront/address` every open and upserts the local row. `/categories?q=` passes search into `listStoreProducts` (DB name/slug match, up to 3 pages). Upgraded `next` + `eslint-config-next` to **16.4.5** (Nov 2026 security patch). COD place-order still needs a signed-in manual click-through.
 
 ## 2026-11-20 — Parity blockers: cookies, search, address, cart shop, session, PWA
 
