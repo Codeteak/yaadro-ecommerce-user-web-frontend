@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { CategoriesPageContent } from "@/components/categories/CategoriesPageContent";
 import { CategoriesHubSkeleton } from "@/components/ui/skeletons";
 import { loadCategoryBrowser } from "@/lib/api/storefront";
+import { getRequestShopId } from "@/lib/request-shop";
 
 export const metadata: Metadata = {
   title: "Categories",
@@ -20,7 +21,9 @@ type CategoriesPageProps = {
 
 async function CategoriesPageBody({ searchParams }: CategoriesPageProps) {
   const query = await searchParams;
+  const shopId = await getRequestShopId();
   const catalog = await loadCategoryBrowser(
+    shopId,
     query.q?.trim() ? "all" : query.cat,
     query.q,
   );

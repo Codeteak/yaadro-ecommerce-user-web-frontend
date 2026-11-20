@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ProductDetail } from "@/components/product/ProductDetail";
 import { ProductDetailSkeleton } from "@/components/ui/skeletons";
 import { getStoreProduct, listStoreProducts } from "@/lib/api/storefront";
+import { getRequestShopId } from "@/lib/request-shop";
 import type { SampleProduct } from "@/lib/sample-products";
 
 type ProductPageProps = {
@@ -11,11 +12,14 @@ type ProductPageProps = {
 };
 
 async function loadProduct(id: string) {
-  const result = await getStoreProduct(id);
+  const shopId = await getRequestShopId();
+  const result = await getStoreProduct(shopId, id);
   if (!result) return null;
   let related: SampleProduct[] = [];
   if (result.product.categoryId) {
-    const groups = await listStoreProducts({ categoryId: result.product.categoryId });
+    const groups = await listStoreProducts(shopId, {
+      categoryId: result.product.categoryId,
+    });
     related = groups
       .flatMap((group) => group.products)
       .filter((product) => product.id !== result.product.id)
@@ -29,7 +33,8 @@ export async function generateMetadata({
 }: ProductPageProps): Promise<Metadata> {
   const { id } = await params;
   try {
-    const result = await getStoreProduct(id);
+    const shopId = await getRequestShopId();
+    const result = await getStoreProduct(shopId, id);
     if (!result) return { title: "Product" };
     return {
       title: result.seoTitle ?? result.product.name,
