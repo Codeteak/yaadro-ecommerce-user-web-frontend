@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
 
 /** Session-only dismiss — cleared when the browser/tab session ends. */
@@ -40,8 +40,19 @@ type InstallPromptProps = {
 /**
  * “Add to Home Screen” — only on ecom `/home`. Dismiss lasts for this
  * browser session; closing the tab/browser lets it show again next visit.
+ *
+ * `usePathname` is behind Suspense so Cache Components can prerender routes
+ * that mount AppProviders without blocking on the URL.
  */
-export function InstallPrompt({ forcePreview = false }: InstallPromptProps) {
+export function InstallPrompt(props: InstallPromptProps) {
+  return (
+    <Suspense fallback={null}>
+      <InstallPromptInner {...props} />
+    </Suspense>
+  );
+}
+
+function InstallPromptInner({ forcePreview = false }: InstallPromptProps) {
   const pathname = usePathname();
   const onEcomHome = forcePreview || pathname === "/home";
   const [event, setEvent] = useState<BeforeInstallPromptEvent | null>(null);

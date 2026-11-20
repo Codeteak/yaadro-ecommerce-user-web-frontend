@@ -26,7 +26,10 @@ export async function loadPlaygroundSources(
     if (rel.includes("..") || !rel.startsWith("src/")) continue;
 
     try {
-      const content = await readFile(path.join(root, rel), "utf8");
+      const content = await readFile(
+        path.join(/*turbopackIgnore: true*/ root, rel),
+        "utf8",
+      );
       out.push({ path: rel, content });
     } catch {
       // Missing / unreadable — omit from panel

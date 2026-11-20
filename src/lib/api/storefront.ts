@@ -177,11 +177,16 @@ export async function listStoreCategories(): Promise<StoreCategory[]> {
   "use cache";
   cacheTag("storefront-catalog");
   cacheLife("minutes");
-  const rows = await readAllCategories();
-  return rows
-    .map(mapCategory)
-    .filter((row): row is StoreCategory => Boolean(row))
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+  try {
+    const rows = await readAllCategories();
+    return rows
+      .map(mapCategory)
+      .filter((row): row is StoreCategory => Boolean(row))
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+  } catch {
+    // Build/CI may lack DATABASE_URL or network — empty shell, refill at runtime.
+    return [];
+  }
 }
 
 type ProductGroup = {
@@ -249,20 +254,24 @@ export async function listStoreProducts(options?: {
   "use cache";
   cacheTag("storefront-catalog");
   cacheLife("minutes");
-  const maxPages = Math.min(Math.max(options?.maxPages ?? 3, 1), 3);
-  const groups: ProductGroup[] = [];
-  let cursor: string | null = null;
-  for (let page = 0; page < maxPages; page += 1) {
-    const batch = await fetchProductGroups({
-      categoryId: options?.categoryId,
-      search: options?.search,
-      cursor,
-    });
-    groups.push(...batch.groups);
-    cursor = batch.nextCursor;
-    if (!cursor) break;
+  try {
+    const maxPages = Math.min(Math.max(options?.maxPages ?? 3, 1), 3);
+    const groups: ProductGroup[] = [];
+    let cursor: string | null = null;
+    for (let page = 0; page < maxPages; page += 1) {
+      const batch = await fetchProductGroups({
+        categoryId: options?.categoryId,
+        search: options?.search,
+        cursor,
+      });
+      groups.push(...batch.groups);
+      cursor = batch.nextCursor;
+      if (!cursor) break;
+    }
+    return groups;
+  } catch {
+    return [];
   }
-  return groups;
 }
 
 export async function getStoreProduct(idOrSlug: string): Promise<{
@@ -273,31 +282,39 @@ export async function getStoreProduct(idOrSlug: string): Promise<{
   "use cache";
   cacheTag("storefront-catalog");
   cacheLife("minutes");
-  const row = await readProduct(requireShopId(), idOrSlug);
-  if (!row) return null;
-  const product = fromDbProduct(row);
-  if (!product) return null;
-  return {
-    product,
-    seoTitle: row.seo_title ?? undefined,
-    seoDescription: row.seo_description ?? undefined,
-  };
+  try {
+    const row = await readProduct(requireShopId(), idOrSlug);
+    if (!row) return null;
+    const product = fromDbProduct(row);
+    if (!product) return null;
+    return {
+      product,
+      seoTitle: row.seo_title ?? undefined,
+      seoDescription: row.seo_description ?? undefined,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function listHomeShelves(): Promise<StoreShelf[]> {
   "use cache";
   cacheTag("storefront-catalog");
   cacheLife("minutes");
-  const rows = await readHomeSections();
-  const shelves: StoreShelf[] = [];
-  for (const row of rows) {
-    const products = row.products
-      .map((product) => fromDbProduct(product))
-      .filter((product): product is SampleProduct => Boolean(product));
-    if (products.length === 0) continue;
-    shelves.push({ id: row.id, title: row.title, products });
+  try {
+    const rows = await readHomeSections();
+    const shelves: StoreShelf[] = [];
+    for (const row of rows) {
+      const products = row.products
+        .map((product) => fromDbProduct(product))
+        .filter((product): product is SampleProduct => Boolean(product));
+      if (products.length === 0) continue;
+      shelves.push({ id: row.id, title: row.title, products });
+    }
+    return shelves;
+  } catch {
+    return [];
   }
-  return shelves;
 }
 
 export async function getHomeSection(id: string): Promise<{
@@ -310,17 +327,21 @@ export async function getHomeSection(id: string): Promise<{
   "use cache";
   cacheTag("storefront-catalog");
   cacheLife("minutes");
-  const row = await readHomeSection(id);
-  if (!row) return null;
-  return {
-    id: row.id,
-    title: row.title,
-    startsAt: row.startsAt,
-    endsAt: row.endsAt,
-    products: row.products
-      .map((product) => fromDbProduct(product))
-      .filter((product): product is SampleProduct => Boolean(product)),
-  };
+  try {
+    const row = await readHomeSection(id);
+    if (!row) return null;
+    return {
+      id: row.id,
+      title: row.title,
+      startsAt: row.startsAt,
+      endsAt: row.endsAt,
+      products: row.products
+        .map((product) => fromDbProduct(product))
+        .filter((product): product is SampleProduct => Boolean(product)),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchShopSeo(shopId = shopHeader()): Promise<ResolvedShop | null> {
