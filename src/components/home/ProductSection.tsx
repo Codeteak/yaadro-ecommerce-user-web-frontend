@@ -2,12 +2,26 @@
 
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import {
+  startTransition,
+  useEffect,
+  useState,
+} from "react";
 import { useHomeCategory } from "@/components/home/HomeCategoryContext";
 import { ProductCard } from "@/components/product/ProductCard";
+import { ProductRailSkeleton } from "@/components/ui/skeletons";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { cn } from "@/lib/cn";
+import {
+  fetchHomeAisleProducts,
+  peekHomeAisleCache,
+} from "@/lib/home-aisle-client";
 import { catalogSlugForHomeCategory } from "@/lib/catalog-taxonomy";
-import { ALL_CATEGORY_SLUG, HOME_CATEGORIES, type HomeCategory } from "@/lib/home-categories";
+import {
+  ALL_CATEGORY_SLUG,
+  HOME_CATEGORIES,
+  type HomeCategory,
+} from "@/lib/home-categories";
 import { PRODUCT_CAROUSEL_SLOT } from "@/lib/product-card-layout";
 import {
   getProductsByCategory,
@@ -44,8 +58,8 @@ const ROW_SCROLL =
 
 /**
  * Home product listing for the category selected in the rail above.
- * All uses the products already loaded. Ten or fewer stay in one row.
- * More than ten split across two rows.
+ * All uses the light home sample. Other aisles use the sample bucket when
+ * present; if empty, lazy-fetch that category (same scope as Show all / PLP).
  */
 export function ProductSection({
   productsBySlug,
@@ -59,15 +73,52 @@ export function ProductSection({
   const { selected } = useHomeCategory();
   const live = productsBySlug != null;
   const showingAll = selected === ALL_CATEGORY_SLUG;
+
+  const sampleBucket =
+    live && !showingAll ? (productsBySlug[selected] ?? []) : null;
+  const sampleLen = sampleBucket?.length ?? 0;
+
+  const [lazyTick, setLazyTick] = useState(0);
+
+  useEffect(() => {
+    if (!live || showingAll) return;
+    if (sampleLen > 0) return;
+    if (peekHomeAisleCache(selected)) {
+      setLazyTick((n) => n + 1);
+      return;
+    }
+
+    let cancelled = false;
+    void fetchHomeAisleProducts(selected).then(() => {
+      if (cancelled) return;
+      startTransition(() => setLazyTick((n) => n + 1));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [live, showingAll, selected, sampleLen]);
+
+  // lazyTick forces re-read of session cache after fetch / prefetch.
+  void lazyTick;
+  const lazyProducts = peekHomeAisleCache(selected) ?? null;
+
   const products = showingAll
     ? live
       ? productsForAll(productsBySlug)
       : SAMPLE_PRODUCTS
     : live
-      ? (productsBySlug[selected] ?? [])
+      ? sampleLen > 0
+        ? sampleBucket!
+        : (lazyProducts ?? [])
       : isHomeCategory(selected)
         ? getProductsByCategory(selected)
         : [];
+
+  /** Empty sample + not yet cached → fetch in flight (or about to). */
+  const loading =
+    live && !showingAll && sampleLen === 0 && lazyProducts === null;
+
   const twoRows = products.length > ONE_ROW_MAX;
   const mid = twoRows ? Math.ceil(products.length / 2) : products.length;
   const rowTop = products.slice(0, mid);
@@ -89,7 +140,9 @@ export function ProductSection({
             {categoryNames?.[selected] ?? selected}
           </h2>
           <p className={t.homeSectionSubtitle}>
-            {live ? "From this shop" : "Sample products — real catalog coming soon"}
+            {live
+              ? "From this shop"
+              : "Sample products — real catalog coming soon"}
           </p>
         </div>
         <Link
@@ -117,18 +170,20 @@ export function ProductSection({
           t.homeSectionToGrid,
         )}
       >
-        {products.length === 0 ? (
+        {loading ? (
+          <ProductRailSkeleton className="px-5" count={4} />
+        ) : products.length === 0 ? (
           <p className="px-5 py-6 text-sm font-medium text-muted">
             Nothing in this aisle yet.
           </p>
         ) : (
-        <ProductScrollRow
-          products={rowTop}
-          label={twoRows ? `${selected} row 1` : selected}
-          priorityCount={2}
-        />
+          <ProductScrollRow
+            products={rowTop}
+            label={twoRows ? `${selected} row 1` : selected}
+            priorityCount={showingAll ? 2 : 0}
+          />
         )}
-        {rowBottom.length > 0 ? (
+        {!loading && rowBottom.length > 0 ? (
           <ProductScrollRow
             products={rowBottom}
             label={`${selected} row 2`}

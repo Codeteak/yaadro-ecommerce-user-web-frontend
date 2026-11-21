@@ -162,7 +162,7 @@ export function ProductCard({
       >
         <div
           className={cn(
-            "overflow-hidden bg-[#f4f6f8]",
+            "relative overflow-hidden bg-[#f4f6f8]",
             compact
               ? "h-[105px] w-full rounded-lg"
               : // Slightly shorter photo on narrow phones so text+add don't make the card feel oversized (MULTI_PHONE_LAYOUT_PLAN).
@@ -172,11 +172,11 @@ export function ProductCard({
           <CatalogImage
             src={photo}
             alt={product.name}
-            width={compact ? 220 : 300}
-            height={compact ? 105 : 300}
+            fill
+            sizes={compact ? "220px" : "(max-width: 512px) 50vw, 300px"}
             priority={priority}
             style={{ objectFit: "contain" }}
-            className="h-full w-full bg-[#f4f6f8] object-contain"
+            className="bg-[#f4f6f8] object-contain"
           />
         </div>
         <div className={compact ? undefined : "px-3 pt-1.5"}>

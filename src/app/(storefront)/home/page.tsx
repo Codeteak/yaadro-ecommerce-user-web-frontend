@@ -13,8 +13,9 @@ import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 import { HomePullContent } from "@/components/home/HomePullContent";
 import { ScrollToTopOnLoad } from "@/components/navigation/ScrollToTopOnLoad";
 import {
+  CategoryRailSkeleton,
+  HomeCatalogSkeleton,
   HomeHeroSkeleton,
-  HomeShelfSkeleton,
 } from "@/components/ui/skeletons";
 import {
   listStoreCategories,
@@ -22,6 +23,7 @@ import {
 } from "@/lib/api/storefront";
 import { browseSectionsFromBranches } from "@/lib/home-category-browse";
 import { ALL_CATEGORY_SLUG } from "@/lib/home-categories";
+import { cn } from "@/lib/cn";
 import { getRequestShopId } from "@/lib/request-shop";
 import { getShopSeo, type ShopSeo } from "@/lib/shop-seo";
 
@@ -54,7 +56,12 @@ function HomeHeroView({
           aria-hidden
         />
 
-        <div className="relative mx-auto w-full max-w-lg px-5 pt-[max(1rem,env(safe-area-inset-top))]">
+        <div
+          className={cn(
+            "relative mx-auto w-full max-w-lg px-5 pt-[max(1rem,env(safe-area-inset-top))]",
+            banners ? undefined : "pb-6",
+          )}
+        >
           <HomeTopBar shopName={shop.name} shopImage={shop.image} />
           <HomeSearchBar
             className="mt-4"
@@ -65,7 +72,9 @@ function HomeHeroView({
           />
         </div>
 
-        <div className="relative mt-4 pb-3">{banners}</div>
+        {banners ? (
+          <div className="relative mt-4 pb-3">{banners}</div>
+        ) : null}
 
         <svg
           className="absolute inset-x-0 bottom-0 h-[36px] w-full text-paper"
@@ -85,15 +94,19 @@ function HomeHeroView({
 
 /**
  * Resolves shop once (shared with rail/catalog via request cache), then paints
- * real name/banners. Suspense fallback is a neutral hero skeleton — never
- * flash platform “Yaadro” / default shop name while domain SEO resolves.
+ * real name/banners. Hero skeleton reserves the banner slot so promo shops
+ * do not expand the hero when SEO resolves (CLS).
  */
 async function HomeHeroResolved() {
   const shop = await getShopSeo();
   return (
     <HomeHeroView
       shop={shop}
-      banners={<OfferBanners banners={shop.banners} />}
+      banners={
+        shop.banners?.length ? (
+          <OfferBanners banners={shop.banners} />
+        ) : undefined
+      }
     />
   );
 }
@@ -167,22 +180,11 @@ export default function StorefrontHomePage() {
           <HomeHeroResolved />
         </Suspense>
 
-        <Suspense
-          fallback={
-            <div className="mx-auto h-16 w-full max-w-lg animate-pulse bg-mint/40" />
-          }
-        >
+        <Suspense fallback={<CategoryRailSkeleton />}>
           <HomeCategoryRail />
         </Suspense>
 
-        <Suspense
-          fallback={
-            <div className="space-y-8 py-6">
-              <HomeShelfSkeleton />
-              <HomeShelfSkeleton />
-            </div>
-          }
-        >
+        <Suspense fallback={<HomeCatalogSkeleton />}>
           <HomeCatalogBody />
         </Suspense>
 

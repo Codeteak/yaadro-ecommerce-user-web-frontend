@@ -1,5 +1,17 @@
 # Implementation Log
 
+## 2026-11-21 — Home aisle empty fix + lazy fetch
+
+Home only samples 24 products for All; rail categories missing from that sample showed “Nothing in this aisle yet” while Show all / PLP had stock. `ProductSection` now lazy-loads via `loadHomeAisleProducts` (capped 24, descendants included) with session cache + rail pointer prefetch. Keeps first paint light.
+
+## 2026-11-21 — Home CLS follow-up (banner reserve + image size)
+
+Hero skeleton now reserves the offer-banner slot (aspect 2.2/1 + dots) so promo shops do not expand when SEO resolves — main remaining CLS driver. `CatalogImage` plain-img path forwards `width`/`height`; `ProductCard` photo uses `fill` in a sized box. Catalog skeleton uses two product rails. Shop avatar plain img sets 44×44. Shops without banners may still see a short hero collapse.
+
+## 2026-11-21 — Home CLS: match Suspense fallback heights
+
+Category rail fallback was `h-16` vs tall pill tiles; catalog fallback was two short shelves vs product rail + Fruits & veggies (`min-h-[34rem]`). Added `CategoryRailSkeleton` + `HomeCatalogSkeleton`. `HomeTopBar` AccountLink uses a fixed `h-11 w-[5.75rem]` slot so Sign in ↔ profile does not shift.
+
 ## 2026-11-21 — Festive card title from admin
 
 `FestiveHeroCard` headline uses the home-section title (`shelf.title`) instead of a hardcoded “Festive offers”. Playground sample title: “Diwali festive specials”.
