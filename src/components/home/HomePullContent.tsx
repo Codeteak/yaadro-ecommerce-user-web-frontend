@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { CategoryBrowseSections } from "@/components/home/CategoryBrowseSections";
+import { FestiveOffersSection } from "@/components/home/FestiveOffersSection";
 import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
 import { HomeProductShelves } from "@/components/home/HomeProductShelves";
 import { ProductSection } from "@/components/home/ProductSection";
@@ -9,13 +10,18 @@ import { PullToRefresh } from "@/components/navigation/PullToRefresh";
 import { BrandFooter } from "@/components/storefront/BrandFooter";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { refreshStorefrontCatalog } from "@/lib/api/refresh-catalog";
+import {
+  isFestiveSectionTitle,
+  pickFestiveShelf,
+} from "@/lib/festive-offers";
 import type { CategoryBrowseSection } from "@/lib/home-category-browse";
 import type { SampleProduct } from "@/lib/sample-products";
 import type { LiveShelf } from "@/components/home/HomeProductShelves";
 
 /**
  * Home body below the category rail: category products → produce → aisle
- * browse (#30) → shelves → brand footer. Offer banners sit above the rail.
+ * browse (#30) → festive (when shelf title matches) → shelves → brand footer.
+ * Offer banners sit above the rail.
  */
 export function HomePullContent({
   productsBySlug,
@@ -36,6 +42,15 @@ export function HomePullContent({
   catalogError?: string | null;
 }) {
   const t = useTypeScale();
+
+  const festiveShelf = useMemo(
+    () => pickFestiveShelf(shelves),
+    [shelves],
+  );
+  const regularShelves = useMemo(() => {
+    if (!shelves) return shelves;
+    return shelves.filter((shelf) => !isFestiveSectionTitle(shelf.title));
+  }, [shelves]);
 
   const onRefresh = useCallback(async () => {
     await refreshStorefrontCatalog();
@@ -65,7 +80,14 @@ export function HomePullContent({
             className={t.homeBlockGap}
           />
         ) : null}
-        <HomeProductShelves className={t.homeBlockGap} shelves={shelves} />
+        {festiveShelf ? (
+          <FestiveOffersSection
+            className={t.homeBlockGap}
+            shelf={festiveShelf}
+            seeAllHref="/festive"
+          />
+        ) : null}
+        <HomeProductShelves className={t.homeBlockGap} shelves={regularShelves} />
         <BrandFooter />
       </div>
     </PullToRefresh>

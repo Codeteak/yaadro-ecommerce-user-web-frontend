@@ -352,6 +352,31 @@ import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
       "public/home/fruits-veggies-section.jpg",
     ],
   ),
+  "festive-offers-section": U(
+    `import { FestiveOffersSection } from "@/components/home/FestiveOffersSection";
+import { FestiveHeroCard } from "@/components/home/FestiveHeroCard";
+import { SAMPLE_FESTIVE_SHELF } from "@/lib/festive-offers";
+
+// Live /home: pickFestiveShelf(shelves) → title on FestiveHeroCard → /festive
+<FestiveOffersSection shelf={SAMPLE_FESTIVE_SHELF} seeAllHref="/festive" />`,
+    [
+      "src/components/home/FestiveOffersSection.tsx",
+      "src/components/home/FestiveHeroCard.tsx",
+      "src/lib/festive-offers.ts",
+      "public/home/festive-section.jpg",
+    ],
+  ),
+  "festive-offers-page": U(
+    `import { FestiveOffersPageContent } from "@/components/home/FestiveOffersPageContent";
+import { SAMPLE_FESTIVE_SHELF } from "@/lib/festive-offers";
+
+// Live /festive loads shelves via listHomeShelves + pickFestiveShelf
+<FestiveOffersPageContent shelf={SAMPLE_FESTIVE_SHELF} backHref="/home" />`,
+    [
+      "src/components/home/FestiveOffersPageContent.tsx",
+      "src/lib/festive-offers.ts",
+    ],
+  ),
   "category-browse-sections": U(
     `import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
 import { CategoryBrowseSections } from "@/components/home/CategoryBrowseSections";

@@ -26,6 +26,8 @@ import { OfferBanners } from "@/components/home/OfferBanners";
 import { OfferFlyer } from "@/components/home/OfferFlyer";
 import { ProductSection } from "@/components/home/ProductSection";
 import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
+import { FestiveOffersPageContent } from "@/components/home/FestiveOffersPageContent";
+import { FestiveOffersSection } from "@/components/home/FestiveOffersSection";
 import { CategoryBrowseSections } from "@/components/home/CategoryBrowseSections";
 import { HomeProductShelves } from "@/components/home/HomeProductShelves";
 import { HomePullContent } from "@/components/home/HomePullContent";
@@ -805,6 +807,31 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
         <FruitsVeggiesSection />
+        <WeightCustomizer />
+      </div>
+    </DemoFrame>
+  ),
+  "festive-offers-section": () => (
+    <DemoFrame
+      surface="bare"
+      note="Full festive image card — headline = admin shelf title (sample: Diwali festive specials). Live: /home → /festive."
+    >
+      <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl bg-paper ring-1 ring-black/5">
+        <FestiveOffersSection
+          priority
+          seeAllHref="/playground/festive-offers-page"
+        />
+        <WeightCustomizer />
+      </div>
+    </DemoFrame>
+  ),
+  "festive-offers-page": () => (
+    <DemoFrame
+      surface="bare"
+      note="See-all: sticky blurred festive BG + product grid. Live: /festive."
+    >
+      <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
+        <FestiveOffersPageContent backHref="/playground/festive-offers-section" />
         <WeightCustomizer />
       </div>
     </DemoFrame>
