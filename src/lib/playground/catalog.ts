@@ -669,8 +669,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Shared pulse bones — same as storefront loading.tsx + product/PLP/hub/order Suspense.",
-    wiresTo: "loading.tsx, /product, /categories, /orders/[id]",
+      "Shared pulse bones — home hero (no Yaadro flash), loading.tsx, product/PLP/hub/order Suspense.",
+    wiresTo: "HomeHeroSkeleton on /home; loading.tsx, /product, /categories, /orders/[id]",
   },
   {
     slug: "toasts",

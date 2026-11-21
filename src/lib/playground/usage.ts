@@ -893,6 +893,7 @@ import { WishlistProvider } from "@/components/wishlist/WishlistContext";
   skeletons: U(
     `import { Skeleton } from "@/components/ui/Skeleton";
 import {
+  HomeHeroSkeleton,
   ProductCardSkeleton,
   ProductGridSkeleton,
   ProductRailSkeleton,
@@ -905,6 +906,7 @@ import {
 } from "@/components/ui/skeletons";
 
 // Storefront:
+// /home hero Suspense → <HomeHeroSkeleton /> (no Yaadro / default name flash)
 // app/(storefront)/loading.tsx → <StorefrontPageSkeleton />
 // product/[id] → <ProductDetailSkeleton />
 // categories/[slug] → <CategoryPlpSkeleton /> (horizontal chrome)

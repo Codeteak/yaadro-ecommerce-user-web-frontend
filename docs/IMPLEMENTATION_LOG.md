@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-21 — Home hero: no Yaadro flash on refresh
+
+`/home` Suspense fallback uses `HomeHeroSkeleton` (neutral bones) instead of `SHOP_SEO_FALLBACK` (“Yaadro”). Playground `/playground/skeletons` shows the same. Real shop name still streams from `getShopSeo()` after domain resolve.
+
 ## 2026-11-21 — CodeDeploy ApplicationStop fail-safe
 
 Deployment `d-K8NIZEFSL` failed at **ApplicationStop** (before install). Added `scripts/cicd/application_stop.sh` (`exit 0` always) and wired it in `appspec.yml`. Note: the *next* deploy still runs ApplicationStop from the *last successful* revision — if that old hook is broken, fix on-instance or push this revision once via a path that skips/overrides stop, then subsequent deploys use the new script.
