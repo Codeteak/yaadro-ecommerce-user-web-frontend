@@ -71,7 +71,10 @@ export function ProfileAccountNav({
       <Suspense fallback={null}>
         <AddressDeepLink onOpen={() => setAddressOpen(true)} />
       </Suspense>
-      <nav aria-label="Profile menu" className="mx-5 mt-6 flex flex-col gap-3">
+      <nav
+        aria-label="Profile menu"
+        className="mx-5 mt-6 flex flex-col gap-3 max-[700px]:mt-3"
+      >
         {signedIn === null ? (
           <ProfileNavSkeleton className="mx-0 mt-0 w-full" />
         ) : signedIn ? (

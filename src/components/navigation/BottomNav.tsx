@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ClipboardList, Heart, Home, User } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { cn } from "@/lib/cn";
 import { useScrollDirection } from "@/components/navigation/useScrollDirection";
 
@@ -27,11 +28,24 @@ export function BottomNav({ position = "fixed" }: BottomNavProps) {
   const inline = position === "inline";
   // Hide on scroll-down for storefront and playground (nested panels included).
   const hide = navHidden;
+  const navRef = useRef<HTMLElement>(null);
+
+  // Prefer `inert` over `aria-hidden` so a focused tab cannot stay focused
+  // while the pill is scrolled away (browser console warning).
+  useEffect(() => {
+    if (!hide) return;
+    const root = navRef.current;
+    const active = document.activeElement;
+    if (root && active instanceof HTMLElement && root.contains(active)) {
+      active.blur();
+    }
+  }, [hide]);
 
   return (
     <nav
+      ref={navRef}
       aria-label="Primary"
-      aria-hidden={hide || undefined}
+      inert={hide || undefined}
       style={
         inline ? undefined : { viewTransitionName: "storefront-bottom-nav" }
       }
@@ -60,6 +74,7 @@ export function BottomNav({ position = "fixed" }: BottomNavProps) {
                 href={href}
                 transitionTypes={["nav-tab"]}
                 aria-current={active ? "page" : undefined}
+                tabIndex={hide ? -1 : undefined}
                 className={cn(
                   "relative inline-flex h-11 items-center justify-center gap-2 rounded-full will-change-[padding,width] transition-[padding,width,background-color,box-shadow,color,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf motion-safe:active:scale-[0.96]",
                   active

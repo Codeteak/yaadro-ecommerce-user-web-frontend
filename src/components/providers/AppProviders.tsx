@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { PwaRegistrar } from "@/components/pwa/PwaRegistrar";
 import { ShopResolveBootstrap } from "@/components/shop/ShopResolveBootstrap";
@@ -52,7 +52,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <ShopResolveBootstrap />
       <PwaRegistrar />
       {children}
-      <InstallPrompt />
+      {/* usePathname in InstallPrompt suspends on dynamic routes — keep under Suspense. */}
+      <Suspense fallback={null}>
+        <InstallPrompt />
+      </Suspense>
       <ToastViewport />
     </QueryClientProvider>
   );

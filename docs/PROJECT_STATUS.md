@@ -45,6 +45,10 @@ Thin modules so pages read like future clients (replace with `fetch` when APIs e
 - `src/lib/api/coupons.ts` — `listCoupons()`
 - `src/lib/api/wishlist.ts` — storage key + id helpers; mutations stay in `WishlistContext`
 
+## In progress / plans
+
+- Multi-phone layout (SE vs Pro Max card density + profile scroll): see `MULTI_PHONE_LAYOUT_PLAN.md` (repo root, next to `test.md`).
+
 ## Known limitations
 
 - Catalog prices are the shelf price and the row offer price. Buy-one-get-one and category-offer overlays are still calculated by the customer API at checkout.
