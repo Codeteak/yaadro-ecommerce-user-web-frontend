@@ -83,10 +83,8 @@ export function ProductSection({
   useEffect(() => {
     if (!live || showingAll) return;
     if (sampleLen > 0) return;
-    if (peekHomeAisleCache(selected)) {
-      setLazyTick((n) => n + 1);
-      return;
-    }
+    // Cache hit is read during render (selected change / prefetch); no sync setState.
+    if (peekHomeAisleCache(selected) !== undefined) return;
 
     let cancelled = false;
     void fetchHomeAisleProducts(selected).then(() => {
@@ -99,9 +97,12 @@ export function ProductSection({
     };
   }, [live, showingAll, selected, sampleLen]);
 
-  // lazyTick forces re-read of session cache after fetch / prefetch.
+  // lazyTick re-reads session cache after async fetch completes.
   void lazyTick;
-  const lazyProducts = peekHomeAisleCache(selected) ?? null;
+  const lazyProducts =
+    peekHomeAisleCache(selected) !== undefined
+      ? peekHomeAisleCache(selected)!
+      : null;
 
   const products = showingAll
     ? live
