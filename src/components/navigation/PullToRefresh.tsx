@@ -13,10 +13,8 @@ import {
 
 const THRESHOLD = 64;
 const MAX_PULL = 96;
-/** Finger must move this far down before we claim the gesture (Mac DevTools touch is noisy). */
-const PULL_COMMIT_PX = 14;
-/** Once committed, only then block native scroll. */
-const PREVENT_DEFAULT_PX = 20;
+/** Finger must move this far down before we show the pull spinner. */
+const PULL_COMMIT_PX = 16;
 
 export type PullToRefreshHandle = {
   /** Runs the same path as releasing past the pull threshold (playground / tests). */
@@ -81,8 +79,11 @@ function readScrollTop(port: HTMLElement | null): number {
 /**
  * Pull-to-refresh for storefront content regions. Chrome above this
  * wrapper (hero, category rail, PageHeader, etc.) stays fixed; the
- * spinner gap opens above children. Touch is listened on window so a
- * pull starting on the hero still works while the indicator stays here.
+ * spinner gap opens above children.
+ *
+ * Touch is passive-only — we never `preventDefault`. Cart previously
+ * dropped PTR entirely because non-passive touchmove locked scroll on
+ * SE / DevTools. Spinner + refresh still work; native scroll always wins.
  */
 export const PullToRefresh = forwardRef<PullToRefreshHandle, PullToRefreshProps>(
   function PullToRefresh(
@@ -206,18 +207,12 @@ export const PullToRefresh = forwardRef<PullToRefreshHandle, PullToRefreshProps>
           return;
         }
 
-        const resisted = Math.min(MAX_PULL, dy * 0.45);
-        setPullBoth(resisted);
-
-        // Only block native scroll after a clear pull — avoids SE/DevTools
-        // trackpad-as-touch getting stuck with preventDefault too early.
-        if (
-          !reduceMotionRef.current &&
-          e.cancelable &&
-          resisted >= PREVENT_DEFAULT_PX * 0.45
-        ) {
-          e.preventDefault();
+        // Visual only — never preventDefault (scroll stuck on SE / DevTools).
+        if (reduceMotionRef.current) {
+          setPullBoth(0);
+          return;
         }
+        setPullBoth(Math.min(MAX_PULL, dy * 0.45));
       };
 
       const onTouchEnd = () => {
@@ -237,15 +232,27 @@ export const PullToRefresh = forwardRef<PullToRefreshHandle, PullToRefreshProps>
         }
       };
 
+      /** Lost touchend (tab blur / DevTools) must not leave pull UI hung. */
+      const onOrphanClear = () => {
+        if (refreshingRef.current) return;
+        resetGesture();
+        setPullBoth(0);
+      };
+
+      // All passive — never block native scroll (cart lesson).
       window.addEventListener("touchstart", onTouchStart, { passive: true });
-      window.addEventListener("touchmove", onTouchMove, { passive: false });
-      window.addEventListener("touchend", onTouchEnd);
-      window.addEventListener("touchcancel", onTouchEnd);
+      window.addEventListener("touchmove", onTouchMove, { passive: true });
+      window.addEventListener("touchend", onTouchEnd, { passive: true });
+      window.addEventListener("touchcancel", onTouchEnd, { passive: true });
+      window.addEventListener("visibilitychange", onOrphanClear);
+      window.addEventListener("blur", onOrphanClear);
       return () => {
         window.removeEventListener("touchstart", onTouchStart);
         window.removeEventListener("touchmove", onTouchMove);
         window.removeEventListener("touchend", onTouchEnd);
         window.removeEventListener("touchcancel", onTouchEnd);
+        window.removeEventListener("visibilitychange", onOrphanClear);
+        window.removeEventListener("blur", onOrphanClear);
       };
     }, [finishRefresh, resetGesture, setPullBoth]);
 

@@ -70,6 +70,7 @@ Legend: ★ = done in code · ☐ = still open · ◐ = partial
 - ★ Soften resting clip: bottom fade + extra footer padding (no mid-card hard cut).
 - ★ Playground demo: `/playground/multi-phone-layout` (SE-height profile frame).
 - ★ Scroll-stuck polish (all routes): PTR commits later / less preventDefault; shell `overscroll-y-none` only on fill pages.
+- ★ PTR passive-only (no `preventDefault`) — scroll always wins; playground note updated.
 - ☐ Verify on a real SE / small Android device (manual).
 - ☐ Re-verify Pro Max after real-device pass.
 

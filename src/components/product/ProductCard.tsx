@@ -81,9 +81,12 @@ export type ProductCardSize = "default" | "compact";
 export function ProductCard({
   product,
   size = "default",
+  /** First above-fold home cards — LCP / eager load. */
+  priority = false,
 }: {
   product: SampleProduct;
   size?: ProductCardSize;
+  priority?: boolean;
 }) {
   const compact = size === "compact";
   const t = useTypeScale();
@@ -171,6 +174,7 @@ export function ProductCard({
             alt={product.name}
             width={compact ? 220 : 300}
             height={compact ? 105 : 300}
+            priority={priority}
             style={{ objectFit: "contain" }}
             className="h-full w-full bg-[#f4f6f8] object-contain"
           />

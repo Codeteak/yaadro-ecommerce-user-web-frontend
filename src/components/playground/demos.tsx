@@ -315,7 +315,8 @@ function PullDemo() {
         <div className="space-y-3 px-5 py-6">
           <p className="text-sm text-muted">
             Use <span className="font-semibold text-ink">Demo refresh</span> on
-            desktop, or pull down on a touch device at scroll top.
+            desktop, or pull down on a touch device at scroll top. Scroll always
+            wins — PTR never calls preventDefault.
           </p>
           {Array.from({ length: 6 }, (_, i) => (
             <div
@@ -512,7 +513,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "pull-to-refresh": () => (
-    <DemoFrame note="Demo refresh works on desktop; touch pull still works on device.">
+    <DemoFrame note="Passive touch only — never blocks scroll (cart lesson). Demo refresh on desktop; pull at top on device.">
       <PullDemo />
     </DemoFrame>
   ),

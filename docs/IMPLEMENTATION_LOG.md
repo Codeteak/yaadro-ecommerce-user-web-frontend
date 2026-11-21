@@ -1,5 +1,17 @@
 # Implementation Log
 
+## 2026-11-21 — Home LCP: priority on first product / banner images
+
+`ProductCard` accepts `priority`; home `ProductSection` marks the first two rail cards. First offer banner also `priority`. `CatalogImage` plain-img path uses `loading="eager"` when prioritized. Silences Next LCP console hint for above-fold catalog media.
+
+## 2026-11-21 — Profile hero hydration (sessionStorage cache)
+
+`ProfileHero` reads cached name/avatar via `useSyncExternalStore` with server snapshot `null` (no `useState(() => window ? read : null)`). Fixes hydration mismatch: server skeleton vs client cached `<Image>`. `getSnapshot` returns a cached object reference so React does not infinite-loop.
+
+## 2026-11-21 — PTR: never block scroll
+
+`PullToRefresh` uses passive touch listeners only — no `preventDefault` (same root cause cart already avoided). Clears orphaned pull on blur/visibilitychange. Playground `/playground/pull-to-refresh` note updated.
+
 ## 2026-11-21 — Home hero: no Yaadro flash on refresh
 
 `/home` Suspense fallback uses `HomeHeroSkeleton` (neutral bones) instead of `SHOP_SEO_FALLBACK` (“Yaadro”). Playground `/playground/skeletons` shows the same. Real shop name still streams from `getShopSeo()` after domain resolve.

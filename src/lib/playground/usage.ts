@@ -54,6 +54,7 @@ import { useScrollDirection } from "@/components/navigation/useScrollDirection";
   "pull-to-refresh": U(
     `import { PullToRefresh } from "@/components/navigation/PullToRefresh";
 
+// Passive touch listeners — never preventDefault (avoids SE scroll-stuck).
 <PullToRefresh onRefresh={async () => { /* refetch */ }}>
   {children}
 </PullToRefresh>`,

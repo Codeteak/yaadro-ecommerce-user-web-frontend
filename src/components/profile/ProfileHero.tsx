@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
@@ -14,7 +14,9 @@ import {
 } from "@/lib/default-profile-avatar";
 import { ProfileHeroSkeleton } from "@/components/ui/skeletons";
 import {
+  getCachedProfileUiServerSnapshot,
   readCachedProfileUi,
+  subscribeCachedProfileUi,
   writeCachedProfileUi,
   type CachedProfileUi,
 } from "@/lib/profile-cache";
@@ -123,8 +125,11 @@ export function ProfileHero({
   const signedIn =
     signedInProp ?? (authStatus === "signed-in" ? true : authStatus === "guest" ? false : null);
   const propName = displayName?.trim() || null;
-  const [cached] = useState<CachedProfileUi | null>(() =>
-    typeof window === "undefined" ? null : readCachedProfileUi(),
+  // Server snapshot is always null — avoids hydration mismatch with sessionStorage.
+  const cached = useSyncExternalStore(
+    subscribeCachedProfileUi,
+    readCachedProfileUi,
+    getCachedProfileUiServerSnapshot,
   );
 
   const profile = useQuery({

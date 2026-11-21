@@ -25,7 +25,16 @@ type CatalogImageProps = Omit<ImageProps, "src" | "alt"> & {
  * next/image for shop media we allowlisted, plain img for other catalog CDNs
  * so a new image host does not crash the product card.
  */
-export function CatalogImage({ src, alt, className, fill, style, ...rest }: CatalogImageProps) {
+export function CatalogImage({
+  src,
+  alt,
+  className,
+  fill,
+  style,
+  priority,
+  loading,
+  ...rest
+}: CatalogImageProps) {
   if (!useOptimizedImage(src)) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -33,6 +42,8 @@ export function CatalogImage({ src, alt, className, fill, style, ...rest }: Cata
         src={src}
         alt={alt}
         style={style}
+        loading={priority ? "eager" : loading === "lazy" ? "lazy" : undefined}
+        fetchPriority={priority ? "high" : undefined}
         className={
           fill
             ? `absolute inset-0 h-full w-full ${className ?? ""}`
@@ -42,5 +53,16 @@ export function CatalogImage({ src, alt, className, fill, style, ...rest }: Cata
     );
   }
 
-  return <Image src={src} alt={alt} className={className} fill={fill} style={style} {...rest} />;
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      className={className}
+      fill={fill}
+      style={style}
+      priority={priority}
+      loading={loading}
+      {...rest}
+    />
+  );
 }
