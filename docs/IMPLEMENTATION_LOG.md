@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-21 — CodeDeploy ApplicationStop fail-safe
+
+Deployment `d-K8NIZEFSL` failed at **ApplicationStop** (before install). Added `scripts/cicd/application_stop.sh` (`exit 0` always) and wired it in `appspec.yml`. Note: the *next* deploy still runs ApplicationStop from the *last successful* revision — if that old hook is broken, fix on-instance or push this revision once via a path that skips/overrides stop, then subsequent deploys use the new script.
+
 ## 2026-11-21 — Home latency: paint-first, one shop resolve, fail-fast DB, warm
 
 Cold `/home` was ~12s TTFB / ~40s total. Fixes: (1) Suspense fallback paints hero+search immediately while `getShopSeo` resolves; (2) `getResolvedRequestShop` shared by SEO + `getRequestShopId` so domain resolve runs once per request; (3) home catalog `pageSize: 24`; (4) DB `connectionTimeoutMillis` 8s→2.5s; (5) `/api/health` + `/api/warm` and Docker healthcheck every 60s to keep catalog cache hot. Lint clean; tests 39/39.
