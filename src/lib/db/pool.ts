@@ -34,7 +34,8 @@ function getPool(): Pool {
       connectionString,
       max: 5,
       idleTimeoutMillis: 10_000,
-      connectionTimeoutMillis: 8_000,
+      // Fail fast on unreachable/SSL-stuck DB (was 8s — dominated cold /home).
+      connectionTimeoutMillis: 2_500,
       ssl: needsSsl(connectionString) ? { rejectUnauthorized } : undefined,
     });
   }

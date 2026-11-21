@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-21 — Home latency: paint-first, one shop resolve, fail-fast DB, warm
+
+Cold `/home` was ~12s TTFB / ~40s total. Fixes: (1) Suspense fallback paints hero+search immediately while `getShopSeo` resolves; (2) `getResolvedRequestShop` shared by SEO + `getRequestShopId` so domain resolve runs once per request; (3) home catalog `pageSize: 24`; (4) DB `connectionTimeoutMillis` 8s→2.5s; (5) `/api/health` + `/api/warm` and Docker healthcheck every 60s to keep catalog cache hot. Lint clean; tests 39/39.
+
 ## 2026-11-20 — `npm run build` typecheck + prerender fixes
 
 Fixed CI build failures: login `ViewTransition` exit needs `default`; `localCheckoutWarning(items)` not checkout lines; drop `.ts` import suffixes in app libs; `InstallPrompt` `usePathname` behind Suspense; catalog `use cache` helpers catch DB/network errors so prerender works without `DATABASE_URL` (CI/Docker). Verified `npm run build` with `DATABASE_URL` unset.

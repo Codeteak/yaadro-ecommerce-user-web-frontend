@@ -232,6 +232,7 @@ async function fetchProductGroups(
     categoryId?: string;
     search?: string;
     cursor?: string | null;
+    pageSize?: number;
   },
 ): Promise<{
   groups: ProductGroup[];
@@ -241,14 +242,14 @@ async function fetchProductGroups(
     categoryId: options.categoryId,
     search: options.search,
     cursor: options.cursor,
-    limit: 50,
+    limit: options.pageSize ?? 50,
   });
   return { groups: groupDbProducts(page.products), nextCursor: page.nextCursor };
 }
 
 /**
- * Product pages (50 each), optionally scoped to a category.
- * Home uses `maxPages: 1` so shelves paint sooner; PLP/search keep 3.
+ * Product pages (default 50 each), optionally scoped to a category.
+ * Home uses `maxPages: 1` + smaller `pageSize` so shelves paint sooner.
  */
 export async function listStoreProducts(
   shopId: string,
@@ -256,6 +257,8 @@ export async function listStoreProducts(
     categoryId?: string;
     search?: string;
     maxPages?: number;
+    /** Rows per page (default 50; home uses 24). */
+    pageSize?: number;
   },
 ): Promise<ProductGroup[]> {
   "use cache";
@@ -264,6 +267,7 @@ export async function listStoreProducts(
   cacheLife("minutes");
   try {
     const maxPages = Math.min(Math.max(options?.maxPages ?? 3, 1), 3);
+    const pageSize = Math.min(Math.max(options?.pageSize ?? 50, 1), 100);
     const groups: ProductGroup[] = [];
     let cursor: string | null = null;
     for (let page = 0; page < maxPages; page += 1) {
@@ -271,6 +275,7 @@ export async function listStoreProducts(
         categoryId: options?.categoryId,
         search: options?.search,
         cursor,
+        pageSize,
       });
       groups.push(...batch.groups);
       cursor = batch.nextCursor;
@@ -459,10 +464,10 @@ function rootOf(
 export async function loadHomeCatalog(shopId: string): Promise<HomeCatalog> {
   try {
     const id = requireShopId(shopId);
-    // One product page on home — full aisle browse is /categories/[slug].
+    // Light first paint: one small product page + shelves. Full aisle is PLP.
     const [categories, groups, shelves] = await Promise.all([
       listStoreCategories(id),
-      listStoreProducts(id, { maxPages: 1 }),
+      listStoreProducts(id, { maxPages: 1, pageSize: 24 }),
       listHomeShelves(id),
     ]);
     const byId = new Map(categories.map((category) => [category.id, category]));
