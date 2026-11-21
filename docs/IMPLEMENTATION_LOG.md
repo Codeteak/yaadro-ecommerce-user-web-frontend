@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-21 — Home aisle lazy fetch: subscribe to cache
+
+Production Bakery stayed on skeleton: aisle fetch could complete without a re-render (effect cancel / cache hit skipped `setLazyTick`). `home-aisle-client` now notifies via `useSyncExternalStore`; empty-array cache uses `Map.has`; fetch errors clear inflight and cache `[]`.
+
 ## 2026-11-21 — Home aisle empty fix + lazy fetch
 
 Home only samples 24 products for All; rail categories missing from that sample showed “Nothing in this aisle yet” while Show all / PLP had stock. `ProductSection` now lazy-loads via `loadHomeAisleProducts` (capped 24, descendants included) with session cache + rail pointer prefetch. Keeps first paint light.

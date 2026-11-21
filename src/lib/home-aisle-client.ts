@@ -7,6 +7,29 @@ import type { SampleProduct } from "@/lib/sample-products";
 const aisleCache = new Map<string, SampleProduct[]>();
 const inflight = new Map<string, Promise<SampleProduct[]>>();
 
+let cacheVersion = 0;
+const listeners = new Set<() => void>();
+
+function emitCacheChange() {
+  cacheVersion += 1;
+  listeners.forEach((listener) => listener());
+}
+
+export function subscribeHomeAisleCache(onStoreChange: () => void): () => void {
+  listeners.add(onStoreChange);
+  return () => {
+    listeners.delete(onStoreChange);
+  };
+}
+
+export function getHomeAisleCacheVersion(): number {
+  return cacheVersion;
+}
+
+export function getHomeAisleCacheServerVersion(): number {
+  return 0;
+}
+
 export function peekHomeAisleCache(slug: string): SampleProduct[] | undefined {
   return aisleCache.get(slug);
 }
@@ -18,17 +41,29 @@ export function fetchHomeAisleProducts(
   const trimmed = slug.trim();
   if (!trimmed || trimmed === "all") return Promise.resolve([]);
 
-  const cached = aisleCache.get(trimmed);
-  if (cached) return Promise.resolve(cached);
+  if (aisleCache.has(trimmed)) {
+    return Promise.resolve(aisleCache.get(trimmed)!);
+  }
 
   const pending = inflight.get(trimmed);
   if (pending) return pending;
 
-  const request = loadHomeAisleProducts(trimmed).then((products) => {
-    aisleCache.set(trimmed, products);
-    inflight.delete(trimmed);
-    return products;
-  });
+  const request = loadHomeAisleProducts(trimmed)
+    .then((products) => {
+      aisleCache.set(trimmed, products);
+      inflight.delete(trimmed);
+      emitCacheChange();
+      return products;
+    })
+    .catch(() => {
+      // Don't poison inflight — allow retry; treat as empty aisle.
+      const empty: SampleProduct[] = [];
+      aisleCache.set(trimmed, empty);
+      inflight.delete(trimmed);
+      emitCacheChange();
+      return empty;
+    });
+
   inflight.set(trimmed, request);
   return request;
 }

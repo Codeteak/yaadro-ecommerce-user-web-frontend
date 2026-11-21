@@ -2,11 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import {
-  startTransition,
-  useEffect,
-  useState,
-} from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useHomeCategory } from "@/components/home/HomeCategoryContext";
 import { ProductCard } from "@/components/product/ProductCard";
 import { ProductRailSkeleton } from "@/components/ui/skeletons";
@@ -14,7 +10,10 @@ import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { cn } from "@/lib/cn";
 import {
   fetchHomeAisleProducts,
+  getHomeAisleCacheServerVersion,
+  getHomeAisleCacheVersion,
   peekHomeAisleCache,
+  subscribeHomeAisleCache,
 } from "@/lib/home-aisle-client";
 import { catalogSlugForHomeCategory } from "@/lib/catalog-taxonomy";
 import {
@@ -74,35 +73,26 @@ export function ProductSection({
   const live = productsBySlug != null;
   const showingAll = selected === ALL_CATEGORY_SLUG;
 
+  // Re-render when aisle cache fills (prefetch or lazy fetch) — no sync setState.
+  useSyncExternalStore(
+    subscribeHomeAisleCache,
+    getHomeAisleCacheVersion,
+    getHomeAisleCacheServerVersion,
+  );
+
   const sampleBucket =
     live && !showingAll ? (productsBySlug[selected] ?? []) : null;
   const sampleLen = sampleBucket?.length ?? 0;
 
-  const [lazyTick, setLazyTick] = useState(0);
-
   useEffect(() => {
     if (!live || showingAll) return;
     if (sampleLen > 0) return;
-    // Cache hit is read during render (selected change / prefetch); no sync setState.
     if (peekHomeAisleCache(selected) !== undefined) return;
 
-    let cancelled = false;
-    void fetchHomeAisleProducts(selected).then(() => {
-      if (cancelled) return;
-      startTransition(() => setLazyTick((n) => n + 1));
-    });
-
-    return () => {
-      cancelled = true;
-    };
+    void fetchHomeAisleProducts(selected);
   }, [live, showingAll, selected, sampleLen]);
 
-  // lazyTick re-reads session cache after async fetch completes.
-  void lazyTick;
-  const lazyProducts =
-    peekHomeAisleCache(selected) !== undefined
-      ? peekHomeAisleCache(selected)!
-      : null;
+  const lazyProducts = peekHomeAisleCache(selected);
 
   const products = showingAll
     ? live
@@ -118,7 +108,7 @@ export function ProductSection({
 
   /** Empty sample + not yet cached → fetch in flight (or about to). */
   const loading =
-    live && !showingAll && sampleLen === 0 && lazyProducts === null;
+    live && !showingAll && sampleLen === 0 && lazyProducts === undefined;
 
   const twoRows = products.length > ONE_ROW_MAX;
   const mid = twoRows ? Math.ceil(products.length / 2) : products.length;
