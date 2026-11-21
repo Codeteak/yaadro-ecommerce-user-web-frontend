@@ -5,9 +5,9 @@ import Link from "next/link";
 import { CatalogImage } from "@/components/ui/CatalogImage";
 
 /**
- * Offer banner slideshow (UI-only placeholder creative — real shop
- * banners replace these when a banners source exists; the "Sample"
- * chip marks them as placeholders, not live offers).
+ * Offer banner slideshow.
+ * Live shop creatives: full-bleed image only (copy is in the art).
+ * Playground samples: gradient + title / subtitle / Shop now + Sample chip.
  *
  * Transform-based slider: autoplay every 4s, dots anytime, and
  * finger-follow drag both ways (pointer capture + axis lock so page
@@ -224,7 +224,7 @@ export function OfferBanners({
           if (!draggingRef.current) pausedRef.current = false;
         }}
         onClickCapture={(e) => {
-          // A swipe that ends on the Shop now link shouldn't trigger it.
+          // A swipe that ends on a slide link shouldn't navigate.
           if (suppressClickRef.current) {
             e.preventDefault();
             e.stopPropagation();
@@ -240,53 +240,87 @@ export function OfferBanners({
           }}
           onTransitionEnd={handleTransitionEnd}
         >
-          {[...slides, slides[0]].map((banner, index) => (
-            <article
-              key={`${banner.id}-${index}`}
-              aria-hidden={index === count || undefined}
-              className={`relative aspect-[2.2/1] w-full shrink-0 overflow-hidden bg-gradient-to-r select-none ${banner.gradient ?? "from-[#2f6b2f] via-[#3d8f3d] to-[#5cb85c]"}`}
-            >
-              {live ? (
-                <CatalogImage
-                  src={banner.image}
-                  alt=""
-                  fill
-                  sizes="(max-width: 512px) 100vw, 512px"
-                  priority={index === 0}
-                  className="pointer-events-none object-cover"
-                  draggable={false}
-                />
-              ) : (
-                <CatalogImage
-                  src={banner.image}
-                  alt=""
-                  width={240}
-                  height={240}
-                  priority={index === 0}
-                  className="pointer-events-none absolute top-1/2 right-4 h-[78%] w-auto -translate-y-1/2 rounded-full object-cover ring-4 ring-white/25"
-                  draggable={false}
-                />
-              )}
-              <div className="relative flex h-full max-w-[62%] flex-col justify-center pr-2 pl-5">
-                <h2 className="text-lg leading-snug font-extrabold text-white">
-                  {banner.title}
-                </h2>
-                <p className="mt-1 text-xs leading-4 text-white/80">{banner.subtitle}</p>
-                <Link
-                  href={banner.href ?? "/categories"}
-                  tabIndex={index === count ? -1 : undefined}
-                  className="mt-3 inline-flex h-8 w-fit items-center rounded-full bg-white px-3.5 text-xs font-bold text-forest transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          {[...slides, slides[0]].map((banner, index) => {
+            const slideClass = `relative aspect-[2.2/1] w-full shrink-0 overflow-hidden bg-gradient-to-r select-none ${banner.gradient ?? "from-[#2f6b2f] via-[#3d8f3d] to-[#5cb85c]"}`;
+            const media = live ? (
+              <CatalogImage
+                src={banner.image}
+                alt=""
+                fill
+                sizes="(max-width: 512px) 100vw, 512px"
+                priority={index === 0}
+                className="pointer-events-none object-cover"
+                draggable={false}
+              />
+            ) : (
+              <CatalogImage
+                src={banner.image}
+                alt=""
+                width={240}
+                height={240}
+                priority={index === 0}
+                className="pointer-events-none absolute top-1/2 right-4 h-[78%] w-auto -translate-y-1/2 rounded-full object-cover ring-4 ring-white/25"
+                draggable={false}
+              />
+            );
+
+            // Live: creative is the banner — no title / Shop now overlay.
+            if (live) {
+              const href = banner.href?.trim();
+              if (href) {
+                return (
+                  <Link
+                    key={`${banner.id}-${index}`}
+                    href={href}
+                    aria-hidden={index === count || undefined}
+                    tabIndex={index === count ? -1 : undefined}
+                    aria-label={banner.title || "Shop offer"}
+                    className={slideClass}
+                  >
+                    {media}
+                  </Link>
+                );
+              }
+              return (
+                <article
+                  key={`${banner.id}-${index}`}
+                  aria-hidden={index === count || undefined}
+                  aria-label={banner.title || "Shop offer"}
+                  className={slideClass}
                 >
-                  Shop now
-                </Link>
-              </div>
-              {!live ? (
+                  {media}
+                </article>
+              );
+            }
+
+            return (
+              <article
+                key={`${banner.id}-${index}`}
+                aria-hidden={index === count || undefined}
+                className={slideClass}
+              >
+                {media}
+                <div className="relative flex h-full max-w-[62%] flex-col justify-center pr-2 pl-5">
+                  <h2 className="text-lg leading-snug font-extrabold text-white">
+                    {banner.title}
+                  </h2>
+                  <p className="mt-1 text-xs leading-4 text-white/80">
+                    {banner.subtitle}
+                  </p>
+                  <Link
+                    href={banner.href ?? "/categories"}
+                    tabIndex={index === count ? -1 : undefined}
+                    className="mt-3 inline-flex h-8 w-fit items-center rounded-full bg-white px-3.5 text-xs font-bold text-forest transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                  >
+                    Shop now
+                  </Link>
+                </div>
                 <span className="absolute top-3 right-3 rounded-full bg-black/30 px-2 py-0.5 text-[9px] font-bold tracking-[0.14em] text-white/85 uppercase">
                   Sample
                 </span>
-              ) : null}
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       </div>
 

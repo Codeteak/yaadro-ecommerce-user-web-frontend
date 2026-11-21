@@ -321,7 +321,11 @@ import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
   "offer-banners": U(
     `import { OfferBanners } from "@/components/home/OfferBanners";
 
-<OfferBanners />`,
+// Live /home — image only (copy is in the creative)
+<OfferBanners banners={shop.banners} />
+
+// Playground samples — title / subtitle / Shop now overlay
+<OfferBanners allowSample />`,
     ["src/components/home/OfferBanners.tsx"],
   ),
   "offer-flyer": U(
@@ -350,6 +354,43 @@ import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
     [
       "src/components/home/FruitsVeggiesSection.tsx",
       "public/home/fruits-veggies-section.jpg",
+    ],
+  ),
+  "daily-dairy-layouts": U(
+    `import { DailyDairySection } from "@/components/home/DailyDairySection";
+import { SAMPLE_DAIRY_SHELF } from "@/lib/daily-dairy";
+
+// Playground keeps A + C; live /home uses layout A only
+<DailyDairySection layout="on-art" shelf={SAMPLE_DAIRY_SHELF} />
+<DailyDairySection layout="split" shelf={SAMPLE_DAIRY_SHELF} />`,
+    [
+      "src/components/home/DailyDairySection.tsx",
+      "src/lib/daily-dairy.ts",
+      "public/home/daily-dairy-section-v2.jpg",
+    ],
+  ),
+  "daily-dairy-section": U(
+    `import { DailyDairySection } from "@/components/home/DailyDairySection";
+import { pickDairyShelf } from "@/lib/daily-dairy";
+
+// Live /home: pickDairyShelf(shelves) → layout A → /dairy
+<DailyDairySection layout="on-art" shelf={dairyShelf} browseHref="/dairy" />`,
+    [
+      "src/components/home/DailyDairySection.tsx",
+      "src/lib/daily-dairy.ts",
+      "public/home/daily-dairy-section-v2.jpg",
+    ],
+  ),
+  "daily-dairy-page": U(
+    `import { DailyDairyPageContent } from "@/components/home/DailyDairyPageContent";
+import { pickDairyShelf } from "@/lib/daily-dairy";
+
+// Live /dairy: listHomeShelves + pickDairyShelf
+<DailyDairyPageContent shelf={shelf} backHref="/home" />`,
+    [
+      "src/components/home/DailyDairyPageContent.tsx",
+      "src/app/(storefront)/dairy/page.tsx",
+      "public/home/daily-dairy-section-v2.jpg",
     ],
   ),
   "festive-offers-section": U(
