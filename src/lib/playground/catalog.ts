@@ -56,8 +56,9 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     title: "PullToRefresh",
     status: "built",
     group: "Navigation",
-    description: "UI-only pull spinner under page chrome. API later.",
-    wiresTo: "Home under categories; other storefront bodies",
+    description:
+      "Pull spinner under page chrome. Passive touch only (does not block scroll).",
+    wiresTo: "Home, profile, wishlist, coupons (not cart — plain scroller)",
   },
   {
     slug: "scroll-to-top",

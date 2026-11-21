@@ -252,6 +252,7 @@ export function OfferBanners({
                   alt=""
                   fill
                   sizes="(max-width: 512px) 100vw, 512px"
+                  priority={index === 0}
                   className="pointer-events-none object-cover"
                   draggable={false}
                 />
@@ -261,6 +262,7 @@ export function OfferBanners({
                   alt=""
                   width={240}
                   height={240}
+                  priority={index === 0}
                   className="pointer-events-none absolute top-1/2 right-4 h-[78%] w-auto -translate-y-1/2 rounded-full object-cover ring-4 ring-white/25"
                   draggable={false}
                 />

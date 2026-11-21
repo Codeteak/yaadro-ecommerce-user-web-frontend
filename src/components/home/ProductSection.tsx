@@ -125,6 +125,7 @@ export function ProductSection({
         <ProductScrollRow
           products={rowTop}
           label={twoRows ? `${selected} row 1` : selected}
+          priorityCount={2}
         />
         )}
         {rowBottom.length > 0 ? (
@@ -142,10 +143,13 @@ function ProductScrollRow({
   products,
   label,
   className,
+  /** Eager-load the first N photos (home LCP). */
+  priorityCount = 0,
 }: {
   products: SampleProduct[];
   label: string;
   className?: string;
+  priorityCount?: number;
 }) {
   return (
     <div
@@ -153,13 +157,16 @@ function ProductScrollRow({
       aria-label={label}
       className={cn(ROW_SCROLL, className)}
     >
-      {products.map((product) => (
+      {products.map((product, index) => (
         <div
           key={product.id}
           role="listitem"
           className={cn(PRODUCT_CAROUSEL_SLOT, "shrink-0 snap-start")}
         >
-          <ProductCard product={product} />
+          <ProductCard
+            product={product}
+            priority={index < priorityCount}
+          />
         </div>
       ))}
     </div>
