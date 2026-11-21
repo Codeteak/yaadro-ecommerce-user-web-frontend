@@ -13,6 +13,11 @@ permissions:
     group: deploy
 
 hooks:
+  # Runs from the *last successful* revision on the next deploy — keep exit 0.
+  ApplicationStop:
+    - location: scripts/cicd/application_stop.sh
+      timeout: 300
+      runas: root
   BeforeInstall:
     - location: scripts/cicd/before_install.sh
       timeout: 300
@@ -29,3 +34,4 @@ hooks:
     - location: scripts/cicd/validate_service.sh
       timeout: 180
       runas: root
+
