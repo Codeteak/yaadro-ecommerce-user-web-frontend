@@ -80,6 +80,7 @@ import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import {
   CategoriesHubSkeleton,
   CategoryPlpSkeleton,
+  HomeHeroSkeleton,
   HomeShelfSkeleton,
   ProductCardSkeleton,
   ProductDetailSkeleton,
@@ -1323,9 +1324,17 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   skeletons: () => (
     <DemoFrame
       surface="bare"
-      note="Same skeletons as storefront loading.tsx + product / PLP / hub / order Suspense."
+      note="Same as storefront Suspense. Home hero uses bones (no Yaadro name flash) while getShopSeo resolves."
     >
       <div className="max-h-[85vh] space-y-10 overflow-y-auto overscroll-contain bg-paper px-4 py-6">
+        <section>
+          <p className="mb-3 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
+            Home hero (shop resolve)
+          </p>
+          <div className="overflow-hidden rounded-2xl ring-1 ring-black/5">
+            <HomeHeroSkeleton />
+          </div>
+        </section>
         <section>
           <p className="mb-3 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
             Product card

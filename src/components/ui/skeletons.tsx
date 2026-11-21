@@ -84,6 +84,66 @@ export function HomeShelfSkeleton({ className }: { className?: string }) {
 }
 
 /**
+ * Home hero Suspense fallback — mint chrome + avatar/name/search bones.
+ * No shop name text (never flash “Yaadro” / default brand on resolve).
+ */
+export function HomeHeroSkeleton({ className }: { className?: string }) {
+  return (
+    <section
+      className={cn("relative", className)}
+      aria-busy
+      aria-label="Loading shop"
+    >
+      <div className="relative overflow-hidden bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8]">
+        <div
+          className="pointer-events-none absolute -top-16 -left-16 h-48 w-48 rounded-full border-[1.25rem] border-white/25"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute top-24 right-[38%] h-20 w-20 rounded-full bg-white/20"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -right-10 -bottom-24 h-56 w-56 rounded-full border-[1.5rem] border-leaf/10"
+          aria-hidden
+        />
+
+        <div className="relative mx-auto w-full max-w-lg px-5 pt-[max(1rem,env(safe-area-inset-top))]">
+          <header className="flex items-start justify-between gap-3 pt-2" aria-hidden>
+            <div className="flex min-w-0 items-start gap-2.5">
+              <Skeleton className="h-11 w-11 shrink-0 rounded-full bg-white/80 ring-2 ring-white/80" />
+              <div className="min-w-0 pt-0.5">
+                <Skeleton className="h-4 w-28 rounded-md bg-white/75" />
+                <Skeleton className="mt-2 h-3 w-20 rounded-md bg-white/55" />
+                <Skeleton className="mt-1 h-3.5 w-36 max-w-full rounded-md bg-white/50" />
+              </div>
+            </div>
+            <Skeleton className="h-9 w-20 shrink-0 rounded-full bg-track/35" />
+          </header>
+          <Skeleton className="mt-4 h-14 w-full rounded-full bg-white/70" />
+        </div>
+
+        <div className="relative mt-4 px-5 pb-6" aria-hidden>
+          <Skeleton className="aspect-[2.2/1] w-full rounded-[1.5rem] bg-white/45" />
+        </div>
+
+        <svg
+          className="absolute inset-x-0 bottom-0 h-[36px] w-full text-paper"
+          viewBox="0 0 1440 40"
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <path
+            d="M0 10 C 360 36, 1080 36, 1440 10 L1440 40 L0 40 Z"
+            fill="currentColor"
+          />
+        </svg>
+      </div>
+    </section>
+  );
+}
+
+/**
  * Categories browser Suspense fallback: search pill + horizontal pill rail
  * + product grid (matches live `/categories` horizontal chrome).
  */

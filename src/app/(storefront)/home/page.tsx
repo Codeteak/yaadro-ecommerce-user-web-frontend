@@ -12,7 +12,10 @@ import { OfferFlyer } from "@/components/home/OfferFlyer";
 import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 import { HomePullContent } from "@/components/home/HomePullContent";
 import { ScrollToTopOnLoad } from "@/components/navigation/ScrollToTopOnLoad";
-import { HomeShelfSkeleton } from "@/components/ui/skeletons";
+import {
+  HomeHeroSkeleton,
+  HomeShelfSkeleton,
+} from "@/components/ui/skeletons";
 import {
   listStoreCategories,
   loadHomeCatalog,
@@ -20,7 +23,7 @@ import {
 import { browseSectionsFromBranches } from "@/lib/home-category-browse";
 import { ALL_CATEGORY_SLUG } from "@/lib/home-categories";
 import { getRequestShopId } from "@/lib/request-shop";
-import { getShopSeo, SHOP_SEO_FALLBACK, type ShopSeo } from "@/lib/shop-seo";
+import { getShopSeo, type ShopSeo } from "@/lib/shop-seo";
 
 export const metadata: Metadata = {
   title: "Home",
@@ -82,7 +85,8 @@ function HomeHeroView({
 
 /**
  * Resolves shop once (shared with rail/catalog via request cache), then paints
- * real name/banners. Suspense fallback shows the same chrome immediately.
+ * real name/banners. Suspense fallback is a neutral hero skeleton — never
+ * flash platform “Yaadro” / default shop name while domain SEO resolves.
  */
 async function HomeHeroResolved() {
   const shop = await getShopSeo();
@@ -159,14 +163,7 @@ export default function StorefrontHomePage() {
     <HomeCategoryProvider>
       <ScrollToTopOnLoad />
       <main className="relative min-h-dvh overflow-x-clip bg-paper">
-        <Suspense
-          fallback={
-            <HomeHeroView
-              shop={SHOP_SEO_FALLBACK}
-              banners={null}
-            />
-          }
-        >
+        <Suspense fallback={<HomeHeroSkeleton />}>
           <HomeHeroResolved />
         </Suspense>
 
