@@ -30,7 +30,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 
 - `/` → `/home`
 - `/login`
-- `/home`, `/categories`, `/categories/[slug]`, `/events`, `/wishlist`, `/profile`, `/profile/support`, `/cart`, `/coupons`, `/checkout`, `/orders`
+- `/home`, `/categories`, `/categories/[slug]`, `/festive`, `/events`, `/wishlist`, `/profile`, `/profile/support`, `/cart`, `/coupons`, `/checkout`, `/orders`
 - `/orders/[id]`, `/orders/[id]/track`
 - `/product/[id]`
 - `/new`, `/trending` → `/home`

@@ -263,6 +263,24 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     wiresTo: "/home, /categories/fruits|/vegetables",
   },
   {
+    slug: "festive-offers-section",
+    title: "Festive offers section",
+    status: "built",
+    group: "Home",
+    description:
+      "Image hero (admin shelf title on the card) + 2-col peek. Shows on /home when shelf title matches festive keywords.",
+    wiresTo: "/home → See all → /festive",
+  },
+  {
+    slug: "festive-offers-page",
+    title: "Festive offers page",
+    status: "built",
+    group: "Home",
+    description:
+      "Sticky blurred festive art as page background + normal product grid.",
+    wiresTo: "/festive",
+  },
+  {
     slug: "category-browse-sections",
     title: "Category browse sections",
     status: "built",

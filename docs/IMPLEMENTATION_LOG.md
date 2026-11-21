@@ -1,5 +1,21 @@
 # Implementation Log
 
+## 2026-11-21 — Festive card title from admin
+
+`FestiveHeroCard` headline uses the home-section title (`shelf.title`) instead of a hardcoded “Festive offers”. Playground sample title: “Diwali festive specials”.
+
+## 2026-11-21 — Festive offers wired to ecom
+
+`/home` shows `FestiveOffersSection` when a live shelf title matches festive keywords (`festive|festival|celebration|celebrate`); that shelf is removed from the plain shelf stack. See all → `/festive` (`listHomeShelves` + `pickFestiveShelf` + sticky blurred BG). Playground demos keep sample shelf + playground hrefs.
+
+## 2026-11-21 — Festive See-all: full image background
+
+See-all page uses the festive art as a **full-page background** + cream wash (not a top hero card). Normal product grid. Home section keeps the image card.
+
+## 2026-11-21 — Festive offers (playground)
+
+`FestiveOffersSection` / `FestiveOffersPageContent` + sample shelf. Art: `public/home/festive-section.jpg`.
+
 ## 2026-11-21 — Home LCP: priority on first product / banner images
 
 `ProductCard` accepts `priority`; home `ProductSection` marks the first two rail cards. First offer banner also `priority`. `CatalogImage` plain-img path uses `loading="eager"` when prioritized. Silences Next LCP console hint for above-fold catalog media.
