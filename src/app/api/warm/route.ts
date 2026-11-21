@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import {
   listHomeShelves,
   listStoreCategories,
@@ -6,14 +6,16 @@ import {
 } from "@/lib/api/storefront";
 import { defaultShopId, isShopUuid } from "@/lib/db/shop-id";
 
-export const dynamic = "force-dynamic";
-
 /**
  * Keeps catalog `"use cache"` warm so shoppers avoid the cold /home path.
  * Uses the default shop id (no Host header on health probes).
  * Docker/ALB can hit this on an interval.
+ *
+ * `connection()` opts into request time (Cache Components — no `dynamic` export).
  */
 export async function GET() {
+  await connection();
+
   const raw = defaultShopId();
   if (!isShopUuid(raw)) {
     return NextResponse.json(
