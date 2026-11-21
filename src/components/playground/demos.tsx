@@ -62,6 +62,7 @@ import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { HelpSupportContent } from "@/components/profile/HelpSupportContent";
 import { ProfileAccountNav } from "@/components/profile/ProfileAccountNav";
 import { ProfileHero } from "@/components/profile/ProfileHero";
+import { ProfilePullContent } from "@/components/profile/ProfilePullContent";
 import { SAMPLE_SHOP_SUPPORT } from "@/lib/sample-shop-support";
 import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
 import {
@@ -478,7 +479,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "bottom-nav": () => (
-    <DemoFrame note="Phase A #1 wired: BottomNav pill expand/label + scroll hide (same as storefront).">
+    <DemoFrame note="Scroll hide uses inert (not aria-hidden) so a focused tab does not warn. Same component as storefront.">
       <div className="relative max-h-[28rem] overflow-hidden rounded-2xl bg-paper ring-1 ring-black/5">
         <div
           data-storefront-scroll
@@ -496,8 +497,8 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
             Scroll to hide
           </p>
           <p className="mt-1 text-[12px] leading-5 text-muted">
-            Scroll down — the pill slides off. Scroll up or return near the top —
-            it comes back. Same hook as /categories nested panels.
+            Focus a tab, then scroll down — the pill slides off without the
+            aria-hidden focus console warning. Scroll up to restore.
           </p>
           {Array.from({ length: 14 }, (_, i) => (
             <p key={i} className="mt-3 text-sm text-ink">
@@ -634,7 +635,9 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
         <p className="mt-8 text-center text-sm font-medium text-muted">
           Install sheet appears at the bottom (session dismiss).
         </p>
-        <InstallPrompt forcePreview />
+        <Suspense fallback={null}>
+          <InstallPrompt forcePreview />
+        </Suspense>
       </div>
     </DemoFrame>
   ),
@@ -1424,6 +1427,65 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </div>
     </DemoFrame>
   ),
+  "multi-phone-layout": () => {
+    const cards = SAMPLE_PRODUCTS.slice(0, 4);
+    return (
+      <DemoFrame note="MULTI_PHONE_LAYOUT_PLAN — SE-height profile must scroll (fill + overflow pane). Narrow card photo uses aspect 5/4. Compare with tall frame.">
+        <div className="space-y-8 bg-paper px-4 py-5">
+          <div>
+            <p className="text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+              Profile · iPhone SE height (~667px) — scroll to footer
+            </p>
+            <div className="relative mt-2 h-[667px] overflow-hidden rounded-2xl ring-1 ring-forest/15">
+              <div className="flex h-full min-h-0 flex-col overflow-hidden bg-paper">
+                <ProfilePullContent className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain scroll-pb-8">
+                  <ProfileHero
+                    backHref="/playground"
+                    signedIn={false}
+                    guestAvatarSrc={GUEST_PROFILE_AVATAR}
+                  />
+                  <div className="relative z-10 mx-4 -mt-9 grid grid-cols-3 gap-1.5 px-1 pt-1 pb-2">
+                    {(["Wishlist", "Voucher / Coupons", "Order History"] as const).map(
+                      (label) => (
+                        <div
+                          key={label}
+                          className="flex flex-col items-center gap-1.5 rounded-[1.35rem] bg-gradient-to-b from-white via-white to-mint/50 px-2 py-3 text-center ring-1 ring-leaf/30"
+                        >
+                          <span className="size-10 rounded-full bg-mint/70" />
+                          <span className="text-[11px] leading-4 font-semibold text-ink">
+                            {label}
+                          </span>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                  <ProfileAccountNav previewSignedIn={false} />
+                  <BrandFooter className="pt-5 pb-14" />
+                </ProfilePullContent>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-12 bg-gradient-to-t from-paper via-paper/80 to-transparent"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+              Product cards · narrow (~375px) density
+            </p>
+            <div className="mx-auto mt-2 w-[375px] max-w-full rounded-2xl bg-paper p-3 ring-1 ring-forest/15">
+              <div className="grid grid-cols-2 gap-3">
+                {cards.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </DemoFrame>
+    );
+  },
   "profile-header": () => (
     <DemoFrame note="Log out confirm sheet (playground dry-run). Live /profile confirms then signs out for real.">
       <div className="max-h-[36rem] space-y-8 overflow-y-auto overscroll-contain bg-paper pb-6">

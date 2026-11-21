@@ -67,9 +67,9 @@ function HeroShell({
         <div className="absolute top-24 -left-20 size-44 rounded-full bg-leaf-bright/10" />
       </div>
 
-      <div className="relative px-5 pb-16">
+      <div className="relative px-5 pb-16 max-[700px]:pb-10">
         <PageHeader surface="hero" backHref={backHref} title="Profile" />
-        <div className="relative mt-5 flex flex-col items-center text-center">
+        <div className="relative mt-5 flex flex-col items-center text-center max-[700px]:mt-2">
           {children}
         </div>
       </div>
@@ -180,10 +180,10 @@ export function ProfileHero({
         <div className="absolute top-24 -left-20 size-44 rounded-full bg-leaf-bright/10" />
       </div>
 
-      <div className="relative px-5 pb-16">
+      <div className="relative px-5 pb-16 max-[700px]:pb-10">
         <PageHeader surface="hero" backHref={backHref} title="Profile" />
 
-        <div className="relative mt-5 flex flex-col items-center text-center">
+        <div className="relative mt-5 flex flex-col items-center text-center max-[700px]:mt-2">
           {isSignedIn ? (
             showHeroBones ? (
               <ProfileHeroSkeleton />

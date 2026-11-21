@@ -38,11 +38,13 @@ export function StorefrontChrome({ children }: { children: ReactNode }) {
   return (
     <div
       className={cn(
-        "min-h-dvh overscroll-y-none pb-[calc(5.5rem+env(safe-area-inset-bottom))]",
+        "min-h-dvh pb-[calc(5.5rem+env(safe-area-inset-bottom))]",
         "has-[[data-storefront-hide-nav]]:pb-0",
         // Fill pages size themselves under the nav; lock the shell so the
         // category rail cannot scroll away with document overflow.
-        "has-[[data-storefront-fill]]:overflow-hidden",
+        // overscroll-none only on fill — global none made SE/DevTools
+        // document scroll feel stuck on home/wishlist/etc.
+        "has-[[data-storefront-fill]]:overflow-hidden has-[[data-storefront-fill]]:overscroll-y-none",
       )}
     >
       {children}
