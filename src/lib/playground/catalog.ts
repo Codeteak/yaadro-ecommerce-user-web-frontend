@@ -233,7 +233,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Sample offer carousel under search on /home. Autoplay, dots, and swipe both ways.",
+      "Live: full-bleed shop creative only (no text/CTA overlay). Sample mode keeps title + Shop now. Autoplay, dots, swipe.",
     wiresTo: "/home",
   },
   {
@@ -261,6 +261,33 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     description:
       "Produce BG + All/Fruits/Vegetables (10); Browse all → /categories/fruits or /vegetables. Same on /home.",
     wiresTo: "/home, /categories/fruits|/vegetables",
+  },
+  {
+    slug: "daily-dairy-layouts",
+    title: "Daily dairy layouts",
+    status: "built",
+    group: "Home",
+    description:
+      "Compare A (live default) vs C. Same art aspect, veggies chips, track See all. Live uses A.",
+    wiresTo: "Playground compare · live = A on /home",
+  },
+  {
+    slug: "daily-dairy-section",
+    title: "Daily dairy section",
+    status: "built",
+    group: "Home",
+    description:
+      "Layout A card (wired). Shows on /home when shelf title matches dairy keywords. See all → /dairy.",
+    wiresTo: "/home → See all → /dairy",
+  },
+  {
+    slug: "daily-dairy-page",
+    title: "Daily dairy page",
+    status: "built",
+    group: "Home",
+    description:
+      "Sticky clear dairy art (no blur) + product grid. Live: /dairy.",
+    wiresTo: "/dairy",
   },
   {
     slug: "festive-offers-section",

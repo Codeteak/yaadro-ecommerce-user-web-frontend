@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import { CategoryBrowseSections } from "@/components/home/CategoryBrowseSections";
+import { DailyDairySection } from "@/components/home/DailyDairySection";
 import { FestiveOffersSection } from "@/components/home/FestiveOffersSection";
 import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
 import { HomeProductShelves } from "@/components/home/HomeProductShelves";
@@ -11,6 +12,10 @@ import { BrandFooter } from "@/components/storefront/BrandFooter";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { refreshStorefrontCatalog } from "@/lib/api/refresh-catalog";
 import {
+  isDairySectionTitle,
+  pickDairyShelf,
+} from "@/lib/daily-dairy";
+import {
   isFestiveSectionTitle,
   pickFestiveShelf,
 } from "@/lib/festive-offers";
@@ -19,9 +24,9 @@ import type { SampleProduct } from "@/lib/sample-products";
 import type { LiveShelf } from "@/components/home/HomeProductShelves";
 
 /**
- * Home body below the category rail: category products → produce → aisle
- * browse (#30) → festive (when shelf title matches) → shelves → brand footer.
- * Offer banners sit above the rail.
+ * Home body below the category rail: category products → produce → dairy
+ * (layout A when shelf title matches) → aisle browse (#30) → festive →
+ * shelves → brand footer. Offer banners sit above the rail.
  */
 export function HomePullContent({
   productsBySlug,
@@ -43,13 +48,18 @@ export function HomePullContent({
 }) {
   const t = useTypeScale();
 
+  const dairyShelf = useMemo(() => pickDairyShelf(shelves), [shelves]);
   const festiveShelf = useMemo(
     () => pickFestiveShelf(shelves),
     [shelves],
   );
   const regularShelves = useMemo(() => {
     if (!shelves) return shelves;
-    return shelves.filter((shelf) => !isFestiveSectionTitle(shelf.title));
+    return shelves.filter(
+      (shelf) =>
+        !isFestiveSectionTitle(shelf.title) &&
+        !isDairySectionTitle(shelf.title),
+    );
   }, [shelves]);
 
   const onRefresh = useCallback(async () => {
@@ -73,6 +83,14 @@ export function HomePullContent({
           fruits={fruits}
           vegetables={vegetables}
         />
+        {dairyShelf ? (
+          <DailyDairySection
+            className={t.homeBlockGap}
+            layout="on-art"
+            shelf={dairyShelf}
+            browseHref="/dairy"
+          />
+        ) : null}
         {browseSections && browseSections.length > 0 ? (
           <CategoryBrowseSections
             sections={browseSections}

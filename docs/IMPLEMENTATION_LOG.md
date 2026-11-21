@@ -1,5 +1,25 @@
 # Implementation Log
 
+## 2026-11-22 — Daily dairy layout A wired to ecom
+
+Layout **A** (`on-art`) on `/home` when a shelf title matches dairy keywords (`dairy` / `daily dairy` / `milk & eggs`); removed from plain shelf stack. See all → `/dairy` (`listHomeShelves` + `pickDairyShelf` + clear sticky BG). Playground keeps **A + C** at `/playground/daily-dairy-layouts`.
+
+## 2026-11-22 — Dairy card matches art aspect (no yellow crop)
+
+Art at `public/home/daily-dairy-section-v2.jpg` (682×1024). Card uses the same aspect ratio so the long yellow top isn’t cropped.
+
+## 2026-11-22 — Daily dairy restyle (playground)
+
+Image card + optional category rail + product rail. Later replaced by A/B/C layouts above.
+
+## 2026-11-22 — Daily dairy section (playground)
+
+Dairy art: `public/home/daily-dairy-section.jpg`. First playground card (later restyled).
+
+## 2026-11-22 — Offer banners: live image-only
+
+Live shop creatives no longer overlay title / subtitle / Shop now (art already has copy). Whole slide links when `href` is set. Playground `allowSample` keeps the text + CTA demo; `/playground/offer-banners` shows both modes.
+
 ## 2026-11-21 — Home aisle lazy fetch: subscribe to cache
 
 Production Bakery stayed on skeleton: aisle fetch could complete without a re-render (effect cancel / cache hit skipped `setLazyTick`). `home-aisle-client` now notifies via `useSyncExternalStore`; empty-array cache uses `Map.has`; fetch errors clear inflight and cache `[]`.

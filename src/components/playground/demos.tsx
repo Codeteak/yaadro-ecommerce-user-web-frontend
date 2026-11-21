@@ -25,6 +25,15 @@ import { HOME_CATEGORIES } from "@/lib/home-categories";
 import { OfferBanners } from "@/components/home/OfferBanners";
 import { OfferFlyer } from "@/components/home/OfferFlyer";
 import { ProductSection } from "@/components/home/ProductSection";
+import { DailyDairyPageContent } from "@/components/home/DailyDairyPageContent";
+import {
+  DailyDairyLayoutLabel,
+  DailyDairySection,
+} from "@/components/home/DailyDairySection";
+import {
+  SAMPLE_DAIRY_SHELF,
+  SAMPLE_DAIRY_SHELF_PRODUCTS_ONLY,
+} from "@/lib/daily-dairy";
 import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
 import { FestiveOffersPageContent } from "@/components/home/FestiveOffersPageContent";
 import { FestiveOffersSection } from "@/components/home/FestiveOffersSection";
@@ -713,9 +722,37 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "offer-banners": () => (
-    <DemoFrame note="Same OfferBanners as /home — autoplay + swipe both ways (finger-follow) + dots.">
-      <div className="py-4">
-        <OfferBanners allowSample />
+    <DemoFrame note="Live /home: full-bleed creative only (no Offer!! / Shop now overlay). Sample below keeps title + CTA for playground.">
+      <div className="space-y-8 py-4">
+        <div>
+          <p className="mb-2 px-1 text-[11px] font-bold tracking-wide text-muted uppercase">
+            Live style (image only)
+          </p>
+          <OfferBanners
+            banners={[
+              {
+                id: "live-festive",
+                title: "Festive market",
+                subtitle: "",
+                image: "/home/festive-section.jpg",
+                href: "/categories",
+              },
+              {
+                id: "live-produce",
+                title: "Fresh produce",
+                subtitle: "",
+                image: "/home/fruits-veggies-section.jpg",
+                href: "/categories/fruits",
+              },
+            ]}
+          />
+        </div>
+        <div>
+          <p className="mb-2 px-1 text-[11px] font-bold tracking-wide text-muted uppercase">
+            Sample (title + Shop now)
+          </p>
+          <OfferBanners allowSample />
+        </div>
       </div>
     </DemoFrame>
   ),
@@ -807,6 +844,76 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
         <FruitsVeggiesSection />
+        <WeightCustomizer />
+      </div>
+    </DemoFrame>
+  ),
+  "daily-dairy-layouts": () => (
+    <DemoFrame
+      surface="bare"
+      note="A vs C compare (both kept). Live /home uses layout A. See all → playground page here; ecom → /dairy."
+    >
+      <div className="relative max-h-[85vh] space-y-10 overflow-y-auto overscroll-contain bg-paper py-4 ring-1 ring-black/5">
+        <DailyDairyLayoutLabel
+          letter="A"
+          name="On art"
+          blurb="Natural art frame · black title on real yellow top · veggies chips · See all at bottom."
+        >
+          <DailyDairySection
+            layout="on-art"
+            priority
+            shelf={SAMPLE_DAIRY_SHELF}
+            browseHref="/playground/daily-dairy-page"
+          />
+        </DailyDairyLayoutLabel>
+        <DailyDairyLayoutLabel
+          letter="C"
+          name="Fade bottom"
+          blurb="Same art frame · soft black fade from bottom for cards · same chips + See all."
+        >
+          <DailyDairySection
+            layout="split"
+            shelf={SAMPLE_DAIRY_SHELF}
+            browseHref="/playground/daily-dairy-page"
+          />
+        </DailyDairyLayoutLabel>
+        <DailyDairyLayoutLabel
+          letter="A"
+          name="No category rail"
+          blurb="Layout A when admin adds no child categories — products + See all only."
+        >
+          <DailyDairySection
+            layout="on-art"
+            shelf={SAMPLE_DAIRY_SHELF_PRODUCTS_ONLY}
+            browseHref="/playground/daily-dairy-page"
+          />
+        </DailyDairyLayoutLabel>
+        <WeightCustomizer />
+      </div>
+    </DemoFrame>
+  ),
+  "daily-dairy-section": () => (
+    <DemoFrame
+      surface="bare"
+      note="Layout A — same as live /home when a dairy shelf matches. Compare A vs C: /playground/daily-dairy-layouts. Live See all → /dairy."
+    >
+      <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl bg-paper ring-1 ring-black/5">
+        <DailyDairySection
+          layout="on-art"
+          priority
+          browseHref="/playground/daily-dairy-page"
+        />
+        <WeightCustomizer />
+      </div>
+    </DemoFrame>
+  ),
+  "daily-dairy-page": () => (
+    <DemoFrame
+      surface="bare"
+      note="See-all: sticky clear dairy BG (no blur) + product grid. Live: /dairy."
+    >
+      <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
+        <DailyDairyPageContent backHref="/playground/daily-dairy-layouts" />
         <WeightCustomizer />
       </div>
     </DemoFrame>
