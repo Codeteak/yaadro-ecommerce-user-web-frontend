@@ -21,32 +21,33 @@ function AccountLink({ signedIn }: { signedIn?: boolean }) {
   const live = useCustomerSignedIn();
   const showProfile = signedIn ?? live;
 
-  if (showProfile) {
-    return (
-      <Link
-        href="/profile"
-        className="shrink-0 self-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-        aria-label="Profile"
-      >
-        <Image
-          src="/icons/profile-signed-in.svg"
-          alt=""
-          width={44}
-          height={44}
-          unoptimized
-          className="h-11 w-11 object-contain"
-        />
-      </Link>
-    );
-  }
-
+  // Fixed slot so Sign in ↔ profile icon does not shift the hero (CLS).
   return (
-    <Link
-      href="/login"
-      className="shrink-0 rounded-full bg-track px-4 py-2 text-sm font-semibold text-black shadow-sm transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-    >
-      Sign in
-    </Link>
+    <div className="flex h-11 w-[5.75rem] shrink-0 items-center justify-end self-start">
+      {showProfile ? (
+        <Link
+          href="/profile"
+          className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+          aria-label="Profile"
+        >
+          <Image
+            src="/icons/profile-signed-in.svg"
+            alt=""
+            width={44}
+            height={44}
+            unoptimized
+            className="h-11 w-11 object-contain"
+          />
+        </Link>
+      ) : (
+        <Link
+          href="/login"
+          className="rounded-full bg-track px-4 py-2 text-sm font-semibold text-black shadow-sm transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+        >
+          Sign in
+        </Link>
+      )}
+    </div>
   );
 }
 
@@ -109,6 +110,9 @@ export function HomeTopBar({
             <img
               src={shopImage}
               alt=""
+              width={44}
+              height={44}
+              decoding="async"
               className="h-11 w-11 shrink-0 rounded-full bg-white object-cover ring-2 ring-white/80"
             />
           ) : (
@@ -138,7 +142,7 @@ export function HomeTopBar({
                 <span className="block text-[9px] font-bold tracking-[0.16em] text-black uppercase">
                   Deliver to
                 </span>
-                <span className="flex min-w-0 items-center gap-1">
+                <span className="flex min-h-[1.25rem] min-w-0 items-center gap-1">
                   <span className="min-w-0 truncate text-[13px] leading-tight font-semibold text-leaf">
                     {addressLabel ?? "Choose your location"}
                   </span>

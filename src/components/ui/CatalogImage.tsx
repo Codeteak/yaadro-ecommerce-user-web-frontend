@@ -24,6 +24,7 @@ type CatalogImageProps = Omit<ImageProps, "src" | "alt"> & {
 /**
  * next/image for shop media we allowlisted, plain img for other catalog CDNs
  * so a new image host does not crash the product card.
+ * Plain path still forwards width/height so the browser reserves space (CLS).
  */
 export function CatalogImage({
   src,
@@ -33,17 +34,35 @@ export function CatalogImage({
   style,
   priority,
   loading,
+  width,
+  height,
   ...rest
 }: CatalogImageProps) {
   if (!useOptimizedImage(src)) {
+    const widthAttr =
+      typeof width === "number"
+        ? width
+        : typeof width === "string" && /^\d+$/.test(width)
+          ? Number(width)
+          : undefined;
+    const heightAttr =
+      typeof height === "number"
+        ? height
+        : typeof height === "string" && /^\d+$/.test(height)
+          ? Number(height)
+          : undefined;
+
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
         alt={alt}
+        width={fill ? undefined : widthAttr}
+        height={fill ? undefined : heightAttr}
         style={style}
         loading={priority ? "eager" : loading === "lazy" ? "lazy" : undefined}
         fetchPriority={priority ? "high" : undefined}
+        decoding="async"
         className={
           fill
             ? `absolute inset-0 h-full w-full ${className ?? ""}`
@@ -62,6 +81,8 @@ export function CatalogImage({
       style={style}
       priority={priority}
       loading={loading}
+      width={width}
+      height={height}
       {...rest}
     />
   );

@@ -86,6 +86,9 @@ export function HomeShelfSkeleton({ className }: { className?: string }) {
 /**
  * Home hero Suspense fallback — mint chrome + avatar/name/search bones.
  * No shop name text (never flash “Yaadro” / default brand on resolve).
+ * Reserves the offer-banner slot (aspect 2.2/1 + dots) so shops with
+ * creatives do not expand the hero when SEO resolves (main CLS source).
+ * Shops without banners may see a short collapse once — rarer than promo shops.
  */
 export function HomeHeroSkeleton({ className }: { className?: string }) {
   return (
@@ -118,13 +121,15 @@ export function HomeHeroSkeleton({ className }: { className?: string }) {
                 <Skeleton className="mt-1 h-3.5 w-36 max-w-full rounded-md bg-white/50" />
               </div>
             </div>
-            <Skeleton className="h-9 w-20 shrink-0 rounded-full bg-track/35" />
+            {/* Matches AccountLink reserved slot (Sign in / profile icon). */}
+            <Skeleton className="h-11 w-[5.75rem] shrink-0 rounded-full bg-track/35" />
           </header>
           <Skeleton className="mt-4 h-14 w-full rounded-full bg-white/70" />
         </div>
 
-        <div className="relative mt-4 px-5 pb-6" aria-hidden>
-          <Skeleton className="aspect-[2.2/1] w-full rounded-[1.5rem] bg-white/45" />
+        {/* Match HomeHeroView banner wrapper + OfferBanners chrome */}
+        <div className="relative mt-4 pb-3" aria-hidden>
+          <HomeBannerSkeleton />
         </div>
 
         <svg
@@ -140,6 +145,74 @@ export function HomeHeroSkeleton({ className }: { className?: string }) {
         </svg>
       </div>
     </section>
+  );
+}
+
+/** Offer banner strip — matches OfferBanners chrome (px-5 pt-4 + aspect + dots). */
+export function HomeBannerSkeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn("mx-auto w-full max-w-lg px-5 pt-4", className)}
+      aria-hidden
+    >
+      <Skeleton className="aspect-[2.2/1] w-full rounded-[1.5rem] bg-mint/40" />
+      <div className="mt-3 flex justify-center gap-1.5">
+        <Skeleton className="h-2 w-6 rounded-full bg-mint/50" />
+        <Skeleton className="h-2 w-2 rounded-full bg-mint/35" />
+        <Skeleton className="h-2 w-2 rounded-full bg-mint/35" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Home pill category rail Suspense fallback — tall capsules, not a flat bar
+ * (old h-16 fallback caused a large CLS when the real rail painted).
+ */
+export function CategoryRailSkeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn("relative mx-auto w-full max-w-lg overflow-hidden", className)}
+      aria-hidden
+    >
+      <div className="flex w-max gap-2.5 px-5 py-3 sm:gap-3.5">
+        {Array.from({ length: 6 }, (_, i) => (
+          <div
+            key={i}
+            className="flex w-[4.75rem] shrink-0 flex-col items-center sm:w-[5.25rem]"
+          >
+            {/* ~live pill: icon + 2-line label + padding */}
+            <Skeleton className="h-[5.85rem] w-full rounded-[1.85rem] bg-mint/40" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Home catalog Suspense fallback — two product rails (All often >10 items),
+ * produce card height + shelf so Fruits & veggies / dense rails do not expand
+ * a short placeholder into the viewport (CLS).
+ */
+export function HomeCatalogSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={cn("space-y-6 pt-6", className)} aria-hidden>
+      <div className="mx-auto w-full max-w-lg">
+        <div className="flex items-end justify-between gap-3 px-5">
+          <Skeleton className="h-5 w-36 bg-mint/50" />
+          <Skeleton className="h-3 w-16 bg-mint/30" />
+        </div>
+        <ProductRailSkeleton className="mt-2" />
+        <ProductRailSkeleton />
+      </div>
+
+      <div className="px-3 py-5 sm:px-4">
+        <Skeleton className="mx-auto min-h-[34rem] w-full max-w-lg rounded-[1.75rem] bg-mint/35 sm:min-h-[36rem]" />
+      </div>
+
+      <HomeShelfSkeleton />
+    </div>
   );
 }
 

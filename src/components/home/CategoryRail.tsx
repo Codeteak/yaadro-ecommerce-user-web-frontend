@@ -6,6 +6,7 @@ import { useHomeCategoryOptional } from "@/components/home/HomeCategoryContext";
 import { ALL_CATEGORY_SLUG, HOME_CATEGORIES } from "@/lib/home-categories";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
 import { cn } from "@/lib/cn";
+import { prefetchHomeAisle } from "@/lib/home-aisle-client";
 
 export { HOME_CATEGORIES, type HomeCategory } from "@/lib/home-categories";
 
@@ -151,19 +152,33 @@ export function CategoryRail({
         )}
       >
         {items.map((category) => (
-          <CategoryCard
+          <div
             key={category.slug}
-            name={category.name}
-            slug={category.slug}
-            variant={tileVariant}
-            image={
-              category.slug === ALL_CATEGORY_SLUG
-                ? ""
-                : category.image || imageFallback
-            }
-            active={selected === category.slug}
-            onClick={() => choose(category.slug)}
-          />
+            className="contents"
+            onPointerEnter={() => {
+              if (category.slug !== ALL_CATEGORY_SLUG) {
+                prefetchHomeAisle(category.slug);
+              }
+            }}
+            onPointerDown={() => {
+              if (category.slug !== ALL_CATEGORY_SLUG) {
+                prefetchHomeAisle(category.slug);
+              }
+            }}
+          >
+            <CategoryCard
+              name={category.name}
+              slug={category.slug}
+              variant={tileVariant}
+              image={
+                category.slug === ALL_CATEGORY_SLUG
+                  ? ""
+                  : category.image || imageFallback
+              }
+              active={selected === category.slug}
+              onClick={() => choose(category.slug)}
+            />
+          </div>
         ))}
       </div>
     </div>
