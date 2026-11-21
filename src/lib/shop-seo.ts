@@ -1,20 +1,18 @@
 /**
  * Shop SEO identity (name + share image).
  *
- * Prefers domain resolve on a real host. Local / unresolved hosts fall back
+ * Prefers the shared request shop resolve. Local / unresolved hosts fall back
  * to `GET /api/seo/metadata` with `NEXT_PUBLIC_DEFAULT_SHOP_ID` (legacy:
  * `NEXT_PUBLIC_SHOP_ID`). `cache()` dedupes metadata + page calls in the
  * same request.
  */
 
 import { cache } from "react";
-import { headers } from "next/headers";
 import {
   fetchShopSeo,
-  isLocalShopHost,
-  resolveShopByDomain,
   type ResolvedShop,
 } from "@/lib/api/storefront";
+import { getResolvedRequestShop } from "@/lib/request-shop";
 import { SHOP_IMAGE_FALLBACK } from "@/lib/shop-fallback-avatars";
 
 export type ShopSeo = {
@@ -25,7 +23,7 @@ export type ShopSeo = {
   banners: { id: string; title: string; subtitle: string; image: string; href: string }[];
 };
 
-const FALLBACK: ShopSeo = {
+export const SHOP_SEO_FALLBACK: ShopSeo = {
   name: "Yaadro",
   image: SHOP_IMAGE_FALLBACK,
   description: "Fresh groceries, right at your door.",
@@ -42,17 +40,8 @@ function toSeo(shop: ResolvedShop): ShopSeo {
 }
 
 export const getShopSeo = cache(async function getShopSeo(): Promise<ShopSeo> {
-  try {
-    const headerList = await headers();
-    const host = headerList.get("x-forwarded-host") ?? headerList.get("host") ?? "";
-    const domain = host.split(":")[0] ?? "";
-    if (domain && !isLocalShopHost(domain)) {
-      const resolved = await resolveShopByDomain(domain);
-      if (resolved) return toSeo(resolved);
-    }
-  } catch {
-    // Request headers are unavailable during some prerenders.
-  }
+  const resolved = await getResolvedRequestShop();
+  if (resolved) return toSeo(resolved);
 
   try {
     const seo = await fetchShopSeo();
@@ -61,5 +50,5 @@ export const getShopSeo = cache(async function getShopSeo(): Promise<ShopSeo> {
     // Fall through to Yaadro branding.
   }
 
-  return FALLBACK;
+  return SHOP_SEO_FALLBACK;
 });

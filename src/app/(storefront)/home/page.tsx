@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import { DeferredLocationPrompt } from "@/components/delivery/DeferredLocationPrompt";
 import { CategoryRail } from "@/components/home/CategoryRail";
 import { HomeTopBar } from "@/components/home/HomeTopBar";
@@ -20,18 +20,21 @@ import {
 import { browseSectionsFromBranches } from "@/lib/home-category-browse";
 import { ALL_CATEGORY_SLUG } from "@/lib/home-categories";
 import { getRequestShopId } from "@/lib/request-shop";
-import { getShopSeo } from "@/lib/shop-seo";
+import { getShopSeo, SHOP_SEO_FALLBACK, type ShopSeo } from "@/lib/shop-seo";
 
 export const metadata: Metadata = {
   title: "Home",
   description: "Fresh groceries, right at your door — shop Yaadro.",
 };
 
-/**
- * Hero chrome (shop SEO) streams first (#3).
- */
-async function HomeHero() {
-  const shop = await getShopSeo();
+/** Presentational hero — safe for Suspense fallback (no awaits). */
+function HomeHeroView({
+  shop,
+  banners,
+}: {
+  shop: Pick<ShopSeo, "name" | "image">;
+  banners?: ReactNode;
+}) {
   return (
     <section className="relative">
       <div className="relative overflow-hidden bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8]">
@@ -59,9 +62,7 @@ async function HomeHero() {
           />
         </div>
 
-        <div className="relative mt-4 pb-3">
-          <OfferBanners banners={shop.banners} />
-        </div>
+        <div className="relative mt-4 pb-3">{banners}</div>
 
         <svg
           className="absolute inset-x-0 bottom-0 h-[36px] w-full text-paper"
@@ -76,6 +77,20 @@ async function HomeHero() {
         </svg>
       </div>
     </section>
+  );
+}
+
+/**
+ * Resolves shop once (shared with rail/catalog via request cache), then paints
+ * real name/banners. Suspense fallback shows the same chrome immediately.
+ */
+async function HomeHeroResolved() {
+  const shop = await getShopSeo();
+  return (
+    <HomeHeroView
+      shop={shop}
+      banners={<OfferBanners banners={shop.banners} />}
+    />
   );
 }
 
@@ -104,7 +119,7 @@ async function HomeCategoryRail() {
 }
 
 /**
- * Product sections + shelves — heavier catalog load, streams after the rail.
+ * Product sections + shelves — lighter query, streams after the rail.
  */
 async function HomeCatalogBody() {
   const shopId = await getRequestShopId();
@@ -146,10 +161,13 @@ export default function StorefrontHomePage() {
       <main className="relative min-h-dvh overflow-x-clip bg-paper">
         <Suspense
           fallback={
-            <div className="h-64 animate-pulse bg-gradient-to-b from-mint to-paper" />
+            <HomeHeroView
+              shop={SHOP_SEO_FALLBACK}
+              banners={null}
+            />
           }
         >
-          <HomeHero />
+          <HomeHeroResolved />
         </Suspense>
 
         <Suspense
