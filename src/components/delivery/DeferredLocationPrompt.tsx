@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import {
-  formatDeliveryAddressLabel,
+  formatDeliveryLocationLabel,
+  hasBrowseLocation,
   readDeliveryAddress,
   subscribeDeliveryAddress,
 } from "@/lib/delivery-address";
@@ -12,8 +13,8 @@ const DEFAULT_DELAY_MS = 900;
 
 function readLabel(): string | null {
   const saved = readDeliveryAddress();
-  if (!saved) return null;
-  return formatDeliveryAddressLabel(saved) || null;
+  if (!hasBrowseLocation(saved)) return null;
+  return formatDeliveryLocationLabel(saved);
 }
 
 type DeferredLocationPromptProps = {
@@ -27,8 +28,9 @@ type DeferredLocationPromptProps = {
 };
 
 /**
- * #7 — After the page has painted, softly open the address book when no
- * delivery address is saved. Skips if the shopper already chose a place.
+ * Soft home prompt: open map once when no browse location is saved.
+ * Detect / Use this location saves the pin and closes — details wait for
+ * place order on checkout.
  */
 export function DeferredLocationPrompt({
   delayMs = DEFAULT_DELAY_MS,
@@ -48,7 +50,7 @@ export function DeferredLocationPrompt({
 
     const run = () => {
       if (offered.current) return;
-      if (!forcePreview && readLabel()) return;
+      if (!forcePreview && hasBrowseLocation(readDeliveryAddress())) return;
       offered.current = true;
       setOpen(true);
     };
@@ -70,5 +72,11 @@ export function DeferredLocationPrompt({
     };
   }, [delayMs, forcePreview, label]);
 
-  return <AddressBookSheet open={open} onOpenChange={setOpen} />;
+  return (
+    <AddressBookSheet
+      open={open}
+      onOpenChange={setOpen}
+      pinCompletes
+    />
+  );
 }

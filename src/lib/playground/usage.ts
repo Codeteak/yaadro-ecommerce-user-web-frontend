@@ -79,12 +79,13 @@ import { useScrollDirection } from "@/components/navigation/useScrollDirection";
   "deferred-location": U(
     `import { DeferredLocationPrompt } from "@/components/delivery/DeferredLocationPrompt";
 
-// Wired on /home — open address book if no Deliver to
+// Wired on /home — Detect saves pin and closes; details at place order
 <DeferredLocationPrompt />
 // Playground: <DeferredLocationPrompt forcePreview delayMs={900} />`,
     [
       "src/components/delivery/DeferredLocationPrompt.tsx",
       "src/components/delivery/AddressBookSheet.tsx",
+      "src/lib/delivery-address.ts",
       "src/app/(storefront)/home/page.tsx",
     ],
   ),

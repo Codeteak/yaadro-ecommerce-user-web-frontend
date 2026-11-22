@@ -25,6 +25,45 @@ export function formatDeliveryAddressLabel(a: DeliveryAddress): string {
   return [a.house, a.street, a.city].filter(Boolean).join(", ");
 }
 
+/** True when lat/lng are present (browse pin from detect / map). */
+export function hasDeliveryPin(a: DeliveryAddress | null | undefined): boolean {
+  return Boolean(
+    a && typeof a.lat === "number" && typeof a.lng === "number",
+  );
+}
+
+/**
+ * True when the shopper filled building / house details (required to place order).
+ * Pin-only browse rows leave `house` empty.
+ */
+export function hasDeliveryDetails(
+  a: DeliveryAddress | null | undefined,
+): boolean {
+  return Boolean(a?.house?.trim());
+}
+
+/** Enough to skip the soft home location prompt and show Deliver to. */
+export function hasBrowseLocation(
+  a: DeliveryAddress | null | undefined,
+): boolean {
+  if (!a) return false;
+  if (hasDeliveryDetails(a) || hasDeliveryPin(a)) return true;
+  return Boolean(a.street?.trim() || a.city?.trim());
+}
+
+/** Home / checkout line: prefer full details, else area / pin label. */
+export function formatDeliveryLocationLabel(
+  a: DeliveryAddress | null | undefined,
+): string | null {
+  if (!a) return null;
+  const details = formatDeliveryAddressLabel(a);
+  if (details) return details;
+  const soft = [a.street, a.city].filter(Boolean).join(", ");
+  if (soft) return soft;
+  if (hasDeliveryPin(a)) return "Current location";
+  return null;
+}
+
 export function readDeliveryAddress(): DeliveryAddress | null {
   if (typeof window === "undefined") return null;
   try {

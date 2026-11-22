@@ -49,6 +49,14 @@ export const LOCATION_TOASTS = {
     message: "Add a delivery address first.",
     tone: "warning",
   },
+  needAddressDetails: {
+    message: "Add your address details to place the order.",
+    tone: "warning",
+  },
+  pinSaved: {
+    message: "Location set — you can keep shopping.",
+    tone: "success",
+  },
   browserNoGeo: {
     message:
       "Your browser can't share location — please type your address below.",
@@ -71,7 +79,7 @@ export const LOCATION_TOASTS = {
     tone: "info",
   },
   locationFound: {
-    message: "Location found — confirm to add details.",
+    message: "Location found.",
     tone: "success",
   },
 } as const satisfies Record<string, LocationToast>;
@@ -86,6 +94,8 @@ export const LOCATION_TOAST_SAMPLES: {
   { label: "Check failed", toast: LOCATION_TOASTS.checkFailed },
   { label: "Allow location", toast: LOCATION_TOASTS.allowLocation },
   { label: "Need address", toast: LOCATION_TOASTS.needAddress },
+  { label: "Need details", toast: LOCATION_TOASTS.needAddressDetails },
+  { label: "Pin saved", toast: LOCATION_TOASTS.pinSaved },
   { label: "No browser geo", toast: LOCATION_TOASTS.browserNoGeo },
   { label: "Detect failed", toast: LOCATION_TOASTS.detectFailed },
   { label: "Pick on map", toast: LOCATION_TOASTS.pickOnMap },

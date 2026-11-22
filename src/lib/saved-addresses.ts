@@ -117,7 +117,8 @@ export function getSelectedAddress(): SavedAddress | null {
 
 export function savedToDelivery(a: SavedAddress): DeliveryAddress {
   return {
-    house: a.building || a.label,
+    // Building only — empty while browse-pin so checkout still asks for details.
+    house: a.building.trim(),
     street: [a.street, a.area].filter(Boolean).join(", "),
     landmark: a.landmark,
     city: a.city,
@@ -126,6 +127,32 @@ export function savedToDelivery(a: SavedAddress): DeliveryAddress {
       ? { lat: a.lat, lng: a.lng }
       : {}),
   };
+}
+
+/** Pin / area only — enough to browse; details filled later at place order. */
+export function saveBrowsePin(place: DetectedPlace): SavedAddress {
+  const existing = listSavedAddresses()[0];
+  return upsertSavedAddress({
+    id: existing?.id,
+    label: existing?.label?.trim() || "Delivery",
+    type: existing?.type ?? "house",
+    building: existing?.building ?? "",
+    street: place.street || existing?.street || "",
+    area: place.area || existing?.area || "",
+    city: place.city || existing?.city || "",
+    pin: place.pin || existing?.pin || "",
+    landmark: place.landmark || existing?.landmark || "",
+    instructions: existing?.instructions ?? "",
+    isDefault: true,
+    lat: place.lat,
+    lng: place.lng,
+  });
+}
+
+export function isSavedAddressDetailsComplete(
+  a: SavedAddress | null | undefined,
+): boolean {
+  return Boolean(a?.building?.trim());
 }
 
 export function formatSavedAddressLine(a: SavedAddress): string {
@@ -484,6 +511,8 @@ export async function detectMyPlace(): Promise<
         city: "Bengaluru",
         pin: "560114",
         landmark: "",
+        lat: 12.8705,
+        lng: 77.6208,
         formatted:
           "NO 320, 1st D Cross Rd, Akshayanagara West, Bengaluru, Karnataka 560114",
       },

@@ -21,6 +21,7 @@ export function AddressMapStep({
   onPlaceFromMap,
   onResolving,
   onNotice,
+  confirmLabel = "Confirm location",
 }: {
   searchQ: string;
   onSearchQ: (v: string) => void;
@@ -34,6 +35,7 @@ export function AddressMapStep({
   onPlaceFromMap: (place: DetectedPlace) => void;
   onResolving: (busy: boolean) => void;
   onNotice: (message: string | null) => void;
+  confirmLabel?: string;
 }) {
   const busy = detecting || resolving;
 
@@ -91,7 +93,7 @@ export function AddressMapStep({
             : "cursor-not-allowed bg-black/[0.08] text-muted",
         )}
       >
-        Confirm location
+        {confirmLabel}
       </button>
     </div>
   );

@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-23 — Browse pin first; address details at place order
+
+Home soft prompt (`pinCompletes`): Detect / Use this location saves pin + area and closes — no details form. Checkout Place Order opens details when house/building is missing. Helpers: `hasBrowseLocation` / `hasDeliveryDetails`. Playground: `deferred-location` + `checkout` notes.
+
+## 2026-11-23 — Category browse max-w-lg on monitor
+
+`CategoryBrowseSections` wraps tiles in `mx-auto max-w-lg` so aisle grids stay in the phone column on desktop (fixes left-hugging rect tiles). Same component → `/home` + playground.
+
 ## 2026-11-22 — Daily dairy layout A wired to ecom
 
 Layout **A** (`on-art`) on `/home` when a shelf title matches dairy keywords (`dairy` / `daily dairy` / `milk & eggs`); removed from plain shelf stack. See all → `/dairy` (`listHomeShelves` + `pickDairyShelf` + clear sticky BG). Playground keeps **A + C** at `/playground/daily-dairy-layouts`.

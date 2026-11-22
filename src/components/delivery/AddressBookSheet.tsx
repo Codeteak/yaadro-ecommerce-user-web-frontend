@@ -16,6 +16,7 @@ import {
   formatSavedAddressLine,
   getSavedAddress,
   listSavedAddresses,
+  saveBrowsePin,
   subscribeSavedAddresses,
   type DetectedPlace,
   type SavedAddress,
@@ -31,6 +32,11 @@ type AddressBookSheetProps = {
   initialStep?: Step;
   /** When set, open details prefilled for edit (skips map). */
   editId?: string | null;
+  /**
+   * Home soft prompt: detect / confirm pin saves location and closes.
+   * Address details are collected later at place order.
+   */
+  pinCompletes?: boolean;
 };
 
 function subscribe(onChange: () => void) {
@@ -46,23 +52,25 @@ function getServerSnapshot() {
 }
 
 /**
- * One saved address → map + Detect → details form.
- * Saving syncs checkout delivery localStorage.
- * The body mounts only while open, so each open starts from a clean step.
+ * One saved address → map + Detect → (optional) details form.
+ * `pinCompletes` (home prompt): detect/confirm saves pin and closes.
+ * Full details are required at checkout place order.
  */
 export function AddressBookSheet({
   open,
   onOpenChange,
   initialStep = "list",
   editId = null,
+  pinCompletes = false,
 }: AddressBookSheetProps) {
   if (!open) return null;
   return (
     <AddressBookSheetBody
-      key={`${editId ?? "new"}:${initialStep}`}
+      key={`${editId ?? "new"}:${initialStep}:${pinCompletes ? "pin" : "full"}`}
       onOpenChange={onOpenChange}
       initialStep={initialStep}
       editId={editId}
+      pinCompletes={pinCompletes}
     />
   );
 }
@@ -99,10 +107,12 @@ function AddressBookSheetBody({
   onOpenChange,
   initialStep,
   editId,
+  pinCompletes,
 }: {
   onOpenChange: (open: boolean) => void;
   initialStep: Step;
   editId: string | null;
+  pinCompletes: boolean;
 }) {
   const [seed] = useState(() => initialDraft(editId, initialStep));
   const [step, setStep] = useState<Step>(seed.step);
@@ -164,6 +174,13 @@ function AddressBookSheetBody({
     setStep("map");
   };
 
+  const finishWithPin = (place: DetectedPlace) => {
+    saveBrowsePin(place);
+    const { message, tone } = LOCATION_TOASTS.pinSaved;
+    showPopup(message, tone);
+    onOpenChange(false);
+  };
+
   const onDetect = async () => {
     setDetecting(true);
     setMapNotice(null);
@@ -175,6 +192,10 @@ function AddressBookSheetBody({
       return;
     }
     setDraftPlace(result.place);
+    if (pinCompletes) {
+      finishWithPin(result.place);
+      return;
+    }
     const found = LOCATION_TOASTS.locationFound;
     setMapNotice(found.message);
     showPopup(found.message, found.tone);
@@ -185,6 +206,10 @@ function AddressBookSheetBody({
       const { message, tone } = LOCATION_TOASTS.pickOnMap;
       setMapNotice(message);
       showPopup(message, tone);
+      return;
+    }
+    if (pinCompletes) {
+      finishWithPin(draftPlace);
       return;
     }
     setStep("details");
@@ -246,12 +271,19 @@ function AddressBookSheetBody({
               onDetect={onDetect}
               onSelectPlace={(next) => {
                 setDraftPlace(next);
-                setMapNotice("Area set — confirm location to continue.");
+                setMapNotice(
+                  pinCompletes
+                    ? "Area set — use this location to continue shopping."
+                    : "Area set — confirm location to continue.",
+                );
               }}
               onConfirm={onConfirmMap}
               onPlaceFromMap={setDraftPlace}
               onResolving={setResolving}
               onNotice={setMapNotice}
+              confirmLabel={
+                pinCompletes ? "Use this location" : "Confirm location"
+              }
             />
           ) : null}
           {step === "details" && draftPlace ? (

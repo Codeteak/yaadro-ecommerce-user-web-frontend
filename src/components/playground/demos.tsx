@@ -623,7 +623,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "deferred-location": () => (
-    <DemoFrame note="Wired ecom `/home`: waits ~900ms then opens address sheet (forcePreview here). Live home skips if Deliver to is set.">
+    <DemoFrame note="Wired `/home`: soft map prompt. Detect / Use this location saves the pin and closes — no details yet. Full address is asked at place order on checkout.">
       <div className="relative min-h-[28rem] bg-gradient-to-b from-mint to-paper px-4 pt-6 pb-10">
         <HomeTopBar
           shopName="Green Basket"
@@ -631,7 +631,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           signedIn={false}
         />
         <p className="mt-8 text-center text-sm font-medium text-muted">
-          Address sheet opens after the page settles…
+          Sheet opens after settle — Detect location is enough to browse.
         </p>
         <DeferredLocationPrompt forcePreview delayMs={900} />
       </div>
@@ -946,7 +946,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "category-browse-sections": () => (
     <DemoFrame
       surface="bare"
-      note="Phase B #30 (aisle grids only). Prefer home-more-sections for the full richer home stack."
+      note="Phase B #30 aisle grids — same max-w-lg column as /home (not full-bleed on monitor). Prefer home-more-sections for the full stack."
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain bg-paper ring-1 ring-black/5">
         <FruitsVeggiesSection />
@@ -1149,7 +1149,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   checkout: () => (
     <DemoFrame
       surface="bare"
-      note="Phase A #34 wired: Amount due bar off (same as live /checkout). Guest → login?next=/playground/cart-page."
+      note="Place Order with pin-only location opens Add details. Full house/street required to submit. Guest → login."
     >
       <div className="relative h-[75vh] overflow-y-auto bg-paper">
         <CheckoutPageContent
