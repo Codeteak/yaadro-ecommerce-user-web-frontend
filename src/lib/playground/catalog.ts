@@ -85,7 +85,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Wired ecom `/home`: after paint (~900ms + idle), open address sheet if no Deliver to.",
+      "Wired `/home`: soft map prompt; Detect saves pin and closes. Address details asked at place order.",
     wiresTo: "/home",
   },
   {
@@ -560,7 +560,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Phase A #34 wired: Amount due bar off. Guest → login?next=/cart.",
+      "Pin-only → Place Order opens address details. Full details required to submit. Guest → login.",
     wiresTo: "/checkout, /login, /cart",
   },
   {

@@ -30,7 +30,9 @@ import { cn } from "@/lib/cn";
 import {
   DELIVERY_ADDRESS_KEY,
   EMPTY_DELIVERY_ADDRESS,
-  formatDeliveryAddressLabel,
+  formatDeliveryLocationLabel,
+  hasBrowseLocation,
+  hasDeliveryDetails,
   subscribeDeliveryAddress,
   writeDeliveryAddress,
   type DeliveryAddress,
@@ -44,6 +46,7 @@ import {
 import { LOCATION_TOASTS } from "@/lib/location-messages";
 import {
   getSelectedAddress,
+  isSavedAddressDetailsComplete,
   listSavedAddresses,
 } from "@/lib/saved-addresses";
 
@@ -224,12 +227,23 @@ export function CheckoutPageContent({
   }, [pinLat, pinLng]);
 
   const amountDue = amountDueLabel;
-  const hasAddress = Boolean(
-    address && formatDeliveryAddressLabel(address).length > 0,
-  );
+  const hasLocation = hasBrowseLocation(address);
+  const hasDetails = hasDeliveryDetails(address);
   // Weight → unit count (kg / stepKg), same as cart preview.
   const orderLines = shopCheckoutLines(items);
   const backHref = inline ? "/playground" : "/cart";
+
+  const openAddressForOrder = () => {
+    const saved = getSelectedAddress() ?? listSavedAddresses()[0] ?? null;
+    if (hasDetails || isSavedAddressDetailsComplete(saved) || hasLocation) {
+      setSheetEditId(saved?.id ?? null);
+      setSheetStep(saved ? "details" : "map");
+    } else {
+      setSheetEditId(null);
+      setSheetStep("map");
+    }
+    setSheetOpen(true);
+  };
 
   const placeOrder = async () => {
     if (!signedIn) {
@@ -237,10 +251,13 @@ export function CheckoutPageContent({
       router.push(loginHref);
       return;
     }
-    if (!hasAddress || !address) {
-      const { message, tone } = LOCATION_TOASTS.needAddress;
-      setPlaceError(message);
-      showPopup(message, tone);
+    if (!hasDetails || !address) {
+      const toast = hasLocation
+        ? LOCATION_TOASTS.needAddressDetails
+        : LOCATION_TOASTS.needAddress;
+      setPlaceError(toast.message);
+      showPopup(toast.message, toast.tone);
+      openAddressForOrder();
       return;
     }
     if (orderLines.length === 0) {
@@ -381,13 +398,22 @@ export function CheckoutPageContent({
                 />
               </span>
               <div className="min-w-0 flex-1">
-                {hasAddress && address ? (
+                {hasDetails && address ? (
                   <>
                     <p className="truncate text-sm font-bold text-black">
                       {address.house || "Delivery"}
                     </p>
                     <p className="mt-0.5 text-[13px] leading-5 text-muted">
                       {formatFullAddress(address)}
+                    </p>
+                  </>
+                ) : hasLocation && address ? (
+                  <>
+                    <p className="truncate text-sm font-bold text-black">
+                      {formatDeliveryLocationLabel(address) || "Location set"}
+                    </p>
+                    <p className="mt-0.5 text-[13px] leading-5 text-muted">
+                      Add house / street details to place your order
                     </p>
                   </>
                 ) : (
@@ -398,21 +424,10 @@ export function CheckoutPageContent({
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  if (hasAddress) {
-                    const saved =
-                      getSelectedAddress() ?? listSavedAddresses()[0] ?? null;
-                    setSheetEditId(saved?.id ?? null);
-                    setSheetStep(saved ? "details" : "map");
-                  } else {
-                    setSheetEditId(null);
-                    setSheetStep("map");
-                  }
-                  setSheetOpen(true);
-                }}
+                onClick={openAddressForOrder}
                 className="shrink-0 cursor-pointer text-sm font-bold text-leaf transition hover:text-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
               >
-                {hasAddress ? "Edit" : "Add"}
+                {hasDetails ? "Edit" : hasLocation ? "Add details" : "Add"}
               </button>
             </div>
           </div>
@@ -536,12 +551,12 @@ export function CheckoutPageContent({
           disabled={
             pending ||
             minimumBlocks ||
-            (signedIn && (!hasAddress || orderLines.length === 0))
+            (signedIn && orderLines.length === 0)
           }
           onClick={() => void placeOrder()}
           className={cn(
             "group flex w-full items-center justify-center gap-2 rounded-full bg-track px-5 py-4 text-base font-extrabold text-black shadow-[0_7px_0_0_#1f5c1f,0_14px_28px_rgba(47,107,47,0.28)] transition-[transform,box-shadow,background-color,opacity] duration-150 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
-            pending || (signedIn && (!hasAddress || orderLines.length === 0))
+            pending || (signedIn && orderLines.length === 0)
               ? "cursor-not-allowed opacity-50"
               : "cursor-pointer hover:bg-leaf-bright motion-safe:active:translate-y-[5px] motion-safe:active:shadow-[0_2px_0_0_#1f5c1f,0_6px_14px_rgba(47,107,47,0.22)]",
           )}
@@ -550,10 +565,12 @@ export function CheckoutPageContent({
             ? pendingLabel
             : !signedIn
               ? "Sign in to place order"
-              : !hasAddress
-                ? "Add address to place order"
-                : orderLines.length === 0
-                  ? "Add items to place order"
+              : orderLines.length === 0
+                ? "Add items to place order"
+                : !hasDetails
+                  ? hasLocation
+                    ? "Add details to place order"
+                    : "Add address to place order"
                   : "Place Order"}
           <Check className="h-5 w-5" aria-hidden />
         </button>
@@ -563,10 +580,12 @@ export function CheckoutPageContent({
             areaNote ??
             (!signedIn
               ? "Sign in so we can send this order to the shop."
-              : !hasAddress
-                ? "Add a delivery address, then Place Order unlocks."
-                : orderLines.length === 0
-                  ? "Your basket is empty — add items from the cart."
+              : orderLines.length === 0
+                ? "Your basket is empty — add items from the cart."
+                : !hasDetails
+                  ? hasLocation
+                    ? "Location saved — add house / street details, then place the order."
+                    : "Add a delivery address, then Place Order unlocks."
                   : isLatLng(address)
                     ? "Ready — Cash on delivery. We'll confirm this location when you place the order."
                     : "Ready — we'll ask for your location when you place the order.")}

@@ -7,12 +7,15 @@ import { ChevronDown, MapPin } from "lucide-react";
 import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import {
-  formatDeliveryAddressLabel,
+  formatDeliveryLocationLabel,
+  hasBrowseLocation,
+  hasDeliveryDetails,
   readDeliveryAddress,
   subscribeDeliveryAddress,
 } from "@/lib/delivery-address";
 import {
   getSelectedAddress,
+  isSavedAddressDetailsComplete,
   listSavedAddresses,
 } from "@/lib/saved-addresses";
 
@@ -57,8 +60,8 @@ function getServerLabel() {
 
 function getClientLabel() {
   const saved = readDeliveryAddress();
-  if (!saved) return null;
-  return formatDeliveryAddressLabel(saved) || null;
+  if (!hasBrowseLocation(saved)) return null;
+  return formatDeliveryLocationLabel(saved);
 }
 
 /**
@@ -89,10 +92,15 @@ export function HomeTopBar({
   );
 
   const openAddressSheet = () => {
-    if (addressLabel) {
-      const saved = getSelectedAddress() ?? listSavedAddresses()[0] ?? null;
+    const delivery = readDeliveryAddress();
+    const saved = getSelectedAddress() ?? listSavedAddresses()[0] ?? null;
+    if (hasDeliveryDetails(delivery) || isSavedAddressDetailsComplete(saved)) {
       setSheetEditId(saved?.id ?? null);
-      setSheetStep(saved ? "details" : "list");
+      setSheetStep("details");
+    } else if (hasBrowseLocation(delivery) || saved) {
+      // Pin-only: open details so they can complete when they want.
+      setSheetEditId(saved?.id ?? null);
+      setSheetStep(saved ? "details" : "map");
     } else {
       setSheetEditId(null);
       setSheetStep("map");
