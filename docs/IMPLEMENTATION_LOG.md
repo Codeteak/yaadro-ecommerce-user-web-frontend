@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-23 — CodeDeploy ApplicationStart timeout + disk prune
+
+`ScriptTimedOut` at 900s while Docker was still extracting a ~252MB image on `t4g.micro`. Raised ApplicationStart timeout to 2700s. `application_start.sh` now stops the old container, prunes unused images/containers/build cache (`docker image/builder/system prune`), clears stale host artifacts under the app dir, then pulls and starts.
+
 ## 2026-11-23 — Browse pin first; address details at place order
 
 Home soft prompt (`pinCompletes`): Detect / Use this location saves pin + area and closes — no details form. Checkout Place Order opens details when house/building is missing. Helpers: `hasBrowseLocation` / `hasDeliveryDetails`. Playground: `deferred-location` + `checkout` notes.
