@@ -37,14 +37,14 @@ test("ignores sample products and keeps shop lines", () => {
   ]);
   assert.deepEqual(lines, [
     { productId: MILK, quantity: 1 },
-    // 0.5 kg ÷ 0.1 step = 5 units (price_minor_per_unit basis)
-    { productId: BREAD, quantity: 5 },
+    { productId: BREAD, quantity: 0.5 },
   ]);
 });
 
-test("weight lines send unit count not raw kilograms", () => {
-  assert.equal(shopLineQuantity(weightBread(3.1)), 31);
-  assert.equal(shopLineQuantity(weightBread(0.1)), 1);
+test("weight lines send kilograms not step counts", () => {
+  assert.equal(shopLineQuantity(weightBread(3.1)), 3.1);
+  assert.equal(shopLineQuantity(weightBread(0.1)), 0.1);
+  assert.equal(shopLineQuantity(weightBread(0.75)), 0.75);
   assert.equal(shopLineQuantity({ productId: MILK, qty: 2 }), 2);
 });
 
@@ -56,8 +56,8 @@ test("blocks a pack line over the shop quantity cap", () => {
   assert.equal(localCheckoutWarning([{ productId: MILK, qty: 10 }]), null);
 });
 
-test("allows weight unit counts above the pack line cap", () => {
-  // 3.1 kg → 31 units; must not trip the pack qty-10 rule.
+test("allows weight kilograms above the pack line quantity cap", () => {
+  // 3.1 kg must not trip the pack qty-10 rule.
   assert.equal(localCheckoutWarning([weightBread(3.1)]), null);
 });
 

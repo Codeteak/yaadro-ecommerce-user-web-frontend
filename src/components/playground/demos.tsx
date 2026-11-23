@@ -154,7 +154,7 @@ function ProductDetailDemo() {
   );
 
   return (
-    <DemoFrame note="Same as /product/[id]. Weight: Add → slide ruler; then CTA shows chosen kg. Total = (kg / step) × card price.">
+    <DemoFrame note="Same as /product/[id]. Weight: Add → slide ruler; then CTA shows chosen kg. Total = kg × price per kg.">
       <div className="relative">
         <div className="flex flex-wrap gap-2 border-b border-forest/8 px-4 py-3">
           {PDP_SAMPLES.map((p) => (
