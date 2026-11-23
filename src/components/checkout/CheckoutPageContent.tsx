@@ -229,7 +229,7 @@ export function CheckoutPageContent({
   const amountDue = amountDueLabel;
   const hasLocation = hasBrowseLocation(address);
   const hasDetails = hasDeliveryDetails(address);
-  // Weight → unit count (kg / stepKg), same as cart preview.
+  // Weight lines send kilograms; pack lines send pack count.
   const orderLines = shopCheckoutLines(items);
   const backHref = inline ? "/playground" : "/cart";
 

@@ -17,8 +17,7 @@ function subscribeNever() {
 /**
  * Weight customizer sheet: opens for sold-by-weight products.
  * Ruler steps come from catalog `unit_size` (min = step). Default
- * selection is minKg. Catalog price is per unit_size (same as the card),
- * so total = (kg / step) × card price.
+ * selection is minKg. Catalog price is per kg, so total = kg × card price.
  * Mounted once inside CartProvider (storefront layout).
  */
 const STEP_W = 56;
@@ -80,7 +79,7 @@ export function WeightCustomizer() {
   if (!mounted || !product?.customization) return null;
   const { minKg, maxKg, stepKg } = product.customization;
   const steps = buildSteps(minKg, maxKg, stepKg);
-  const total = weightAmount(selectedKg, product.price, stepKg);
+  const total = weightAmount(selectedKg, product.price);
 
   const handleScroll = () => {
     const ruler = rulerRef.current;
@@ -116,7 +115,7 @@ export function WeightCustomizer() {
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-[15px] font-bold text-ink">{product.name}</h2>
             <p className="text-xs font-medium text-muted">
-              By weight, ₹{product.price} / {formatKgAmount(stepKg)} kg
+              By weight, ₹{product.price} / kg
             </p>
           </div>
           <p className="text-lg font-extrabold text-black">₹{total}</p>

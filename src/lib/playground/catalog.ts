@@ -378,7 +378,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Weight CTA is Add until chosen; then shows kg. Card price per unit_size; slide scales (kg/step)×price.",
+      "Weight CTA is Add until chosen; then shows kg. Card price is per kg; slide scales kg×price.",
     wiresTo: "Storefront layout + ProductCard + ProductDetail",
   },
   {

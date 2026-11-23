@@ -60,12 +60,6 @@ function rupees(amountMinor: number): string {
   })}`;
 }
 
-/** Catalog unit_size / stepKg from the cart snapshot (set when the line was added). */
-function weightStepKg(item: CartItem): number {
-  const step = item.snapshot?.customization?.stepKg;
-  return typeof step === "number" && step > 0 ? step : 1;
-}
-
 function weightMaxKg(item: CartItem): number {
   const max = item.snapshot?.customization?.maxKg;
   return typeof max === "number" && max > 0 ? max : 10;
@@ -73,13 +67,12 @@ function weightMaxKg(item: CartItem): number {
 
 /**
  * Quantity for cart preview / place order.
- * Catalog price is per `unit_size` (stepKg), so weight lines send
- * unit count: kg / stepKg (e.g. 3.1 kg ÷ 0.1 = 31), not raw kg.
+ * Sold-by-weight lines send kilograms. The shop prices per kg with
+ * unit_size as the order step only — do not convert to step counts.
  */
 export function shopLineQuantity(item: CartItem): number {
   if (item.weightKg && item.weightKg > 0) {
-    const step = weightStepKg(item);
-    return Math.round((item.weightKg / step) * 1000) / 1000;
+    return Math.round(item.weightKg * 10_000) / 10_000;
   }
   return item.qty;
 }
