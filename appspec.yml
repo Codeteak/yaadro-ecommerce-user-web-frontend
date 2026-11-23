@@ -28,7 +28,8 @@ hooks:
       runas: root
   ApplicationStart:
     - location: scripts/cicd/application_start.sh
-      timeout: 900
+      # t4g.micro image extract can exceed 15m; prune + pull needs headroom.
+      timeout: 2700
       runas: root
   ValidateService:
     - location: scripts/cicd/validate_service.sh

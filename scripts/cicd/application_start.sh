@@ -17,6 +17,15 @@ SECRET_PREFIX="${APP_ENV_SECRET_PREFIX:-CUSTOMER_WEB_}"
 AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-ap-south-1}}"
 IMAGE_DETAIL_FILE="${APP_DIR}/image-detail.json"
 APP_PORT="${APP_PORT:-3000}"
+COMPOSE_FILE="${APP_DIR}/docker-compose.yml"
+
+compose() {
+  if command -v docker-compose >/dev/null 2>&1; then
+    docker-compose -f "${COMPOSE_FILE}" "$@"
+  else
+    docker compose -f "${COMPOSE_FILE}" "$@"
+  fi
+}
 
 cd "${APP_DIR}"
 
@@ -94,15 +103,30 @@ aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AW
 export ECR_IMAGE_URI
 export APP_PORT
 
-COMPOSE_FILE="${APP_DIR}/docker-compose.yml"
-if command -v docker-compose >/dev/null 2>&1; then
-  docker-compose -f "${COMPOSE_FILE}" pull
-  docker-compose -f "${COMPOSE_FILE}" down --remove-orphans
-  docker-compose -f "${COMPOSE_FILE}" up -d --force-recreate
-else
-  docker compose -f "${COMPOSE_FILE}" pull
-  docker compose -f "${COMPOSE_FILE}" down --remove-orphans
-  docker compose -f "${COMPOSE_FILE}" up -d --force-recreate
-fi
+# Stop the running site first so its image becomes unused and can be deleted.
+echo "[application_start] Stopping old containers..."
+compose down --remove-orphans || true
+docker rm -f customer-web 2>/dev/null || true
+
+# Free disk before pull — old layers/cache on t4g.micro make extract crawl / time out.
+echo "[application_start] Clearing unused Docker artifacts and build cache..."
+docker container prune -f || true
+docker image prune -af || true
+docker builder prune -af || true
+docker system prune -af || true
+
+# Drop leftover host junk from prior bundles (keep deploy scripts + compose + image-detail).
+echo "[application_start] Clearing stale host artifacts under ${APP_DIR}..."
+find "${APP_DIR}" -mindepth 1 -maxdepth 1 \
+  ! -name 'scripts' \
+  ! -name 'appspec.yml' \
+  ! -name 'docker-compose.yml' \
+  ! -name 'image-detail.json' \
+  ! -name '.env' \
+  -exec rm -rf {} + 2>/dev/null || true
+
+echo "[application_start] Pulling ${ECR_IMAGE_URI}..."
+compose pull
+compose up -d --force-recreate --remove-orphans
 
 echo "[application_start] customer-web deployment complete."
