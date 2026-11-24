@@ -145,6 +145,8 @@ export type ShopOffer = {
   label: string;
   categoryId: string | null;
   reached: boolean;
+  /** Rupees from `discount_minor` / `amount_minor` when the shop sends them. */
+  discountRupees: number;
 };
 
 export type ShopCouponQuote = {
@@ -155,6 +157,22 @@ export type ShopCouponQuote = {
   reasonMessage: string | null;
 };
 
+/** One priced line from cart preview (paid or free bundle reward). */
+export type ShopQuoteLine = {
+  productId: string | null;
+  title: string | null;
+  imageUrl: string | null;
+  quantity: number;
+  offerQuantity: number;
+  isBundleReward: boolean;
+  /** Per-unit MRP (rupees). */
+  listRupees: number | null;
+  /** Per-unit final (rupees). */
+  finalRupees: number | null;
+  /** Line payable total (rupees). */
+  lineTotalRupees: number | null;
+};
+
 export type ShopQuote = {
   /** Null once the basket meets the shop minimum. */
   minimumMessage: string | null;
@@ -163,9 +181,17 @@ export type ShopQuote = {
    * Null when the preview did not include a subtotal.
    */
   totalRupees: number | null;
+  /** Summary discount fields (rupees). */
+  linePromoDiscountRupees: number;
+  bundleDiscountRupees: number;
+  autoCartDiscountRupees: number;
   coupon: ShopCouponQuote;
   applied: ShopOffer[];
   suggested: ShopOffer[];
+  /** Paid + free lines from the preview. */
+  lines: ShopQuoteLine[];
+  /** Bundle reward / free gift lines only. */
+  freeItems: ShopQuoteLine[];
 };
 
 const EMPTY_COUPON: ShopCouponQuote = {
@@ -178,9 +204,14 @@ const EMPTY_COUPON: ShopCouponQuote = {
 const EMPTY_QUOTE: ShopQuote = {
   minimumMessage: null,
   totalRupees: null,
+  linePromoDiscountRupees: 0,
+  bundleDiscountRupees: 0,
+  autoCartDiscountRupees: 0,
   coupon: EMPTY_COUPON,
   applied: [],
   suggested: [],
+  lines: [],
+  freeItems: [],
 };
 
 /** Ask open cart and checkout pages to price the basket again. */
@@ -198,8 +229,13 @@ function offerLabel(row: Record<string, unknown>): string {
   if (title) return title;
   const message = typeof row.message === "string" ? row.message.trim() : "";
   if (message) return message;
-  const name = typeof row.category_name === "string" ? row.category_name.trim() : "";
-  const bps = Number(row.percent_bps);
+  const name =
+    typeof row.category_name === "string"
+      ? row.category_name.trim()
+      : typeof row.categoryName === "string"
+        ? row.categoryName.trim()
+        : "";
+  const bps = Number(row.percent_bps ?? row.percentBps);
   const percent = Number.isFinite(bps) && bps > 0 ? bps / 100 : null;
   const percentLabel =
     percent == null ? null : Number.isInteger(percent) ? `${percent}%` : `${percent}%`;
@@ -209,14 +245,77 @@ function offerLabel(row: Record<string, unknown>): string {
   return "Shop offer";
 }
 
+function offerDiscountRupees(row: Record<string, unknown>): number {
+  const discount = presentMinor(row.discount_minor ?? row.discountMinor);
+  const amount = presentMinor(row.amount_minor ?? row.amountMinor);
+  const minorValue = discount ?? amount ?? 0;
+  return minorValue / 100;
+}
+
 function offerList(value: unknown, reached: boolean): ShopOffer[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
     const row = asRecord(item);
     if (!row) return [];
-    const categoryId = typeof row.category_id === "string" ? row.category_id : null;
-    return [{ label: offerLabel(row), categoryId, reached }];
+    const categoryId =
+      typeof row.category_id === "string"
+        ? row.category_id
+        : typeof row.categoryId === "string"
+          ? row.categoryId
+          : null;
+    return [
+      {
+        label: offerLabel(row),
+        categoryId,
+        reached,
+        discountRupees: offerDiscountRupees(row),
+      },
+    ];
   });
+}
+
+function parseQuoteLine(value: unknown): ShopQuoteLine | null {
+  const row = asRecord(value);
+  if (!row) return null;
+  const pricing = asRecord(row.pricing);
+  const productId =
+    typeof row.product_id === "string"
+      ? row.product_id
+      : typeof row.productId === "string"
+        ? row.productId
+        : null;
+  const listMinor = presentMinor(pricing?.list_minor ?? pricing?.listMinor);
+  const finalMinor = presentMinor(pricing?.final_minor ?? pricing?.finalMinor);
+  const lineTotalMinor = presentMinor(
+    pricing?.line_total_minor ?? pricing?.lineTotalMinor,
+  );
+  const quantity = Number(row.quantity ?? 0);
+  const offerQuantity = Number(row.offer_quantity ?? row.offerQuantity ?? 0);
+  const isBundleReward =
+    row.is_bundle_reward === true ||
+    row.isBundleReward === true ||
+    String(row.id ?? "").startsWith("inject:");
+  return {
+    productId,
+    title:
+      typeof row.title === "string"
+        ? row.title
+        : typeof row.title_snapshot === "string"
+          ? row.title_snapshot
+          : null,
+    imageUrl:
+      typeof row.image_url === "string"
+        ? row.image_url
+        : typeof row.imageUrl === "string"
+          ? row.imageUrl
+          : null,
+    quantity: Number.isFinite(quantity) ? quantity : 0,
+    offerQuantity: Number.isFinite(offerQuantity) ? offerQuantity : 0,
+    isBundleReward,
+    listRupees: listMinor == null ? null : listMinor / 100,
+    finalRupees: finalMinor == null ? null : finalMinor / 100,
+    lineTotalRupees: lineTotalMinor == null ? null : lineTotalMinor / 100,
+  };
 }
 
 function parseShopCoupon(preview: Record<string, unknown> | null): ShopCouponQuote {
@@ -268,7 +367,7 @@ export function billCouponLine(
   return { code: local.code.trim(), discountRupees: local.discountRupees };
 }
 
-/** Minimum, trusted total, coupon, and automatic offers from a cart preview. */
+/** Minimum, trusted total, coupon, lines, and automatic offers from a cart preview. */
 export function parseShopQuote(preview: unknown): ShopQuote {
   const body = asRecord(preview);
   if (!body) return EMPTY_QUOTE;
@@ -277,16 +376,37 @@ export function parseShopQuote(preview: unknown): ShopQuote {
   const minimum = presentMinor(summary?.min_purchase_minor);
   const subtotal = presentMinor(summary?.subtotal_minor);
   const auto = asRecord(asRecord(body.promotions)?.auto);
+  const lines = (Array.isArray(body.items) ? body.items : [])
+    .map(parseQuoteLine)
+    .filter((line): line is ShopQuoteLine => Boolean(line));
+  const freeItems = lines.filter((line) => line.isBundleReward);
   return {
     minimumMessage:
       remaining != null && minimum != null && remaining > 0 && minimum > 0
         ? `Add ${rupees(remaining)} more to meet this shop's ${rupees(minimum)} minimum order.`
         : null,
     totalRupees: subtotal == null ? null : subtotal / 100,
+    linePromoDiscountRupees:
+      (presentMinor(summary?.line_promo_discount_minor) ?? 0) / 100,
+    bundleDiscountRupees:
+      (presentMinor(summary?.bundle_discount_minor) ?? 0) / 100,
+    autoCartDiscountRupees:
+      (presentMinor(summary?.auto_cart_discount_minor) ?? 0) / 100,
     coupon: parseShopCoupon(body),
     applied: offerList(auto?.applied_offers, true),
     suggested: offerList(auto?.suggested_offers, false),
+    lines,
+    freeItems,
   };
+}
+
+/** Stable key for basket + coupon — shared by quote cache and checkout reuse. */
+export function shopQuoteBasketKey(
+  items: CartItem[],
+  couponCode: string | null,
+): string {
+  const lines = shopCheckoutLines(items);
+  return `${lines.map((line) => `${line.productId}:${line.quantity}`).join("|")}|${couponCode ?? ""}`;
 }
 
 export function formatRupees(amount: number): string {

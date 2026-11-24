@@ -13,6 +13,8 @@ import {
   type SampleProduct,
 } from "@/lib/sample-products";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
+import { catalogPriceDisplay } from "@/lib/catalog-price-display";
+import { MAX_LINE_QUANTITY } from "@/lib/cart-checkout-rules";
 import { formatKgAmount } from "@/lib/qty-label";
 import { ProductCard } from "./ProductCard";
 import { ProductGallery } from "./ProductGallery";
@@ -58,9 +60,10 @@ export function ProductDetail({
   const images = productImages(product);
   const description = resolveProductDescription(product);
   const relatedList = related ?? defaultRelated(product);
+  const display = catalogPriceDisplay(product);
   const discount =
-    product.mrp > product.price
-      ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
+    display.mrp > display.price
+      ? Math.round(((display.mrp - display.price) / display.mrp) * 100)
       : 0;
   return (
     <div className="flex flex-col bg-paper pb-8">
@@ -104,7 +107,9 @@ export function ProductDetail({
             <h2 className="text-xl font-extrabold tracking-tight text-ink">
               {product.name}
             </h2>
-            <p className="mt-0.5 text-sm font-medium text-muted">{product.unit}</p>
+            <p className="mt-0.5 text-sm font-medium text-muted">
+              {display.unitLabel}
+            </p>
           </div>
           {product.rating ? (
             <p className="flex shrink-0 items-center gap-1 pt-1 text-[13px] font-semibold text-muted">
@@ -122,17 +127,22 @@ export function ProductDetail({
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <p className="text-2xl font-extrabold text-black tabular-nums">
-            ₹{product.price}
+            ₹{display.price}
           </p>
           {discount > 0 ? (
             <>
               <p className="text-sm font-medium text-muted tabular-nums line-through">
-                ₹{product.mrp}
+                ₹{display.mrp}
               </p>
               <span className="rounded-full bg-mint px-2.5 py-0.5 text-[11px] font-bold text-forest">
                 {discount}% OFF
               </span>
             </>
+          ) : null}
+          {display.isMinWeight ? (
+            <p className="w-full text-xs font-medium text-muted">
+              ₹{display.pricePerKg} / kg
+            </p>
           ) : null}
         </div>
 
@@ -204,9 +214,12 @@ export function ProductDetail({
               </span>
               <button
                 type="button"
-                onClick={() => setCartQty(product.id, qty + 1)}
+                onClick={() =>
+                  setCartQty(product.id, Math.min(MAX_LINE_QUANTITY, qty + 1))
+                }
+                disabled={qty >= MAX_LINE_QUANTITY}
                 aria-label={`Increase quantity of ${product.name}`}
-                className="grid size-10 cursor-pointer place-items-center rounded-xl text-black transition hover:bg-black/10 active:scale-90 focus-visible:outline-2 focus-visible:outline-leaf"
+                className="grid size-10 cursor-pointer place-items-center rounded-xl text-black transition hover:bg-black/10 active:scale-90 focus-visible:outline-2 focus-visible:outline-leaf disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Plus className="h-5 w-5" aria-hidden />
               </button>

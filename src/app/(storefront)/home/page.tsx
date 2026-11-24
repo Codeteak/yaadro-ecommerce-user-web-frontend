@@ -7,9 +7,9 @@ import {
   HomeSearchBar,
 } from "@/components/home/HomeSearchBar";
 import { OfferBanners } from "@/components/home/OfferBanners";
-import { OfferFlyer } from "@/components/home/OfferFlyer";
 import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 import { HomePullContent } from "@/components/home/HomePullContent";
+import { PrefetchStorefrontRoute } from "@/components/navigation/PrefetchStorefrontRoute";
 import { ScrollToTopOnLoad } from "@/components/navigation/ScrollToTopOnLoad";
 import {
   CategoryRailSkeleton,
@@ -173,9 +173,11 @@ export default function StorefrontHomePage() {
           <HomeCatalogBody />
         </Suspense>
 
-        <OfferFlyer />
-        {/* #7 — after paint, open address sheet only when Deliver to is empty */}
+        {/* Soft location prompt only — offer flyer removed (scroll-lock races). */}
         <DeferredLocationPrompt />
+        {/* Warm /categories while home is idle so search tap feels instant. */}
+        <PrefetchStorefrontRoute href="/categories" />
+        <PrefetchStorefrontRoute href="/categories?focus=search" />
       </main>
     </HomeCategoryProvider>
   );

@@ -47,6 +47,28 @@ export async function loadCategoriesPageData(
   return loadCategoryBrowser(shopId, cat);
 }
 
+/**
+ * Debounced live search from the categories hub. Returns products only
+ * so the aisle tree stays on the already-loaded page payload.
+ */
+export async function searchCatalogProducts(query: string): Promise<{
+  ok: boolean;
+  products: SampleProduct[];
+  error: string | null;
+}> {
+  const q = query.trim().slice(0, 200);
+  if (q.length < 2) {
+    return { ok: true, products: [], error: null };
+  }
+  const shopId = await getRequestShopId();
+  const data = await loadCategoryBrowser(shopId, "all", q);
+  return {
+    ok: data.ok,
+    products: data.products,
+    error: data.error,
+  };
+}
+
 export async function loadCategoryPageData(
   slug: string,
 ): Promise<CategoryListingData | null> {

@@ -14,6 +14,7 @@ import {
   writeDeliveryAddress,
   type DeliveryAddress,
 } from "@/lib/delivery-address";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 type DeliveryAddressSheetProps = {
   open: boolean;
@@ -49,19 +50,20 @@ export function DeliveryAddressSheet({
     setWasOpen(false);
   }
 
+  useBodyScrollLock(open);
+
+  const onOpenChangeRef = useRef(onOpenChange);
+  useEffect(() => {
+    onOpenChangeRef.current = onOpenChange;
+  }, [onOpenChange]);
   useEffect(() => {
     if (!open) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onOpenChange(false);
+      if (e.key === "Escape") onOpenChangeRef.current(false);
     };
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open, onOpenChange]);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
 
   const set =
     (field: keyof DeliveryAddress) =>

@@ -1,6 +1,6 @@
 # Yaadro Storefront — Project Status
 
-**Updated:** 2026-11-24 (home rail + catalog unified; empty produce hidden; aisle fetch retry)
+**Updated:** 2026-11-24 (checkout place-order hardening; refresh-safe confirm)
 
 ## Current stage
 
@@ -13,12 +13,12 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 | Onboarding `/` | Done | Redirects to `/home` |
 | Login `/login` | Live | Phone +91 / OTP. Refresh token in localStorage (~50 days). |
 | Home / catalog | Live database | Categories, products, PDP, shelves from `DATABASE_URL`. Domain resolve + banners when host is not local. Empty banners stay hidden. |
-| Search | Wired | Home submit → `/categories?q=` and filters the product grid |
-| Cart `/cart` | Live | Shop-scoped `yaadro_cart_<shopId>`; preview + coupons |
+| Search | Wired | Home → `/categories` (prefetched). Typing filters locally, then debounced server search; `?q=` syncs without remount. Warm uses same browse page size (48). |
+| Cart `/cart` | Live | Shop-scoped basket; bill from cart preview (To pay + saves); typed coupons; free bundle section; qty cap 10 |
 | Coupons `/coupons` | Wired | Live list from `GET /api/storefront/coupons` |
 | Wishlist `/wishlist` | Done | Shop-scoped local storage |
-| Checkout `/checkout` | Live | COD via `POST /api/storefront/checkout` with storefront cookies (`credentials: include`) |
-| Order placed | Done | Inline on `/checkout` after Place Order |
+| Checkout `/checkout` | Live | COD via `POST /api/storefront/checkout`; readiness + basket-scoped idempotency; short sticky To pay |
+| Order placed | Done | Live: `/orders/[id]?placed=1` (refresh-safe). Playground keeps `OrderPlacedContent`. |
 | Orders `/orders` | Live when signed in | Customer API list/detail |
 | Address | Live | One address; server sync on login + save; Google map + Nominatim fallback |
 | PWA | Wired | `public/sw.js`, install prompt, manifest uses shop image when available |

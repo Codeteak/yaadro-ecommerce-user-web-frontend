@@ -9,6 +9,8 @@ import { useCartLine, useSetCustomizing } from "@/components/cart/CartContext";
 import { setCartQty } from "@/lib/cart-store";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { useWishlistToggle } from "@/components/wishlist/useWishlistToggle";
+import { catalogPriceDisplay } from "@/lib/catalog-price-display";
+import { MAX_LINE_QUANTITY } from "@/lib/cart-checkout-rules";
 import { cn } from "@/lib/cn";
 import { productPhoto } from "@/lib/product-image";
 import { formatKgAmount } from "@/lib/qty-label";
@@ -96,9 +98,11 @@ export function ProductCard({
   const qty = cartItem?.qty ?? 0;
   const weightKg = cartItem?.weightKg;
 
+  // Weight cards show min-step amount (₹25 / 250 g), not the raw ₹/kg rate.
+  const display = catalogPriceDisplay(product);
   const discount =
-    product.mrp > product.price
-      ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
+    display.mrp > display.price
+      ? Math.round(((display.mrp - display.price) / display.mrp) * 100)
       : 0;
   const photo = productPhoto(product.image);
 
@@ -191,7 +195,7 @@ export function ProductCard({
           </h3>
           {!compact ? (
             <p className="mt-0.5 h-[14px] truncate text-[11px] leading-[14px] font-medium text-muted">
-              {product.unit}
+              {display.unitLabel}
             </p>
           ) : null}
         </div>
@@ -210,8 +214,13 @@ export function ProductCard({
               compact ? "text-[15px]" : "text-base",
             )}
           >
-            ₹{product.price}
+            ₹{display.price}
           </span>
+          {compact ? (
+            <span className="truncate text-[10px] leading-tight font-medium text-muted">
+              {display.unitLabel}
+            </span>
+          ) : null}
           {discount > 0 && (
             <span
               className={cn(
@@ -219,7 +228,7 @@ export function ProductCard({
                 compact ? "text-[11px]" : "text-[11px]",
               )}
             >
-              ₹{product.mrp}
+              ₹{display.mrp}
             </span>
           )}
         </p>
@@ -304,10 +313,13 @@ export function ProductCard({
             </span>
             <button
               type="button"
-              onClick={() => setCartQty(product.id, qty + 1)}
+              onClick={() =>
+                setCartQty(product.id, Math.min(MAX_LINE_QUANTITY, qty + 1))
+              }
+              disabled={qty >= MAX_LINE_QUANTITY}
               aria-label={`Increase quantity of ${product.name}`}
               className={cn(
-                "grid cursor-pointer place-items-center rounded-md text-black transition hover:bg-black/10 active:scale-90 focus-visible:outline-2 focus-visible:outline-leaf",
+                "grid cursor-pointer place-items-center rounded-md text-black transition hover:bg-black/10 active:scale-90 focus-visible:outline-2 focus-visible:outline-leaf disabled:cursor-not-allowed disabled:opacity-40",
                 compact ? "h-6 w-6" : "h-7 w-7 rounded-lg",
               )}
             >

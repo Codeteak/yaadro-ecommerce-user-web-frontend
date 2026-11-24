@@ -14,7 +14,11 @@ import { useEffect, useRef, useState } from "react";
  * `/categories` product column) count — window scroll alone is not enough
  * when the page is `h-dvh` with inner `overflow-y-auto`.
  */
-export function useScrollDirection() {
+/**
+ * @param enabled — when false, skip attaching a listener (used when a parent
+ *   `NavScrollProvider` already owns the shared scroll state).
+ */
+export function useScrollDirection(enabled = true) {
   const [navHidden, setNavHidden] = useState(false);
   const [scrolling, setScrolling] = useState(false);
   const lastYByTargetRef = useRef(new WeakMap<object, number>());
@@ -23,6 +27,8 @@ export function useScrollDirection() {
   const idleTimerRef = useRef(0);
 
   useEffect(() => {
+    if (!enabled) return;
+
     const readY = (target: EventTarget | null): { key: object; y: number; nearTop: number } | null => {
       if (
         target === document ||
@@ -81,7 +87,7 @@ export function useScrollDirection() {
       document.removeEventListener("scroll", onScroll, true);
       window.clearTimeout(idleTimerRef.current);
     };
-  }, []);
+  }, [enabled]);
 
   return { navHidden, scrolling };
 }

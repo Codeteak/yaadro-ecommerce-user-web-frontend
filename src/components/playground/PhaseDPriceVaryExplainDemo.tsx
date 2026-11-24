@@ -112,9 +112,6 @@ export function PhaseDPriceVaryExplainDemo() {
           <CheckoutPageContent
             chromePosition="inline"
             showPriceMayVary
-            priceMayVaryVariant="soft"
-            highlightSavings
-            showAmountDueBar={false}
             previewSignedIn
           />
         </div>

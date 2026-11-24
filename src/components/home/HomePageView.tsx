@@ -6,7 +6,6 @@ import {
   HomeSearchBar,
 } from "@/components/home/HomeSearchBar";
 import { OfferBanners } from "@/components/home/OfferBanners";
-import { OfferFlyer } from "@/components/home/OfferFlyer";
 import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 import { HomePullContent } from "@/components/home/HomePullContent";
 import { ScrollToTopOnLoad } from "@/components/navigation/ScrollToTopOnLoad";
@@ -99,7 +98,6 @@ export function HomePageView({
           catalogError={catalog.error}
         />
 
-        <OfferFlyer />
       </main>
     </HomeCategoryProvider>
   );

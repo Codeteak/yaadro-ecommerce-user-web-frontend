@@ -34,6 +34,7 @@ import {
   type SampleCoupon,
 } from "@/lib/sample-coupons";
 import { confirmShopPromo } from "@/lib/shop-promo";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 function subscribeNever() {
   return () => undefined;
@@ -133,10 +134,10 @@ function CouponsPageBody({
   );
   const canUse = selected?.status === "active";
 
+  useBodyScrollLock(Boolean(selected));
+
   useEffect(() => {
     if (!selected) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setSelected(null);
@@ -145,10 +146,7 @@ function CouponsPageBody({
       }
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [selected]);
 
   const openCoupon = (coupon: SampleCoupon) => {

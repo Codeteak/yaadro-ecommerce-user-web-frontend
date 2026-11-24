@@ -544,15 +544,13 @@ import { WishlistProvider } from "@/components/wishlist/WishlistContext";
   "cart-page": U(
     `import { CartPageContent } from "@/components/cart/CartPageContent";
 
-{/* Phase A playground: #32 solid CTA, #36 stable line order (cart-store) */}
+{/* Live-shaped cart: shop bill + typed coupon; playground uses sample coupons */}
 <CartPageContent
   showPriceMayVary
   showCartSuggestions
   couponPickerHref="/coupons?from=cart"
   previewSignedIn
-  weightAtBottom
-  syncCheckoutTotal
-  solidCheckoutCta
+  sampleCoupons
 />`,
     [
       "src/app/(storefront)/cart/page.tsx",
@@ -742,8 +740,6 @@ import { GUEST_PROFILE_AVATAR } from "@/lib/default-profile-avatar";
 // Playground fixture — Coupon −₹ visible for testers
 <CheckoutPageContent
   chromePosition="inline"
-  highlightSavings
-  showAmountDueBar={false}
   previewSignedIn
   demoBill={{
     subtotalRupees: 599,
@@ -754,17 +750,22 @@ import { GUEST_PROFILE_AVATAR } from "@/lib/default-profile-avatar";
   }}
 />
 
-// Live: Coupon row only when cart/preview status is applied
-<CheckoutPageContent liveShopPricing showAmountDueBar={false} />`,
-    ["src/components/checkout/CheckoutPageContent.tsx"],
+// Live: short sticky To pay + Place Order; success → /orders/[id]?placed=1
+<CheckoutPageContent liveShopPricing showPriceMayVary />`,
+    [
+      "src/components/checkout/CheckoutPageContent.tsx",
+      "src/components/checkout/CheckoutOrderSummary.tsx",
+      "src/lib/place-order.ts",
+    ],
   ),
   checkout: U(
     `import { CheckoutPageContent } from "@/components/checkout/CheckoutPageContent";
-// Guest Place Order → /login?next=/cart so coupons aren’t skipped after login
+// Guest Place Order → /login?next=/checkout
 
 <CheckoutPageContent showPriceMayVary previewSignedIn={false} />`,
     [
       "src/components/checkout/CheckoutPageContent.tsx",
+      "src/components/checkout/CheckoutOrderSummary.tsx",
       "src/components/checkout/OrderPlacedContent.tsx",
       "src/components/storefront/PriceMayVaryNotice.tsx",
       "public/checkout/order-confirmed-mascot.png",

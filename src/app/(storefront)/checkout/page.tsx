@@ -10,8 +10,6 @@ export default function CheckoutPage() {
   return (
     <CheckoutPageContent
       showPriceMayVary
-      highlightSavings
-      showAmountDueBar={false}
       liveShopPricing
     />
   );

@@ -122,7 +122,9 @@ export function OrderTicketBill({
                 value={`−${inr(order.promoDiscount)}`}
               />
             ) : null}
-            <Pair label="Delivery fee" value={inr(charge)} />
+            {charge > 0 ? (
+              <Pair label="Delivery fee" value={inr(charge)} />
+            ) : null}
             <div className="mt-2 flex justify-between gap-3 border-t border-[#1F1C18]/15 pt-2 text-forest">
               <span className="text-[13px] font-extrabold tracking-wide uppercase">Total</span>
               <span className="text-right text-[15px] font-extrabold tabular-nums">{inr(total)}</span>
@@ -308,7 +310,9 @@ function paintTicketPng(ticket: HTMLElement, order: SampleOrder, shopName: strin
       `−${inr(order.promoDiscount)}`,
     );
   }
-  pair("Delivery fee", inr(charge));
+  if (charge > 0) {
+    pair("Delivery fee", inr(charge));
+  }
 
   y += 8;
   ctx.strokeStyle = "rgba(31,28,24,0.15)";

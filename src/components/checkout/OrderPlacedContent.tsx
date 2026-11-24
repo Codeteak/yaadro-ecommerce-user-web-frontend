@@ -104,10 +104,12 @@ export function OrderPlacedContent({
               value={`−₹${summary.promoDiscount}`}
             />
           ) : null}
-          <SummaryRow
-            label="Delivery fee"
-            value={`₹${summary.deliveryFee}`}
-          />
+          {summary.deliveryFee > 0 ? (
+            <SummaryRow
+              label="Delivery fee"
+              value={`₹${summary.deliveryFee}`}
+            />
+          ) : null}
         </dl>
 
         <div className="mt-3 flex items-center justify-between border-t border-forest/8 pt-3">
@@ -165,8 +167,8 @@ export const SAMPLE_ORDER_PLACED: OrderPlacedSummary = {
   billNo: "#YAD-32122",
   itemCount: 2,
   subtotal: 11,
-  deliveryFee: 25,
-  total: 36,
+  deliveryFee: 0,
+  total: 11,
   fulfillment: "Delivery",
-  statusLabel: "Confirmed",
+  statusLabel: "Order placed",
 };
