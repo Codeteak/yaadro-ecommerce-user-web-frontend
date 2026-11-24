@@ -40,6 +40,9 @@ test("maps status and shop codes to shopper copy", () => {
   assert.match(messageForCode("SERVICE_AREA", 403), /don't deliver/i);
   assert.match(messageForCode("CART_SERVER_RETIRED", 410), /basket stays on this device/i);
   assert.match(messageForCode("RATE_LIMITED", 429), /bit fast/i);
+  assert.match(messageForCode("MIN_PURCHASE_NOT_MET", 400), /minimum order/i);
+  assert.match(messageForCode("COUPON_NOT_APPLICABLE", 400), /can't be applied/i);
+  assert.match(messageForCode("ADDRESS_REQUIRED", 400), /delivery address/i);
   assert.match(friendlyMessage(404, "NOT_FOUND", ["not found"]), /couldn't find/i);
   assert.match(friendlyMessage(403, "FORBIDDEN", [null]), /don't have access/i);
   assert.match(friendlyMessage(422, "VALIDATION_ERROR", ["Please check the highlighted fields."]), /highlighted fields/i);

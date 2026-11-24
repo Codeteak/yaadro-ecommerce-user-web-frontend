@@ -38,7 +38,7 @@ export function OrderReceiptDialog({
           `${order.promoCode ? `Coupon (${order.promoCode})` : "Promo"}  −${inr(order.promoDiscount)}`,
         ]
       : []),
-    `Delivery fee  ${inr(charge)}`,
+    ...(charge > 0 ? [`Delivery fee  ${inr(charge)}`] : []),
     `Total  ${inr(total)}`,
   ].join("\n");
 
@@ -96,7 +96,9 @@ export function OrderReceiptDialog({
                 value={`−${inr(order.promoDiscount)}`}
               />
             ) : null}
-            <Pair label="Delivery fee" value={inr(charge)} />
+            {charge > 0 ? (
+              <Pair label="Delivery fee" value={inr(charge)} />
+            ) : null}
             <div className="mt-1 flex justify-between text-[15px] font-extrabold">
               <span>Total</span>
               <span>{inr(total)}</span>

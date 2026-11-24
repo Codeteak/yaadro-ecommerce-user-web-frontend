@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
@@ -9,25 +9,22 @@ import { PageHeader } from "@/components/navigation/PageHeader";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { useCart } from "@/components/cart/CartContext";
 import { CartBill } from "@/components/cart/CartBill";
-import { ShopQuoteNotes, shopDue } from "@/components/cart/ShopQuoteNotes";
+import { ShopQuoteNotes } from "@/components/cart/ShopQuoteNotes";
 import { useShopQuote } from "@/components/cart/useShopQuote";
 import type { CartBillModel } from "@/lib/cart-bill";
 import { useCartBill } from "@/lib/use-cart-bill";
-import { formatRupees } from "@/lib/cart-checkout-rules";
-import { checkDeliveryLocation, saveMyAddress } from "@/lib/api/address";
+import { formatRupees, shopCheckoutLines } from "@/lib/cart-checkout-rules";
 import { previewDeliveryArea } from "@/lib/api/preview-delivery-area";
-import { placeCheckoutOrder } from "@/lib/api/checkout";
-import { ApiError } from "@/lib/api/errors";
 import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { showPopup } from "@/components/ui/Toast";
 import {
   OrderPlacedContent,
   type OrderPlacedSummary,
 } from "@/components/checkout/OrderPlacedContent";
-import {
-  isBasketCheckoutFailure,
-  shopCheckoutLines,
-} from "@/lib/cart-checkout-rules";
+import { CheckoutOrderSummary } from "@/components/checkout/CheckoutOrderSummary";
+import { usePlaceOrder } from "@/components/checkout/usePlaceOrder";
+import { mapCheckoutPlaceError } from "@/lib/checkout-place-error";
+import { evaluateCheckoutReadiness } from "@/lib/checkout-readiness";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import { cn } from "@/lib/cn";
 import {
@@ -37,15 +34,9 @@ import {
   hasBrowseLocation,
   hasDeliveryDetails,
   subscribeDeliveryAddress,
-  writeDeliveryAddress,
   type DeliveryAddress,
 } from "@/lib/delivery-address";
-import {
-  askUntilLocation,
-  deliveryAreaBlock,
-  isLatLng,
-  readBrowserPosition,
-} from "@/lib/delivery-location";
+import { deliveryAreaBlock, isLatLng } from "@/lib/delivery-location";
 import { LOCATION_TOASTS } from "@/lib/location-messages";
 import {
   getSelectedAddress,
@@ -56,32 +47,23 @@ import {
 type CheckoutPageContentProps = {
   /**
    * `page` — storefront full viewport.
-   * `inline` — playground frame.
+   * `inline` — playground frame (keeps in-page confirm for demos).
    */
   chromePosition?: "page" | "inline";
-  /** Show “Prices may vary…” above the sticky price summary. */
+  /** Show “Prices may vary…” above the bill in the scroll body. */
   showPriceMayVary?: boolean;
-  /** Soft = storefront default; banner kept for comparison. */
-  priceMayVaryVariant?: "banner" | "soft";
-  /** Playground Phase A — stronger “You save” highlight in the bill summary. */
-  highlightSavings?: boolean;
-  /**
-   * Green “Amount due” strip above Place Order.
-   * Playground Phase A (#11) turns this off to remove the extra footer bar.
-   */
-  showAmountDueBar?: boolean;
   /**
    * Playground: force guest vs signed-in without a real session.
    * Omit on storefront to use `hasCustomerSession`.
    */
   previewSignedIn?: boolean;
   /**
-   * Production: Coupon −₹ from shop cart preview only.
-   * Playground omits this and uses local sample promo math.
+   * Production: bill and readiness use shop cart preview.
+   * Playground may omit this and use local sample promo math.
    */
   liveShopPricing?: boolean;
   /**
-   * Playground-only fixture for the totals card (coupon row visible for testers).
+   * Playground-only fixture for the totals card.
    * Live checkout never passes this.
    */
   demoBill?: {
@@ -108,14 +90,29 @@ function formatFullAddress(a: DeliveryAddress): string {
     .join(", ");
 }
 
+function playgroundPlacedSummary(
+  orderNumber: string,
+  itemCount: number,
+  toPay: number,
+): OrderPlacedSummary {
+  return {
+    billNo: orderNumber.startsWith("#") ? orderNumber : `#${orderNumber}`,
+    itemCount,
+    subtotal: toPay,
+    deliveryFee: 0,
+    total: toPay,
+    fulfillment: "Delivery",
+    statusLabel: "Order placed",
+  };
+}
+
 /**
- * Checkout UI: address, COD only, price details + amount due.
- * Place Order sends the on-device basket to the shop. The shop sets the total.
+ * Checkout UI: address, COD, order summary, bill, short sticky Place Order.
+ * Live success navigates to `/orders/[id]?placed=1` (refresh-safe).
  */
 export function CheckoutPageContent({
   chromePosition = "page",
   showPriceMayVary = false,
-  priceMayVaryVariant = "soft",
   previewSignedIn,
   liveShopPricing = false,
   demoBill = null,
@@ -127,7 +124,10 @@ export function CheckoutPageContent({
   const signedIn = previewSignedIn ?? sessionSignedIn;
   const loginHref = inline
     ? "/login?next=/playground/cart-page"
-    : "/login?next=/cart";
+    : "/login?next=/checkout";
+  const cartHref = inline ? "/playground/cart-page" : "/cart";
+  const backHref = cartHref;
+
   const {
     items,
     clear,
@@ -136,9 +136,10 @@ export function CheckoutPageContent({
     subtotal,
     appliedPromo,
     promoDiscount,
-    totalDue,
+    clearPromo,
   } = useCart();
-  const { quote } = useShopQuote(items, appliedPromo?.code ?? null);
+  const { quote, isLoading: quoteLoading, basketKey, quoteMatchesBasket } =
+    useShopQuote(items, appliedPromo?.code ?? null);
   const liveBill = useCartBill({
     itemCount: count,
     mrpTotal,
@@ -169,30 +170,28 @@ export function CheckoutPageContent({
       }
     : null;
   const bill = demoBillModel ?? liveBill;
-  const dueLabel = shopDue(quote, totalDue);
-  const minimumBlocks = Boolean(bill.minimumMessage);
-  const amountDueLabel = demoBill
-    ? formatRupees(demoBill.totalRupees)
-    : dueLabel;
+  const { pending, pendingLabel, place, clearIdempotency } = usePlaceOrder();
+
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetEditId, setSheetEditId] = useState<string | null>(null);
   const [sheetStep, setSheetStep] = useState<"list" | "map" | "details">(
     "list",
   );
-  const [pending, setPending] = useState(false);
-  const [pendingLabel, setPendingLabel] = useState("Placing order…");
+  const [areaByPin, setAreaByPin] = useState<{
+    key: string;
+    note: string | null;
+  } | null>(null);
   const [placeError, setPlaceError] = useState<string | null>(null);
+  /** Playground / inline only — live storefront navigates away. */
   const [placed, setPlaced] = useState<OrderPlacedSummary | null>(null);
-  const idempotencyKey = useRef<string | null>(null);
 
   const addressRaw = useSyncExternalStore(
     subscribeDeliveryAddress,
     getAddressRaw,
     () => null,
   );
-
   const address = useMemo((): DeliveryAddress | null => {
-    if (addressRaw == null) return null;
+    if (!addressRaw) return null;
     try {
       return {
         ...EMPTY_DELIVERY_ADDRESS,
@@ -203,51 +202,78 @@ export function CheckoutPageContent({
     }
   }, [addressRaw]);
 
-  const pinLat = address && isLatLng(address) ? address.lat : null;
-  const pinLng = address && isLatLng(address) ? address.lng : null;
-  const [fetchedAreaNote, setFetchedAreaNote] = useState<string | null>(null);
-  const areaNote = pinLat == null || pinLng == null ? null : fetchedAreaNote;
+  const hasLocation = hasBrowseLocation(address);
+  const hasDetails = hasDeliveryDetails(address);
+  const orderLines = useMemo(() => shopCheckoutLines(items), [items]);
+
+  // Clear a coupon the shop rejected (same rule as cart).
+  useEffect(() => {
+    if (!liveShopPricing || !appliedPromo?.code || !quote) return;
+    if (quote.coupon.status !== "not_applicable") return;
+    const message =
+      quote.coupon.reasonMessage?.trim() ||
+      "This coupon can't be applied to this basket.";
+    clearPromo();
+    const id = window.setTimeout(() => {
+      setPlaceError(message);
+      showPopup(message, "error");
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [liveShopPricing, appliedPromo?.code, quote, clearPromo]);
+
+  const pinKey =
+    address && isLatLng(address) ? `${address.lat},${address.lng}` : null;
+  const areaNote =
+    pinKey && areaByPin?.key === pinKey ? areaByPin.note : null;
 
   useEffect(() => {
-    if (pinLat == null || pinLng == null) return;
+    if (!pinKey || !address || !isLatLng(address)) return;
     let cancelled = false;
-    void previewDeliveryArea(pinLat, pinLng)
-      .then((result) => {
-        if (cancelled) return;
-        const blocked = deliveryAreaBlock(result);
-        setFetchedAreaNote(blocked);
-        // Toast only when blocked — avoid “we deliver” every time checkout opens.
-        if (blocked) {
-          const tone =
-            blocked === LOCATION_TOASTS.notServiceable.message
-              ? LOCATION_TOASTS.notServiceable.tone
-              : LOCATION_TOASTS.checkFailed.tone;
-          showPopup(blocked, tone);
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        const { message, tone } = LOCATION_TOASTS.checkFailed;
-        setFetchedAreaNote(message);
-        showPopup(message, tone);
-      });
+    void previewDeliveryArea(address.lat, address.lng).then((area) => {
+      if (cancelled) return;
+      const blocked = deliveryAreaBlock(area);
+      setAreaByPin({ key: pinKey, note: blocked });
+      if (blocked) {
+        showPopup(
+          blocked,
+          blocked === LOCATION_TOASTS.notServiceable.message
+            ? LOCATION_TOASTS.notServiceable.tone
+            : LOCATION_TOASTS.checkFailed.tone,
+        );
+      }
+    });
     return () => {
       cancelled = true;
     };
-  }, [pinLat, pinLng]);
+  }, [pinKey, address]);
 
-  const amountDue = amountDueLabel;
-  const hasLocation = hasBrowseLocation(address);
-  const hasDetails = hasDeliveryDetails(address);
-  // Weight lines send kilograms; pack lines send pack count.
-  const orderLines = shopCheckoutLines(items);
-  const backHref = inline ? "/playground" : "/cart";
+  const readiness = evaluateCheckoutReadiness({
+    signedIn,
+    hasLocation,
+    hasDetails,
+    lineCount: orderLines.length,
+    liveShopPricing,
+    quoteLoading,
+    quoteMatchesBasket: liveShopPricing ? quoteMatchesBasket : true,
+    minimumMessage: bill.minimumMessage,
+    checkoutWarning: liveShopPricing ? (quote?.checkoutWarning ?? null) : null,
+    couponRejectedMessage: null,
+    pending,
+  });
+  const statusMessage =
+    placeError ?? areaNote ?? readiness.statusMessage;
 
   const openAddressForOrder = () => {
-    const saved = getSelectedAddress() ?? listSavedAddresses()[0] ?? null;
-    if (hasDetails || isSavedAddressDetailsComplete(saved) || hasLocation) {
-      setSheetEditId(saved?.id ?? null);
-      setSheetStep(saved ? "details" : "map");
+    const selected = getSelectedAddress();
+    const saved = selected
+      ? selected
+      : listSavedAddresses().find(isSavedAddressDetailsComplete) ?? null;
+    if (saved) {
+      setSheetEditId(saved.id);
+      setSheetStep(isSavedAddressDetailsComplete(saved) ? "details" : "map");
+    } else if (hasDetails) {
+      setSheetEditId(null);
+      setSheetStep("details");
     } else {
       setSheetEditId(null);
       setSheetStep("map");
@@ -255,112 +281,99 @@ export function CheckoutPageContent({
     setSheetOpen(true);
   };
 
-  const placeOrder = async () => {
+  const onPlaceOrder = async () => {
     if (!signedIn) {
       showPopup("Sign in to place your order.", "warning");
       router.push(loginHref);
       return;
     }
-    if (!hasDetails || !address) {
-      const toast = hasLocation
-        ? LOCATION_TOASTS.needAddressDetails
-        : LOCATION_TOASTS.needAddress;
-      setPlaceError(toast.message);
-      showPopup(toast.message, toast.tone);
+    if (!readiness.canPlace) {
+      if (
+        readiness.blockReason === "address" ||
+        readiness.blockReason === "details"
+      ) {
+        const toast = hasLocation
+          ? LOCATION_TOASTS.needAddressDetails
+          : LOCATION_TOASTS.needAddress;
+        setPlaceError(toast.message);
+        showPopup(toast.message, toast.tone);
+        openAddressForOrder();
+      } else if (readiness.statusMessage) {
+        setPlaceError(readiness.statusMessage);
+        showPopup(readiness.statusMessage, "warning");
+      }
+      return;
+    }
+    if (!address) {
       openAddressForOrder();
       return;
     }
-    if (orderLines.length === 0) {
-      setPlaceError("Add a shop product before placing the order.");
-      return;
-    }
-    if (!idempotencyKey.current) idempotencyKey.current = crypto.randomUUID();
-    setPending(true);
+
     setPlaceError(null);
-    try {
-      setPendingLabel(isLatLng(address) ? "Checking delivery…" : "Asking for your location…");
-      const pin = isLatLng(address)
-        ? { lat: address.lat, lng: address.lng }
-        : await askUntilLocation(readBrowserPosition, 3);
-      if (!pin) {
+    const result = await place({
+      address,
+      items: orderLines,
+      couponCode: appliedPromo?.code ?? null,
+      basketKey,
+    });
+
+    if (!result.ok) {
+      if (result.failure.kind === "location") {
         const { message, tone } = LOCATION_TOASTS.allowLocation;
         setPlaceError(message);
         showPopup(message, tone);
         return;
       }
-      if (!isLatLng(address)) writeDeliveryAddress({ ...address, ...pin });
-      setPendingLabel("Checking delivery…");
-      const area = await checkDeliveryLocation(pin.lat, pin.lng);
-      const blocked = deliveryAreaBlock(area);
-      if (blocked) {
+      if (result.failure.kind === "delivery") {
         const tone =
-          blocked === LOCATION_TOASTS.notServiceable.message
+          result.failure.message === LOCATION_TOASTS.notServiceable.message
             ? LOCATION_TOASTS.notServiceable.tone
             : LOCATION_TOASTS.checkFailed.tone;
-        setPlaceError(blocked);
-        showPopup(blocked, tone);
+        setPlaceError(result.failure.message);
+        showPopup(result.failure.message, tone);
         return;
       }
-      await saveMyAddress({
-        line1: address.house || address.street,
-        line2: address.street || null,
-        landmark: address.landmark || null,
-        city: address.city || null,
-        lat: pin.lat,
-        lng: pin.lng,
-        raw: formatFullAddress(address),
-      });
-      setPendingLabel("Placing order…");
-      const itemCount = orderLines.reduce((sum, line) => sum + line.quantity, 0);
-      const order = await placeCheckoutOrder({
-        items: orderLines,
-        couponCode: appliedPromo?.code ?? null,
-        idempotencyKey: idempotencyKey.current,
-      });
-      clear();
-      idempotencyKey.current = null;
-      await queryClient.invalidateQueries({ queryKey: ["orders"] });
-      const rupees = (minor: number) => Math.round(minor / 100);
-      const netItems = rupees(order.subtotal_minor);
-      const discount = Math.max(
-        rupees(order.promotion_discount_minor),
-        rupees(order.coupon_discount_minor),
-      );
-      const deliveryFee = rupees(order.delivery_fee_minor);
-      const total = rupees(order.total_minor);
-      setPlaced({
-        billNo: order.orderNumber.startsWith("#")
-          ? order.orderNumber
-          : `#${order.orderNumber}`,
-        itemCount,
-        // Before promo — same as order detail / ticket bill.
-        subtotal: netItems + discount,
-        promoCode: order.coupon_code,
-        promoDiscount: discount,
-        deliveryFee,
-        total: total > 0 ? total : netItems + deliveryFee,
-        fulfillment: "Delivery",
-        statusLabel: "Confirmed",
-      });
-      showPopup(`Order ${order.orderNumber} placed. Pay when it arrives.`, "success");
-    } catch (error) {
-      const message =
-        error instanceof ApiError
-          ? error.message
-          : "We couldn't place the order. Check your connection and try again.";
-      if (error instanceof ApiError && isBasketCheckoutFailure(error.code, message)) {
-        showPopup(message, "warning");
-        router.push(inline ? "/playground/cart-page" : "/cart");
+      const mapped = mapCheckoutPlaceError(result.failure.error);
+      if (mapped.clearIdempotency) clearIdempotency();
+      showPopup(mapped.message, mapped.tone);
+      setPlaceError(mapped.message);
+      if (mapped.action === "login") {
+        router.push(loginHref);
         return;
       }
-      showPopup(message, "error");
-      setPlaceError(message);
-      if (error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 429) {
-        idempotencyKey.current = null;
+      if (mapped.action === "address") {
+        openAddressForOrder();
+        return;
       }
-    } finally {
-      setPending(false);
+      if (mapped.action === "cart") {
+        router.push(cartHref);
+        return;
+      }
+      return;
     }
+
+    const order = result.order;
+    showPopup(
+      `Order ${order.orderNumber} placed. Pay when it arrives.`,
+      "success",
+    );
+
+    if (inline) {
+      clear();
+      setPlaced(
+        playgroundPlacedSummary(order.orderNumber, count, bill.toPay),
+      );
+      return;
+    }
+
+    // Navigate first so refresh-safe confirm is never an empty checkout.
+    const confirmHref = `/orders/${order.orderId}?placed=1`;
+    router.replace(confirmHref);
+    clear();
+    void queryClient.invalidateQueries({ queryKey: ["orders"] });
+    void queryClient.invalidateQueries({
+      queryKey: ["order", order.orderId],
+    });
   };
 
   if (placed) {
@@ -381,6 +394,11 @@ export function CheckoutPageContent({
     );
   }
 
+  const placeDisabled =
+    pending ||
+    (!signedIn ? false : !readiness.canPlace) ||
+    Boolean(areaNote);
+
   return (
     <main
       className={cn(
@@ -390,7 +408,7 @@ export function CheckoutPageContent({
     >
       <PageHeader backHref={backHref} title="Checkout" />
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain -mx-4 px-4 pb-52">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain -mx-4 px-4 pb-36">
         <section className="pt-2">
           <h2 className="text-base font-extrabold text-black">
             Delivery Address
@@ -476,72 +494,62 @@ export function CheckoutPageContent({
             Only Cash on Delivery is available for now.
           </p>
         </section>
+
+        <CheckoutOrderSummary
+          className="mt-6"
+          items={items}
+          shopLines={quote?.lines}
+          freeItems={quote?.freeItems}
+          editHref={cartHref}
+        />
+
+        {showPriceMayVary ? (
+          <div className="mt-6">
+            <PriceMayVaryNotice variant="soft" />
+          </div>
+        ) : null}
+
+        <div className="mt-4">
+          <CartBill bill={bill} />
+          <ShopQuoteNotes quote={quote} hideMinimum />
+        </div>
       </div>
 
       <div
         className={cn(
-          "z-30 space-y-3",
+          "z-30 space-y-2",
           inline
             ? "absolute inset-x-0 bottom-0 px-5 pb-5"
             : "fixed inset-x-0 bottom-0 mx-auto w-full max-w-lg px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]",
         )}
       >
-        {showPriceMayVary ? (
-          <PriceMayVaryNotice variant={priceMayVaryVariant} />
-        ) : null}
-        <CartBill bill={bill} />
-        <ShopQuoteNotes quote={quote} hideMinimum />
-
-        <div className="flex items-center justify-between rounded-2xl bg-track px-5 py-3.5 text-black shadow-[0_10px_28px_rgba(47,107,47,0.28)]">
-          <span className="text-sm font-semibold">Amount due</span>
-          <span className="text-xl font-extrabold tabular-nums">
-            {amountDue}
+        <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-[0_8px_24px_rgba(47,107,47,0.12)] ring-1 ring-forest/10">
+          <span className="text-sm font-semibold text-muted">To pay</span>
+          <span className="text-lg font-extrabold tabular-nums text-forest">
+            {formatRupees(bill.toPay)}
           </span>
         </div>
 
         <button
           type="button"
-          disabled={
-            pending ||
-            minimumBlocks ||
-            (signedIn && orderLines.length === 0)
-          }
-          onClick={() => void placeOrder()}
+          disabled={placeDisabled}
+          onClick={() => void onPlaceOrder()}
           className={cn(
             "group flex w-full items-center justify-center gap-2 rounded-full bg-track px-5 py-4 text-base font-extrabold text-black shadow-[0_7px_0_0_#1f5c1f,0_14px_28px_rgba(47,107,47,0.28)] transition-[transform,box-shadow,background-color,opacity] duration-150 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf",
-            pending || (signedIn && orderLines.length === 0)
+            placeDisabled
               ? "cursor-not-allowed opacity-50"
               : "cursor-pointer hover:bg-leaf-bright motion-safe:active:translate-y-[5px] motion-safe:active:shadow-[0_2px_0_0_#1f5c1f,0_6px_14px_rgba(47,107,47,0.22)]",
           )}
         >
-          {pending
-            ? pendingLabel
-            : !signedIn
-              ? "Sign in to place order"
-              : orderLines.length === 0
-                ? "Add items to place order"
-                : !hasDetails
-                  ? hasLocation
-                    ? "Add details to place order"
-                    : "Add address to place order"
-                  : "Place Order"}
+          {pending ? pendingLabel : readiness.buttonLabel}
           <Check className="h-5 w-5" aria-hidden />
         </button>
 
-        <p className="text-center text-[13px] font-medium text-muted" role="status">
-          {placeError ??
-            areaNote ??
-            (!signedIn
-              ? "Sign in so we can send this order to the shop."
-              : orderLines.length === 0
-                ? "Your basket is empty — add items from the cart."
-                : !hasDetails
-                  ? hasLocation
-                    ? "Location saved — add house / street details, then place the order."
-                    : "Add a delivery address, then Place Order unlocks."
-                  : isLatLng(address)
-                    ? "Ready — Cash on delivery. We'll confirm this location when you place the order."
-                    : "Ready — we'll ask for your location when you place the order.")}
+        <p
+          className="text-center text-[13px] font-medium text-muted"
+          role="status"
+        >
+          {statusMessage}
         </p>
       </div>
 

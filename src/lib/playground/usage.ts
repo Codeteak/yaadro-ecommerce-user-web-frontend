@@ -740,8 +740,6 @@ import { GUEST_PROFILE_AVATAR } from "@/lib/default-profile-avatar";
 // Playground fixture — Coupon −₹ visible for testers
 <CheckoutPageContent
   chromePosition="inline"
-  highlightSavings
-  showAmountDueBar={false}
   previewSignedIn
   demoBill={{
     subtotalRupees: 599,
@@ -752,17 +750,22 @@ import { GUEST_PROFILE_AVATAR } from "@/lib/default-profile-avatar";
   }}
 />
 
-// Live: Coupon row only when cart/preview status is applied
-<CheckoutPageContent liveShopPricing showAmountDueBar={false} />`,
-    ["src/components/checkout/CheckoutPageContent.tsx"],
+// Live: short sticky To pay + Place Order; success → /orders/[id]?placed=1
+<CheckoutPageContent liveShopPricing showPriceMayVary />`,
+    [
+      "src/components/checkout/CheckoutPageContent.tsx",
+      "src/components/checkout/CheckoutOrderSummary.tsx",
+      "src/lib/place-order.ts",
+    ],
   ),
   checkout: U(
     `import { CheckoutPageContent } from "@/components/checkout/CheckoutPageContent";
-// Guest Place Order → /login?next=/cart so coupons aren’t skipped after login
+// Guest Place Order → /login?next=/checkout
 
 <CheckoutPageContent showPriceMayVary previewSignedIn={false} />`,
     [
       "src/components/checkout/CheckoutPageContent.tsx",
+      "src/components/checkout/CheckoutOrderSummary.tsx",
       "src/components/checkout/OrderPlacedContent.tsx",
       "src/components/storefront/PriceMayVaryNotice.tsx",
       "public/checkout/order-confirmed-mascot.png",

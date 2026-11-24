@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-24 — Checkout & confirm hardening (SOLID place-order)
+
+Extracted `checkout-idempotency`, `checkout-readiness`, `checkout-place-error`, `place-order` + `usePlaceOrder`. Live Place Order navigates to `/orders/[id]?placed=1` (banner + strip query); no invented confirm bill. Short sticky footer (To pay + Place Order); scroll body has address, COD, `CheckoutOrderSummary` (free items), `CartBill`. Rejected coupons clear on checkout; login returns to `/checkout`. Delivery row hidden when ₹0. Skips redundant delivery check / address save when pin and address unchanged. Extended `CODE_MESSAGES` for basket/coupon/address codes.
+
 ## 2026-11-24 — Cart page cleanup: shop bill, shared pieces, bug fixes
 
 Cart rebuild: `useShopQuote` on React Query; full `parseShopQuote` (lines, free items, offer ₹); `buildCartBill` / `CartBill` so rows add up to To pay (no delivery row); `CartLineItem` (₹×qty / weight step), `CartFreeItems` (collapsible, hidden when empty), `CartCouponRow` (typed code + View all), `CartCheckoutBar`. Qty capped at 10; checkout reuses quote only when basket key matches; one shop minimum; price-may-vary popup once per session. Suggestions: fewer DB pages, local filter on add. Checkout reuses `CartBill`. Playground cart uses `sampleCoupons`.

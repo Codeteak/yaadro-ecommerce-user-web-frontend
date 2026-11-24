@@ -1146,9 +1146,6 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
         <CheckoutPageContent
           chromePosition="inline"
           showPriceMayVary
-          priceMayVaryVariant="soft"
-          highlightSavings
-          showAmountDueBar={false}
           previewSignedIn={false}
         />
       </div>
@@ -1163,9 +1160,6 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
         <CheckoutPageContent
           chromePosition="inline"
           showPriceMayVary
-          priceMayVaryVariant="soft"
-          highlightSavings
-          showAmountDueBar={false}
           previewSignedIn
           demoBill={{
             subtotalRupees: 599,
@@ -1181,7 +1175,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "order-placed": () => (
     <DemoFrame
       surface="bare"
-      note="Same as post-checkout: Order history + Home. Live checkout shows this after Place Order."
+      note="Playground confirm card. Live checkout goes to /orders/[id]?placed=1 (refresh-safe)."
     >
       <div className="max-h-[85vh] overflow-y-auto overscroll-contain rounded-[1.75rem] bg-paper ring-1 ring-forest/10">
         <OrderPlacedContent
