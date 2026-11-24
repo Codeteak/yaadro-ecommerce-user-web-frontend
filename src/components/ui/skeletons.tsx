@@ -344,70 +344,68 @@ export function OrderDetailSkeleton({ className }: { className?: string }) {
   );
 }
 
-/**
- * Profile mint hero avatar + name bones.
- * White/leaf wash so pulse reads on the mint gradient (not mint-on-mint).
- */
-export function ProfileHeroSkeleton({ className }: { className?: string }) {
+/** Identity card + option rows for the rebuilt `/profile` screen. */
+export function ProfileScreenSkeleton({ className }: { className?: string }) {
   return (
-    <div
-      className={cn("flex flex-col items-center text-center", className)}
-      aria-hidden
-    >
-      <Skeleton className="size-28 rounded-full bg-white/80 ring-1 ring-leaf/20" />
-      <Skeleton className="mt-4 h-7 w-44 rounded-lg bg-white/75" />
-      <Skeleton className="mt-2 h-4 w-56 max-w-[260px] rounded-md bg-white/55" />
+    <div className={cn("flex flex-col gap-6", className)} aria-hidden>
+      <div>
+        <Skeleton className="h-5 w-28 rounded-md bg-mint/50" />
+        <Skeleton className="mt-3 h-24 w-full rounded-2xl bg-white ring-1 ring-forest/10" />
+      </div>
+      <div>
+        <Skeleton className="h-5 w-36 rounded-md bg-mint/50" />
+        <Skeleton className="mt-3 h-20 w-full rounded-2xl bg-white ring-1 ring-forest/10" />
+      </div>
+      <div>
+        <Skeleton className="h-5 w-16 rounded-md bg-mint/50" />
+        <div className="mt-3 overflow-hidden rounded-2xl bg-white ring-1 ring-forest/10">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton
+              key={i}
+              className="h-16 w-full rounded-none border-b border-forest/5 bg-white"
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
-/** Profile account rows (My Profile / Address / Help + Log out). */
+/** @deprecated Prefer ProfileScreenSkeleton — kept for older playground imports. */
+export function ProfileHeroSkeleton({ className }: { className?: string }) {
+  return <ProfileScreenSkeleton className={className} />;
+}
+
+/** @deprecated Prefer ProfileScreenSkeleton. */
 export function ProfileNavSkeleton({ className }: { className?: string }) {
   return (
-    <div
-      className={cn("mx-5 mt-6 flex flex-col gap-3", className)}
-      aria-hidden
-    >
+    <div className={cn("flex flex-col gap-3", className)} aria-hidden>
       {Array.from({ length: 4 }, (_, i) => (
         <Skeleton
           key={i}
-          className="h-14 w-full rounded-2xl bg-white shadow-[0_4px_14px_rgba(47,107,47,0.05)] ring-1 ring-black/5"
+          className="h-14 w-full rounded-2xl bg-white ring-1 ring-forest/10"
         />
       ))}
     </div>
   );
 }
 
-/** Full `/profile` Suspense / auth-restore fallback. */
+/** Full `/profile` Suspense fallback. */
 export function ProfilePageSkeleton({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-paper",
+        "mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-paper px-5",
         className,
       )}
       aria-busy
       aria-label="Loading profile"
     >
-      <section className="relative rounded-b-[2.5rem] bg-gradient-to-b from-mint via-[#eef6ee] to-paper">
-        <div className="relative px-5 pb-16">
-          <div className="pt-[max(0.5rem,env(safe-area-inset-top))]">
-            <Skeleton className="h-11 w-11 rounded-[13px] bg-white/80" />
-          </div>
-          <div className="relative mt-5">
-            <ProfileHeroSkeleton />
-          </div>
-        </div>
-      </section>
-      <div className="relative z-10 mx-4 -mt-12 grid grid-cols-3 gap-2 px-1 pt-3 pb-2">
-        {Array.from({ length: 3 }, (_, i) => (
-          <Skeleton
-            key={i}
-            className="h-[7.5rem] rounded-[1.75rem] bg-white ring-1 ring-leaf/20"
-          />
-        ))}
+      <div className="pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <Skeleton className="h-11 w-11 rounded-[13px] bg-mint/50" />
+        <Skeleton className="mx-auto mt-2 h-6 w-20 rounded-md bg-mint/40" />
       </div>
-      <ProfileNavSkeleton />
+      <ProfileScreenSkeleton className="mt-6" />
     </div>
   );
 }
