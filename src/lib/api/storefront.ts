@@ -1,4 +1,9 @@
 import { cacheLife, cacheTag } from "next/cache";
+import {
+  CATALOG_BROWSE_MAX_PAGES,
+  CATALOG_BROWSE_PAGE_SIZE,
+  CATALOG_SEARCH_MAX_PAGES,
+} from "@/lib/catalog-browse";
 import { publicGet } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import {
@@ -249,7 +254,7 @@ async function fetchProductGroups(
 
 /**
  * Product pages (default 50 each), optionally scoped to a category.
- * Home uses `maxPages: 1` + smaller `pageSize` so shelves paint sooner.
+ * Browse defaults match `CATALOG_BROWSE_*` so warm + home + hub share cache.
  */
 export async function listStoreProducts(
   shopId: string,
@@ -257,7 +262,7 @@ export async function listStoreProducts(
     categoryId?: string;
     search?: string;
     maxPages?: number;
-    /** Rows per page (default 50; home uses 24). */
+    /** Rows per page (default = browse size; keep warm aligned). */
     pageSize?: number;
   },
 ): Promise<ProductGroup[]> {
@@ -266,8 +271,14 @@ export async function listStoreProducts(
   cacheTag(catalogCacheTag(id));
   cacheLife("minutes");
   try {
-    const maxPages = Math.min(Math.max(options?.maxPages ?? 3, 1), 3);
-    const pageSize = Math.min(Math.max(options?.pageSize ?? 50, 1), 100);
+    const maxPages = Math.min(
+      Math.max(options?.maxPages ?? CATALOG_SEARCH_MAX_PAGES, 1),
+      CATALOG_SEARCH_MAX_PAGES,
+    );
+    const pageSize = Math.min(
+      Math.max(options?.pageSize ?? CATALOG_BROWSE_PAGE_SIZE, 1),
+      100,
+    );
     const groups: ProductGroup[] = [];
     let cursor: string | null = null;
     for (let page = 0; page < maxPages; page += 1) {
@@ -465,10 +476,13 @@ export async function loadHomeCatalog(shopId: string): Promise<HomeCatalog> {
   try {
     const id = requireShopId(shopId);
     // Categories are already sellable-only (in-stock products in tree).
-    // Larger first page so “All” is less empty; aisle taps still lazy-load.
+    // Same browse size as hub + warm so cache keys match.
     const [categories, groups, shelves] = await Promise.all([
       listStoreCategories(id),
-      listStoreProducts(id, { maxPages: 1, pageSize: 48 }),
+      listStoreProducts(id, {
+        maxPages: CATALOG_BROWSE_MAX_PAGES,
+        pageSize: CATALOG_BROWSE_PAGE_SIZE,
+      }),
       listHomeShelves(id),
     ]);
     const byId = new Map(categories.map((category) => [category.id, category]));
@@ -630,7 +644,11 @@ export async function loadCategoryBrowser(
     if (q) {
       const [categories, groups] = await Promise.all([
         listStoreCategories(id),
-        listStoreProducts(id, { search: q, maxPages: 3 }),
+        listStoreProducts(id, {
+          search: q,
+          maxPages: CATALOG_SEARCH_MAX_PAGES,
+          pageSize: CATALOG_BROWSE_PAGE_SIZE,
+        }),
       ]);
       const products = groups.flatMap((group) =>
         group.products.map((product) => ({
@@ -653,7 +671,10 @@ export async function loadCategoryBrowser(
     if (!cat || cat === "all") {
       const [categories, groups] = await Promise.all([
         listStoreCategories(id),
-        listStoreProducts(id, { maxPages: 1 }),
+        listStoreProducts(id, {
+          maxPages: CATALOG_BROWSE_MAX_PAGES,
+          pageSize: CATALOG_BROWSE_PAGE_SIZE,
+        }),
       ]);
       const products = groups.flatMap((group) =>
         group.products.map((product) => ({

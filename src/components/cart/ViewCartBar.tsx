@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowRight, ShoppingCart } from "lucide-react";
 import { useCart } from "@/components/cart/CartContext";
-import { useScrollDirection } from "@/components/navigation/useScrollDirection";
+import { useNavScroll } from "@/components/navigation/NavScrollContext";
 import { cn } from "@/lib/cn";
 import { shouldHideStorefrontNav } from "@/lib/storefront-nav";
 
@@ -33,7 +33,7 @@ type ViewCartBarProps = {
 export function ViewCartBar({ position = "fixed" }: ViewCartBarProps) {
   const pathname = usePathname();
   const { count, totalDue } = useCart();
-  const { navHidden, scrolling } = useScrollDirection();
+  const { navHidden, scrolling } = useNavScroll();
   const inline = position === "inline";
   /** True only after nav hide animation — keeps FAB above the pill while it slides away. */
   const [sitLow, setSitLow] = useState(false);

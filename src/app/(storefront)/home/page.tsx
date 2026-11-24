@@ -9,6 +9,7 @@ import {
 import { OfferBanners } from "@/components/home/OfferBanners";
 import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 import { HomePullContent } from "@/components/home/HomePullContent";
+import { PrefetchStorefrontRoute } from "@/components/navigation/PrefetchStorefrontRoute";
 import { ScrollToTopOnLoad } from "@/components/navigation/ScrollToTopOnLoad";
 import {
   CategoryRailSkeleton,
@@ -174,6 +175,9 @@ export default function StorefrontHomePage() {
 
         {/* Soft location prompt only — offer flyer removed (scroll-lock races). */}
         <DeferredLocationPrompt />
+        {/* Warm /categories while home is idle so search tap feels instant. */}
+        <PrefetchStorefrontRoute href="/categories" />
+        <PrefetchStorefrontRoute href="/categories?focus=search" />
       </main>
     </HomeCategoryProvider>
   );

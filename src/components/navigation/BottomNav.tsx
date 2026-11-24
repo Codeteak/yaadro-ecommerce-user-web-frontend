@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { ClipboardList, Heart, Home, User } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/cn";
-import { useScrollDirection } from "@/components/navigation/useScrollDirection";
+import { useNavScroll } from "@/components/navigation/NavScrollContext";
 
 const tabs = [
   { href: "/home", label: "Home", icon: Home },
@@ -24,7 +24,7 @@ type BottomNavProps = {
 
 export function BottomNav({ position = "fixed" }: BottomNavProps) {
   const pathname = usePathname();
-  const { navHidden } = useScrollDirection();
+  const { navHidden } = useNavScroll();
   const inline = position === "inline";
   // Hide on scroll-down for storefront and playground (nested panels included).
   const hide = navHidden;

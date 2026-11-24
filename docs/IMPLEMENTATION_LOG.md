@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-24 — Catalog warm align + categories prefetch + debounced search
+
+Shared `CATALOG_BROWSE_PAGE_SIZE` (48) for home, categories hub, and `/api/warm` so warm hits the same cache keys. Warm accepts `STOREFRONT_WARM_SHOP_ID(S)` for multi-shop (health probes have no Host). Home idles into `router.prefetch` for `/categories`. Categories typing filters locally right away; after 350ms it runs `searchCatalogProducts` and syncs `?q=` via `history.replaceState` (no Suspense flash).
+
+## 2026-11-24 — Bottom nav clearance follows scroll-hide
+
+`StorefrontChrome` wraps a `NavScrollProvider` so chrome padding, `BottomNav`, and `ViewCartBar` share one `useScrollDirection` listener. `--storefront-nav-clearance` (5.5rem ↔ 0) drives `padding-bottom` with the same 300ms easing as the pill. Fill pages (categories, profile) use the variable for height so the white gap leaves/returns with the nav. Path-hidden routes still force clearance to 0 via `data-storefront-hide-nav`.
+
 ## 2026-11-24 — Remove home OfferFlyer; simple body scroll lock
 
 Home no longer mounts `OfferFlyer` (location prompt only). Sheets use one small `useBodyScrollLock`: lock while open, clear overflow to `""` on last close (tiny counter for overlaps — never restore a previous `hidden`). Dropped separate `scroll-lock.ts` and route-change force-clear. Wired on AddressBookSheet, DeliveryAddressSheet, WeightCustomizer, coupons, playground OfferFlyer. `HomeTopBar` keeps a stable `onOpenChange`.
