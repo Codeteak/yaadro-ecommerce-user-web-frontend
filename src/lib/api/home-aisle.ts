@@ -1,9 +1,7 @@
 "use server";
 
-import {
-  listStoreCategories,
-  listStoreProducts,
-} from "@/lib/api/storefront";
+import { mapCatalogProduct } from "@/lib/catalog-map";
+import { readAllCategories, readProductPage } from "@/lib/db/catalog";
 import { getRequestShopId } from "@/lib/request-shop";
 import type { SampleProduct } from "@/lib/sample-products";
 
@@ -14,6 +12,9 @@ const AISLE_PAGE_SIZE = 24;
  * Load products for one home-rail aisle (root or any slug).
  * Used when the light home sample has no items for that category.
  * Scoped query includes descendants (same as PLP).
+ *
+ * Returns [] only for unknown slug / truly empty aisle.
+ * DB failures throw so the client can show retry (not a fake empty aisle).
  */
 export async function loadHomeAisleProducts(
   slug: string,
@@ -21,29 +22,45 @@ export async function loadHomeAisleProducts(
   const trimmed = slug.trim();
   if (!trimmed || trimmed === "all") return [];
 
-  try {
-    const shopId = await getRequestShopId();
-    const categories = await listStoreCategories(shopId);
-    const category = categories.find(
-      (row) => row.slug === trimmed && row.slug !== "all",
-    );
-    if (!category) return [];
+  const shopId = await getRequestShopId();
+  const categories = await readAllCategories(shopId);
+  const category = categories.find(
+    (row) => row.slug === trimmed && row.slug !== "all",
+  );
+  if (!category) return [];
 
-    const groups = await listStoreProducts(shopId, {
-      categoryId: category.id,
-      maxPages: 1,
-      pageSize: AISLE_PAGE_SIZE,
-    });
+  const page = await readProductPage(shopId, {
+    categoryId: category.id,
+    limit: AISLE_PAGE_SIZE,
+  });
 
-    return groups.flatMap((group) =>
-      group.products.map((product) => ({
-        ...product,
-        category: group.category?.name ?? category.name,
-        categoryId: group.category?.id ?? category.id,
-        categorySlug: group.category?.slug ?? category.slug,
-      })),
-    );
-  } catch {
-    return [];
-  }
+  return page.products
+    .map((row) =>
+      mapCatalogProduct({
+        raw: {
+          id: row.id,
+          name: row.name,
+          description: row.description,
+          unit: row.unit,
+          unit_size: row.unit_size,
+          sold_by_weight: row.sold_by_weight,
+          category_id: row.category_id,
+          category_name: row.category_name,
+          actual_price_minor: row.actual_price_minor,
+          final_price_minor: row.final_price_minor,
+          image: row.image,
+          images: row.images,
+        },
+        categoryName: row.category_name ?? category.name,
+        categoryId: row.category_id ?? category.id,
+        categorySlug: row.category_slug ?? category.slug,
+      }),
+    )
+    .filter((product): product is SampleProduct => Boolean(product))
+    .map((product) => ({
+      ...product,
+      category: product.category || category.name,
+      categoryId: product.categoryId ?? category.id,
+      categorySlug: product.categorySlug ?? category.slug,
+    }));
 }

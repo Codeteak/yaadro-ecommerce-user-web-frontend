@@ -464,10 +464,11 @@ function rootOf(
 export async function loadHomeCatalog(shopId: string): Promise<HomeCatalog> {
   try {
     const id = requireShopId(shopId);
-    // Light first paint: one small product page + shelves. Full aisle is PLP.
+    // Categories are already sellable-only (in-stock products in tree).
+    // Larger first page so “All” is less empty; aisle taps still lazy-load.
     const [categories, groups, shelves] = await Promise.all([
       listStoreCategories(id),
-      listStoreProducts(id, { maxPages: 1, pageSize: 24 }),
+      listStoreProducts(id, { maxPages: 1, pageSize: 48 }),
       listHomeShelves(id),
     ]);
     const byId = new Map(categories.map((category) => [category.id, category]));
@@ -480,18 +481,22 @@ export async function loadHomeCatalog(shopId: string): Promise<HomeCatalog> {
     const seen = new Set<string>();
 
     for (const group of groups) {
-      if (!group.category) continue;
-      const root = rootOf(group.category, byId) ?? (
-        group.category.slug !== "all" ? group.category : null
-      );
+      // Prefer joined category; fall back to catalog map when the join is thin.
+      const seedId = group.category?.id ?? group.products[0]?.categoryId;
+      const seed =
+        group.category ??
+        (seedId && byId.has(seedId) ? byId.get(seedId)! : null);
+      if (!seed) continue;
+      const root =
+        rootOf(seed, byId) ?? (seed.slug !== "all" ? seed : null);
       if (!root) continue;
       const bucket = productsBySlug[root.slug] ?? [];
       for (const product of group.products) {
         const tagged: SampleProduct = {
           ...product,
-          category: group.category.name,
-          categoryId: group.category.id,
-          categorySlug: group.category.slug,
+          category: seed.name,
+          categoryId: seed.id,
+          categorySlug: seed.slug,
         };
         bucket.push(tagged);
         if (!seen.has(tagged.id)) {
@@ -502,6 +507,8 @@ export async function loadHomeCatalog(shopId: string): Promise<HomeCatalog> {
       productsBySlug[root.slug] = bucket;
     }
 
+    // Home rail / browse: only roots that actually have products in stock
+    // (sellable query) — already true for `roots`. Child tiles stay sellable-only.
     const branches: CategoryBranch[] = roots.map((root) => ({
       id: root.id,
       name: root.name,
