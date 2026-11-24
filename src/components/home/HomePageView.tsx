@@ -10,7 +10,7 @@ import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 import { HomePullContent } from "@/components/home/HomePullContent";
 import { ScrollToTopOnLoad } from "@/components/navigation/ScrollToTopOnLoad";
 import type { HomePageData } from "@/lib/api/page-data";
-import { browseSectionsFromBranches } from "@/lib/home-category-browse";
+import { categoryProductRails } from "@/lib/home-category-rails";
 import { ALL_CATEGORY_SLUG } from "@/lib/home-categories";
 
 export function HomePageView({
@@ -92,8 +92,10 @@ export function HomePageView({
                 }))
               : []
           }
-          browseSections={
-            catalog.ok ? browseSectionsFromBranches(catalog.branches) : []
+          categoryRails={
+            catalog.ok
+              ? categoryProductRails(catalog.categories, catalog.productsBySlug)
+              : []
           }
           catalogError={catalog.error}
         />

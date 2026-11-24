@@ -1,21 +1,6 @@
-import type { Metadata } from "next";
-import { PageHeader } from "@/components/navigation/PageHeader";
-import { PullToRefresh } from "@/components/navigation/PullToRefresh";
-import { EditProfileForm } from "@/components/profile/EditProfileForm";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Edit Profile",
-  description: "Edit your Yaadro profile details.",
-};
-
+/** Edit lives inline on `/profile` — keep the old URL working. */
 export default function EditProfilePage() {
-  return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-paper px-5">
-      <PageHeader backHref="/profile" title="Edit Profile" />
-
-      <PullToRefresh>
-        <EditProfileForm />
-      </PullToRefresh>
-    </main>
-  );
+  redirect("/profile?edit=1");
 }

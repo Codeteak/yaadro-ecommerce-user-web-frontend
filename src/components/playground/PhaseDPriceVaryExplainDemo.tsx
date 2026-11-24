@@ -77,7 +77,7 @@ export function PhaseDPriceVaryExplainDemo() {
           initialTopic={PRICE_MAY_VARY_TOPIC}
           className="min-h-0"
           topicHrefFor={(href) =>
-            href === "/profile/addresses"
+            href.startsWith("/profile")
               ? "/playground/address-modal-shared"
               : `/playground${href}`
           }

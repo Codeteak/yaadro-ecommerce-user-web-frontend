@@ -8,7 +8,7 @@
     "build:static": "node scripts/static-export-build.mjs",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test src/lib/api/errors.test.ts src/lib/api/customer-orders-address.test.ts src/lib/api/customer-orders-map.test.ts src/lib/delivery-location.test.ts src/lib/db/catalog-query.test.ts src/lib/cart-checkout-rules.test.ts src/lib/cart-store-order.test.ts src/lib/catalog-price-display.test.ts src/lib/cart-bill.test.ts src/lib/checkout-idempotency.test.ts src/lib/checkout-readiness.test.ts src/lib/checkout-place-error.test.ts src/lib/place-order.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/api/errors.test.ts src/lib/api/customer-orders-address.test.ts src/lib/api/customer-orders-map.test.ts src/lib/delivery-location.test.ts src/lib/db/catalog-query.test.ts src/lib/cart-checkout-rules.test.ts src/lib/cart-store-order.test.ts src/lib/catalog-price-display.test.ts src/lib/cart-bill.test.ts src/lib/checkout-idempotency.test.ts src/lib/checkout-readiness.test.ts src/lib/checkout-place-error.test.ts src/lib/place-order.test.ts src/lib/profile-validation.test.ts src/lib/sign-out.test.ts src/lib/profile-options.test.ts src/lib/home-category-rails.test.ts",
     "pages:dev": "wrangler pages dev out",
     "pages:deploy": "npm run build:static && wrangler pages deploy out --project-name=yaadro-ecommerce-user-web-frontend",
     "prepare": "husky"

@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-24 — Home category product rails + scroll lock
+
+Replaced lower home category tiles with per-category horizontal product rows (`categoryProductRails` + `CategoryProductRails` + shared `ProductRail`). Install prompt waits for body scroll unlock and sits at `z-50` so it never covers the location sheet; `appinstalled` toast; WeightCustomizer locks only when customization exists. Home shows offline banner and catalog error card with Try again.
+
+## 2026-11-24 — Profile page rebuild
+
+Rebuilt `/profile` to match cart/checkout: `ProfileScreen` with identity card (inline full-name only), phone change via OTP `BottomSheet`, address card → `AddressBookSheet`, config-driven options (`PROFILE_OPTIONS`: Wishlist open to guests; Coupons/Orders locked), Help open, logout confirm + `clearSignedInUserData` (session, query cache, promo, addresses, profile UI). Hooks: `useMyProfile`, `useUpdateProfileName`, `usePhoneChange`, `useSignOut`, `useOnlineStatus`. Validation in `profile-validation.ts` (zod + RHF). `/profile/edit` redirects to `?edit=1`. Removed mint hero, tilted quick actions, `EditProfileForm`, nickname/fake fields. Playground `profile-header` covers guest / signed-in / error / offline.
+
 ## 2026-11-24 — Checkout & confirm hardening (SOLID place-order)
 
 Extracted `checkout-idempotency`, `checkout-readiness`, `checkout-place-error`, `place-order` + `usePlaceOrder`. Live Place Order navigates to `/orders/[id]?placed=1` (banner + strip query); no invented confirm bill. Short sticky footer (To pay + Place Order); scroll body has address, COD, `CheckoutOrderSummary` (free items), `CartBill`. Rejected coupons clear on checkout; login returns to `/checkout`. Delivery row hidden when ₹0. Skips redundant delivery check / address save when pin and address unchanged. Extended `CODE_MESSAGES` for basket/coupon/address codes.

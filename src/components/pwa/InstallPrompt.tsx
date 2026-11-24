@@ -1,8 +1,14 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { Download, X } from "lucide-react";
+import { showPopup } from "@/components/ui/Toast";
+import {
+  getScrollLockServerSnapshot,
+  isScrollLocked,
+  subscribeScrollLock,
+} from "@/lib/use-body-scroll-lock";
 
 /** Session-only dismiss — cleared when the browser/tab session ends. */
 const DISMISS_KEY = "yaadro-pwa-install-dismissed";
@@ -41,8 +47,8 @@ type InstallPromptProps = {
  * “Add to Home Screen” — only on ecom `/home`. Dismiss lasts for this
  * browser session; closing the tab/browser lets it show again next visit.
  *
- * `usePathname` is behind Suspense (here and/or callers) so Cache Components
- * can prerender routes that mount AppProviders without blocking on the URL.
+ * Hidden while any sheet holds the body scroll lock so it never covers
+ * the location popup or leaves the page feeling stuck.
  */
 export function InstallPrompt(props: InstallPromptProps) {
   return (
@@ -57,6 +63,11 @@ function InstallPromptInner({ forcePreview = false }: InstallPromptProps) {
   const onEcomHome = forcePreview || pathname === "/home";
   const [event, setEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [userDismissed, setUserDismissed] = useState(false);
+  const locked = useSyncExternalStore(
+    subscribeScrollLock,
+    isScrollLocked,
+    getScrollLockServerSnapshot,
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -71,7 +82,19 @@ function InstallPromptInner({ forcePreview = false }: InstallPromptProps) {
     return () => window.removeEventListener("beforeinstallprompt", onPrompt);
   }, [forcePreview]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onInstalled = () => {
+      showPopup("Shop installed on your home screen.", "success");
+      markDismissedThisSession();
+      setUserDismissed(true);
+    };
+    window.addEventListener("appinstalled", onInstalled);
+    return () => window.removeEventListener("appinstalled", onInstalled);
+  }, []);
+
   const open =
+    !locked &&
     !userDismissed &&
     !wasDismissedThisSession() &&
     (forcePreview || (Boolean(event) && onEcomHome));
@@ -98,7 +121,11 @@ function InstallPromptInner({ forcePreview = false }: InstallPromptProps) {
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[70] mx-auto w-full max-w-lg p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div
+      role="region"
+      aria-label="Install this shop"
+      className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-lg p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+    >
       <div className="relative rounded-[1.5rem] bg-paper p-4 shadow-[0_-12px_40px_rgba(47,107,47,0.28)] ring-1 ring-forest/12">
         <button
           type="button"

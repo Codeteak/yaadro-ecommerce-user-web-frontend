@@ -71,14 +71,11 @@ import { LiveOrderTrackDemo } from "@/components/orders/LiveOrderTrack";
 import { DeferredLocationPrompt } from "@/components/delivery/DeferredLocationPrompt";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { HelpSupportContent } from "@/components/profile/HelpSupportContent";
-import { ProfileAccountNav } from "@/components/profile/ProfileAccountNav";
-import { ProfileHero } from "@/components/profile/ProfileHero";
-import { ProfilePullContent } from "@/components/profile/ProfilePullContent";
+import { ProfileScreen } from "@/components/profile/ProfileScreen";
+import type { CustomerProfile } from "@/lib/api/profile";
 import { SAMPLE_SHOP_SUPPORT } from "@/lib/sample-shop-support";
 import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
 import {
-  GUEST_PROFILE_AVATAR,
-  GUEST_PROFILE_AVATAR_LEGACY,
   pickDefaultProfileAvatar,
 } from "@/lib/default-profile-avatar";
 import { SwipeToLogin } from "@/components/onboarding/SwipeToLogin";
@@ -976,7 +973,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "home-more-sections": () => (
     <DemoFrame
       surface="bare"
-      note="Phase B #30 wired: live /home gets aisle browseSectionsFromBranches. Demo shows the fuller stack."
+      note="Live /home: per-category horizontal product rails (not category tiles). Demo shows the fuller stack."
     >
       <PhaseBHomeSectionsDemo />
     </DemoFrame>
@@ -1559,43 +1556,19 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "multi-phone-layout": () => {
     const cards = SAMPLE_PRODUCTS.slice(0, 4);
     return (
-      <DemoFrame note="MULTI_PHONE_LAYOUT_PLAN — SE-height profile must scroll (fill + overflow pane). Narrow card photo uses aspect 5/4. Compare with tall frame.">
+      <DemoFrame note="MULTI_PHONE_LAYOUT_PLAN — SE-height profile must scroll. Narrow card photo uses aspect 5/4.">
         <div className="space-y-8 bg-paper px-4 py-5">
           <div>
             <p className="text-[11px] font-bold tracking-wide text-forest/70 uppercase">
               Profile · iPhone SE height (~667px) — scroll to footer
             </p>
-            <div className="relative mt-2 h-[667px] overflow-hidden rounded-2xl ring-1 ring-forest/15">
-              <div className="flex h-full min-h-0 flex-col overflow-hidden bg-paper">
-                <ProfilePullContent className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain scroll-pb-8">
-                  <ProfileHero
-                    backHref="/playground"
-                    signedIn={false}
-                    guestAvatarSrc={GUEST_PROFILE_AVATAR}
-                  />
-                  <div className="relative z-10 mx-4 -mt-9 grid grid-cols-3 gap-1.5 px-1 pt-1 pb-2">
-                    {(["Wishlist", "Voucher / Coupons", "Order History"] as const).map(
-                      (label) => (
-                        <div
-                          key={label}
-                          className="flex flex-col items-center gap-1.5 rounded-[1.35rem] bg-gradient-to-b from-white via-white to-mint/50 px-2 py-3 text-center ring-1 ring-leaf/30"
-                        >
-                          <span className="size-10 rounded-full bg-mint/70" />
-                          <span className="text-[11px] leading-4 font-semibold text-ink">
-                            {label}
-                          </span>
-                        </div>
-                      ),
-                    )}
-                  </div>
-                  <ProfileAccountNav previewSignedIn={false} />
-                  <BrandFooter className="pt-5 pb-14" />
-                </ProfilePullContent>
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-12 bg-gradient-to-t from-paper via-paper/80 to-transparent"
-                />
-              </div>
+            <div className="relative mt-2 h-[667px] overflow-y-auto overflow-x-hidden rounded-2xl ring-1 ring-forest/15">
+              <ProfileScreen
+                preview={{ signedIn: false }}
+                backHref="/playground"
+                hideHeader={false}
+                className="min-h-0"
+              />
             </div>
           </div>
 
@@ -1615,82 +1588,89 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </DemoFrame>
     );
   },
-  "profile-header": () => (
-    <DemoFrame note="Log out confirm sheet (playground dry-run). Live /profile confirms then signs out for real.">
-      <div className="max-h-[36rem] space-y-8 overflow-y-auto overscroll-contain bg-paper pb-6">
-        <div>
-          <p className="px-5 pt-3 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
-            Guest · wired ecom
-          </p>
-          <ProfileHero
-            backHref="/playground"
-            signedIn={false}
-            guestAvatarSrc={GUEST_PROFILE_AVATAR}
-          />
-          <ProfileAccountNav previewSignedIn={false} />
+  "profile-header": () => {
+    const signedInProfile: CustomerProfile = {
+      user: {
+        id: "playground-demo-user",
+        name: "Priya Nair",
+        phone: "9876543210",
+      },
+      customer: { id: "cust-1", displayName: null },
+      address: null,
+    };
+    return (
+      <DemoFrame note="Rebuilt /profile — guest, signed-in, error, offline. Logout confirm is dry-run in playground.">
+        <div className="max-h-[40rem] space-y-8 overflow-y-auto overscroll-contain bg-paper pb-6">
+          <div>
+            <p className="px-5 pt-3 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+              Guest
+            </p>
+            <ProfileScreen
+              preview={{ signedIn: false }}
+              backHref="/playground"
+              dryRun
+            />
+          </div>
+          <div>
+            <p className="px-5 pt-1 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+              Signed in
+            </p>
+            <ProfileScreen
+              preview={{ signedIn: true, profile: signedInProfile }}
+              backHref="/playground"
+              dryRun
+            />
+          </div>
+          <div>
+            <p className="px-5 pt-1 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+              Error
+            </p>
+            <ProfileScreen
+              preview={{ signedIn: true, status: "error" }}
+              backHref="/playground"
+              dryRun
+            />
+          </div>
+          <div>
+            <p className="px-5 pt-1 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+              Offline (cached name)
+            </p>
+            <ProfileScreen
+              preview={{
+                signedIn: true,
+                status: "offline",
+                profile: signedInProfile,
+              }}
+              backHref="/playground"
+              dryRun
+            />
+          </div>
+          <div className="px-5">
+            <p className="text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+              Avatar seeds
+            </p>
+            <ul className="mt-3 flex flex-wrap gap-3">
+              {["user-a", "user-b", "user-c", "user-d", "user-e", "user-f"].map(
+                (seed) => (
+                  <li key={seed} className="flex flex-col items-center gap-1">
+                    <Image
+                      src={pickDefaultProfileAvatar(seed)}
+                      alt=""
+                      width={56}
+                      height={56}
+                      unoptimized
+                      className="size-14 object-cover"
+                    />
+                    <span className="font-mono text-[10px] text-muted">{seed}</span>
+                  </li>
+                ),
+              )}
+            </ul>
+          </div>
         </div>
-        <div>
-          <p className="px-5 pt-1 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
-            Guest · legacy D mark
-          </p>
-          <ProfileHero
-            backHref="/playground"
-            signedIn={false}
-            guestAvatarSrc={GUEST_PROFILE_AVATAR_LEGACY}
-          />
-        </div>
-        <div>
-          <p className="px-5 pt-1 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
-            Signed in · logout confirm (playground)
-          </p>
-          <ProfileHero
-            backHref="/playground"
-            signedIn
-            userId="playground-demo-user"
-            displayName="Priya Nair"
-          />
-          <ProfileAccountNav
-            previewSignedIn
-            confirmBeforeLogout
-            logoutDryRun
-          />
-        </div>
-        <div>
-          <p className="px-5 pt-1 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
-            Signed in · nickname only
-          </p>
-          <ProfileHero
-            backHref="/playground"
-            signedIn
-            userId="playground-shop-b"
-            displayName="Arun"
-          />
-        </div>
-        <div className="px-5">
-          <p className="text-[11px] font-bold tracking-wide text-forest/70 uppercase">
-            Other seeds (random pick)
-          </p>
-          <ul className="mt-3 flex flex-wrap gap-3">
-            {["user-a", "user-b", "user-c", "user-d", "user-e", "user-f"].map(
-              (seed) => (
-                <li key={seed} className="flex flex-col items-center gap-1">
-                  <Image
-                    src={pickDefaultProfileAvatar(seed)}
-                    alt=""
-                    width={56}
-                    height={56}
-                    unoptimized
-                    className="size-14 object-cover"
-                  />
-                  <span className="font-mono text-[10px] text-muted">{seed}</span>
-                </li>
-              ),
-            )}
-          </ul>
-        </div>
-      </div>
-    </DemoFrame>
-  ),
+      </DemoFrame>
+    );
+  },
 };
 
 export function PlaygroundDemo({ slug }: { slug: string }) {
