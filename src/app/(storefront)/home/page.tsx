@@ -7,7 +7,6 @@ import {
   HomeSearchBar,
 } from "@/components/home/HomeSearchBar";
 import { OfferBanners } from "@/components/home/OfferBanners";
-import { OfferFlyer } from "@/components/home/OfferFlyer";
 import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 import { HomePullContent } from "@/components/home/HomePullContent";
 import { ScrollToTopOnLoad } from "@/components/navigation/ScrollToTopOnLoad";
@@ -173,8 +172,7 @@ export default function StorefrontHomePage() {
           <HomeCatalogBody />
         </Suspense>
 
-        <OfferFlyer />
-        {/* #7 — after paint, open address sheet only when Deliver to is empty */}
+        {/* Soft location prompt only — offer flyer removed (scroll-lock races). */}
         <DeferredLocationPrompt />
       </main>
     </HomeCategoryProvider>

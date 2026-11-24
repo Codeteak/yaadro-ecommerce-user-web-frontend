@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { CloseButton } from "@/components/navigation/CloseButton";
 import { AddressDetailsStep } from "@/components/delivery/AddressDetailsStep";
 import { AddressListStep } from "@/components/delivery/AddressListStep";
@@ -22,6 +22,7 @@ import {
   type SavedAddress,
 } from "@/lib/saved-addresses";
 import { syncServerDeliveryAddress } from "@/lib/sync-server-address";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 type Step = "list" | "map" | "details";
 
@@ -154,18 +155,20 @@ function AddressBookSheetBody({
     // Mount-only: sheet body remounts each open via parent key.
   }, []);
 
+  // Body only mounts while open — lock for the whole mount lifetime.
+  useBodyScrollLock(true);
+
+  const onOpenChangeRef = useRef(onOpenChange);
   useEffect(() => {
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    onOpenChangeRef.current = onOpenChange;
+  }, [onOpenChange]);
+  useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onOpenChange(false);
+      if (event.key === "Escape") onOpenChangeRef.current(false);
     };
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [onOpenChange]);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   const goMap = () => {
     setEditing(null);

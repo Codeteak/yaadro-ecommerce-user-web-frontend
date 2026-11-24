@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-24 — Remove home OfferFlyer; simple body scroll lock
+
+Home no longer mounts `OfferFlyer` (location prompt only). Sheets use one small `useBodyScrollLock`: lock while open, clear overflow to `""` on last close (tiny counter for overlaps — never restore a previous `hidden`). Dropped separate `scroll-lock.ts` and route-change force-clear. Wired on AddressBookSheet, DeliveryAddressSheet, WeightCustomizer, coupons, playground OfferFlyer. `HomeTopBar` keeps a stable `onOpenChange`.
+
 ## 2026-11-24 — Home: sellable categories with products; no orphan empty aisles
 
 Category rail now streams with the catalog body (same sellable roots as products) so a failed product load does not leave a category-only rail. Home sample raised to 48 products; product grouping falls back to category map when the join is thin. Aisle lazy-fetch no longer caches failures as empty — shows Try again. Fruits & veggies band hides when both lists are empty. Categories remain sellable-only (in-stock) from `readAllCategories`.

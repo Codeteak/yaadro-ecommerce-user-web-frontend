@@ -9,6 +9,7 @@ import { useCartLine, useCustomizingProduct, useSetCustomizing } from "@/compone
 import { weightAmount } from "@/lib/cart-lines";
 import { setCartWeight } from "@/lib/cart-store";
 import { formatKgAmount } from "@/lib/qty-label";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 function subscribeNever() {
   return () => undefined;
@@ -61,20 +62,20 @@ export function WeightCustomizer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
 
-  // Scroll lock + Escape while open.
+  useBodyScrollLock(Boolean(product));
+
+  const setCustomizingRef = useRef(setCustomizing);
+  useEffect(() => {
+    setCustomizingRef.current = setCustomizing;
+  }, [setCustomizing]);
   useEffect(() => {
     if (!product) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setCustomizing(null);
+      if (e.key === "Escape") setCustomizingRef.current(null);
     };
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [product, setCustomizing]);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [product]);
 
   if (!mounted || !product?.customization) return null;
   const { minKg, maxKg, stepKg } = product.customization;
