@@ -183,6 +183,16 @@ export function deleteSavedAddress(id: string): void {
   writeRaw([], null);
 }
 
+/** Remove the address book (sign out). Does not touch Deliver-to. */
+export function clearSavedAddresses(): void {
+  try {
+    window.localStorage.removeItem(SAVED_ADDRESSES_KEY);
+  } catch {
+    // best-effort
+  }
+  notify();
+}
+
 export function upsertSavedAddress(
   address: Omit<SavedAddress, "id"> & { id?: string },
 ): SavedAddress {

@@ -23,7 +23,7 @@ type HelpSupportContentProps = {
   initialTopic?: string | null;
 };
 
-export type HelpTopicHref = "/orders" | "/coupons" | "/profile/addresses";
+export type HelpTopicHref = "/orders" | "/coupons" | "/profile?address=1";
 
 type FaqEntry = {
   question: string;
@@ -50,7 +50,7 @@ const FAQS: FaqEntry[] = [
     question: "How do I update my address?",
     answer:
       "Add, edit, or set a default drop-off so deliveries go to the right place.",
-    link: { href: "/profile/addresses", label: "Delivery address" },
+    link: { href: "/profile?address=1", label: "Delivery address" },
   },
   {
     question: "Is cash on delivery available?",

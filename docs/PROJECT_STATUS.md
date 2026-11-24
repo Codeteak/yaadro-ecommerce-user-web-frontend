@@ -1,6 +1,6 @@
 # Yaadro Storefront — Project Status
 
-**Updated:** 2026-11-24 (checkout place-order hardening; refresh-safe confirm)
+**Updated:** 2026-11-24 (profile page rebuild; checkout hardening)
 
 ## Current stage
 
@@ -12,7 +12,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 |------|--------|--------|
 | Onboarding `/` | Done | Redirects to `/home` |
 | Login `/login` | Live | Phone +91 / OTP. Refresh token in localStorage (~50 days). |
-| Home / catalog | Live database | Categories, products, PDP, shelves from `DATABASE_URL`. Domain resolve + banners when host is not local. Empty banners stay hidden. |
+| Home / catalog | Live database | Categories, products, PDP, shelves from `DATABASE_URL`. Per-category horizontal product rails (not aisle tiles). Domain resolve + banners when host is not local. Empty banners stay hidden. |
 | Search | Wired | Home → `/categories` (prefetched). Typing filters locally, then debounced server search; `?q=` syncs without remount. Warm uses same browse page size (48). |
 | Cart `/cart` | Live | Shop-scoped basket; bill from cart preview (To pay + saves); typed coupons; free bundle section; qty cap 10 |
 | Coupons `/coupons` | Wired | Live list from `GET /api/storefront/coupons` |
@@ -22,6 +22,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 | Orders `/orders` | Live when signed in | Customer API list/detail |
 | Address | Live | One address; server sync on login + save; Google map + Nominatim fallback |
 | PWA | Wired | `public/sw.js`, install prompt, manifest uses shop image when available |
+| Profile `/profile` | Live | Inline full-name edit, phone OTP sheet, address card → AddressBookSheet; stacked options (Wishlist open to guests); sign-out clears query cache + addresses |
 | Auth / session | Live | OTP + refresh; Deliver-to hydrates from server address |
 | Payment | COD only | Same as main (no card gateway) |
 | CI/CD | Restored | GitHub Actions → `customer-web-pipeline` (OIDC); Docker/CodeDeploy; optional CF Pages static export |
@@ -31,6 +32,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 - `/` → `/home`
 - `/login`
 - `/home`, `/categories`, `/categories/[slug]`, `/dairy`, `/festive`, `/events`, `/wishlist`, `/profile`, `/profile/support`, `/cart`, `/coupons`, `/checkout`, `/orders`
+- `/profile/edit` → `/profile?edit=1`; `/profile/addresses` → `/profile?address=1`
 - `/orders/[id]`, `/orders/[id]/track`
 - `/product/[id]`
 - `/new`, `/trending` → `/home`

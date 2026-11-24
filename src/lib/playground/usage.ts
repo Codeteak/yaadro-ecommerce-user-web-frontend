@@ -163,16 +163,17 @@ const contact = await getShopSupportContact();
   ),
   "multi-phone-layout": U(
     `// See MULTI_PHONE_LAYOUT_PLAN.md (repo root)
-// Live /profile: data-storefront-fill + ProfilePullContent overflow-y-auto
+// Live /profile: ProfileScreen scrolls with bottom-nav clearance
 // ProductCard: aspect-[5/4] + smaller add on max-[390px]
 
-<main data-storefront-fill className="h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom))] overflow-hidden flex flex-col">
-  <ProfilePullContent className="min-h-0 flex-1 overflow-y-auto">
-    {/* hero, quick actions, nav, BrandFooter */}
-  </ProfilePullContent>
-</main>`,
+import { ProfileScreen } from "@/components/profile/ProfileScreen";
+
+<div className="h-[667px] overflow-y-auto">
+  <ProfileScreen preview={{ signedIn: false }} backHref="/playground" />
+</div>`,
     [
       "src/app/(storefront)/profile/page.tsx",
+      "src/components/profile/ProfileScreen.tsx",
       "src/components/product/ProductCard.tsx",
       "MULTI_PHONE_LAYOUT_PLAN.md",
     ],
@@ -229,13 +230,20 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
     ],
   ),
   "home-more-sections": U(
-    `import { PhaseBHomeSectionsDemo } from "@/components/playground/PhaseBHomeSectionsDemo";
+    `import { CategoryProductRails } from "@/components/home/CategoryProductRails";
+import { categoryProductRails } from "@/lib/home-category-rails";
+import { PhaseBHomeSectionsDemo } from "@/components/playground/PhaseBHomeSectionsDemo";
 
-// Phase B #30 — richer home stack (playground only)
+// Live /home: categoryProductRails(catalog.categories, catalog.productsBySlug)
+<CategoryProductRails rails={rails} />
+
+// Playground stack demo
 <PhaseBHomeSectionsDemo />`,
     [
       "src/components/playground/PhaseBHomeSectionsDemo.tsx",
-      "src/components/home/CategoryBrowseSections.tsx",
+      "src/components/home/CategoryProductRails.tsx",
+      "src/lib/home-category-rails.ts",
+      "src/components/home/HomePullContent.tsx",
       "src/components/home/HomeProductShelves.tsx",
     ],
   ),
@@ -422,12 +430,9 @@ import { SAMPLE_FESTIVE_SHELF } from "@/lib/festive-offers";
   "category-browse-sections": U(
     `import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
 import { CategoryBrowseSections } from "@/components/home/CategoryBrowseSections";
-import {
-  SAMPLE_CATEGORY_BROWSE_SECTIONS,
-  browseSectionsFromBranches,
-} from "@/lib/home-category-browse";
+import { SAMPLE_CATEGORY_BROWSE_SECTIONS } from "@/lib/home-category-browse";
 
-// Live /home: browseSectionsFromBranches(catalog.branches)
+// Playground / hub tile grid (not live /home product rails)
 <>
   <FruitsVeggiesSection />
   <CategoryBrowseSections
@@ -711,23 +716,26 @@ export default function NotFound() {
     ["src/components/coupons/CouponsPageContent.tsx"],
   ),
   "profile-header": U(
-    `import { ProfileHero } from "@/components/profile/ProfileHero";
-import { ProfileAccountNav } from "@/components/profile/ProfileAccountNav";
+    `import { ProfileScreen } from "@/components/profile/ProfileScreen";
 
-import { GUEST_PROFILE_AVATAR } from "@/lib/default-profile-avatar";
+// Live /profile — guest, signed-in, error, offline via useMyProfile
+<ProfileScreen />
 
-// Wired on /profile — guest avatar; signed-in loads name from GET /api/me/profile
-<ProfileHero signedIn={false} />
-// or explicit: guestAvatarSrc={GUEST_PROFILE_AVATAR}
-<ProfileAccountNav previewSignedIn={false} />
-
-// Playground dry-run; live /profile defaults confirmBeforeLogout
-<ProfileHero signedIn userId="user-123" displayName="Priya Nair" />
-<ProfileAccountNav previewSignedIn confirmBeforeLogout logoutDryRun />`,
+// Playground preview (dry-run logout / name save)
+<ProfileScreen
+  preview={{
+    signedIn: true,
+    profile: {
+      user: { id: "user-123", name: "Priya Nair", phone: "9876543210" },
+      customer: { id: "c1", displayName: null },
+      address: null,
+    },
+  }}
+  dryRun
+/>`,
     [
-      "src/components/profile/ProfileHero.tsx",
-      "src/components/profile/ProfileAccountNav.tsx",
-      "src/components/profile/LogoutButton.tsx",
+      "src/components/profile/ProfileScreen.tsx",
+      "src/components/profile/hooks/useMyProfile.ts",
       "src/lib/api/profile.ts",
       "src/lib/default-profile-avatar.ts",
       "public/icons/guest-profile.png",

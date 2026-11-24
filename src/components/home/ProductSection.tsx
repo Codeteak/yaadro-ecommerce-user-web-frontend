@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 import { useHomeCategory } from "@/components/home/HomeCategoryContext";
-import { ProductCard } from "@/components/product/ProductCard";
+import { ProductRail } from "@/components/home/ProductRail";
 import { ProductRailSkeleton } from "@/components/ui/skeletons";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { cn } from "@/lib/cn";
@@ -23,7 +23,6 @@ import {
   HOME_CATEGORIES,
   type HomeCategory,
 } from "@/lib/home-categories";
-import { PRODUCT_CAROUSEL_SLOT } from "@/lib/product-card-layout";
 import {
   getProductsByCategory,
   SAMPLE_PRODUCTS,
@@ -49,13 +48,6 @@ function productsForAll(productsBySlug: Record<string, SampleProduct[]>) {
 
 /** One scrolling row up to this count. More than this splits into two rows. */
 const ONE_ROW_MAX = 10;
-
-/**
- * Horizontal rail — same px-5 / scroll-px-5 gutter as CategoryRail so
- * snap-start never pins the first card to the screen edge.
- */
-const ROW_SCROLL =
-  "flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-5 scroll-px-5 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 /**
  * Home product listing for the category selected in the rail above.
@@ -193,53 +185,19 @@ export function ProductSection({
             Nothing in this aisle yet.
           </p>
         ) : (
-          <ProductScrollRow
+          <ProductRail
             products={rowTop}
             label={twoRows ? `${selected} row 1` : selected}
             priorityCount={showingAll ? 2 : 0}
           />
         )}
         {!loading && rowBottom.length > 0 ? (
-          <ProductScrollRow
+          <ProductRail
             products={rowBottom}
             label={`${selected} row 2`}
           />
         ) : null}
       </div>
     </section>
-  );
-}
-
-function ProductScrollRow({
-  products,
-  label,
-  className,
-  /** Eager-load the first N photos (home LCP). */
-  priorityCount = 0,
-}: {
-  products: SampleProduct[];
-  label: string;
-  className?: string;
-  priorityCount?: number;
-}) {
-  return (
-    <div
-      role="list"
-      aria-label={label}
-      className={cn(ROW_SCROLL, className)}
-    >
-      {products.map((product, index) => (
-        <div
-          key={product.id}
-          role="listitem"
-          className={cn(PRODUCT_CAROUSEL_SLOT, "shrink-0 snap-start")}
-        >
-          <ProductCard
-            product={product}
-            priority={index < priorityCount}
-          />
-        </div>
-      ))}
-    </div>
   );
 }

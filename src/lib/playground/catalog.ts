@@ -178,9 +178,9 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Phase B #30: aisle browse sections on home. Wired via browseSectionsFromBranches on live /home.",
+      "Home stack with per-category horizontal product rails (categoryProductRails). Live /home uses the same pattern.",
     wiresTo:
-      "src/lib/home-category-browse.ts → HomePullContent browseSections on /home",
+      "src/lib/home-category-rails.ts → HomePullContent categoryRails on /home",
   },
   {
     slug: "category-browser",
@@ -536,11 +536,11 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
   },
   {
     slug: "profile-header",
-    title: "Profile header",
+    title: "Profile page",
     status: "built",
     group: "Storefront chrome",
     description:
-      "Guest avatar + signed-in name. Log out confirm on live `/profile`. Playground signed-in uses dry-run toast.",
+      "Rebuilt /profile: identity card, address card, stacked options (Wishlist open to guests), logout confirm. Playground covers guest / signed-in / error / offline.",
     wiresTo: "/profile",
   },
   {
@@ -642,9 +642,9 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Phase C #31+#35 wired: profile Address sheet + checkout/home Edit with editId. /profile/addresses redirects to /profile?address=1.",
+      "Phase C #31+#35 wired: profile address card + checkout/home Edit with editId. /profile/addresses redirects to /profile?address=1.",
     wiresTo:
-      "ProfileAccountNav sheet + CheckoutPageContent / HomeTopBar AddressBookSheet(editId)",
+      "ProfileAddressCard + CheckoutPageContent / HomeTopBar AddressBookSheet(editId)",
   },
   {
     slug: "address-book",
@@ -652,8 +652,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "One saved address. Same AddressBookSheet as /checkout, home Deliver to, and /profile/addresses.",
-    wiresTo: "/checkout, /home, /profile/addresses",
+      "One saved address. Same AddressBookSheet as /checkout, home Deliver to, and /profile.",
+    wiresTo: "/checkout, /home, /profile",
   },
   {
     slug: "address-manage",
@@ -661,8 +661,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "One address: edit or delete. Add only when none is saved. Same as /profile/addresses. Prefer address-modal-shared for #31/#35.",
-    wiresTo: "/profile/addresses",
+      "One address: edit or delete. Add only when none is saved. Same as /profile. Prefer address-modal-shared for #31/#35.",
+    wiresTo: "/profile",
   },
   {
     slug: "address-map",

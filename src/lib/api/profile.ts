@@ -1,7 +1,6 @@
 /**
  * Signed-in profile.
  * GET/PATCH /api/me/profile
- * POST /api/storefront/profile
  * POST /api/storefront/phone/change/request-otp
  * POST /api/storefront/phone/change/verify-otp
  */
@@ -55,17 +54,6 @@ export function updateMyProfile(
     idempotent: true,
     signal,
     body: patch,
-  });
-}
-
-export function updateDisplayName(displayName: string, signal?: AbortSignal): Promise<void> {
-  return request<void>({
-    method: "POST",
-    path: "/api/storefront/profile",
-    auth: true,
-    idempotent: true,
-    signal,
-    body: { displayName },
   });
 }
 

@@ -87,6 +87,16 @@ export function writeDeliveryAddress(address: DeliveryAddress): void {
   window.dispatchEvent(new Event(DELIVERY_ADDRESS_EVENT));
 }
 
+/** Forget the Deliver-to address (sign out). */
+export function clearDeliveryAddress(): void {
+  try {
+    window.localStorage.removeItem(DELIVERY_ADDRESS_KEY);
+  } catch {
+    // best-effort
+  }
+  window.dispatchEvent(new Event(DELIVERY_ADDRESS_EVENT));
+}
+
 export function subscribeDeliveryAddress(onChange: () => void): () => void {
   const onStorage = (e: StorageEvent) => {
     if (e.key === DELIVERY_ADDRESS_KEY || e.key === null) onChange();
