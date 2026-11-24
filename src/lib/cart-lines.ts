@@ -42,24 +42,18 @@ export function resolveCartProduct(item: CartItem): SampleProduct {
 }
 
 /**
- * Catalog `price` / `mrp` are per sellable unit (`unit_size` = stepKg),
- * not per kg. Card shows ₹500 for 0.25 kg → 0.25 kg costs ₹500;
- * 0.5 kg costs ₹1000.
+ * Catalog `price` / `mrp` for sold-by-weight products are per kg.
+ * `unit_size` / stepKg is only the order step (e.g. 0.25 kg chips).
+ * 0.75 kg at ₹200/kg → ₹150.
  */
-export function weightAmount(
-  weightKg: number,
-  pricePerUnit: number,
-  stepKg: number,
-): number {
-  const step = stepKg > 0 ? stepKg : 1;
-  return Math.round((weightKg / step) * pricePerUnit);
+export function weightAmount(weightKg: number, pricePerKg: number): number {
+  return Math.round(weightKg * pricePerKg);
 }
 
 export function lineTotal(item: CartItem): number {
   const product = resolveCartProduct(item);
   if (item.weightKg) {
-    const step = product.customization?.stepKg ?? 1;
-    return weightAmount(item.weightKg, product.price, step);
+    return weightAmount(item.weightKg, product.price);
   }
   return item.qty * product.price;
 }
@@ -67,8 +61,7 @@ export function lineTotal(item: CartItem): number {
 export function lineMrp(item: CartItem): number {
   const product = resolveCartProduct(item);
   if (item.weightKg) {
-    const step = product.customization?.stepKg ?? 1;
-    return weightAmount(item.weightKg, product.mrp, step);
+    return weightAmount(item.weightKg, product.mrp);
   }
   return item.qty * product.mrp;
 }

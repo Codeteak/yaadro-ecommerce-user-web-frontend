@@ -1,6 +1,5 @@
 "use client";
 
-import { CategoryRail } from "@/components/home/CategoryRail";
 import { HomeTopBar } from "@/components/home/HomeTopBar";
 import {
   HOME_SEARCH_SAMPLE_TERMS,
@@ -69,20 +68,18 @@ export function HomePageView({
               <path d="M0 10 C 360 36, 1080 36, 1440 10 L1440 40 L0 40 Z" fill="currentColor" />
             </svg>
           </div>
-
-          <div className="relative z-10 mx-auto w-full max-w-lg">
-            <CategoryRail
-              tileVariant="pill"
-              categories={catalog.categories.map((category) => ({
-                name: category.name,
-                slug: category.slug,
-                image: category.image,
-              }))}
-            />
-          </div>
         </section>
 
         <HomePullContent
+          railCategories={
+            catalog.ok
+              ? catalog.categories.map((category) => ({
+                  name: category.name,
+                  slug: category.slug,
+                  image: category.image,
+                }))
+              : []
+          }
           productsBySlug={catalog.ok ? catalog.productsBySlug : {}}
           categoryNames={categoryNames}
           fruits={catalog.ok ? catalog.fruits : []}

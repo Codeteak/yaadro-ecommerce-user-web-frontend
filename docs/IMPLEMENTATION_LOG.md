@@ -1,8 +1,16 @@
 # Implementation Log
 
+## 2026-11-24 — Home: sellable categories with products; no orphan empty aisles
+
+Category rail now streams with the catalog body (same sellable roots as products) so a failed product load does not leave a category-only rail. Home sample raised to 48 products; product grouping falls back to category map when the join is thin. Aisle lazy-fetch no longer caches failures as empty — shows Try again. Fruits & veggies band hides when both lists are empty. Categories remain sellable-only (in-stock) from `readAllCategories`.
+
+## 2026-11-23 — CodeDeploy auto-rollback + pull-before-cutover
+
+Enabled deployment-group auto-rollback on `DEPLOYMENT_FAILURE` / `DEPLOYMENT_STOP_ON_REQUEST` so a failed deploy redeploys the last successful revision. `application_start.sh` keeps the old container up while pruning unused images and pulling the new one, then cutovers with `compose up --force-recreate`, then prunes the old image.
+
 ## 2026-11-23 — CodeDeploy ApplicationStart timeout + disk prune
 
-`ScriptTimedOut` at 900s while Docker was still extracting a ~252MB image on `t4g.micro`. Raised ApplicationStart timeout to 2700s. `application_start.sh` now stops the old container, prunes unused images/containers/build cache (`docker image/builder/system prune`), clears stale host artifacts under the app dir, then pulls and starts.
+`ScriptTimedOut` at 900s while Docker was still extracting a ~252MB image on `t4g.micro`. Raised ApplicationStart timeout to 2700s. Start script prunes unused Docker/build cache and stale host artifacts; later revised to pull-before-stop (see above).
 
 ## 2026-11-23 — Browse pin first; address details at place order
 

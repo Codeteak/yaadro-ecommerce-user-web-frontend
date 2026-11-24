@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
 import { DeferredLocationPrompt } from "@/components/delivery/DeferredLocationPrompt";
-import { CategoryRail } from "@/components/home/CategoryRail";
 import { HomeTopBar } from "@/components/home/HomeTopBar";
 import {
   HOME_SEARCH_SAMPLE_TERMS,
@@ -17,10 +16,7 @@ import {
   HomeCatalogSkeleton,
   HomeHeroSkeleton,
 } from "@/components/ui/skeletons";
-import {
-  listStoreCategories,
-  loadHomeCatalog,
-} from "@/lib/api/storefront";
+import { loadHomeCatalog } from "@/lib/api/storefront";
 import { browseSectionsFromBranches } from "@/lib/home-category-browse";
 import { ALL_CATEGORY_SLUG } from "@/lib/home-categories";
 import { cn } from "@/lib/cn";
@@ -112,31 +108,8 @@ async function HomeHeroResolved() {
 }
 
 /**
- * Category rail only — categories query, not the full product catalog (#3).
- */
-async function HomeCategoryRail() {
-  const shopId = await getRequestShopId();
-  const categories = await listStoreCategories(shopId);
-  const roots = categories.filter(
-    (category) => !category.parentId && category.slug !== "all",
-  );
-
-  return (
-    <div className="relative z-10 mx-auto w-full max-w-lg">
-      <CategoryRail
-        tileVariant="pill"
-        categories={roots.map((category) => ({
-          name: category.name,
-          slug: category.slug,
-          image: category.image,
-        }))}
-      />
-    </div>
-  );
-}
-
-/**
- * Product sections + shelves — lighter query, streams after the rail.
+ * Sellable category rail + product sections from one catalog load.
+ * Empty / failed catalog → no orphan category rail without products.
  */
 async function HomeCatalogBody() {
   const shopId = await getRequestShopId();
@@ -150,6 +123,15 @@ async function HomeCatalogBody() {
 
   return (
     <HomePullContent
+      railCategories={
+        catalog.ok
+          ? catalog.categories.map((category) => ({
+              name: category.name,
+              slug: category.slug,
+              image: category.image,
+            }))
+          : []
+      }
       productsBySlug={catalog.ok ? catalog.productsBySlug : {}}
       categoryNames={categoryNames}
       fruits={catalog.ok ? catalog.fruits : []}
@@ -180,11 +162,14 @@ export default function StorefrontHomePage() {
           <HomeHeroResolved />
         </Suspense>
 
-        <Suspense fallback={<CategoryRailSkeleton />}>
-          <HomeCategoryRail />
-        </Suspense>
-
-        <Suspense fallback={<HomeCatalogSkeleton />}>
+        <Suspense
+          fallback={
+            <>
+              <CategoryRailSkeleton />
+              <HomeCatalogSkeleton />
+            </>
+          }
+        >
           <HomeCatalogBody />
         </Suspense>
 

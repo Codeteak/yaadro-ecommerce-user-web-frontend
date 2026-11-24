@@ -404,9 +404,8 @@ export function CartPageContent({
                 const selling = lineTotal(item);
                 const mrp = lineMrp(item);
                 const save = lineSave(item);
-                const stepKg = product.customization?.stepKg;
                 const unitHint = isWeight
-                  ? `By weight, ₹${product.price} / ${stepKg != null ? `${stepKg} kg` : product.unit}`
+                  ? `By weight, ₹${product.price} / kg`
                   : `₹${product.price} / ${product.unit}`;
                 return (
                   <li key={item.productId} className="flex items-start gap-3 py-4">

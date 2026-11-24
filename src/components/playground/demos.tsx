@@ -154,7 +154,7 @@ function ProductDetailDemo() {
   );
 
   return (
-    <DemoFrame note="Same as /product/[id]. Weight: Add → slide ruler; then CTA shows chosen kg. Total = (kg / step) × card price.">
+    <DemoFrame note="Same as /product/[id]. Weight: Add → slide ruler; then CTA shows chosen kg. Total = kg × price per kg.">
       <div className="relative">
         <div className="flex flex-wrap gap-2 border-b border-forest/8 px-4 py-3">
           {PDP_SAMPLES.map((p) => (
@@ -994,7 +994,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "home-pull-content": () => (
-    <DemoFrame note="Same as /home body (#3): ProductSection + FruitsVeggies + shelves + BrandFooter + PTR. Rail streams in a separate Suspense on ecom.">
+    <DemoFrame note="Same as /home body: sample category rail + ProductSection + FruitsVeggies + shelves + BrandFooter + PTR.">
       <HomeCategoryProvider>
         <HomePullContent />
       </HomeCategoryProvider>

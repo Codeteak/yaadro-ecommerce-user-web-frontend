@@ -6,6 +6,8 @@ import type { SampleProduct } from "@/lib/sample-products";
 /** Session cache for home-rail aisle peeks (shared across remounts). */
 const aisleCache = new Map<string, SampleProduct[]>();
 const inflight = new Map<string, Promise<SampleProduct[]>>();
+/** Slugs whose last fetch failed — not treated as an empty aisle. */
+const aisleFailed = new Set<string>();
 
 let cacheVersion = 0;
 const listeners = new Set<() => void>();
@@ -34,6 +36,20 @@ export function peekHomeAisleCache(slug: string): SampleProduct[] | undefined {
   return aisleCache.get(slug);
 }
 
+export function peekHomeAisleFailed(slug: string): boolean {
+  return aisleFailed.has(slug);
+}
+
+/** Clear a failed aisle so the next fetch can retry. */
+export function retryHomeAisleProducts(slug: string): Promise<SampleProduct[]> {
+  const trimmed = slug.trim();
+  aisleFailed.delete(trimmed);
+  aisleCache.delete(trimmed);
+  inflight.delete(trimmed);
+  emitCacheChange();
+  return fetchHomeAisleProducts(trimmed);
+}
+
 /** Prefetch / load one aisle; dedupes in-flight requests. */
 export function fetchHomeAisleProducts(
   slug: string,
@@ -50,18 +66,18 @@ export function fetchHomeAisleProducts(
 
   const request = loadHomeAisleProducts(trimmed)
     .then((products) => {
+      aisleFailed.delete(trimmed);
       aisleCache.set(trimmed, products);
       inflight.delete(trimmed);
       emitCacheChange();
       return products;
     })
     .catch(() => {
-      // Don't poison inflight — allow retry; treat as empty aisle.
-      const empty: SampleProduct[] = [];
-      aisleCache.set(trimmed, empty);
+      // Do not poison the cache as “empty aisle” — allow retry.
+      aisleFailed.add(trimmed);
       inflight.delete(trimmed);
       emitCacheChange();
-      return empty;
+      return [] as SampleProduct[];
     });
 
   inflight.set(trimmed, request);

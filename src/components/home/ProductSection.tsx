@@ -13,6 +13,8 @@ import {
   getHomeAisleCacheServerVersion,
   getHomeAisleCacheVersion,
   peekHomeAisleCache,
+  peekHomeAisleFailed,
+  retryHomeAisleProducts,
   subscribeHomeAisleCache,
 } from "@/lib/home-aisle-client";
 import { catalogSlugForHomeCategory } from "@/lib/catalog-taxonomy";
@@ -84,10 +86,13 @@ export function ProductSection({
     live && !showingAll ? (productsBySlug[selected] ?? []) : null;
   const sampleLen = sampleBucket?.length ?? 0;
 
+  const aisleFailed = live && !showingAll && peekHomeAisleFailed(selected);
+
   useEffect(() => {
     if (!live || showingAll) return;
     if (sampleLen > 0) return;
     if (peekHomeAisleCache(selected) !== undefined) return;
+    if (peekHomeAisleFailed(selected)) return;
 
     void fetchHomeAisleProducts(selected);
   }, [live, showingAll, selected, sampleLen]);
@@ -108,7 +113,11 @@ export function ProductSection({
 
   /** Empty sample + not yet cached → fetch in flight (or about to). */
   const loading =
-    live && !showingAll && sampleLen === 0 && lazyProducts === undefined;
+    live &&
+    !showingAll &&
+    sampleLen === 0 &&
+    lazyProducts === undefined &&
+    !aisleFailed;
 
   const twoRows = products.length > ONE_ROW_MAX;
   const mid = twoRows ? Math.ceil(products.length / 2) : products.length;
@@ -163,6 +172,22 @@ export function ProductSection({
       >
         {loading ? (
           <ProductRailSkeleton className="px-5" count={4} />
+        ) : aisleFailed ? (
+          <div className="flex flex-col items-start gap-2 px-5 py-6">
+            <p className="text-sm font-medium text-muted">
+              We couldn&apos;t load this aisle. Check your connection and try
+              again.
+            </p>
+            <button
+              type="button"
+              className="text-sm font-semibold text-leaf underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+              onClick={() => {
+                void retryHomeAisleProducts(selected);
+              }}
+            >
+              Try again
+            </button>
+          </div>
         ) : products.length === 0 ? (
           <p className="px-5 py-6 text-sm font-medium text-muted">
             Nothing in this aisle yet.

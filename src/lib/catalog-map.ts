@@ -8,8 +8,8 @@ const FALLBACK_IMAGE = PRODUCT_IMAGE_FALLBACK;
 
 /**
  * Backend `unit_size` (with `base_unit` kg) is the sell step / minimum.
- * Orange is 0.1 kg; carrot is 0.25 kg. Catalog price is per that unit
- * (`price_minor_per_unit`), same figure shown on the product card.
+ * Orange is 0.1 kg; carrot is 0.25 kg. Catalog price is per kg
+ * (`price_minor_per_unit`); unit_size only controls the ruler step.
  */
 export function weightCustomizationFromUnitSize(
   unitSize: unknown,
@@ -148,6 +148,7 @@ export function mapCatalogProduct({
   const soldByWeight = row.sold_by_weight === true || row.soldByWeight === true;
   const description = pickString(row.description) ?? undefined;
   const unitSize = row.unit_size ?? row.unitSize;
+  const baseUnit = pickString(row.unit) || "kg";
 
   return {
     id,
@@ -155,7 +156,8 @@ export function mapCatalogProduct({
     category: categoryName || pickString(row.category_name, row.categoryName) || "Grocery",
     categoryId: categoryId || pickString(row.category_id, row.categoryId) || undefined,
     categorySlug: categorySlug || undefined,
-    unit: formatUnit(pickString(row.unit), unitSize),
+    // Weight products are priced per kg; step size is not part of the unit label.
+    unit: soldByWeight ? baseUnit : formatUnit(pickString(row.unit), unitSize),
     price,
     mrp: Math.max(mrp, price),
     image: images[0] ?? FALLBACK_IMAGE,

@@ -1,6 +1,6 @@
 # Yaadro Storefront — Project Status
 
-**Updated:** 2026-11-20 (CI/CD restored from `v1`; Next 16.4.5; address sheet sync; categories `?q=` DB search)
+**Updated:** 2026-11-24 (home rail + catalog unified; empty produce hidden; aisle fetch retry)
 
 ## Current stage
 

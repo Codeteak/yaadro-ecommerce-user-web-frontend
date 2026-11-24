@@ -405,12 +405,10 @@ function hydrateLine(line: SampleOrderLine): SampleOrderLine {
   if (!product) return line;
   const qty = line.qty;
   if (line.isWeight) {
-    const step = product.customization?.stepKg ?? 1;
-    const units = step > 0 ? qty / step : qty;
     return {
       ...line,
-      lineTotal: Math.round(units * product.price),
-      lineMrp: Math.round(units * product.mrp),
+      lineTotal: Math.round(qty * product.price),
+      lineMrp: Math.round(qty * product.mrp),
     };
   }
   return {
