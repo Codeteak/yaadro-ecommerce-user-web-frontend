@@ -44,7 +44,7 @@ export function DailyDairySection({
   const showCategoryRail = categories.length > 0;
   const [selectedSlug, setSelectedSlug] = useState<string>("all");
 
-  const catalog = shelf?.products ?? [];
+  const catalog = useMemo(() => shelf?.products ?? [], [shelf?.products]);
   const products = useMemo(
     () =>
       productsForDairyCategory(

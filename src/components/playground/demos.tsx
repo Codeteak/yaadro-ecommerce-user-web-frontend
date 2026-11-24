@@ -994,7 +994,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "home-pull-content": () => (
-    <DemoFrame note="Same as /home body (#3): ProductSection + FruitsVeggies + shelves + BrandFooter + PTR. Rail streams in a separate Suspense on ecom.">
+    <DemoFrame note="Same as /home body: sample category rail + ProductSection + FruitsVeggies + shelves + BrandFooter + PTR.">
       <HomeCategoryProvider>
         <HomePullContent />
       </HomeCategoryProvider>

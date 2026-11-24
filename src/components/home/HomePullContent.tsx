@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import { CategoryBrowseSections } from "@/components/home/CategoryBrowseSections";
+import { CategoryRail } from "@/components/home/CategoryRail";
 import { DailyDairySection } from "@/components/home/DailyDairySection";
 import { FestiveOffersSection } from "@/components/home/FestiveOffersSection";
 import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
@@ -23,12 +24,19 @@ import type { CategoryBrowseSection } from "@/lib/home-category-browse";
 import type { SampleProduct } from "@/lib/sample-products";
 import type { LiveShelf } from "@/components/home/HomeProductShelves";
 
+export type HomeRailCategory = {
+  name: string;
+  slug: string;
+  image: string;
+};
+
 /**
- * Home body below the category rail: category products → produce → dairy
- * (layout A when shelf title matches) → aisle browse (#30) → festive →
- * shelves → brand footer. Offer banners sit above the rail.
+ * Home body: sellable category rail + products → produce → dairy → aisle
+ * browse → festive → shelves → brand footer.
+ * Rail categories come from the same catalog load as products (no empty aisles).
  */
 export function HomePullContent({
+  railCategories,
   productsBySlug,
   categoryNames,
   fruits,
@@ -37,6 +45,11 @@ export function HomePullContent({
   browseSections,
   catalogError,
 }: {
+  /**
+   * Sellable root categories. `undefined` = playground sample rail;
+   * `[]` = hide rail (live catalog failed / empty).
+   */
+  railCategories?: HomeRailCategory[];
   productsBySlug?: Record<string, SampleProduct[]>;
   categoryNames?: Record<string, string>;
   fruits?: SampleProduct[];
@@ -62,6 +75,12 @@ export function HomePullContent({
     );
   }, [shelves]);
 
+  const showProduce =
+    fruits == null ||
+    vegetables == null ||
+    fruits.length > 0 ||
+    vegetables.length > 0;
+
   const onRefresh = useCallback(async () => {
     await refreshStorefrontCatalog();
   }, []);
@@ -69,6 +88,15 @@ export function HomePullContent({
   return (
     <PullToRefresh onRefresh={onRefresh}>
       <div>
+        {railCategories === undefined ? (
+          <div className="relative z-10 mx-auto w-full max-w-lg">
+            <CategoryRail tileVariant="pill" />
+          </div>
+        ) : railCategories.length > 0 ? (
+          <div className="relative z-10 mx-auto w-full max-w-lg">
+            <CategoryRail tileVariant="pill" categories={railCategories} />
+          </div>
+        ) : null}
         {catalogError ? (
           <p className="mx-auto w-full max-w-lg px-5 pt-6 text-sm font-medium text-muted">
             {catalogError}
@@ -78,11 +106,13 @@ export function HomePullContent({
           productsBySlug={productsBySlug}
           categoryNames={categoryNames}
         />
-        <FruitsVeggiesSection
-          className={t.homeBlockGap}
-          fruits={fruits}
-          vegetables={vegetables}
-        />
+        {showProduce ? (
+          <FruitsVeggiesSection
+            className={t.homeBlockGap}
+            fruits={fruits}
+            vegetables={vegetables}
+          />
+        ) : null}
         {dairyShelf ? (
           <DailyDairySection
             className={t.homeBlockGap}
