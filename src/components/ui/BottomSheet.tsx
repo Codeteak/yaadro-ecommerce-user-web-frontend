@@ -16,6 +16,8 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 const noopSubscribe = () => () => undefined;
+const clientMountedSnapshot = () => true;
+const serverMountedSnapshot = () => false;
 
 type BottomSheetProps = {
   open: boolean;
@@ -49,7 +51,11 @@ export function BottomSheet({
   const panelRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   const dismissibleRef = useRef(dismissible);
-  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  const mounted = useSyncExternalStore(
+    noopSubscribe,
+    clientMountedSnapshot,
+    serverMountedSnapshot,
+  );
 
   useBodyScrollLock(open);
 

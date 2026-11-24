@@ -82,6 +82,8 @@ export function writeCachedProfileUi(value: CachedProfileUi): void {
   if (!userId || !displayName) return;
   const next = { userId, displayName };
   const raw = JSON.stringify(next);
+  // Same payload — keep the cached reference and skip notify (avoids churn).
+  if (snapshotHydrated && raw === snapshotRaw) return;
   try {
     window.sessionStorage.setItem(PROFILE_UI_CACHE_KEY, raw);
     snapshotHydrated = true;
