@@ -178,9 +178,9 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Phase B #30: aisle browse sections on home. Wired via browseSectionsFromBranches on live /home.",
+      "Home stack with per-category horizontal product rails (categoryProductRails). Live /home uses the same pattern.",
     wiresTo:
-      "src/lib/home-category-browse.ts → HomePullContent browseSections on /home",
+      "src/lib/home-category-rails.ts → HomePullContent categoryRails on /home",
   },
   {
     slug: "category-browser",

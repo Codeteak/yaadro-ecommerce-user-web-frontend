@@ -17,7 +17,7 @@ import {
   HomeHeroSkeleton,
 } from "@/components/ui/skeletons";
 import { loadHomeCatalog } from "@/lib/api/storefront";
-import { browseSectionsFromBranches } from "@/lib/home-category-browse";
+import { categoryProductRails } from "@/lib/home-category-rails";
 import { ALL_CATEGORY_SLUG } from "@/lib/home-categories";
 import { cn } from "@/lib/cn";
 import { getRequestShopId } from "@/lib/request-shop";
@@ -145,8 +145,10 @@ async function HomeCatalogBody() {
             }))
           : []
       }
-      browseSections={
-        catalog.ok ? browseSectionsFromBranches(catalog.branches) : []
+      categoryRails={
+        catalog.ok
+          ? categoryProductRails(catalog.categories, catalog.productsBySlug)
+          : []
       }
       catalogError={catalog.error}
     />

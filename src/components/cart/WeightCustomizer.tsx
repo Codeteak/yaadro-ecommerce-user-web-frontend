@@ -62,7 +62,7 @@ export function WeightCustomizer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
 
-  useBodyScrollLock(Boolean(product));
+  useBodyScrollLock(Boolean(product?.customization));
 
   const setCustomizingRef = useRef(setCustomizing);
   useEffect(() => {

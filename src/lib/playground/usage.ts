@@ -230,13 +230,20 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
     ],
   ),
   "home-more-sections": U(
-    `import { PhaseBHomeSectionsDemo } from "@/components/playground/PhaseBHomeSectionsDemo";
+    `import { CategoryProductRails } from "@/components/home/CategoryProductRails";
+import { categoryProductRails } from "@/lib/home-category-rails";
+import { PhaseBHomeSectionsDemo } from "@/components/playground/PhaseBHomeSectionsDemo";
 
-// Phase B #30 — richer home stack (playground only)
+// Live /home: categoryProductRails(catalog.categories, catalog.productsBySlug)
+<CategoryProductRails rails={rails} />
+
+// Playground stack demo
 <PhaseBHomeSectionsDemo />`,
     [
       "src/components/playground/PhaseBHomeSectionsDemo.tsx",
-      "src/components/home/CategoryBrowseSections.tsx",
+      "src/components/home/CategoryProductRails.tsx",
+      "src/lib/home-category-rails.ts",
+      "src/components/home/HomePullContent.tsx",
       "src/components/home/HomeProductShelves.tsx",
     ],
   ),
@@ -423,12 +430,9 @@ import { SAMPLE_FESTIVE_SHELF } from "@/lib/festive-offers";
   "category-browse-sections": U(
     `import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
 import { CategoryBrowseSections } from "@/components/home/CategoryBrowseSections";
-import {
-  SAMPLE_CATEGORY_BROWSE_SECTIONS,
-  browseSectionsFromBranches,
-} from "@/lib/home-category-browse";
+import { SAMPLE_CATEGORY_BROWSE_SECTIONS } from "@/lib/home-category-browse";
 
-// Live /home: browseSectionsFromBranches(catalog.branches)
+// Playground / hub tile grid (not live /home product rails)
 <>
   <FruitsVeggiesSection />
   <CategoryBrowseSections

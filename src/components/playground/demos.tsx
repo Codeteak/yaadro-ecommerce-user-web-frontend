@@ -973,7 +973,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "home-more-sections": () => (
     <DemoFrame
       surface="bare"
-      note="Phase B #30 wired: live /home gets aisle browseSectionsFromBranches. Demo shows the fuller stack."
+      note="Live /home: per-category horizontal product rails (not category tiles). Demo shows the fuller stack."
     >
       <PhaseBHomeSectionsDemo />
     </DemoFrame>
