@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { CloseButton } from "@/components/navigation/CloseButton";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 /**
  * Special-campaign pop-up flyer (Home only).
@@ -39,19 +40,16 @@ export function OfferFlyer() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  // Scroll lock + Escape while the flyer is up.
+  // Playground-only now — storefront home no longer mounts OfferFlyer.
+  useBodyScrollLock(visible);
+
   useEffect(() => {
     if (!visible) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setVisible(false);
     };
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [visible]);
 
   if (!visible) return null;

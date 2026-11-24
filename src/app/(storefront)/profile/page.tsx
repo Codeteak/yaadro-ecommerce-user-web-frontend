@@ -70,7 +70,7 @@ async function ProfilePageBody() {
       */}
       <main
         data-storefront-fill
-        className="relative mx-auto flex h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom))] min-h-0 w-full max-w-lg flex-col overflow-hidden bg-paper"
+        className="relative mx-auto flex h-[calc(100dvh-var(--storefront-nav-clearance,5.5rem)-env(safe-area-inset-bottom,0px))] min-h-0 w-full max-w-lg flex-col overflow-hidden bg-paper transition-[height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
       >
         <ProfilePullContent className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain scroll-pb-8 [-webkit-overflow-scrolling:touch]">
           <ProfileHero />

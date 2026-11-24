@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { ProductCard } from "@/components/product/ProductCard";
@@ -12,9 +12,8 @@ import { PRODUCT_CAROUSEL_SLOT } from "@/lib/product-card-layout";
 
 /**
  * “Add more products” + suggestion rail for a filled cart.
- * Cards match the home product rail (default ProductCard).
- * Storefront loads the live catalog. Playground keeps the sample rail
- * when the basket has no category ids.
+ * Keeps the rail steady when an item is added (filters locally; refetches
+ * only when category mix changes).
  */
 export function CartSuggestions({
   cartProductIds,
@@ -31,17 +30,27 @@ export function CartSuggestions({
 }) {
   const idsKey = cartProductIds.join("\0");
   const categoriesKey = categoryIds.join("\0");
+  const exclude = useMemo(
+    () => new Set(idsKey ? idsKey.split("\0") : []),
+    [idsKey],
+  );
   const [suggestions, setSuggestions] = useState<SampleProduct[]>([]);
 
+  // Refetch when aisle mix changes (not on every add).
   useEffect(() => {
-    const productIds = idsKey ? idsKey.split("\0") : [];
     const categories = categoriesKey ? categoriesKey.split("\0") : [];
+    const excludeIds = idsKey ? idsKey.split("\0") : [];
     let cancelled = false;
 
     if (sampleFallback && categories.length === 0) {
-      // Defer so we never setState synchronously in the effect body.
       const timer = window.setTimeout(() => {
-        if (!cancelled) setSuggestions(cartSuggestions(productIds));
+        if (!cancelled) {
+          setSuggestions(
+            cartSuggestions(excludeIds).filter(
+              (product) => !excludeIds.includes(product.id),
+            ),
+          );
+        }
       }, 0);
       return () => {
         cancelled = true;
@@ -50,7 +59,7 @@ export function CartSuggestions({
     }
 
     startTransition(() => {
-      void suggestCartProducts(categories, productIds).then(
+      void suggestCartProducts(categories, excludeIds).then(
         (products) => {
           if (!cancelled) setSuggestions(products);
         },
@@ -62,7 +71,11 @@ export function CartSuggestions({
     return () => {
       cancelled = true;
     };
-  }, [idsKey, categoriesKey, sampleFallback]);
+    // Intentionally omit idsKey — adds filter locally without refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- categories only
+  }, [categoriesKey, sampleFallback]);
+
+  const visible = suggestions.filter((product) => !exclude.has(product.id));
 
   return (
     <section className={cn("mt-6", className)} aria-label="Add more products">
@@ -74,11 +87,11 @@ export function CartSuggestions({
         Add more products
       </Link>
 
-      {suggestions.length > 0 ? (
+      {visible.length > 0 ? (
         <div className="mt-5">
           <h3 className="text-base font-extrabold text-ink">You may also like</h3>
           <ul className="mt-3 -mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {suggestions.map((product) => (
+            {visible.map((product) => (
               <li
                 key={product.id}
                 className={cn(PRODUCT_CAROUSEL_SLOT, "shrink-0 snap-start")}

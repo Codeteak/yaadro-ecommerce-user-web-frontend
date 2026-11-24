@@ -1,12 +1,20 @@
 "use client";
 
-import { Suspense, type ReactNode } from "react";
+import { Suspense, type CSSProperties, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { BottomNav } from "@/components/navigation/BottomNav";
+import {
+  NavScrollProvider,
+  useNavScroll,
+} from "@/components/navigation/NavScrollContext";
 import { ViewCartBar } from "@/components/cart/ViewCartBar";
 import { WeightCustomizer } from "@/components/cart/WeightCustomizer";
 import { cn } from "@/lib/cn";
 import { shouldHideStorefrontNav } from "@/lib/storefront-nav";
+
+/** Match BottomNav slide timing so padding and pill move together. */
+const NAV_MOTION =
+  "duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]";
 
 /**
  * Path-dependent chrome. `usePathname` suspends on dynamic routes
@@ -27,23 +35,21 @@ function StorefrontPathChrome() {
   );
 }
 
-/**
- * Storefront shell chrome. Bottom nav + ViewCartBar stay on Home,
- * Categories, Wishlist, Profile, Orders list, Coupons, and product/PLP.
- * Both hide on cart, checkout, order detail/track, and profile task
- * screens so the back header owns the page.
- * Page content stays outside the pathname Suspense boundary.
- */
-export function StorefrontChrome({ children }: { children: ReactNode }) {
+function StorefrontChromeLayout({ children }: { children: ReactNode }) {
+  const { navHidden } = useNavScroll();
+
+  const style = {
+    ["--storefront-nav-clearance" as string]: navHidden ? "0px" : "5.5rem",
+  } satisfies CSSProperties;
+
   return (
     <div
+      style={style}
       className={cn(
-        "min-h-dvh pb-[calc(5.5rem+env(safe-area-inset-bottom))]",
-        "has-[[data-storefront-hide-nav]]:pb-0",
-        // Fill pages size themselves under the nav; lock the shell so the
-        // category rail cannot scroll away with document overflow.
-        // overscroll-none only on fill — global none made SE/DevTools
-        // document scroll feel stuck on home/wishlist/etc.
+        "min-h-dvh transition-[padding-bottom]",
+        NAV_MOTION,
+        "pb-[calc(var(--storefront-nav-clearance,5.5rem)+env(safe-area-inset-bottom,0px))]",
+        "has-[[data-storefront-hide-nav]]:[--storefront-nav-clearance:0px]",
         "has-[[data-storefront-fill]]:overflow-hidden has-[[data-storefront-fill]]:overscroll-y-none",
       )}
     >
@@ -52,5 +58,19 @@ export function StorefrontChrome({ children }: { children: ReactNode }) {
         <StorefrontPathChrome />
       </Suspense>
     </div>
+  );
+}
+
+/**
+ * Storefront shell chrome. Bottom nav + ViewCartBar stay on Home,
+ * Categories, Wishlist, Profile, Orders list, Coupons, and product/PLP.
+ * Bottom padding tracks scroll-hide of the nav (same motion) so a white
+ * gap does not remain after the pill slides away.
+ */
+export function StorefrontChrome({ children }: { children: ReactNode }) {
+  return (
+    <NavScrollProvider>
+      <StorefrontChromeLayout>{children}</StorefrontChromeLayout>
+    </NavScrollProvider>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PlpFilterChips } from "@/components/categories/PlpFilterChips";
 import {
   PlpFilterSheets,
@@ -17,11 +17,31 @@ import {
 } from "@/components/home/HomeSearchBar";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { ProductCard } from "@/components/product/ProductCard";
-import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
+import { searchCatalogProducts } from "@/lib/api/page-data";
 import type { CategoryBranch } from "@/lib/api/storefront";
+import {
+  CATALOG_SEARCH_DEBOUNCE_MS,
+  CATALOG_SEARCH_MIN_CHARS,
+} from "@/lib/catalog-browse";
+import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
 import { cn } from "@/lib/cn";
 import { ALL_CATEGORY_SLUG } from "@/lib/home-categories";
 import type { SampleProduct } from "@/lib/sample-products";
+
+/** Update `?q=` without a Next navigation (avoids Suspense flash while typing). */
+function syncCategoriesSearchUrl(query: string) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (!url.pathname.startsWith("/categories")) return;
+  const trimmed = query.trim();
+  if (trimmed) url.searchParams.set("q", trimmed);
+  else url.searchParams.delete("q");
+  const next = `${url.pathname}${url.search}${url.hash}`;
+  const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (next !== current) {
+    window.history.replaceState(window.history.state, "", next);
+  }
+}
 
 type CategoryBrowserProps = {
   branches: CategoryBranch[];
@@ -102,6 +122,17 @@ export function CategoryBrowser({
   const [optimistic, setOptimistic] = useState<string | null>(null);
   const [seenSelection, setSeenSelection] = useState(selection);
   const [query, setQuery] = useState(initialQuery);
+  /**
+   * Server search hits (beyond the browse sample). `null` = use page products
+   * + local filter; array = debounced DB search for the current query.
+   */
+  const [remoteProducts, setRemoteProducts] = useState<SampleProduct[] | null>(
+    () =>
+      initialQuery.trim().length >= CATALOG_SEARCH_MIN_CHARS ? products : null,
+  );
+  const skipFirstRemote = useRef(
+    initialQuery.trim().length >= CATALOG_SEARCH_MIN_CHARS,
+  );
   /** Search filter button expands/collapses the Filter·Brands·Type·Sort row. */
   const [chipsOpen, setChipsOpen] = useState(initialChipsOpen);
   // Sync when the server selection arrives (adjust state while rendering).
@@ -120,15 +151,58 @@ export function CategoryBrowser({
     else setLocalSelected(key);
   };
 
+  // Instant local filter; after a pause, ask the server for a fuller match
+  // and sync `?q=` without remounting the page.
+  useEffect(() => {
+    const trimmed = query.trim();
+    const urlTimer = window.setTimeout(() => {
+      syncCategoriesSearchUrl(trimmed);
+    }, CATALOG_SEARCH_DEBOUNCE_MS);
+
+    if (trimmed.length < CATALOG_SEARCH_MIN_CHARS) {
+      skipFirstRemote.current = false;
+      return () => window.clearTimeout(urlTimer);
+    }
+
+    if (
+      skipFirstRemote.current &&
+      trimmed.toLowerCase() === initialQuery.trim().toLowerCase()
+    ) {
+      skipFirstRemote.current = false;
+      return () => window.clearTimeout(urlTimer);
+    }
+
+    let cancelled = false;
+    const searchTimer = window.setTimeout(() => {
+      void searchCatalogProducts(trimmed).then((result) => {
+        if (cancelled || !result.ok) return;
+        setRemoteProducts(result.products);
+      });
+    }, CATALOG_SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(urlTimer);
+      window.clearTimeout(searchTimer);
+    };
+  }, [initialQuery, query]);
+
   const scoped = useMemo(() => {
     // Always scope client-side so rail taps feel instant while the
     // server payload catches up (All catalog → aisle filter).
-    const base = productsFor(selected, branches, products);
-    const q = query.trim().toLowerCase();
+    const trimmed = query.trim();
+    const useRemote =
+      trimmed.length >= CATALOG_SEARCH_MIN_CHARS && remoteProducts != null;
+    const catalog = useRemote ? remoteProducts : products;
+    const base = productsFor(selected, branches, catalog);
+    // Remote search already matched names in the DB; while waiting, filter
+    // the browse sample locally so typing still feels instant.
+    if (useRemote) return base;
+    const q = trimmed.toLowerCase();
     return base.filter((product) =>
       q ? product.name.toLowerCase().includes(q) : true,
     );
-  }, [branches, products, query, selected]);
+  }, [branches, products, query, remoteProducts, selected]);
 
   const railCategories = useMemo<RailCategory[]>(
     () =>

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ProductDetail } from "@/components/product/ProductDetail";
 import { ProductDetailSkeleton } from "@/components/ui/skeletons";
 import { getStoreProduct, listStoreProducts } from "@/lib/api/storefront";
+import { catalogPriceDisplay } from "@/lib/catalog-price-display";
 import { getRequestShopId } from "@/lib/request-shop";
 import type { SampleProduct } from "@/lib/sample-products";
 
@@ -36,12 +37,13 @@ export async function generateMetadata({
     const shopId = await getRequestShopId();
     const result = await getStoreProduct(shopId, id);
     if (!result) return { title: "Product" };
+    const display = catalogPriceDisplay(result.product);
     return {
       title: result.seoTitle ?? result.product.name,
       description:
         result.seoDescription ??
         result.product.description ??
-        `${result.product.name} — ${result.product.unit}`,
+        `${result.product.name} — ₹${display.price} / ${display.unitLabel}`,
     };
   } catch {
     return { title: "Product" };

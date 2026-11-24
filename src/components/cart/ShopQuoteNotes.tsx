@@ -7,14 +7,22 @@ export function shopDue(quote: ShopQuote | null, phoneTotal: number): string {
 }
 
 /** Standing minimum warning and automatic offers from the shop quote. */
-export function ShopQuoteNotes({ quote }: { quote: ShopQuote | null }) {
+export function ShopQuoteNotes({
+  quote,
+  /** When true, skip minimum (e.g. CartBill already shows it). */
+  hideMinimum = false,
+}: {
+  quote: ShopQuote | null;
+  hideMinimum?: boolean;
+}) {
   if (!quote) return null;
   const offers = [...quote.applied, ...quote.suggested];
-  if (!quote.minimumMessage && offers.length === 0) return null;
+  const showMinimum = Boolean(quote.minimumMessage) && !hideMinimum;
+  if (!showMinimum && offers.length === 0) return null;
 
   return (
     <div className="mt-3 space-y-2">
-      {quote.minimumMessage ? (
+      {showMinimum ? (
         <p
           role="status"
           className="rounded-xl border border-amber-400 bg-amber-50 px-3.5 py-3 text-[13px] leading-5 font-bold text-amber-950"

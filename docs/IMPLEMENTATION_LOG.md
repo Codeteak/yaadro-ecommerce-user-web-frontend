@@ -1,5 +1,29 @@
 # Implementation Log
 
+## 2026-11-24 — Checkout & confirm hardening (SOLID place-order)
+
+Extracted `checkout-idempotency`, `checkout-readiness`, `checkout-place-error`, `place-order` + `usePlaceOrder`. Live Place Order navigates to `/orders/[id]?placed=1` (banner + strip query); no invented confirm bill. Short sticky footer (To pay + Place Order); scroll body has address, COD, `CheckoutOrderSummary` (free items), `CartBill`. Rejected coupons clear on checkout; login returns to `/checkout`. Delivery row hidden when ₹0. Skips redundant delivery check / address save when pin and address unchanged. Extended `CODE_MESSAGES` for basket/coupon/address codes.
+
+## 2026-11-24 — Cart page cleanup: shop bill, shared pieces, bug fixes
+
+Cart rebuild: `useShopQuote` on React Query; full `parseShopQuote` (lines, free items, offer ₹); `buildCartBill` / `CartBill` so rows add up to To pay (no delivery row); `CartLineItem` (₹×qty / weight step), `CartFreeItems` (collapsible, hidden when empty), `CartCouponRow` (typed code + View all), `CartCheckoutBar`. Qty capped at 10; checkout reuses quote only when basket key matches; one shop minimum; price-may-vary popup once per session. Suggestions: fewer DB pages, local filter on add. Checkout reuses `CartBill`. Playground cart uses `sampleCoupons`.
+
+## 2026-11-24 — Weight cards show min-step price
+
+`catalogPriceDisplay` scales sold-by-weight `price`/`mrp` by `minKg` for ProductCard + ProductDetail (e.g. ₹100/kg + 0.25 kg → ₹25 / 250 g). Catalog data and cart math stay per kg. Weight sheet still shows ₹/kg + live total. Compact cards show the unit under the price.
+
+## 2026-11-24 — Catalog warm align + categories prefetch + debounced search
+
+Shared `CATALOG_BROWSE_PAGE_SIZE` (48) for home, categories hub, and `/api/warm` so warm hits the same cache keys. Warm accepts `STOREFRONT_WARM_SHOP_ID(S)` for multi-shop (health probes have no Host). Home idles into `router.prefetch` for `/categories`. Categories typing filters locally right away; after 350ms it runs `searchCatalogProducts` and syncs `?q=` via `history.replaceState` (no Suspense flash).
+
+## 2026-11-24 — Bottom nav clearance follows scroll-hide
+
+`StorefrontChrome` wraps a `NavScrollProvider` so chrome padding, `BottomNav`, and `ViewCartBar` share one `useScrollDirection` listener. `--storefront-nav-clearance` (5.5rem ↔ 0) drives `padding-bottom` with the same 300ms easing as the pill. Fill pages (categories, profile) use the variable for height so the white gap leaves/returns with the nav. Path-hidden routes still force clearance to 0 via `data-storefront-hide-nav`.
+
+## 2026-11-24 — Remove home OfferFlyer; simple body scroll lock
+
+Home no longer mounts `OfferFlyer` (location prompt only). Sheets use one small `useBodyScrollLock`: lock while open, clear overflow to `""` on last close (tiny counter for overlaps — never restore a previous `hidden`). Dropped separate `scroll-lock.ts` and route-change force-clear. Wired on AddressBookSheet, DeliveryAddressSheet, WeightCustomizer, coupons, playground OfferFlyer. `HomeTopBar` keeps a stable `onOpenChange`.
+
 ## 2026-11-24 — Home: sellable categories with products; no orphan empty aisles
 
 Category rail now streams with the catalog body (same sellable roots as products) so a failed product load does not leave a category-only rail. Home sample raised to 48 products; product grouping falls back to category map when the join is thin. Aisle lazy-fetch no longer caches failures as empty — shows Try again. Fruits & veggies band hides when both lists are empty. Categories remain sellable-only (in-stock) from `readAllCategories`.

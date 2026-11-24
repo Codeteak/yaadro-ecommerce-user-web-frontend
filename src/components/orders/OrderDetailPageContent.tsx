@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Check,
@@ -57,6 +58,8 @@ export type OrderDetailPageContentProps = {
    * Scroll hint when more than 6 items.
    */
   nestedLinesScroll?: boolean;
+  /** One-time banner after Place Order (`?placed=1`). */
+  justPlaced?: boolean;
   className?: string;
 };
 
@@ -70,8 +73,10 @@ export function OrderDetailPageContent({
   shopHref = "/playground",
   ticketBill = true,
   nestedLinesScroll = false,
+  justPlaced = false,
   className,
 }: OrderDetailPageContentProps) {
+  const router = useRouter();
   const sample = orderId ? getOrder(orderId) : listOrders()[0];
   const signedIn = useCustomerSignedIn();
   const remote = useQuery({
@@ -80,6 +85,39 @@ export function OrderDetailPageContent({
     enabled: Boolean(orderId) && !sample && signedIn,
   });
   const order = sample ?? remote.data ?? null;
+  const placedStorageKey = orderId ? `yaadro-just-placed-${orderId}` : null;
+  const [showPlacedBanner] = useState(() => {
+    if (justPlaced) return true;
+    if (!placedStorageKey || typeof window === "undefined") return false;
+    try {
+      return sessionStorage.getItem(placedStorageKey) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  // Remember the banner across the query strip; clear so a later refresh stays quiet.
+  useEffect(() => {
+    if (!orderId || !placedStorageKey) return;
+    if (justPlaced) {
+      try {
+        sessionStorage.setItem(placedStorageKey, "1");
+      } catch {
+        /* ignore */
+      }
+      router.replace(`/orders/${orderId}`, { scroll: false });
+      return;
+    }
+    if (!showPlacedBanner) return;
+    const id = window.setTimeout(() => {
+      try {
+        sessionStorage.removeItem(placedStorageKey);
+      } catch {
+        /* ignore */
+      }
+    }, 8000);
+    return () => window.clearTimeout(id);
+  }, [justPlaced, orderId, placedStorageKey, router, showPlacedBanner]);
 
   if (!sample && orderId && !signedIn) {
     return (
@@ -134,6 +172,7 @@ export function OrderDetailPageContent({
       shopHref={shopHref}
       ticketBill={ticketBill}
       nestedLinesScroll={nestedLinesScroll}
+      justPlaced={showPlacedBanner}
       className={className}
     />
   );
@@ -145,6 +184,7 @@ function OrderDetailBody({
   shopHref,
   ticketBill,
   nestedLinesScroll,
+  justPlaced,
   className,
 }: {
   order: SampleOrder;
@@ -152,6 +192,7 @@ function OrderDetailBody({
   shopHref: string;
   ticketBill: boolean;
   nestedLinesScroll: boolean;
+  justPlaced: boolean;
   className?: string;
 }) {
   const [review, setReview] = useState(false);
@@ -205,6 +246,21 @@ function OrderDetailBody({
       </header>
 
       <div className="px-4 pt-5 pb-8">
+        {justPlaced ? (
+          <div
+            className="mb-5 rounded-2xl bg-mint/70 px-4 py-3.5 ring-1 ring-leaf/25"
+            role="status"
+          >
+            <p className="text-[15px] font-extrabold text-forest">
+              Order placed!
+            </p>
+            <p className="mt-1 text-[13px] leading-5 font-medium text-forest/90">
+              Waiting for the shop to accept. Pay cash when it arrives — track
+              progress anytime below.
+            </p>
+          </div>
+        ) : null}
+
         <div className="flex items-center gap-3">
           <span className="grid h-11 w-11 place-items-center rounded-xl bg-mint">
             <DeliveryScooter className="h-8 w-8" />
@@ -344,7 +400,9 @@ function OrderDetailBody({
               value={`−${inr(order.promoDiscount)}`}
             />
           ) : null}
-          <Amount label="Delivery fee" value={inr(deliveryCharge(order))} />
+          {deliveryCharge(order) > 0 ? (
+            <Amount label="Delivery fee" value={inr(deliveryCharge(order))} />
+          ) : null}
           <div className="my-4 border-t border-dashed border-black" />
           <Amount label="Total" value={inr(billedTotal(order))} strong />
         </div>

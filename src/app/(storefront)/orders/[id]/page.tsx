@@ -9,6 +9,7 @@ import { getShopSeo } from "@/lib/shop-seo";
 
 type OrderPageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ placed?: string }>;
 };
 
 export function generateStaticParams() {
@@ -27,10 +28,15 @@ export async function generateMetadata({
   };
 }
 
-async function OrderDetailContent({ params }: OrderPageProps) {
+async function OrderDetailContent({
+  params,
+  searchParams,
+}: OrderPageProps) {
   const { id } = await params;
+  const query = await searchParams;
   if (!getOrder(id) && !/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const shop = await getShopSeo();
+  const justPlaced = query.placed === "1" || query.placed === "true";
   return (
     <ShopNameProvider name={shop.name}>
       <OrderDetailPageContent
@@ -38,19 +44,23 @@ async function OrderDetailContent({ params }: OrderPageProps) {
         backHref="/orders"
         shopHref="/home"
         nestedLinesScroll
+        justPlaced={justPlaced}
       />
     </ShopNameProvider>
   );
 }
 
 /**
- * `params` resolve behind Suspense so the Instant shell stays valid
+ * `params` / `searchParams` resolve behind Suspense so the Instant shell stays valid
  * (same pattern as /product/[id] and /categories/[slug]).
  */
-export default function OrderDetailPage({ params }: OrderPageProps) {
+export default function OrderDetailPage({
+  params,
+  searchParams,
+}: OrderPageProps) {
   return (
     <Suspense fallback={<OrderDetailSkeleton />}>
-      <OrderDetailContent params={params} />
+      <OrderDetailContent params={params} searchParams={searchParams} />
     </Suspense>
   );
 }

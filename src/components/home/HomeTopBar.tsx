@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useSyncExternalStore, useState } from "react";
+import { useCallback, useSyncExternalStore, useState } from "react";
 import { ChevronDown, MapPin } from "lucide-react";
 import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
@@ -108,6 +108,11 @@ export function HomeTopBar({
     setSheetOpen(true);
   };
 
+  const onSheetOpenChange = useCallback((next: boolean) => {
+    setSheetOpen(next);
+    if (!next) setSheetEditId(null);
+  }, []);
+
   return (
     <>
       <header className="flex items-start justify-between gap-3 pt-2">
@@ -168,10 +173,7 @@ export function HomeTopBar({
 
       <AddressBookSheet
         open={sheetOpen}
-        onOpenChange={(next) => {
-          setSheetOpen(next);
-          if (!next) setSheetEditId(null);
-        }}
+        onOpenChange={onSheetOpenChange}
         initialStep={sheetStep}
         editId={sheetEditId}
       />
