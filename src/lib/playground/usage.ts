@@ -544,15 +544,13 @@ import { WishlistProvider } from "@/components/wishlist/WishlistContext";
   "cart-page": U(
     `import { CartPageContent } from "@/components/cart/CartPageContent";
 
-{/* Phase A playground: #32 solid CTA, #36 stable line order (cart-store) */}
+{/* Live-shaped cart: shop bill + typed coupon; playground uses sample coupons */}
 <CartPageContent
   showPriceMayVary
   showCartSuggestions
   couponPickerHref="/coupons?from=cart"
   previewSignedIn
-  weightAtBottom
-  syncCheckoutTotal
-  solidCheckoutCta
+  sampleCoupons
 />`,
     [
       "src/app/(storefront)/cart/page.tsx",

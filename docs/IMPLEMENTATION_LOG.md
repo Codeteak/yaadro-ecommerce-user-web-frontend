@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-24 — Cart page cleanup: shop bill, shared pieces, bug fixes
+
+Cart rebuild: `useShopQuote` on React Query; full `parseShopQuote` (lines, free items, offer ₹); `buildCartBill` / `CartBill` so rows add up to To pay (no delivery row); `CartLineItem` (₹×qty / weight step), `CartFreeItems` (collapsible, hidden when empty), `CartCouponRow` (typed code + View all), `CartCheckoutBar`. Qty capped at 10; checkout reuses quote only when basket key matches; one shop minimum; price-may-vary popup once per session. Suggestions: fewer DB pages, local filter on add. Checkout reuses `CartBill`. Playground cart uses `sampleCoupons`.
+
+## 2026-11-24 — Weight cards show min-step price
+
+`catalogPriceDisplay` scales sold-by-weight `price`/`mrp` by `minKg` for ProductCard + ProductDetail (e.g. ₹100/kg + 0.25 kg → ₹25 / 250 g). Catalog data and cart math stay per kg. Weight sheet still shows ₹/kg + live total. Compact cards show the unit under the price.
+
 ## 2026-11-24 — Catalog warm align + categories prefetch + debounced search
 
 Shared `CATALOG_BROWSE_PAGE_SIZE` (48) for home, categories hub, and `/api/warm` so warm hits the same cache keys. Warm accepts `STOREFRONT_WARM_SHOP_ID(S)` for multi-shop (health probes have no Host). Home idles into `router.prefetch` for `/categories`. Categories typing filters locally right away; after 350ms it runs `searchCatalogProducts` and syncs `?q=` via `history.replaceState` (no Suspense flash).

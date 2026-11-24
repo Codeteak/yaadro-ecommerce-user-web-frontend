@@ -128,11 +128,73 @@ test("reads the minimum, a trusted zero total, and automatic offers", () => {
   assert.equal(quote.totalRupees, 0);
   assert.equal(quote.coupon.status, "none");
   assert.deepEqual(quote.applied, [
-    { label: "10% off dairy", categoryId: MILK, reached: true },
+    {
+      label: "10% off dairy",
+      categoryId: MILK,
+      reached: true,
+      discountRupees: 0,
+    },
   ]);
   assert.deepEqual(quote.suggested, [
-    { label: "5% off Bakery", categoryId: null, reached: false },
+    {
+      label: "5% off Bakery",
+      categoryId: null,
+      reached: false,
+      discountRupees: 0,
+    },
   ]);
+});
+
+test("parses free bundle lines and offer discount amounts", () => {
+  const quote = parseShopQuote({
+    summary: {
+      min_purchase_minor: 0,
+      min_purchase_remaining_minor: 0,
+      subtotal_minor: 20000,
+      auto_cart_discount_minor: 0,
+    },
+    items: [
+      {
+        product_id: MILK,
+        title: "Milk",
+        quantity: 1,
+        offer_quantity: 0,
+        is_bundle_reward: false,
+        pricing: {
+          list_minor: "5000",
+          final_minor: "4500",
+          line_total_minor: "4500",
+        },
+      },
+      {
+        product_id: BREAD,
+        title: "Free bread",
+        quantity: 0,
+        offer_quantity: 1,
+        is_bundle_reward: true,
+        pricing: {
+          list_minor: "3000",
+          final_minor: "0",
+          line_total_minor: "0",
+        },
+      },
+    ],
+    promotions: {
+      auto: {
+        applied_offers: [
+          {
+            title: "10% off dairy",
+            category_id: MILK,
+            discount_minor: 500,
+          },
+        ],
+      },
+    },
+  });
+  assert.equal(quote.lines.length, 2);
+  assert.equal(quote.freeItems.length, 1);
+  assert.equal(quote.freeItems[0]?.title, "Free bread");
+  assert.equal(quote.applied[0]?.discountRupees, 5);
 });
 
 test("reads an applied shop coupon for the bill row", () => {

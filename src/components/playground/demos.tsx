@@ -278,8 +278,8 @@ function WeightCustomizerDemo() {
   return (
     <div className="px-5 py-8 text-center">
       <p className="text-sm text-muted">
-        Same as ecom: Add opens the slide (min {minKg} kg). After confirm, cards
-        show chosen kg. ₹{product.price} is per {minKg} kg, then scales.
+        Same as ecom: card shows min-step price (₹{product.price}/kg × {minKg} kg).
+        Add opens the slide at min; after confirm, cards show chosen kg.
       </p>
       <button
         type="button"
@@ -1129,18 +1129,9 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           chromePosition="inline"
           couponPickerHref="/playground/coupons-apply"
           showPriceMayVary
-          priceMayVaryVariant="soft"
-          priceMayVaryPlacement="above-add-more"
           showCartSuggestions
-          highlightSavings
-          showTopCoupons
-          topCouponsRefined
-          showMinCartValue
-          minCartValueRupees={499}
           previewSignedIn
-          weightAtBottom
-          syncCheckoutTotal
-          solidCheckoutCta
+          sampleCoupons
         />
       </div>
       <WeightCustomizer />

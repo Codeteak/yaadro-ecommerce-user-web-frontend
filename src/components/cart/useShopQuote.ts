@@ -1,38 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { previewCart } from "@/lib/api/cart";
 import type { CartItem } from "@/lib/cart-lines";
 import {
   parseShopQuote,
   previewCheckoutWarning,
   shopCheckoutLines,
+  shopQuoteBasketKey,
   SHOP_QUOTE_EVENT,
   type ShopQuote,
 } from "@/lib/cart-checkout-rules";
 
 const PREVIEW_DEBOUNCE_MS = 280;
 
-function lineKey(items: CartItem[], couponCode: string | null): string {
-  const lines = shopCheckoutLines(items);
-  return `${lines.map((line) => `${line.productId}:${line.quantity}`).join("|")}|${couponCode ?? ""}`;
-}
-
 export type ShopQuoteState = ShopQuote & {
+  /** Basket+coupon key this quote was priced for. */
+  basketKey: string;
   /** From the same preview — cart can skip a second POST on Checkout. */
   checkoutWarning: string | null;
 };
 
+export function shopQuoteQueryKey(basketKey: string) {
+  return ["shop-quote", basketKey] as const;
+}
+
 /**
- * Prices the on-device basket with the shop (debounced).
- * A failed preview leaves `failed` set so the Checkout tap can still ask.
+ * Prices the on-device basket with the shop (React Query + short debounce).
+ * Cart and checkout share the same cache key.
  */
 export function useShopQuote(items: CartItem[], couponCode: string | null) {
-  const key = lineKey(items, couponCode);
-  const lines = shopCheckoutLines(items);
-  const [quote, setQuote] = useState<ShopQuoteState | null>(null);
-  const [failed, setFailed] = useState(false);
+  const queryClient = useQueryClient();
+  const lines = useMemo(() => shopCheckoutLines(items), [items]);
+  const basketKey = useMemo(
+    () => shopQuoteBasketKey(items, couponCode),
+    [items, couponCode],
+  );
+  const [debouncedKey, setDebouncedKey] = useState(basketKey);
   const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedKey(basketKey), PREVIEW_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [basketKey]);
 
   useEffect(() => {
     const refresh = () => setRevision((current) => current + 1);
@@ -40,48 +51,49 @@ export function useShopQuote(items: CartItem[], couponCode: string | null) {
     return () => window.removeEventListener(SHOP_QUOTE_EVENT, refresh);
   }, []);
 
-  useEffect(() => {
-    if (lines.length === 0) return;
-    const controller = new AbortController();
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      void previewCart(
+  const enabled = lines.length > 0 && debouncedKey === basketKey;
+
+  const query = useQuery({
+    queryKey: [...shopQuoteQueryKey(debouncedKey), revision],
+    enabled,
+    staleTime: 30_000,
+    queryFn: async ({ signal }): Promise<ShopQuoteState> => {
+      const preview = await previewCart(
         {
           items: lines,
           couponCode,
           includeSuggestedCoupons: false,
         },
-        controller.signal,
-      )
-        .then((preview) => {
-          if (cancelled) return;
-          const parsed = parseShopQuote(preview);
-          setQuote({
-            ...parsed,
-            checkoutWarning: previewCheckoutWarning(
-              preview,
-              lines.map((line) => line.productId),
-            ),
-          });
-          setFailed(false);
-        })
-        .catch((error: unknown) => {
-          if (cancelled) return;
-          if (error instanceof DOMException && error.name === "AbortError") return;
-          setFailed(true);
-        });
-    }, PREVIEW_DEBOUNCE_MS);
+        signal,
+      );
+      const parsed = parseShopQuote(preview);
+      return {
+        ...parsed,
+        basketKey: debouncedKey,
+        checkoutWarning: previewCheckoutWarning(
+          preview,
+          lines.map((line) => line.productId),
+        ),
+      };
+    },
+  });
 
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [couponCode, key, lines, revision]);
+  const quote =
+    lines.length === 0
+      ? null
+      : query.data && query.data.basketKey === basketKey
+        ? query.data
+        : null;
 
-  // Empty basket → no quote (avoid sync setState in the effect).
   return {
-    quote: lines.length === 0 ? null : quote,
-    failed: lines.length === 0 ? false : failed,
+    quote,
+    failed: lines.length === 0 ? false : query.isError,
+    isLoading: enabled && query.isFetching && !quote,
+    basketKey,
+    /** True when quote matches the current basket (safe to skip re-preview). */
+    quoteMatchesBasket: Boolean(quote && quote.basketKey === basketKey),
+    invalidate: () => {
+      void queryClient.invalidateQueries({ queryKey: ["shop-quote"] });
+    },
   };
 }

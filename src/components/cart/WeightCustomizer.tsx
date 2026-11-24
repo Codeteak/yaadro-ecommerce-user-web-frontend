@@ -116,7 +116,7 @@ export function WeightCustomizer() {
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-[15px] font-bold text-ink">{product.name}</h2>
             <p className="text-xs font-medium text-muted">
-              By weight, ₹{product.price} / kg
+              ₹{product.price} / kg · from {formatKgAmount(minKg)} kg
             </p>
           </div>
           <p className="text-lg font-extrabold text-black">₹{total}</p>

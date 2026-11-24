@@ -8,8 +8,12 @@ import { Check } from "lucide-react";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { useCart } from "@/components/cart/CartContext";
+import { CartBill } from "@/components/cart/CartBill";
 import { ShopQuoteNotes, shopDue } from "@/components/cart/ShopQuoteNotes";
 import { useShopQuote } from "@/components/cart/useShopQuote";
+import type { CartBillModel } from "@/lib/cart-bill";
+import { useCartBill } from "@/lib/use-cart-bill";
+import { formatRupees } from "@/lib/cart-checkout-rules";
 import { checkDeliveryLocation, saveMyAddress } from "@/lib/api/address";
 import { previewDeliveryArea } from "@/lib/api/preview-delivery-area";
 import { placeCheckoutOrder } from "@/lib/api/checkout";
@@ -21,7 +25,6 @@ import {
   type OrderPlacedSummary,
 } from "@/components/checkout/OrderPlacedContent";
 import {
-  billCouponLine,
   isBasketCheckoutFailure,
   shopCheckoutLines,
 } from "@/lib/cart-checkout-rules";
@@ -113,7 +116,6 @@ export function CheckoutPageContent({
   chromePosition = "page",
   showPriceMayVary = false,
   priceMayVaryVariant = "soft",
-  highlightSavings = false,
   previewSignedIn,
   liveShopPricing = false,
   demoBill = null,
@@ -129,40 +131,48 @@ export function CheckoutPageContent({
   const {
     items,
     clear,
+    count,
     mrpTotal,
     subtotal,
     appliedPromo,
     promoDiscount,
-    totalSaved,
     totalDue,
   } = useCart();
   const { quote } = useShopQuote(items, appliedPromo?.code ?? null);
-  const dueLabel = shopDue(quote, totalDue);
-  const minimumBlocks = Boolean(quote?.minimumMessage);
-  const couponLine = demoBill
+  const liveBill = useCartBill({
+    itemCount: count,
+    mrpTotal,
+    subtotal,
+    localCoupon:
+      !liveShopPricing && appliedPromo && promoDiscount > 0
+        ? { code: appliedPromo.code, discountRupees: promoDiscount }
+        : null,
+    quote: liveShopPricing ? quote : null,
+  });
+  const demoBillModel: CartBillModel | null = demoBill
     ? {
-        code: demoBill.couponCode,
-        discountRupees: demoBill.couponDiscountRupees,
-      }
-    : billCouponLine(
-        liveShopPricing ? "shop" : "sample",
-        quote,
-        appliedPromo && promoDiscount > 0
-          ? { code: appliedPromo.code, discountRupees: promoDiscount }
-          : null,
-      );
-  const savingsLabel = demoBill
-    ? demoBill.saveRupees
-    : liveShopPricing
-      ? Math.max(
+        itemCount: count,
+        mrpTotal: demoBill.subtotalRupees + demoBill.saveRupees,
+        productDiscount: Math.max(
           0,
-          Math.round((mrpTotal - (quote?.totalRupees ?? totalDue)) * 100) / 100,
-        )
-      : totalSaved;
-  // Match cart: Item total = selling sum (not MRP).
-  const itemTotalLabel = demoBill ? demoBill.subtotalRupees : subtotal;
+          demoBill.saveRupees - demoBill.couponDiscountRupees,
+        ),
+        offers: [],
+        coupon: {
+          code: demoBill.couponCode,
+          discountRupees: demoBill.couponDiscountRupees,
+        },
+        toPay: demoBill.totalRupees,
+        saved: demoBill.saveRupees,
+        minimumMessage: null,
+        fromShop: false,
+      }
+    : null;
+  const bill = demoBillModel ?? liveBill;
+  const dueLabel = shopDue(quote, totalDue);
+  const minimumBlocks = Boolean(bill.minimumMessage);
   const amountDueLabel = demoBill
-    ? `₹${demoBill.totalRupees}`
+    ? formatRupees(demoBill.totalRupees)
     : dueLabel;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetEditId, setSheetEditId] = useState<string | null>(null);
@@ -479,65 +489,8 @@ export function CheckoutPageContent({
         {showPriceMayVary ? (
           <PriceMayVaryNotice variant={priceMayVaryVariant} />
         ) : null}
-        <div className="rounded-2xl bg-white px-4 py-1 shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10">
-          <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
-            <span className="text-muted">Item total</span>
-            <span className="font-bold text-black tabular-nums">
-              ₹{itemTotalLabel}
-            </span>
-          </div>
-          {!demoBill && mrpTotal > subtotal ? (
-            <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
-              <span className="text-muted">MRP</span>
-              <span className="font-medium text-muted tabular-nums line-through">
-                ₹{mrpTotal}
-              </span>
-            </div>
-          ) : null}
-          {couponLine ? (
-            <div className="flex items-center justify-between border-b border-forest/8 py-3 text-sm">
-              <span className="text-muted">Coupon ({couponLine.code})</span>
-              <span className="font-bold text-leaf tabular-nums">
-                −₹{Math.round(couponLine.discountRupees)}
-              </span>
-            </div>
-          ) : null}
-          <div
-            className={cn(
-              "flex items-center justify-between py-3 text-sm",
-              highlightSavings && savingsLabel > 0
-                ? "border-b border-dashed border-leaf"
-                : "border-b border-forest/8",
-            )}
-          >
-            <span
-              className={cn(
-                highlightSavings && savingsLabel > 0
-                  ? "font-bold text-forest"
-                  : "text-muted",
-              )}
-            >
-              You save
-            </span>
-            <span
-              className={cn(
-                "tabular-nums text-leaf",
-                highlightSavings && savingsLabel > 0
-                  ? "text-base font-extrabold"
-                  : "font-bold",
-              )}
-            >
-              {savingsLabel > 0 ? `₹${Math.round(savingsLabel)}` : "₹0"}
-            </span>
-          </div>
-          <div className="flex items-center justify-between py-3 text-sm">
-            <span className="font-bold text-black">Total</span>
-            <span className="font-extrabold text-leaf tabular-nums">
-              {amountDue}
-            </span>
-          </div>
-        </div>
-        <ShopQuoteNotes quote={quote} />
+        <CartBill bill={bill} />
+        <ShopQuoteNotes quote={quote} hideMinimum />
 
         <div className="flex items-center justify-between rounded-2xl bg-track px-5 py-3.5 text-black shadow-[0_10px_28px_rgba(47,107,47,0.28)]">
           <span className="text-sm font-semibold">Amount due</span>
