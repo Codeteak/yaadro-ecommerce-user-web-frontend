@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-25 — Cache profile phone for refresh paint
+
+`CachedProfileUi` now stores phone with name/userId. `useMyProfile` falls back to cached phone so `/profile` no longer flashes “Add mobile number” before the API returns.
+
 ## 2026-11-25 — Remove profile restyle playground gallery
 
 Dropped `profile-page-restyle` (catalog, demos, usage) and deleted `ProfilePageRestyleDemo.tsx`. Live desk style is shown via playground **Profile page** (`profile-header` → `ProfileScreen`). Awning shop fallbacks kept — still used elsewhere.

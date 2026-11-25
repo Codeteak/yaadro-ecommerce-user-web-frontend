@@ -53,7 +53,13 @@ export function useUpdateProfileName() {
       const profile = queryClient.getQueryData<CustomerProfile>(PROFILE_QUERY_KEY);
       const patch = profileNamePatch(input.currentName, input.nextName);
       const id = profile?.user.id?.trim();
-      if (id && patch) writeCachedProfileUi({ userId: id, displayName: patch.name });
+      if (id && patch) {
+        writeCachedProfileUi({
+          userId: id,
+          displayName: patch.name,
+          phone: profile?.user.phone,
+        });
+      }
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY });

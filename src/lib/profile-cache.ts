@@ -1,5 +1,5 @@
 /**
- * Last-known profile UI (name + avatar seed) for instant paint after refresh.
+ * Last-known profile UI (name + phone + avatar seed) for instant paint after refresh.
  * Cleared on logout. Not a security token — display only.
  *
  * Read via `useSyncExternalStore` + `getServerSnapshot: () => null` so SSR
@@ -10,6 +10,8 @@
 export type CachedProfileUi = {
   userId: string;
   displayName: string;
+  /** Display-only mobile; avoids “Add mobile number” flash before API returns. */
+  phone?: string | null;
 };
 
 export const PROFILE_UI_CACHE_KEY = "yaadro-profile-ui-v1";
@@ -43,7 +45,9 @@ function parseCached(raw: string | null): CachedProfileUi | null {
     const userId = parsed.userId?.trim();
     const displayName = parsed.displayName?.trim();
     if (!userId || !displayName) return null;
-    return { userId, displayName };
+    const phone =
+      typeof parsed.phone === "string" ? parsed.phone.trim() || null : null;
+    return { userId, displayName, phone };
   } catch {
     return null;
   }
@@ -80,7 +84,14 @@ export function writeCachedProfileUi(value: CachedProfileUi): void {
   const userId = value.userId.trim();
   const displayName = value.displayName.trim();
   if (!userId || !displayName) return;
-  const next = { userId, displayName };
+  // Preserve phone when a name-only write omits it (same user).
+  const phone =
+    value.phone !== undefined
+      ? value.phone?.trim() || null
+      : snapshot?.userId === userId
+        ? (snapshot.phone ?? null)
+        : null;
+  const next: CachedProfileUi = { userId, displayName, phone };
   const raw = JSON.stringify(next);
   // Same payload — keep the cached reference and skip notify (avoids churn).
   if (snapshotHydrated && raw === snapshotRaw) return;
