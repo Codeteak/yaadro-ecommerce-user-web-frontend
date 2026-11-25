@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { BrandFooter } from "@/components/storefront/BrandFooter";
@@ -28,6 +28,10 @@ export type ProfileScreenProps = {
   hideHeader?: boolean;
 };
 
+/**
+ * Open edit / address from `?edit=1` / `?address=1` once, then strip the query.
+ * A ref prevents replace+searchParams churn from looping (React #185).
+ */
 function ProfileDeepLinks({
   onEdit,
   onAddress,
@@ -38,15 +42,26 @@ function ProfileDeepLinks({
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
+  const consumed = useRef(false);
+  const onEditRef = useRef(onEdit);
+  const onAddressRef = useRef(onAddress);
 
   useEffect(() => {
+    onEditRef.current = onEdit;
+    onAddressRef.current = onAddress;
+  }, [onEdit, onAddress]);
+
+  useEffect(() => {
+    if (consumed.current) return;
     const edit = searchParams.get("edit") === "1";
     const address = searchParams.get("address") === "1";
     if (!edit && !address) return;
-    if (edit) onEdit();
-    if (address) onAddress();
+
+    consumed.current = true;
+    if (edit) onEditRef.current();
+    if (address) onAddressRef.current();
     if (pathname) router.replace(pathname, { scroll: false });
-  }, [searchParams, pathname, router, onEdit, onAddress]);
+  }, [searchParams, pathname, router]);
 
   return null;
 }

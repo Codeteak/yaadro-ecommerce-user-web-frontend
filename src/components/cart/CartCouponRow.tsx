@@ -26,7 +26,9 @@ type CartCouponRowProps = {
 };
 
 /**
- * Typed code + Apply, optional View all, Top offers fold-out, applied Remove.
+ * Coupon on cart — same soft card as the bill.
+ * One apply field or one applied chip; top offers fold under; errors only inline
+ * (success already toasts + shows on the bill).
  */
 export function CartCouponRow({
   subtotal,
@@ -44,102 +46,67 @@ export function CartCouponRow({
   const [topOffersOpen, setTopOffersOpen] = useState(false);
   const topOfferCount = topActiveCoupons(offerCoupons).length;
   const applied = Boolean(appliedCode);
+  const errorMessage = !applied && promoMessage ? promoMessage : null;
 
   return (
-    <div
-      className={cn(
-        "rounded-2xl bg-white p-2.5 shadow-[0_10px_28px_rgba(47,107,47,0.14)] ring-2 ring-leaf",
-        className,
-      )}
-    >
-      {topOfferCount > 0 ? (
-        <>
-          <button
-            type="button"
-            onClick={() => setTopOffersOpen((open) => !open)}
-            aria-expanded={topOffersOpen}
-            className="flex w-full cursor-pointer items-center gap-2 rounded-xl bg-paper/80 px-2.5 py-2 ring-1 ring-forest/10 transition hover:bg-mint/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+    <section className={cn(className)} aria-label="Coupon">
+      <div className="flex items-end justify-between gap-3">
+        <h2 className="text-base font-extrabold text-black">Coupon</h2>
+        {couponPickerHref && !applied ? (
+          <Link
+            href={couponPickerHref}
+            className="text-sm font-bold text-leaf transition hover:text-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
           >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mint">
+            View all
+          </Link>
+        ) : null}
+      </div>
+
+      <div className="mt-3 rounded-2xl bg-white p-3.5 shadow-[0_8px_24px_rgba(47,107,47,0.1)] ring-1 ring-forest/10">
+        {applied ? (
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-mint">
               <Image
                 src="/icons/coupon.svg"
                 alt=""
-                width={20}
-                height={20}
+                width={22}
+                height={22}
                 className="h-5 w-5"
                 unoptimized
               />
             </span>
-            <span className="min-w-0 flex-1 text-left">
-              <span className="block text-sm font-bold text-black">Top offers</span>
-              <span className="block text-[12px] font-medium text-muted">
-                {topOfferCount} available
-                {appliedCode ? ` · ${appliedCode}` : ""}
-              </span>
-            </span>
-            <span className="rounded-full bg-mint px-2 py-0.5 text-[11px] font-extrabold text-forest">
-              {topOfferCount}
-            </span>
-            <ChevronDown
-              className={cn(
-                "h-5 w-5 shrink-0 text-forest transition-transform duration-200",
-                topOffersOpen && "rotate-180",
-              )}
-              aria-hidden
-            />
-          </button>
-          <div
-            className={cn(
-              "grid transition-[grid-template-rows] duration-300 ease-out",
-              topOffersOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-            )}
-          >
-            <div className="min-h-0 overflow-hidden">
-              <CartTopCoupons
-                className="mt-2.5 px-0.5 pb-1"
-                subtotal={subtotal}
-                appliedCode={appliedCode}
-                onApply={onApply}
-                coupons={offerCoupons}
-                refined
-                embedded
-              />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-black">
+                {appliedCode}
+              </p>
+              <p className="mt-0.5 truncate text-[13px] leading-5 text-muted">
+                {appliedMeta?.discountLabel?.trim() ||
+                  appliedMeta?.title?.trim() ||
+                  "Applied on this cart"}
+              </p>
             </div>
-          </div>
-          <div className="my-2.5 border-t border-forest/10" />
-        </>
-      ) : null}
-
-      <div className="flex items-center gap-2 rounded-xl bg-paper/80 px-2.5 py-2 ring-1 ring-forest/10">
-        {topOfferCount === 0 ? (
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-mint">
-            <Image
-              src="/icons/coupon.svg"
-              alt=""
-              width={20}
-              height={20}
-              className="h-5 w-5"
-              unoptimized
-            />
-          </span>
-        ) : null}
-        {applied ? (
-          <>
-            <p className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
-              {appliedCode}
-            </p>
             <button
               type="button"
               onClick={onClear}
               aria-label="Remove promo code"
-              className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-xl bg-black/[0.06] px-3 text-xs font-semibold text-muted transition hover:bg-black/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1 rounded-full bg-white px-3 text-xs font-bold text-ink ring-1 ring-forest/15 transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
             >
               <X className="h-3.5 w-3.5" aria-hidden />
               Remove
             </button>
-          </>
+          </div>
         ) : (
-          <>
+          <div className="flex items-center gap-2">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-mint">
+              <Image
+                src="/icons/coupon.svg"
+                alt=""
+                width={22}
+                height={22}
+                className="h-5 w-5"
+                unoptimized
+              />
+            </span>
             <input
               type="text"
               value={input}
@@ -150,48 +117,71 @@ export function CartCouponRow({
                   onApply(input);
                 }
               }}
-              placeholder="Enter discount code"
+              placeholder="Enter code"
               aria-label="Discount code"
-              className="min-w-0 flex-1 bg-transparent text-sm font-medium text-ink placeholder:text-muted outline-none"
+              aria-invalid={errorMessage ? true : undefined}
+              className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-ink placeholder:font-medium placeholder:text-muted outline-none"
             />
             <button
               type="button"
               onClick={() => onApply(input)}
               disabled={applying || !input.trim()}
-              className="h-9 shrink-0 cursor-pointer rounded-xl bg-track px-4 text-sm font-semibold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf disabled:cursor-not-allowed disabled:opacity-70"
+              className="h-10 shrink-0 cursor-pointer rounded-full bg-track px-4 text-sm font-extrabold text-black transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf disabled:cursor-not-allowed disabled:opacity-60"
             >
               {applying ? "…" : "Apply"}
             </button>
-          </>
+          </div>
         )}
+
+        {errorMessage ? (
+          <p className="mt-2 text-[13px] font-semibold text-red-600" role="alert">
+            {errorMessage}
+          </p>
+        ) : null}
+
+        {topOfferCount > 0 && !applied ? (
+          <div className="mt-3 border-t border-forest/8 pt-3">
+            <button
+              type="button"
+              onClick={() => setTopOffersOpen((open) => !open)}
+              aria-expanded={topOffersOpen}
+              className="flex w-full cursor-pointer items-center justify-between gap-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+            >
+              <span className="text-[13px] font-bold text-ink">
+                Top offers
+                <span className="ml-1.5 font-semibold text-muted">
+                  · {topOfferCount}
+                </span>
+              </span>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 shrink-0 text-muted transition-transform duration-200",
+                  topOffersOpen && "rotate-180",
+                )}
+                aria-hidden
+              />
+            </button>
+            <div
+              className={cn(
+                "grid transition-[grid-template-rows] duration-300 ease-out",
+                topOffersOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+              )}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <CartTopCoupons
+                  className="mt-2.5"
+                  subtotal={subtotal}
+                  appliedCode={appliedCode}
+                  onApply={onApply}
+                  coupons={offerCoupons}
+                  refined
+                  embedded
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
-
-      {couponPickerHref && !applied ? (
-        <Link
-          href={couponPickerHref}
-          className="mt-2 block text-center text-[12px] font-semibold text-leaf underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-        >
-          View all coupons
-        </Link>
-      ) : null}
-
-      {appliedMeta ? (
-        <p className="mt-2 text-center text-[12px] font-medium text-forest" role="status">
-          {appliedMeta.minOrderLabel}
-          {appliedMeta.subtitle ? ` · ${appliedMeta.subtitle}` : null}
-        </p>
-      ) : null}
-      {promoMessage ? (
-        <p
-          className={cn(
-            "mt-2 text-center text-[13px] font-medium",
-            applied ? "text-forest" : "text-red-600",
-          )}
-          role="status"
-        >
-          {promoMessage}
-        </p>
-      ) : null}
-    </div>
+    </section>
   );
 }
