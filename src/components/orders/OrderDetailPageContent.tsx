@@ -319,7 +319,7 @@ function OrderDetailBody({
           />
         )}
 
-        <div className="mt-6 flex gap-2.5">
+        <div className="mt-6 flex flex-wrap gap-2.5">
           {cancelled ? (
             <>
               <LeadAction
@@ -346,6 +346,29 @@ function OrderDetailBody({
                 filled
                 icon={<Download className="h-4 w-4" aria-hidden />}
                 onClick={() => setBill(true)}
+              />
+              {order.deliveryTrackingUrl ? (
+                <LeadAction
+                  label="Track delivery"
+                  href={order.deliveryTrackingUrl}
+                  external
+                  icon={<DeliveryScooter className="h-8 w-8" />}
+                />
+              ) : null}
+            </>
+          ) : order.deliveryTrackingUrl ? (
+            <>
+              <LeadAction
+                label="Track delivery"
+                filled
+                href={order.deliveryTrackingUrl}
+                external
+                icon={<DeliveryScooter className="h-8 w-8" />}
+              />
+              <LeadAction
+                label="Live status"
+                href={`/orders/${order.id}/track`}
+                icon={<DeliveryScooter className="h-8 w-8" />}
               />
             </>
           ) : (

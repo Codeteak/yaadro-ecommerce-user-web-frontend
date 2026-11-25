@@ -99,6 +99,8 @@ export function LiveOrderTrack({
     setBillOpen(true);
   };
 
+  const partnerTrackingUrl = orderProp?.deliveryTrackingUrl?.trim() || "";
+
   return (
     <div className={cn("relative mx-auto w-full max-w-lg bg-paper", className)}>
       <ShopHeader sample={sample} onCopy={copyText} backHref={backHref} />
@@ -110,6 +112,19 @@ export function LiveOrderTrack({
           mapOpen={canLiveTrack && mapOpen}
           onToggleMap={() => setMapOpen((v) => !v)}
         />
+
+        {partnerTrackingUrl ? (
+          <div className="flex justify-center">
+            <a
+              href={partnerTrackingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-bold text-forest underline-offset-2 hover:underline"
+            >
+              Open partner tracking
+            </a>
+          </div>
+        ) : null}
 
         <DeliveryDetails
           sample={sample}
