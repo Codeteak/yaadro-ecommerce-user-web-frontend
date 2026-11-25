@@ -1605,7 +1605,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       address: null,
     };
     return (
-      <DemoFrame note="Rebuilt /profile — guest, signed-in, error, offline. Logout confirm is dry-run in playground.">
+      <DemoFrame note="Live ProfileScreen — desk hero, options list, larger Logout. Confirm is dry-run in playground.">
         <div className="max-h-[40rem] space-y-8 overflow-y-auto overscroll-contain bg-paper pb-6">
           <div>
             <p className="px-5 pt-3 text-[11px] font-bold tracking-wide text-forest/70 uppercase">

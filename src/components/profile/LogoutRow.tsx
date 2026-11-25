@@ -24,14 +24,14 @@ export function LogoutRow({ dryRun = false, online = true }: LogoutRowProps) {
 
   return (
     <>
-      <div className="flex justify-center pt-1 pb-0.5">
+      <div className="flex justify-center pt-2 pb-1">
         <button
           type="button"
           disabled={pending || !online}
           onClick={() => setConfirmOpen(true)}
-          className="inline-flex items-center gap-2 text-[14px] font-bold text-red-600 transition hover:text-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-11 items-center gap-2.5 rounded-full px-4 text-[16px] font-extrabold text-red-600 transition hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <LogoutSketchIcon className="size-[18px]" />
+          <LogoutSketchIcon className="size-[22px]" />
           {pending ? "Signing out…" : "Logout"}
         </button>
       </div>
