@@ -408,7 +408,7 @@ export function CheckoutPageContent({
     >
       <PageHeader backHref={backHref} title="Checkout" />
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain -mx-4 px-4 pb-36">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain -mx-4 px-4 pb-56">
         <section className="pt-2">
           <h2 className="text-base font-extrabold text-black">
             Delivery Address

@@ -108,7 +108,7 @@ export function PhaseDPriceVaryExplainDemo() {
             Back to cart
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-hidden">
           <CheckoutPageContent
             chromePosition="inline"
             showPriceMayVary

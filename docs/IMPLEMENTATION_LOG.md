@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-25 — Checkout scroll clears sticky Place Order
+
+Raised checkout body padding `pb-36` → `pb-56` so CartBill “You saved…” can scroll fully above the fixed footer. Playground checkout frames use `overflow-hidden` so the page’s inner scroller owns the scroll.
+
 ## 2026-11-25 — Cache profile phone for refresh paint
 
 `CachedProfileUi` now stores phone with name/userId. `useMyProfile` falls back to cached phone so `/profile` no longer flashes “Add mobile number” before the API returns.

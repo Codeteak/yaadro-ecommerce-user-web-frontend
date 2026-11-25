@@ -1138,9 +1138,9 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   checkout: () => (
     <DemoFrame
       surface="bare"
-      note="Place Order with pin-only location opens Add details. Full house/street required to submit. Guest → login."
+      note="Scroll clears sticky Place Order — “You saved” sits above the footer. Guest → login."
     >
-      <div className="relative h-[75vh] overflow-y-auto bg-paper">
+      <div className="relative h-[75vh] overflow-hidden bg-paper">
         <CheckoutPageContent
           chromePosition="inline"
           showPriceMayVary
@@ -1152,9 +1152,9 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "checkout-coupon": () => (
     <DemoFrame
       surface="bare"
-      note="Phase A #34: no Amount due bar. Coupon −₹ fixture (sample). Live only after shop preview applies a real code."
+      note="Coupon −₹ fixture. Scroll padding clears sticky footer so savings strip is fully visible."
     >
-      <div className="relative h-[75vh] overflow-y-auto bg-paper">
+      <div className="relative h-[75vh] overflow-hidden bg-paper">
         <CheckoutPageContent
           chromePosition="inline"
           showPriceMayVary
