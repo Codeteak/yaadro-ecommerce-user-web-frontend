@@ -621,7 +621,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "deferred-location": () => (
-    <DemoFrame note="Wired `/home`: soft map prompt. Detect / Use this location saves the pin and closes — no details yet. Full address is asked at place order on checkout.">
+    <DemoFrame note="Wired `/home`: soft map prompt locks body scroll while open; close / change playground route unlocks (BodyScrollUnlockOnNavigate). Pin only — details at checkout.">
       <div className="relative min-h-[28rem] bg-gradient-to-b from-mint to-paper px-4 pt-6 pb-10">
         <HomeTopBar
           shopName="Green Basket"
@@ -630,13 +630,14 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
         />
         <p className="mt-8 text-center text-sm font-medium text-muted">
           Sheet opens after settle — Detect location is enough to browse.
+          Close the sheet (or leave this demo) to scroll again.
         </p>
         <DeferredLocationPrompt forcePreview delayMs={900} />
       </div>
     </DemoFrame>
   ),
   "pwa-install-prompt": () => (
-    <DemoFrame note="Live: only on `/home`. Close (X) hides for this browser session; reopen browser to see again. forcePreview here skips beforeinstallprompt.">
+    <DemoFrame note="Live: only on `/home`. Hidden while location sheet holds scroll lock. Close (X) hides for this browser session.">
       <div className="relative min-h-[28rem] bg-gradient-to-b from-mint to-paper px-4 pt-6 pb-10">
         <HomeTopBar
           shopName="Green Basket"

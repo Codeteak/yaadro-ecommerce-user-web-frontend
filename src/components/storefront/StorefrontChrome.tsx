@@ -2,6 +2,7 @@
 
 import { Suspense, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { BodyScrollUnlockOnNavigate } from "@/components/navigation/BodyScrollUnlockOnNavigate";
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { NavScrollProvider } from "@/components/navigation/NavScrollContext";
 import { ViewCartBar } from "@/components/cart/ViewCartBar";
@@ -43,6 +44,7 @@ function StorefrontPathChrome() {
 export function StorefrontChrome({ children }: { children: ReactNode }) {
   return (
     <NavScrollProvider>
+      <BodyScrollUnlockOnNavigate />
       <div
         className={cn(
           "min-h-dvh transition-[padding-bottom]",

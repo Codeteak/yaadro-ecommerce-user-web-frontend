@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-25 — Unlock body scroll on navigate (home stuck scroll)
+
+Production shops could leave `overflow: hidden` on `/home` after the location sheet (or a leaked lock counter). Added `forceClearBodyScrollLock` + `BodyScrollUnlockOnNavigate` on storefront chrome and playground shell (pathname + bfcache `pageshow`). Playground `deferred-location` / PWA notes updated.
+
 ## 2026-11-25 — Restore OrderPlacedContent after live Place Order
 
 `c603690` had switched live success to `/orders/[id]?placed=1` (banner only), so the mascot confirm page no longer appeared. Live checkout again shows `OrderPlacedContent` with shop totals from the checkout response (same card as playground).

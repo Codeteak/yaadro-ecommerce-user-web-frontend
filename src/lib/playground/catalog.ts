@@ -85,7 +85,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Wired `/home`: soft map prompt; Detect saves pin and closes. Address details asked at place order.",
+      "Wired `/home`: soft map prompt locks scroll while open; close or route change unlocks. Pin only — details at place order.",
     wiresTo: "/home",
   },
   {
@@ -94,7 +94,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Install sheet only on ecom `/home`. Dismiss = sessionStorage (shows again after browser closed).",
+      "Install sheet only on ecom `/home`. Hidden while scroll lock held. Dismiss = sessionStorage.",
     wiresTo: "InstallPrompt on AppProviders → gated to /home",
   },
 
