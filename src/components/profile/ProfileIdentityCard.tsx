@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { Pencil } from "lucide-react";
 import { PhoneChangeSheet } from "@/components/profile/PhoneChangeSheet";
+import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { ProfileNameForm } from "@/components/profile/ProfileNameForm";
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { pickDefaultProfileAvatar } from "@/lib/default-profile-avatar";
 import { formatIndianMobile } from "@/lib/profile-validation";
 import {
   primaryButton,
@@ -32,7 +31,6 @@ type ProfileIdentityCardProps = {
 export function ProfileIdentityCard({
   displayName,
   phone,
-  userId,
   online,
   editing,
   onEditingChange,
@@ -94,14 +92,7 @@ export function ProfileIdentityCard({
           </div>
         ) : (
           <div className="flex items-start gap-3">
-            <Image
-              src={pickDefaultProfileAvatar(userId || "customer")}
-              alt=""
-              width={64}
-              height={64}
-              unoptimized
-              className="size-16 shrink-0 object-cover"
-            />
+            <ProfileAvatar name={displayName} size="md" />
             <div className="min-w-0 flex-1">
               {displayName ? (
                 <p className="truncate text-sm font-bold text-black">{displayName}</p>

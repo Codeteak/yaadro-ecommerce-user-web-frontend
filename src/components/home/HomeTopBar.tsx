@@ -6,6 +6,7 @@ import { useCallback, useSyncExternalStore, useState } from "react";
 import { ChevronDown, MapPin } from "lucide-react";
 import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
+import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import {
   formatDeliveryLocationLabel,
   hasBrowseLocation,
@@ -13,6 +14,11 @@ import {
   readDeliveryAddress,
   subscribeDeliveryAddress,
 } from "@/lib/delivery-address";
+import {
+  getCachedProfileUiServerSnapshot,
+  readCachedProfileUi,
+  subscribeCachedProfileUi,
+} from "@/lib/profile-cache";
 import {
   getSelectedAddress,
   isSavedAddressDetailsComplete,
@@ -23,6 +29,11 @@ import {
 function AccountLink({ signedIn }: { signedIn?: boolean }) {
   const live = useCustomerSignedIn();
   const showProfile = signedIn ?? live;
+  const cached = useSyncExternalStore(
+    subscribeCachedProfileUi,
+    readCachedProfileUi,
+    getCachedProfileUiServerSnapshot,
+  );
 
   // Fixed slot so Sign in ↔ profile icon does not shift the hero (CLS).
   return (
@@ -33,13 +44,10 @@ function AccountLink({ signedIn }: { signedIn?: boolean }) {
           className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
           aria-label="Profile"
         >
-          <Image
-            src="/icons/profile-signed-in.svg"
-            alt=""
-            width={44}
-            height={44}
-            unoptimized
-            className="h-11 w-11 object-contain"
+          <ProfileAvatar
+            name={cached?.displayName}
+            size="sm"
+            className="shadow-[0_6px_16px_rgba(47,107,47,0.16)] ring-leaf/20"
           />
         </Link>
       ) : (

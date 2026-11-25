@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { requestPhoneChange, verifyPhoneChange } from "@/lib/api/profile";
 import { ApiError } from "@/lib/api/errors";
@@ -27,6 +27,12 @@ export function usePhoneChange({
   const [resendAt, setResendAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
+  const onVerifiedRef = useRef(onVerified);
+  const idleRef = useRef(true);
+
+  useEffect(() => {
+    onVerifiedRef.current = onVerified;
+  }, [onVerified]);
 
   useEffect(() => {
     if (resendAt == null) return;
@@ -41,6 +47,7 @@ export function usePhoneChange({
     mutationFn: (digits: string) => requestPhoneChange(digits),
     onMutate: () => setError(null),
     onSuccess: (_data, digits) => {
+      idleRef.current = false;
       setPhone(digits);
       setStep("enter-code");
       const at = Date.now();
@@ -62,7 +69,7 @@ export function usePhoneChange({
       setStep("done");
       setResendAt(null);
       await queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY });
-      onVerified?.();
+      onVerifiedRef.current?.();
     },
     onError: (err) => {
       setError(phoneErrorMessage(err, "That code didn't match. Try again."));
@@ -80,13 +87,17 @@ export function usePhoneChange({
   }, []);
 
   const reset = useCallback(() => {
+    if (idleRef.current && step === "enter-phone" && !phone && !error) {
+      return;
+    }
+    idleRef.current = true;
     setStep("enter-phone");
     setPhone(null);
     setResendAt(null);
     setError(null);
     send.reset();
     verify.reset();
-  }, [send, verify]);
+  }, [send, verify, step, phone, error]);
 
   return {
     step,
