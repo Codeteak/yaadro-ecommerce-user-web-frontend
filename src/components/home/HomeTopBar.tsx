@@ -46,6 +46,7 @@ function AccountLink({ signedIn }: { signedIn?: boolean }) {
         >
           <ProfileAvatar
             name={cached?.displayName}
+            seed={cached?.userId}
             size="sm"
             className="shadow-[0_6px_16px_rgba(47,107,47,0.16)] ring-leaf/20"
           />

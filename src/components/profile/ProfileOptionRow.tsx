@@ -14,11 +14,11 @@ export type ProfileOptionIcon =
 type ProfileOptionRowProps = {
   label: string;
   description: string;
-  /** Guest subtitle when the row redirects to login. */
+  /** Guest subtitle when the row redirects to login (unused when desk chip). */
   guestDescription?: string;
   icon: ProfileOptionIcon;
   target: ProfileOptionTarget;
-  /** Gray Sign in pill for guest auth rows (orders / coupons). */
+  /** Desk-style Sign in chip for guest auth rows. */
   guestTrailing?: "sign-in-pill";
   onSheet?: () => void;
 };
@@ -49,7 +49,7 @@ function OptionIcon({ icon }: { icon: ProfileOptionIcon }) {
 }
 
 /**
- * One options-list row — link, login redirect, or sheet trigger.
+ * Desk menu row — link, login redirect, or sheet trigger.
  * Locked rows still navigate to login so guests can finish the action.
  */
 export function ProfileOptionRow({
@@ -62,36 +62,36 @@ export function ProfileOptionRow({
   onSheet,
 }: ProfileOptionRowProps) {
   const locked = target.kind === "login";
+  const showSignInChip = locked && guestTrailing === "sign-in-pill";
   const subtitle =
-    locked && guestDescription
+    locked && !showSignInChip && guestDescription
       ? guestDescription
-      : locked
+      : locked && !showSignInChip
         ? "Sign in to use this"
         : description;
-  const showSignInPill = locked && guestTrailing === "sign-in-pill";
 
   const body = (
     <>
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-mint">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#F0F4F0]">
         <OptionIcon icon={icon} />
       </span>
       <span className="min-w-0 flex-1 text-left">
         <span className="block text-sm font-bold text-black">{label}</span>
-        <span className="mt-0.5 block text-[13px] leading-5 text-muted">
+        <span className="mt-0.5 block text-[12px] leading-4 text-muted">
           {subtitle}
         </span>
       </span>
-      {showSignInPill ? (
+      {showSignInChip ? (
         <span
           aria-hidden
-          className="inline-flex h-8 shrink-0 cursor-default select-none items-center justify-center rounded-full bg-[#E8E8EA] px-3 text-[12px] font-bold text-muted ring-1 ring-black/5"
+          className="rounded-full bg-black/[0.05] px-2 py-1 text-[10px] font-bold tracking-wide text-muted uppercase"
         >
           Sign in
         </span>
       ) : (
         <ChevronRight
           aria-hidden
-          className="size-5 shrink-0 text-muted/80"
+          className="size-4 shrink-0 text-muted/80"
           strokeWidth={1.85}
         />
       )}
@@ -99,9 +99,10 @@ export function ProfileOptionRow({
   );
 
   const className = cn(
-    "flex w-full items-center gap-3 px-4 py-3 transition",
-    "hover:bg-mint/40 active:bg-mint/60",
+    "flex w-full items-center gap-3 px-3.5 py-3.5 transition",
+    "hover:bg-[#F0F4F0]/70 active:bg-[#F0F4F0]",
     "focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-leaf",
+    locked && showSignInChip && "opacity-55",
   );
 
   if (target.kind === "sheet") {

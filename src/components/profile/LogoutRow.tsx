@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { LogOut } from "lucide-react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
+import { LogoutSketchIcon } from "@/components/profile/LogoutSketchIcon";
 import { useSignOut } from "@/components/profile/hooks/useSignOut";
 import {
   primaryButton,
-  profileCard,
   secondaryButton,
 } from "@/components/profile/profile-styles";
 
@@ -15,33 +14,25 @@ type LogoutRowProps = {
   online?: boolean;
 };
 
-/** Red log-out row with confirm sheet. Disabled while offline. */
+/**
+ * Centered Logout control + confirm sheet (shop desk profile).
+ * Confirm UI unchanged from the original BottomSheet.
+ */
 export function LogoutRow({ dryRun = false, online = true }: LogoutRowProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const { signOut, pending } = useSignOut({ dryRun });
 
   return (
     <>
-      <div className={`${profileCard} overflow-hidden`}>
+      <div className="flex justify-center pt-1 pb-0.5">
         <button
           type="button"
           disabled={pending || !online}
           onClick={() => setConfirmOpen(true)}
-          className="flex w-full items-center gap-3 px-3.5 py-3.5 text-left transition hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center gap-2 text-[14px] font-bold text-red-600 transition hover:text-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-red-50">
-            <LogOut aria-hidden className="size-5 text-red-500" strokeWidth={1.9} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold text-red-600">
-              {pending ? "Signing out…" : "Log out"}
-            </span>
-            <span className="mt-0.5 block text-[13px] leading-5 text-muted">
-              {online
-                ? "Clear this account from this phone"
-                : "Connect to the internet to sign out"}
-            </span>
-          </span>
+          <LogoutSketchIcon className="size-[18px]" />
+          {pending ? "Signing out…" : "Logout"}
         </button>
       </div>
 

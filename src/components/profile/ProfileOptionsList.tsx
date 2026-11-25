@@ -10,54 +10,74 @@ import {
   resolveProfileOption,
   type ProfileOptionId,
 } from "@/lib/profile-options";
-import {
-  profileCard,
-  profileSectionTitle,
-} from "@/components/profile/profile-styles";
 
 /** Brand assets (cart / coupons / help) + Lucide History for orders. */
 const ICONS: Record<ProfileOptionId, ProfileOptionIcon> = {
   orders: ProfileOrdersIcon,
-  wishlist: { kind: "image", src: "/icons/wishlist.svg", size: 22 },
-  coupons: { kind: "image", src: "/icons/coupon.svg", size: 22 },
-  addresses: { kind: "image", src: "/icons/location.svg", size: 22 },
-  support: { kind: "image", src: "/icons/support.png", size: 26 },
+  wishlist: { kind: "image", src: "/icons/wishlist.svg", size: 20 },
+  coupons: { kind: "image", src: "/icons/coupon.svg", size: 20 },
+  addresses: { kind: "image", src: "/icons/location.svg", size: 20 },
+  support: { kind: "image", src: "/icons/support.png", size: 24 },
 };
+
+/** Desk guest order: open tools first, then locked. */
+const GUEST_ORDER: ProfileOptionId[] = [
+  "wishlist",
+  "support",
+  "orders",
+  "coupons",
+];
+
+const SIGNED_ORDER: ProfileOptionId[] = [
+  "orders",
+  "wishlist",
+  "coupons",
+  "support",
+];
 
 type ProfileOptionsListProps = {
   signedIn: boolean;
-  /** When true, address is shown as its own card above — skip that row. */
+  /** When true, address is shown on the desk card — skip that row. */
   hideAddressRow?: boolean;
   onOpenAddresses?: () => void;
 };
 
-/** Stacked Wishlist / Coupons / Orders / Help (+ optional address). */
+/** Desk-style stacked menu (shop desk profile). */
 export function ProfileOptionsList({
   signedIn,
   hideAddressRow = true,
   onOpenAddresses,
 }: ProfileOptionsListProps) {
-  const rows = PROFILE_OPTIONS.filter(
-    (option) => !(hideAddressRow && option.id === "addresses"),
-  );
+  const order = signedIn ? SIGNED_ORDER : GUEST_ORDER;
+  const byId = new Map(PROFILE_OPTIONS.map((o) => [o.id, o]));
+  const rows = order
+    .map((id) => byId.get(id))
+    .filter((option): option is NonNullable<typeof option> => {
+      if (!option) return false;
+      if (hideAddressRow && option.id === "addresses") return false;
+      return true;
+    });
 
   return (
     <section>
-      <h2 className={profileSectionTitle}>More</h2>
-      <div className={`mt-3 ${profileCard} divide-y divide-forest/8 overflow-hidden`}>
-        {rows.map((option) => (
-          <ProfileOptionRow
+      <div className="overflow-hidden rounded-[1.35rem] bg-white shadow-[0_8px_24px_rgba(31,92,31,0.06)] ring-1 ring-black/[0.05]">
+        {rows.map((option, i) => (
+          <div
             key={option.id}
-            label={option.label}
-            description={option.description}
-            guestDescription={option.guestDescription}
-            guestTrailing={option.guestTrailing}
-            icon={ICONS[option.id]}
-            target={resolveProfileOption(option, signedIn)}
-            onSheet={
-              option.id === "addresses" ? onOpenAddresses : undefined
-            }
-          />
+            className={i > 0 ? "border-t border-black/[0.05]" : undefined}
+          >
+            <ProfileOptionRow
+              label={option.label}
+              description={option.description}
+              guestDescription={option.guestDescription}
+              guestTrailing={option.guestTrailing}
+              icon={ICONS[option.id]}
+              target={resolveProfileOption(option, signedIn)}
+              onSheet={
+                option.id === "addresses" ? onOpenAddresses : undefined
+              }
+            />
+          </div>
         ))}
       </div>
     </section>

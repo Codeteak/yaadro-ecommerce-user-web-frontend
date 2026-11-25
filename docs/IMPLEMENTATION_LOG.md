@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-25 — Remove profile restyle playground gallery
+
+Dropped `profile-page-restyle` (catalog, demos, usage) and deleted `ProfilePageRestyleDemo.tsx`. Live desk style is shown via playground **Profile page** (`profile-header` → `ProfileScreen`). Awning shop fallbacks kept — still used elsewhere.
+
+## 2026-11-25 — Fix bottom-nav shiver at page bottom
+
+Root cause: scroll-hide was shrinking `--storefront-nav-clearance` (padding/height), which clamped scroll at the bottom and re-showed the nav in a loop across the storefront. Fix: clearance stays `5.5rem` on scroll-hide (pill transforms only); path-hide still zeros clearance. Kept near-bottom guard in `nav-scroll-policy` + unit tests.
+
 ## 2026-11-24 — Home category product rails + scroll lock
 
 Replaced lower home category tiles with per-category horizontal product rows (`categoryProductRails` + `CategoryProductRails` + shared `ProductRail`). Install prompt waits for body scroll unlock and sits at `z-50` so it never covers the location sheet; `appinstalled` toast; WeightCustomizer locks only when customization exists. Home shows offline banner and catalog error card with Try again.

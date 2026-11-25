@@ -540,7 +540,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Rebuilt /profile: identity card, address card, stacked options (Wishlist open to guests), logout confirm. Playground covers guest / signed-in / error / offline.",
+      "Live ProfileScreen: mint→white desk hero, large avatar + name row, options list, Logout. Guest / signed-in / error / offline.",
     wiresTo: "/profile",
   },
   {
@@ -549,7 +549,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Wired to ecom /profile More list: brand SVGs, guest Sign in pill on orders/coupons, guest locked copy.",
+      "Desk menu rows (brand icons, guest Sign in chips). Same ProfileOptionsList as live /profile.",
     wiresTo: "/profile",
   },
   {
