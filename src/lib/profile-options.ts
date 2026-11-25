@@ -14,6 +14,13 @@ export type ProfileOption = {
   id: ProfileOptionId;
   label: string;
   description: string;
+  /** Guest subtitle when `requiresAuth` (falls back to a generic line). */
+  guestDescription?: string;
+  /**
+   * Guest trailing control: gray non-clickable Sign in pill (row still links
+   * to login). Default chevron/lock treatment when omitted.
+   */
+  guestTrailing?: "sign-in-pill";
   /** Link target; `addresses` opens a sheet instead. */
   href: string | null;
   /** Guests are sent to login first. */
@@ -25,6 +32,8 @@ export const PROFILE_OPTIONS: readonly ProfileOption[] = [
     id: "orders",
     label: "Order history",
     description: "Track and reorder past orders",
+    guestDescription: "Sign in to see your order history",
+    guestTrailing: "sign-in-pill",
     href: "/orders",
     requiresAuth: true,
   },
@@ -39,6 +48,8 @@ export const PROFILE_OPTIONS: readonly ProfileOption[] = [
     id: "coupons",
     label: "Coupons",
     description: "Offers you can use at checkout",
+    guestDescription: "Sign in to see your coupons",
+    guestTrailing: "sign-in-pill",
     href: "/coupons",
     requiresAuth: true,
   },
@@ -46,6 +57,7 @@ export const PROFILE_OPTIONS: readonly ProfileOption[] = [
     id: "addresses",
     label: "Saved addresses",
     description: "Delivery address for home and checkout",
+    guestDescription: "Sign in to save an address",
     href: null,
     requiresAuth: true,
   },

@@ -715,6 +715,21 @@ export default function NotFound() {
 />`,
     ["src/components/coupons/CouponsPageContent.tsx"],
   ),
+  "profile-options-refine": U(
+    `import { ProfileOptionsList } from "@/components/profile/ProfileOptionsList";
+
+// Live /profile More list (guest + signed-in)
+<ProfileOptionsList signedIn={false} hideAddressRow />
+<ProfileOptionsList signedIn hideAddressRow />`,
+    [
+      "src/components/profile/ProfileOptionsList.tsx",
+      "src/components/profile/ProfileOptionRow.tsx",
+      "src/lib/profile-options.ts",
+      "public/icons/wishlist.svg",
+      "public/icons/coupon.svg",
+      "public/icons/support.png",
+    ],
+  ),
   "profile-header": U(
     `import { ProfileScreen } from "@/components/profile/ProfileScreen";
 

@@ -1,14 +1,10 @@
 "use client";
 
 import {
-  Heart,
-  Headset,
-  History,
-  MapPin,
-  TicketPercent,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { ProfileOptionRow } from "@/components/profile/ProfileOptionRow";
+  ProfileOptionRow,
+  ProfileOrdersIcon,
+  type ProfileOptionIcon,
+} from "@/components/profile/ProfileOptionRow";
 import {
   PROFILE_OPTIONS,
   resolveProfileOption,
@@ -19,12 +15,13 @@ import {
   profileSectionTitle,
 } from "@/components/profile/profile-styles";
 
-const ICONS: Record<ProfileOptionId, LucideIcon> = {
-  orders: History,
-  wishlist: Heart,
-  coupons: TicketPercent,
-  addresses: MapPin,
-  support: Headset,
+/** Brand assets (cart / coupons / help) + Lucide History for orders. */
+const ICONS: Record<ProfileOptionId, ProfileOptionIcon> = {
+  orders: ProfileOrdersIcon,
+  wishlist: { kind: "image", src: "/icons/wishlist.svg", size: 22 },
+  coupons: { kind: "image", src: "/icons/coupon.svg", size: 22 },
+  addresses: { kind: "image", src: "/icons/location.svg", size: 22 },
+  support: { kind: "image", src: "/icons/support.png", size: 26 },
 };
 
 type ProfileOptionsListProps = {
@@ -53,6 +50,8 @@ export function ProfileOptionsList({
             key={option.id}
             label={option.label}
             description={option.description}
+            guestDescription={option.guestDescription}
+            guestTrailing={option.guestTrailing}
             icon={ICONS[option.id]}
             target={resolveProfileOption(option, signedIn)}
             onSheet={

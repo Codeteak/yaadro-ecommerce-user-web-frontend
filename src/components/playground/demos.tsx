@@ -113,6 +113,7 @@ import { PhaseBHomeSectionsDemo } from "@/components/playground/PhaseBHomeSectio
 import { PhaseCAddressModalDemo } from "@/components/playground/PhaseCAddressModalDemo";
 import { PhaseDPriceVaryExplainDemo } from "@/components/playground/PhaseDPriceVaryExplainDemo";
 import { OrderBillCouponFixDemo } from "@/components/playground/OrderBillCouponFixDemo";
+import { ProfileOptionsRefineDemo } from "@/components/playground/ProfileOptionsRefineDemo";
 import {
   SHOP_FALLBACK_AVATAR_OPTIONS,
   SHOP_IMAGE_FALLBACK_CURRENT,
@@ -1588,6 +1589,11 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </DemoFrame>
     );
   },
+  "profile-options-refine": () => (
+    <DemoFrame note="Wired to ecom /profile — same ProfileOptionsList (guest Sign in pill on orders/coupons).">
+      <ProfileOptionsRefineDemo />
+    </DemoFrame>
+  ),
   "profile-header": () => {
     const signedInProfile: CustomerProfile = {
       user: {

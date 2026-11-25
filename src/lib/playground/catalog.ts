@@ -544,6 +544,15 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     wiresTo: "/profile",
   },
   {
+    slug: "profile-options-refine",
+    title: "Profile options · refine",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Wired to ecom /profile More list: brand SVGs, guest Sign in pill on orders/coupons, guest locked copy.",
+    wiresTo: "/profile",
+  },
+  {
     slug: "help-support",
     title: "Help & Support",
     status: "built",
