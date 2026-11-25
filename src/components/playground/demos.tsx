@@ -1173,7 +1173,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "order-placed": () => (
     <DemoFrame
       surface="bare"
-      note="Playground confirm card. Live checkout goes to /orders/[id]?placed=1 (refresh-safe)."
+      note="Same OrderPlacedContent mascot + bill as live Place Order success."
     >
       <div className="max-h-[85vh] overflow-y-auto overscroll-contain rounded-[1.75rem] bg-paper ring-1 ring-forest/10">
         <OrderPlacedContent

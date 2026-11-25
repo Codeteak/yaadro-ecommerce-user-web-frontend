@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-25 — Restore OrderPlacedContent after live Place Order
+
+`c603690` had switched live success to `/orders/[id]?placed=1` (banner only), so the mascot confirm page no longer appeared. Live checkout again shows `OrderPlacedContent` with shop totals from the checkout response (same card as playground).
+
+## 2026-11-25 — Keep “Order placed!” banner after query strip
+
+`OrderDetailPageContent` rendered the success banner from `justPlaced`, but an effect immediately `replace`s away `?placed=1`, so the banner vanished. It now keys off `showPlacedBanner` (sessionStorage-backed) so confirmation stays visible on `/orders/[id]`.
+
 ## 2026-11-25 — Checkout scroll clears sticky Place Order
 
 Raised checkout body padding `pb-36` → `pb-56` so CartBill “You saved…” can scroll fully above the fixed footer. Playground checkout frames use `overflow-hidden` so the page’s inner scroller owns the scroll.

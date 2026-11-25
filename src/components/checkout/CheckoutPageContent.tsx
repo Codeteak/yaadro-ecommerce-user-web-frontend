@@ -106,9 +106,43 @@ function playgroundPlacedSummary(
   };
 }
 
+function minorToRupees(minor: number): number {
+  return Math.round(minor) / 100;
+}
+
+/** Shop-authoritative confirm card from POST /checkout (live). */
+function livePlacedSummary(
+  order: {
+    orderNumber: string;
+    subtotal_minor: number;
+    promotion_discount_minor: number;
+    coupon_discount_minor: number;
+    delivery_fee_minor: number;
+    total_minor: number;
+    coupon_code: string | null;
+  },
+  itemCount: number,
+): OrderPlacedSummary {
+  const promo =
+    (order.promotion_discount_minor ?? 0) + (order.coupon_discount_minor ?? 0);
+  return {
+    billNo: order.orderNumber.startsWith("#")
+      ? order.orderNumber
+      : `#${order.orderNumber}`,
+    itemCount,
+    subtotal: minorToRupees(order.subtotal_minor),
+    promoCode: order.coupon_code,
+    promoDiscount: promo > 0 ? minorToRupees(promo) : undefined,
+    deliveryFee: minorToRupees(order.delivery_fee_minor),
+    total: minorToRupees(order.total_minor),
+    fulfillment: "Delivery",
+    statusLabel: "Order placed",
+  };
+}
+
 /**
  * Checkout UI: address, COD, order summary, bill, short sticky Place Order.
- * Live success navigates to `/orders/[id]?placed=1` (refresh-safe).
+ * Success shows OrderPlacedContent (mascot + bill). Live totals from the shop.
  */
 export function CheckoutPageContent({
   chromePosition = "page",
@@ -358,18 +392,12 @@ export function CheckoutPageContent({
       "success",
     );
 
-    if (inline) {
-      clear();
-      setPlaced(
-        playgroundPlacedSummary(order.orderNumber, count, bill.toPay),
-      );
-      return;
-    }
-
-    // Navigate first so refresh-safe confirm is never an empty checkout.
-    const confirmHref = `/orders/${order.orderId}?placed=1`;
-    router.replace(confirmHref);
     clear();
+    setPlaced(
+      inline
+        ? playgroundPlacedSummary(order.orderNumber, count, bill.toPay)
+        : livePlacedSummary(order, count),
+    );
     void queryClient.invalidateQueries({ queryKey: ["orders"] });
     void queryClient.invalidateQueries({
       queryKey: ["order", order.orderId],

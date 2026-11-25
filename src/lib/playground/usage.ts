@@ -773,7 +773,7 @@ export default function NotFound() {
   }}
 />
 
-// Live: short sticky To pay + Place Order; success → /orders/[id]?placed=1
+// Live: short sticky To pay + Place Order; success → OrderPlacedContent
 <CheckoutPageContent liveShopPricing showPriceMayVary />`,
     [
       "src/components/checkout/CheckoutPageContent.tsx",
