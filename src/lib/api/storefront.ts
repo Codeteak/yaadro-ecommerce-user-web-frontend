@@ -457,72 +457,62 @@ const EMPTY_HOME: HomeCatalog = {
   products: [],
 };
 
-function rootOf(
-  category: StoreCategory,
-  byId: Map<string, StoreCategory>,
-): StoreCategory | null {
-  let current: StoreCategory | undefined = category;
-  const seen = new Set<string>();
-  while (current?.parentId) {
-    if (seen.has(current.id)) return null;
-    seen.add(current.id);
-    current = byId.get(current.parentId);
-  }
-  if (!current || current.slug === "all") return null;
-  return current;
+/**
+ * Products for one root aisle — same `categoryId` (+ descendants) query as
+ * `loadCategoryListing` / `/categories/[slug]`, so home rails match Show all.
+ */
+async function productsForRootCategory(
+  shopId: string,
+  root: StoreCategory,
+): Promise<SampleProduct[]> {
+  const groups = await listStoreProducts(shopId, {
+    categoryId: root.id,
+    maxPages: CATALOG_BROWSE_MAX_PAGES,
+    pageSize: CATALOG_BROWSE_PAGE_SIZE,
+  });
+  return groups.flatMap((group) =>
+    group.products.map((product) => ({
+      ...product,
+      category: group.category?.name ?? root.name,
+      categoryId: group.category?.id ?? root.id,
+      categorySlug: group.category?.slug ?? root.slug,
+    })),
+  );
 }
 
 export async function loadHomeCatalog(shopId: string): Promise<HomeCatalog> {
   try {
     const id = requireShopId(shopId);
     // Categories are already sellable-only (in-stock products in tree).
-    // Same browse size as hub + warm so cache keys match.
-    const [categories, groups, shelves] = await Promise.all([
+    const [categories, shelves] = await Promise.all([
       listStoreCategories(id),
-      listStoreProducts(id, {
-        maxPages: CATALOG_BROWSE_MAX_PAGES,
-        pageSize: CATALOG_BROWSE_PAGE_SIZE,
-      }),
       listHomeShelves(id),
     ]);
-    const byId = new Map(categories.map((category) => [category.id, category]));
     const roots = categories.filter(
       (category) => !category.parentId && category.slug !== "all",
     );
+
+    // Per-root fetches (parallel, cached) — not one global browse page bucketed
+    // by parent walk (that mismatched `/categories/[slug]` order/set).
+    const perRoot = await Promise.all(
+      roots.map(async (root) => ({
+        root,
+        products: await productsForRootCategory(id, root),
+      })),
+    );
+
     const productsBySlug: Record<string, SampleProduct[]> = {};
-    for (const root of roots) productsBySlug[root.slug] = [];
     const products: SampleProduct[] = [];
     const seen = new Set<string>();
-
-    for (const group of groups) {
-      // Prefer joined category; fall back to catalog map when the join is thin.
-      const seedId = group.category?.id ?? group.products[0]?.categoryId;
-      const seed =
-        group.category ??
-        (seedId && byId.has(seedId) ? byId.get(seedId)! : null);
-      if (!seed) continue;
-      const root =
-        rootOf(seed, byId) ?? (seed.slug !== "all" ? seed : null);
-      if (!root) continue;
-      const bucket = productsBySlug[root.slug] ?? [];
-      for (const product of group.products) {
-        const tagged: SampleProduct = {
-          ...product,
-          category: seed.name,
-          categoryId: seed.id,
-          categorySlug: seed.slug,
-        };
-        bucket.push(tagged);
-        if (!seen.has(tagged.id)) {
-          seen.add(tagged.id);
-          products.push(tagged);
-        }
-      }
+    for (const { root, products: bucket } of perRoot) {
       productsBySlug[root.slug] = bucket;
+      for (const product of bucket) {
+        if (seen.has(product.id)) continue;
+        seen.add(product.id);
+        products.push(product);
+      }
     }
 
-    // Home rail / browse: only roots that actually have products in stock
-    // (sellable query) — already true for `roots`. Child tiles stay sellable-only.
     const branches: CategoryBranch[] = roots.map((root) => ({
       id: root.id,
       name: root.name,

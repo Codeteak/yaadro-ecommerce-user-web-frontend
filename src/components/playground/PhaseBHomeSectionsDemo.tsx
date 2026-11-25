@@ -18,7 +18,7 @@ import { getProductsByCategory } from "@/lib/sample-products";
 
 /**
  * Playground home stack: produce + per-category product rails + shelves.
- * Matches live `/home` after the category-tile → product-rail change.
+ * Rails use the same per-category sample lists as category listing (Show all).
  */
 export function PhaseBHomeSectionsDemo() {
   const rails = useMemo(() => {
@@ -26,6 +26,7 @@ export function PhaseBHomeSectionsDemo() {
       slug: catalogSlugForHomeCategory(c.name),
       name: c.name,
     }));
+    // Same source as playground category PLP samples — first N = Show all prefix.
     const productsBySlug = Object.fromEntries(
       HOME_CATEGORIES.map((c) => [
         catalogSlugForHomeCategory(c.name),

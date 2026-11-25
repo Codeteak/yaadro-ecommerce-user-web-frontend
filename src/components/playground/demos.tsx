@@ -621,7 +621,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "deferred-location": () => (
-    <DemoFrame note="Wired `/home`: soft map prompt locks body scroll while open; close / change playground route unlocks (BodyScrollUnlockOnNavigate). Pin only — details at checkout.">
+    <DemoFrame note="Wired `/home`: soft map prompt locks body scroll while open; close / change playground route unlocks. Confirm pin runs the shop radius preview — outside area toasts and paints Deliver to red.">
       <div className="relative min-h-[28rem] bg-gradient-to-b from-mint to-paper px-4 pt-6 pb-10">
         <HomeTopBar
           shopName="Green Basket"
@@ -629,8 +629,8 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           signedIn={false}
         />
         <p className="mt-8 text-center text-sm font-medium text-muted">
-          Sheet opens after settle — Detect location is enough to browse.
-          Close the sheet (or leave this demo) to scroll again.
+          Sheet opens after settle — Detect / Use this location saves the pin,
+          checks delivery radius, then closes. Details still wait for checkout.
         </p>
         <DeferredLocationPrompt forcePreview delayMs={900} />
       </div>
@@ -672,7 +672,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "home-top-bar": () => (
-    <DemoFrame note="Guest shows Sign in. Signed in replaces it with the profile-tick icon — no round background. On /home the icon follows the real session.">
+    <DemoFrame note="Guest / signed-in account slot. Outside delivery radius paints Deliver to red after the home pin fails the shop radius preview (same DB check as checkout).">
       <div className="space-y-6 bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8] px-5 pt-4 pb-6">
         <div>
           <p className="mb-2 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
@@ -682,6 +682,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
             shopName="Yaadro"
             shopImage="/onboarding/brand-mark-white-y.svg"
             signedIn={false}
+            previewAddressLabel="Choose your location"
           />
         </div>
         <div>
@@ -692,6 +693,18 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
             shopName="Yaadro"
             shopImage="/onboarding/brand-mark-white-y.svg"
             signedIn
+            previewAddressLabel="Indiranagar, Bengaluru"
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Outside delivery radius
+          </p>
+          <HomeTopBar
+            shopName="Yaadro"
+            shopImage="/onboarding/brand-mark-white-y.svg"
+            signedIn={false}
+            previewOutsideRadius
           />
         </div>
       </div>
@@ -975,7 +988,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "home-more-sections": () => (
     <DemoFrame
       surface="bare"
-      note="Live /home: per-category horizontal product rails (not category tiles). Demo shows the fuller stack."
+      note="Live /home rails use category-scoped catalog (same as /categories/[slug]). First ~10 cards match Show all."
     >
       <PhaseBHomeSectionsDemo />
     </DemoFrame>
@@ -993,7 +1006,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "home-pull-content": () => (
-    <DemoFrame note="Same as /home body: sample category rail + ProductSection + FruitsVeggies + shelves + BrandFooter + PTR.">
+    <DemoFrame note="Same as /home body. Live categoryRails products come from per-category PLP queries (not a global browse bucket).">
       <HomeCategoryProvider>
         <HomePullContent />
       </HomeCategoryProvider>

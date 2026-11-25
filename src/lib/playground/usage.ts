@@ -70,22 +70,28 @@ import { useScrollDirection } from "@/components/navigation/useScrollDirection";
     `import { HomeTopBar } from "@/components/home/HomeTopBar";
 
 <HomeTopBar shopName="Yaadro" shopImage="/onboarding/brand-mark-white-y.svg" />
-<HomeTopBar shopName="Yaadro" shopImage="/onboarding/brand-mark-white-y.svg" signedIn />`,
+<HomeTopBar shopName="Yaadro" shopImage="/onboarding/brand-mark-white-y.svg" signedIn />
+// Playground outside-radius paint:
+<HomeTopBar shopName="Yaadro" shopImage="…" previewOutsideRadius />`,
     [
       "src/components/home/HomeTopBar.tsx",
+      "src/lib/delivery-address.ts",
+      "src/lib/refresh-delivery-serviceable.ts",
       "public/icons/profile-signed-in.svg",
     ],
   ),
   "deferred-location": U(
     `import { DeferredLocationPrompt } from "@/components/delivery/DeferredLocationPrompt";
 
-// Wired on /home — Detect saves pin and closes; details at place order
+// Wired on /home — Detect/confirm pin saves, runs radius preview, closes
 <DeferredLocationPrompt />
 // Playground: <DeferredLocationPrompt forcePreview delayMs={900} />`,
     [
       "src/components/delivery/DeferredLocationPrompt.tsx",
       "src/components/delivery/AddressBookSheet.tsx",
       "src/lib/delivery-address.ts",
+      "src/lib/refresh-delivery-serviceable.ts",
+      "src/lib/db/location.ts",
       "src/app/(storefront)/home/page.tsx",
     ],
   ),
@@ -234,7 +240,8 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
 import { categoryProductRails } from "@/lib/home-category-rails";
 import { PhaseBHomeSectionsDemo } from "@/components/playground/PhaseBHomeSectionsDemo";
 
-// Live /home: categoryProductRails(catalog.categories, catalog.productsBySlug)
+// Live /home: productsBySlug from per-root categoryId fetches (match PLP)
+// categoryProductRails(catalog.categories, catalog.productsBySlug)
 <CategoryProductRails rails={rails} />
 
 // Playground stack demo

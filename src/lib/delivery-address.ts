@@ -7,6 +7,11 @@ export type DeliveryAddress = {
   /** Device pin used for the delivery-area check. */
   lat?: number;
   lng?: number;
+  /**
+   * Last home/checkout radius preview for this pin.
+   * `undefined` = not checked yet; `false` = outside shop radius.
+   */
+  serviceable?: boolean;
 };
 
 export const EMPTY_DELIVERY_ADDRESS: DeliveryAddress = {
@@ -49,6 +54,13 @@ export function hasBrowseLocation(
   if (!a) return false;
   if (hasDeliveryDetails(a) || hasDeliveryPin(a)) return true;
   return Boolean(a.street?.trim() || a.city?.trim());
+}
+
+/** Pin was checked and falls outside `service_area_radius_meters`. */
+export function isOutsideDeliveryRadius(
+  a: DeliveryAddress | null | undefined,
+): boolean {
+  return a?.serviceable === false;
 }
 
 /** Home / checkout line: prefer full details, else area / pin label. */

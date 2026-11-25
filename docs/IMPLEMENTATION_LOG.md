@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-25 — Home delivery radius on pin + red header
+
+Home pin confirm (`AddressBookSheet` `pinCompletes`) now runs `previewDeliveryArea` (same DB haversine / `service_area_radius_meters` as checkout) and stores `serviceable` on Deliver-to. `HomeTopBar` shows red **Outside delivery radius** when `serviceable === false`; remount also rechecks pins that lack the flag. Playground home-top-bar / deferred-location updated.
+
+## 2026-11-25 — Home category rails match category PLP
+
+`loadHomeCatalog` no longer buckets a single global browse page into roots (wrong set/order vs Show all). It loads each root with `listStoreProducts({ categoryId })` — same scoped query as `loadCategoryListing` / `/categories/[slug]`. Rails still cap at 10. Playground home-more-sections / home-pull notes updated.
+
 ## 2026-11-25 — Unlock body scroll on navigate (home stuck scroll)
 
 Production shops could leave `overflow: hidden` on `/home` after the location sheet (or a leaked lock counter). Added `forceClearBodyScrollLock` + `BodyScrollUnlockOnNavigate` on storefront chrome and playground shell (pathname + bfcache `pageshow`). Playground `deferred-location` / PWA notes updated.

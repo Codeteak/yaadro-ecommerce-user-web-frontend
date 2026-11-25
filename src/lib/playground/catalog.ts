@@ -76,7 +76,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Guest Sign in vs signed-in profile-tick icon (no round background). Storefront stays guest until auth.",
+      "Guest / signed-in account slot. Deliver to turns red with Outside delivery radius when the pin fails the shop radius preview.",
     wiresTo: "/home",
   },
   {
@@ -85,7 +85,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Wired `/home`: soft map prompt locks scroll while open; close or route change unlocks. Pin only — details at place order.",
+      "Wired `/home`: soft map prompt; confirm pin runs radius preview (same DB check as checkout). Outside → toast + red header. Details at place order.",
     wiresTo: "/home",
   },
   {
@@ -178,9 +178,9 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Home stack with per-category horizontal product rails (categoryProductRails). Live /home uses the same pattern.",
+      "Home stack with per-category product rails. Live loads each aisle via categoryId (same as /categories/[slug]).",
     wiresTo:
-      "src/lib/home-category-rails.ts → HomePullContent categoryRails on /home",
+      "loadHomeCatalog → categoryProductRails → HomePullContent on /home",
   },
   {
     slug: "category-browser",

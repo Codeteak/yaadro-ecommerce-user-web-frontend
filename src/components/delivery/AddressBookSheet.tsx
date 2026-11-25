@@ -11,6 +11,7 @@ import {
   locationToastToneFor,
 } from "@/lib/location-messages";
 import { hasCustomerSession } from "@/lib/api/session";
+import { refreshDeliveryServiceable } from "@/lib/refresh-delivery-serviceable";
 import {
   detectMyPlace,
   formatSavedAddressLine,
@@ -177,10 +178,25 @@ function AddressBookSheetBody({
     setStep("map");
   };
 
-  const finishWithPin = (place: DetectedPlace) => {
+  const finishWithPin = async (place: DetectedPlace) => {
     saveBrowsePin(place);
-    const { message, tone } = LOCATION_TOASTS.pinSaved;
-    showPopup(message, tone);
+    if (typeof place.lat !== "number" || typeof place.lng !== "number") {
+      const { message, tone } = LOCATION_TOASTS.pinSaved;
+      showPopup(message, tone);
+      onOpenChange(false);
+      return;
+    }
+    const serviceable = await refreshDeliveryServiceable(place.lat, place.lng);
+    if (serviceable === false) {
+      const { message, tone } = LOCATION_TOASTS.notServiceable;
+      showPopup(message, tone);
+    } else if (serviceable === true) {
+      const { message, tone } = LOCATION_TOASTS.pinSaved;
+      showPopup(message, tone);
+    } else {
+      const { message, tone } = LOCATION_TOASTS.checkFailed;
+      showPopup(message, tone);
+    }
     onOpenChange(false);
   };
 
@@ -196,7 +212,7 @@ function AddressBookSheetBody({
     }
     setDraftPlace(result.place);
     if (pinCompletes) {
-      finishWithPin(result.place);
+      await finishWithPin(result.place);
       return;
     }
     const found = LOCATION_TOASTS.locationFound;
@@ -212,7 +228,7 @@ function AddressBookSheetBody({
       return;
     }
     if (pinCompletes) {
-      finishWithPin(draftPlace);
+      void finishWithPin(draftPlace);
       return;
     }
     setStep("details");
