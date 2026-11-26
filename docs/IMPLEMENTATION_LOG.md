@@ -2,7 +2,7 @@
 
 ## 2026-11-26 — Prerender: keep URL hooks under Suspense
 
-`usePathname` / `useSearchParams` in the playground shell and coupons page now sit under `<Suspense>`, same as the storefront nav. `npm run build` completes, including `/categories/[slug]`. Pre-commit runs that production build after lint and tests, so a prerender break fails the commit instead of CodeBuild.
+`usePathname` / `useSearchParams` in the playground shell and coupons page sit under `<Suspense>`. `BodyScrollUnlockOnNavigate` does too, inside the storefront chrome, so `/categories/[slug]` can prerender. Pre-commit runs `npm run build` after lint and tests.
 
 ## 2026-11-24 — Delivery tracking URL (v1 parity)
 
