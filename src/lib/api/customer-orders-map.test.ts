@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   mapCustomerOrder,
   mapDeliveryPartner,
+  pickDeliveryTrackingUrl,
 } from "./map-customer-order.ts";
 import { billedTotal, deliveryCharge } from "../orders-bill.ts";
 
@@ -112,6 +113,81 @@ test("does not invent a delivery partner when the API omits one", () => {
   });
   assert.ok(order);
   assert.equal(order.rider, undefined);
+});
+
+test("maps deliveryTrackingUrl from camelCase or snake_case http(s) URLs", () => {
+  assert.equal(
+    pickDeliveryTrackingUrl({
+      deliveryTrackingUrl: " https://track.example/abc ",
+    }),
+    "https://track.example/abc",
+  );
+  assert.equal(
+    pickDeliveryTrackingUrl({
+      delivery_tracking_url: "http://partner.test/ride/1",
+    }),
+    "http://partner.test/ride/1",
+  );
+  assert.equal(
+    pickDeliveryTrackingUrl({
+      deliveryTrackingUrl: "https://first.example/a",
+      delivery_tracking_url: "https://second.example/b",
+    }),
+    "https://first.example/a",
+  );
+
+  const camel = mapCustomerOrder({
+    id: "ord-track-1",
+    order_number: "YAD-T1",
+    status: "out_for_delivery",
+    subtotal_minor: 10000,
+    delivery_fee_minor: 0,
+    total_minor: 10000,
+    deliveryTrackingUrl: "https://dms.example/t/1",
+    delivery_partner_name: "Ravi",
+    delivery_partner_phone: "9876543210",
+    items: [],
+  });
+  assert.ok(camel);
+  assert.equal(camel.deliveryTrackingUrl, "https://dms.example/t/1");
+  assert.equal(camel.rider?.name, "Ravi");
+
+  const snake = mapCustomerOrder({
+    id: "ord-track-2",
+    order_number: "YAD-T2",
+    status: "shipped",
+    subtotal_minor: 10000,
+    delivery_fee_minor: 0,
+    total_minor: 10000,
+    delivery_tracking_url: "https://dms.example/t/2",
+    items: [],
+  });
+  assert.ok(snake);
+  assert.equal(snake.deliveryTrackingUrl, "https://dms.example/t/2");
+});
+
+test("drops empty or non-http delivery tracking URLs", () => {
+  assert.equal(pickDeliveryTrackingUrl({ deliveryTrackingUrl: "   " }), undefined);
+  assert.equal(
+    pickDeliveryTrackingUrl({ delivery_tracking_url: "javascript:alert(1)" }),
+    undefined,
+  );
+  assert.equal(
+    pickDeliveryTrackingUrl({ deliveryTrackingUrl: "/relative/path" }),
+    undefined,
+  );
+  const order = mapCustomerOrder({
+    id: "ord-track-bad",
+    order_number: "YAD-TB",
+    status: "pending",
+    subtotal_minor: 10000,
+    delivery_fee_minor: 0,
+    total_minor: 10000,
+    delivery_tracking_url: "not-a-url",
+    items: [],
+  });
+  assert.ok(order);
+  assert.equal(order.deliveryTrackingUrl, undefined);
 });
 
 test("coupon code uses coupon_discount_minor — ignores inflated promotion total", () => {

@@ -55,6 +55,9 @@ export type RawCustomerOrder = {
   deliveryPartnerPhone?: string | null;
   rider_phone?: string | null;
   riderPhone?: string | null;
+  /** Partner tracking page (v1 parity). */
+  deliveryTrackingUrl?: string | null;
+  delivery_tracking_url?: string | null;
 };
 
 function rupees(minor: unknown): number {
@@ -117,6 +120,23 @@ function mapLine(item: RawOrderItem): SampleOrderLine {
     lineMrp: Math.max(lineTotal, list * (Number.isFinite(qty) ? qty : 1)),
     image: image || undefined,
   };
+}
+
+/**
+ * Partner tracking URL from the shop API (same fields as v1).
+ * Only http(s) links — drop empty or unsafe values.
+ */
+export function pickDeliveryTrackingUrl(
+  raw: Pick<RawCustomerOrder, "deliveryTrackingUrl" | "delivery_tracking_url">,
+): string | undefined {
+  const candidates = [raw.deliveryTrackingUrl, raw.delivery_tracking_url];
+  for (const value of candidates) {
+    if (typeof value !== "string") continue;
+    const url = value.trim();
+    if (!url) continue;
+    if (/^https?:\/\//i.test(url)) return url;
+  }
+  return undefined;
 }
 
 /**
@@ -216,6 +236,7 @@ export function mapCustomerOrder(raw: RawCustomerOrder): SampleOrder | null {
   const lines = Array.isArray(raw.items) ? raw.items.map(mapLine) : [];
   const linesMrp = lines.reduce((sum, line) => sum + line.lineMrp, 0);
   const rider = mapDeliveryPartner(raw);
+  const deliveryTrackingUrl = pickDeliveryTrackingUrl(raw);
   return {
     id: raw.id,
     number: raw.order_number ?? raw.id.slice(0, 8).toUpperCase(),
@@ -236,5 +257,6 @@ export function mapCustomerOrder(raw: RawCustomerOrder): SampleOrder | null {
     deliveryFee,
     timeline: [{ key: status, label: placedAtLabel, at: placedAtLabel }],
     ...(rider ? { rider } : {}),
+    ...(deliveryTrackingUrl ? { deliveryTrackingUrl } : {}),
   };
 }

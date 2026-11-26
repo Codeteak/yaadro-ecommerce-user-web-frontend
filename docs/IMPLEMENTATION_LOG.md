@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-26 — Prerender: keep URL hooks under Suspense
+
+`usePathname` / `useSearchParams` in the playground shell and coupons page now sit under `<Suspense>`, same as the storefront nav. `npm run build` completes, including `/categories/[slug]`. Pre-commit runs that production build after lint and tests, so a prerender break fails the commit instead of CodeBuild.
+
+## 2026-11-24 — Delivery tracking URL (v1 parity)
+
+Mapped shop `deliveryTrackingUrl` / `delivery_tracking_url` onto `SampleOrder` via `pickDeliveryTrackingUrl` (http/https only). Order details: **Track delivery** (external) + **Live status** when URL present; otherwise **Track order** → in-app `/orders/[id]/track`. Delivered orders keep Review/Receipt and add outline Track delivery when URL exists. Live track page shows secondary **Open partner tracking**. `LeadAction` supports `external` links.
+
 ## 2026-11-24 — Home category product rails + scroll lock
 
 Replaced lower home category tiles with per-category horizontal product rows (`categoryProductRails` + `CategoryProductRails` + shared `ProductRail`). Install prompt waits for body scroll unlock and sits at `z-50` so it never covers the location sheet; `appinstalled` toast; WeightCustomizer locks only when customization exists. Home shows offline banner and catalog error card with Try again.
