@@ -108,7 +108,8 @@ async function HomeHeroResolved() {
 }
 
 /**
- * Sellable category rail + product sections from one catalog load.
+ * Sellable category rail + home body from one catalog load.
+ * Admin shelves keep shop_home_sections.sort_order (enabled + dated + products).
  * Empty / failed catalog → no orphan category rail without products.
  */
 async function HomeCatalogBody() {

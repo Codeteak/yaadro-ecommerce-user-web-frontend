@@ -340,7 +340,16 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "ProductSection + FruitsVeggies + merch shelves + BrandFooter + PTR. On /home the category rail streams separately (#3).",
+      "Wired /home body: All under pills, admin shelves by sort_order, produce, category rails last, favourites.",
+    wiresTo: "/home",
+  },
+  {
+    slug: "home-section-sort",
+    title: "Home section sort (admin)",
+    status: "built",
+    group: "Home",
+    description:
+      "Wired /home: pills → All → admin sort_order → produce → category rails last. Daily Diary art card. Empty/off sections stay hidden.",
     wiresTo: "/home",
   },
   {

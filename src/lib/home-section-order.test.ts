@@ -24,3 +24,26 @@ test("sortHomeShelvesByOrder ties break on title", () => {
     ["Alpha", "Beta"],
   );
 });
+
+test("sortHomeShelvesByOrder matches admin drag order (PRICE DROP then Daily Diary)", () => {
+  const sorted = sortHomeShelvesByOrder([
+    { id: "diary", title: "Daily Diary", sortOrder: 20 },
+    { id: "drop", title: "PRICE DROP", sortOrder: 10 },
+    { id: "festive", title: "Festive", sortOrder: 30 },
+  ]);
+  assert.deepEqual(
+    sorted.map((s) => s.title),
+    ["PRICE DROP", "Daily Diary", "Festive"],
+  );
+});
+
+test("sortHomeShelvesByOrder pushes non-finite sortOrder last", () => {
+  const sorted = sortHomeShelvesByOrder([
+    { id: "x", title: "Zeta", sortOrder: Number.NaN },
+    { id: "a", title: "Alpha", sortOrder: 5 },
+  ]);
+  assert.deepEqual(
+    sorted.map((s) => s.id),
+    ["a", "x"],
+  );
+});

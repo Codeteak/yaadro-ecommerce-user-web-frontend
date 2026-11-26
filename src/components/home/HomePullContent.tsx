@@ -1,15 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   CategoryProductRails,
   type CategoryProductRailView,
 } from "@/components/home/CategoryProductRails";
 import { CategoryRail } from "@/components/home/CategoryRail";
-import { DailyDairySection } from "@/components/home/DailyDairySection";
-import { FestiveOffersSection } from "@/components/home/FestiveOffersSection";
 import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
-import { HomeProductShelf } from "@/components/home/HomeProductShelf";
+import { HomeAdminShelves } from "@/components/home/HomeAdminShelves";
 import {
   HomeFavouritesShelf,
   HomeProductShelves,
@@ -21,9 +19,10 @@ import { BrandFooter } from "@/components/storefront/BrandFooter";
 import { showPopup } from "@/components/ui/Toast";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { refreshStorefrontCatalog } from "@/lib/api/refresh-catalog";
-import { isDairySectionTitle } from "@/lib/daily-dairy";
-import { isFestiveSectionTitle } from "@/lib/festive-offers";
-import { sortHomeShelvesByOrder } from "@/lib/home-section-order";
+import {
+  HOME_BODY_LAYOUT,
+  type HomeBodyLayout,
+} from "@/lib/home-section-order";
 import { useOnlineStatus } from "@/lib/use-online-status";
 import type { SampleProduct } from "@/lib/sample-products";
 
@@ -34,8 +33,8 @@ export type HomeRailCategory = {
 };
 
 /**
- * Home body: category rail + filtered products + produce + category rails,
- * then admin home sections in API `sort_order`, then favourites + footer.
+ * Home body — each shop’s admin `sort_order` after the pill-driven All strip;
+ * fruits/veggies next; category product rails always last before favourites.
  */
 export function HomePullContent({
   railCategories,
@@ -46,6 +45,7 @@ export function HomePullContent({
   shelves,
   categoryRails,
   catalogError,
+  layout = HOME_BODY_LAYOUT,
 }: {
   /**
    * Sellable root categories. `undefined` = playground sample rail;
@@ -57,29 +57,49 @@ export function HomePullContent({
   fruits?: SampleProduct[];
   vegetables?: SampleProduct[];
   shelves?: LiveShelf[];
-  /** Per-category horizontal product rows (live home). */
+  /** Per-category horizontal product rows — always after produce. */
   categoryRails?: CategoryProductRailView[];
   catalogError?: string | null;
+  /** `legacy-buried` only for playground compare. */
+  layout?: HomeBodyLayout;
 }) {
   const t = useTypeScale();
   const online = useOnlineStatus();
   const [retrying, setRetrying] = useState(false);
-
-  const orderedShelves = useMemo(() => {
-    if (!shelves?.length) return [];
-    return sortHomeShelvesByOrder(
-      shelves.map((shelf, index) => ({
-        ...shelf,
-        sortOrder: shelf.sortOrder ?? index,
-      })),
-    );
-  }, [shelves]);
 
   const showProduce =
     fruits == null ||
     vegetables == null ||
     fruits.length > 0 ||
     vegetables.length > 0;
+
+  const adminBlock =
+    shelves && shelves.length > 0 ? (
+      <HomeAdminShelves shelves={shelves} />
+    ) : null;
+
+  const allStrip = (
+    <ProductSection
+      productsBySlug={productsBySlug}
+      categoryNames={categoryNames}
+    />
+  );
+
+  const produceBlock = showProduce ? (
+    <FruitsVeggiesSection
+      className={t.homeBlockGap}
+      fruits={fruits}
+      vegetables={vegetables}
+    />
+  ) : null;
+
+  const categoryRailsBlock =
+    categoryRails && categoryRails.length > 0 ? (
+      <CategoryProductRails
+        rails={categoryRails}
+        className={t.homeBlockGap}
+      />
+    ) : null;
 
   const onRefresh = useCallback(async () => {
     await refreshStorefrontCatalog();
@@ -146,53 +166,21 @@ export function HomePullContent({
           </div>
         ) : null}
 
-        <ProductSection
-          productsBySlug={productsBySlug}
-          categoryNames={categoryNames}
-        />
-        {showProduce ? (
-          <FruitsVeggiesSection
-            className={t.homeBlockGap}
-            fruits={fruits}
-            vegetables={vegetables}
-          />
-        ) : null}
-        {categoryRails && categoryRails.length > 0 ? (
-          <CategoryProductRails
-            rails={categoryRails}
-            className={t.homeBlockGap}
-          />
-        ) : null}
-
-        {orderedShelves.map((shelf) => {
-          if (shelf.products.length === 0) return null;
-          if (isDairySectionTitle(shelf.title)) {
-            return (
-              <DailyDairySection
-                key={shelf.id}
-                className={t.homeBlockGap}
-                layout="on-art"
-                shelf={shelf}
-                browseHref="/dairy"
-              />
-            );
-          }
-          if (isFestiveSectionTitle(shelf.title)) {
-            return (
-              <FestiveOffersSection
-                key={shelf.id}
-                className={t.homeBlockGap}
-                shelf={shelf}
-                seeAllHref="/festive"
-              />
-            );
-          }
-          return (
-            <div key={shelf.id} className={t.homeBlockGap}>
-              <HomeProductShelf shelf={shelf} products={shelf.products} />
-            </div>
-          );
-        })}
+        {layout === "canonical" ? (
+          <>
+            {allStrip}
+            {adminBlock}
+            {produceBlock}
+            {categoryRailsBlock}
+          </>
+        ) : (
+          <>
+            {allStrip}
+            {produceBlock}
+            {categoryRailsBlock}
+            {adminBlock}
+          </>
+        )}
 
         {shelves ? (
           <HomeFavouritesShelf className={t.homeBlockGap} live />

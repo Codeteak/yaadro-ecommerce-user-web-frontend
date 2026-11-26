@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-26 — Home admin sort wired to ecom
+
+Live `/home` (`HomeCatalogBody` → `HomePullContent`): pills → All → admin `sort_order` (from `shop_home_sections`, enabled + in window + has products) → produce → category rails last. “Daily Diary” → art card. Playground `/playground/home-section-sort` matches.
+
+## 2026-11-26 — Home admin section sort under category pills
+
+Earlier pass put admin shelves immediately under pills; refined so All strip stays under the rail and category rails stay after produce.
+
 ## 2026-11-26 — Home scroll after categories (VT + lock)
 
 Shell fill overflow is driven by pathname (`data-storefront-fill-route`), not `:has([data-storefront-fill])`, so a View Transition exit of `/categories` cannot leave `/home` with `overflow: hidden`. `BodyScrollUnlockOnNavigate` force-clears on route change plus rAF / 400ms follow-up. Playground deferred-location / PWA notes updated.

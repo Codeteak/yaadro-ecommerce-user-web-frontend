@@ -503,6 +503,23 @@ import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 </HomeCategoryProvider>`,
     ["src/components/home/HomePullContent.tsx"],
   ),
+  "home-section-sort": U(
+    `import { HomeSectionSortDemo } from "@/components/playground/HomeSectionSortDemo";
+import { HomeAdminShelves } from "@/components/home/HomeAdminShelves";
+import { HomePullContent } from "@/components/home/HomePullContent";
+
+// Wired /home: pills → All → admin sort_order → produce → category rails last
+<HomeSectionSortDemo />`,
+    [
+      "src/components/playground/HomeSectionSortDemo.tsx",
+      "src/components/home/HomeAdminShelves.tsx",
+      "src/components/home/HomePullContent.tsx",
+      "src/app/(storefront)/home/page.tsx",
+      "src/lib/home-section-order.ts",
+      "src/lib/daily-dairy-title.ts",
+      "src/lib/api/storefront.ts",
+    ],
+  ),
   "brand-footer": U(
     `import { BrandFooter } from "@/components/storefront/BrandFooter";
 

@@ -3,6 +3,9 @@ import {
   type SampleProduct,
 } from "@/lib/sample-products";
 import { homeCategoryImage } from "@/lib/home-categories";
+import { isDairySectionTitle } from "@/lib/daily-dairy-title";
+
+export { isDairySectionTitle } from "@/lib/daily-dairy-title";
 
 /**
  * Daily dairy helpers.
@@ -35,13 +38,6 @@ export type DairyShelf = {
   categories?: DairyCategory[];
   products: SampleProduct[];
 };
-
-/** Title keywords that mark a home shelf as dairy (case-insensitive). */
-const DAIRY_TITLE_RE = /\b(dairy|daily\s*dairy|milk\s*(&|and)?\s*eggs?)\b/i;
-
-export function isDairySectionTitle(title: string): boolean {
-  return DAIRY_TITLE_RE.test(title.trim());
-}
 
 export function pickDairyShelf(
   shelves:

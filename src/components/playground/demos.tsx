@@ -125,6 +125,7 @@ import { PhaseDPriceVaryExplainDemo } from "@/components/playground/PhaseDPriceV
 import { OrderBillCouponFixDemo } from "@/components/playground/OrderBillCouponFixDemo";
 import { ProfileOptionsRefineDemo } from "@/components/playground/ProfileOptionsRefineDemo";
 import { DeliveryRadiusMapDemo } from "@/components/playground/DeliveryRadiusMapDemo";
+import { HomeSectionSortDemo } from "@/components/playground/HomeSectionSortDemo";
 import {
   SHOP_FALLBACK_AVATAR_OPTIONS,
   SHOP_IMAGE_FALLBACK_CURRENT,
@@ -1062,6 +1063,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </HomeCategoryProvider>
     </DemoFrame>
   ),
+  "home-section-sort": () => <HomeSectionSortDemo />,
   "brand-footer": () => (
     <DemoFrame note="Muted D + yaadro wordmark — same as /home and /profile scroll end.">
       <div className="bg-paper px-5">
