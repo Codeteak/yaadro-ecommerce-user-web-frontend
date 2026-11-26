@@ -30,19 +30,11 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
-      # Production path matches Dockerfile / CodePipeline (`next start` on EC2).
+      # Production path matches Dockerfile / CodePipeline (`next start` / standalone).
+      # Static Pages export is not part of the default check — use
+      # `npm run build:static` / pages:deploy when needed (was a second full build).
       - name: Build Next.js server bundle
         run: npm run build
         env:
           NODE_ENV: production
           NEXT_STATIC_EXPORT: "false"
-      # Cloudflare Pages path (`out/`). Optional until all dynamic routes export cleanly.
-      - name: Build static export (Cloudflare Pages)
-        continue-on-error: true
-        run: npm run build:static
-        env:
-          NODE_ENV: production
-          NEXT_STATIC_EXPORT: "true"
-      - name: Check static export output
-        continue-on-error: true
-        run: test -f out/index.html
