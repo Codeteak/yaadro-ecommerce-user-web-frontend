@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-26 — Favicon / PWA icons: shop logo only
+
+Root `generateMetadata` icons and `manifest.ts` use `shop.image` only (shop_image / SEO og.image; else yellow awning fallback). Removed secondary Yaadro `/icons/icon-192.png`, `apple-touch-icon.png`, and `icon-512.png` links. Client shop resolve bootstrap uses `SHOP_IMAGE_FALLBACK` instead of icon-192. Service worker cache bumped to v3; dropped Yaadro icon from precache.
+
 ## 2026-11-26 — Delivery radius styles wired to ecom
 
 Shared `DELIVERY_RADIUS_MAP_STYLE`: darker fill (~0.26 / 0.22) + thin light dotted ring. Live `AddressLocationMap` and playground `/playground/address-map` both use it.

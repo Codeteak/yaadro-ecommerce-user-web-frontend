@@ -1,7 +1,8 @@
 /* Yaadro storefront service worker — offline shell + runtime cache. */
 /* Bump CACHE when fetch strategy changes so phones drop stale empty shells. */
-const CACHE = "yaadro-storefront-v2";
-const PRECACHE = ["/manifest.webmanifest", "/icons/icon-192.png"];
+const CACHE = "yaadro-storefront-v3";
+/* Favicon/manifest icons come from shop.image at request time — do not precache Yaadro icons. */
+const PRECACHE = ["/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
