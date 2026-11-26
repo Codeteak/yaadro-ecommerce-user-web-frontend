@@ -103,12 +103,11 @@ aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AW
 export ECR_IMAGE_URI
 export APP_PORT
 
-# Keep the live container up while we free unused disk and pull the new image.
-# `image prune -af` only removes images not used by a running container.
-echo "[application_start] Clearing unused Docker artifacts (live container kept up)..."
+# Keep the live container up while we pull. Do NOT prune builder/image cache
+# before pull — that forced cold extracts on t4g.micro and stretched deploy
+# toward the ApplicationStart timeout.
+echo "[application_start] Clearing stopped containers only (live site kept up)..."
 docker container prune -f || true
-docker image prune -af || true
-docker builder prune -af || true
 
 # Drop leftover host junk from prior bundles (keep deploy scripts + compose + image-detail).
 echo "[application_start] Clearing stale host artifacts under ${APP_DIR}..."
@@ -127,9 +126,8 @@ compose pull
 echo "[application_start] Switching to new container..."
 compose up -d --force-recreate --remove-orphans
 
-# Old image is unused now — reclaim disk for the next deploy.
-echo "[application_start] Pruning images left unused after cutover..."
-docker image prune -af || true
-docker system prune -f || true
+# After cutover, drop dangling images only (keep useful layers for next pull).
+echo "[application_start] Pruning dangling images after cutover..."
+docker image prune -f || true
 
 echo "[application_start] customer-web deployment complete."

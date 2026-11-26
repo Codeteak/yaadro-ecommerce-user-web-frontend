@@ -16,8 +16,10 @@ function shopApiOrigin(): string {
 }
 
 const nextConfig: NextConfig = {
-  // Static export is opt-in (Cloudflare Pages). EC2/Docker uses `next start`.
-  ...(useStaticExport ? { output: "export" as const } : {}),
+  // Static export is opt-in (Cloudflare Pages). EC2/Docker uses standalone.
+  ...(useStaticExport
+    ? { output: "export" as const }
+    : { output: "standalone" as const }),
   // Trailing slashes help Cloudflare Pages (`/cart/index.html`).
   trailingSlash: useStaticExport,
   skipTrailingSlashRedirect: true,
