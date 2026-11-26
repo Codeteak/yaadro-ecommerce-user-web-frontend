@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-26 — CodeDeploy stop + health aligned with ALB `/api/health`
+
+`application_stop.sh` exports a placeholder `ECR_IMAGE_URI` so `compose down` can parse compose without Start’s image env; falls back to `docker stop/rm customer-web`. Docker healthcheck now matches the ALB target group: **`/api/health` only** (no `/api/warm` gate — warm 503 without `STOREFRONT_WARM_SHOP_ID(S)` was marking the app unhealthy). Infra default `health_check_path` → `/api/health`.
+
 ## 2026-11-26 — Prerender: keep URL hooks under Suspense
 
 `usePathname` / `useSearchParams` in the playground shell and coupons page sit under `<Suspense>`. `BodyScrollUnlockOnNavigate` does too, inside the storefront chrome, so `/categories/[slug]` can prerender. Pre-commit runs `npm run build` after lint and tests.
