@@ -11,7 +11,12 @@ export const metadata: Metadata = {
 
 export default async function FestiveOffersPage() {
   const shopId = await getRequestShopId();
-  const shelves = await listHomeShelves(shopId);
+  let shelves: Awaited<ReturnType<typeof listHomeShelves>> = [];
+  try {
+    shelves = await listHomeShelves(shopId);
+  } catch {
+    shelves = [];
+  }
   const shelf = pickFestiveShelf(shelves);
 
   return <FestiveOffersPageContent shelf={shelf} backHref="/home" />;

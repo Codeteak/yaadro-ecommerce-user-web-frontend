@@ -988,7 +988,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "home-more-sections": () => (
     <DemoFrame
       surface="bare"
-      note="Live /home batches per-root categoryId fetches (HOME_ROOT_FETCH_CONCURRENCY) so the DB pool is not stampeded. Failures surface as catalog error — not “Nothing in this aisle yet.” /api/warm calls loadHomeCatalog."
+      note="Live /home: one browse page for All + bucketed rails; soft PLP-fill only for empty roots (capped). Timeouts surface as catalog error for every shop — not a fake empty aisle. /api/warm → loadHomeCatalog."
     >
       <PhaseBHomeSectionsDemo />
     </DemoFrame>
@@ -1006,7 +1006,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "home-pull-content": () => (
-    <DemoFrame note="Same as /home body. Live productsBySlug comes from batched per-root PLP queries; catalogError shows when the load fails.">
+    <DemoFrame note="Same as /home body. Live All comes from one browse page; rails from bucket + soft PLP fill; catalogError when load fails.">
       <HomeCategoryProvider>
         <HomePullContent />
       </HomeCategoryProvider>

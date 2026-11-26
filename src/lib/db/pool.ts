@@ -24,6 +24,14 @@ function needsSsl(connectionString: string): boolean {
   }
 }
 
+function envInt(name: string, fallback: number, min: number, max: number): number {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(parsed)));
+}
+
 function getPool(): Pool {
   const raw = process.env.DATABASE_URL?.trim() ?? "";
   if (!raw) throw new Error("DATABASE_URL is not set.");
@@ -32,10 +40,15 @@ function getPool(): Pool {
     const rejectUnauthorized = process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "true";
     pool = new Pool({
       connectionString,
-      max: 5,
+      // Multi-shop `/home` needs headroom; override with STOREFRONT_DB_POOL_MAX.
+      max: envInt("STOREFRONT_DB_POOL_MAX", 10, 2, 30),
       idleTimeoutMillis: 10_000,
-      // Fail fast on unreachable/SSL-stuck DB (was 8s — dominated cold /home).
-      connectionTimeoutMillis: 2_500,
+      connectionTimeoutMillis: envInt(
+        "STOREFRONT_DB_CONNECT_TIMEOUT_MS",
+        5_000,
+        1_000,
+        15_000,
+      ),
       ssl: needsSsl(connectionString) ? { rejectUnauthorized } : undefined,
     });
   }

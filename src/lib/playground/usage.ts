@@ -240,7 +240,7 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
 import { categoryProductRails } from "@/lib/home-category-rails";
 import { PhaseBHomeSectionsDemo } from "@/components/playground/PhaseBHomeSectionsDemo";
 
-// Live /home: batched per-root categoryId fetches (match PLP, pool-safe)
+// Live /home: browse seed + bucket rails + soft PLP fill (all shops)
 // categoryProductRails(catalog.categories, catalog.productsBySlug)
 // /api/warm → loadHomeCatalog (same cache keys)
 <CategoryProductRails rails={rails} />
@@ -251,8 +251,10 @@ import { PhaseBHomeSectionsDemo } from "@/components/playground/PhaseBHomeSectio
       "src/components/playground/PhaseBHomeSectionsDemo.tsx",
       "src/components/home/CategoryProductRails.tsx",
       "src/lib/home-category-rails.ts",
+      "src/lib/home-catalog-bucket.ts",
       "src/lib/catalog-browse.ts",
       "src/lib/map-pool.ts",
+      "src/lib/db/pool.ts",
       "src/app/api/warm/route.ts",
       "src/components/home/HomePullContent.tsx",
       "src/components/home/HomeProductShelves.tsx",

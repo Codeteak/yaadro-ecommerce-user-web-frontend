@@ -178,7 +178,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Home stack with per-category rails. Live loadHomeCatalog batches per-root categoryId fetches (pool-safe); DB failures show catalog error, not a fake empty aisle. /api/warm uses the same path.",
+      "Home stack with per-category rails. Live loadHomeCatalog seeds All from one browse page, buckets rails, soft PLP-fills a few empty roots; DB failures show catalog error (all shops).",
     wiresTo:
       "loadHomeCatalog → categoryProductRails → HomePullContent on /home",
   },

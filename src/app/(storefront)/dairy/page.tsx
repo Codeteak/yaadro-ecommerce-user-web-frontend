@@ -11,7 +11,12 @@ export const metadata: Metadata = {
 
 export default async function DailyDairyPage() {
   const shopId = await getRequestShopId();
-  const shelves = await listHomeShelves(shopId);
+  let shelves: Awaited<ReturnType<typeof listHomeShelves>> = [];
+  try {
+    shelves = await listHomeShelves(shopId);
+  } catch {
+    shelves = [];
+  }
   const shelf = pickDairyShelf(shelves);
 
   return <DailyDairyPageContent shelf={shelf} backHref="/home" />;
