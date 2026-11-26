@@ -4,6 +4,7 @@ import {
   CATALOG_BROWSE_PAGE_SIZE,
   CATALOG_SEARCH_MAX_PAGES,
   HOME_ROOT_FETCH_CONCURRENCY,
+  HOME_ROOT_PLP_FILL_MAX,
 } from "@/lib/catalog-browse";
 import { publicGet } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
@@ -18,6 +19,7 @@ import {
 import { catalogCacheTag, defaultShopId, requireShopId } from "@/lib/db/shop-id";
 import { mapCatalogProduct } from "@/lib/catalog-map";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
+import { bucketProductsByRootSlug } from "@/lib/home-catalog-bucket";
 import { mapPool } from "@/lib/map-pool";
 import { SHOP_IMAGE_FALLBACK } from "@/lib/shop-fallback-avatars";
 import type { SampleProduct } from "@/lib/sample-products";
@@ -180,6 +182,10 @@ function fromDbProduct(row: DbProduct): SampleProduct | null {
   });
 }
 
+function catalogDbConfigured(): boolean {
+  return Boolean(process.env.DATABASE_URL?.trim());
+}
+
 export async function listStoreCategories(shopId: string): Promise<StoreCategory[]> {
   "use cache";
   const id = requireShopId(shopId);
@@ -191,9 +197,11 @@ export async function listStoreCategories(shopId: string): Promise<StoreCategory
       .map(mapCategory)
       .filter((row): row is StoreCategory => Boolean(row))
       .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
-  } catch {
-    // Build/CI may lack DATABASE_URL or network — empty shell, refill at runtime.
-    return [];
+  } catch (error) {
+    // CI/prerender without DATABASE_URL — empty shell. Production must throw so
+    // timeouts are not cached as “no categories” for every shop.
+    if (!catalogDbConfigured()) return [];
+    throw error;
   }
 }
 
@@ -283,20 +291,25 @@ export async function listStoreProducts(
     Math.max(options?.pageSize ?? CATALOG_BROWSE_PAGE_SIZE, 1),
     100,
   );
-  const groups: ProductGroup[] = [];
-  let cursor: string | null = null;
-  for (let page = 0; page < maxPages; page += 1) {
-    const batch = await fetchProductGroups(id, {
-      categoryId: options?.categoryId,
-      search: options?.search,
-      cursor,
-      pageSize,
-    });
-    groups.push(...batch.groups);
-    cursor = batch.nextCursor;
-    if (!cursor) break;
+  try {
+    const groups: ProductGroup[] = [];
+    let cursor: string | null = null;
+    for (let page = 0; page < maxPages; page += 1) {
+      const batch = await fetchProductGroups(id, {
+        categoryId: options?.categoryId,
+        search: options?.search,
+        cursor,
+        pageSize,
+      });
+      groups.push(...batch.groups);
+      cursor = batch.nextCursor;
+      if (!cursor) break;
+    }
+    return groups;
+  } catch (error) {
+    if (!catalogDbConfigured()) return [];
+    throw error;
   }
-  return groups;
 }
 
 export async function getStoreProduct(
@@ -342,8 +355,9 @@ export async function listHomeShelves(shopId: string): Promise<StoreShelf[]> {
       shelves.push({ id: row.id, title: row.title, products });
     }
     return shelves;
-  } catch {
-    return [];
+  } catch (error) {
+    if (!catalogDbConfigured()) return [];
+    throw error;
   }
 }
 
@@ -460,7 +474,7 @@ const EMPTY_HOME: HomeCatalog = {
 
 /**
  * Products for one root aisle — same `categoryId` (+ descendants) query as
- * `loadCategoryListing` / `/categories/[slug]`, so home rails match Show all.
+ * `loadCategoryListing` / `/categories/[slug]`.
  */
 async function productsForRootCategory(
   shopId: string,
@@ -481,38 +495,82 @@ async function productsForRootCategory(
   );
 }
 
+function flattenBrowseGroups(
+  groups: Awaited<ReturnType<typeof listStoreProducts>>,
+): SampleProduct[] {
+  const products: SampleProduct[] = [];
+  const seen = new Set<string>();
+  for (const group of groups) {
+    for (const product of group.products) {
+      if (seen.has(product.id)) continue;
+      seen.add(product.id);
+      products.push({
+        ...product,
+        category: group.category?.name ?? product.category,
+        categoryId: group.category?.id ?? product.categoryId,
+        categorySlug: group.category?.slug ?? product.categorySlug,
+      });
+    }
+  }
+  return products;
+}
+
+/**
+ * Home catalog for every shop:
+ * 1. One uncategoized browse page → All tab (fast, pool-friendly)
+ * 2. Bucket browse into root rails
+ * 3. Soft PLP-fill a few empty roots (failures stay empty; aisle tap lazy-loads)
+ * Categories / browse failures → catalog error (never a fake empty aisle).
+ */
 export async function loadHomeCatalog(shopId: string): Promise<HomeCatalog> {
   try {
     const id = requireShopId(shopId);
-    // Categories are already sellable-only (in-stock products in tree).
-    const [categories, shelves] = await Promise.all([
+
+    const [categories, browseGroups, shelves] = await Promise.all([
       listStoreCategories(id),
-      listHomeShelves(id),
+      listStoreProducts(id, {
+        maxPages: CATALOG_BROWSE_MAX_PAGES,
+        pageSize: CATALOG_BROWSE_PAGE_SIZE,
+      }),
+      listHomeShelves(id).catch(() => [] as StoreShelf[]),
     ]);
+
     const roots = categories.filter(
       (category) => !category.parentId && category.slug !== "all",
     );
+    const products = flattenBrowseGroups(browseGroups);
+    const seenIds = new Set(products.map((product) => product.id));
+    const productsBySlug: Record<string, SampleProduct[]> = {
+      ...bucketProductsByRootSlug(categories, products),
+    };
 
-    // Per-root fetches (same categoryId query as PLP). Batched so we do not
-    // open one connection per aisle against the small storefront pool.
-    const perRoot = await mapPool(
-      roots,
-      HOME_ROOT_FETCH_CONCURRENCY,
-      async (root) => ({
-        root,
-        products: await productsForRootCategory(id, root),
-      }),
-    );
-
-    const productsBySlug: Record<string, SampleProduct[]> = {};
-    const products: SampleProduct[] = [];
-    const seen = new Set<string>();
-    for (const { root, products: bucket } of perRoot) {
-      productsBySlug[root.slug] = bucket;
-      for (const product of bucket) {
-        if (seen.has(product.id)) continue;
-        seen.add(product.id);
-        products.push(product);
+    // Soft PLP fill for empty rails (parity when browse sample missed an aisle).
+    const needsFill = roots
+      .filter((root) => (productsBySlug[root.slug]?.length ?? 0) === 0)
+      .slice(0, HOME_ROOT_PLP_FILL_MAX);
+    if (needsFill.length > 0) {
+      const filled = await mapPool(
+        needsFill,
+        HOME_ROOT_FETCH_CONCURRENCY,
+        async (root) => {
+          try {
+            return {
+              slug: root.slug,
+              products: await productsForRootCategory(id, root),
+            };
+          } catch {
+            return { slug: root.slug, products: [] as SampleProduct[] };
+          }
+        },
+      );
+      for (const row of filled) {
+        if (row.products.length === 0) continue;
+        productsBySlug[row.slug] = row.products;
+        for (const product of row.products) {
+          if (seenIds.has(product.id)) continue;
+          seenIds.add(product.id);
+          products.push(product);
+        }
       }
     }
 

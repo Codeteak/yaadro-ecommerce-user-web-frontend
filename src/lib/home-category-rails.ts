@@ -28,8 +28,8 @@ const DEFAULT_MAX = 10;
 /**
  * One rail per category that has products. Skips empty / excluded slugs,
  * dedupes within a row, keeps category order.
- * Live `productsBySlug` must come from category-scoped catalog loads so the
- * first `maxPerRail` cards match `/categories/[slug]` (Show all).
+ * Live `productsBySlug` is seeded from the home browse page (plus a soft
+ * PLP fill for empty roots). Show all still uses `/categories/[slug]`.
  */
 export function categoryProductRails<T extends { id: string }>(
   categories: CategoryRailCategory[],
