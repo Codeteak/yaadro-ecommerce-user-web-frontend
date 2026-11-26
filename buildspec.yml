@@ -22,6 +22,8 @@ phases:
       - IMAGE_TAG="$(echo "${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}" | cut -c1-12)"
       - aws ecr get-login-password --region "${AWS_REGION}" | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
       - echo "Building ${ECR_URI}:${IMAGE_TAG}"
+      # Warm local layer cache from the previous image (best-effort).
+      - docker pull "${ECR_URI}:latest" || true
       - |
         if [ -n "${AWS_SECRET_ID:-}" ]; then
           echo "Writing .env.production from Secrets Manager (CUSTOMER_WEB_ NEXT_PUBLIC_* / API_PROXY_TARGET)"
@@ -55,6 +57,8 @@ phases:
     commands:
       - |
         docker build \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from "${ECR_URI}:latest" \
           -t "${ECR_URI}:${IMAGE_TAG}" \
           -t "${ECR_URI}:latest" \
           .

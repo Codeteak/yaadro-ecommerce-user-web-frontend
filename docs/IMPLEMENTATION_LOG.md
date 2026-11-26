@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-26 — Pipeline speed: one CI build, standalone image, lighter deploy
+
+Cut ~30m wall time drivers vs v1/current: (1) GitHub CI drops the second `build:static` (Pages-only; use `npm run build:static` when needed); (2) pre-commit is lint+test only (no full `next build`); (3) `output: 'standalone'` + slim Dockerfile (`node server.js`, no full `node_modules`); (4) CodeBuild pulls `:latest` and builds with `--cache-from` + BuildKit npm cache mount; (5) ApplicationStart no longer `builder prune -af` / `image prune -af` before pull. v1 CI only built static export once and Start did a simple pull/up without aggressive prune — this restores that leaner path while keeping the EC2 server build.
+
 ## 2026-11-26 — CodeDeploy stop + health aligned with ALB `/api/health`
 
 `application_stop.sh` exports a placeholder `ECR_IMAGE_URI` so `compose down` can parse compose without Start’s image env; falls back to `docker stop/rm customer-web`. Docker healthcheck now matches the ALB target group: **`/api/health` only** (no `/api/warm` gate — warm 503 without `STOREFRONT_WARM_SHOP_ID(S)` was marking the app unhealthy). Infra default `health_check_path` → `/api/health`.
