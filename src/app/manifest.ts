@@ -3,6 +3,7 @@ import { getShopSeo } from "@/lib/shop-seo";
 
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const shop = await getShopSeo();
+  const icon = shop.image;
 
   return {
     name: shop.name,
@@ -16,25 +17,25 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     theme_color: "#5cb85c",
     icons: [
       {
-        src: shop.image || "/icons/icon-192.png",
+        src: icon,
         sizes: "192x192",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icons/icon-192.png",
+        src: icon,
         sizes: "192x192",
         type: "image/png",
         purpose: "maskable",
       },
       {
-        src: shop.image || "/icons/icon-512.png",
+        src: icon,
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icons/icon-512.png",
+        src: icon,
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

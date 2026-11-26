@@ -6,6 +6,7 @@ import {
   cacheResolvedShop,
   type CachedShopBanners,
 } from "@/lib/resolved-shop";
+import { SHOP_IMAGE_FALLBACK } from "@/lib/shop-fallback-avatars";
 
 function isLocalHost(host: string): boolean {
   const h = host.toLowerCase();
@@ -91,7 +92,7 @@ export function ShopResolveBootstrap() {
         const og = asRecord(seo?.og);
         const image =
           pickString(row.shop_image, row.shopImage, og?.image) ??
-          "/icons/icon-192.png";
+          SHOP_IMAGE_FALLBACK;
         const bannerEnabled = row.banner_enabled !== false && row.bannerEnabled !== false;
         const banners = bannerEnabled
           ? mapBanners(row.banner_images ?? row.bannerImages)

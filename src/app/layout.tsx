@@ -36,21 +36,9 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description: shop.description,
     icons: {
-      // Prefer shop branding image when the SEO payload provides one.
-      icon: [
-        {
-          url: shop.image || "/icons/icon-192.png",
-          type: "image/png",
-        },
-        { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      ],
-      apple: [
-        {
-          url: shop.image || "/icons/apple-touch-icon.png",
-          type: "image/png",
-        },
-        { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-      ],
+      // Shop logo only (from shop_image / SEO og.image). No Yaadro static icons.
+      icon: [{ url: shop.image, type: "image/png" }],
+      apple: [{ url: shop.image, type: "image/png" }],
     },
     openGraph: {
       type: "website",
