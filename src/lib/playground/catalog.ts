@@ -224,8 +224,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Style 2 pills (tileVariant=pill) — same as /home under banners. All first; same select/scroll logic.",
-    wiresTo: "/home under banners",
+      "Pill rail on /home and categories. Tap selects only — horizontal scroll does not change the active pill.",
+    wiresTo: "/home + /categories (+ /categories/[slug])",
   },
   {
     slug: "offer-banners",

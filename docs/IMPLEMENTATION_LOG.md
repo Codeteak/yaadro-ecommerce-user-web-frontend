@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-26 — Category rail: click-only select
+
+`CategoryRail` (home + categories horizontal pills): selection updates only on tap. Horizontal scroll no longer changes the active category. Playground `category-rail` note updated.
+
 ## 2026-11-26 — Home admin sort wired to ecom
 
 Live `/home` (`HomeCatalogBody` → `HomePullContent`): pills → All → admin `sort_order` (from `shop_home_sections`, enabled + in window + has products) → produce → category rails last. “Daily Diary” → art card. Playground `/playground/home-section-sort` matches.

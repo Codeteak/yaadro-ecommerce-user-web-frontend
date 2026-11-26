@@ -341,7 +341,7 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
     `import { CategoryRail } from "@/components/home/CategoryRail";
 import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 
-// Same as /home under banners
+// Tap selects; scroll only pans the pills (home + categories)
 <HomeCategoryProvider>
   <CategoryRail tileVariant="pill" />
 </HomeCategoryProvider>`,

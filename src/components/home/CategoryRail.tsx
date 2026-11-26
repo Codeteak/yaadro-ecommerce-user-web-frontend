@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { CategoryCard } from "@/components/categories/CategoryCard";
 import { useHomeCategoryOptional } from "@/components/home/HomeCategoryContext";
 import { ALL_CATEGORY_SLUG, HOME_CATEGORIES } from "@/lib/home-categories";
@@ -44,7 +44,8 @@ type CategoryRailProps = {
 
 /**
  * Flat category strip. All is first and selected on open.
- * The tile at the front is highlighted; scrolling or tapping updates it.
+ * Selection changes only on tap/click — horizontal scroll does not change it.
+ * Used on /home and categories (horizontal pill rail).
  */
 export function CategoryRail({
   categories = SAMPLE_RAIL,
@@ -63,9 +64,6 @@ export function CategoryRail({
     ? onSelect
     : (homeCategory?.setSelected ?? setLocalSelected);
   const railRef = useRef<HTMLDivElement>(null);
-  const selectedRef = useRef(selected);
-  const setSelectedRef = useRef(setSelected);
-  const lockRef = useRef<string | null>(null);
   const items = useMemo(
     () => [
       { name: "All", slug: ALL_CATEGORY_SLUG, image: "" },
@@ -74,14 +72,7 @@ export function CategoryRail({
     [categories],
   );
 
-  useEffect(() => {
-    selectedRef.current = selected;
-    setSelectedRef.current = setSelected;
-  }, [selected, setSelected]);
-
   const choose = (slug: string) => {
-    lockRef.current = slug;
-    selectedRef.current = slug;
     setSelected(slug);
     const rail = railRef.current;
     const item = rail?.querySelector<HTMLElement>(
@@ -94,57 +85,13 @@ export function CategoryRail({
     });
   };
 
-  useEffect(() => {
-    const rail = railRef.current;
-    if (!rail) return;
-
-    let raf = 0;
-    const update = () => {
-      const origin = rail.scrollLeft + insetOf(rail);
-      let nearest: string | null = null;
-      let nearestDistance = Infinity;
-      rail.querySelectorAll<HTMLElement>("[data-slug]").forEach((item) => {
-        const distance = Math.abs(item.offsetLeft - origin);
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nearest = item.dataset.slug ?? null;
-        }
-      });
-      if (lockRef.current) {
-        if (nearest === lockRef.current) lockRef.current = null;
-        return;
-      }
-      if (!nearest || nearest === selectedRef.current) return;
-      selectedRef.current = nearest;
-      setSelectedRef.current(nearest);
-    };
-
-    const onScroll = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(update);
-    };
-    const unlock = () => {
-      lockRef.current = null;
-    };
-
-    update();
-    rail.addEventListener("scroll", onScroll, { passive: true });
-    rail.addEventListener("pointerdown", unlock);
-    return () => {
-      cancelAnimationFrame(raf);
-      rail.removeEventListener("scroll", onScroll);
-      rail.removeEventListener("pointerdown", unlock);
-    };
-  }, [items]);
-
   if (items.length === 0) return null;
 
   return (
     <div
       ref={railRef}
-      className="relative overflow-x-auto scroll-smooth overscroll-x-contain snap-x snap-proximity scroll-px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="relative overflow-x-auto scroll-smooth overscroll-x-contain scroll-px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      {/* px-5 + scroll-px-5 keep All off the wall when snap-start fires */}
       <div
         className={cn(
           "flex w-max px-5 py-3",

@@ -764,7 +764,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "category-rail": () => (
     <DemoFrame
       surface="bare"
-      note="Same as /home: Style 2 pills on paper (no DemoFrame card shell). All first; scroll + tap select unchanged."
+      note="Same as /home + categories: tap a pill to select; horizontal scroll only pans — selection does not follow scroll."
     >
       <HomeCategoryProvider>
         <div className="pt-6 pb-4">
