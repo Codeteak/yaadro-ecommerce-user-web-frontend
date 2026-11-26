@@ -621,7 +621,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "deferred-location": () => (
-    <DemoFrame note="Wired `/home`: soft map prompt locks body scroll while open; close / change playground route unlocks. Confirm pin runs the shop radius preview — outside area toasts and paints Deliver to red.">
+    <DemoFrame note="Wired `/home`: soft map prompt locks body scroll while open. Close, route change, tab focus/visibility, or PWA install reconciles leaked locks so scroll never needs a refresh. Confirm pin runs radius preview.">
       <div className="relative min-h-[28rem] bg-gradient-to-b from-mint to-paper px-4 pt-6 pb-10">
         <HomeTopBar
           shopName="Green Basket"
@@ -637,7 +637,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "pwa-install-prompt": () => (
-    <DemoFrame note="Live: only on `/home`. Hidden while location sheet holds scroll lock. Close (X) hides for this browser session.">
+    <DemoFrame note="Live: only on `/home`. Dismiss / appinstalled force-clears scroll; shell also reconciles orphans on tab focus/visibility so install never leaves /home hung.">
       <div className="relative min-h-[28rem] bg-gradient-to-b from-mint to-paper px-4 pt-6 pb-10">
         <HomeTopBar
           shopName="Green Basket"

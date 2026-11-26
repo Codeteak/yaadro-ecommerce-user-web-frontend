@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { Download, X } from "lucide-react";
 import { showPopup } from "@/components/ui/Toast";
 import {
+  forceClearBodyScrollLock,
   getScrollLockServerSnapshot,
   isScrollLocked,
   subscribeScrollLock,
@@ -48,7 +49,8 @@ type InstallPromptProps = {
  * browser session; closing the tab/browser lets it show again next visit.
  *
  * Hidden while any sheet holds the body scroll lock so it never covers
- * the location popup or leaves the page feeling stuck.
+ * the location popup. Dismiss / `appinstalled` force-clears a leaked lock
+ * (install stays on `/home`, so route-change unlock alone is not enough).
  */
 export function InstallPrompt(props: InstallPromptProps) {
   return (
@@ -85,6 +87,7 @@ function InstallPromptInner({ forcePreview = false }: InstallPromptProps) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onInstalled = () => {
+      forceClearBodyScrollLock();
       showPopup("Shop installed on your home screen.", "success");
       markDismissedThisSession();
       setUserDismissed(true);
@@ -104,6 +107,7 @@ function InstallPromptInner({ forcePreview = false }: InstallPromptProps) {
   }
 
   const dismiss = () => {
+    forceClearBodyScrollLock();
     markDismissedThisSession();
     setUserDismissed(true);
   };

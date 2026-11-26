@@ -85,10 +85,13 @@ import { useScrollDirection } from "@/components/navigation/useScrollDirection";
 
 // Wired on /home — Detect/confirm pin saves, runs radius preview, closes
 <DeferredLocationPrompt />
-// Playground: <DeferredLocationPrompt forcePreview delayMs={900} />`,
+// Playground: <DeferredLocationPrompt forcePreview delayMs={900} />
+// Leaked locks: BodyScrollUnlockOnNavigate + reconcileBodyScrollLock`,
     [
       "src/components/delivery/DeferredLocationPrompt.tsx",
       "src/components/delivery/AddressBookSheet.tsx",
+      "src/components/navigation/BodyScrollUnlockOnNavigate.tsx",
+      "src/lib/use-body-scroll-lock.ts",
       "src/lib/delivery-address.ts",
       "src/lib/refresh-delivery-serviceable.ts",
       "src/lib/db/location.ts",
@@ -99,10 +102,14 @@ import { useScrollDirection } from "@/components/navigation/useScrollDirection";
     `import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 
 // Live: AppProviders mounts <InstallPrompt /> — opens only on /home
+// Dismiss / appinstalled → forceClearBodyScrollLock (no route change)
+// Shell also reconciles on focus / visibility / pageshow
 // Dismiss → sessionStorage (clears when browser session ends)
 // Playground: <InstallPrompt forcePreview />`,
     [
       "src/components/pwa/InstallPrompt.tsx",
+      "src/lib/use-body-scroll-lock.ts",
+      "src/components/navigation/BodyScrollUnlockOnNavigate.tsx",
       "src/components/providers/AppProviders.tsx",
     ],
   ),

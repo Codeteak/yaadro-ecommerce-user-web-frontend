@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-26 — Body scroll never stuck (reconcile orphans)
+
+`reconcileBodyScrollLock` clears leaked locks when the counter is up but no dialog remains, or overflow is hidden with count 0. `BodyScrollUnlockOnNavigate` runs it on `pageshow`, `visibilitychange`→visible, and `window` focus (plus route change force-clear). PWA install still force-clears. Playground deferred-location / PWA notes updated.
+
+## 2026-11-26 — PWA install clears leaked body scroll
+
+After Add to Home Screen, shoppers could stay on `/home` with `overflow: hidden` (no route change for `BodyScrollUnlockOnNavigate`). `InstallPrompt` now calls `forceClearBodyScrollLock` on dismiss and `appinstalled`. Playground PWA note updated.
+
 ## 2026-11-26 — ApplicationStop: bounded stop (permanent fix for ScriptTimedOut)
 
 `d-O9GYOYOVL` failed with **ScriptTimedOut** (~300s) on unbounded `docker compose down` (not ECR exit-code). Last-good (`3211797`) and `main` stop scripts had the same hang risk; `v1` had **no** ApplicationStop and tore down inside Start. Stop now: hard-capped `compose down` (`timeout 60` + `-t 20`), then bounded `docker stop -t 10` / `rm -f`, always `exit 0`. appspec ApplicationStop timeout **300 → 120**. Cutover remains in ApplicationStart (`up --force-recreate`). Host script should be updated once (SSM) or use `ignoreApplicationStopFailures` until this revision succeeds once.

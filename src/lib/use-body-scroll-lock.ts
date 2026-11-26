@@ -10,8 +10,8 @@ import { useEffect } from "react";
  * so closing one does not unlock under the other, and we never restore a
  * previous `hidden` value (that was the stuck-scroll bug).
  *
- * Route changes / bfcache restore call `forceClearBodyScrollLock` so a leaked
- * lock cannot leave `/home` (or playground demos) unscrollable.
+ * Route changes, bfcache, tab focus, and PWA install call unlock helpers so
+ * a leaked lock cannot leave the shop unscrollable.
  */
 let openLocks = 0;
 const listeners = new Set<() => void>();
@@ -30,6 +30,13 @@ function applyLockedStyles() {
   if (typeof document === "undefined") return;
   document.documentElement.style.overflow = "hidden";
   document.body.style.overflow = "hidden";
+}
+
+function hasOpenModalInDom(): boolean {
+  if (typeof document === "undefined") return false;
+  return Boolean(
+    document.querySelector('[aria-modal="true"], dialog[open], [role="dialog"]'),
+  );
 }
 
 /** Subscribe to lock open/closed (for install prompt, etc.). */
@@ -59,6 +66,27 @@ export function forceClearBodyScrollLock() {
   openLocks = 0;
   applyUnlockedStyles();
   if (wasLocked) notify();
+}
+
+/**
+ * Heal stuck scroll without nuking a sheet that is still open:
+ * - counter leaked but no dialog in the DOM → force clear
+ * - counter already 0 but overflow still hidden → clear styles only
+ */
+export function reconcileBodyScrollLock() {
+  if (typeof document === "undefined") return;
+
+  if (openLocks > 0 && !hasOpenModalInDom()) {
+    forceClearBodyScrollLock();
+    return;
+  }
+
+  if (openLocks === 0) {
+    const htmlHidden =
+      document.documentElement.style.overflow === "hidden" ||
+      document.body.style.overflow === "hidden";
+    if (htmlHidden) applyUnlockedStyles();
+  }
 }
 
 export function useBodyScrollLock(locked: boolean) {

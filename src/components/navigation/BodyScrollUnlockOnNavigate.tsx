@@ -2,11 +2,15 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { forceClearBodyScrollLock } from "@/lib/use-body-scroll-lock";
+import {
+  forceClearBodyScrollLock,
+  reconcileBodyScrollLock,
+} from "@/lib/use-body-scroll-lock";
 
 /**
- * Clears leaked body scroll locks when the route changes or the tab is
- * restored from bfcache. Storefront + playground shells mount this once.
+ * Clears leaked body scroll locks when the route changes, the tab returns
+ * from background/bfcache, or the window regains focus. Storefront +
+ * playground shells mount this once so shoppers never need a refresh to scroll.
  */
 export function BodyScrollUnlockOnNavigate() {
   const pathname = usePathname();
@@ -16,11 +20,27 @@ export function BodyScrollUnlockOnNavigate() {
   }, [pathname]);
 
   useEffect(() => {
-    const onPageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) forceClearBodyScrollLock();
+    const onPageShow = () => {
+      // Always reconcile — bfcache and normal restores both leave /home stuck.
+      reconcileBodyScrollLock();
     };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        reconcileBodyScrollLock();
+      }
+    };
+    const onFocus = () => {
+      reconcileBodyScrollLock();
+    };
+
     window.addEventListener("pageshow", onPageShow);
-    return () => window.removeEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onFocus);
+    };
   }, []);
 
   return null;

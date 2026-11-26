@@ -85,7 +85,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Wired `/home`: soft map prompt; confirm pin runs radius preview (same DB check as checkout). Outside → toast + red header. Details at place order.",
+      "Wired `/home`: soft map prompt; pin runs radius preview. Body scroll unlocks on close, route change, tab focus/visibility, and PWA install (no refresh).",
     wiresTo: "/home",
   },
   {
@@ -94,7 +94,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Install sheet only on ecom `/home`. Hidden while scroll lock held. Dismiss = sessionStorage.",
+      "Install sheet only on ecom `/home`. Dismiss / appinstalled force-clears scroll; BodyScrollUnlockOnNavigate reconciles orphans on focus/visibility.",
     wiresTo: "InstallPrompt on AppProviders → gated to /home",
   },
 
