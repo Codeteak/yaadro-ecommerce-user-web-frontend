@@ -1,44 +1,12 @@
 # Implementation Log
 
-## 2026-11-26 — Home catalog: batch root fetches, don’t cache empty on timeout
+## 2026-11-26 — Prerender: keep URL hooks under Suspense
 
-Production shops (e.g. Market Fresh) could show “Nothing in this aisle yet” after a slow `/home`: per-root `listStoreProducts({ categoryId })` opened too many parallel DB queries against `pool.max = 5`, and failures inside `"use cache"` were swallowed as `[]` (then cached). Fix: `mapPool` with `HOME_ROOT_FETCH_CONCURRENCY = 2`; `listStoreProducts` throws on DB error; `loadHomeCatalog` surfaces the catalog error card; `/api/warm` calls `loadHomeCatalog` so warm keys match home. Playground home-more-sections / home-pull notes updated.
+`usePathname` / `useSearchParams` in the playground shell and coupons page sit under `<Suspense>`. `BodyScrollUnlockOnNavigate` does too, inside the storefront chrome, so `/categories/[slug]` can prerender. Pre-commit runs `npm run build` after lint and tests.
 
-## 2026-11-25 — Home delivery radius on pin + red header
+## 2026-11-24 — Delivery tracking URL (v1 parity)
 
-Home pin confirm (`AddressBookSheet` `pinCompletes`) now runs `previewDeliveryArea` (same DB haversine / `service_area_radius_meters` as checkout) and stores `serviceable` on Deliver-to. `HomeTopBar` shows red **Outside delivery radius** when `serviceable === false`; remount also rechecks pins that lack the flag. Playground home-top-bar / deferred-location updated.
-
-## 2026-11-25 — Home category rails match category PLP
-
-`loadHomeCatalog` no longer buckets a single global browse page into roots (wrong set/order vs Show all). It loads each root with `listStoreProducts({ categoryId })` — same scoped query as `loadCategoryListing` / `/categories/[slug]`. Rails still cap at 10. Playground home-more-sections / home-pull notes updated.
-
-## 2026-11-25 — Unlock body scroll on navigate (home stuck scroll)
-
-Production shops could leave `overflow: hidden` on `/home` after the location sheet (or a leaked lock counter). Added `forceClearBodyScrollLock` + `BodyScrollUnlockOnNavigate` on storefront chrome and playground shell (pathname + bfcache `pageshow`). Playground `deferred-location` / PWA notes updated.
-
-## 2026-11-25 — Restore OrderPlacedContent after live Place Order
-
-`c603690` had switched live success to `/orders/[id]?placed=1` (banner only), so the mascot confirm page no longer appeared. Live checkout again shows `OrderPlacedContent` with shop totals from the checkout response (same card as playground).
-
-## 2026-11-25 — Keep “Order placed!” banner after query strip
-
-`OrderDetailPageContent` rendered the success banner from `justPlaced`, but an effect immediately `replace`s away `?placed=1`, so the banner vanished. It now keys off `showPlacedBanner` (sessionStorage-backed) so confirmation stays visible on `/orders/[id]`.
-
-## 2026-11-25 — Checkout scroll clears sticky Place Order
-
-Raised checkout body padding `pb-36` → `pb-56` so CartBill “You saved…” can scroll fully above the fixed footer. Playground checkout frames use `overflow-hidden` so the page’s inner scroller owns the scroll.
-
-## 2026-11-25 — Cache profile phone for refresh paint
-
-`CachedProfileUi` now stores phone with name/userId. `useMyProfile` falls back to cached phone so `/profile` no longer flashes “Add mobile number” before the API returns.
-
-## 2026-11-25 — Remove profile restyle playground gallery
-
-Dropped `profile-page-restyle` (catalog, demos, usage) and deleted `ProfilePageRestyleDemo.tsx`. Live desk style is shown via playground **Profile page** (`profile-header` → `ProfileScreen`). Awning shop fallbacks kept — still used elsewhere.
-
-## 2026-11-25 — Fix bottom-nav shiver at page bottom
-
-Root cause: scroll-hide was shrinking `--storefront-nav-clearance` (padding/height), which clamped scroll at the bottom and re-showed the nav in a loop across the storefront. Fix: clearance stays `5.5rem` on scroll-hide (pill transforms only); path-hide still zeros clearance. Kept near-bottom guard in `nav-scroll-policy` + unit tests.
+Mapped shop `deliveryTrackingUrl` / `delivery_tracking_url` onto `SampleOrder` via `pickDeliveryTrackingUrl` (http/https only). Order details: **Track delivery** (external) + **Live status** when URL present; otherwise **Track order** → in-app `/orders/[id]/track`. Delivered orders keep Review/Receipt and add outline Track delivery when URL exists. Live track page shows secondary **Open partner tracking**. `LeadAction` supports `external` links.
 
 ## 2026-11-24 — Home category product rails + scroll lock
 

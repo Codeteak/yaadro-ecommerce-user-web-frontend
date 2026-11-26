@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { CartProvider } from "@/components/cart/CartContext";
 import { PlaygroundShell } from "@/components/playground/PlaygroundShell";
 import { TypeScaleProvider } from "@/components/ui/TypeScaleContext";
@@ -26,7 +27,10 @@ export default function PlaygroundLayout({
     <CartProvider>
       <WishlistProvider>
         <TypeScaleProvider scale="spec">
-          <PlaygroundShell>{children}</PlaygroundShell>
+          {/* usePathname in the shell suspends on /playground/[slug]. */}
+          <Suspense fallback={<div className="min-h-dvh bg-paper" />}>
+            <PlaygroundShell>{children}</PlaygroundShell>
+          </Suspense>
         </TypeScaleProvider>
       </WishlistProvider>
     </CartProvider>

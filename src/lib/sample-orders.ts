@@ -87,6 +87,11 @@ export type SampleOrder = {
   rider?: SampleOrderRider;
   mapOrigin?: { lat: number; lng: number };
   mapDestination?: { lat: number; lng: number };
+  /**
+   * Partner / DMS tracking page from the shop API
+   * (`deliveryTrackingUrl` or `delivery_tracking_url`). Opens externally.
+   */
+  deliveryTrackingUrl?: string;
 };
 
 const STATUS_LABEL: Record<OrderStatus, string> = {

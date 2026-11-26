@@ -44,7 +44,6 @@ function StorefrontPathChrome() {
 export function StorefrontChrome({ children }: { children: ReactNode }) {
   return (
     <NavScrollProvider>
-      <BodyScrollUnlockOnNavigate />
       <div
         className={cn(
           "min-h-dvh transition-[padding-bottom]",
@@ -56,6 +55,7 @@ export function StorefrontChrome({ children }: { children: ReactNode }) {
       >
         {children}
         <Suspense fallback={null}>
+          <BodyScrollUnlockOnNavigate />
           <StorefrontPathChrome />
         </Suspense>
       </div>
