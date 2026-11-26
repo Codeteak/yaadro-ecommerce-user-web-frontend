@@ -3,6 +3,7 @@ import {
   CATALOG_BROWSE_MAX_PAGES,
   CATALOG_BROWSE_PAGE_SIZE,
   CATALOG_SEARCH_MAX_PAGES,
+  HOME_ROOT_FETCH_CONCURRENCY,
 } from "@/lib/catalog-browse";
 import { publicGet } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
@@ -17,6 +18,7 @@ import {
 import { catalogCacheTag, defaultShopId, requireShopId } from "@/lib/db/shop-id";
 import { mapCatalogProduct } from "@/lib/catalog-map";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
+import { mapPool } from "@/lib/map-pool";
 import { SHOP_IMAGE_FALLBACK } from "@/lib/shop-fallback-avatars";
 import type { SampleProduct } from "@/lib/sample-products";
 
@@ -255,6 +257,9 @@ async function fetchProductGroups(
 /**
  * Product pages (default 50 each), optionally scoped to a category.
  * Browse defaults match `CATALOG_BROWSE_*` so warm + home + hub share cache.
+ *
+ * Throws on DB failure — do **not** swallow into `[]` inside `"use cache"`
+ * or empty aisles get cached for minutes after a timeout.
  */
 export async function listStoreProducts(
   shopId: string,
@@ -270,32 +275,28 @@ export async function listStoreProducts(
   const id = requireShopId(shopId);
   cacheTag(catalogCacheTag(id));
   cacheLife("minutes");
-  try {
-    const maxPages = Math.min(
-      Math.max(options?.maxPages ?? CATALOG_SEARCH_MAX_PAGES, 1),
-      CATALOG_SEARCH_MAX_PAGES,
-    );
-    const pageSize = Math.min(
-      Math.max(options?.pageSize ?? CATALOG_BROWSE_PAGE_SIZE, 1),
-      100,
-    );
-    const groups: ProductGroup[] = [];
-    let cursor: string | null = null;
-    for (let page = 0; page < maxPages; page += 1) {
-      const batch = await fetchProductGroups(id, {
-        categoryId: options?.categoryId,
-        search: options?.search,
-        cursor,
-        pageSize,
-      });
-      groups.push(...batch.groups);
-      cursor = batch.nextCursor;
-      if (!cursor) break;
-    }
-    return groups;
-  } catch {
-    return [];
+  const maxPages = Math.min(
+    Math.max(options?.maxPages ?? CATALOG_SEARCH_MAX_PAGES, 1),
+    CATALOG_SEARCH_MAX_PAGES,
+  );
+  const pageSize = Math.min(
+    Math.max(options?.pageSize ?? CATALOG_BROWSE_PAGE_SIZE, 1),
+    100,
+  );
+  const groups: ProductGroup[] = [];
+  let cursor: string | null = null;
+  for (let page = 0; page < maxPages; page += 1) {
+    const batch = await fetchProductGroups(id, {
+      categoryId: options?.categoryId,
+      search: options?.search,
+      cursor,
+      pageSize,
+    });
+    groups.push(...batch.groups);
+    cursor = batch.nextCursor;
+    if (!cursor) break;
   }
+  return groups;
 }
 
 export async function getStoreProduct(
@@ -492,13 +493,15 @@ export async function loadHomeCatalog(shopId: string): Promise<HomeCatalog> {
       (category) => !category.parentId && category.slug !== "all",
     );
 
-    // Per-root fetches (parallel, cached) — not one global browse page bucketed
-    // by parent walk (that mismatched `/categories/[slug]` order/set).
-    const perRoot = await Promise.all(
-      roots.map(async (root) => ({
+    // Per-root fetches (same categoryId query as PLP). Batched so we do not
+    // open one connection per aisle against the small storefront pool.
+    const perRoot = await mapPool(
+      roots,
+      HOME_ROOT_FETCH_CONCURRENCY,
+      async (root) => ({
         root,
         products: await productsForRootCategory(id, root),
-      })),
+      }),
     );
 
     const productsBySlug: Record<string, SampleProduct[]> = {};

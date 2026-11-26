@@ -89,13 +89,17 @@ export async function loadProductPageData(id: string): Promise<ProductPageData |
   if (!result) return null;
   let related: SampleProduct[] = [];
   if (result.product.categoryId) {
-    const groups = await listStoreProducts(shopId, {
-      categoryId: result.product.categoryId,
-    });
-    related = groups
-      .flatMap((group) => group.products)
-      .filter((product) => product.id !== result.product.id)
-      .slice(0, 6);
+    try {
+      const groups = await listStoreProducts(shopId, {
+        categoryId: result.product.categoryId,
+      });
+      related = groups
+        .flatMap((group) => group.products)
+        .filter((product) => product.id !== result.product.id)
+        .slice(0, 6);
+    } catch {
+      related = [];
+    }
   }
   return { ...result, related };
 }

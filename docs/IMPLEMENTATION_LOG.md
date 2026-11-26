@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-26 — Home catalog: batch root fetches, don’t cache empty on timeout
+
+Production shops (e.g. Market Fresh) could show “Nothing in this aisle yet” after a slow `/home`: per-root `listStoreProducts({ categoryId })` opened too many parallel DB queries against `pool.max = 5`, and failures inside `"use cache"` were swallowed as `[]` (then cached). Fix: `mapPool` with `HOME_ROOT_FETCH_CONCURRENCY = 2`; `listStoreProducts` throws on DB error; `loadHomeCatalog` surfaces the catalog error card; `/api/warm` calls `loadHomeCatalog` so warm keys match home. Playground home-more-sections / home-pull notes updated.
+
 ## 2026-11-25 — Home delivery radius on pin + red header
 
 Home pin confirm (`AddressBookSheet` `pinCompletes`) now runs `previewDeliveryArea` (same DB haversine / `service_area_radius_meters` as checkout) and stores `serviceable` on Deliver-to. `HomeTopBar` shows red **Outside delivery radius** when `serviceable === false`; remount also rechecks pins that lack the flag. Playground home-top-bar / deferred-location updated.

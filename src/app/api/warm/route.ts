@@ -1,12 +1,8 @@
 import { connection, NextResponse } from "next/server";
+import { loadHomeCatalog } from "@/lib/api/storefront";
 import {
-  listHomeShelves,
-  listStoreCategories,
-  listStoreProducts,
-} from "@/lib/api/storefront";
-import {
-  CATALOG_BROWSE_MAX_PAGES,
   CATALOG_BROWSE_PAGE_SIZE,
+  HOME_ROOT_FETCH_CONCURRENCY,
 } from "@/lib/catalog-browse";
 import { defaultShopId, isShopUuid } from "@/lib/db/shop-id";
 
@@ -32,20 +28,17 @@ function warmShopIds(): string[] {
   return isShopUuid(fallback) ? [fallback] : [];
 }
 
+/** Same path as `/home` — categories, shelves, and per-root product cache keys. */
 async function warmShop(shopId: string): Promise<void> {
-  await Promise.all([
-    listStoreCategories(shopId),
-    listStoreProducts(shopId, {
-      maxPages: CATALOG_BROWSE_MAX_PAGES,
-      pageSize: CATALOG_BROWSE_PAGE_SIZE,
-    }),
-    listHomeShelves(shopId),
-  ]);
+  const catalog = await loadHomeCatalog(shopId);
+  if (!catalog.ok) {
+    throw new Error(catalog.error ?? "catalog_warm_failed");
+  }
 }
 
 /**
  * Keeps catalog `"use cache"` warm so shoppers avoid the cold /home and
- * /categories path. Uses the same browse size as those pages.
+ * /categories path. Uses `loadHomeCatalog` so per-root `categoryId` keys match.
  * Docker/ALB can hit this on an interval.
  *
  * `connection()` opts into request time (Cache Components — no `dynamic` export).
@@ -90,6 +83,7 @@ export async function GET() {
         shopIds: warmed,
         failed: failed.length > 0 ? failed : undefined,
         pageSize: CATALOG_BROWSE_PAGE_SIZE,
+        rootConcurrency: HOME_ROOT_FETCH_CONCURRENCY,
         ts: Date.now(),
       },
       { headers: { "Cache-Control": "no-store" } },

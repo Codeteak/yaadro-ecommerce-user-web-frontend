@@ -240,8 +240,9 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
 import { categoryProductRails } from "@/lib/home-category-rails";
 import { PhaseBHomeSectionsDemo } from "@/components/playground/PhaseBHomeSectionsDemo";
 
-// Live /home: productsBySlug from per-root categoryId fetches (match PLP)
+// Live /home: batched per-root categoryId fetches (match PLP, pool-safe)
 // categoryProductRails(catalog.categories, catalog.productsBySlug)
+// /api/warm → loadHomeCatalog (same cache keys)
 <CategoryProductRails rails={rails} />
 
 // Playground stack demo
@@ -250,6 +251,9 @@ import { PhaseBHomeSectionsDemo } from "@/components/playground/PhaseBHomeSectio
       "src/components/playground/PhaseBHomeSectionsDemo.tsx",
       "src/components/home/CategoryProductRails.tsx",
       "src/lib/home-category-rails.ts",
+      "src/lib/catalog-browse.ts",
+      "src/lib/map-pool.ts",
+      "src/app/api/warm/route.ts",
       "src/components/home/HomePullContent.tsx",
       "src/components/home/HomeProductShelves.tsx",
     ],
