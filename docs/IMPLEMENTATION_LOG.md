@@ -1,5 +1,13 @@
 # Implementation Log
 
+## 2026-11-26 — Delivery radius circle on live address map
+
+Live `AddressLocationMap` loads `getShopDeliveryHub`, draws soft fill + dotted ring, and always shows the shop hub pin (S). Until detect/search/tap: dark chip “Pin your spot to check delivery” (no false Outside). After a real pin: inside/outside. Shared helpers in `delivery-radius-map.ts`.
+
+## 2026-11-26 — Playground: shop delivery radius on map
+
+`/playground/address-map` shows a Google Map with a green circle (sample 5 km hub) + draggable pin (inside/outside status).
+
 ## 2026-11-26 — Body scroll never stuck (reconcile orphans)
 
 `reconcileBodyScrollLock` clears leaked locks when the counter is up but no dialog remains, or overflow is hidden with count 0. `BodyScrollUnlockOnNavigate` runs it on `pageshow`, `visibilitychange`→visible, and `window` focus (plus route change force-clear). PWA install still force-clears. Playground deferred-location / PWA notes updated.

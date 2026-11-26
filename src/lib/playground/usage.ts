@@ -960,13 +960,19 @@ import { SavedAddressesManageList } from "@/components/delivery/SavedAddressesMa
     ],
   ),
   "address-map": U(
-    `import { AddressSearchField, AddressDetectButton } from "@/components/delivery/AddressLocationControls";
+    `import { DeliveryRadiusMapDemo } from "@/components/playground/DeliveryRadiusMapDemo";
+import { AddressLocationMap } from "@/components/delivery/AddressLocationMap";
+import { getShopDeliveryHub } from "@/lib/api/shop-delivery-hub";
 
-<AddressSearchField value={q} onChange={setQ} onSelectPlace={setPlace} />
-<AddressDetectButton detecting={busy} onDetect={detect} />`,
+// Live: AddressLocationMap loads hub + draws dotted radius
+// Playground sample:
+<DeliveryRadiusMapDemo />`,
     [
-      "src/components/delivery/AddressLocationControls.tsx",
-      "src/components/delivery/AddressMapStep.tsx",
+      "src/components/playground/DeliveryRadiusMapDemo.tsx",
+      "src/components/delivery/AddressLocationMap.tsx",
+      "src/lib/api/shop-delivery-hub.ts",
+      "src/lib/delivery-radius-map.ts",
+      "src/lib/db/location.ts",
     ],
   ),
   "address-details": U(

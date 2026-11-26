@@ -114,6 +114,7 @@ import { PhaseCAddressModalDemo } from "@/components/playground/PhaseCAddressMod
 import { PhaseDPriceVaryExplainDemo } from "@/components/playground/PhaseDPriceVaryExplainDemo";
 import { OrderBillCouponFixDemo } from "@/components/playground/OrderBillCouponFixDemo";
 import { ProfileOptionsRefineDemo } from "@/components/playground/ProfileOptionsRefineDemo";
+import { DeliveryRadiusMapDemo } from "@/components/playground/DeliveryRadiusMapDemo";
 import {
   SHOP_FALLBACK_AVATAR_OPTIONS,
   SHOP_IMAGE_FALLBACK_CURRENT,
@@ -1221,10 +1222,13 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "address-map": () => (
-    <AddressBookDemo
-      initialStep="map"
-      note="Select location: type to see place suggestions (no Search button) + Detect card. Close (X) only."
-    />
+    <div className="space-y-4">
+      <DeliveryRadiusMapDemo />
+      <AddressBookDemo
+        initialStep="map"
+        note="Live sheet uses the same radius helpers — AddressLocationMap loads the shop hub and draws the dotted ring."
+      />
+    </div>
   ),
   "address-details": () => (
     <AddressBookDemo

@@ -675,12 +675,12 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
   },
   {
     slug: "address-map",
-    title: "Address map (stub)",
+    title: "Address map + delivery radius",
     status: "built",
     group: "Product & cart",
     description:
-      "Map step: Places suggestions as you type (no Search button) + Detect card. Close (X) only.",
-    wiresTo: "AddressLocationControls / AddressMapStep",
+      "Shop pin (S) always on; catchy hint until you place a pin; then inside/outside. Live map should match; playground uses a 5 km sample.",
+    wiresTo: "AddressLocationMap + getShopDeliveryHub → /home address sheet",
   },
   {
     slug: "address-details",
