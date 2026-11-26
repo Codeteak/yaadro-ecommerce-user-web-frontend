@@ -48,8 +48,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Navigation",
     description:
-      "Pill expand/label + scroll hide. Hidden state uses inert + blur (no aria-hidden focus warning).",
-    wiresTo: "Storefront layout (BottomNav)",
+      "Fixed floating island. Clearance collapses on scroll-hide; fill pages use overlay padding (no paper band behind the pill).",
+    wiresTo: "StorefrontChrome / BottomNav",
   },
   {
     slug: "pull-to-refresh",
@@ -94,7 +94,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Install sheet only on ecom `/home`. Dismiss / appinstalled force-clears scroll; BodyScrollUnlockOnNavigate reconciles orphans on focus/visibility.",
+      "Install sheet only on ecom `/home`. Dismiss / appinstalled force-clears scroll; BodyScrollUnlockOnNavigate reconciles orphans on focus/visibility/pointer.",
     wiresTo: "InstallPrompt on AppProviders → gated to /home",
   },
 
@@ -168,7 +168,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Navigation",
     description:
-      "Phase B #29: StorefrontPageFrame (PageHeader + body). Wired to /categories, /wishlist, /orders. BottomNav via StorefrontChrome.",
+      "Phase B #29: StorefrontPageFrame + floating BottomNav island. Fill pages: no outer paper strip; scroll-hide collapses clearance.",
     wiresTo:
       "src/components/storefront/StorefrontPageFrame.tsx → CategoriesPageContent / WishlistPageContent / OrdersPageContent",
   },
@@ -188,7 +188,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Legacy sidebar Categories layout. Live /categories now uses horizontal HomeSearchBar + pill CategoryRail.",
+      "Legacy sidebar Categories. Live /categories: sticky pill rail with soft wash (no bordered card) + floating BottomNav.",
     wiresTo: "playground only (legacy)",
   },
   {
@@ -215,7 +215,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Experiments",
     description:
-      "HomeSearchBar + home pill CategoryRail + full-width cards. Same as live /categories/[slug].",
+      "Sticky pill rail with soft paper wash (products don’t bleed through; no bordered card) + floating BottomNav.",
     wiresTo: "/categories/[slug]",
   },
   {
@@ -679,7 +679,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "Shop pin (S) always on; catchy hint until you place a pin; then inside/outside. Live map should match; playground uses a 5 km sample.",
+      "Shop pin (S) from that shop’s DB address; radius from shops.service_area_radius_meters only (no env fallback). Playground uses a sample hub for preview.",
     wiresTo: "AddressLocationMap + getShopDeliveryHub → /home address sheet",
   },
   {

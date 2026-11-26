@@ -88,6 +88,7 @@ export function HomePageView({
               ? catalog.shelves.map((shelf) => ({
                   id: shelf.id,
                   title: shelf.title,
+                  sortOrder: shelf.sortOrder,
                   products: shelf.products,
                 }))
               : []

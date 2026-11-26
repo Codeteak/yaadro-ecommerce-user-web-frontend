@@ -39,6 +39,8 @@ export type StoreCategory = {
 export type StoreShelf = {
   id: string;
   title: string;
+  /** Admin `shop_home_sections.sort_order` — home renders in this order. */
+  sortOrder: number;
   products: SampleProduct[];
 };
 
@@ -352,9 +354,17 @@ export async function listHomeShelves(shopId: string): Promise<StoreShelf[]> {
         .map((product) => fromDbProduct(product))
         .filter((product): product is SampleProduct => Boolean(product));
       if (products.length === 0) continue;
-      shelves.push({ id: row.id, title: row.title, products });
+      shelves.push({
+        id: row.id,
+        title: row.title,
+        sortOrder: row.sortOrder,
+        products,
+      });
     }
-    return shelves;
+    // SQL already orders by sort_order; keep a stable defensive sort.
+    return shelves.sort(
+      (a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title),
+    );
   } catch (error) {
     if (!catalogDbConfigured()) return [];
     throw error;

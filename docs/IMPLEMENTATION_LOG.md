@@ -4,6 +4,26 @@
 
 Root `generateMetadata` icons and `manifest.ts` use `shop.image` only (shop_image / SEO og.image; else yellow awning fallback). Removed secondary Yaadro `/icons/icon-192.png`, `apple-touch-icon.png`, and `icon-512.png` links. Client shop resolve bootstrap uses `SHOP_IMAGE_FALLBACK` instead of icon-192. Service worker cache bumped to v3; dropped Yaadro icon from precache.
 
+## 2026-11-26 — Home sections follow admin sort_order
+
+`readHomeSections` / `listHomeShelves` keep `sortOrder` from `shop_home_sections.sort_order`. `/home` (`HomePullContent`) renders dairy / festive / product shelves in that API order instead of fixed slots. Catalog chrome (rail, produce, category rails) stays above. Tests: `home-section-order.test.ts`.
+
+## 2026-11-26 — Sticky category rail soft wash
+
+Sticky pill rail uses `bg-paper/95` + blur (no border) so scrolling products don’t show through between pills. Playground notes updated.
+
+## 2026-11-26 — Categories island chrome (no sticky card / blank strip)
+
+Fill pages use full `h-dvh` + `has-[[data-storefront-fill]]:pb-0` so BottomNav floats without a paper band; list `pb` tracks `--storefront-nav-clearance`. `BodyScrollUnlockOnNavigate` also reconciles on pointerdown. Playground `category-plp-horizontal` / bottom-nav updated.
+
+## 2026-11-26 — Scroll-hide collapses nav clearance (no blank strip)
+
+`StorefrontChrome` again sets `--storefront-nav-clearance` to `0` while the pill is scroll-hidden so categories/home do not leave a paper gap. Near-bottom dead zone in `navScrollAction` still blocks clamp/vibration. Playground `bottom-nav` + `storefront-shell` match.
+
+## 2026-11-26 — Shop hub/radius from DB only
+
+`readShopDeliveryHub` / `readDeliveryArea` use shops.address lat/lng + `service_area_radius_meters` only. Removed `SERVICE_AREA_RADIUS_METERS` / 5000 inventing. Missing hub or radius → null / not serviceable. Playground address-map notes updated.
+
 ## 2026-11-26 — Delivery radius styles wired to ecom
 
 Shared `DELIVERY_RADIUS_MAP_STYLE`: darker fill (~0.26 / 0.22) + thin light dotted ring. Live `AddressLocationMap` and playground `/playground/address-map` both use it.

@@ -1,12 +1,22 @@
 "use client";
 
-import { Suspense, useRef, useState, type ReactNode } from "react";
+import {
+  Suspense,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { BackButton } from "@/components/navigation/BackButton";
 import { CloseButton } from "@/components/navigation/CloseButton";
 import { BottomNav } from "@/components/navigation/BottomNav";
+import {
+  NavScrollProvider,
+  useNavScroll,
+} from "@/components/navigation/NavScrollContext";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import {
   PullToRefresh,
@@ -458,6 +468,70 @@ function OrderDetailLeadDemo() {
   );
 }
 
+/** Horizontal PLP preview — island rail + floating BottomNav like live ecom. */
+function CategoryPlpHorizontalDemo() {
+  const { navHidden } = useNavScroll();
+  const style = {
+    ["--storefront-nav-clearance" as string]: navHidden ? "0px" : "5.5rem",
+  } satisfies CSSProperties;
+
+  return (
+    <div
+      style={style}
+      className="relative flex h-[78vh] min-h-0 flex-col overflow-hidden rounded-2xl bg-paper ring-1 ring-black/5"
+    >
+      <CategoryListing
+        slug="vegetables"
+        backHref="/playground"
+        railLayout="horizontal"
+      />
+      <BottomNav position="inline" />
+    </div>
+  );
+}
+
+/** BottomNav playground: clearance collapses with scroll-hide like live chrome. */
+function BottomNavClearanceDemo() {
+  const { navHidden } = useNavScroll();
+  const style = {
+    ["--storefront-nav-clearance" as string]: navHidden ? "0px" : "5.5rem",
+  } satisfies CSSProperties;
+
+  return (
+    <div
+      style={style}
+      className="relative max-h-[28rem] overflow-hidden rounded-2xl bg-paper ring-1 ring-black/5"
+    >
+      <div
+        data-storefront-scroll
+        className="max-h-[28rem] overflow-y-auto overscroll-contain px-4 pt-4 pb-[var(--storefront-nav-clearance,5.5rem)] transition-[padding-bottom] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+      >
+        <p className="text-[13px] font-semibold text-forest">Hidden on routes</p>
+        <ul className="mt-2 space-y-1 text-[12px] text-muted">
+          {STOREFRONT_NAV_HIDDEN_PATHS.map((path) => (
+            <li key={path} className="font-mono">
+              {path}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-4 text-[13px] font-semibold text-forest">
+          Scroll to hide
+        </p>
+        <p className="mt-1 text-[12px] leading-5 text-muted">
+          Scroll down — pill slides off and bottom padding collapses (no blank
+          strip). Focus a tab first to confirm inert (no aria-hidden warning).
+        </p>
+        {Array.from({ length: 14 }, (_, i) => (
+          <p key={i} className="mt-3 text-sm text-ink">
+            Scroll block {i + 1}
+          </p>
+        ))}
+      </div>
+      <BottomNav position="inline" />
+    </div>
+  );
+}
+
 const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "back-button": () => (
     <DemoFrame note="Green squircle + black arrow — same default as storefront PageHeader / cart / profile.">
@@ -491,35 +565,10 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "bottom-nav": () => (
-    <DemoFrame note="Scroll hide uses inert (not aria-hidden) so a focused tab does not warn. Same component as storefront.">
-      <div className="relative max-h-[28rem] overflow-hidden rounded-2xl bg-paper ring-1 ring-black/5">
-        <div
-          data-storefront-scroll
-          className="max-h-[28rem] overflow-y-auto overscroll-contain px-4 pt-4 pb-[5.5rem]"
-        >
-          <p className="text-[13px] font-semibold text-forest">Hidden on routes</p>
-          <ul className="mt-2 space-y-1 text-[12px] text-muted">
-            {STOREFRONT_NAV_HIDDEN_PATHS.map((path) => (
-              <li key={path} className="font-mono">
-                {path}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-4 text-[13px] font-semibold text-forest">
-            Scroll to hide
-          </p>
-          <p className="mt-1 text-[12px] leading-5 text-muted">
-            Focus a tab, then scroll down — the pill slides off without the
-            aria-hidden focus console warning. Scroll up to restore.
-          </p>
-          {Array.from({ length: 14 }, (_, i) => (
-            <p key={i} className="mt-3 text-sm text-ink">
-              Scroll block {i + 1}
-            </p>
-          ))}
-        </div>
-        <BottomNav position="inline" />
-      </div>
+    <DemoFrame note="Fixed island BottomNav. Clearance collapses on scroll-hide; fill pages overlay the pill (no paper band). inert avoids aria-hidden focus warnings.">
+      <NavScrollProvider>
+        <BottomNavClearanceDemo />
+      </NavScrollProvider>
     </DemoFrame>
   ),
   "pull-to-refresh": () => (
@@ -981,7 +1030,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "storefront-shell": () => (
     <DemoFrame
       surface="bare"
-      note="Phase B #29 wired: StorefrontPageFrame on /categories, /wishlist, /orders. Demo keeps full shell reference."
+      note="Phase B #29: scroll-hide collapses bottom clearance with the pill (same as live StorefrontChrome — no blank strip)."
     >
       <PhaseBShellDemo />
     </DemoFrame>
@@ -1226,7 +1275,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       <DeliveryRadiusMapDemo />
       <AddressBookDemo
         initialStep="map"
-        note="Live sheet uses the same radius helpers — AddressLocationMap loads the shop hub and draws the dotted ring."
+        note="Live sheet: AddressLocationMap loads this shop’s DB hub (S pin) + DB radius only — no env fallback."
       />
     </div>
   ),
@@ -1240,13 +1289,14 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "category-grid": () => <CategoriesFlowDemo start="hub" />,
   "category-plp": () => <CategoriesFlowDemo start="plp" />,
   "category-plp-horizontal": () => (
-    <div className="flex h-full min-h-0 flex-col bg-paper">
-      <CategoryListing
-        slug="vegetables"
-        backHref="/playground"
-        railLayout="horizontal"
-      />
-    </div>
+    <DemoFrame
+      surface="bare"
+      note="Live /categories/[slug]: sticky pill rail with soft paper wash (no border card) so products don’t bleed through. BottomNav floats over content."
+    >
+      <NavScrollProvider>
+        <CategoryPlpHorizontalDemo />
+      </NavScrollProvider>
+    </DemoFrame>
   ),
   "home-search-categories": () => <CategoriesFlowDemo start="home-search" />,
   "category-browser": () => {
@@ -1270,7 +1320,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     );
     return (
       <DemoFrame
-        note="Legacy sidebar Categories browser (kept for comparison). Live /categories uses horizontal pill rail."
+        note="Legacy sidebar. Live /categories: sticky pill rail with soft wash (no bordered card) + floating BottomNav."
       >
         <div className="relative flex h-[36rem] flex-col overflow-hidden rounded-2xl bg-paper ring-1 ring-black/5">
           <div className="px-5 pt-3">

@@ -249,6 +249,8 @@ async function productsByIds(client: PoolClient, shopId: string, ids: string[]):
 export type HomeSection = {
   id: string;
   title: string;
+  /** Admin panel order (`shop_home_sections.sort_order`). */
+  sortOrder: number;
   startsAt: string | null;
   endsAt: string | null;
   products: DbProduct[];
@@ -291,6 +293,11 @@ async function productsForSection(
   return products.slice(0, 50);
 }
 
+function sortOrderOf(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function toSection(section: ProductRow, products: DbProduct[]): HomeSection | null {
   const id = text(section.id);
   const title = text(section.title);
@@ -298,6 +305,7 @@ function toSection(section: ProductRow, products: DbProduct[]): HomeSection | nu
   return {
     id,
     title,
+    sortOrder: sortOrderOf(section.sort_order),
     startsAt: when(section.starts_at),
     endsAt: when(section.ends_at),
     products,

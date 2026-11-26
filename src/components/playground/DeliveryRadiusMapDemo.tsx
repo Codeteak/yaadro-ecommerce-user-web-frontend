@@ -26,7 +26,11 @@ import {
 
 const MAP_STYLE = { width: "100%", height: "100%" } as const;
 
-/** Sample shop hub + 5 km (playground preview; live uses getShopDeliveryHub). */
+/**
+ * Sample hub for UI preview only.
+ * Live map uses getShopDeliveryHub → shops.address lat/lng +
+ * shops.service_area_radius_meters (no env radius inventing).
+ */
 const SAMPLE_HUB = SAMPLE_LIVE_MAP.origin;
 const SAMPLE_RADIUS_M = 5_000;
 
@@ -44,7 +48,7 @@ type LatLng = MapLatLng;
 
 /**
  * Playground preview of the live address-map radius circle.
- * Shop hub pin is always shown; delivery status only after a customer pin.
+ * Sample S pin + radius stand in for each shop’s DB hub on live ecom.
  */
 export function DeliveryRadiusMapDemo() {
   const apiKey = getGoogleMapsApiKey();
@@ -149,7 +153,7 @@ export function DeliveryRadiusMapDemo() {
   );
 
   return (
-    <DemoFrame note="Same radius styles as live address map: darker fill, thin light dotted ring.">
+    <DemoFrame note="Preview: sample S pin + radius. Live ecom uses that shop’s DB address and service_area_radius_meters only.">
       <div className="space-y-3 bg-gradient-to-b from-mint to-paper px-4 pt-4 pb-6">
         <div className="flex flex-wrap gap-2">
           <button

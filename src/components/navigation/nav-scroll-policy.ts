@@ -2,8 +2,9 @@
  * Shared chrome hide/show decisions for BottomNav + ViewCartBar.
  *
  * Near-bottom upward deltas are ignored so rubber-band / clamp at the end
- * of a scroller cannot flip the nav visible again (vibration). Clearance
- * padding itself stays constant on scroll-hide — see StorefrontChrome.
+ * of a scroller (including clearance collapse when the pill hides) cannot
+ * flip the nav visible again (vibration). StorefrontChrome sets clearance
+ * to 0 while scroll-hidden so no blank strip remains under content.
  */
 
 /** Match StorefrontChrome clearance (5.5rem) plus transition slack. */

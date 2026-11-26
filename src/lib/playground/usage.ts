@@ -42,11 +42,13 @@ import { useScrollDirection } from "@/components/navigation/useScrollDirection";
 
 // Path-hidden on /cart, /checkout, /orders/[id], profile tasks
 // Scroll-hidden via useScrollDirection (window + nested overflow)
+// StorefrontChrome collapses --storefront-nav-clearance with the pill
 // When hidden: inert + blur focused tab (avoid aria-hidden-on-focus warning)
 <BottomNav />`,
     [
       "src/components/navigation/BottomNav.tsx",
       "src/components/navigation/useScrollDirection.ts",
+      "src/components/navigation/nav-scroll-policy.ts",
       "src/lib/storefront-nav.ts",
       "src/components/storefront/StorefrontChrome.tsx",
     ],
@@ -315,7 +317,7 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
   "category-plp-horizontal": U(
     `import { CategoryListing } from "@/components/categories/CategoryListing";
 
-{/* Same as live /categories/[slug] */}
+{/* Live /categories/[slug]: sticky pill rail + soft wash (no bordered card) + floating BottomNav */}
 <CategoryListing
   slug="vegetables"
   backHref="/categories"
@@ -327,7 +329,7 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
       "src/components/categories/CachedCategoryPage.tsx",
       "src/components/home/HomeSearchBar.tsx",
       "src/components/home/CategoryRail.tsx",
-      "src/components/home/CategoryTile.tsx",
+      "src/components/storefront/StorefrontChrome.tsx",
       "src/components/categories/PlpFilterChips.tsx",
       "src/components/categories/PlpFilterSheets.tsx",
     ],
@@ -964,8 +966,8 @@ import { SavedAddressesManageList } from "@/components/delivery/SavedAddressesMa
 import { AddressLocationMap } from "@/components/delivery/AddressLocationMap";
 import { getShopDeliveryHub } from "@/lib/api/shop-delivery-hub";
 
-// Live: AddressLocationMap loads hub + draws dotted radius
-// Playground sample:
+// Live: hub lat/lng + radius from DB only (shop address + service_area_radius_meters)
+// Playground: sample hub for UI preview
 <DeliveryRadiusMapDemo />`,
     [
       "src/components/playground/DeliveryRadiusMapDemo.tsx",

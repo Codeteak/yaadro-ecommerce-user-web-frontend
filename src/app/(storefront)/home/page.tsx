@@ -137,14 +137,15 @@ async function HomeCatalogBody() {
       fruits={catalog.ok ? catalog.fruits : []}
       vegetables={catalog.ok ? catalog.vegetables : []}
       shelves={
-        catalog.ok
-          ? catalog.shelves.map((shelf) => ({
-              id: shelf.id,
-              title: shelf.title,
-              products: shelf.products,
-            }))
-          : []
-      }
+            catalog.ok
+              ? catalog.shelves.map((shelf) => ({
+                  id: shelf.id,
+                  title: shelf.title,
+                  sortOrder: shelf.sortOrder,
+                  products: shelf.products,
+                }))
+              : []
+          }
       categoryRails={
         catalog.ok
           ? categoryProductRails(catalog.categories, catalog.productsBySlug)

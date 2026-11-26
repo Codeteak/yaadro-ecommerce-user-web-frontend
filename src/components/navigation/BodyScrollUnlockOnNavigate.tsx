@@ -9,8 +9,9 @@ import {
 
 /**
  * Clears leaked body scroll locks when the route changes, the tab returns
- * from background/bfcache, or the window regains focus. Storefront +
- * playground shells mount this once so shoppers never need a refresh to scroll.
+ * from background/bfcache, the window regains focus, or the shopper touches
+ * the page while no dialog is open. Storefront + playground shells mount
+ * this once so scroll never needs a refresh.
  */
 export function BodyScrollUnlockOnNavigate() {
   const pathname = usePathname();
@@ -21,7 +22,6 @@ export function BodyScrollUnlockOnNavigate() {
 
   useEffect(() => {
     const onPageShow = () => {
-      // Always reconcile — bfcache and normal restores both leave /home stuck.
       reconcileBodyScrollLock();
     };
     const onVisible = () => {
@@ -32,14 +32,23 @@ export function BodyScrollUnlockOnNavigate() {
     const onFocus = () => {
       reconcileBodyScrollLock();
     };
+    // Heal leaked locks on first interaction (sheets can leave overflow:hidden).
+    const onPointerDown = () => {
+      reconcileBodyScrollLock();
+    };
 
     window.addEventListener("pageshow", onPageShow);
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onFocus);
+    document.addEventListener("pointerdown", onPointerDown, {
+      passive: true,
+      capture: true,
+    });
     return () => {
       window.removeEventListener("pageshow", onPageShow);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onFocus);
+      document.removeEventListener("pointerdown", onPointerDown, true);
     };
   }, []);
 

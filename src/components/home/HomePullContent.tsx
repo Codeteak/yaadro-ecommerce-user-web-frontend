@@ -9,24 +9,23 @@ import { CategoryRail } from "@/components/home/CategoryRail";
 import { DailyDairySection } from "@/components/home/DailyDairySection";
 import { FestiveOffersSection } from "@/components/home/FestiveOffersSection";
 import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
-import { HomeProductShelves } from "@/components/home/HomeProductShelves";
+import { HomeProductShelf } from "@/components/home/HomeProductShelf";
+import {
+  HomeFavouritesShelf,
+  HomeProductShelves,
+  type LiveShelf,
+} from "@/components/home/HomeProductShelves";
 import { ProductSection } from "@/components/home/ProductSection";
 import { PullToRefresh } from "@/components/navigation/PullToRefresh";
 import { BrandFooter } from "@/components/storefront/BrandFooter";
 import { showPopup } from "@/components/ui/Toast";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { refreshStorefrontCatalog } from "@/lib/api/refresh-catalog";
-import {
-  isDairySectionTitle,
-  pickDairyShelf,
-} from "@/lib/daily-dairy";
-import {
-  isFestiveSectionTitle,
-  pickFestiveShelf,
-} from "@/lib/festive-offers";
+import { isDairySectionTitle } from "@/lib/daily-dairy";
+import { isFestiveSectionTitle } from "@/lib/festive-offers";
+import { sortHomeShelvesByOrder } from "@/lib/home-section-order";
 import { useOnlineStatus } from "@/lib/use-online-status";
 import type { SampleProduct } from "@/lib/sample-products";
-import type { LiveShelf } from "@/components/home/HomeProductShelves";
 
 export type HomeRailCategory = {
   name: string;
@@ -35,8 +34,8 @@ export type HomeRailCategory = {
 };
 
 /**
- * Home body: sellable category rail + products → produce → dairy →
- * per-category product rails → festive → shelves → brand footer.
+ * Home body: category rail + filtered products + produce + category rails,
+ * then admin home sections in API `sort_order`, then favourites + footer.
  */
 export function HomePullContent({
   railCategories,
@@ -66,17 +65,13 @@ export function HomePullContent({
   const online = useOnlineStatus();
   const [retrying, setRetrying] = useState(false);
 
-  const dairyShelf = useMemo(() => pickDairyShelf(shelves), [shelves]);
-  const festiveShelf = useMemo(
-    () => pickFestiveShelf(shelves),
-    [shelves],
-  );
-  const regularShelves = useMemo(() => {
-    if (!shelves) return shelves;
-    return shelves.filter(
-      (shelf) =>
-        !isFestiveSectionTitle(shelf.title) &&
-        !isDairySectionTitle(shelf.title),
+  const orderedShelves = useMemo(() => {
+    if (!shelves?.length) return [];
+    return sortHomeShelvesByOrder(
+      shelves.map((shelf, index) => ({
+        ...shelf,
+        sortOrder: shelf.sortOrder ?? index,
+      })),
     );
   }, [shelves]);
 
@@ -162,28 +157,48 @@ export function HomePullContent({
             vegetables={vegetables}
           />
         ) : null}
-        {dairyShelf ? (
-          <DailyDairySection
-            className={t.homeBlockGap}
-            layout="on-art"
-            shelf={dairyShelf}
-            browseHref="/dairy"
-          />
-        ) : null}
         {categoryRails && categoryRails.length > 0 ? (
           <CategoryProductRails
             rails={categoryRails}
             className={t.homeBlockGap}
           />
         ) : null}
-        {festiveShelf ? (
-          <FestiveOffersSection
-            className={t.homeBlockGap}
-            shelf={festiveShelf}
-            seeAllHref="/festive"
-          />
-        ) : null}
-        <HomeProductShelves className={t.homeBlockGap} shelves={regularShelves} />
+
+        {orderedShelves.map((shelf) => {
+          if (shelf.products.length === 0) return null;
+          if (isDairySectionTitle(shelf.title)) {
+            return (
+              <DailyDairySection
+                key={shelf.id}
+                className={t.homeBlockGap}
+                layout="on-art"
+                shelf={shelf}
+                browseHref="/dairy"
+              />
+            );
+          }
+          if (isFestiveSectionTitle(shelf.title)) {
+            return (
+              <FestiveOffersSection
+                key={shelf.id}
+                className={t.homeBlockGap}
+                shelf={shelf}
+                seeAllHref="/festive"
+              />
+            );
+          }
+          return (
+            <div key={shelf.id} className={t.homeBlockGap}>
+              <HomeProductShelf shelf={shelf} products={shelf.products} />
+            </div>
+          );
+        })}
+
+        {shelves ? (
+          <HomeFavouritesShelf className={t.homeBlockGap} live />
+        ) : (
+          <HomeProductShelves className={t.homeBlockGap} />
+        )}
         <BrandFooter />
       </div>
     </PullToRefresh>

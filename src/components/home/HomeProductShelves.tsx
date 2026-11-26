@@ -12,6 +12,8 @@ export type LiveShelf = {
   id: string;
   title: string;
   subtitle?: string;
+  /** Admin sort_order — omit for playground sample shelves. */
+  sortOrder?: number;
   products: SampleProduct[];
 };
 
@@ -52,13 +54,25 @@ export function HomeProductShelves({
           />
         );
       })}
-      <FavouritesShelf live={Boolean(liveShelves)} />
+      <HomeFavouritesShelf live={Boolean(liveShelves)} />
     </div>
   );
 }
 
 /** Subscribes to the wishlist on its own so the other shelves stay still. */
-function FavouritesShelf({ live }: { live: boolean }) {
+export function HomeFavouritesShelf({
+  live = true,
+  className,
+}: {
+  live?: boolean;
+  className?: string;
+}) {
+  const shelf = <FavouritesShelfInner live={live} />;
+  if (!className) return shelf;
+  return <div className={className}>{shelf}</div>;
+}
+
+function FavouritesShelfInner({ live }: { live: boolean }) {
   const wishlist = useWishlistOptional();
   if (wishlist?.signedIn && wishlist.products.length > 0) {
     return (

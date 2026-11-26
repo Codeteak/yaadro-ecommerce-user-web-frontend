@@ -349,7 +349,8 @@ export function CategoryBrowser({
             <div className="px-5 pb-2">{searchBlock}</div>
           )}
 
-          <div className="sticky top-0 z-20 border-b border-black/[0.05] bg-paper/95 backdrop-blur-sm">
+          {/* Soft wash so products don't bleed under sticky pills — no border/shadow card. */}
+          <div className="sticky top-0 z-20 bg-paper/95 backdrop-blur-sm">
             <CategoryRail
               categories={railCategories}
               tileVariant="pill"
@@ -366,7 +367,7 @@ export function CategoryBrowser({
 
           <section
             aria-label={`${title} products`}
-            className="px-4 pt-4 pb-28"
+            className="px-4 pt-4 pb-[max(1rem,calc(var(--storefront-nav-clearance,5.5rem)+0.5rem))]"
           >
             {productSection}
           </section>
@@ -384,7 +385,7 @@ export function CategoryBrowser({
             >
               <div
                 data-storefront-scroll
-                className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-1.5 pt-2 pb-28 [-webkit-overflow-scrolling:touch]"
+                className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-1.5 pt-2 pb-[max(1rem,calc(var(--storefront-nav-clearance,5.5rem)+0.5rem))] [-webkit-overflow-scrolling:touch]"
               >
                 <div className="flex flex-col gap-1">
                   <CategoryCard
@@ -421,7 +422,7 @@ export function CategoryBrowser({
             <section
               aria-label={`${title} products`}
               data-storefront-scroll
-              className="min-w-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-3 pt-3 pb-28 [-webkit-overflow-scrolling:touch]"
+              className="min-w-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-3 pt-3 pb-[max(1rem,calc(var(--storefront-nav-clearance,5.5rem)+0.5rem))] [-webkit-overflow-scrolling:touch]"
             >
               {productSection}
             </section>
