@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-26 — Home scroll after categories (VT + lock)
+
+Shell fill overflow is driven by pathname (`data-storefront-fill-route`), not `:has([data-storefront-fill])`, so a View Transition exit of `/categories` cannot leave `/home` with `overflow: hidden`. `BodyScrollUnlockOnNavigate` force-clears on route change plus rAF / 400ms follow-up. Playground deferred-location / PWA notes updated.
+
 ## 2026-11-26 — Favicon / PWA icons: shop logo only
 
 Root `generateMetadata` icons and `manifest.ts` use `shop.image` only (shop_image / SEO og.image; else yellow awning fallback). Removed secondary Yaadro `/icons/icon-192.png`, `apple-touch-icon.png`, and `icon-512.png` links. Client shop resolve bootstrap uses `SHOP_IMAGE_FALLBACK` instead of icon-192. Service worker cache bumped to v3; dropped Yaadro icon from precache.

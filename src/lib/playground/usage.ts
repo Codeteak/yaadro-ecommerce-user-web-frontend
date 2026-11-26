@@ -88,12 +88,15 @@ import { useScrollDirection } from "@/components/navigation/useScrollDirection";
 // Wired on /home — Detect/confirm pin saves, runs radius preview, closes
 <DeferredLocationPrompt />
 // Playground: <DeferredLocationPrompt forcePreview delayMs={900} />
-// Leaked locks: BodyScrollUnlockOnNavigate + reconcileBodyScrollLock`,
+// Leaked locks: BodyScrollUnlockOnNavigate (route + rAF/timeout) + reconcile
+// Fill chrome uses pathname marker so categories→home stays vertically scrollable`,
     [
       "src/components/delivery/DeferredLocationPrompt.tsx",
       "src/components/delivery/AddressBookSheet.tsx",
       "src/components/navigation/BodyScrollUnlockOnNavigate.tsx",
+      "src/components/storefront/StorefrontChrome.tsx",
       "src/lib/use-body-scroll-lock.ts",
+      "src/lib/storefront-nav.ts",
       "src/lib/delivery-address.ts",
       "src/lib/refresh-delivery-serviceable.ts",
       "src/lib/db/location.ts",
@@ -105,7 +108,7 @@ import { useScrollDirection } from "@/components/navigation/useScrollDirection";
 
 // Live: AppProviders mounts <InstallPrompt /> — opens only on /home
 // Dismiss / appinstalled → forceClearBodyScrollLock (no route change)
-// Shell also reconciles on focus / visibility / pageshow
+// Shell reconciles on focus / visibility / pointer + after categories→home
 // Dismiss → sessionStorage (clears when browser session ends)
 // Playground: <InstallPrompt forcePreview />`,
     [

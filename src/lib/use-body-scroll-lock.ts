@@ -22,8 +22,12 @@ function notify() {
 
 function applyUnlockedStyles() {
   if (typeof document === "undefined") return;
-  document.documentElement.style.overflow = "";
-  document.body.style.overflow = "";
+  const html = document.documentElement;
+  const body = document.body;
+  html.style.overflow = "";
+  html.style.overflowY = "";
+  body.style.overflow = "";
+  body.style.overflowY = "";
 }
 
 function applyLockedStyles() {
@@ -82,9 +86,13 @@ export function reconcileBodyScrollLock() {
   }
 
   if (openLocks === 0) {
+    const html = document.documentElement;
+    const body = document.body;
     const htmlHidden =
-      document.documentElement.style.overflow === "hidden" ||
-      document.body.style.overflow === "hidden";
+      html.style.overflow === "hidden" ||
+      html.style.overflowY === "hidden" ||
+      body.style.overflow === "hidden" ||
+      body.style.overflowY === "hidden";
     if (htmlHidden) applyUnlockedStyles();
   }
 }

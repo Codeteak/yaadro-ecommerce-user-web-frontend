@@ -20,3 +20,13 @@ export function shouldHideStorefrontNav(pathname: string | null): boolean {
   if (/^\/orders\/[^/]+\/track$/.test(pathname)) return true;
   return false;
 }
+
+/**
+ * Categories fill the viewport with an inner scroller (not document scroll).
+ * Drive chrome overflow from the URL — not `:has([data-storefront-fill])` —
+ * so a View Transition exit of /categories cannot leave home unscrollable.
+ */
+export function isStorefrontFillPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return pathname === "/categories" || pathname.startsWith("/categories/");
+}

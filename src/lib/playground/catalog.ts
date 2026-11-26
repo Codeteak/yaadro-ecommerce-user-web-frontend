@@ -85,7 +85,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Wired `/home`: soft map prompt; pin runs radius preview. Body scroll unlocks on close, route change, tab focus/visibility, and PWA install (no refresh).",
+      "Wired `/home`: soft map prompt; pin runs radius preview. Body unlocks on close/route (incl. categories→home), focus/visibility/pointer, PWA install.",
     wiresTo: "/home",
   },
   {
@@ -94,7 +94,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Install sheet only on ecom `/home`. Dismiss / appinstalled force-clears scroll; BodyScrollUnlockOnNavigate reconciles orphans on focus/visibility/pointer.",
+      "Install sheet only on ecom `/home`. Force-clear on dismiss/appinstalled; BodyScrollUnlockOnNavigate also heals after categories→home.",
     wiresTo: "InstallPrompt on AppProviders → gated to /home",
   },
 
@@ -168,7 +168,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Navigation",
     description:
-      "Phase B #29: StorefrontPageFrame + floating BottomNav island. Fill pages: no outer paper strip; scroll-hide collapses clearance.",
+      "Phase B #29: StorefrontPageFrame + floating BottomNav. Fill overflow from pathname (categories→home stays scrollable).",
     wiresTo:
       "src/components/storefront/StorefrontPageFrame.tsx → CategoriesPageContent / WishlistPageContent / OrdersPageContent",
   },

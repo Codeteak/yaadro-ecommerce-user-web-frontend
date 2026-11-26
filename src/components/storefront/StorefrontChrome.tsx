@@ -11,7 +11,10 @@ import {
 import { ViewCartBar } from "@/components/cart/ViewCartBar";
 import { WeightCustomizer } from "@/components/cart/WeightCustomizer";
 import { cn } from "@/lib/cn";
-import { shouldHideStorefrontNav } from "@/lib/storefront-nav";
+import {
+  isStorefrontFillPath,
+  shouldHideStorefrontNav,
+} from "@/lib/storefront-nav";
 
 /** Match BottomNav slide timing so padding and pill move together. */
 const NAV_MOTION =
@@ -25,10 +28,13 @@ const NAV_MOTION =
 function StorefrontPathChrome() {
   const pathname = usePathname();
   const hideNav = shouldHideStorefrontNav(pathname);
+  const fillRoute = isStorefrontFillPath(pathname);
 
   return (
     <>
       {hideNav ? <span data-storefront-hide-nav hidden /> : null}
+      {/* URL-driven — not page DOM — so VT exit of categories cannot stick overflow. */}
+      {fillRoute ? <span data-storefront-fill-route hidden /> : null}
       {!hideNav && <BottomNav />}
       {!hideNav && <ViewCartBar />}
       <WeightCustomizer />
@@ -38,9 +44,8 @@ function StorefrontPathChrome() {
 
 /**
  * Clearance tracks scroll-hide with the floating BottomNav island.
- * Fill pages (`data-storefront-fill`) use full viewport height and inner
- * scroll padding — no outer paper strip behind the island.
- * Near-bottom clamps stay ignored in `navScrollAction` (no nav shiver).
+ * Fill routes lock shell overflow via `data-storefront-fill-route` (pathname),
+ * not `:has([data-storefront-fill])`, so back-to-home stays document-scrollable.
  */
 function StorefrontChromeLayout({ children }: { children: ReactNode }) {
   const { navHidden } = useNavScroll();
@@ -55,11 +60,10 @@ function StorefrontChromeLayout({ children }: { children: ReactNode }) {
       className={cn(
         "min-h-dvh transition-[padding-bottom]",
         NAV_MOTION,
-        // Document pages: pad for the fixed island. Fill pages: none (island overlays).
         "pb-[calc(var(--storefront-nav-clearance,5.5rem)+env(safe-area-inset-bottom,0px))]",
-        "has-[[data-storefront-fill]]:pb-0",
+        "has-[[data-storefront-fill-route]]:pb-0",
         "has-[[data-storefront-hide-nav]]:[--storefront-nav-clearance:0px]",
-        "has-[[data-storefront-fill]]:overflow-hidden has-[[data-storefront-fill]]:overscroll-y-none",
+        "has-[[data-storefront-fill-route]]:overflow-hidden has-[[data-storefront-fill-route]]:overscroll-y-none",
       )}
     >
       {children}
@@ -74,7 +78,7 @@ function StorefrontChromeLayout({ children }: { children: ReactNode }) {
 /**
  * Storefront shell chrome. BottomNav is a fixed floating island on Home,
  * Categories, Wishlist, Profile, Orders list, Coupons, and product/PLP.
- * Scroll-hide collapses clearance; fill pages never leave a blank paper band.
+ * Scroll-hide collapses clearance; fill routes never leave a blank paper band.
  */
 export function StorefrontChrome({ children }: { children: ReactNode }) {
   return (
