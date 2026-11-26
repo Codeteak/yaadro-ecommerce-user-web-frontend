@@ -1,5 +1,9 @@
 # Implementation Log
 
+## 2026-11-26 — ApplicationStop: bounded stop (permanent fix for ScriptTimedOut)
+
+`d-O9GYOYOVL` failed with **ScriptTimedOut** (~300s) on unbounded `docker compose down` (not ECR exit-code). Last-good (`3211797`) and `main` stop scripts had the same hang risk; `v1` had **no** ApplicationStop and tore down inside Start. Stop now: hard-capped `compose down` (`timeout 60` + `-t 20`), then bounded `docker stop -t 10` / `rm -f`, always `exit 0`. appspec ApplicationStop timeout **300 → 120**. Cutover remains in ApplicationStart (`up --force-recreate`). Host script should be updated once (SSM) or use `ignoreApplicationStopFailures` until this revision succeeds once.
+
 ## 2026-11-26 — Pipeline speed: one CI build, standalone image, lighter deploy
 
 Cut ~30m wall time drivers vs v1/current: (1) GitHub CI drops the second `build:static` (Pages-only; use `npm run build:static` when needed); (2) pre-commit is lint+test only (no full `next build`); (3) `output: 'standalone'` + slim Dockerfile (`node server.js`, no full `node_modules`); (4) CodeBuild pulls `:latest` and builds with `--cache-from` + BuildKit npm cache mount; (5) ApplicationStart no longer `builder prune -af` / `image prune -af` before pull. v1 CI only built static export once and Start did a simple pull/up without aggressive prune — this restores that leaner path while keeping the EC2 server build.

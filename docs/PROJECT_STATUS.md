@@ -53,6 +53,7 @@ Thin modules so pages read like future clients (replace with `fetch` when APIs e
 
 ## Known limitations
 
+- CodeDeploy ApplicationStop is intentionally bounded (`timeout` around compose/stop; appspec 120s) and always exits 0; real cutover is ApplicationStart `compose up --force-recreate`. Host still runs on `t4g.micro` (~916 MB) — long image pulls can stress Docker; `t4g.small` is the capacity follow-up.
 - Catalog prices are the shelf price and the row offer price. Buy-one-get-one and category-offer overlays are still calculated by the customer API at checkout.
 - `DATABASE_URL` must stay server-only. The catalog does not load if that variable is missing.
 - Multi-shop: catalog uses the shop resolved from the request hostname; `NEXT_PUBLIC_DEFAULT_SHOP_ID` is local/fallback only.

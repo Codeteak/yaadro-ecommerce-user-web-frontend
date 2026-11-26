@@ -13,10 +13,11 @@ permissions:
     group: deploy
 
 hooks:
-  # Runs from the *last successful* revision on the next deploy — keep exit 0.
+  # Runs from the *last successful* revision on the next deploy.
+  # Script must stay bounded (timeouts inside) and always exit 0 — see application_stop.sh.
   ApplicationStop:
     - location: scripts/cicd/application_stop.sh
-      timeout: 300
+      timeout: 120
       runas: root
   BeforeInstall:
     - location: scripts/cicd/before_install.sh
