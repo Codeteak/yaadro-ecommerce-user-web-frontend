@@ -81,7 +81,13 @@ export function useMyProfile(preview?: ProfilePreview): MyProfileState {
     if (preview || !query.data) return;
     const name = profileFullName(query.data);
     const id = query.data.user.id?.trim();
-    if (name && id) writeCachedProfileUi({ userId: id, displayName: name });
+    if (name && id) {
+      writeCachedProfileUi({
+        userId: id,
+        displayName: name,
+        phone: query.data.user.phone ?? null,
+      });
+    }
   }, [preview, query.data]);
 
   if (preview) {
@@ -117,7 +123,7 @@ export function useMyProfile(preview?: ProfilePreview): MyProfileState {
     signedIn,
     profile,
     displayName,
-    phone: profile?.user.phone ?? null,
+    phone: profile?.user.phone ?? cached?.phone ?? null,
     userId: profile?.user.id ?? cached?.userId ?? null,
     online,
     errorMessage: query.isError

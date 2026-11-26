@@ -18,7 +18,7 @@ Greenfield Next.js 16 / TypeScript / Tailwind 4 rewrite. Catalog, OTP login, pro
 | Coupons `/coupons` | Wired | Live list from `GET /api/storefront/coupons` |
 | Wishlist `/wishlist` | Done | Shop-scoped local storage |
 | Checkout `/checkout` | Live | COD via `POST /api/storefront/checkout`; readiness + basket-scoped idempotency; short sticky To pay |
-| Order placed | Done | Live: `/orders/[id]?placed=1` (refresh-safe). Playground keeps `OrderPlacedContent`. |
+| Order placed | Done | Live + playground: `OrderPlacedContent` (mascot + shop bill) after Place Order. |
 | Orders `/orders` | Live when signed in | Customer API list/detail |
 | Address | Live | One address; server sync on login + save; Google map + Nominatim fallback |
 | PWA | Wired | `public/sw.js`, install prompt, manifest uses shop image when available |

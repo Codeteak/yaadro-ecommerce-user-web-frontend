@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { BodyScrollUnlockOnNavigate } from "@/components/navigation/BodyScrollUnlockOnNavigate";
 import {
   PLAYGROUND_ENTRIES,
   playgroundGroups,
@@ -160,6 +161,7 @@ export function PlaygroundShell({ children }: { children: ReactNode }) {
       className="min-h-dvh text-ink"
       style={{ backgroundColor: BRAND_GREEN.shellBg }}
     >
+      <BodyScrollUnlockOnNavigate />
       <div className="mx-auto flex min-h-dvh w-full max-w-6xl">
         {!hidden ? (
           <aside className="sticky top-0 flex h-dvh w-[11.5rem] shrink-0 flex-col overflow-hidden border-r border-forest/10 bg-paper sm:w-60">

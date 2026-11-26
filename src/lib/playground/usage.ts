@@ -70,22 +70,28 @@ import { useScrollDirection } from "@/components/navigation/useScrollDirection";
     `import { HomeTopBar } from "@/components/home/HomeTopBar";
 
 <HomeTopBar shopName="Yaadro" shopImage="/onboarding/brand-mark-white-y.svg" />
-<HomeTopBar shopName="Yaadro" shopImage="/onboarding/brand-mark-white-y.svg" signedIn />`,
+<HomeTopBar shopName="Yaadro" shopImage="/onboarding/brand-mark-white-y.svg" signedIn />
+// Playground outside-radius paint:
+<HomeTopBar shopName="Yaadro" shopImage="…" previewOutsideRadius />`,
     [
       "src/components/home/HomeTopBar.tsx",
+      "src/lib/delivery-address.ts",
+      "src/lib/refresh-delivery-serviceable.ts",
       "public/icons/profile-signed-in.svg",
     ],
   ),
   "deferred-location": U(
     `import { DeferredLocationPrompt } from "@/components/delivery/DeferredLocationPrompt";
 
-// Wired on /home — Detect saves pin and closes; details at place order
+// Wired on /home — Detect/confirm pin saves, runs radius preview, closes
 <DeferredLocationPrompt />
 // Playground: <DeferredLocationPrompt forcePreview delayMs={900} />`,
     [
       "src/components/delivery/DeferredLocationPrompt.tsx",
       "src/components/delivery/AddressBookSheet.tsx",
       "src/lib/delivery-address.ts",
+      "src/lib/refresh-delivery-serviceable.ts",
+      "src/lib/db/location.ts",
       "src/app/(storefront)/home/page.tsx",
     ],
   ),
@@ -234,7 +240,9 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
 import { categoryProductRails } from "@/lib/home-category-rails";
 import { PhaseBHomeSectionsDemo } from "@/components/playground/PhaseBHomeSectionsDemo";
 
-// Live /home: categoryProductRails(catalog.categories, catalog.productsBySlug)
+// Live /home: batched per-root categoryId fetches (match PLP, pool-safe)
+// categoryProductRails(catalog.categories, catalog.productsBySlug)
+// /api/warm → loadHomeCatalog (same cache keys)
 <CategoryProductRails rails={rails} />
 
 // Playground stack demo
@@ -243,6 +251,9 @@ import { PhaseBHomeSectionsDemo } from "@/components/playground/PhaseBHomeSectio
       "src/components/playground/PhaseBHomeSectionsDemo.tsx",
       "src/components/home/CategoryProductRails.tsx",
       "src/lib/home-category-rails.ts",
+      "src/lib/catalog-browse.ts",
+      "src/lib/map-pool.ts",
+      "src/app/api/warm/route.ts",
       "src/components/home/HomePullContent.tsx",
       "src/components/home/HomeProductShelves.tsx",
     ],
@@ -715,6 +726,21 @@ export default function NotFound() {
 />`,
     ["src/components/coupons/CouponsPageContent.tsx"],
   ),
+  "profile-options-refine": U(
+    `import { ProfileOptionsList } from "@/components/profile/ProfileOptionsList";
+
+// Live /profile More list (guest + signed-in)
+<ProfileOptionsList signedIn={false} hideAddressRow />
+<ProfileOptionsList signedIn hideAddressRow />`,
+    [
+      "src/components/profile/ProfileOptionsList.tsx",
+      "src/components/profile/ProfileOptionRow.tsx",
+      "src/lib/profile-options.ts",
+      "public/icons/wishlist.svg",
+      "public/icons/coupon.svg",
+      "public/icons/support.png",
+    ],
+  ),
   "profile-header": U(
     `import { ProfileScreen } from "@/components/profile/ProfileScreen";
 
@@ -758,7 +784,7 @@ export default function NotFound() {
   }}
 />
 
-// Live: short sticky To pay + Place Order; success → /orders/[id]?placed=1
+// Live: short sticky To pay + Place Order; success → OrderPlacedContent
 <CheckoutPageContent liveShopPricing showPriceMayVary />`,
     [
       "src/components/checkout/CheckoutPageContent.tsx",

@@ -76,7 +76,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Guest Sign in vs signed-in profile-tick icon (no round background). Storefront stays guest until auth.",
+      "Guest / signed-in account slot. Deliver to turns red with Outside delivery radius when the pin fails the shop radius preview.",
     wiresTo: "/home",
   },
   {
@@ -85,7 +85,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Wired `/home`: soft map prompt; Detect saves pin and closes. Address details asked at place order.",
+      "Wired `/home`: soft map prompt; confirm pin runs radius preview (same DB check as checkout). Outside → toast + red header. Details at place order.",
     wiresTo: "/home",
   },
   {
@@ -94,7 +94,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Install sheet only on ecom `/home`. Dismiss = sessionStorage (shows again after browser closed).",
+      "Install sheet only on ecom `/home`. Hidden while scroll lock held. Dismiss = sessionStorage.",
     wiresTo: "InstallPrompt on AppProviders → gated to /home",
   },
 
@@ -178,9 +178,9 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Home stack with per-category horizontal product rails (categoryProductRails). Live /home uses the same pattern.",
+      "Home stack with per-category rails. Live loadHomeCatalog batches per-root categoryId fetches (pool-safe); DB failures show catalog error, not a fake empty aisle. /api/warm uses the same path.",
     wiresTo:
-      "src/lib/home-category-rails.ts → HomePullContent categoryRails on /home",
+      "loadHomeCatalog → categoryProductRails → HomePullContent on /home",
   },
   {
     slug: "category-browser",
@@ -540,7 +540,16 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Rebuilt /profile: identity card, address card, stacked options (Wishlist open to guests), logout confirm. Playground covers guest / signed-in / error / offline.",
+      "Live ProfileScreen: mint→white desk hero, large avatar + name row, options list, Logout. Guest / signed-in / error / offline.",
+    wiresTo: "/profile",
+  },
+  {
+    slug: "profile-options-refine",
+    title: "Profile options · refine",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Desk menu rows (brand icons, guest Sign in chips). Same ProfileOptionsList as live /profile.",
     wiresTo: "/profile",
   },
   {

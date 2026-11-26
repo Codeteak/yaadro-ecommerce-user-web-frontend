@@ -7,6 +7,11 @@ export type DeliveryAddress = {
   /** Device pin used for the delivery-area check. */
   lat?: number;
   lng?: number;
+  /**
+   * Last home/checkout radius preview for this pin.
+   * `undefined` = not checked yet; `false` = outside shop radius.
+   */
+  serviceable?: boolean;
 };
 
 export const EMPTY_DELIVERY_ADDRESS: DeliveryAddress = {
@@ -51,6 +56,13 @@ export function hasBrowseLocation(
   return Boolean(a.street?.trim() || a.city?.trim());
 }
 
+/** Pin was checked and falls outside `service_area_radius_meters`. */
+export function isOutsideDeliveryRadius(
+  a: DeliveryAddress | null | undefined,
+): boolean {
+  return a?.serviceable === false;
+}
+
 /** Home / checkout line: prefer full details, else area / pin label. */
 export function formatDeliveryLocationLabel(
   a: DeliveryAddress | null | undefined,
@@ -64,11 +76,14 @@ export function formatDeliveryLocationLabel(
   return null;
 }
 
-export function readDeliveryAddress(): DeliveryAddress | null {
-  if (typeof window === "undefined") return null;
+/** Stable snapshot for useSyncExternalStore (Object.is must not churn). */
+let snapshot: DeliveryAddress | null = null;
+let snapshotRaw: string | null = null;
+let snapshotHydrated = false;
+
+function parseDeliveryAddress(raw: string | null): DeliveryAddress | null {
+  if (!raw) return null;
   try {
-    const raw = window.localStorage.getItem(DELIVERY_ADDRESS_KEY);
-    if (!raw) return null;
     return {
       ...EMPTY_DELIVERY_ADDRESS,
       ...(JSON.parse(raw) as Partial<DeliveryAddress>),
@@ -78,12 +93,42 @@ export function readDeliveryAddress(): DeliveryAddress | null {
   }
 }
 
-export function writeDeliveryAddress(address: DeliveryAddress): void {
+/**
+ * Client getSnapshot — same object reference while localStorage is unchanged.
+ * Required by useSyncExternalStore to avoid infinite re-renders.
+ */
+export function readDeliveryAddress(): DeliveryAddress | null {
+  if (typeof window === "undefined") return null;
+  let raw: string | null = null;
   try {
-    window.localStorage.setItem(DELIVERY_ADDRESS_KEY, JSON.stringify(address));
+    raw = window.localStorage.getItem(DELIVERY_ADDRESS_KEY);
+  } catch {
+    return null;
+  }
+  if (snapshotHydrated && raw === snapshotRaw) {
+    return snapshot;
+  }
+  snapshotHydrated = true;
+  snapshotRaw = raw;
+  snapshot = parseDeliveryAddress(raw);
+  return snapshot;
+}
+
+/** Server / hydration snapshot — always null (no localStorage on SSR). */
+export function getDeliveryAddressServerSnapshot(): null {
+  return null;
+}
+
+export function writeDeliveryAddress(address: DeliveryAddress): void {
+  const raw = JSON.stringify(address);
+  try {
+    window.localStorage.setItem(DELIVERY_ADDRESS_KEY, raw);
   } catch {
     // persistence is best-effort
   }
+  snapshotHydrated = true;
+  snapshotRaw = raw;
+  snapshot = { ...EMPTY_DELIVERY_ADDRESS, ...address };
   window.dispatchEvent(new Event(DELIVERY_ADDRESS_EVENT));
 }
 
@@ -94,6 +139,9 @@ export function clearDeliveryAddress(): void {
   } catch {
     // best-effort
   }
+  snapshotHydrated = true;
+  snapshotRaw = null;
+  snapshot = null;
   window.dispatchEvent(new Event(DELIVERY_ADDRESS_EVENT));
 }
 

@@ -113,6 +113,7 @@ import { PhaseBHomeSectionsDemo } from "@/components/playground/PhaseBHomeSectio
 import { PhaseCAddressModalDemo } from "@/components/playground/PhaseCAddressModalDemo";
 import { PhaseDPriceVaryExplainDemo } from "@/components/playground/PhaseDPriceVaryExplainDemo";
 import { OrderBillCouponFixDemo } from "@/components/playground/OrderBillCouponFixDemo";
+import { ProfileOptionsRefineDemo } from "@/components/playground/ProfileOptionsRefineDemo";
 import {
   SHOP_FALLBACK_AVATAR_OPTIONS,
   SHOP_IMAGE_FALLBACK_CURRENT,
@@ -620,7 +621,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "deferred-location": () => (
-    <DemoFrame note="Wired `/home`: soft map prompt. Detect / Use this location saves the pin and closes — no details yet. Full address is asked at place order on checkout.">
+    <DemoFrame note="Wired `/home`: soft map prompt locks body scroll while open; close / change playground route unlocks. Confirm pin runs the shop radius preview — outside area toasts and paints Deliver to red.">
       <div className="relative min-h-[28rem] bg-gradient-to-b from-mint to-paper px-4 pt-6 pb-10">
         <HomeTopBar
           shopName="Green Basket"
@@ -628,14 +629,15 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
           signedIn={false}
         />
         <p className="mt-8 text-center text-sm font-medium text-muted">
-          Sheet opens after settle — Detect location is enough to browse.
+          Sheet opens after settle — Detect / Use this location saves the pin,
+          checks delivery radius, then closes. Details still wait for checkout.
         </p>
         <DeferredLocationPrompt forcePreview delayMs={900} />
       </div>
     </DemoFrame>
   ),
   "pwa-install-prompt": () => (
-    <DemoFrame note="Live: only on `/home`. Close (X) hides for this browser session; reopen browser to see again. forcePreview here skips beforeinstallprompt.">
+    <DemoFrame note="Live: only on `/home`. Hidden while location sheet holds scroll lock. Close (X) hides for this browser session.">
       <div className="relative min-h-[28rem] bg-gradient-to-b from-mint to-paper px-4 pt-6 pb-10">
         <HomeTopBar
           shopName="Green Basket"
@@ -670,7 +672,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "home-top-bar": () => (
-    <DemoFrame note="Guest shows Sign in. Signed in replaces it with the profile-tick icon — no round background. On /home the icon follows the real session.">
+    <DemoFrame note="Guest / signed-in account slot. Outside delivery radius paints Deliver to red after the home pin fails the shop radius preview (same DB check as checkout).">
       <div className="space-y-6 bg-gradient-to-b from-mint via-[#d4efd4] to-[#b8e6b8] px-5 pt-4 pb-6">
         <div>
           <p className="mb-2 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
@@ -680,6 +682,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
             shopName="Yaadro"
             shopImage="/onboarding/brand-mark-white-y.svg"
             signedIn={false}
+            previewAddressLabel="Choose your location"
           />
         </div>
         <div>
@@ -690,6 +693,18 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
             shopName="Yaadro"
             shopImage="/onboarding/brand-mark-white-y.svg"
             signedIn
+            previewAddressLabel="Indiranagar, Bengaluru"
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-[11px] font-bold tracking-wide text-forest/70 uppercase">
+            Outside delivery radius
+          </p>
+          <HomeTopBar
+            shopName="Yaadro"
+            shopImage="/onboarding/brand-mark-white-y.svg"
+            signedIn={false}
+            previewOutsideRadius
           />
         </div>
       </div>
@@ -973,7 +988,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "home-more-sections": () => (
     <DemoFrame
       surface="bare"
-      note="Live /home: per-category horizontal product rails (not category tiles). Demo shows the fuller stack."
+      note="Live /home batches per-root categoryId fetches (HOME_ROOT_FETCH_CONCURRENCY) so the DB pool is not stampeded. Failures surface as catalog error — not “Nothing in this aisle yet.” /api/warm calls loadHomeCatalog."
     >
       <PhaseBHomeSectionsDemo />
     </DemoFrame>
@@ -991,7 +1006,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "home-pull-content": () => (
-    <DemoFrame note="Same as /home body: sample category rail + ProductSection + FruitsVeggies + shelves + BrandFooter + PTR.">
+    <DemoFrame note="Same as /home body. Live productsBySlug comes from batched per-root PLP queries; catalogError shows when the load fails.">
       <HomeCategoryProvider>
         <HomePullContent />
       </HomeCategoryProvider>
@@ -1137,9 +1152,9 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   checkout: () => (
     <DemoFrame
       surface="bare"
-      note="Place Order with pin-only location opens Add details. Full house/street required to submit. Guest → login."
+      note="Scroll clears sticky Place Order — “You saved” sits above the footer. Guest → login."
     >
-      <div className="relative h-[75vh] overflow-y-auto bg-paper">
+      <div className="relative h-[75vh] overflow-hidden bg-paper">
         <CheckoutPageContent
           chromePosition="inline"
           showPriceMayVary
@@ -1151,9 +1166,9 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "checkout-coupon": () => (
     <DemoFrame
       surface="bare"
-      note="Phase A #34: no Amount due bar. Coupon −₹ fixture (sample). Live only after shop preview applies a real code."
+      note="Coupon −₹ fixture. Scroll padding clears sticky footer so savings strip is fully visible."
     >
-      <div className="relative h-[75vh] overflow-y-auto bg-paper">
+      <div className="relative h-[75vh] overflow-hidden bg-paper">
         <CheckoutPageContent
           chromePosition="inline"
           showPriceMayVary
@@ -1172,7 +1187,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "order-placed": () => (
     <DemoFrame
       surface="bare"
-      note="Playground confirm card. Live checkout goes to /orders/[id]?placed=1 (refresh-safe)."
+      note="Same OrderPlacedContent mascot + bill as live Place Order success."
     >
       <div className="max-h-[85vh] overflow-y-auto overscroll-contain rounded-[1.75rem] bg-paper ring-1 ring-forest/10">
         <OrderPlacedContent
@@ -1588,6 +1603,11 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </DemoFrame>
     );
   },
+  "profile-options-refine": () => (
+    <DemoFrame note="Wired to ecom /profile — same ProfileOptionsList (guest Sign in pill on orders/coupons).">
+      <ProfileOptionsRefineDemo />
+    </DemoFrame>
+  ),
   "profile-header": () => {
     const signedInProfile: CustomerProfile = {
       user: {
@@ -1599,7 +1619,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       address: null,
     };
     return (
-      <DemoFrame note="Rebuilt /profile — guest, signed-in, error, offline. Logout confirm is dry-run in playground.">
+      <DemoFrame note="Live ProfileScreen — desk hero, options list, larger Logout. Confirm is dry-run in playground.">
         <div className="max-h-[40rem] space-y-8 overflow-y-auto overscroll-contain bg-paper pb-6">
           <div>
             <p className="px-5 pt-3 text-[11px] font-bold tracking-wide text-forest/70 uppercase">

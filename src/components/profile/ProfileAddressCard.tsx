@@ -7,6 +7,7 @@ import {
   formatDeliveryLocationLabel,
   hasBrowseLocation,
   hasDeliveryDetails,
+  getDeliveryAddressServerSnapshot,
   readDeliveryAddress,
   subscribeDeliveryAddress,
   type DeliveryAddress,
@@ -37,7 +38,7 @@ export function ProfileAddressCard({
   const address = useSyncExternalStore(
     subscribeDeliveryAddress,
     readDeliveryAddress,
-    () => null,
+    getDeliveryAddressServerSnapshot,
   );
 
   const hasLocation = hasBrowseLocation(address);

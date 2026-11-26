@@ -31,6 +31,7 @@ type ProfileIdentityCardProps = {
 export function ProfileIdentityCard({
   displayName,
   phone,
+  userId,
   online,
   editing,
   onEditingChange,
@@ -92,7 +93,7 @@ export function ProfileIdentityCard({
           </div>
         ) : (
           <div className="flex items-start gap-3">
-            <ProfileAvatar name={displayName} size="md" />
+            <ProfileAvatar name={displayName} seed={userId} size="md" />
             <div className="min-w-0 flex-1">
               {displayName ? (
                 <p className="truncate text-sm font-bold text-black">{displayName}</p>

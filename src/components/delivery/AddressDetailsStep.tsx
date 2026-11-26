@@ -10,6 +10,7 @@ import { cn } from "@/lib/cn";
 import { buildPlaceEmbedUrl } from "@/lib/live-track-map";
 import { saveMyAddress } from "@/lib/api/address";
 import { hasCustomerSession } from "@/lib/api/session";
+import { refreshDeliveryServiceable } from "@/lib/refresh-delivery-serviceable";
 import {
   formatSavedAddressLine,
   upsertSavedAddress,
@@ -120,6 +121,9 @@ export function AddressDetailsStep({
         return;
       }
       setSaving(false);
+    }
+    if (typeof row.lat === "number" && typeof row.lng === "number") {
+      await refreshDeliveryServiceable(row.lat, row.lng);
     }
     onSaved();
   };

@@ -2,23 +2,34 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useSyncExternalStore, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+  useState,
+} from "react";
 import { ChevronDown, MapPin } from "lucide-react";
 import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import {
   formatDeliveryLocationLabel,
+  getDeliveryAddressServerSnapshot,
   hasBrowseLocation,
   hasDeliveryDetails,
+  hasDeliveryPin,
+  isOutsideDeliveryRadius,
   readDeliveryAddress,
   subscribeDeliveryAddress,
 } from "@/lib/delivery-address";
+import { DELIVERY_OUTSIDE_RADIUS_LABEL } from "@/lib/location-messages";
 import {
   getCachedProfileUiServerSnapshot,
   readCachedProfileUi,
   subscribeCachedProfileUi,
 } from "@/lib/profile-cache";
+import { refreshDeliveryServiceable } from "@/lib/refresh-delivery-serviceable";
 import {
   getSelectedAddress,
   isSavedAddressDetailsComplete,
@@ -46,6 +57,7 @@ function AccountLink({ signedIn }: { signedIn?: boolean }) {
         >
           <ProfileAvatar
             name={cached?.displayName}
+            seed={cached?.userId}
             size="sm"
             className="shadow-[0_6px_16px_rgba(47,107,47,0.16)] ring-leaf/20"
           />
@@ -62,16 +74,6 @@ function AccountLink({ signedIn }: { signedIn?: boolean }) {
   );
 }
 
-function getServerLabel() {
-  return null as string | null;
-}
-
-function getClientLabel() {
-  const saved = readDeliveryAddress();
-  if (!hasBrowseLocation(saved)) return null;
-  return formatDeliveryLocationLabel(saved);
-}
-
 /**
  * Hero top bar: shop avatar + name, Deliver to under the name, Sign in
  * or the profile icon. Tapping the location line opens the address sheet.
@@ -81,11 +83,17 @@ export function HomeTopBar({
   shopName,
   shopImage,
   signedIn,
+  previewOutsideRadius,
+  previewAddressLabel,
 }: {
   shopName: string;
   shopImage: string;
   /** Preview override. Leave unset on the storefront. */
   signedIn?: boolean;
+  /** Playground: force the red outside-radius Deliver-to line. */
+  previewOutsideRadius?: boolean;
+  /** Playground: force the Deliver-to label (ignored when outside preview). */
+  previewAddressLabel?: string | null;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetEditId, setSheetEditId] = useState<string | null>(null);
@@ -93,19 +101,59 @@ export function HomeTopBar({
     "list",
   );
 
-  const addressLabel = useSyncExternalStore(
+  const delivery = useSyncExternalStore(
     subscribeDeliveryAddress,
-    getClientLabel,
-    getServerLabel,
+    readDeliveryAddress,
+    getDeliveryAddressServerSnapshot,
   );
 
+  const liveOutside = isOutsideDeliveryRadius(delivery);
+  const outside = previewOutsideRadius === true || liveOutside;
+  const addressLabel =
+    previewOutsideRadius === true
+      ? DELIVERY_OUTSIDE_RADIUS_LABEL
+      : previewAddressLabel !== undefined
+        ? previewAddressLabel
+        : outside
+          ? DELIVERY_OUTSIDE_RADIUS_LABEL
+          : hasBrowseLocation(delivery)
+            ? formatDeliveryLocationLabel(delivery)
+            : null;
+
+  // Existing pins (or server sync) may lack `serviceable` — check once per pin.
+  const serviceableCheckKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (previewOutsideRadius != null || previewAddressLabel !== undefined) {
+      return;
+    }
+    if (
+      !delivery ||
+      !hasDeliveryPin(delivery) ||
+      typeof delivery.serviceable === "boolean"
+    ) {
+      return;
+    }
+    const { lat, lng } = delivery;
+    if (typeof lat !== "number" || typeof lng !== "number") return;
+    const key = `${lat},${lng}`;
+    if (serviceableCheckKey.current === key) return;
+    serviceableCheckKey.current = key;
+    let cancelled = false;
+    void refreshDeliveryServiceable(lat, lng).then(() => {
+      if (cancelled) return;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [delivery, previewAddressLabel, previewOutsideRadius]);
+
   const openAddressSheet = () => {
-    const delivery = readDeliveryAddress();
+    const current = readDeliveryAddress();
     const saved = getSelectedAddress() ?? listSavedAddresses()[0] ?? null;
-    if (hasDeliveryDetails(delivery) || isSavedAddressDetailsComplete(saved)) {
+    if (hasDeliveryDetails(current) || isSavedAddressDetailsComplete(saved)) {
       setSheetEditId(saved?.id ?? null);
       setSheetStep("details");
-    } else if (hasBrowseLocation(delivery) || saved) {
+    } else if (hasBrowseLocation(current) || saved) {
       // Pin-only: open details so they can complete when they want.
       setSheetEditId(saved?.id ?? null);
       setSheetStep(saved ? "details" : "map");
@@ -120,6 +168,11 @@ export function HomeTopBar({
     setSheetOpen(next);
     if (!next) setSheetEditId(null);
   }, []);
+
+  const pinColor = outside ? "text-red-600" : "text-black";
+  const labelColor = outside ? "text-red-600" : "text-leaf";
+  const chevronColor = outside ? "text-red-600/70" : "text-leaf/60";
+  const eyebrowColor = outside ? "text-red-600" : "text-black";
 
   return (
     <>
@@ -158,17 +211,24 @@ export function HomeTopBar({
               aria-haspopup="dialog"
               aria-expanded={sheetOpen}
             >
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-black" aria-hidden />
+              <MapPin
+                className={`mt-0.5 h-4 w-4 shrink-0 ${pinColor}`}
+                aria-hidden
+              />
               <span className="min-w-0">
-                <span className="block text-[9px] font-bold tracking-[0.16em] text-black uppercase">
+                <span
+                  className={`block text-[9px] font-bold tracking-[0.16em] uppercase ${eyebrowColor}`}
+                >
                   Deliver to
                 </span>
                 <span className="flex min-h-[1.25rem] min-w-0 items-center gap-1">
-                  <span className="min-w-0 truncate text-[13px] leading-tight font-semibold text-leaf">
+                  <span
+                    className={`min-w-0 truncate text-[13px] leading-tight font-semibold ${labelColor}`}
+                  >
                     {addressLabel ?? "Choose your location"}
                   </span>
                   <ChevronDown
-                    className="h-3.5 w-3.5 shrink-0 text-leaf/60"
+                    className={`h-3.5 w-3.5 shrink-0 ${chevronColor}`}
                     aria-hidden
                   />
                 </span>

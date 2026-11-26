@@ -10,6 +10,9 @@ export type LocationToast = {
   tone: LocationToastTone;
 };
 
+/** Home Deliver-to line when the pin is outside the shop radius. */
+export const DELIVERY_OUTSIDE_RADIUS_LABEL = "Outside delivery radius";
+
 /** Null when the shop can deliver. Otherwise the sentence to show. */
 export function deliveryAreaMessage(
   result: { serviceable?: boolean } | null,
