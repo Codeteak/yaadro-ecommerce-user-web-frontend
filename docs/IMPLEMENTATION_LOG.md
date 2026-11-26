@@ -1,12 +1,8 @@
 # Implementation Log
 
-## 2026-11-26 — Home catalog works for every shop (browse-first)
+## 2026-11-26 — CodeDeploy stop + health aligned with ALB `/api/health`
 
-Greens / Market Fresh empty “All” was systemic: category timeouts cached as `[]`, and home depended on N root queries. `loadHomeCatalog` now (1) loads one uncategoized browse page for All, (2) buckets into root rails, (3) soft PLP-fills up to `HOME_ROOT_PLP_FILL_MAX` empty roots. Production DB errors throw (no fake empty aisle); CI without `DATABASE_URL` still returns []. Pool defaults to 10 (`STOREFRONT_DB_POOL_MAX`). Playground home notes updated.
-
-## 2026-11-26 — Home catalog: batch root fetches, don’t cache empty on timeout
-
-Production shops (e.g. Market Fresh) could show “Nothing in this aisle yet” after a slow `/home`: per-root `listStoreProducts({ categoryId })` opened too many parallel DB queries against `pool.max = 5`, and failures inside `"use cache"` were swallowed as `[]` (then cached). Fix: `mapPool` with `HOME_ROOT_FETCH_CONCURRENCY = 2`; `listStoreProducts` throws on DB error; `loadHomeCatalog` surfaces the catalog error card; `/api/warm` calls `loadHomeCatalog` so warm keys match home. Playground home-more-sections / home-pull notes updated.
+`application_stop.sh` exports a placeholder `ECR_IMAGE_URI` so `compose down` can parse compose without Start’s image env; falls back to `docker stop/rm customer-web`. Docker healthcheck now matches the ALB target group: **`/api/health` only** (no `/api/warm` gate — warm 503 without `STOREFRONT_WARM_SHOP_ID(S)` was marking the app unhealthy). Infra default `health_check_path` → `/api/health`.
 
 ## 2026-11-26 — Prerender: keep URL hooks under Suspense
 
