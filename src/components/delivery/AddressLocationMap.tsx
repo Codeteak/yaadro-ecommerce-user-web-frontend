@@ -206,7 +206,7 @@ export function AddressLocationMap({
   const style =
     inside === false
       ? DELIVERY_RADIUS_MAP_STYLE.outside
-      : DELIVERY_RADIUS_MAP_STYLE.inside; // soft green until a real pin is outside
+      : DELIVERY_RADIUS_MAP_STYLE.inside; // green until a real pin is outside
 
   const circleOptions = useMemo(
     () => ({

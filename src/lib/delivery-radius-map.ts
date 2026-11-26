@@ -14,17 +14,17 @@ export type ShopDeliveryHub = {
 
 const RING_STEPS = 96;
 
-/** Soft fill + slightly darker thin dotted stroke (inside / outside). */
+/** Darker visible fill + thin light dotted stroke (inside / outside). */
 export const DELIVERY_RADIUS_MAP_STYLE = {
   inside: {
     stroke: "#5fa85f",
-    fill: "#b8e6b8",
-    fillOpacity: 0.14,
+    fill: "#6fbf6f",
+    fillOpacity: 0.26,
   },
   outside: {
     stroke: "#e07070",
-    fill: "#f5c2c2",
-    fillOpacity: 0.12,
+    fill: "#e87474",
+    fillOpacity: 0.22,
   },
 } as const;
 

@@ -149,7 +149,7 @@ export function DeliveryRadiusMapDemo() {
   );
 
   return (
-    <DemoFrame note="Same as live AddressLocationMap: shop pin (S) always on, dark hint until you pin, then inside/outside.">
+    <DemoFrame note="Same radius styles as live address map: darker fill, thin light dotted ring.">
       <div className="space-y-3 bg-gradient-to-b from-mint to-paper px-4 pt-4 pb-6">
         <div className="flex flex-wrap gap-2">
           <button

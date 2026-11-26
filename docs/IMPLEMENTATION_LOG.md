@@ -1,8 +1,12 @@
 # Implementation Log
 
+## 2026-11-26 — Delivery radius styles wired to ecom
+
+Shared `DELIVERY_RADIUS_MAP_STYLE`: darker fill (~0.26 / 0.22) + thin light dotted ring. Live `AddressLocationMap` and playground `/playground/address-map` both use it.
+
 ## 2026-11-26 — Delivery radius circle on live address map
 
-Live `AddressLocationMap` loads `getShopDeliveryHub`, draws soft fill + dotted ring, and always shows the shop hub pin (S). Until detect/search/tap: dark chip “Pin your spot to check delivery” (no false Outside). After a real pin: inside/outside. Shared helpers in `delivery-radius-map.ts`.
+Live `AddressLocationMap` loads `getShopDeliveryHub`, draws fill + dotted ring, and always shows the shop hub pin (S). Until detect/search/tap: dark chip “Pin your spot to check delivery” (no false Outside). After a real pin: inside/outside. Shared helpers in `delivery-radius-map.ts`.
 
 ## 2026-11-26 — Playground: shop delivery radius on map
 
