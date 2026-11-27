@@ -334,7 +334,7 @@ export function CategoryBrowser({
         */
         <div
           data-storefront-scroll
-          className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]"
+          className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]"
         >
           {ownsPageChrome ? (
             <div className="px-5 pb-2">
@@ -349,8 +349,8 @@ export function CategoryBrowser({
             <div className="px-5 pb-2">{searchBlock}</div>
           )}
 
-          {/* Soft wash so products don't bleed under sticky pills — no border/shadow card. */}
-          <div className="sticky top-0 z-20 bg-paper/95 backdrop-blur-sm">
+          {/* Solid sticky wash — avoid backdrop-blur (scroll stutter on mobile). */}
+          <div className="sticky top-0 z-20 bg-paper">
             <CategoryRail
               categories={railCategories}
               tileVariant="pill"

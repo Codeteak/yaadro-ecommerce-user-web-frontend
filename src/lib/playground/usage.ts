@@ -89,11 +89,13 @@ import { useScrollDirection } from "@/components/navigation/useScrollDirection";
 // Wired on /home — Detect/confirm pin saves, runs radius preview, closes
 <DeferredLocationPrompt />
 // Playground: <DeferredLocationPrompt forcePreview delayMs={900} />
-// Leaked locks: BodyScrollUnlockOnNavigate (route + rAF/timeout) + reconcile
-// Fill chrome uses pathname marker so categories→home stays vertically scrollable`,
+// Map reopen seeds last pin (detectedPlaceFromBrowseLocation). Sync keeps lat/lng if API omits.
+// Leaked locks: BodyScrollUnlockOnNavigate (route + rAF/timeout) + reconcile`,
     [
       "src/components/delivery/DeferredLocationPrompt.tsx",
       "src/components/delivery/AddressBookSheet.tsx",
+      "src/lib/sync-server-address.ts",
+      "src/lib/saved-addresses.ts",
       "src/components/navigation/BodyScrollUnlockOnNavigate.tsx",
       "src/components/storefront/StorefrontChrome.tsx",
       "src/lib/use-body-scroll-lock.ts",
@@ -214,7 +216,7 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
 
 <CategoriesHub
   focusSearch={false}
-  categoryHref={(cat) => \`/categories/\${cat.slug}\`}
+  categoryHref={(cat) => \`/categories?cat=\${cat.slug}\`}
 />`,
     [
       "src/components/categories/CategoriesHub.tsx",
@@ -321,16 +323,17 @@ import { CategoriesHub } from "@/components/categories/CategoriesHub";
   "category-plp-horizontal": U(
     `import { CategoryListing } from "@/components/categories/CategoryListing";
 
-{/* Live /categories/[slug]: sticky pill rail + soft wash (no bordered card) + floating BottomNav */}
+{/* Produce slugs → All|Fruits|Vegetables (All = produce only). Back → /home. Other slugs keep /categories. */}
 <CategoryListing
-  slug="vegetables"
-  backHref="/categories"
+  slug="fruits"
+  initialSub="Fruits"
+  backHref="/home"
   railLayout="horizontal"
 />`,
     [
       "src/components/categories/CategoryListing.tsx",
       "src/app/(storefront)/categories/[slug]/page.tsx",
-      "src/components/categories/CachedCategoryPage.tsx",
+      "src/lib/produce-plp.ts",
       "src/components/home/HomeSearchBar.tsx",
       "src/components/home/CategoryRail.tsx",
       "src/components/storefront/StorefrontChrome.tsx",
@@ -373,21 +376,25 @@ import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
     `import { ProductSection } from "@/components/home/ProductSection";
 import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 
+// Show all → /categories?cat=slug (hub), not /categories/[slug] PLP
 <HomeCategoryProvider>
   <ProductSection />
 </HomeCategoryProvider>`,
     [
       "src/components/home/ProductSection.tsx",
       "src/components/home/HomeCategoryContext.tsx",
+      "src/lib/categories-hub-href.ts",
     ],
   ),
   "fruits-veggies-section": U(
     `import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
 
 <FruitsVeggiesSection />
-// Browse all → /categories/fruits (All|Fruits) or /categories/vegetables`,
+// Browse all → produce PLP (not hub): All=/categories/fruits · Fruits=?aisle=fruits · Veg=/categories/vegetables?aisle=vegetables
+// Rail = All (fruits∪veg only) | Fruits | Vegetables. Back → /home. Hub /categories All stays shop-wide.`,
     [
       "src/components/home/FruitsVeggiesSection.tsx",
+      "src/lib/produce-plp.ts",
       "public/home/fruits-veggies-section.jpg",
     ],
   ),
@@ -806,7 +813,8 @@ export default function NotFound() {
 // Live /profile — guest, signed-in, error, offline via useMyProfile
 <ProfileScreen />
 
-// Playground preview (dry-run logout / name save)
+// Playground preview (dry-run logout / name save — no redirect)
+// Confirm Log out = primaryButton (green 3D + black text). Live sign-out → /home
 <ProfileScreen
   preview={{
     signedIn: true,
@@ -820,6 +828,8 @@ export default function NotFound() {
 />`,
     [
       "src/components/profile/ProfileScreen.tsx",
+      "src/components/profile/LogoutRow.tsx",
+      "src/components/profile/profile-styles.ts",
       "src/components/profile/hooks/useMyProfile.ts",
       "src/lib/api/profile.ts",
       "src/lib/default-profile-avatar.ts",
@@ -997,8 +1007,13 @@ import { SavedAddressesManageList } from "@/components/delivery/SavedAddressesMa
   "address-book": U(
     `import { AddressBookSheet } from "@/components/delivery/AddressBookSheet";
 
+// Map step seeds draftPlace from book / Deliver-to (detectedPlaceFromBrowseLocation)
 <AddressBookSheet open={open} onOpenChange={setOpen} />`,
-    ["src/components/delivery/AddressBookSheet.tsx"],
+    [
+      "src/components/delivery/AddressBookSheet.tsx",
+      "src/lib/saved-addresses.ts",
+      "src/lib/sync-server-address.ts",
+    ],
   ),
   "address-manage": U(
     `import { SavedAddressesManageList } from "@/components/delivery/SavedAddressesManageList";
@@ -1195,6 +1210,18 @@ import { StorefrontRouteShell } from "@/components/ui/skeletons";
       "src/components/profile/ProfileScreen.tsx",
       "src/app/(storefront)/dairy/page.tsx",
       "src/app/(storefront)/festive/page.tsx",
+    ],
+  ),
+  "tomato-loader": U(
+    `import { TomatoVineLoader } from "@/components/ui/TomatoVineLoader";
+
+// Playground only — soft WebP (from GIF) at public/loaders/tomato-vine.webp
+<TomatoVineLoader label="Loading category…" size="md" />
+`,
+    [
+      "src/components/ui/TomatoVineLoader.tsx",
+      "src/components/playground/TomatoLoaderDemo.tsx",
+      "public/loaders/tomato-vine.webp",
     ],
   ),
   skeletons: U(

@@ -9,14 +9,16 @@ import { cn } from "@/lib/cn";
 import { homeCategoryImage } from "@/lib/home-categories";
 import { PRODUCT_CAROUSEL_SLOT } from "@/lib/product-card-layout";
 import {
+  producePlpHref,
+  type ProduceFilter,
+} from "@/lib/produce-plp";
+import {
   getProductsByCategory,
   type SampleProduct,
 } from "@/lib/sample-products";
 
 /** Full-bleed produce card background (user-provided section art). */
 const BG = "/home/fruits-veggies-section.jpg";
-
-type ProduceFilter = "All" | "Fruits" | "Vegetables";
 
 const FILTERS: {
   id: ProduceFilter;
@@ -43,7 +45,8 @@ const LIMIT = 10;
  * Home produce band (after ProductSection on `/home`): full-section
  * card with BG image, All / Fruits / Vegetables filters (local only),
  * product rail, and Browse all → produce PLP (`/categories/fruits` or
- * `/categories/vegetables` from the active chip; All → fruits).
+ * `/categories/vegetables`) with rail All | Fruits | Vegetables
+ * (All = produce only). Shop-wide Categories hub All is unchanged.
  *
  * Dark scrims + light type keep headings readable on the busy photo.
  */
@@ -60,8 +63,7 @@ export function FruitsVeggiesSection({
   const t = useTypeScale();
   const [filter, setFilter] = useState<ProduceFilter>("All");
 
-  const browseHref =
-    filter === "Vegetables" ? "/categories/vegetables" : "/categories/fruits";
+  const browseHref = producePlpHref(filter);
 
   const products = useMemo(() => {
     const fruitList = fruits ?? getProductsByCategory("Fruits");
@@ -124,7 +126,8 @@ export function FruitsVeggiesSection({
               Fruits &amp; veggies
             </h2>
             <p className="mx-auto mt-2 max-w-[16rem] text-[13px] leading-5 font-medium text-white/90 drop-shadow-[0_1px_3px_rgba(0,0,0,0.55)]">
-              Pick a category below — Browse all opens that produce aisle.
+              Pick Fruits or Vegetables — Browse all opens produce with All,
+              Fruits, and Vegetables rails.
             </p>
 
             <div

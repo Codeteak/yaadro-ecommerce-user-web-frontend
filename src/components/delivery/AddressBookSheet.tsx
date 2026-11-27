@@ -14,7 +14,8 @@ import { hasCustomerSession } from "@/lib/api/session";
 import { refreshDeliveryServiceable } from "@/lib/refresh-delivery-serviceable";
 import {
   detectMyPlace,
-  formatSavedAddressLine,
+  detectedPlaceFromBrowseLocation,
+  detectedPlaceFromSaved,
   getSavedAddress,
   listSavedAddresses,
   saveBrowsePin,
@@ -85,23 +86,15 @@ function initialDraft(editId: string | null, initialStep: Step) {
       return {
         step: "details" as const,
         editing: row,
-        place: {
-          area: row.area,
-          street: row.street,
-          city: row.city,
-          pin: row.pin,
-          landmark: row.landmark,
-          lat: row.lat,
-          lng: row.lng,
-          formatted: formatSavedAddressLine(row),
-        } satisfies DetectedPlace,
+        place: detectedPlaceFromSaved(row),
       };
     }
   }
+  // Reopen map with the last Deliver-to / book pin (not an empty map).
   return {
     step: initialStep === "list" && saved.length === 0 ? "map" : initialStep,
     editing: null as SavedAddress | null,
-    place: null as DetectedPlace | null,
+    place: detectedPlaceFromBrowseLocation(),
   };
 }
 
@@ -144,7 +137,19 @@ function AddressBookSheetBody({
       .then((delivery) => {
         if (!delivery || controller.signal.aborted) return;
         const saved = listSavedAddresses()[0] ?? null;
-        if (saved) setEditing(saved);
+        if (saved) {
+          setEditing(saved);
+          setDraftPlace((prev) => {
+            // Keep an in-progress map pick; otherwise restore synced pin.
+            if (
+              typeof prev?.lat === "number" &&
+              typeof prev?.lng === "number"
+            ) {
+              return prev;
+            }
+            return detectedPlaceFromSaved(saved);
+          });
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setHydratingAddress(false);
@@ -173,7 +178,8 @@ function AddressBookSheetBody({
 
   const goMap = () => {
     setEditing(null);
-    setDraftPlace(null);
+    // Seed from current pin so Change location still shows the last spot.
+    setDraftPlace(detectedPlaceFromBrowseLocation());
     setMapNotice(null);
     setStep("map");
   };

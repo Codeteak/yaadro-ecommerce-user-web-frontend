@@ -142,7 +142,7 @@ export function CategoriesHub({
 
   return (
     <div className={cn("w-full bg-paper", className)}>
-      <div className="sticky top-0 z-10 border-b border-black/[0.04] bg-paper/95 px-3 pt-2 pb-3 backdrop-blur-md sm:px-4">
+      <div className="sticky top-0 z-10 border-b border-black/[0.04] bg-paper px-3 pt-2 pb-3 sm:px-4">
         <HomeSearchBar
           value={query}
           onChange={setQuery}

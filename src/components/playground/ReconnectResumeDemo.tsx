@@ -27,6 +27,7 @@ export function ReconnectResumeDemo() {
   const [queue, setQueue] = useState<QueuedAction[]>([]);
   const [refreshed, setRefreshed] = useState(false);
   const timers = useRef<number[]>([]);
+  const nextId = useRef(0);
 
   const clearTimers = useCallback(() => {
     for (const id of timers.current) window.clearTimeout(id);
@@ -54,7 +55,8 @@ export function ReconnectResumeDemo() {
     }
     if (net === "reconnecting") return;
 
-    const id = `${kind}-${productName}-${Date.now()}`;
+    nextId.current += 1;
+    const id = `${kind}-${productName}-${nextId.current}`;
     setQueue((prev) => [
       ...prev,
       { id, kind, productName, status: "pending" },

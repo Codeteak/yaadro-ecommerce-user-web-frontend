@@ -17,6 +17,7 @@ const LOGIN_RESET_KEY = "yaadro.login.reset";
 /**
  * Sign out: tell the shop (bounded wait), then always wipe per-user data
  * locally so the next shopper on this phone sees nothing from this account.
+ * After clear → `/home` (guest home), not `/login`.
  */
 export function useSignOut({ dryRun = false }: { dryRun?: boolean } = {}) {
   const router = useRouter();
@@ -48,7 +49,7 @@ export function useSignOut({ dryRun = false }: { dryRun?: boolean } = {}) {
         markLoginReset: () => window.sessionStorage.setItem(LOGIN_RESET_KEY, "1"),
       });
       setPending(false);
-      router.replace("/login");
+      router.replace("/home");
       router.refresh();
     }
   }, [dryRun, pending, queryClient, router]);

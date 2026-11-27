@@ -64,20 +64,19 @@ export function LoadingPhasesDemo() {
     clearTimers();
 
     if (network === "offline") {
-      setPhase("offline-cache");
       return () => clearTimers();
     }
 
     const step = NETWORK_MS[network];
 
     if (strategy === "full") {
-      setPhase("shell");
+      schedule(0, () => setPhase("shell"));
       schedule(step * 3, () => setPhase("ready"));
       return () => clearTimers();
     }
 
     // Phased: shell → hero → rail → catalog → ready
-    setPhase("shell");
+    schedule(0, () => setPhase("shell"));
     schedule(step, () => setPhase("hero"));
     schedule(step * 2, () => setPhase("rail"));
     schedule(step * 3, () => setPhase("catalog"));
@@ -85,20 +84,23 @@ export function LoadingPhasesDemo() {
     return () => clearTimers();
   }, [strategy, network, runId, clearTimers, schedule]);
 
+  const effectivePhase: Phase =
+    network === "offline" ? "offline-cache" : phase;
+
   const phaseLabel =
     network === "offline"
       ? "Offline — showing last cached paint"
       : strategy === "full"
-        ? phase === "ready"
+        ? effectivePhase === "ready"
           ? "Full skeleton done → page"
           : "Waiting on full-page skeleton…"
-        : phase === "shell"
+        : effectivePhase === "shell"
           ? "1 · Shell (chrome only)"
-          : phase === "hero"
+          : effectivePhase === "hero"
             ? "2 · Hero streamed"
-            : phase === "rail"
+            : effectivePhase === "rail"
               ? "3 · Category rail"
-              : phase === "catalog"
+              : effectivePhase === "catalog"
                 ? "4 · Catalog rails"
                 : "Ready — all sections live";
 
@@ -196,11 +198,13 @@ export function LoadingPhasesDemo() {
             ).map(([id, label]) => {
               const order = ["shell", "hero", "rail", "catalog", "ready"] as const;
               const step =
-                phase === "idle" || phase === "offline-cache" ? "shell" : phase;
+                effectivePhase === "idle" || effectivePhase === "offline-cache"
+                  ? "shell"
+                  : effectivePhase;
               const current = order.indexOf(step);
               const mine = order.indexOf(id);
-              const done = current > mine || phase === "ready";
-              const active = phase === id;
+              const done = current > mine || effectivePhase === "ready";
+              const active = effectivePhase === id;
               return (
                 <li
                   key={id}
@@ -223,13 +227,13 @@ export function LoadingPhasesDemo() {
             {network === "offline" ? (
               <OfflineCachedPaint />
             ) : strategy === "full" ? (
-              phase === "ready" ? (
+              effectivePhase === "ready" ? (
                 <ReadyHomePaint />
               ) : (
                 <StorefrontPageSkeleton className="min-h-0 pt-4 pb-8" />
               )
             ) : (
-              <PhasedPaint phase={phase} />
+              <PhasedPaint phase={effectivePhase} />
             )}
           </div>
         </div>

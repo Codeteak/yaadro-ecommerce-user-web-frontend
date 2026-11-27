@@ -56,6 +56,7 @@ import { ReconnectResumeDemo } from "@/components/playground/ReconnectResumeDemo
 import { LoadingPolishDemo } from "@/components/playground/LoadingPolishDemo";
 import { ConnectionChipOptionsDemo } from "@/components/playground/ConnectionChipOptionsDemo";
 import { OfflineBannerOptionsDemo } from "@/components/playground/OfflineBannerOptionsDemo";
+import { TomatoLoaderDemo } from "@/components/playground/TomatoLoaderDemo";
 import { OfflineStatusBanner } from "@/components/storefront/OfflineStatusBanner";
 import { SAMPLE_FESTIVE_SHELF } from "@/lib/festive-offers";
 import { CategoryBrowseSections } from "@/components/home/CategoryBrowseSections";
@@ -495,9 +496,11 @@ function CategoryPlpHorizontalDemo() {
       style={style}
       className="relative flex h-[78vh] min-h-0 flex-col overflow-hidden rounded-2xl bg-paper ring-1 ring-black/5"
     >
+      {/* Produce sample: All | Fruits | Vegetables; Back → /home like live. */}
       <CategoryListing
-        slug="vegetables"
-        backHref="/playground"
+        slug="fruits"
+        initialSub="Fruits"
+        backHref="/home"
         railLayout="horizontal"
       />
       <BottomNav position="inline" />
@@ -689,7 +692,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "deferred-location": () => (
-    <DemoFrame note="Wired `/home`: soft map prompt locks body while open. Back from /categories force-clears overflow (pathname fill chrome + delayed unlock) so home vertical scroll is never stuck. Confirm pin runs radius preview.">
+    <DemoFrame note="Wired `/home`: soft map prompt. Confirm pin saves + radius check. Reopen seeds last Deliver-to pin (not empty). Signed-in sync keeps local lat/lng when API omits coords.">
       <div className="relative min-h-[28rem] bg-gradient-to-b from-mint to-paper px-4 pt-6 pb-10">
         <HomeTopBar
           shopName="Green Basket"
@@ -698,7 +701,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
         />
         <p className="mt-8 text-center text-sm font-medium text-muted">
           Sheet opens after settle — Detect / Use this location saves the pin,
-          checks delivery radius, then closes. Details still wait for checkout.
+          checks delivery radius, then closes. Reopening shows the same pin.
         </p>
         <DeferredLocationPrompt forcePreview delayMs={900} />
       </div>
@@ -822,7 +825,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
                 title: "Fresh produce",
                 subtitle: "",
                 image: "/home/fruits-veggies-section.jpg",
-                href: "/categories/fruits",
+                href: "/categories?cat=fruits",
               },
             ]}
           />
@@ -920,7 +923,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "fruits-veggies-section": () => (
     <DemoFrame
       surface="bare"
-      note="Same as /home: Browse all → /categories/fruits or /vegetables (PLP sidebar tiles match category browser)."
+      note="Same as /home: Browse all → produce PLP (All|Fruits|Vegetables; All = produce only). Back → /home. Hub Categories All stays all products."
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
         <FruitsVeggiesSection />
@@ -1293,7 +1296,12 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </div>
     </DemoFrame>
   ),
-  "address-book": () => <AddressBookDemo initialStep="list" />,
+  "address-book": () => (
+    <AddressBookDemo
+      initialStep="list"
+      note="Same AddressBookSheet as live. Map / Change location seeds the last Deliver-to pin so the marker does not disappear on reopen."
+    />
+  ),
   "address-manage": () => (
     <DemoFrame note="Same as /profile/addresses: one delivery address. Edit or delete it. Add only when none is saved.">
       <div className="bg-paper px-5 py-6">
@@ -1310,14 +1318,14 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       <DeliveryRadiusMapDemo />
       <AddressBookDemo
         initialStep="map"
-        note="Live sheet: AddressLocationMap loads this shop’s DB hub (S pin) + DB radius only — no env fallback."
+        note="Live sheet: DB hub + radius. If a Deliver-to pin exists, the map seeds it on open (not blank)."
       />
     </div>
   ),
   "address-details": () => (
     <AddressBookDemo
       initialStep="map"
-      note="Location details: place suggestions + Detect card (no locate in search). Close (X) only."
+      note="Map seeds last pin when saved. Details: place suggestions + Detect. Close (X) only."
     />
   ),
   "categories-hub": () => <CategoriesFlowDemo start="hub" />,
@@ -1326,7 +1334,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "category-plp-horizontal": () => (
     <DemoFrame
       surface="bare"
-      note="Live /categories/[slug]: sticky pill rail with soft paper wash (no border card) so products don’t bleed through. BottomNav floats over content."
+      note="Produce PLP sample: All|Fruits|Vegetables (All = produce only). Back → /home (same as live). Hub /categories All stays shop-wide."
     >
       <NavScrollProvider>
         <CategoryPlpHorizontalDemo />
@@ -1551,6 +1559,14 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "connection-chip-options": () => <ConnectionChipOptionsDemo />,
   "loading-phases": () => <LoadingPhasesDemo />,
   "offline-status-banner": () => <OfflineBannerOptionsDemo />,
+  "tomato-loader": () => (
+    <DemoFrame
+      surface="bare"
+      note="Playground only. Tomato GIF with soft edge blend + typewriter “Loading category…”. Confirm before wiring to live CategoryPlpSkeleton."
+    >
+      <TomatoLoaderDemo />
+    </DemoFrame>
+  ),
   skeletons: () => (
     <DemoFrame
       surface="bare"
@@ -1738,7 +1754,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       address: null,
     };
     return (
-      <DemoFrame note="Live ProfileScreen — desk hero, options list, larger Logout. Confirm is dry-run in playground.">
+      <DemoFrame note="Live ProfileScreen — Logout confirm = green 3D primary (black text). Live sign-out → /home. Dry-run in playground (no redirect).">
         <div className="max-h-[40rem] space-y-8 overflow-y-auto overscroll-contain bg-paper pb-6">
           <div>
             <p className="px-5 pt-3 text-[11px] font-bold tracking-wide text-forest/70 uppercase">

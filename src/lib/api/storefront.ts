@@ -624,7 +624,75 @@ export type CategoryListingData = {
   image: string;
   subcategories: { id: string; name: string; image: string }[];
   products: SampleProduct[];
+  /**
+   * Produce PLP: rail is All | Fruits | Vegetables (siblings), not children
+   * of a single root. Products are the union of both aisles.
+   */
+  produce?: boolean;
 };
+
+/**
+ * Fruits + Vegetables as one PLP: All = union, rail pills = both roots.
+ * Used when `/categories/fruits` or `/categories/vegetables` is opened from
+ * the home produce band (hub `/categories` All stays shop-wide).
+ */
+async function loadProduceCategoryListing(
+  shopId: string,
+  categories: StoreCategory[],
+  slug: string,
+): Promise<CategoryListingData | null> {
+  const roots = (["fruits", "vegetables"] as const)
+    .map((produceSlug) =>
+      categories.find((row) => row.slug === produceSlug && !row.parentId),
+    )
+    .filter((row): row is StoreCategory => Boolean(row));
+
+  if (roots.length === 0) return null;
+
+  const productLists = await Promise.all(
+    roots.map(async (root) => {
+      const groups = await listStoreProducts(shopId, { categoryId: root.id });
+      return groups.flatMap((group) =>
+        group.products.map((product) => ({
+          ...product,
+          category: group.category?.name ?? root.name,
+          // Pin to produce root so PLP rail filter (Fruits / Vegetables) works.
+          categoryId: root.id,
+          categorySlug: root.slug,
+        })),
+      );
+    }),
+  );
+
+  const seen = new Set<string>();
+  const products: SampleProduct[] = [];
+  for (const row of productLists.flat()) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    products.push(row);
+  }
+
+  const primary =
+    roots.find((row) => row.slug === slug) ?? roots[0]!;
+
+  return {
+    name: "Fruits & Vegetables",
+    slug: primary.slug,
+    image: primary.image,
+    produce: true,
+    subcategories: roots.map((root) => ({
+      id: root.id,
+      name:
+        root.slug === "fruits"
+          ? "Fruits"
+          : root.slug === "vegetables"
+            ? "Vegetables"
+            : root.name,
+      image: root.image || primary.image,
+    })),
+    products,
+  };
+}
 
 export async function loadCategoryListing(
   shopId: string,
@@ -632,6 +700,12 @@ export async function loadCategoryListing(
 ): Promise<CategoryListingData | null> {
   const id = requireShopId(shopId);
   const categories = await listStoreCategories(id);
+
+  if (slug === "fruits" || slug === "vegetables") {
+    const produce = await loadProduceCategoryListing(id, categories, slug);
+    if (produce) return produce;
+  }
+
   const category = categories.find((row) => row.slug === slug);
   if (!category || category.slug === "all") return null;
   const children = categories.filter((row) => row.parentId === category.id);

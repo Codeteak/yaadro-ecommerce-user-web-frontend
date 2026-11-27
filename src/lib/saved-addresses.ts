@@ -3,6 +3,9 @@
  * Saving syncs that row into `yaadro-delivery-address` so checkout and home keep working.
  */
 import {
+  formatDeliveryLocationLabel,
+  hasBrowseLocation,
+  readDeliveryAddress,
   writeDeliveryAddress,
   type DeliveryAddress,
 } from "@/lib/delivery-address";
@@ -159,6 +162,57 @@ export function formatSavedAddressLine(a: SavedAddress): string {
   return [a.building, a.street, a.area, a.city, a.pin]
     .filter(Boolean)
     .join(", ");
+}
+
+/** Map / details draft from a saved book row (keeps lat/lng when present). */
+export function detectedPlaceFromSaved(row: SavedAddress): DetectedPlace {
+  return {
+    area: row.area,
+    street: row.street,
+    city: row.city,
+    pin: row.pin,
+    landmark: row.landmark,
+    lat: row.lat,
+    lng: row.lng,
+    formatted: formatSavedAddressLine(row),
+  };
+}
+
+/**
+ * Seed the address map from the book or Deliver-to pin so reopening the
+ * sheet shows the last location instead of an empty map.
+ */
+export function detectedPlaceFromBrowseLocation(): DetectedPlace | null {
+  const saved = getSelectedAddress() ?? listSavedAddresses()[0] ?? null;
+  if (
+    saved &&
+    (typeof saved.lat === "number" ||
+      saved.area.trim() ||
+      saved.street.trim() ||
+      saved.city.trim())
+  ) {
+    return detectedPlaceFromSaved(saved);
+  }
+
+  const delivery = readDeliveryAddress();
+  if (!hasBrowseLocation(delivery)) return null;
+
+  const label = formatDeliveryLocationLabel(delivery) ?? "Current location";
+  const area =
+    delivery!.street?.split(",")[0]?.trim() ||
+    delivery!.city?.trim() ||
+    "Current location";
+
+  return {
+    area,
+    street: delivery!.street ?? "",
+    city: delivery!.city ?? "",
+    pin: delivery!.pin ?? "",
+    landmark: delivery!.landmark ?? "",
+    lat: delivery!.lat,
+    lng: delivery!.lng,
+    formatted: label,
+  };
 }
 
 function syncActiveDelivery(a: SavedAddress) {

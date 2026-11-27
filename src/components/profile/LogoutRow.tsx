@@ -16,7 +16,7 @@ type LogoutRowProps = {
 
 /**
  * Centered Logout control + confirm sheet (shop desk profile).
- * Confirm UI unchanged from the original BottomSheet.
+ * Confirm “Log out” uses the same green 3D primary (black text) as Sign in.
  */
 export function LogoutRow({ dryRun = false, online = true }: LogoutRowProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -61,7 +61,7 @@ export function LogoutRow({ dryRun = false, online = true }: LogoutRowProps) {
             onClick={() => {
               void signOut();
             }}
-            className={`${primaryButton} h-11 flex-1 bg-red-600 text-sm text-white shadow-[0_7px_0_0_#991b1b,0_14px_28px_rgba(185,28,28,0.28)]`}
+            className={`${primaryButton} h-11 flex-1 text-sm`}
           >
             {pending ? "Signing out…" : "Log out"}
           </button>

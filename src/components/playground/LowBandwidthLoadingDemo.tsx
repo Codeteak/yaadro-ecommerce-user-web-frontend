@@ -100,11 +100,11 @@ export function LowBandwidthLoadingDemo() {
 
   useEffect(() => {
     clearTimers();
-    setLoadMore(false);
     const step = STEP_MS[bandwidth];
     const p = POLICY[bandwidth];
 
-    setPhase("shell");
+    // schedule(0) avoids sync setState-in-effect (replay already resets loadMore)
+    schedule(0, () => setPhase("shell"));
     schedule(step, () => setPhase("hero"));
     schedule(step * 2, () => setPhase("rail"));
     schedule(step * 3, () => setPhase("essentials"));
@@ -112,14 +112,12 @@ export function LowBandwidthLoadingDemo() {
     if (!p.deferSecondary) {
       schedule(step * 4, () => setPhase("secondary"));
       schedule(step * 5, () => setPhase("ready"));
+    } else if (bandwidth === "save-data") {
+      // Wait for Load more CTA
+      schedule(step * 3, () => setPhase("essentials"));
     } else {
-      // Wait for Load more (save-data) or auto-continue after delay (3g/2g)
-      if (bandwidth === "save-data") {
-        schedule(step * 3, () => setPhase("essentials"));
-      } else {
-        schedule(step * 5, () => setPhase("secondary"));
-        schedule(step * 6, () => setPhase("ready"));
-      }
+      schedule(step * 5, () => setPhase("secondary"));
+      schedule(step * 6, () => setPhase("ready"));
     }
 
     return () => clearTimers();

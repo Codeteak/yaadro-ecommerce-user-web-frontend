@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { ProductRail } from "@/components/home/ProductRail";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
+import { categoriesHubHref } from "@/lib/categories-hub-href";
 import { cn } from "@/lib/cn";
 import type { SampleProduct } from "@/lib/sample-products";
 
@@ -51,7 +52,7 @@ export function CategoryProductRails({
                 {rail.title}
               </h2>
               <Link
-                href={`/categories/${rail.slug}`}
+                href={categoriesHubHref(rail.slug)}
                 transitionTypes={["nav-forward"]}
                 className="flex shrink-0 items-center gap-1 text-sm font-semibold text-leaf transition hover:text-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
               >

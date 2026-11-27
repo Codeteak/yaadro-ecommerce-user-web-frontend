@@ -4,10 +4,12 @@ import { notFound } from "next/navigation";
 import { CategoryListing } from "@/components/categories/CategoryListing";
 import { CategoryPlpSkeleton } from "@/components/ui/skeletons";
 import { loadCategoryListing } from "@/lib/api/storefront";
+import { isProducePlpSlug, produceInitialSub } from "@/lib/produce-plp";
 import { getRequestShopId } from "@/lib/request-shop";
 
 type CategoryPageProps = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ aisle?: string }>;
 };
 
 export async function generateMetadata({
@@ -27,8 +29,12 @@ export async function generateMetadata({
   }
 }
 
-async function CategoryListingContent({ params }: CategoryPageProps) {
+async function CategoryListingContent({
+  params,
+  searchParams,
+}: CategoryPageProps) {
   const { slug } = await params;
+  const query = await searchParams;
   let listing: Awaited<ReturnType<typeof loadCategoryListing>> = null;
   try {
     const shopId = await getRequestShopId();
@@ -47,15 +53,22 @@ async function CategoryListingContent({ params }: CategoryPageProps) {
   }
   if (!listing) notFound();
 
+  const produce = listing.produce || isProducePlpSlug(slug);
+  const initialSub = produce
+    ? produceInitialSub(slug, query.aisle)
+    : "All";
+
   return (
     <main
       data-storefront-fill
       className="mx-auto flex h-dvh min-h-0 w-full max-w-lg flex-col overflow-hidden bg-paper"
     >
       <CategoryListing
+        key={`${slug}-${initialSub}`}
         slug={slug}
         live={listing}
-        backHref="/categories"
+        initialSub={initialSub}
+        backHref={produce ? "/home" : "/categories"}
         railLayout="horizontal"
         className="min-h-0 flex-1"
       />
@@ -63,7 +76,10 @@ async function CategoryListingContent({ params }: CategoryPageProps) {
   );
 }
 
-export default function CategoryPage({ params }: CategoryPageProps) {
+export default function CategoryPage({
+  params,
+  searchParams,
+}: CategoryPageProps) {
   return (
     <Suspense
       fallback={
@@ -72,7 +88,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
         </main>
       }
     >
-      <CategoryListingContent params={params} />
+      <CategoryListingContent params={params} searchParams={searchParams} />
     </Suspense>
   );
 }

@@ -1,5 +1,37 @@
 # Implementation Log
 
+## 2026-11-27 — Tomato vine loader (playground only)
+
+`TomatoVineLoader` uses softened animated WebP (`tomato-vine.webp`: 2× LANCZOS + blur + fringe cleanup) plus CSS bloom/multiply; typewriter label. Playground `/playground/tomato-loader`. Not wired to ecom yet.
+
+## 2026-11-27 — Map location pin persistence
+
+Address map reopens seeded from book / Deliver-to (`detectedPlaceFromBrowseLocation`) instead of empty. `syncServerDeliveryAddress` keeps local lat/lng when the API omits coords (stops intermittent missing pin). Playground deferred-location / address-book notes updated.
+
+## 2026-11-27 — Logout redirects to /home
+
+`useSignOut` `router.replace("/home")` after clearing session (was `/login`). Playground profile notes updated (dry-run still no navigate).
+
+## 2026-11-27 — Logout confirm = Sign-in 3D primary
+
+`LogoutRow` confirm “Log out” uses shared `primaryButton` (green 3D + black text), same as Sign in — dropped red/white override. Playground profile note updated.
+
+## 2026-11-27 — Produce PLP Back → /home
+
+Produce fruits/vegetables category PLP `backHref` is `/home` (not `/categories`). Other category PLPs still return to the hub. Playground horizontal PLP demo + notes updated.
+
+## 2026-11-27 — Produce Browse all → produce-only PLP
+
+Home Fruits & veggies Browse all opens produce PLP (`/categories/fruits` / `/categories/vegetables?aisle=…`), not the shop-wide hub. PLP rail = All (fruits∪veg only) | Fruits | Vegetables — Fruits Browse all still shows All + Vegetables rails. `loadCategoryListing` unions produce roots. Hub `/categories` All unchanged (all products). Playground notes + horizontal PLP demo updated.
+
+## 2026-11-27 — Produce Browse all + categories scroll smooth
+
+Fruits/veggies Browse all: All → `/categories`; Fruits/Veg → `?cat=` (both stay separate hub rails). Scroll jank: solid sticky (no blur) on CategoryBrowser/Listing/Hub; fill routes keep nav clearance stable; nav hide dy threshold 8. Playground notes updated.
+
+## 2026-11-27 — Home Show all → Categories hub
+
+Home Show all / Browse all / aisle tiles use `categoriesHubHref` → `/categories?cat=slug` (hub) instead of `/categories/[slug]` PLP. ProductSection, CategoryProductRails, FruitsVeggiesSection, CategoryBrowseSections. Playground catalog/usage notes updated.
+
 ## 2026-11-27 — Phase 6 polish wired to ecom
 
 **A** `ProductSection` peekCap=2 on 2g/save-data. **B** `OfferBanners` skip photo → gradient + title. **C** `WeightCustomizer` Confirm/Remove → `noteOfflineCartChange`. **D** Safari already fast (no `navigator.connection`). Lite product tiles were already Phase 4.

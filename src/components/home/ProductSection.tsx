@@ -18,6 +18,7 @@ import {
   subscribeHomeAisleCache,
 } from "@/lib/home-aisle-client";
 import { catalogSlugForHomeCategory } from "@/lib/catalog-taxonomy";
+import { categoriesHubHref } from "@/lib/categories-hub-href";
 import {
   ALL_CATEGORY_SLUG,
   HOME_CATEGORIES,
@@ -146,12 +147,12 @@ export function ProductSection({
         <Link
           href={
             showingAll
-              ? "/categories"
+              ? categoriesHubHref()
               : live
-                ? `/categories/${selected}`
+                ? categoriesHubHref(selected)
                 : isHomeCategory(selected)
-                  ? `/categories/${catalogSlugForHomeCategory(selected)}`
-                  : "/categories"
+                  ? categoriesHubHref(catalogSlugForHomeCategory(selected))
+                  : categoriesHubHref()
           }
           transitionTypes={["nav-forward"]}
           className="flex shrink-0 items-center gap-1 text-sm font-semibold text-leaf transition hover:text-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"

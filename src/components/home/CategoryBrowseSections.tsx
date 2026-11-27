@@ -7,6 +7,7 @@ import {
   CATEGORY_IMAGE_FALLBACK,
   isCategoryImageFallback,
 } from "@/lib/category-image";
+import { categoriesHubHref } from "@/lib/categories-hub-href";
 import type { CategoryBrowseSection } from "@/lib/home-category-browse";
 import { SAMPLE_CATEGORY_BROWSE_SECTIONS } from "@/lib/home-category-browse";
 import {
@@ -22,7 +23,7 @@ export type CategoryBrowseSectionsProps = {
   /** Omit to use rich sample sections (playground). */
   sections?: CategoryBrowseSection[];
   className?: string;
-  /** Defaults to `/categories/[slug]`. */
+  /** Defaults to Categories hub with `?cat=` (not `/categories/[slug]` PLP). */
   hrefFor?: (slug: string) => string;
   /**
    * Grid shape mix. `uniform` = all squares.
@@ -39,7 +40,7 @@ export type CategoryBrowseSectionsProps = {
 export function CategoryBrowseSections({
   sections = SAMPLE_CATEGORY_BROWSE_SECTIONS,
   className,
-  hrefFor = (slug) => `/categories/${slug}`,
+  hrefFor = (slug) => categoriesHubHref(slug),
   layout = "uniform",
 }: CategoryBrowseSectionsProps) {
   if (sections.length === 0) return null;

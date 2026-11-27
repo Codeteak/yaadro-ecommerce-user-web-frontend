@@ -85,7 +85,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Wired `/home`: soft map prompt; pin runs radius preview. Body unlocks on close/route (incl. categories→home), focus/visibility/pointer, PWA install.",
+      "Wired `/home`: soft map prompt; pin runs radius preview. Reopen seeds last Deliver-to pin (no empty map). Server sync keeps local lat/lng when API omits coords.",
     wiresTo: "/home",
   },
   {
@@ -215,8 +215,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Experiments",
     description:
-      "Sticky pill rail with soft paper wash (products don’t bleed through; no bordered card) + floating BottomNav.",
-    wiresTo: "/categories/[slug]",
+      "Sticky pill rail + BottomNav. Produce slugs show All|Fruits|Vegetables (All = produce only); Back → /home.",
+    wiresTo: "/categories/[slug] (produce → /home)",
   },
   {
     slug: "category-rail",
@@ -225,7 +225,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     group: "Home",
     description:
       "Pill rail on /home and categories. Tap selects only — horizontal scroll does not change the active pill.",
-    wiresTo: "/home + /categories (+ /categories/[slug])",
+    wiresTo: "/home + /categories (?cat= for hub aisle)",
   },
   {
     slug: "offer-banners",
@@ -250,8 +250,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "10 or fewer products in one scrolling row. More than 10 split into two rows. Show all → /categories/[slug].",
-    wiresTo: "/home, /categories/[slug]",
+      "10 or fewer products in one scrolling row. More than 10 split into two rows. Show all → /categories?cat=slug (hub).",
+    wiresTo: "/home, /categories?cat=",
   },
   {
     slug: "fruits-veggies-section",
@@ -259,8 +259,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Produce BG + All/Fruits/Vegetables (10); Browse all → /categories/fruits or /vegetables. Same on /home.",
-    wiresTo: "/home, /categories/fruits|/vegetables",
+      "Produce BG + All/Fruits/Vegetables (10); Browse all → produce PLP (All|Fruits|Vegetables; All = produce only). Back → /home. Hub /categories All stays shop-wide.",
+    wiresTo: "/home, /categories/fruits, /categories/vegetables",
   },
   {
     slug: "daily-dairy-layouts",
@@ -558,7 +558,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Live ProfileScreen: mint→white desk hero, large avatar + name row, options list, Logout. Guest / signed-in / error / offline.",
+      "Live ProfileScreen: desk hero, options list, Logout. Confirm = green 3D primary (black text). Live sign-out → /home. Guest / signed-in / error / offline.",
     wiresTo: "/profile",
   },
   {
@@ -679,7 +679,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Product & cart",
     description:
-      "One saved address. Same AddressBookSheet as /checkout, home Deliver to, and /profile.",
+      "One saved address. Map reopens with last pin (seeded from book/Deliver-to). Same sheet as /checkout, home, /profile.",
     wiresTo: "/checkout, /home, /profile",
   },
   {
@@ -735,6 +735,15 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     description:
       "Playground guest path: heart → /login. Storefront saves locally until session API.",
     wiresTo: "ProductCard, /login",
+  },
+  {
+    slug: "tomato-loader",
+    title: "Tomato vine loader",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Tomato vine loader — AA WebP + bloom soft edges + typewriter. Playground only — candidate for slow category PLP.",
+    wiresTo: "Playground only (not ecom yet) → future CategoryPlpSkeleton",
   },
   {
     slug: "skeletons",

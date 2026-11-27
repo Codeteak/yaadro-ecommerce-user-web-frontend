@@ -6,10 +6,15 @@
 import { getMyAddress } from "@/lib/api/address";
 import { hasCustomerSession } from "@/lib/api/session";
 import {
+  readDeliveryAddress,
   writeDeliveryAddress,
   type DeliveryAddress,
 } from "@/lib/delivery-address";
-import { upsertSavedAddress } from "@/lib/saved-addresses";
+import {
+  getSelectedAddress,
+  listSavedAddresses,
+  upsertSavedAddress,
+} from "@/lib/saved-addresses";
 
 function parseRawParts(raw: string | null | undefined): Partial<DeliveryAddress> {
   if (!raw?.trim()) return {};
@@ -67,23 +72,60 @@ function applyServerAddressLocally(address: {
   raw?: string | null;
 }): DeliveryAddress {
   const delivery = customerAddressToDelivery(address);
-  writeDeliveryAddress(delivery);
+  const hasServerPin =
+    typeof delivery.lat === "number" && typeof delivery.lng === "number";
+
+  // Server rows sometimes omit coords — keep the last local / book pin so the
+  // map and Deliver-to do not flicker empty after sync.
+  const current = readDeliveryAddress();
+  const book = getSelectedAddress() ?? listSavedAddresses()[0] ?? null;
+  const localLat = hasServerPin
+    ? delivery.lat
+    : typeof current?.lat === "number"
+      ? current.lat
+      : typeof book?.lat === "number"
+        ? book.lat
+        : undefined;
+  const localLng = hasServerPin
+    ? delivery.lng
+    : typeof current?.lng === "number"
+      ? current.lng
+      : typeof book?.lng === "number"
+        ? book.lng
+        : undefined;
+  const samePin =
+    typeof localLat === "number" &&
+    typeof localLng === "number" &&
+    current?.lat === localLat &&
+    current?.lng === localLng;
+
+  const merged: DeliveryAddress = {
+    ...delivery,
+    ...(typeof localLat === "number" && typeof localLng === "number"
+      ? { lat: localLat, lng: localLng }
+      : {}),
+    ...(samePin && typeof current?.serviceable === "boolean"
+      ? { serviceable: current.serviceable }
+      : {}),
+  };
+
+  writeDeliveryAddress(merged);
   // Keep the address book row in sync so the sheet does not show a stale local pin.
   upsertSavedAddress({
-    label: "Home",
-    type: "house",
-    building: delivery.house,
-    street: delivery.street,
-    area: "",
-    city: delivery.city,
-    pin: delivery.pin,
-    landmark: delivery.landmark,
-    instructions: "",
+    label: book?.label?.trim() || "Home",
+    type: book?.type ?? "house",
+    building: delivery.house || book?.building || "",
+    street: delivery.street || book?.street || "",
+    area: book?.area ?? "",
+    city: delivery.city || book?.city || "",
+    pin: delivery.pin || book?.pin || "",
+    landmark: delivery.landmark || book?.landmark || "",
+    instructions: book?.instructions ?? "",
     isDefault: true,
-    lat: delivery.lat,
-    lng: delivery.lng,
+    lat: merged.lat,
+    lng: merged.lng,
   });
-  return delivery;
+  return merged;
 }
 
 /** Pull the shopper's server address into Deliver-to + address book when signed in. */

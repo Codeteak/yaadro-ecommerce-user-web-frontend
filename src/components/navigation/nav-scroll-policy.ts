@@ -28,10 +28,11 @@ export function navScrollAction(sample: NavScrollSample): NavScrollAction {
 
   // Real scroll-up: only reveal once the user has left the bottom dead zone.
   // Clamps from clearance collapse keep distanceToBottom ≈ 0 — ignore those.
-  if (dy < -4) {
+  // Slightly larger |dy| than before to cut hide/show chatter (“vibration”).
+  if (dy < -8) {
     return distanceToBottom > NAV_NEAR_BOTTOM_PX ? "show" : "keep";
   }
 
-  if (dy > 4) return "hide";
+  if (dy > 8) return "hide";
   return "keep";
 }

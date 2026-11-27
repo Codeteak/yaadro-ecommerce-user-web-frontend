@@ -21,7 +21,8 @@ import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { CATEGORY_IMAGE_FALLBACK } from "@/lib/category-image";
 import { cn } from "@/lib/cn";
 import { getCatalogCategory } from "@/lib/catalog-taxonomy";
-import { ALL_CATEGORY_SLUG } from "@/lib/home-categories";
+import { ALL_CATEGORY_SLUG, homeCategoryImage } from "@/lib/home-categories";
+import { isProducePlpSlug } from "@/lib/produce-plp";
 import { getProductsByCategory, type SampleProduct } from "@/lib/sample-products";
 
 export type LiveCategoryListing = {
@@ -30,6 +31,8 @@ export type LiveCategoryListing = {
   image: string;
   subcategories: { id: string; name: string; image: string }[];
   products: SampleProduct[];
+  /** Produce PLP: All = fruits∪veg; rail = Fruits + Vegetables. */
+  produce?: boolean;
 };
 
 export type CategoryListingProps = {
@@ -41,6 +44,11 @@ export type CategoryListingProps = {
   /** Live category. Omit to keep the sample listing. */
   live?: LiveCategoryListing;
   error?: string | null;
+  /**
+   * Initial rail selection. Produce PLP uses All | Fruits | Vegetables
+   * (from home Browse all `?aisle=`).
+   */
+  initialSub?: string;
   /**
    * Subcategory rail layout.
    * `horizontal` — storefront `/categories/[slug]` (HomeSearchBar + home pill rail).
@@ -62,11 +70,13 @@ export function CategoryListing({
   onSearchClick,
   live,
   error,
+  initialSub = "All",
   railLayout = "sidebar",
 }: CategoryListingProps) {
   const t = useTypeScale();
   const router = useRouter();
-  const sampleCategory = live ? undefined : getCatalogCategory(slug);
+  const produceSample = !live && isProducePlpSlug(slug);
+  const sampleCategory = live || produceSample ? undefined : getCatalogCategory(slug);
   const category = useMemo(() => {
     if (live) {
       return {
@@ -83,9 +93,24 @@ export function CategoryListing({
         ],
       };
     }
+    if (produceSample) {
+      const fruitsImg = homeCategoryImage("Fruits");
+      const vegImg = homeCategoryImage("Vegetables");
+      return {
+        name: "Fruits & Vegetables",
+        slug,
+        image: slug === "vegetables" ? vegImg : fruitsImg,
+        shortName: "Produce",
+        subcategories: [
+          { name: "All", image: fruitsImg },
+          { name: "Fruits", image: fruitsImg },
+          { name: "Vegetables", image: vegImg },
+        ],
+      };
+    }
     return sampleCategory;
-  }, [live, sampleCategory]);
-  const [sub, setSub] = useState("All");
+  }, [live, produceSample, sampleCategory, slug]);
+  const [sub, setSub] = useState(initialSub);
   const [query, setQuery] = useState("");
   const [chipsOpen, setChipsOpen] = useState(false);
   const horizontal = railLayout === "horizontal";
@@ -106,9 +131,26 @@ export function CategoryListing({
       } else {
         const child = live.subcategories.find((row) => row.name === sub);
         list = child
-          ? live.products.filter((product) => product.categoryId === child.id)
+          ? live.products.filter(
+              (product) =>
+                product.categoryId === child.id ||
+                product.categorySlug ===
+                  (sub === "Fruits"
+                    ? "fruits"
+                    : sub === "Vegetables"
+                      ? "vegetables"
+                      : undefined) ||
+                product.category === child.name ||
+                product.category === sub,
+            )
           : live.products;
       }
+    } else if (produceSample) {
+      const fruits = getProductsByCategory("Fruits");
+      const vegetables = getProductsByCategory("Vegetables");
+      if (sub === "Fruits") list = fruits;
+      else if (sub === "Vegetables") list = vegetables;
+      else list = [...fruits, ...vegetables];
     } else if (!sampleCategory?.homeCategory) {
       list = [];
     } else {
@@ -117,7 +159,7 @@ export function CategoryListing({
     const q = query.trim().toLowerCase();
     if (!q) return list;
     return list.filter((product) => product.name.toLowerCase().includes(q));
-  }, [live, sampleCategory, sub, query]);
+  }, [live, produceSample, sampleCategory, sub, query]);
 
   const {
     filters,
@@ -222,7 +264,7 @@ export function CategoryListing({
       {horizontal ? (
         <div
           data-storefront-scroll
-          className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]"
+          className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]"
         >
           <header className="px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
             <div className="relative flex h-11 shrink-0 items-center">
@@ -269,8 +311,8 @@ export function CategoryListing({
             </div>
           </header>
 
-          {/* Soft wash so products don't bleed under sticky pills — no border/shadow card. */}
-          <div className="sticky top-0 z-20 bg-paper/95 backdrop-blur-sm">
+          {/* Solid sticky wash — avoid backdrop-blur (scroll stutter on mobile). */}
+          <div className="sticky top-0 z-20 bg-paper">
             <CategoryRail
               categories={railCategories}
               tileVariant="pill"

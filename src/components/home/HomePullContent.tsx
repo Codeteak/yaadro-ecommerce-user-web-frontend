@@ -93,9 +93,6 @@ export function HomePullContent({
   const [retrying, setRetrying] = useState(false);
   /** Save-Data: essentials (rail + All strip) first; tap to reveal shelves. */
   const [loadMoreShelves, setLoadMoreShelves] = useState(false);
-  const [offlineSnapshot, setOfflineSnapshot] = useState<SampleProduct[] | null>(
-    null,
-  );
   const essentialsOnly = connectionChip === "saver" && !loadMoreShelves;
 
   const liveProducts = useMemo(
@@ -111,19 +108,14 @@ export function HomePullContent({
 
   /** Offline and nothing usable from this paint → snapshot or cold empty. */
   const useOfflineFallback = !online && !liveCatalogUsable;
+  const offlineSnapshot = useOfflineFallback
+    ? readHomeEssentialsSnapshot()
+    : null;
 
   useEffect(() => {
     if (!online || liveProducts.length === 0) return;
     saveHomeEssentialsSnapshot(liveProducts);
   }, [online, liveProducts]);
-
-  useEffect(() => {
-    if (!useOfflineFallback) {
-      setOfflineSnapshot(null);
-      return;
-    }
-    setOfflineSnapshot(readHomeEssentialsSnapshot());
-  }, [useOfflineFallback]);
 
   const showProduce =
     fruits == null ||

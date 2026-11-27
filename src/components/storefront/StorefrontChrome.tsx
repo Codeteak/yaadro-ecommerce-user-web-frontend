@@ -46,12 +46,17 @@ function StorefrontPathChrome() {
  * Clearance tracks scroll-hide with the floating BottomNav island.
  * Fill routes lock shell overflow via `data-storefront-fill-route` (pathname),
  * not `:has([data-storefront-fill])`, so back-to-home stays document-scrollable.
+ * Fill routes keep clearance at 5.5rem while the pill hides (avoids maxY jump).
  */
 function StorefrontChromeLayout({ children }: { children: ReactNode }) {
   const { navHidden } = useNavScroll();
+  const pathname = usePathname();
+  const fillRoute = isStorefrontFillPath(pathname);
+  const hideNav = shouldHideStorefrontNav(pathname);
 
   const style = {
-    ["--storefront-nav-clearance" as string]: navHidden ? "0px" : "5.5rem",
+    ["--storefront-nav-clearance" as string]:
+      hideNav || (navHidden && !fillRoute) ? "0px" : "5.5rem",
   } satisfies CSSProperties;
 
   return (
@@ -64,7 +69,6 @@ function StorefrontChromeLayout({ children }: { children: ReactNode }) {
         // Fill + path-hidden routes: no shell footer band (pages own safe-area).
         "has-[[data-storefront-fill-route]]:pb-0",
         "has-[[data-storefront-hide-nav]]:pb-0",
-        "has-[[data-storefront-hide-nav]]:[--storefront-nav-clearance:0px]",
         "has-[[data-storefront-fill-route]]:overflow-hidden has-[[data-storefront-fill-route]]:overscroll-y-none",
       )}
     >
@@ -85,7 +89,15 @@ function StorefrontChromeLayout({ children }: { children: ReactNode }) {
 export function StorefrontChrome({ children }: { children: ReactNode }) {
   return (
     <NavScrollProvider>
-      <StorefrontChromeLayout>{children}</StorefrontChromeLayout>
+      <Suspense
+        fallback={
+          <div className="min-h-dvh bg-paper pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]">
+            {children}
+          </div>
+        }
+      >
+        <StorefrontChromeLayout>{children}</StorefrontChromeLayout>
+      </Suspense>
     </NavScrollProvider>
   );
 }
