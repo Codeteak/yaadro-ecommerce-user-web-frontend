@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { PageHeader } from "@/components/navigation/PageHeader";
+import { PrefetchStorefrontRoute } from "@/components/navigation/PrefetchStorefrontRoute";
 import { ProductCard } from "@/components/product/ProductCard";
 import { cn } from "@/lib/cn";
 import {
@@ -12,6 +13,7 @@ import {
 /**
  * Festive See-all page — blurred festive art pinned as the page background
  * (sticky, does not move with product scroll). Soft wash + normal ProductCard grid.
+ * Live `/festive` hides BottomNav; SSR marker collapses shell footer; instant back.
  */
 export function FestiveOffersPageContent({
   shelf = SAMPLE_FESTIVE_SHELF,
@@ -29,6 +31,9 @@ export function FestiveOffersPageContent({
     <main
       className={cn("relative isolate mx-auto w-full max-w-lg", className)}
     >
+      {/* SSR-safe: collapse StorefrontChrome footer before client pathname chrome. */}
+      <span data-storefront-hide-nav hidden />
+      <PrefetchStorefrontRoute href={backHref} />
       {/* Sticky pin: background stays in the scrollport while content moves */}
       <div className="sticky top-0 z-0 h-0 overflow-visible" aria-hidden>
         <div className="absolute inset-x-0 top-0 h-[100dvh] w-full overflow-hidden">
@@ -46,8 +51,14 @@ export function FestiveOffersPageContent({
       </div>
 
       <div className="relative z-10 flex min-h-dvh flex-col">
-        <div className="border-b border-[#e0c98a]/50 px-5">
-          <PageHeader surface="hero" backHref={backHref} title={title} />
+        <div className="sticky top-0 z-20 border-b border-[#e0c98a]/50 bg-[#f5e6c8]/85 px-5 backdrop-blur-sm">
+          <PageHeader
+            surface="hero"
+            backHref={backHref}
+            title={title}
+            instantBack
+            sticky={false}
+          />
           <p className="pb-4 text-center text-[13px] font-semibold text-forest/80">
             Season&apos;s picks · all offers
           </p>
@@ -69,7 +80,7 @@ export function FestiveOffersPageContent({
             </Link>
           </div>
         ) : (
-          <ul className="grid grid-cols-2 gap-3 px-5 pt-5 pb-10">
+          <ul className="grid grid-cols-2 gap-3 px-5 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             {products.map((product) => (
               <li key={product.id} className="min-w-0">
                 <ProductCard product={product} />

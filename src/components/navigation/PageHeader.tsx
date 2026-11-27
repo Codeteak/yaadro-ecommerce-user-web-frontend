@@ -9,6 +9,8 @@ type PageHeaderProps = {
   backHref?: string;
   onBackClick?: () => void;
   backLabel?: string;
+  /** Skip View Transition on the back Link (section full pages). */
+  instantBack?: boolean;
   /** Centered title text. Ignored when `center` is given. */
   title?: string;
   /** Custom centered content (e.g. the brand logo on Login). */
@@ -55,6 +57,7 @@ export function PageHeader({
   backHref,
   onBackClick,
   backLabel,
+  instantBack = false,
   title,
   center,
   surface = "paper",
@@ -89,7 +92,12 @@ export function PageHeader({
       )}
     >
       <div className="relative flex h-11 shrink-0 items-center">
-        <BackButton href={backHref} onClick={onBackClick} label={backLabel} />
+        <BackButton
+          href={backHref}
+          onClick={onBackClick}
+          label={backLabel}
+          instant={instantBack}
+        />
         {center ? (
           <div
             className={cn(

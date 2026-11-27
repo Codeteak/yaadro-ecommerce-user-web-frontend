@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { PrefetchStorefrontRoute } from "@/components/navigation/PrefetchStorefrontRoute";
 import { ProductCard } from "@/components/product/ProductCard";
 import { cn } from "@/lib/cn";
 import {
@@ -184,12 +185,16 @@ function DairyArtImage({ priority }: { priority?: boolean }) {
 /** Ecom theme CTA — same track green as festive / empty-state primaries. */
 function SeeAllButton({ href }: { href: string }) {
   return (
-    <Link
-      href={href}
-      className="flex h-11 w-full items-center justify-center rounded-full bg-track text-[13px] font-bold text-black shadow-[0_8px_20px_rgba(47,107,47,0.28)] transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
-    >
-      {DAIRY_SEE_ALL_LABEL}
-    </Link>
+    <>
+      <PrefetchStorefrontRoute href={href} />
+      <Link
+        href={href}
+        prefetch
+        className="flex h-11 w-full touch-manipulation items-center justify-center rounded-full bg-track text-[13px] font-bold text-black shadow-[0_8px_20px_rgba(47,107,47,0.28)] transition-colors hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf active:bg-leaf-bright"
+      >
+        {DAIRY_SEE_ALL_LABEL}
+      </Link>
+    </>
   );
 }
 

@@ -5,6 +5,8 @@
 export const STOREFRONT_NAV_HIDDEN_PATHS = [
   "/cart",
   "/checkout",
+  "/dairy",
+  "/festive",
   "/orders/[id]",
   "/orders/[id]/track",
   "/profile/support",
@@ -13,6 +15,7 @@ export const STOREFRONT_NAV_HIDDEN_PATHS = [
 export function shouldHideStorefrontNav(pathname: string | null): boolean {
   if (!pathname) return false;
   if (pathname === "/cart" || pathname === "/checkout") return true;
+  if (pathname === "/dairy" || pathname === "/festive") return true;
   if (pathname === "/profile/support") return true;
   // Order detail: /orders/<id>, not the history list itself.
   if (/^\/orders\/[^/]+$/.test(pathname)) return true;

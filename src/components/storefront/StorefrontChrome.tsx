@@ -61,7 +61,9 @@ function StorefrontChromeLayout({ children }: { children: ReactNode }) {
         "min-h-dvh transition-[padding-bottom]",
         NAV_MOTION,
         "pb-[calc(var(--storefront-nav-clearance,5.5rem)+env(safe-area-inset-bottom,0px))]",
+        // Fill + path-hidden routes: no shell footer band (pages own safe-area).
         "has-[[data-storefront-fill-route]]:pb-0",
+        "has-[[data-storefront-hide-nav]]:pb-0",
         "has-[[data-storefront-hide-nav]]:[--storefront-nav-clearance:0px]",
         "has-[[data-storefront-fill-route]]:overflow-hidden has-[[data-storefront-fill-route]]:overscroll-y-none",
       )}

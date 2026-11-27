@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FestiveHeroCard } from "@/components/home/FestiveHeroCard";
+import { PrefetchStorefrontRoute } from "@/components/navigation/PrefetchStorefrontRoute";
 import { ProductCard } from "@/components/product/ProductCard";
 import { cn } from "@/lib/cn";
 import {
@@ -37,6 +38,7 @@ export function FestiveOffersSection({
       aria-label={shelf.title}
       className={cn("relative w-full bg-paper px-3 py-5 sm:px-4", className)}
     >
+      <PrefetchStorefrontRoute href={seeAllHref} />
       <FestiveHeroCard
         variant="section"
         title={shelf.title}
@@ -62,7 +64,8 @@ export function FestiveOffersSection({
           </ul>
           <Link
             href={seeAllHref}
-            className="mt-3 flex h-10 w-full items-center justify-center rounded-full bg-forest text-[13px] font-bold text-white transition hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
+            prefetch
+            className="mt-3 flex h-10 w-full touch-manipulation items-center justify-center rounded-full bg-forest text-[13px] font-bold text-white transition-colors hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf active:bg-ink"
           >
             See all offers
           </Link>

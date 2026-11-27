@@ -8,6 +8,9 @@ import { cn } from "@/lib/cn";
  * track brand green (same as swipe track / active nav pill).
  */
 
+const SQUIRCLE_CLASS =
+  "absolute inset-[3px] rotate-45 rounded-[13px] bg-track shadow-[0_6px_16px_rgba(47,107,47,0.28)] transition-transform duration-200 group-hover:scale-[1.04] group-active:scale-95";
+
 type BackButtonProps = {
   /** Link target. Omit when using `onClick` (e.g. closing a sheet). */
   href?: string;
@@ -16,6 +19,11 @@ type BackButtonProps = {
   className?: string;
   /** Arrow colour. Default black on the green squircle (storefront + playground). */
   iconClassName?: string;
+  /**
+   * Skip the storefront `nav-back` View Transition so the tap navigates
+   * immediately (section See-all pages: /dairy, /festive).
+   */
+  instant?: boolean;
 };
 
 export function BackButton({
@@ -24,14 +32,12 @@ export function BackButton({
   label = "Back",
   className,
   iconClassName = "text-black",
+  instant = false,
 }: BackButtonProps) {
   const content = (
     <>
       {/* Rotated squircle — arrow itself stays upright */}
-      <span
-        aria-hidden
-        className="absolute inset-[3px] rotate-45 rounded-[13px] bg-track shadow-[0_6px_16px_rgba(47,107,47,0.28)] transition-transform duration-200 group-hover:scale-[1.04] group-active:scale-95"
-      />
+      <span aria-hidden className={SQUIRCLE_CLASS} />
       <ArrowLeft
         aria-hidden
         strokeWidth={2.5}
@@ -47,6 +53,13 @@ export function BackButton({
   );
 
   if (href) {
+    if (instant) {
+      return (
+        <Link href={href} aria-label={label} className={classes}>
+          {content}
+        </Link>
+      );
+    }
     return (
       <Link
         href={href}

@@ -48,8 +48,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Navigation",
     description:
-      "Fixed floating island. Clearance collapses on scroll-hide; fill pages use overlay padding (no paper band behind the pill).",
-    wiresTo: "StorefrontChrome / BottomNav",
+      "Fixed floating island. Hide-nav routes force chrome pb-0 (no footer band). Clearance also collapses on scroll-hide.",
+    wiresTo: "StorefrontChrome + shouldHideStorefrontNav",
   },
   {
     slug: "pull-to-refresh",
@@ -277,7 +277,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Layout A card (wired). Shows on /home when shelf title matches dairy keywords. See all → /dairy.",
+      "Layout A card (wired). See all prefetches /dairy. Shows on /home when shelf title matches dairy keywords.",
     wiresTo: "/home → See all → /dairy",
   },
   {
@@ -286,8 +286,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Sticky clear dairy art (no blur) + product grid. Live: /dairy.",
-    wiresTo: "/dairy",
+      "Sticky header + clear dairy art + grid. Live /dairy: hide-nav pb-0, instant back, prefetch.",
+    wiresTo: "/dairy (nav hidden, no footer band)",
   },
   {
     slug: "festive-offers-section",
@@ -295,7 +295,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Image hero (admin shelf title on the card) + 2-col peek. Shows on /home when shelf title matches festive keywords.",
+      "Image hero (admin shelf title) + 2-col peek; See all prefetches. Shows on /home for festive shelf titles.",
     wiresTo: "/home → See all → /festive",
   },
   {
@@ -304,8 +304,17 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Sticky blurred festive art as page background + normal product grid.",
-    wiresTo: "/festive",
+      "Sticky header + blurred festive BG + grid. Live /festive: hide-nav pb-0, instant back, prefetch.",
+    wiresTo: "/festive (nav hidden, no footer band)",
+  },
+  {
+    slug: "section-full-page-scroll",
+    title: "Section full page scroll",
+    status: "built",
+    group: "Home",
+    description:
+      "Teach-demo: scroll to see pinned art, sticky header, moving cards, no BottomNav. Dairy ↔ festive toggle.",
+    wiresTo: "/dairy · /festive scroll behavior",
   },
   {
     slug: "category-browse-sections",

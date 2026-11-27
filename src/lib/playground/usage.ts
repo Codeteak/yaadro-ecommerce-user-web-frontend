@@ -40,10 +40,11 @@ export const PLAYGROUND_USAGE: Record<string, PlaygroundUsage> = {
 import { shouldHideStorefrontNav } from "@/lib/storefront-nav";
 import { useScrollDirection } from "@/components/navigation/useScrollDirection";
 
-// Path-hidden on /cart, /checkout, /orders/[id], profile tasks
+// Path-hidden on /cart, /checkout, /dairy, /festive, /orders/[id], profile tasks
 // Scroll-hidden via useScrollDirection (window + nested overflow)
-// StorefrontChrome collapses --storefront-nav-clearance with the pill
-// When hidden: inert + blur focused tab (avoid aria-hidden-on-focus warning)
+// StorefrontChrome: hide-nav → clearance 0 + pb-0 (no shell footer band)
+// Section pages also SSR-emit data-storefront-hide-nav for first paint
+// When pill hidden: inert + blur focused tab (avoid aria-hidden-on-focus warning)
 <BottomNav />`,
     [
       "src/components/navigation/BottomNav.tsx",
@@ -407,10 +408,11 @@ import { SAMPLE_DAIRY_SHELF } from "@/lib/daily-dairy";
     `import { DailyDairySection } from "@/components/home/DailyDairySection";
 import { pickDairyShelf } from "@/lib/daily-dairy";
 
-// Live /home: pickDairyShelf(shelves) → layout A → /dairy
+// Live /home: pickDairyShelf(shelves) → layout A → See all prefetches /dairy
 <DailyDairySection layout="on-art" shelf={dairyShelf} browseHref="/dairy" />`,
     [
       "src/components/home/DailyDairySection.tsx",
+      "src/components/navigation/PrefetchStorefrontRoute.tsx",
       "src/lib/daily-dairy.ts",
       "public/home/daily-dairy-section-v2.jpg",
     ],
@@ -420,10 +422,14 @@ import { pickDairyShelf } from "@/lib/daily-dairy";
 import { pickDairyShelf } from "@/lib/daily-dairy";
 
 // Live /dairy: listHomeShelves + pickDairyShelf
+// data-storefront-hide-nav (SSR) + shouldHideStorefrontNav → chrome pb-0
+// Sticky header chrome; grid pb = safe-area; instantBack
 <DailyDairyPageContent shelf={shelf} backHref="/home" />`,
     [
       "src/components/home/DailyDairyPageContent.tsx",
       "src/app/(storefront)/dairy/page.tsx",
+      "src/lib/storefront-nav.ts",
+      "src/components/storefront/StorefrontChrome.tsx",
       "public/home/daily-dairy-section-v2.jpg",
     ],
   ),
@@ -432,11 +438,12 @@ import { pickDairyShelf } from "@/lib/daily-dairy";
 import { FestiveHeroCard } from "@/components/home/FestiveHeroCard";
 import { SAMPLE_FESTIVE_SHELF } from "@/lib/festive-offers";
 
-// Live /home: pickFestiveShelf(shelves) → title on FestiveHeroCard → /festive
+// Live /home: pickFestiveShelf → See all prefetches /festive
 <FestiveOffersSection shelf={SAMPLE_FESTIVE_SHELF} seeAllHref="/festive" />`,
     [
       "src/components/home/FestiveOffersSection.tsx",
       "src/components/home/FestiveHeroCard.tsx",
+      "src/components/navigation/PrefetchStorefrontRoute.tsx",
       "src/lib/festive-offers.ts",
       "public/home/festive-section.jpg",
     ],
@@ -445,11 +452,31 @@ import { SAMPLE_FESTIVE_SHELF } from "@/lib/festive-offers";
     `import { FestiveOffersPageContent } from "@/components/home/FestiveOffersPageContent";
 import { SAMPLE_FESTIVE_SHELF } from "@/lib/festive-offers";
 
-// Live /festive loads shelves via listHomeShelves + pickFestiveShelf
+// Live /festive: same hide-nav / pb-0 / sticky header / instantBack as /dairy
 <FestiveOffersPageContent shelf={SAMPLE_FESTIVE_SHELF} backHref="/home" />`,
     [
       "src/components/home/FestiveOffersPageContent.tsx",
       "src/lib/festive-offers.ts",
+      "src/lib/storefront-nav.ts",
+      "src/components/storefront/StorefrontChrome.tsx",
+    ],
+  ),
+  "section-full-page-scroll": U(
+    `import { SectionFullPageScrollDemo } from "@/components/playground/SectionFullPageScrollDemo";
+
+// Playground teach-demo — scroll phone frame:
+// 1) sticky pin art (h-0 + absolute 100dvh)
+// 2) sticky header chrome (title + back)
+// 3) product grid scrolls over art
+// 4) data-storefront-hide-nav → StorefrontChrome pb-0 (no BottomNav)
+// Live: DailyDairyPageContent / FestiveOffersPageContent on /dairy · /festive
+<SectionFullPageScrollDemo />`,
+    [
+      "src/components/playground/SectionFullPageScrollDemo.tsx",
+      "src/components/home/DailyDairyPageContent.tsx",
+      "src/components/home/FestiveOffersPageContent.tsx",
+      "src/components/storefront/StorefrontChrome.tsx",
+      "src/lib/storefront-nav.ts",
     ],
   ),
   "category-browse-sections": U(

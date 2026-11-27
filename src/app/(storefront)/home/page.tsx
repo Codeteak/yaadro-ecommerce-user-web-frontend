@@ -179,9 +179,11 @@ export default function StorefrontHomePage() {
 
         {/* Soft location prompt only — offer flyer removed (scroll-lock races). */}
         <DeferredLocationPrompt />
-        {/* Warm /categories while home is idle so search tap feels instant. */}
+        {/* Warm routes while home is idle so search / See all taps feel instant. */}
         <PrefetchStorefrontRoute href="/categories" />
         <PrefetchStorefrontRoute href="/categories?focus=search" />
+        <PrefetchStorefrontRoute href="/dairy" />
+        <PrefetchStorefrontRoute href="/festive" />
       </main>
     </HomeCategoryProvider>
   );

@@ -1,5 +1,17 @@
 # Implementation Log
 
+## 2026-11-27 — Playground: section full page scroll teach-demo
+
+`/playground/section-full-page-scroll` — dairy ↔ festive toggle, long product list, phone frame. Callouts for pinned art, sticky header, scrolling cards, no BottomNav. Mirrors live `/dairy` + `/festive`.
+
+## 2026-11-27 — Section full pages: no shell footer band
+
+`StorefrontChrome`: `has-[[data-storefront-hide-nav]]:pb-0` (same as fill routes). `/dairy` + `/festive` SSR-emit `data-storefront-hide-nav` so first paint has no 5.5rem paper strip. Sticky header chrome on section pages; grid bottom uses safe-area only. Playground dairy/festive + bottom-nav/shell notes updated.
+
+## 2026-11-27 — Section full pages: hide nav + snappier See all / Back
+
+`/dairy` and `/festive` added to `shouldHideStorefrontNav` (BottomNav + ViewCartBar off). See all prefetches destination (`PrefetchStorefrontRoute` in section + home idle prefetch). Page headers use `instantBack` (skip `nav-back` View Transition). Playground dairy/festive demos + bottom-nav path list updated.
+
 ## 2026-11-26 — Category rail: click-only select
 
 `CategoryRail` (home + categories horizontal pills): selection updates only on tap. Horizontal scroll no longer changes the active category. Playground `category-rail` note updated.

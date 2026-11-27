@@ -47,6 +47,7 @@ import {
 import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
 import { FestiveOffersPageContent } from "@/components/home/FestiveOffersPageContent";
 import { FestiveOffersSection } from "@/components/home/FestiveOffersSection";
+import { SectionFullPageScrollDemo } from "@/components/playground/SectionFullPageScrollDemo";
 import { CategoryBrowseSections } from "@/components/home/CategoryBrowseSections";
 import { HomeProductShelves } from "@/components/home/HomeProductShelves";
 import { HomePullContent } from "@/components/home/HomePullContent";
@@ -520,7 +521,9 @@ function BottomNavClearanceDemo() {
         </p>
         <p className="mt-1 text-[12px] leading-5 text-muted">
           Scroll down — pill slides off and bottom padding collapses (no blank
-          strip). Focus a tab first to confirm inert (no aria-hidden warning).
+          strip). Path-hidden routes (/dairy, /festive, cart…) use
+          data-storefront-hide-nav → chrome pb-0. Focus a tab first to confirm
+          inert (no aria-hidden warning).
         </p>
         {Array.from({ length: 14 }, (_, i) => (
           <p key={i} className="mt-3 text-sm text-ink">
@@ -535,9 +538,10 @@ function BottomNavClearanceDemo() {
 
 const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "back-button": () => (
-    <DemoFrame note="Green squircle + black arrow — same default as storefront PageHeader / cart / profile.">
-      <div className="flex h-16 items-center px-5">
+    <DemoFrame note="Green squircle + black arrow. Default uses nav-back VT; dairy/festive pages pass instant (no VT) via PageHeader instantBack.">
+      <div className="flex h-16 items-center gap-4 px-5">
         <BackButton href="/playground" />
+        <BackButton href="/playground" instant label="Instant back" />
       </div>
     </DemoFrame>
   ),
@@ -958,7 +962,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "daily-dairy-section": () => (
     <DemoFrame
       surface="bare"
-      note="Layout A — same as live /home when a dairy shelf matches. Compare A vs C: /playground/daily-dairy-layouts. Live See all → /dairy."
+      note="Layout A — same as live /home when a dairy shelf matches. See all prefetches destination. Live See all → /dairy (nav hidden on full page)."
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl bg-paper ring-1 ring-black/5">
         <DailyDairySection
@@ -973,7 +977,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "daily-dairy-page": () => (
     <DemoFrame
       surface="bare"
-      note="See-all: sticky clear dairy BG (no blur) + product grid. Live: /dairy."
+      note="See-all full page (short sample). For scroll teach-demo (pinned art + sticky header): /playground/section-full-page-scroll. Live /dairy: hide-nav pb-0."
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
         <DailyDairyPageContent backHref="/playground/daily-dairy-layouts" />
@@ -984,7 +988,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "festive-offers-section": () => (
     <DemoFrame
       surface="bare"
-      note="Full festive image card — headline = admin shelf title (sample: Diwali festive specials). Live: /home → /festive."
+      note="Full festive image card — headline = admin shelf title (sample: Diwali festive specials). See all prefetches destination. Live: /home → /festive."
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl bg-paper ring-1 ring-black/5">
         <FestiveOffersSection
@@ -998,7 +1002,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "festive-offers-page": () => (
     <DemoFrame
       surface="bare"
-      note="See-all: sticky blurred festive BG + product grid. Live: /festive."
+      note="See-all full page (sample). Scroll layers teach-demo: /playground/section-full-page-scroll. Live /festive: hide-nav pb-0."
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
         <FestiveOffersPageContent backHref="/playground/festive-offers-section" />
@@ -1006,6 +1010,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </div>
     </DemoFrame>
   ),
+  "section-full-page-scroll": () => <SectionFullPageScrollDemo />,
   "category-browse-sections": () => (
     <DemoFrame
       surface="bare"
@@ -1031,7 +1036,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "storefront-shell": () => (
     <DemoFrame
       surface="bare"
-      note="Phase B #29: scroll-hide collapses bottom clearance with the pill (same as live StorefrontChrome — no blank strip)."
+      note="Phase B #29: scroll-hide collapses clearance with the pill. Live hide-nav routes (/dairy, /festive, cart…) also force chrome pb-0."
     >
       <PhaseBShellDemo />
     </DemoFrame>

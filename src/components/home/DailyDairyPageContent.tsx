@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { PageHeader } from "@/components/navigation/PageHeader";
+import { PrefetchStorefrontRoute } from "@/components/navigation/PrefetchStorefrontRoute";
 import { ProductCard } from "@/components/product/ProductCard";
 import { cn } from "@/lib/cn";
 import {
@@ -12,6 +13,7 @@ import {
 /**
  * Daily dairy See-all — clear (unblurred) dairy art pinned as page background.
  * Black type on the yellow field (same as section card). Used on /dairy + playground.
+ * Live `/dairy` hides BottomNav; SSR marker collapses shell footer; back is instant.
  */
 export function DailyDairyPageContent({
   shelf = SAMPLE_DAIRY_SHELF,
@@ -29,6 +31,9 @@ export function DailyDairyPageContent({
     <main
       className={cn("relative isolate mx-auto w-full max-w-lg", className)}
     >
+      {/* SSR-safe: collapse StorefrontChrome footer before client pathname chrome. */}
+      <span data-storefront-hide-nav hidden />
+      <PrefetchStorefrontRoute href={backHref} />
       <div className="sticky top-0 z-0 h-0 overflow-visible" aria-hidden>
         <div className="absolute inset-x-0 top-0 h-[100dvh] w-full overflow-hidden bg-[#F5C400]">
           <Image
@@ -43,8 +48,14 @@ export function DailyDairyPageContent({
       </div>
 
       <div className="relative z-10 flex min-h-dvh flex-col">
-        <div className="border-b border-black/10 px-5">
-          <PageHeader surface="hero" backHref={backHref} title={title} />
+        <div className="sticky top-0 z-20 border-b border-black/10 bg-[#F5C400]/90 px-5 backdrop-blur-sm">
+          <PageHeader
+            surface="hero"
+            backHref={backHref}
+            title={title}
+            instantBack
+            sticky={false}
+          />
           <p className="pb-4 text-center text-[13px] font-semibold text-black/75">
             Fresh every morning · all picks
           </p>
@@ -66,7 +77,7 @@ export function DailyDairyPageContent({
             </Link>
           </div>
         ) : (
-          <ul className="grid grid-cols-2 gap-3 px-5 pt-5 pb-10">
+          <ul className="grid grid-cols-2 gap-3 px-5 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             {products.map((product) => (
               <li key={product.id} className="min-w-0">
                 <ProductCard product={product} />
