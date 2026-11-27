@@ -438,7 +438,8 @@ import { pickDairyShelf } from "@/lib/daily-dairy";
 import { FestiveHeroCard } from "@/components/home/FestiveHeroCard";
 import { SAMPLE_FESTIVE_SHELF } from "@/lib/festive-offers";
 
-// Live /home: pickFestiveShelf → See all prefetches /festive
+// Live /home: pickFestiveShelf → peek “Showing 4 of N” + CTA “See all N offers”
+// CTA = track green + black text (same as dairy See all)
 <FestiveOffersSection shelf={SAMPLE_FESTIVE_SHELF} seeAllHref="/festive" />`,
     [
       "src/components/home/FestiveOffersSection.tsx",
@@ -1057,6 +1058,145 @@ import { WishlistProvider } from "@/components/wishlist/WishlistContext";
       "src/components/wishlist/WishlistContext.tsx",
     ],
   ),
+  "loading-offline-shipped": U(
+    `import { LoadingOfflineShippedDemo } from "@/components/playground/LoadingOfflineShippedDemo";
+
+// Roundup of shipped loading + offline work (ecom wired)
+<LoadingOfflineShippedDemo />`,
+    [
+      "src/components/playground/LoadingOfflineShippedDemo.tsx",
+      "src/components/storefront/OfflineStatusBanner.tsx",
+      "src/components/ui/Toast.tsx",
+      "src/components/ui/skeletons.tsx",
+      "src/app/(storefront)/loading.tsx",
+    ],
+  ),
+  "low-bandwidth-loading": U(
+    `import { LowBandwidthLoadingDemo } from "@/components/playground/LowBandwidthLoadingDemo";
+import { ConnectionStatusChip } from "@/components/storefront/ConnectionStatusChip";
+
+// Lab + live /home:
+//  - Chip D via useConnectionChipKind (saveData → saver; 3g/2g → slow)
+//  - Save-Data: essentials + “Load more shelves”
+//  - PrefetchStorefrontRoute skips offline / saveData / 2g
+<LowBandwidthLoadingDemo />`,
+    [
+      "src/components/playground/LowBandwidthLoadingDemo.tsx",
+      "src/components/storefront/ConnectionStatusChip.tsx",
+      "src/components/home/HomePullContent.tsx",
+      "src/lib/network-connection.ts",
+      "src/lib/use-connection-chip.ts",
+      "src/components/navigation/PrefetchStorefrontRoute.tsx",
+    ],
+  ),
+  "adaptive-media-offline": U(
+    `import { AdaptiveMediaOfflineDemo } from "@/components/playground/AdaptiveMediaOfflineDemo";
+import { useLiteCatalogMedia } from "@/lib/use-lite-catalog-media";
+
+// Live ecom:
+//  - ProductCard: lite tiles when saveData / 2g (useLiteCatalogMedia)
+//  - HomePullContent: saveHomeEssentialsSnapshot while online
+//  - Offline + unusable catalog → snapshot strip (forceLite) or cold empty
+<AdaptiveMediaOfflineDemo />`,
+    [
+      "src/components/playground/AdaptiveMediaOfflineDemo.tsx",
+      "src/components/product/ProductCard.tsx",
+      "src/components/product/CatalogMediaTile.tsx",
+      "src/components/home/HomePullContent.tsx",
+      "src/lib/use-lite-catalog-media.ts",
+      "src/lib/home-essentials-snapshot.ts",
+    ],
+  ),
+  "reconnect-resume": U(
+    `import { ReconnectResumeListener } from "@/components/storefront/ReconnectResumeListener";
+import { enqueueOfflineAction } from "@/lib/offline-action-queue";
+
+// Live (AppProviders):
+//  - offline toast · cart/wishlist enqueue intents
+//  - rising online → flush → “Synced N” / “Back online” → refresh catalog
+<ReconnectResumeListener />`,
+    [
+      "src/components/storefront/ReconnectResumeListener.tsx",
+      "src/lib/offline-action-queue.ts",
+      "src/lib/note-offline-cart.ts",
+      "src/components/providers/AppProviders.tsx",
+      "src/components/product/ProductCard.tsx",
+      "src/components/wishlist/useWishlistToggle.ts",
+      "src/components/playground/ReconnectResumeDemo.tsx",
+    ],
+  ),
+  "loading-polish": U(
+    `import { LoadingPolishDemo } from "@/components/playground/LoadingPolishDemo";
+import { useLiteCatalogMedia } from "@/lib/use-lite-catalog-media";
+
+// Live ecom:
+// A ProductSection peekCap=2 when lite (2g/save-data)
+// B OfferBanners skip CatalogImage → gradient + title
+// C WeightCustomizer Confirm/Remove → noteOfflineCartChange
+// D Safari: no navigator.connection → fast path (already)
+<LoadingPolishDemo />`,
+    [
+      "src/components/playground/LoadingPolishDemo.tsx",
+      "src/components/home/OfferBanners.tsx",
+      "src/components/home/ProductSection.tsx",
+      "src/components/cart/WeightCustomizer.tsx",
+      "src/lib/use-lite-catalog-media.ts",
+      "src/lib/note-offline-cart.ts",
+    ],
+  ),
+  "connection-chip-options": U(
+    `import { ConnectionStatusChip } from "@/components/storefront/ConnectionStatusChip";
+import { useConnectionChipKind } from "@/lib/use-connection-chip";
+
+// Live /home (HomePullContent):
+const kind = useConnectionChipKind();
+{kind ? <ConnectionStatusChip kind={kind} /> : null}
+// Tortoise = slow · data-warehouse = saver
+// Compare archive: ConnectionChipOptionsDemo A–E`,
+    [
+      "src/components/storefront/ConnectionStatusChip.tsx",
+      "src/lib/use-connection-chip.ts",
+      "src/lib/network-connection.ts",
+      "src/components/home/HomePullContent.tsx",
+      "src/components/playground/ConnectionChipOptionsDemo.tsx",
+    ],
+  ),
+  "loading-phases": U(
+    `import { LoadingPhasesDemo } from "@/components/playground/LoadingPhasesDemo";
+import { StorefrontRouteShell } from "@/components/ui/skeletons";
+
+// Live: loading.tsx → <StorefrontRouteShell /> (chrome only)
+// Offline: OfflineStatusBanner F (amber + Try again)
+// PrefetchStorefrontRoute skips offline / saveData / 2g
+// Toasts: Lucide glyphs (offline-safe)
+<LoadingPhasesDemo />`,
+    [
+      "src/components/playground/LoadingPhasesDemo.tsx",
+      "src/components/ui/skeletons.tsx",
+      "src/app/(storefront)/loading.tsx",
+      "src/components/storefront/OfflineStatusBanner.tsx",
+      "src/components/navigation/PrefetchStorefrontRoute.tsx",
+      "src/components/ui/Toast.tsx",
+    ],
+  ),
+  "offline-status-banner": U(
+    `import { OfflineStatusBanner } from "@/components/storefront/OfflineStatusBanner";
+
+// Live = F: amber card, inline WifiOff (black), Try again on the right
+// Home: onRetry={refresh catalog}; else router.refresh()
+<OfflineStatusBanner />
+<OfflineStatusBanner tone="reconnect" />
+<OfflineStatusBanner onRetry={async () => { /* refresh */ }} />
+// Playground compare: OfflineBannerOptionsDemo (A–F)`,
+    [
+      "src/components/storefront/OfflineStatusBanner.tsx",
+      "src/components/playground/OfflineBannerOptionsDemo.tsx",
+      "src/components/home/HomePullContent.tsx",
+      "src/components/profile/ProfileScreen.tsx",
+      "src/app/(storefront)/dairy/page.tsx",
+      "src/app/(storefront)/festive/page.tsx",
+    ],
+  ),
   skeletons: U(
     `import { Skeleton } from "@/components/ui/Skeleton";
 import {
@@ -1085,7 +1225,8 @@ import {
     `import { showPopup } from "@/components/ui/Toast";
 import { LOCATION_TOASTS } from "@/lib/location-messages";
 
-// Island snackbars at the top — AppProviders mounts <ToastViewport />
+// Same-width vertical stack at the top — AppProviders mounts <ToastViewport />
+// Identical message+type dedupes (resets dismiss timer). Max 3. Lucide glyphs.
 showPopup("Saved to wishlist", "success");
 showPopup("Code not found", "error");
 showPopup("Promo removed", "info");

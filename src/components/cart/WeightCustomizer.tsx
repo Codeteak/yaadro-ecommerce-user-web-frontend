@@ -3,13 +3,16 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { CatalogImage } from "@/components/ui/CatalogImage";
+import { CatalogMediaTile } from "@/components/product/CatalogMediaTile";
 import { productPhoto } from "@/lib/product-image";
 import { CloseButton } from "@/components/navigation/CloseButton";
 import { useCartLine, useCustomizingProduct, useSetCustomizing } from "@/components/cart/CartContext";
 import { weightAmount } from "@/lib/cart-lines";
 import { setCartWeight } from "@/lib/cart-store";
+import { noteOfflineCartChange } from "@/lib/note-offline-cart";
 import { formatKgAmount } from "@/lib/qty-label";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
+import { useLiteCatalogMedia } from "@/lib/use-lite-catalog-media";
 
 function subscribeNever() {
   return () => undefined;
@@ -37,6 +40,7 @@ export function WeightCustomizer() {
   const product = useCustomizingProduct();
   const setCustomizing = useSetCustomizing();
   const existing = useCartLine(product?.id ?? null);
+  const liteMedia = useLiteCatalogMedia();
   const [selectedKg, setSelectedKg] = useState(0.5);
   const mounted = useSyncExternalStore(
     subscribeNever,
@@ -106,13 +110,19 @@ export function WeightCustomizer() {
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-forest/15" aria-hidden />
 
         <div className="flex items-center gap-3">
-          <CatalogImage
-            src={productPhoto(product.image)}
-            alt=""
-            width={112}
-            height={112}
-            className="h-14 w-14 rounded-2xl object-cover"
-          />
+          {liteMedia ? (
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl">
+              <CatalogMediaTile name={product.name} seed={product.id} />
+            </div>
+          ) : (
+            <CatalogImage
+              src={productPhoto(product.image)}
+              alt=""
+              width={112}
+              height={112}
+              className="h-14 w-14 rounded-2xl object-cover"
+            />
+          )}
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-[15px] font-bold text-ink">{product.name}</h2>
             <p className="text-xs font-medium text-muted">
@@ -183,6 +193,7 @@ export function WeightCustomizer() {
           type="button"
           onClick={() => {
             setCartWeight(product.id, selectedKg);
+            noteOfflineCartChange(product.id, product.name);
             setCustomizing(null);
           }}
           className="mt-4 h-12 w-full cursor-pointer rounded-full bg-track text-sm font-semibold text-black shadow-[0_10px_24px_rgba(47,107,47,0.3)] transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
@@ -194,6 +205,7 @@ export function WeightCustomizer() {
             type="button"
             onClick={() => {
               setCartWeight(product.id, null);
+              noteOfflineCartChange(product.id, product.name);
               setCustomizing(null);
             }}
             className="mt-2 h-10 w-full cursor-pointer text-sm font-semibold text-red-600 transition hover:text-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"

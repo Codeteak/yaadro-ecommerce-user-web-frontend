@@ -96,6 +96,26 @@ const SAMPLES: { group: string; items: Sample[] }[] = [
     ],
   },
   {
+    group: "Offline / loading",
+    items: [
+      {
+        label: "Retry offline",
+        tone: "error",
+        message: "Couldn't refresh. Check your connection.",
+      },
+      {
+        label: "Back online",
+        tone: "success",
+        message: "Back online — catalog refreshed",
+      },
+      {
+        label: "Slow link",
+        tone: "warning",
+        message: "Slow connection — loading essentials",
+      },
+    ],
+  },
+  {
     group: "Catalog / checkout",
     items: [
       {
@@ -152,6 +172,31 @@ export function ToastDemo() {
             showPopup("Prices may vary on some products.", "warning")
           }
         />
+        <ToneButton
+          label="Stack 3"
+          className="bg-forest text-white"
+          onClick={() => {
+            showPopup("Couldn't refresh. Check your connection.", "error");
+            window.setTimeout(
+              () => showPopup("Promo removed", "info"),
+              120,
+            );
+            window.setTimeout(
+              () =>
+                showPopup("Prices may vary on some products.", "warning"),
+              240,
+            );
+          }}
+        />
+        <ToneButton
+          label="Spam same (dedupe)"
+          className="bg-amber-100 text-amber-950"
+          onClick={() => {
+            showPopup("Couldn't refresh. Check your connection.", "error");
+            showPopup("Couldn't refresh. Check your connection.", "error");
+            showPopup("Couldn't refresh. Check your connection.", "error");
+          }}
+        />
       </div>
 
       {SAMPLES.map((group) => (
@@ -178,9 +223,9 @@ export function ToastDemo() {
       ))}
 
       <p className="text-[12px] leading-5 text-muted">
-        Theme island snackbars at the top (SVG Repo icons). Same{" "}
-        <code className="text-[11px]">showPopup(message, type)</code> API across
-        storefront. Auto-dismiss ~3.2s; up to 3 stacked.
+        Same-width column stack at the top (Lucide glyphs — offline-safe). Same{" "}
+        <code className="text-[11px]">showPopup(message, type)</code> API.
+        Identical message+type dedupes. Auto-dismiss ~3.2s; max 3 islands.
       </p>
     </div>
   );

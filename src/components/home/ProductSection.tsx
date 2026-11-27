@@ -28,6 +28,7 @@ import {
   SAMPLE_PRODUCTS,
   type SampleProduct,
 } from "@/lib/sample-products";
+import { useLiteCatalogMedia } from "@/lib/use-lite-catalog-media";
 
 function isHomeCategory(value: string): value is HomeCategory {
   return HOME_CATEGORIES.some((category) => category.name === value);
@@ -64,8 +65,11 @@ export function ProductSection({
 }) {
   const t = useTypeScale();
   const { selected } = useHomeCategory();
+  const liteMedia = useLiteCatalogMedia();
   const live = productsBySlug != null;
   const showingAll = selected === ALL_CATEGORY_SLUG;
+  /** Phase 6 polish A: 2g / save-data peek fewer cards (Show all still full). */
+  const peekCap = liteMedia ? 2 : null;
 
   // Re-render when aisle cache fills (prefetch or lazy fetch) — no sync setState.
   useSyncExternalStore(
@@ -111,10 +115,12 @@ export function ProductSection({
     lazyProducts === undefined &&
     !aisleFailed;
 
-  const twoRows = products.length > ONE_ROW_MAX;
-  const mid = twoRows ? Math.ceil(products.length / 2) : products.length;
-  const rowTop = products.slice(0, mid);
-  const rowBottom = twoRows ? products.slice(mid) : [];
+  const visible =
+    peekCap != null ? products.slice(0, peekCap) : products;
+  const twoRows = peekCap == null && visible.length > ONE_ROW_MAX;
+  const mid = twoRows ? Math.ceil(visible.length / 2) : visible.length;
+  const rowTop = visible.slice(0, mid);
+  const rowBottom = twoRows ? visible.slice(mid) : [];
 
   return (
     <section
@@ -163,7 +169,7 @@ export function ProductSection({
         )}
       >
         {loading ? (
-          <ProductRailSkeleton className="px-5" count={4} />
+          <ProductRailSkeleton className="px-5" count={liteMedia ? 2 : 4} />
         ) : aisleFailed ? (
           <div className="flex flex-col items-start gap-2 px-5 py-6">
             <p className="text-sm font-medium text-muted">

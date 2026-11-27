@@ -295,7 +295,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Image hero (admin shelf title) + 2-col peek; See all prefetches. Shows on /home for festive shelf titles.",
+      "Image hero + peek “Showing N of total”; track/black See all N offers CTA. Shows on /home for festive titles.",
     wiresTo: "/home → See all → /festive",
   },
   {
@@ -742,8 +742,80 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Shared pulse bones — home hero (no Yaadro flash), loading.tsx, product/PLP/hub/order Suspense.",
-    wiresTo: "HomeHeroSkeleton on /home; loading.tsx, /product, /categories, /orders/[id]",
+      "Shared pulse bones + StorefrontRouteShell (route transitions). See loading-phases for Fast/Slow/Offline.",
+    wiresTo: "loading.tsx → StorefrontRouteShell; home/PLP/product/order Suspense",
+  },
+  {
+    slug: "loading-offline-shipped",
+    title: "Loading + offline (shipped)",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Roundup: offline banner F, Lucide toasts, route shell, dairy/festive Suspense. Links to labs.",
+    wiresTo: "loading.tsx · OfflineStatusBanner · Toast · /home · cart · wishlist · orders",
+  },
+  {
+    slug: "low-bandwidth-loading",
+    title: "Low-bandwidth loading",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Phase 3 lab: Fast / 3G / 2G / Save-Data. Live /home: chip D + save-data Load more + prefetch skip.",
+    wiresTo: "HomePullContent · ConnectionStatusChip · PrefetchStorefrontRoute",
+  },
+  {
+    slug: "adaptive-media-offline",
+    title: "Adaptive media + offline cache",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Phase 4: ProductCard lite tiles on save-data/2g; /home essentials snapshot for offline cache vs cold.",
+    wiresTo: "ProductCard · CatalogMediaTile · HomePullContent · home-essentials-snapshot",
+  },
+  {
+    slug: "reconnect-resume",
+    title: "Reconnect resume",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Phase 5: offline cart/wishlist intents queue → back online toast + catalog refresh + address sync.",
+    wiresTo: "ReconnectResumeListener · offline-action-queue · ProductCard · wishlist",
+  },
+  {
+    slug: "loading-polish",
+    title: "Loading polish (peek / banners / weight)",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Phase 6: peek 2 + lite banners on 2g/save-data; weight Confirm offline queue; Safari stays fast.",
+    wiresTo: "ProductSection · OfferBanners · WeightCustomizer · useLiteCatalogMedia",
+  },
+  {
+    slug: "connection-chip-options",
+    title: "Slow + Data saver chips",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Live = D on /home (tortoise / data-warehouse). saveData → saver; 3g/2g → slow.",
+    wiresTo: "HomePullContent · ConnectionStatusChip · network-connection",
+  },
+  {
+    slug: "loading-phases",
+    title: "Loading phases",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Phased load + OfflineStatusBanner F. Fast / Slow / Offline replay. Route shell + section Suspense.",
+    wiresTo: "OfflineStatusBanner · StorefrontRouteShell · /home · /dairy · /festive",
+  },
+  {
+    slug: "offline-status-banner",
+    title: "Offline status banner",
+    status: "built",
+    group: "Storefront chrome",
+    description:
+      "Live = F: amber inline + Try again (black WifiOff). A–E compare specimens.",
+    wiresTo: "Home, dairy, festive, profile, cart, wishlist, orders",
   },
   {
     slug: "toasts",
@@ -751,7 +823,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Storefront chrome",
     description:
-      "Theme island snackbars + location/delivery copy (#26). Wired on checkout + address book; lab mirrors the same strings.",
+      "Same-width stack, dedupe identical messages, Lucide glyphs (offline-safe).",
     wiresTo: "src/components/ui/Toast.tsx via AppProviders",
   },
 ];

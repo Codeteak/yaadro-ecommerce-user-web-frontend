@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CatalogImage } from "@/components/ui/CatalogImage";
+import { CatalogMediaTile } from "@/components/product/CatalogMediaTile";
 import { rememberProduct } from "@/lib/product-snapshots";
 import { Heart, Minus, Plus } from "lucide-react";
 import type { SampleProduct } from "@/lib/sample-products";
@@ -12,8 +13,10 @@ import { useWishlistToggle } from "@/components/wishlist/useWishlistToggle";
 import { catalogPriceDisplay } from "@/lib/catalog-price-display";
 import { MAX_LINE_QUANTITY } from "@/lib/cart-checkout-rules";
 import { cn } from "@/lib/cn";
+import { noteOfflineCartChange } from "@/lib/note-offline-cart";
 import { productPhoto } from "@/lib/product-image";
 import { formatKgAmount } from "@/lib/qty-label";
+import { useLiteCatalogMedia } from "@/lib/use-lite-catalog-media";
 
 /**
  * Hanging % OFF ribbon. Matching card corner radius + V notch.
@@ -85,13 +88,18 @@ export function ProductCard({
   size = "default",
   /** First above-fold home cards — LCP / eager load. */
   priority = false,
+  /** Offline snapshot / forced lite — skip CatalogImage even on fast networks. */
+  forceLiteMedia = false,
 }: {
   product: SampleProduct;
   size?: ProductCardSize;
   priority?: boolean;
+  forceLiteMedia?: boolean;
 }) {
   const compact = size === "compact";
   const t = useTypeScale();
+  const liteMedia = useLiteCatalogMedia();
+  const useLite = forceLiteMedia || liteMedia;
   const { wishlisted, onToggle: onWishlistClick, ariaLabel } = useWishlistToggle(product);
   const setCustomizing = useSetCustomizing();
   const cartItem = useCartLine(product.id);
@@ -173,15 +181,19 @@ export function ProductCard({
                 "aspect-square w-full rounded-t-[20px] max-[390px]:aspect-[5/4]",
           )}
         >
-          <CatalogImage
-            src={photo}
-            alt={product.name}
-            fill
-            sizes={compact ? "220px" : "(max-width: 512px) 50vw, 300px"}
-            priority={priority}
-            style={{ objectFit: "contain" }}
-            className="bg-[#f4f6f8] object-contain"
-          />
+          {useLite ? (
+            <CatalogMediaTile name={product.name} seed={product.id} />
+          ) : (
+            <CatalogImage
+              src={photo}
+              alt={product.name}
+              fill
+              sizes={compact ? "220px" : "(max-width: 512px) 50vw, 300px"}
+              priority={priority}
+              style={{ objectFit: "contain" }}
+              className="bg-[#f4f6f8] object-contain"
+            />
+          )}
         </div>
         <div className={compact ? undefined : "px-3 pt-1.5"}>
           <h3
@@ -269,15 +281,16 @@ export function ProductCard({
             </button>
           )
         ) : qty === 0 ? (
-          <button
-            type="button"
-            onClick={() => {
-              rememberProduct(product);
-              setCartQty(product.id, 1);
-            }}
-            aria-label={`Add ${product.name} to cart`}
-            className={addBtn}
-          >
+            <button
+              type="button"
+              onClick={() => {
+                rememberProduct(product);
+                setCartQty(product.id, 1);
+                noteOfflineCartChange(product.id, product.name);
+              }}
+              aria-label={`Add ${product.name} to cart`}
+              className={addBtn}
+            >
             <Plus className={compact ? "h-4 w-4 text-black" : "h-5 w-5 text-black"} aria-hidden />
           </button>
         ) : (
@@ -291,7 +304,10 @@ export function ProductCard({
           >
             <button
               type="button"
-              onClick={() => setCartQty(product.id, qty - 1)}
+              onClick={() => {
+                setCartQty(product.id, qty - 1);
+                noteOfflineCartChange(product.id, product.name);
+              }}
               aria-label={`Decrease quantity of ${product.name}`}
               className={cn(
                 "grid cursor-pointer place-items-center rounded-md text-black transition hover:bg-black/10 active:scale-90 focus-visible:outline-2 focus-visible:outline-leaf",
@@ -313,9 +329,10 @@ export function ProductCard({
             </span>
             <button
               type="button"
-              onClick={() =>
-                setCartQty(product.id, Math.min(MAX_LINE_QUANTITY, qty + 1))
-              }
+              onClick={() => {
+                setCartQty(product.id, Math.min(MAX_LINE_QUANTITY, qty + 1));
+                noteOfflineCartChange(product.id, product.name);
+              }}
               disabled={qty >= MAX_LINE_QUANTITY}
               aria-label={`Increase quantity of ${product.name}`}
               className={cn(

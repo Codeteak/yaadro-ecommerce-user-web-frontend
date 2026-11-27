@@ -1,9 +1,9 @@
-import { StorefrontPageSkeleton } from "@/components/ui/skeletons";
+import { StorefrontRouteShell } from "@/components/ui/skeletons";
 
 /**
- * Light shell while the next storefront segment loads.
- * Kept minimal so view transitions stay the main motion cue.
+ * Route-transition shell only — chrome bones, not a full product-grid skeleton.
+ * Pages stream their own sections via Suspense (home hero/catalog, dairy/festive, PLP).
  */
 export default function StorefrontLoading() {
-  return <StorefrontPageSkeleton />;
+  return <StorefrontRouteShell />;
 }

@@ -2,15 +2,19 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { shouldSkipPrefetchOnSlowNetwork } from "@/lib/network-connection";
 
 /**
  * Quietly warms the Next.js route cache after the current page is idle
  * so taps (e.g. home search → /categories) feel instant.
+ * Skips on offline / save-data / 2g so low-bandwidth users aren't competed with.
  */
 export function PrefetchStorefrontRoute({ href }: { href: string }) {
   const router = useRouter();
 
   useEffect(() => {
+    if (shouldSkipPrefetchOnSlowNetwork()) return;
+
     let idleId = 0;
     let timeoutId = 0;
 

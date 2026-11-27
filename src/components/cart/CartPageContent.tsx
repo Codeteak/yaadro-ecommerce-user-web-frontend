@@ -18,6 +18,7 @@ import { CartLineItem } from "@/components/cart/CartLineItem";
 import { CartSuggestions } from "@/components/cart/CartSuggestions";
 import { ShopQuoteNotes } from "@/components/cart/ShopQuoteNotes";
 import { useShopQuote } from "@/components/cart/useShopQuote";
+import { OfflineStatusBanner } from "@/components/storefront/OfflineStatusBanner";
 import { PriceMayVaryExplainSheet } from "@/components/storefront/PriceMayVaryExplainSheet";
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import { pushNavReturn } from "@/lib/nav-return-stack";
@@ -278,6 +279,7 @@ export function CartPageContent({
       )}
     >
       <PageHeader backHref={inline ? "/playground" : "/home"} title="Cart" />
+      <OfflineStatusBanner className="!px-0 pt-2" />
       <p className="pb-1 text-center text-[13px] font-semibold text-forest">
         Step 1 · Your cart
       </p>

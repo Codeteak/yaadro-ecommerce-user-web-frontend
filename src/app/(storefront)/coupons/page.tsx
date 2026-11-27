@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CouponsPageContent } from "@/components/coupons/CouponsPageContent";
+import { StorefrontRouteShell } from "@/components/ui/skeletons";
 
 export const metadata: Metadata = {
   title: "Coupons",
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
  */
 export default function CouponsPage() {
   return (
-    <Suspense fallback={<div className="mx-auto min-h-dvh w-full max-w-lg bg-paper" />}>
+    <Suspense fallback={<StorefrontRouteShell />}>
       <CouponsPageContent backHref="/profile" live ticketDensity="comfortable" />
     </Suspense>
   );

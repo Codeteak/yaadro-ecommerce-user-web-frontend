@@ -305,7 +305,37 @@ export function ProductDetailSkeleton({ className }: { className?: string }) {
   );
 }
 
-/** Generic storefront page shell (matches app/(storefront)/loading.tsx shape). */
+/**
+ * Route-transition shell — chrome only, no full product grid.
+ * Used by `app/(storefront)/loading.tsx` so navigations don't blank the page.
+ * Prefer section Suspense skeletons inside each page for the rest.
+ */
+export function StorefrontRouteShell({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-paper",
+        className,
+      )}
+      aria-busy
+      aria-label="Loading"
+    >
+      <div className="border-b border-forest/10 bg-mint/35 px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-3">
+        <div className="flex h-11 items-center gap-3">
+          <Skeleton className="h-11 w-11 rounded-[13px] bg-track/35" />
+          <Skeleton className="h-5 w-36 rounded-md bg-white/70" />
+        </div>
+      </div>
+      <div className="flex-1 space-y-3 px-5 pt-5">
+        <Skeleton className="h-4 w-28 rounded-md bg-mint/40" />
+        <Skeleton className="h-24 w-full rounded-[1.25rem] bg-mint/30" />
+        <Skeleton className="h-24 w-full rounded-[1.25rem] bg-mint/25" />
+      </div>
+    </div>
+  );
+}
+
+/** @deprecated Prefer StorefrontRouteShell for route loading; kept for playground specimen. */
 export function StorefrontPageSkeleton({ className }: { className?: string }) {
   return (
     <div
@@ -319,6 +349,52 @@ export function StorefrontPageSkeleton({ className }: { className?: string }) {
       <Skeleton className="h-8 w-40 rounded-full bg-mint/70" />
       <Skeleton className="h-36 rounded-[1.75rem] bg-mint/50" />
       <ProductGridSkeleton count={2} />
+    </div>
+  );
+}
+
+/** Daily dairy See-all Suspense fallback — yellow field + header + grid bones. */
+export function DairyPageSkeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "relative mx-auto min-h-dvh w-full max-w-lg bg-[#F5C400]",
+        className,
+      )}
+      aria-busy
+      aria-label="Loading dairy"
+    >
+      <div className="border-b border-black/10 px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-4">
+        <div className="flex h-11 items-center gap-3">
+          <Skeleton className="h-11 w-11 rounded-[13px] bg-track/50" />
+          <Skeleton className="mx-auto h-5 w-32 rounded-md bg-black/15" />
+        </div>
+        <Skeleton className="mx-auto mt-3 h-3 w-44 rounded-md bg-black/10" />
+      </div>
+      <ProductGridSkeleton count={4} className="px-5 pt-5" />
+    </div>
+  );
+}
+
+/** Festive See-all Suspense fallback — cream wash + header + grid bones. */
+export function FestivePageSkeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "relative mx-auto min-h-dvh w-full max-w-lg bg-[#f5e6c8]",
+        className,
+      )}
+      aria-busy
+      aria-label="Loading festive offers"
+    >
+      <div className="border-b border-[#e0c98a]/50 px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-4">
+        <div className="flex h-11 items-center gap-3">
+          <Skeleton className="h-11 w-11 rounded-[13px] bg-track/45" />
+          <Skeleton className="mx-auto h-5 w-36 rounded-md bg-forest/15" />
+        </div>
+        <Skeleton className="mx-auto mt-3 h-3 w-40 rounded-md bg-forest/10" />
+      </div>
+      <ProductGridSkeleton count={4} className="px-5 pt-5" />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useSyncExternalStore } from "react";
 import { rememberProduct } from "@/lib/product-snapshots";
 import { showPopup } from "@/components/ui/Toast";
+import { enqueueOfflineAction } from "@/lib/offline-action-queue";
 import type { SampleProduct } from "@/lib/sample-products";
 import {
   hasStoredWishlistId,
@@ -43,8 +44,23 @@ export function useWishlistToggle(product: SampleProduct) {
     rememberProduct(product);
     if (meta.ephemeral) meta.toggle(product.id);
     else toggleStoredWishlistId(product.id);
-    if (wasSaved) showPopup("Removed from wishlist", "info");
-    else showPopup("Saved to wishlist", "success");
+    const queued = enqueueOfflineAction({
+      kind: "wishlist",
+      productId: product.id,
+      label: product.name,
+    });
+    if (queued) {
+      showPopup(
+        wasSaved
+          ? `Queued: remove ${product.name}`
+          : `Queued: save ${product.name}`,
+        "info",
+      );
+    } else if (wasSaved) {
+      showPopup("Removed from wishlist", "info");
+    } else {
+      showPopup("Saved to wishlist", "success");
+    }
   }, [ephemeralIds, meta, product, router, stored]);
 
   // Keep labels auth-agnostic so SSR (always guest) matches client hydrate

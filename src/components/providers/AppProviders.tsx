@@ -6,6 +6,7 @@ import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { PwaRegistrar } from "@/components/pwa/PwaRegistrar";
 import { ShopResolveBootstrap } from "@/components/shop/ShopResolveBootstrap";
+import { ReconnectResumeListener } from "@/components/storefront/ReconnectResumeListener";
 import { ToastViewport } from "@/components/ui/Toast";
 import { ensureCustomerSessionRestored } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
@@ -51,6 +52,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <QueryClientProvider client={client}>
       <ShopResolveBootstrap />
       <PwaRegistrar />
+      <ReconnectResumeListener />
       {children}
       {/* usePathname in InstallPrompt suspends on dynamic routes — keep under Suspense. */}
       <Suspense fallback={null}>

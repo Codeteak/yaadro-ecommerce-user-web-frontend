@@ -1,5 +1,81 @@
 # Implementation Log
 
+## 2026-11-27 — Phase 6 polish wired to ecom
+
+**A** `ProductSection` peekCap=2 on 2g/save-data. **B** `OfferBanners` skip photo → gradient + title. **C** `WeightCustomizer` Confirm/Remove → `noteOfflineCartChange`. **D** Safari already fast (no `navigator.connection`). Lite product tiles were already Phase 4.
+
+## 2026-11-27 — Playground: loading polish (Phase 6, not ecom)
+
+`/playground/loading-polish` — A–D compare lab. (Then wired — see above.)
+
+## 2026-11-27 — Phase 5 wired to ecom (reconnect resume)
+
+`ReconnectResumeListener` in AppProviders: offline toast; cart/wishlist intents via `offline-action-queue` (sessionStorage); rising online → flush toast (“Synced N” / “Back online”) + `refreshStorefrontCatalog` + address sync. ProductCard / PDP / wishlist hooked.
+
+## 2026-11-27 — Playground: reconnect resume (Phase 5)
+
+`/playground/reconnect-resume` — lab for queue flush UX. (Then wired — see above.)
+
+## 2026-11-27 — Phase 4 wired to ecom (lite media + home snapshot)
+
+`ProductCard` uses `CatalogMediaTile` when `useLiteCatalogMedia` (saveData / 2g). `HomePullContent` saves essentials to localStorage while online; offline + unusable catalog → snapshot strip (`forceLiteMedia`) or cold empty. Lab `/playground/adaptive-media-offline` marked wired.
+
+## 2026-11-27 — Playground: adaptive media + offline cache (Phase 4)
+
+`/playground/adaptive-media-offline` — Fast / Save-Data / 2G / Offline+cache / Offline cold. (Then wired — see above.)
+
+## 2026-11-27 — Connection chip D wired to /home
+
+`HomePullContent`: `useConnectionChipKind` → chip D (saveData → saver; 3g/2g/slow-2g → slow). Save-Data defers shelves behind “Load more shelves”. Shared `network-connection` used by PrefetchStorefrontRoute. Safari without Network Information API shows no chip.
+
+## 2026-11-27 — Connection chip D live (tortoise + data-warehouse)
+
+Chose **D**: refined centered pill with SVG Repo tortoise (slow) and data-center-data-warehouse (data saver), inline `currentColor`. `ConnectionStatusChip` + low-bandwidth lab wired. `/home` not yet. Icons also in `public/icons/connection/`.
+
+## 2026-11-27 — Toast stack + Slow/Data saver chip options
+
+Toasts: same-width vertical stack, dedupe identical message+type (resets dismiss), max 3, Lucide glyphs. Playground `/playground/connection-chip-options` compares Slow + Data saver chip styles **A–E** (amber strip, amber island, mint, pill, gold-rule strip). Pick a letter before home wire. Low-bandwidth lab still uses style A until chosen.
+
+## 2026-11-27 — Playground: low-bandwidth loading (Phase 3, not ecom)
+
+`/playground/low-bandwidth-loading` — Fast / 3G / 2G / Save-Data: peek size, prefetch on/off, defer secondary shelves, Save-Data “Load more”. Live still only skips prefetch on 2g/save-data. Confirm before home wire.
+
+## 2026-11-27 — Playground: loading + offline shipped roundup
+
+`/playground/loading-offline-shipped` shows banner F, Lucide toast buttons, route shell, dairy/festive skeletons + links to labs. Cart/wishlist/orders playground notes updated.
+
+## 2026-11-27 — Loading phase: offline-safe toasts + more offline banners
+
+Toast islands use Lucide glyphs (no `/toasts/*.svg` fetch — fixes broken icon offline). `OfflineStatusBanner` on cart / wishlist / orders. `/orders` Suspense → `StorefrontRouteShell`.
+
+## 2026-11-27 — Offline banner F wired to ecom
+
+`OfflineStatusBanner` = F: amber inline card, black WifiOff on amber badge, Try again (track) on the right. Home passes `onRetry` catalog refresh; others `router.refresh()`. Playground options note F as live.
+
+## 2026-11-27 — Offline banner option F (B + E + amber)
+
+Playground added **F** (then wired — see above).
+
+## 2026-11-27 — Offline banner options A–E (playground)
+
+`/playground/offline-status-banner` compares styles. Live ecom stays **A** until a letter is chosen.
+
+## 2026-11-27 — Offline status banner redesign
+
+`OfflineStatusBanner`: mint/forest island + WifiOff, title/detail (`cached` | `reconnect`). `forcePreview` for playground. Wired home/dairy/festive/profile.
+
+## 2026-11-27 — Phased loading wired to ecom
+
+`(storefront)/loading.tsx` → `StorefrontRouteShell` (chrome only). `/dairy` + `/festive` Suspense with page skeletons + `OfflineStatusBanner`. Prefetch skips offline/save-data/2g. Home offline banner shared. Coupons Suspense uses route shell. Playground `loading-phases` marked wired.
+
+## 2026-11-27 — Playground: loading phases (not ecom yet)
+
+`/playground/loading-phases` — compare full-page skeleton vs phased shell→hero→rail→catalog. Network: Fast / Slow / Offline. (Then wired to ecom — see entry above.)
+
+## 2026-11-27 — Festive See all: track/black + clearer “more” cue
+
+`FestiveOffersSection` CTA matches dairy (`bg-track text-black`). Peek line `Showing N of total` + `+M more`; button label `See all N offers` when more exist. Playground festive-offers-section note/catalog/usage updated.
+
 ## 2026-11-27 — Playground: section full page scroll teach-demo
 
 `/playground/section-full-page-scroll` — dairy ↔ festive toggle, long product list, phone frame. Callouts for pinned art, sticky header, scrolling cards, no BottomNav. Mirrors live `/dairy` + `/festive`.

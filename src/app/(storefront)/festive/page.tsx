@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { FestiveOffersPageContent } from "@/components/home/FestiveOffersPageContent";
+import { OfflineStatusBanner } from "@/components/storefront/OfflineStatusBanner";
+import { FestivePageSkeleton } from "@/components/ui/skeletons";
 import { listHomeShelves } from "@/lib/api/storefront";
 import { pickFestiveShelf } from "@/lib/festive-offers";
 import { getRequestShopId } from "@/lib/request-shop";
@@ -9,7 +12,7 @@ export const metadata: Metadata = {
   description: "Seasonal festive picks from this shop.",
 };
 
-export default async function FestiveOffersPage() {
+async function FestiveOffersBody() {
   const shopId = await getRequestShopId();
   let shelves: Awaited<ReturnType<typeof listHomeShelves>> = [];
   try {
@@ -19,5 +22,19 @@ export default async function FestiveOffersPage() {
   }
   const shelf = pickFestiveShelf(shelves);
 
-  return <FestiveOffersPageContent shelf={shelf} backHref="/home" />;
+  return (
+    <>
+      <OfflineStatusBanner className="relative z-20" />
+      <FestiveOffersPageContent shelf={shelf} backHref="/home" />
+    </>
+  );
+}
+
+/** Shell paints first; shelf streams behind FestivePageSkeleton. */
+export default function FestiveOffersPage() {
+  return (
+    <Suspense fallback={<FestivePageSkeleton />}>
+      <FestiveOffersBody />
+    </Suspense>
+  );
 }

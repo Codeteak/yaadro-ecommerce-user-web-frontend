@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { PullToRefresh } from "@/components/navigation/PullToRefresh";
 import { ProductCard } from "@/components/product/ProductCard";
+import { OfflineStatusBanner } from "@/components/storefront/OfflineStatusBanner";
 import { StorefrontPageFrame } from "@/components/storefront/StorefrontPageFrame";
 import { useWishlist } from "@/components/wishlist/WishlistContext";
 
@@ -40,6 +41,7 @@ export function WishlistPageContent({
 
   return (
     <StorefrontPageFrame title="Wishlist" backHref={href}>
+      <OfflineStatusBanner />
       <PullToRefresh className="flex flex-1 flex-col px-5">
         {!signedIn || products.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { OfflineStatusBanner } from "@/components/storefront/OfflineStatusBanner";
 import { StorefrontPageFrame } from "@/components/storefront/StorefrontPageFrame";
 import { useCustomerSignedIn } from "@/components/auth/useCustomerSignedIn";
 import { listOrders } from "@/lib/api/orders";
@@ -84,6 +85,7 @@ export function OrdersPageContent({
       height={inline ? "embed" : "page"}
       className={cn("pb-8", className)}
     >
+      <OfflineStatusBanner />
       <div className="px-5">
         {showGuest ? (
           <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">

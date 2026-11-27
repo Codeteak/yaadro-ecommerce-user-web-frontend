@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CatalogImage } from "@/components/ui/CatalogImage";
+import { useLiteCatalogMedia } from "@/lib/use-lite-catalog-media";
 
 /**
  * Offer banner slideshow.
@@ -67,6 +68,7 @@ export function OfferBanners({
         ? SAMPLE_BANNERS
         : [];
   const live = banners != null && banners.length > 0;
+  const liteMedia = useLiteCatalogMedia();
   const count = slides.length;
   /** Track position 0..count, where count is the cloned first slide. */
   const [position, setPosition] = useState(0);
@@ -242,7 +244,8 @@ export function OfferBanners({
         >
           {[...slides, slides[0]].map((banner, index) => {
             const slideClass = `relative aspect-[2.2/1] w-full shrink-0 overflow-hidden bg-gradient-to-r select-none ${banner.gradient ?? "from-[#2f6b2f] via-[#3d8f3d] to-[#5cb85c]"}`;
-            const media = live ? (
+            /** Phase 6 B: skip banner photo bytes on save-data / 2g. */
+            const media = liteMedia ? null : live ? (
               <CatalogImage
                 src={banner.image}
                 alt=""
@@ -264,7 +267,24 @@ export function OfferBanners({
               />
             );
 
-            // Live: creative is the banner — no title / Shop now overlay.
+            const liteCopy = liteMedia ? (
+              <div className="relative flex h-full flex-col justify-center px-5">
+                <h2 className="text-lg leading-snug font-extrabold text-white">
+                  {banner.title || "Offers"}
+                </h2>
+                {banner.subtitle ? (
+                  <p className="mt-1 max-w-[90%] text-xs leading-4 text-white/85">
+                    {banner.subtitle}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs font-medium text-white/70">
+                    Data saver — banner image skipped
+                  </p>
+                )}
+              </div>
+            ) : null;
+
+            // Live: creative is the banner — no title / Shop now overlay (unless lite).
             if (live) {
               const href = banner.href?.trim();
               if (href) {
@@ -278,6 +298,7 @@ export function OfferBanners({
                     className={slideClass}
                   >
                     {media}
+                    {liteCopy}
                   </Link>
                 );
               }
@@ -289,6 +310,7 @@ export function OfferBanners({
                   className={slideClass}
                 >
                   {media}
+                  {liteCopy}
                 </article>
               );
             }
@@ -300,21 +322,23 @@ export function OfferBanners({
                 className={slideClass}
               >
                 {media}
-                <div className="relative flex h-full max-w-[62%] flex-col justify-center pr-2 pl-5">
-                  <h2 className="text-lg leading-snug font-extrabold text-white">
-                    {banner.title}
-                  </h2>
-                  <p className="mt-1 text-xs leading-4 text-white/80">
-                    {banner.subtitle}
-                  </p>
-                  <Link
-                    href={banner.href ?? "/categories"}
-                    tabIndex={index === count ? -1 : undefined}
-                    className="mt-3 inline-flex h-8 w-fit items-center rounded-full bg-white px-3.5 text-xs font-bold text-forest transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                  >
-                    Shop now
-                  </Link>
-                </div>
+                {liteCopy ?? (
+                  <div className="relative flex h-full max-w-[62%] flex-col justify-center pr-2 pl-5">
+                    <h2 className="text-lg leading-snug font-extrabold text-white">
+                      {banner.title}
+                    </h2>
+                    <p className="mt-1 text-xs leading-4 text-white/80">
+                      {banner.subtitle}
+                    </p>
+                    <Link
+                      href={banner.href ?? "/categories"}
+                      tabIndex={index === count ? -1 : undefined}
+                      className="mt-3 inline-flex h-8 w-fit items-center rounded-full bg-white px-3.5 text-xs font-bold text-forest transition hover:bg-mint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                    >
+                      Shop now
+                    </Link>
+                  </div>
+                )}
                 <span className="absolute top-3 right-3 rounded-full bg-black/30 px-2 py-0.5 text-[9px] font-bold tracking-[0.14em] text-white/85 uppercase">
                   Sample
                 </span>

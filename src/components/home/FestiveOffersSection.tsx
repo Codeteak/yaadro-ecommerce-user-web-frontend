@@ -30,8 +30,15 @@ export function FestiveOffersSection({
 }) {
   if (!shelf || shelf.products.length === 0) return null;
 
+  const total = shelf.products.length;
   const products = shelf.products.slice(0, PEEK_LIMIT);
-  const moreCount = Math.max(0, shelf.products.length - products.length);
+  const moreCount = Math.max(0, total - products.length);
+  const seeAllLabel =
+    total === 1
+      ? "See all 1 offer"
+      : moreCount > 0
+        ? `See all ${total} offers`
+        : "See all offers";
 
   return (
     <section
@@ -45,12 +52,17 @@ export function FestiveOffersSection({
         priority={priority}
       >
         <div className="rounded-[1.35rem] bg-[#fffaf0]/92 p-3 ring-1 ring-white/50 backdrop-blur-[2px] sm:p-3.5">
-          <div className="mb-2.5 flex items-baseline justify-end gap-2 px-0.5">
-            <p className="text-[12px] font-semibold text-forest/65">
-              {shelf.products.length}{" "}
-              {shelf.products.length === 1 ? "offer" : "offers"}
-              {moreCount > 0 ? ` · +${moreCount}` : null}
+          <div className="mb-2.5 flex items-baseline justify-between gap-2 px-0.5">
+            <p className="text-[12px] font-semibold text-forest/75">
+              {moreCount > 0
+                ? `Showing ${products.length} of ${total}`
+                : `${total} ${total === 1 ? "offer" : "offers"}`}
             </p>
+            {moreCount > 0 ? (
+              <p className="text-[12px] font-bold text-forest">
+                +{moreCount} more
+              </p>
+            ) : null}
           </div>
           <ul className="grid grid-cols-2 gap-2.5 sm:gap-3">
             {products.map((product, index) => (
@@ -65,9 +77,9 @@ export function FestiveOffersSection({
           <Link
             href={seeAllHref}
             prefetch
-            className="mt-3 flex h-10 w-full touch-manipulation items-center justify-center rounded-full bg-forest text-[13px] font-bold text-white transition-colors hover:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf active:bg-ink"
+            className="mt-3 flex h-10 w-full touch-manipulation items-center justify-center rounded-full bg-track text-[13px] font-bold text-black shadow-[0_8px_20px_rgba(47,107,47,0.28)] transition-colors hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf active:bg-leaf-bright"
           >
-            See all offers
+            {seeAllLabel}
           </Link>
         </div>
       </FestiveHeroCard>

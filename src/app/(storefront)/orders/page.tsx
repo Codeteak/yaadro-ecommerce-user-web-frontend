@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { OrdersPageContent } from "@/components/orders/OrdersPageContent";
 import { ShopNameProvider } from "@/components/shop/ShopNameProvider";
+import { StorefrontRouteShell } from "@/components/ui/skeletons";
 import { getShopSeo } from "@/lib/shop-seo";
 
 export const metadata: Metadata = {
@@ -26,7 +27,7 @@ async function OrdersPageBody() {
 
 export default function OrdersPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<StorefrontRouteShell />}>
       <OrdersPageBody />
     </Suspense>
   );

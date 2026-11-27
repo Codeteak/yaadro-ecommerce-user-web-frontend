@@ -15,6 +15,7 @@ import {
 import { PriceMayVaryNotice } from "@/components/storefront/PriceMayVaryNotice";
 import { catalogPriceDisplay } from "@/lib/catalog-price-display";
 import { MAX_LINE_QUANTITY } from "@/lib/cart-checkout-rules";
+import { noteOfflineCartChange } from "@/lib/note-offline-cart";
 import { formatKgAmount } from "@/lib/qty-label";
 import { ProductCard } from "./ProductCard";
 import { ProductGallery } from "./ProductGallery";
@@ -188,6 +189,7 @@ export function ProductDetail({
               onClick={() => {
                 rememberProduct(product);
                 setCartQty(product.id, 1);
+                noteOfflineCartChange(product.id, product.name);
               }}
               aria-label={`Add ${product.name} to cart`}
               className="flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-2xl bg-track px-4 text-sm font-semibold text-black shadow-[0_12px_28px_rgba(47,107,47,0.28)] transition hover:bg-leaf-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf"
@@ -198,7 +200,10 @@ export function ProductDetail({
             <div className="flex h-12 min-w-0 flex-1 items-center justify-between gap-1 rounded-2xl bg-track px-2 text-black shadow-[0_12px_28px_rgba(47,107,47,0.28)]">
               <button
                 type="button"
-                onClick={() => setCartQty(product.id, qty - 1)}
+                onClick={() => {
+                  setCartQty(product.id, qty - 1);
+                  noteOfflineCartChange(product.id, product.name);
+                }}
                 aria-label={`Decrease quantity of ${product.name}`}
                 className="grid size-10 cursor-pointer place-items-center rounded-xl text-black transition hover:bg-black/10 active:scale-90 focus-visible:outline-2 focus-visible:outline-leaf"
               >
@@ -214,9 +219,10 @@ export function ProductDetail({
               </span>
               <button
                 type="button"
-                onClick={() =>
-                  setCartQty(product.id, Math.min(MAX_LINE_QUANTITY, qty + 1))
-                }
+                onClick={() => {
+                  setCartQty(product.id, Math.min(MAX_LINE_QUANTITY, qty + 1));
+                  noteOfflineCartChange(product.id, product.name);
+                }}
                 disabled={qty >= MAX_LINE_QUANTITY}
                 aria-label={`Increase quantity of ${product.name}`}
                 className="grid size-10 cursor-pointer place-items-center rounded-xl text-black transition hover:bg-black/10 active:scale-90 focus-visible:outline-2 focus-visible:outline-leaf disabled:cursor-not-allowed disabled:opacity-40"

@@ -48,6 +48,16 @@ import { FruitsVeggiesSection } from "@/components/home/FruitsVeggiesSection";
 import { FestiveOffersPageContent } from "@/components/home/FestiveOffersPageContent";
 import { FestiveOffersSection } from "@/components/home/FestiveOffersSection";
 import { SectionFullPageScrollDemo } from "@/components/playground/SectionFullPageScrollDemo";
+import { LoadingPhasesDemo } from "@/components/playground/LoadingPhasesDemo";
+import { LoadingOfflineShippedDemo } from "@/components/playground/LoadingOfflineShippedDemo";
+import { LowBandwidthLoadingDemo } from "@/components/playground/LowBandwidthLoadingDemo";
+import { AdaptiveMediaOfflineDemo } from "@/components/playground/AdaptiveMediaOfflineDemo";
+import { ReconnectResumeDemo } from "@/components/playground/ReconnectResumeDemo";
+import { LoadingPolishDemo } from "@/components/playground/LoadingPolishDemo";
+import { ConnectionChipOptionsDemo } from "@/components/playground/ConnectionChipOptionsDemo";
+import { OfflineBannerOptionsDemo } from "@/components/playground/OfflineBannerOptionsDemo";
+import { OfflineStatusBanner } from "@/components/storefront/OfflineStatusBanner";
+import { SAMPLE_FESTIVE_SHELF } from "@/lib/festive-offers";
 import { CategoryBrowseSections } from "@/components/home/CategoryBrowseSections";
 import { HomeProductShelves } from "@/components/home/HomeProductShelves";
 import { HomePullContent } from "@/components/home/HomePullContent";
@@ -106,6 +116,9 @@ import {
   ProductGridSkeleton,
   ProductRailSkeleton,
   StorefrontPageSkeleton,
+  StorefrontRouteShell,
+  DairyPageSkeleton,
+  FestivePageSkeleton,
 } from "@/components/ui/skeletons";
 import { CouponsPageContent } from "@/components/coupons/CouponsPageContent";
 import { WishlistPageContent } from "@/components/wishlist/WishlistPageContent";
@@ -985,20 +998,34 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </div>
     </DemoFrame>
   ),
-  "festive-offers-section": () => (
-    <DemoFrame
-      surface="bare"
-      note="Full festive image card — headline = admin shelf title (sample: Diwali festive specials). See all prefetches destination. Live: /home → /festive."
-    >
-      <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl bg-paper ring-1 ring-black/5">
-        <FestiveOffersSection
-          priority
-          seeAllHref="/playground/festive-offers-page"
-        />
-        <WeightCustomizer />
-      </div>
-    </DemoFrame>
-  ),
+  "festive-offers-section": () => {
+    // 21 offers so playground matches live “Showing 4 of N / See all N offers” cue.
+    const festivePeekShelf = {
+      ...SAMPLE_FESTIVE_SHELF,
+      products: Array.from({ length: 21 }, (_, i) => {
+        const base =
+          SAMPLE_FESTIVE_SHELF.products[
+            i % SAMPLE_FESTIVE_SHELF.products.length
+          ]!;
+        return { ...base, id: `${base.id}-peek-${i}` };
+      }),
+    };
+    return (
+      <DemoFrame
+        surface="bare"
+        note="Peek cue: “Showing 4 of 21” + “+17 more”. CTA = track green + black “See all 21 offers” (same as dairy). Live: /home → /festive."
+      >
+        <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl bg-paper ring-1 ring-black/5">
+          <FestiveOffersSection
+            shelf={festivePeekShelf}
+            priority
+            seeAllHref="/playground/festive-offers-page"
+          />
+          <WeightCustomizer />
+        </div>
+      </DemoFrame>
+    );
+  },
   "festive-offers-page": () => (
     <DemoFrame
       surface="bare"
@@ -1172,9 +1199,10 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "wishlist-list": () => (
-    <DemoFrame note="Same as /wishlist when signed in (seeded). Heart removes from list.">
+    <DemoFrame note="Live /wishlist + OfflineStatusBanner F when offline. Seeded list; heart removes.">
       <WishlistProvider previewSignedIn initialIds={WISHLIST_SEED_IDS}>
         <div className="relative h-[75vh] overflow-y-auto overscroll-contain">
+          <OfflineStatusBanner forcePreview className="pt-2" />
           <WishlistPageContent chromePosition="inline" />
         </div>
         <WeightCustomizer />
@@ -1191,7 +1219,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "cart-page": () => (
     <DemoFrame
       surface="bare"
-      note="Phase A wired: #32 solid Checkout CTA + #36 stable line order (also on live /cart). SAMPLE top offers + local apply."
+      note="Live /cart: OfflineStatusBanner F when offline + Checkout CTA. SAMPLE top offers + local apply."
     >
       <div className="relative h-[75vh] bg-paper">
         <CartPageContent
@@ -1346,8 +1374,9 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     );
   },
   "orders-list": () => (
-    <DemoFrame note="Same as /orders: parcel + order id, status badge + pulse.">
+    <DemoFrame note="Live /orders: OfflineStatusBanner F when offline + status cards. Suspense → route shell.">
       <div className="relative max-h-[75vh] overflow-y-auto overscroll-contain bg-paper">
+        <OfflineStatusBanner forcePreview className="pt-2" />
         <OrdersPageContent
           chromePosition="inline"
           backHref="/playground"
@@ -1514,6 +1543,14 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </div>
     </DemoFrame>
   ),
+  "loading-offline-shipped": () => <LoadingOfflineShippedDemo />,
+  "low-bandwidth-loading": () => <LowBandwidthLoadingDemo />,
+  "adaptive-media-offline": () => <AdaptiveMediaOfflineDemo />,
+  "reconnect-resume": () => <ReconnectResumeDemo />,
+  "loading-polish": () => <LoadingPolishDemo />,
+  "connection-chip-options": () => <ConnectionChipOptionsDemo />,
+  "loading-phases": () => <LoadingPhasesDemo />,
+  "offline-status-banner": () => <OfflineBannerOptionsDemo />,
   skeletons: () => (
     <DemoFrame
       surface="bare"
@@ -1579,7 +1616,28 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
         </section>
         <section>
           <p className="mb-3 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
-            Storefront page shell
+            Route shell (live loading.tsx)
+          </p>
+          <div className="overflow-hidden rounded-2xl ring-1 ring-black/5">
+            <StorefrontRouteShell className="min-h-0" />
+          </div>
+        </section>
+        <section>
+          <p className="mb-3 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
+            Dairy / festive page Suspense
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="overflow-hidden rounded-2xl ring-1 ring-black/5">
+              <DairyPageSkeleton className="min-h-0" />
+            </div>
+            <div className="overflow-hidden rounded-2xl ring-1 ring-black/5">
+              <FestivePageSkeleton className="min-h-0" />
+            </div>
+          </div>
+        </section>
+        <section>
+          <p className="mb-3 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
+            Legacy full-page skeleton (specimen)
           </p>
           <div className="overflow-hidden rounded-2xl ring-1 ring-black/5">
             <StorefrontPageSkeleton className="min-h-0 pt-6 pb-6" />
@@ -1622,7 +1680,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   toasts: () => (
     <DemoFrame
       surface="bare"
-      note="Theme island snackbars at the top. showPopup(message, type) — same API as storefront. Auto-dismiss ~3.2s."
+      note="Lucide icons (offline-safe). showPopup(message, type) — same as storefront. Auto-dismiss ~3.2s."
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
         <ToastDemo />

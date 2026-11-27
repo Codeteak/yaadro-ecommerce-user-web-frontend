@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/navigation/PageHeader";
 import { BrandFooter } from "@/components/storefront/BrandFooter";
+import { OfflineStatusBanner } from "@/components/storefront/OfflineStatusBanner";
 import { LogoutRow } from "@/components/profile/LogoutRow";
 import {
   ProfileDeskGuestCard,
@@ -107,12 +108,7 @@ export function ProfileScreen({
         ) : null}
 
         {!me.online ? (
-          <p
-            role="status"
-            className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[13px] font-semibold text-amber-900 ring-1 ring-amber-200/80"
-          >
-            You&apos;re offline. Changes will be available when you reconnect.
-          </p>
+          <OfflineStatusBanner tone="reconnect" className="mt-2 !px-0 !pt-0" />
         ) : null}
 
         {showSkeleton ? (
