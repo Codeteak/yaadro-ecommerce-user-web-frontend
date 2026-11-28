@@ -21,17 +21,17 @@ const RAIL_PEEK = 8;
 type OfferDhamakaCardProps = {
   className?: string;
   shelf?: OfferDhamakaShelf | null;
-  /** Defaults to `/deals` See-all page. */
+  /** Defaults to playground See-all page. */
   href?: string;
   priority?: boolean;
 };
 
 /**
- * Offer Dhamaka promo on /home when an admin shelf title matches.
+ * Offer Dhamaka promo — playground only until buy-X-get-Y / deals API exists.
  *
  * One purple card: creative (Special Offers / Price Drop stay in the art —
  * no HTML header), then a product band that overlaps the art and sticks as a
- * footer above the bottom nav while the section is in view. See all → `/deals`.
+ * footer above the bottom nav while the section is in view.
  */
 export function OfferDhamakaCard({
   className,

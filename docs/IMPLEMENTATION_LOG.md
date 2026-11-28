@@ -1,8 +1,16 @@
 # Implementation Log
 
-## 2026-11-28 — Offer Dhamaka wired to ecom
+## 2026-11-28 — BottomNav full active labels
 
-`HomeAdminShelves` mounts `OfferDhamakaCard` for dhamaka / price drop / special offers titles (same `sort_order` stack as dairy/festive). See all → `/deals`; home idle-prefetches `/deals`. Card product band is a sticky footer above BottomNav clearance (outer shell not overflow-clipped). `/deals` sticky header is solid purple (no blur) + `overflow-x-clip` to avoid scroll jank / horizontal bleed.
+Equal `flex-1` slots were clipping “Categories” even after raising max-width. Inactive tabs are now fixed icon size; the active tab grows to its natural width so Home/Categories/Wishlist/Profile show in full. Shell keeps `overflow-x-clip`. Playground `bottom-nav` note updated.
+
+## 2026-11-28 — Offer Dhamaka unwired (playground only)
+
+Removed live `HomeAdminShelves` / `shop_home_sections` title matching. Buy-X-get-Y / deals is a different backend section + API — keep card + See-all in playground until that lands. Live `/deals` left as an empty stub (no `listHomeShelves` pick). Home no longer prefetches `/deals`.
+
+## 2026-11-28 — Offer Dhamaka briefly wired then reverted
+
+Had mounted from home-section title keywords; reverted — not the right API for this promo.
 
 ## 2026-11-28 — Offer Dhamaka card shorter crop
 

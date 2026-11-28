@@ -48,7 +48,7 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Navigation",
     description:
-      "Fixed floating island. Hide-nav routes force chrome pb-0 (no footer band). Clearance also collapses on scroll-hide.",
+      "Fixed floating island; narrow-safe pill (min-w-0, capped active label). Hide-nav → pb-0; clearance collapses on scroll-hide.",
     wiresTo: "StorefrontChrome + shouldHideStorefrontNav",
   },
   {
@@ -250,8 +250,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Special Offers art + sticky product footer + “See all 10+ deals”. Shows on /home when shelf title matches.",
-    wiresTo: "/home → See all → /deals",
+      "Special Offers art + sticky product footer + “See all 10+ deals”. Playground only — awaits buy-X-get-Y / deals API.",
+    wiresTo: "Playground only (future deals section API → /home)",
   },
   {
     slug: "offer-dhamaka-page",
@@ -259,8 +259,8 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     status: "built",
     group: "Home",
     description:
-      "Solid sticky purple header + deal count + ProductCard grid. Live /deals: hide-nav pb-0, instant back, prefetch.",
-    wiresTo: "/deals (nav hidden, no footer band)",
+      "Solid sticky purple header + deal count + ProductCard grid. Playground See-all; live /deals is an empty stub.",
+    wiresTo: "/playground/offer-dhamaka-page",
   },
   {
     slug: "product-section",

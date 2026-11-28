@@ -5,8 +5,8 @@ import { WeightCustomizer } from "@/components/cart/WeightCustomizer";
 import { offerDhamakaSeeAllLabel } from "@/lib/offer-dhamaka";
 
 /**
- * Playground lab for the Offer Dhamaka home card (also wired on live /home).
- * Sticky product footer + See all caps at 10+.
+ * Playground lab for Offer Dhamaka (not on live /home).
+ * Buy-X-get-Y / deals needs a dedicated backend section API before ecom wire.
  */
 export function OfferDhamakaDemo() {
   const seeAll = offerDhamakaSeeAllLabel(12);
@@ -18,8 +18,9 @@ export function OfferDhamakaDemo() {
         href="/playground/offer-dhamaka-page"
       />
       <p className="px-5 pb-6 text-center text-[12px] leading-5 text-muted">
-        Live /home when admin title matches. Sticky product footer above the
-        bottom nav. CTA = “{seeAll}” → /deals (this lab → playground page).
+        Playground only — not wired to shop_home_sections. Sticky product
+        footer; CTA = “{seeAll}” → playground See-all. Live wire waits on a
+        dedicated deals / buy-X-get-Y API.
       </p>
       <WeightCustomizer />
     </div>

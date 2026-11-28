@@ -8,9 +8,9 @@ export {
 } from "@/lib/offer-dhamaka-title";
 
 /**
- * Offer Dhamaka home promo card.
- * Live /home + /deals pick a shop home-section by title keywords
- * (dhamaka / price drop / special offers); playground uses SAMPLE_OFFER_DHAMAKA.
+ * Offer Dhamaka home promo card — playground only for now.
+ * Not wired to shop_home_sections (that path is dairy/festive/plain shelves).
+ * Buy-X-get-Y / deals will use a dedicated backend section + API later.
  *
  * Art is 682×1024 and already includes “Special Offers” + “Price Drop”.
  * Do not overlay an admin/HTML title header — copy lives in the creative.
@@ -28,8 +28,8 @@ export const OFFER_DHAMAKA_ART_H = 1024;
  */
 export const OFFER_DHAMAKA_CARD_ART_H = 760;
 
-/** See-all page for the home Offer Dhamaka card. */
-export const OFFER_DHAMAKA_DEFAULT_HREF = "/deals";
+/** Playground See-all until a dedicated deals API is wired. */
+export const OFFER_DHAMAKA_DEFAULT_HREF = "/playground/offer-dhamaka-page";
 
 /** 2-col peek inside the card (same as festive). */
 export const OFFER_DHAMAKA_PEEK = 4;

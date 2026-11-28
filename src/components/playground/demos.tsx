@@ -588,10 +588,17 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
     </DemoFrame>
   ),
   "bottom-nav": () => (
-    <DemoFrame note="Fixed island BottomNav. Clearance collapses on scroll-hide; fill pages overlay the pill (no paper band). inert avoids aria-hidden focus warnings.">
-      <NavScrollProvider>
-        <BottomNavClearanceDemo />
-      </NavScrollProvider>
+    <DemoFrame note="Fixed island BottomNav. Inactive tabs are icon-only width; active tab grows so “Categories” is never clipped. Right frame ≈320px.">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <NavScrollProvider>
+          <BottomNavClearanceDemo />
+        </NavScrollProvider>
+        <NavScrollProvider>
+          <div className="mx-auto w-full max-w-[320px]">
+            <BottomNavClearanceDemo />
+          </div>
+        </NavScrollProvider>
+      </div>
     </DemoFrame>
   ),
   "pull-to-refresh": () => (
@@ -901,7 +908,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "offer-dhamaka": () => (
     <DemoFrame
       surface="bare"
-      note="Wired on /home when shelf title matches dhamaka / price drop / special offers. Sticky product footer above BottomNav. CTA “See all 10+ deals” → /deals (playground → offer-dhamaka-page)."
+      note="Playground only — not on live /home (buy-X-get-Y / deals needs its own API). Sticky product footer; CTA “See all 10+ deals” → /playground/offer-dhamaka-page."
     >
       <OfferDhamakaDemo />
     </DemoFrame>
@@ -909,7 +916,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "offer-dhamaka-page": () => (
     <DemoFrame
       surface="bare"
-      note="See-all full page (sample). Live /deals: hide-nav pb-0, solid sticky header (no blur), pickOfferDhamakaShelf (empty if no match)."
+      note="See-all full page (sample). Playground only until deals API; live /deals is an empty stub (not shop_home_sections)."
     >
       <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
         <OfferDhamakaPageContent backHref="/playground/offer-dhamaka" />

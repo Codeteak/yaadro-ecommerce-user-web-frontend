@@ -63,7 +63,8 @@ function StorefrontChromeLayout({ children }: { children: ReactNode }) {
     <div
       style={style}
       className={cn(
-        "min-h-dvh transition-[padding-bottom]",
+        // overflow-x-clip: horizontal rails can’t shove the page (fixed BottomNav looks shifted).
+        "min-h-dvh overflow-x-clip transition-[padding-bottom]",
         NAV_MOTION,
         "pb-[calc(var(--storefront-nav-clearance,5.5rem)+env(safe-area-inset-bottom,0px))]",
         // Fill + path-hidden routes: no shell footer band (pages own safe-area).

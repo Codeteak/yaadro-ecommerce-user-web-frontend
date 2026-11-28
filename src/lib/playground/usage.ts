@@ -42,8 +42,8 @@ import { useScrollDirection } from "@/components/navigation/useScrollDirection";
 
 // Path-hidden on /cart, /checkout, /dairy, /festive, /orders/[id], profile tasks
 // Scroll-hidden via useScrollDirection (window + nested overflow)
-// StorefrontChrome: hide-nav → clearance 0 + pb-0 (no shell footer band)
-// Section pages also SSR-emit data-storefront-hide-nav for first paint
+// Narrow phones: max-w-[min(100%,28rem)] + overflow-hidden + smaller active label
+// StorefrontChrome: overflow-x-clip; hide-nav → clearance 0 + pb-0
 // When pill hidden: inert + blur focused tab (avoid aria-hidden-on-focus warning)
 <BottomNav />`,
     [
@@ -374,15 +374,14 @@ import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
   ),
   "offer-dhamaka": U(
     `import { OfferDhamakaCard } from "@/components/home/OfferDhamakaCard";
-import { pickOfferDhamakaShelf } from "@/lib/offer-dhamaka";
+import { SAMPLE_OFFER_DHAMAKA } from "@/lib/offer-dhamaka";
 
-// Live /home (HomeAdminShelves): title keywords → card; See all → /deals
-// Sticky product footer sits above BottomNav clearance
-<OfferDhamakaCard shelf={shelf} href="/deals" />
+// Playground only — not HomeAdminShelves / shop_home_sections
+// Wire later via dedicated buy-X-get-Y / deals section API
+<OfferDhamakaCard shelf={SAMPLE_OFFER_DHAMAKA} href="/playground/offer-dhamaka-page" />
 `,
     [
       "src/components/home/OfferDhamakaCard.tsx",
-      "src/components/home/HomeAdminShelves.tsx",
       "src/lib/offer-dhamaka.ts",
       "src/components/playground/OfferDhamakaDemo.tsx",
       "public/home/offer-dhamaka.jpg",
@@ -390,16 +389,13 @@ import { pickOfferDhamakaShelf } from "@/lib/offer-dhamaka";
   ),
   "offer-dhamaka-page": U(
     `import { OfferDhamakaPageContent } from "@/components/home/OfferDhamakaPageContent";
-import { pickOfferDhamakaShelf } from "@/lib/offer-dhamaka";
+import { SAMPLE_OFFER_DHAMAKA } from "@/lib/offer-dhamaka";
 
-// Live /deals: listHomeShelves + pickOfferDhamakaShelf (empty if no match)
-// Solid sticky header (no blur); data-storefront-hide-nav → chrome pb-0
-<OfferDhamakaPageContent shelf={shelf} backHref="/home" />`,
+// Playground See-all. Live /deals is an empty stub until deals API exists.
+<OfferDhamakaPageContent shelf={SAMPLE_OFFER_DHAMAKA} backHref="/playground/offer-dhamaka" />`,
     [
       "src/components/home/OfferDhamakaPageContent.tsx",
-      "src/app/(storefront)/deals/page.tsx",
       "src/lib/offer-dhamaka.ts",
-      "src/lib/storefront-nav.ts",
       "src/components/storefront/StorefrontChrome.tsx",
       "public/home/offer-dhamaka.jpg",
     ],
