@@ -183,6 +183,7 @@ export default function StorefrontHomePage() {
         <PrefetchStorefrontRoute href="/categories" />
         <PrefetchStorefrontRoute href="/categories?focus=search" />
         <PrefetchStorefrontRoute href="/dairy" />
+        <PrefetchStorefrontRoute href="/deals" />
         <PrefetchStorefrontRoute href="/festive" />
       </main>
     </HomeCategoryProvider>

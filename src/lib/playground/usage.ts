@@ -372,6 +372,38 @@ import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";
 <OfferFlyer />`,
     ["src/components/home/OfferFlyer.tsx"],
   ),
+  "offer-dhamaka": U(
+    `import { OfferDhamakaCard } from "@/components/home/OfferDhamakaCard";
+import { pickOfferDhamakaShelf } from "@/lib/offer-dhamaka";
+
+// Live /home (HomeAdminShelves): title keywords → card; See all → /deals
+// Sticky product footer sits above BottomNav clearance
+<OfferDhamakaCard shelf={shelf} href="/deals" />
+`,
+    [
+      "src/components/home/OfferDhamakaCard.tsx",
+      "src/components/home/HomeAdminShelves.tsx",
+      "src/lib/offer-dhamaka.ts",
+      "src/components/playground/OfferDhamakaDemo.tsx",
+      "public/home/offer-dhamaka.jpg",
+    ],
+  ),
+  "offer-dhamaka-page": U(
+    `import { OfferDhamakaPageContent } from "@/components/home/OfferDhamakaPageContent";
+import { pickOfferDhamakaShelf } from "@/lib/offer-dhamaka";
+
+// Live /deals: listHomeShelves + pickOfferDhamakaShelf (empty if no match)
+// Solid sticky header (no blur); data-storefront-hide-nav → chrome pb-0
+<OfferDhamakaPageContent shelf={shelf} backHref="/home" />`,
+    [
+      "src/components/home/OfferDhamakaPageContent.tsx",
+      "src/app/(storefront)/deals/page.tsx",
+      "src/lib/offer-dhamaka.ts",
+      "src/lib/storefront-nav.ts",
+      "src/components/storefront/StorefrontChrome.tsx",
+      "public/home/offer-dhamaka.jpg",
+    ],
+  ),
   "product-section": U(
     `import { ProductSection } from "@/components/home/ProductSection";
 import { HomeCategoryProvider } from "@/components/home/HomeCategoryContext";

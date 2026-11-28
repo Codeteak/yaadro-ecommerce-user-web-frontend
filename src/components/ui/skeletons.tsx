@@ -399,6 +399,29 @@ export function FestivePageSkeleton({ className }: { className?: string }) {
   );
 }
 
+/** Offer Dhamaka /deals Suspense fallback — purple wash + header + grid bones. */
+export function DealsPageSkeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "relative mx-auto min-h-dvh w-full max-w-lg bg-[#6a24b8]",
+        className,
+      )}
+      aria-busy
+      aria-label="Loading special offers"
+    >
+      <div className="border-b border-white/15 px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-4">
+        <div className="flex h-11 items-center gap-3">
+          <Skeleton className="h-11 w-11 rounded-[13px] bg-track/50" />
+          <Skeleton className="mx-auto h-5 w-36 rounded-md bg-white/25" />
+        </div>
+        <Skeleton className="mx-auto mt-3 h-3 w-40 rounded-md bg-white/15" />
+      </div>
+      <ProductGridSkeleton count={4} className="px-5 pt-5" />
+    </div>
+  );
+}
+
 /** Order detail Suspense fallback. */
 export function OrderDetailSkeleton({ className }: { className?: string }) {
   return (

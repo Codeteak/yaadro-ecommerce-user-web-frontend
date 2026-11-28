@@ -57,6 +57,8 @@ import { LoadingPolishDemo } from "@/components/playground/LoadingPolishDemo";
 import { ConnectionChipOptionsDemo } from "@/components/playground/ConnectionChipOptionsDemo";
 import { OfflineBannerOptionsDemo } from "@/components/playground/OfflineBannerOptionsDemo";
 import { TomatoLoaderDemo } from "@/components/playground/TomatoLoaderDemo";
+import { OfferDhamakaDemo } from "@/components/playground/OfferDhamakaDemo";
+import { OfferDhamakaPageContent } from "@/components/home/OfferDhamakaPageContent";
 import { OfflineStatusBanner } from "@/components/storefront/OfflineStatusBanner";
 import { SAMPLE_FESTIVE_SHELF } from "@/lib/festive-offers";
 import { CategoryBrowseSections } from "@/components/home/CategoryBrowseSections";
@@ -537,7 +539,7 @@ function BottomNavClearanceDemo() {
         </p>
         <p className="mt-1 text-[12px] leading-5 text-muted">
           Scroll down — pill slides off and bottom padding collapses (no blank
-          strip). Path-hidden routes (/dairy, /festive, cart…) use
+          strip). Path-hidden routes (/dairy, /deals, /festive, cart…) use
           data-storefront-hide-nav → chrome pb-0. Focus a tab first to confirm
           inert (no aria-hidden warning).
         </p>
@@ -896,6 +898,25 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
       </div>
     </DemoFrame>
   ),
+  "offer-dhamaka": () => (
+    <DemoFrame
+      surface="bare"
+      note="Wired on /home when shelf title matches dhamaka / price drop / special offers. Sticky product footer above BottomNav. CTA “See all 10+ deals” → /deals (playground → offer-dhamaka-page)."
+    >
+      <OfferDhamakaDemo />
+    </DemoFrame>
+  ),
+  "offer-dhamaka-page": () => (
+    <DemoFrame
+      surface="bare"
+      note="See-all full page (sample). Live /deals: hide-nav pb-0, solid sticky header (no blur), pickOfferDhamakaShelf (empty if no match)."
+    >
+      <div className="relative max-h-[85vh] overflow-y-auto overscroll-contain rounded-2xl ring-1 ring-black/5">
+        <OfferDhamakaPageContent backHref="/playground/offer-dhamaka" />
+        <WeightCustomizer />
+      </div>
+    </DemoFrame>
+  ),
   "product-section": () => {
     const wideAisle = [
       ...getProductsByCategory("Vegetables"),
@@ -1066,7 +1087,7 @@ const BUILT_DEMOS: Record<string, () => ReactNode> = {
   "storefront-shell": () => (
     <DemoFrame
       surface="bare"
-      note="Phase B #29: scroll-hide collapses clearance with the pill. Live hide-nav routes (/dairy, /festive, cart…) also force chrome pb-0."
+      note="Phase B #29: scroll-hide collapses clearance with the pill. Live hide-nav routes (/dairy, /deals, /festive, cart…) also force chrome pb-0."
     >
       <PhaseBShellDemo />
     </DemoFrame>

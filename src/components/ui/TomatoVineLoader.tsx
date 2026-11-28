@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/cn";
 
@@ -28,6 +28,16 @@ const TYPE_MS = 55;
 const HOLD_MS = 1200;
 const CLEAR_MS = 28;
 
+function subscribeReducedMotion(onChange: () => void) {
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
+
+function getReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 /**
  * Happy tomato vine loader — soft edges + typewriter label.
  * Playground-first; wire to category PLP Suspense when approved.
@@ -38,16 +48,15 @@ export function TomatoVineLoader({
   size = "md",
 }: TomatoVineLoaderProps) {
   const box = SIZE[size];
+  const reduceMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotion,
+    () => false,
+  );
   const [typed, setTyped] = useState("");
 
   useEffect(() => {
-    const reduce =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) {
-      setTyped(label);
-      return;
-    }
+    if (reduceMotion) return;
 
     let cancelled = false;
     let timer = 0;
@@ -82,15 +91,22 @@ export function TomatoVineLoader({
       timer = window.setTimeout(tick, CLEAR_MS);
     };
 
-    setTyped("");
-    i = 0;
-    phase = "type";
-    timer = window.setTimeout(tick, 200);
+    // Schedule start — avoid sync setState in the effect body (lint).
+    timer = window.setTimeout(() => {
+      if (cancelled) return;
+      i = 0;
+      phase = "type";
+      setTyped("");
+      timer = window.setTimeout(tick, 200);
+    }, 0);
+
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [label]);
+  }, [label, reduceMotion]);
+
+  const shown = reduceMotion ? label : typed;
 
   return (
     <div
@@ -109,7 +125,6 @@ export function TomatoVineLoader({
             "radial-gradient(circle at 50% 42%, rgba(232,245,233,0.98) 0%, rgba(245,249,246,0.7) 52%, transparent 74%)",
         }}
       >
-        {/* Ambient glow so hard silhouette never sits on flat paper */}
         <div
           className="pointer-events-none absolute inset-[10%] rounded-full opacity-80 blur-3xl"
           style={{
@@ -119,7 +134,6 @@ export function TomatoVineLoader({
           aria-hidden
         />
 
-        {/* Soft bloom plate — blurred twin dissolves pixel edges */}
         <Image
           src={TOMATO_VINE_LOADER_SRC}
           alt=""
@@ -134,7 +148,6 @@ export function TomatoVineLoader({
           style={{ mixBlendMode: "multiply" }}
         />
 
-        {/* Crisp-enough front with light AA soften */}
         <Image
           src={TOMATO_VINE_LOADER_SRC}
           alt=""
@@ -157,8 +170,10 @@ export function TomatoVineLoader({
         className="min-h-[1.25rem] text-[13px] font-bold tracking-wide text-forest"
         aria-hidden
       >
-        {typed}
-        <span className="tvl-caret ml-0.5 inline-block w-[0.45ch] translate-y-px border-r-2 border-forest/70" />
+        {shown}
+        {!reduceMotion ? (
+          <span className="tvl-caret ml-0.5 inline-block w-[0.45ch] translate-y-px border-r-2 border-forest/70" />
+        ) : null}
       </p>
 
       <style>{`

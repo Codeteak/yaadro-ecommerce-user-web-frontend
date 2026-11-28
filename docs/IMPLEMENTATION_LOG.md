@@ -1,5 +1,21 @@
 # Implementation Log
 
+## 2026-11-28 — Offer Dhamaka wired to ecom
+
+`HomeAdminShelves` mounts `OfferDhamakaCard` for dhamaka / price drop / special offers titles (same `sort_order` stack as dairy/festive). See all → `/deals`; home idle-prefetches `/deals`. Card product band is a sticky footer above BottomNav clearance (outer shell not overflow-clipped). `/deals` sticky header is solid purple (no blur) + `overflow-x-clip` to avoid scroll jank / horizontal bleed.
+
+## 2026-11-28 — Offer Dhamaka card shorter crop
+
+Home card uses `OFFER_DHAMAKA_CARD_ART_H` (760 vs full 1024) + `object-top` and a slightly deeper product overlap so Special Offers / Price Drop stay visible without filling the whole /home viewport.
+
+## 2026-11-28 — Offer Dhamaka See all + /deals
+
+Home card CTA = `See all N deals` (`offerDhamakaSeeAllLabel`). Separate See-all route `/deals` (`OfferDhamakaPageContent`, nav hidden, Suspense + `DealsPageSkeleton`). Live page uses `pickOfferDhamakaShelf` only (empty if no admin match). Playground: `/playground/offer-dhamaka` → `/playground/offer-dhamaka-page`. Card still playground-only (not on live /home).
+
+## 2026-11-28 — Offer Dhamaka card (playground only)
+
+Tall home promo from `public/home/offer-dhamaka.jpg` + ProductCard rail overlapping art inside one purple card. Sample price-drop products in `SAMPLE_OFFER_DHAMAKA`. Playground `/playground/offer-dhamaka`. Not on live /home.
+
 ## 2026-11-27 — Tomato vine loader (playground only)
 
 `TomatoVineLoader` uses softened animated WebP (`tomato-vine.webp`: 2× LANCZOS + blur + fringe cleanup) plus CSS bloom/multiply; typewriter label. Playground `/playground/tomato-loader`. Not wired to ecom yet.

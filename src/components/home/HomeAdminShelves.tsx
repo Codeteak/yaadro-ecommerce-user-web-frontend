@@ -2,26 +2,31 @@
 
 import { DailyDairySection } from "@/components/home/DailyDairySection";
 import { FestiveOffersSection } from "@/components/home/FestiveOffersSection";
+import { OfferDhamakaCard } from "@/components/home/OfferDhamakaCard";
 import { HomeProductShelf } from "@/components/home/HomeProductShelf";
 import type { LiveShelf } from "@/components/home/HomeProductShelves";
 import { useTypeScale } from "@/components/ui/TypeScaleContext";
 import { isDairySectionTitle } from "@/lib/daily-dairy";
 import { isFestiveSectionTitle } from "@/lib/festive-offers";
+import { isOfferDhamakaSectionTitle } from "@/lib/offer-dhamaka";
 import { sortHomeShelvesByOrder } from "@/lib/home-section-order";
 
 /**
  * Renders shop admin home sections in `sort_order`.
- * Dairy titles (incl. “Daily Diary”) → art card; Festive → festive band;
- * everything else → product shelf. Skips empty product lists.
+ * Dairy → art card; Festive → festive band; Offer Dhamaka / price drop →
+ * purple Special Offers card; everything else → product shelf.
+ * Skips empty product lists.
  */
 export function HomeAdminShelves({
   shelves,
   dairyBrowseHref = "/dairy",
   festiveSeeAllHref = "/festive",
+  dealsSeeAllHref = "/deals",
 }: {
   shelves: LiveShelf[];
   dairyBrowseHref?: string;
   festiveSeeAllHref?: string;
+  dealsSeeAllHref?: string;
 }) {
   const t = useTypeScale();
   const ordered = sortHomeShelvesByOrder(
@@ -56,6 +61,16 @@ export function HomeAdminShelves({
               className={t.homeBlockGap}
               shelf={shelf}
               seeAllHref={festiveSeeAllHref}
+            />
+          );
+        }
+        if (isOfferDhamakaSectionTitle(shelf.title)) {
+          return (
+            <OfferDhamakaCard
+              key={shelf.id}
+              className={t.homeBlockGap}
+              shelf={shelf}
+              href={dealsSeeAllHref}
             />
           );
         }

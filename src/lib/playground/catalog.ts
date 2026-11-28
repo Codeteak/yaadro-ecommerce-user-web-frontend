@@ -245,6 +245,24 @@ export const PLAYGROUND_ENTRIES: PlaygroundEntry[] = [
     wiresTo: "/home",
   },
   {
+    slug: "offer-dhamaka",
+    title: "Offer Dhamaka card",
+    status: "built",
+    group: "Home",
+    description:
+      "Special Offers art + sticky product footer + “See all 10+ deals”. Shows on /home when shelf title matches.",
+    wiresTo: "/home → See all → /deals",
+  },
+  {
+    slug: "offer-dhamaka-page",
+    title: "Offer Dhamaka page",
+    status: "built",
+    group: "Home",
+    description:
+      "Solid sticky purple header + deal count + ProductCard grid. Live /deals: hide-nav pb-0, instant back, prefetch.",
+    wiresTo: "/deals (nav hidden, no footer band)",
+  },
+  {
     slug: "product-section",
     title: "ProductSection",
     status: "built",
